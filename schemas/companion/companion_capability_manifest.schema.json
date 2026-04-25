@@ -1,0 +1,817 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/companion/companion_capability_manifest.schema.json",
+  "title": "Aureline browser / mobile companion capability manifest",
+  "description": "Boundary schema for the companion_capability_manifest_record frozen in docs/companion/companion_surface_contract.md. Each manifest pins one scoped, no-bypass companion client (browser web companion, browser extension, mobile native app, mobile web PWA, embedded inspection widget) to a closed list of allowed canonical objects, allowed actions, an authentication posture, a step-up posture, a freshness / offline posture, and a notification policy that reuses (and never re-mints) the desktop canonical_event_id set, the desktop suppression-reason set, and the desktop quiet-hours / focus-mode / presentation-mode rules. The manifest is the cross-tool boundary every companion-aware surface (companion launcher review, capability-row review, claim-manifest review, support / export reader, hosted-review reader, AI-tool review, admin / policy review, signing / release review) reads. The record never carries raw provider URLs, raw provider payloads, raw OAuth tokens, raw push-notification provider tokens, raw lock-screen payloads, raw stack frames, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, or raw secret material; rows carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and freshness / offline / notification / step-up tokens only. Composes with (and does not replace) ADR-0007 (secret-broker handle / raw-secret-forbidden boundary), ADR-0009 (execution-context and scope), ADR-0010 (browser-handoff and approval-ticket envelope), ADR-0011 (capability-lifecycle / client-scope / freshness / redaction), ADR-0018 (workspace-trust state), schemas/governance/capability_lifecycle.schema.json (lifecycle / client-scope / freshness / redaction), schemas/integration/browser_handoff_packet.schema.json (browser-handoff packet envelope), schemas/integration/approval_ticket.schema.json (approval-ticket envelope), schemas/runtime/execution_context.schema.json (target identity / sandbox posture / policy epoch), schemas/ux/event_lineage.schema.json (canonical_event_id / suppression_reason / privacy_payload_class / linkback_target_kind / dismissal_verb), schemas/ux/activity_event_envelope.schema.json (delivery_surface_class / quiet_hours_mode), schemas/ops/incident_workspace.schema.json (operational incident workspace), schemas/work_items/work_item_detail.schema.json (work-item detail), schemas/vcs/review_workspace.schema.json (review workspace), schemas/security/incident_workspace_packet.schema.json (security-side private-triage packet), and schemas/companion/offline_triage_snapshot.schema.json (offline-triage snapshot the manifest gates capture on). The eventual companion-bridge crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, companion_surface_class, companion_platform_class, allowed_object_class, allowed_action_class, auth_posture_class, step_up_requirement_class, freshness_posture_class, offline_posture_class, notification_policy_class, quiet_hours_inheritance_class, target_attach_class, no_bypass_rule_class, redaction_class, denial_reason, or audit_event_id is additive-minor and bumps companion_capability_manifest_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/companion_capability_manifest_record",
+  "$defs": {
+    "companion_capability_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the companion-capability-manifest vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "companion_capability_manifest_record",
+      "description": "Discriminator. Always companion_capability_manifest_record for manifests conforming to this schema."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, claim manifests, OS notification payloads, and admin reconciliation surfaces. Raw provider URLs, raw provider payloads, raw OAuth tokens, raw push-notification provider tokens, raw lock-screen payloads, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, and raw secret material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for companion launcher / capability-row review, claim-manifest review, support / export, hosted-review, and admin reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, support / export, and review surfaces. Never carries the raw payload."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007 / ADR-0011. Raw provider payloads, raw stack frames, raw stdout / stderr, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, and raw secret material never cross this boundary regardless of class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["untrusted", "restricted", "trusted", "managed_admin"],
+      "description": "ADR-0018 / ADR-0009 workspace-trust state the manifest was admitted under. A companion surface that the desktop has not granted workspace_trust = trusted or managed_admin to MUST resolve every mutating allowed_action_class to inspect_only_no_state_change."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref (ADR-0008 / ADR-0009)."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009 / ADR-0018 so downstream lanes can reason about the manifest's policy provenance without re-deriving it."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile vocabulary mirrored from artifacts/governance/deployment_profiles.yaml. air_gapped profiles MUST resolve every notification_policy_class to no_companion_push and every offline_posture_class to allow_cached_inspection_no_mutation or allow_offline_triage_capture_drain_to_desktop; companion push to a hosted provider is forbidden in air-gapped deployments."
+    },
+
+    "companion_surface_class": {
+      "type": "string",
+      "enum": [
+        "browser_web_companion_app",
+        "browser_extension_companion",
+        "mobile_native_app_companion",
+        "mobile_web_pwa_companion",
+        "embedded_inspection_widget_companion",
+        "ai_tool_proposed_companion_pending_review"
+      ],
+      "description": "Frozen companion-surface vocabulary. Every companion client resolves to exactly one row. ai_tool_proposed_companion_pending_review forbids leaving pending review state and forbids any allowed_action_class outside read_only_inspect_canonical_object."
+    },
+
+    "companion_platform_class": {
+      "type": "string",
+      "enum": [
+        "platform_ios_native",
+        "platform_android_native",
+        "platform_web_browser_chromium",
+        "platform_web_browser_firefox",
+        "platform_web_browser_webkit",
+        "platform_browser_extension_chromium",
+        "platform_browser_extension_firefox",
+        "platform_browser_extension_safari",
+        "platform_embedded_iframe_in_managed_admin_console",
+        "platform_unknown_pending_review"
+      ],
+      "description": "Frozen companion-platform vocabulary. platform_unknown_pending_review is the safe-default that strips every admissible_under_* posture on the manifest's allowed_action_class set."
+    },
+
+    "allowed_object_class": {
+      "type": "string",
+      "enum": [
+        "incident_workspace_inspection_object",
+        "runbook_packet_inspection_object",
+        "evidence_handoff_bundle_inspection_object",
+        "work_item_detail_inspection_object",
+        "review_workspace_inspection_object",
+        "review_pack_inspection_object",
+        "support_bundle_inspection_object",
+        "alert_page_snapshot_inspection_object",
+        "claim_manifest_inspection_object",
+        "approval_ticket_inspection_object",
+        "browser_handoff_packet_inspection_object",
+        "console_handoff_session_inspection_object",
+        "publish_later_queue_item_inspection_object",
+        "object_class_unknown_requires_review"
+      ],
+      "description": "Frozen allowed-object vocabulary. Every entry names exactly one canonical object kind the companion surface MAY read. Every value is read-mostly inspection unless the matching allowed_action_class on the manifest narrows further. Reuses the canonical object identity from the desktop / review / incident contracts; the companion never mints a parallel object id."
+    },
+
+    "allowed_action_class": {
+      "type": "string",
+      "enum": [
+        "read_only_inspect_canonical_object",
+        "request_approval_via_approval_ticket",
+        "append_comment_or_acknowledgment_via_canonical_event_id",
+        "acknowledge_alert_via_canonical_event_id",
+        "scoped_follow_handoff_to_browser_or_console_via_packet",
+        "request_step_up_for_pending_action",
+        "capture_offline_triage_snapshot_for_drain_to_desktop",
+        "ai_tool_proposed_action_pending_review"
+      ],
+      "description": "Frozen allowed-action vocabulary. The companion surface MAY only emit actions that resolve to one of these rows. read_only_inspect_canonical_object is the safe default; mutating-shaped actions (approval, comment, acknowledgment) reuse the desktop approval-ticket envelope and the desktop canonical_event_id so the companion cannot mint a parallel approval / audit lineage. scoped_follow_handoff_to_browser_or_console_via_packet routes the handoff through schemas/integration/browser_handoff_packet.schema.json rather than launching ambient navigation. ai_tool_proposed_action_pending_review forbids leaving pending review state. Mutating-shaped actions on a companion surface are forbidden under workspace_trust = restricted; the manifest narrows to read_only_inspect_canonical_object until trust is admitted on the bound desktop."
+    },
+
+    "auth_posture_class": {
+      "type": "string",
+      "enum": [
+        "delegated_oauth_pkce_with_managed_redirect",
+        "device_code_handoff_to_desktop",
+        "managed_workspace_remote_attach_session_handle",
+        "browser_handoff_session_only_no_persistent_token",
+        "secret_broker_handle_only_no_raw_token",
+        "session_unauthenticated_inspect_only_public_evidence",
+        "auth_posture_unknown_pending_review"
+      ],
+      "description": "Frozen auth-posture vocabulary. The companion never persists a raw provider OAuth token, a raw API key, or a raw bearer token; auth-bearing values resolve through schemas/security/secret_class_rows.schema.json (ADR-0007) by handle. session_unauthenticated_inspect_only_public_evidence is admissible only when every allowed_object_class on the manifest is publishable evidence (claim manifest, public release evidence) and every allowed_action_class is read_only_inspect_canonical_object. auth_posture_unknown_pending_review fails closed."
+    },
+
+    "step_up_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_step_up_required_inspect_only",
+        "biometric_or_local_passkey_required_for_each_approval",
+        "hardware_attestation_required_for_each_approval",
+        "managed_admin_approval_required_per_action",
+        "ai_tool_proposed_step_up_pending_review",
+        "step_up_unknown_pending_review"
+      ],
+      "description": "Frozen step-up vocabulary. Mutating-shaped actions on a companion surface MUST resolve to a step-up class outside no_step_up_required_inspect_only or be forbidden by the manifest. ai_tool_proposed_step_up_pending_review forbids leaving pending review. step_up_unknown_pending_review is the safe-default that strips every mutating allowed_action_class from the manifest."
+    },
+
+    "freshness_posture_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative_fresh_within_grace",
+        "warm_within_grace_companion_marks_warm",
+        "degraded_beyond_grace_companion_marks_stale",
+        "imported_snapshot_no_refresh_path",
+        "offline_no_refresh_path",
+        "freshness_unverifiable_user_review_required",
+        "freshness_class_unknown_pending_review"
+      ],
+      "description": "Frozen freshness-posture vocabulary. A companion surface MUST mark every rendered object with one of these rows; pseudo-live parity (rendering a stale object as fresh) is forbidden by the matching denial reason companion_must_not_paint_stale_object_as_live. Mirrors the freshness vocabulary in schemas/work_items/work_item_detail.schema.json and schemas/governance/capability_lifecycle.schema.json so a companion cannot paint a stale object as fresh."
+    },
+
+    "offline_posture_class": {
+      "type": "string",
+      "enum": [
+        "online_only_no_offline_path",
+        "allow_cached_inspection_no_mutation",
+        "allow_offline_triage_capture_drain_to_desktop",
+        "imported_replay_no_live_target",
+        "offline_posture_unknown_pending_review"
+      ],
+      "description": "Frozen offline-posture vocabulary. allow_offline_triage_capture_drain_to_desktop is admissible only when the manifest cites a non-null offline_triage_snapshot_record_id_ref_set in fixtures and forbids mutating allowed_action_class entries from drained anywhere except back through the desktop's publish-later / approval-ticket / handoff-packet envelopes. imported_replay_no_live_target forbids any allowed_action_class outside read_only_inspect_canonical_object."
+    },
+
+    "notification_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_companion_push_local_only_inspection",
+        "lock_screen_safe_generic_only_no_object_identity",
+        "lock_screen_safe_scoped_with_workspace_or_session_label",
+        "in_product_only_no_lock_screen_payload",
+        "policy_forbidden_on_lock_screen_audit_trail_only",
+        "ai_tool_proposed_notification_policy_pending_review"
+      ],
+      "description": "Frozen notification-policy vocabulary. Every value pairs 1:1 with a privacy_payload_class row in schemas/ux/activity_event_envelope.schema.json. The companion reuses the canonical_event_id from the desktop event_lineage_record rather than minting a per-companion event id (denial: companion_must_not_mint_private_canonical_event_id). air-gapped deployments resolve to no_companion_push_local_only_inspection."
+    },
+
+    "quiet_hours_inheritance_class": {
+      "type": "string",
+      "enum": [
+        "inherit_desktop_canonical_event_id_suppression_set",
+        "narrow_locally_never_widen_beyond_desktop_set",
+        "managed_admin_quiet_hours_overlay_narrowing_only",
+        "quiet_hours_inheritance_unknown_pending_review"
+      ],
+      "description": "Frozen quiet-hours-inheritance vocabulary. Every companion surface inherits the desktop suppression_reason set (schemas/ux/event_lineage.schema.json#suppression_reason) and the desktop quiet_hours_mode set; the companion MAY narrow locally (silence a class on this device) but MAY NOT widen beyond the desktop policy (denial: companion_must_not_widen_quiet_hours_beyond_desktop_set). managed_admin_quiet_hours_overlay_narrowing_only is admissible on managed_cloud deployments."
+    },
+
+    "target_attach_class": {
+      "type": "string",
+      "enum": [
+        "read_only_inspection_via_remote_attach_session_handle",
+        "scoped_follow_handoff_via_browser_handoff_packet_only",
+        "scoped_follow_handoff_via_console_handoff_session_only",
+        "no_target_attach_inspection_only",
+        "target_attach_unknown_pending_review"
+      ],
+      "description": "Frozen target-attach vocabulary. The companion MUST NOT launch a local shell, kernel, container engine, or filesystem-mutating runtime; the only admissible mutating route out of the companion is through a typed browser-handoff packet (ADR-0010) or a typed console-handoff session. The matching denials companion_must_not_launch_local_shell_or_kernel and companion_must_not_widen_authority_beyond_remote_managed_path close the loop. ai_tool_proposed_companion_pending_review forces no_target_attach_inspection_only."
+    },
+
+    "no_bypass_rule_class": {
+      "type": "string",
+      "enum": [
+        "forbid_local_shell_or_kernel_launch_on_companion",
+        "forbid_widening_authority_beyond_remote_managed_path",
+        "forbid_minting_private_canonical_event_id",
+        "forbid_minting_private_dismissal_alias",
+        "forbid_minting_private_redaction_pass",
+        "forbid_minting_private_audit_event_id",
+        "forbid_silent_lock_screen_widening",
+        "forbid_silent_quiet_hours_widening",
+        "forbid_companion_only_approval_lineage_separate_from_desktop",
+        "forbid_pseudo_live_parity_against_offline_or_stale_object",
+        "forbid_raw_secret_or_token_persistence_on_companion",
+        "forbid_companion_initiated_provider_mutation_outside_desktop_envelope"
+      ],
+      "description": "Frozen no-bypass rule vocabulary. Every manifest carries a non-empty no_bypass_rules_set spanning every rule that applies to its surface / platform combination. A surface that omits a rule applicable to its row is non-conforming (denial: no_bypass_rule_must_be_declared_for_applicable_surface)."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "companion_capability_manifest_published",
+        "companion_capability_manifest_revoked",
+        "companion_capability_manifest_step_up_satisfied",
+        "companion_capability_manifest_step_up_denied",
+        "companion_capability_manifest_offline_triage_snapshot_captured",
+        "companion_capability_manifest_offline_triage_snapshot_drained",
+        "companion_capability_manifest_canonical_event_id_inherited",
+        "companion_capability_manifest_lock_screen_payload_narrowed",
+        "companion_capability_manifest_silent_local_shell_launch_forbidden_denial",
+        "companion_capability_manifest_silent_authority_widening_forbidden_denial",
+        "companion_capability_manifest_silent_canonical_event_id_minting_forbidden_denial",
+        "companion_capability_manifest_silent_lock_screen_widening_forbidden_denial",
+        "companion_capability_manifest_silent_quiet_hours_widening_forbidden_denial",
+        "companion_capability_manifest_pseudo_live_parity_forbidden_denial",
+        "companion_capability_manifest_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event vocabulary on the companion-capability-manifest audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw OAuth tokens, raw lock-screen payloads, raw push-provider tokens, raw stack frames, or raw operator identity strings."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "companion_surface_class_must_resolve_to_typed_class",
+        "companion_platform_class_must_resolve_to_typed_class",
+        "allowed_object_class_must_resolve_to_typed_class",
+        "allowed_action_class_must_resolve_to_typed_class",
+        "auth_posture_class_must_resolve_to_typed_class",
+        "step_up_requirement_class_must_resolve_to_typed_class",
+        "freshness_posture_class_must_resolve_to_typed_class",
+        "offline_posture_class_must_resolve_to_typed_class",
+        "notification_policy_class_must_resolve_to_typed_class",
+        "quiet_hours_inheritance_class_must_resolve_to_typed_class",
+        "target_attach_class_must_resolve_to_typed_class",
+        "no_bypass_rule_must_be_declared_for_applicable_surface",
+        "ai_tool_proposed_companion_must_not_admit_pending_review",
+        "ai_tool_proposed_action_must_not_admit_pending_review",
+        "mutating_action_must_resolve_step_up_outside_inspect_only",
+        "mutating_action_forbidden_under_workspace_trust_restricted",
+        "mutating_action_forbidden_on_imported_replay_or_offline_target",
+        "scoped_follow_handoff_must_cite_browser_handoff_packet_ref",
+        "scoped_follow_handoff_must_cite_console_handoff_session_ref",
+        "approval_action_must_cite_approval_ticket_ref",
+        "comment_or_acknowledgment_must_reuse_desktop_canonical_event_id",
+        "alert_acknowledgment_must_reuse_desktop_canonical_event_id",
+        "companion_must_not_launch_local_shell_or_kernel",
+        "companion_must_not_widen_authority_beyond_remote_managed_path",
+        "companion_must_not_mint_private_canonical_event_id",
+        "companion_must_not_mint_private_dismissal_alias",
+        "companion_must_not_mint_private_redaction_pass",
+        "companion_must_not_mint_private_audit_event_id",
+        "companion_must_not_widen_lock_screen_payload_beyond_desktop_class",
+        "companion_must_not_widen_quiet_hours_beyond_desktop_set",
+        "companion_must_not_paint_stale_object_as_live",
+        "companion_must_not_persist_raw_token_or_secret",
+        "companion_must_not_initiate_provider_mutation_outside_desktop_envelope",
+        "air_gapped_companion_push_forbidden",
+        "raw_provider_url_in_companion_manifest_forbidden",
+        "raw_oauth_token_in_companion_manifest_forbidden",
+        "raw_lock_screen_payload_in_companion_manifest_forbidden",
+        "raw_author_identity_string_in_companion_manifest_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "denial_reason_class_unknown_requires_review"
+      ],
+      "description": "Frozen denial-reason vocabulary. Apply paths cite a typed reason rather than describing the cause in prose. Closed list; new values are additive-minor."
+    },
+
+    "allowed_action_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_action_class",
+        "applies_to_object_classes",
+        "step_up_requirement_class",
+        "summary"
+      ],
+      "properties": {
+        "allowed_action_class": { "$ref": "#/$defs/allowed_action_class" },
+        "applies_to_object_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/allowed_object_class" },
+          "description": "Closed list of allowed_object_class rows the action applies to. Every value MUST appear in the parent manifest's allowed_object_classes set."
+        },
+        "step_up_requirement_class": { "$ref": "#/$defs/step_up_requirement_class" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/integration/approval_ticket.schema.json. Required (non-null) for request_approval_via_approval_ticket; null for read-only / non-approval actions."
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/integration/browser_handoff_packet.schema.json. Required (non-null) for scoped_follow_handoff_to_browser_or_console_via_packet routes that exit through the system browser; null otherwise."
+        },
+        "console_handoff_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into a console-handoff session. Required (non-null) for scoped_follow_handoff_to_browser_or_console_via_packet routes that exit through an attached console; null otherwise."
+        },
+        "reused_canonical_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the desktop canonical_event_id (schemas/ux/event_lineage.schema.json) the companion action reuses. Required (non-null) for append_comment_or_acknowledgment_via_canonical_event_id and acknowledge_alert_via_canonical_event_id; null otherwise. The companion never mints a private canonical_event_id (denial: companion_must_not_mint_private_canonical_event_id)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "request_approval_via_approval_ticket MUST cite a non-null approval_ticket_ref and resolve step_up_requirement_class outside no_step_up_required_inspect_only.",
+          "if": {
+            "properties": { "allowed_action_class": { "const": "request_approval_via_approval_ticket" } },
+            "required": ["allowed_action_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+              "step_up_requirement_class": {
+                "enum": [
+                  "biometric_or_local_passkey_required_for_each_approval",
+                  "hardware_attestation_required_for_each_approval",
+                  "managed_admin_approval_required_per_action"
+                ]
+              }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "append_comment_or_acknowledgment_via_canonical_event_id MUST cite a non-null reused_canonical_event_id_ref so the companion never mints a private canonical_event_id.",
+          "if": {
+            "properties": { "allowed_action_class": { "const": "append_comment_or_acknowledgment_via_canonical_event_id" } },
+            "required": ["allowed_action_class"]
+          },
+          "then": {
+            "properties": {
+              "reused_canonical_event_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["reused_canonical_event_id_ref"]
+          }
+        },
+        {
+          "description": "acknowledge_alert_via_canonical_event_id MUST cite a non-null reused_canonical_event_id_ref.",
+          "if": {
+            "properties": { "allowed_action_class": { "const": "acknowledge_alert_via_canonical_event_id" } },
+            "required": ["allowed_action_class"]
+          },
+          "then": {
+            "properties": {
+              "reused_canonical_event_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["reused_canonical_event_id_ref"]
+          }
+        },
+        {
+          "description": "scoped_follow_handoff_to_browser_or_console_via_packet MUST cite a non-null browser_handoff_packet_ref or a non-null console_handoff_session_ref.",
+          "if": {
+            "properties": { "allowed_action_class": { "const": "scoped_follow_handoff_to_browser_or_console_via_packet" } },
+            "required": ["allowed_action_class"]
+          },
+          "then": {
+            "anyOf": [
+              { "properties": { "browser_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" } }, "required": ["browser_handoff_packet_ref"] },
+              { "properties": { "console_handoff_session_ref": { "$ref": "#/$defs/opaque_id" } }, "required": ["console_handoff_session_ref"] }
+            ]
+          }
+        },
+        {
+          "description": "read_only_inspect_canonical_object pairs with no_step_up_required_inspect_only and forbids approval / handoff / event-id refs.",
+          "if": {
+            "properties": { "allowed_action_class": { "const": "read_only_inspect_canonical_object" } },
+            "required": ["allowed_action_class"]
+          },
+          "then": {
+            "properties": {
+              "step_up_requirement_class": { "const": "no_step_up_required_inspect_only" },
+              "approval_ticket_ref": { "type": "null" },
+              "browser_handoff_packet_ref": { "type": "null" },
+              "console_handoff_session_ref": { "type": "null" },
+              "reused_canonical_event_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_action_pending_review forbids approval / handoff / event-id refs and forces step_up_requirement_class to ai_tool_proposed_step_up_pending_review or step_up_unknown_pending_review.",
+          "if": {
+            "properties": { "allowed_action_class": { "const": "ai_tool_proposed_action_pending_review" } },
+            "required": ["allowed_action_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "type": "null" },
+              "browser_handoff_packet_ref": { "type": "null" },
+              "console_handoff_session_ref": { "type": "null" },
+              "reused_canonical_event_id_ref": { "type": "null" },
+              "step_up_requirement_class": {
+                "enum": [
+                  "ai_tool_proposed_step_up_pending_review",
+                  "step_up_unknown_pending_review"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One scoped allowed-action row on the companion capability manifest. Every entry resolves to a typed action class, the closed list of allowed-object classes the action applies to, and the step-up class the surface MUST satisfy before the action runs."
+    },
+
+    "companion_capability_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "companion_capability_manifest_schema_version",
+        "record_kind",
+        "manifest_id",
+        "title",
+        "summary",
+        "companion_surface_class",
+        "companion_platform_class",
+        "deployment_profile_class_set",
+        "policy_context",
+        "auth_posture_class",
+        "freshness_posture_class",
+        "offline_posture_class",
+        "notification_policy_class",
+        "quiet_hours_inheritance_class",
+        "target_attach_class",
+        "redaction_class",
+        "allowed_object_classes",
+        "allowed_action_entries",
+        "no_bypass_rules_set",
+        "supported_canonical_event_class_refs",
+        "linked_claim_manifest_refs",
+        "linked_capability_lifecycle_row_refs",
+        "linked_offline_triage_snapshot_refs",
+        "published_at",
+        "last_reviewed_at",
+        "revoked_at"
+      ],
+      "properties": {
+        "companion_capability_manifest_schema_version": { "$ref": "#/$defs/companion_capability_manifest_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "manifest_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for the companion capability manifest. Stable across the manifest's life and never rewritten on revision."
+        },
+        "title": { "$ref": "#/$defs/reviewable_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "companion_surface_class": { "$ref": "#/$defs/companion_surface_class" },
+        "companion_platform_class": { "$ref": "#/$defs/companion_platform_class" },
+        "deployment_profile_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Closed list of deployment-profile rows the manifest is admissible under. air_gapped MUST resolve notification_policy_class to no_companion_push_local_only_inspection."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "auth_posture_class": { "$ref": "#/$defs/auth_posture_class" },
+        "freshness_posture_class": { "$ref": "#/$defs/freshness_posture_class" },
+        "offline_posture_class": { "$ref": "#/$defs/offline_posture_class" },
+        "notification_policy_class": { "$ref": "#/$defs/notification_policy_class" },
+        "quiet_hours_inheritance_class": { "$ref": "#/$defs/quiet_hours_inheritance_class" },
+        "target_attach_class": { "$ref": "#/$defs/target_attach_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "allowed_object_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/allowed_object_class" },
+          "description": "Closed list of allowed_object_class rows the companion surface MAY read. Every applies_to_object_classes value on every allowed_action_entry MUST appear here."
+        },
+        "allowed_action_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/allowed_action_entry" },
+          "description": "Closed list of scoped allowed-action rows. At least one row MUST be read_only_inspect_canonical_object so the manifest preserves the read-mostly default; mutating-shaped rows resolve through the matching desktop envelopes (approval-ticket, canonical_event_id, browser-handoff packet, console-handoff session)."
+        },
+        "no_bypass_rules_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/no_bypass_rule_class" },
+          "description": "Non-empty closed list of no-bypass rules every manifest declares. Every applicable rule for the manifest's surface / platform / offline combination MUST appear here; omitting an applicable rule is non-conforming (denial: no_bypass_rule_must_be_declared_for_applicable_surface)."
+        },
+        "supported_canonical_event_class_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the desktop event_class rows (schemas/ux/event_lineage.schema.json) the companion surface MAY mirror. Empty when notification_policy_class = no_companion_push_local_only_inspection."
+        },
+        "linked_claim_manifest_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/governance/claim_manifest.schema.json rows the companion manifest is bound to (so claim review and companion review resolve the same rows)."
+        },
+        "linked_capability_lifecycle_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/governance/capability_lifecycle.schema.json rows the companion manifest is bound to (so the capability-lifecycle / dependency-marker chain resolves the same rows)."
+        },
+        "linked_offline_triage_snapshot_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/companion/offline_triage_snapshot.schema.json rows captured under this manifest. Empty when offline_posture_class = online_only_no_offline_path."
+        },
+        "published_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_reviewed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "revoked_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Wall-clock at which the manifest was revoked. Null when the manifest is currently published."
+        }
+      },
+      "allOf": [
+        {
+          "description": "ai_tool_proposed_companion_pending_review forbids leaving pending review state and forbids any allowed_action_class outside read_only_inspect_canonical_object.",
+          "if": {
+            "properties": { "companion_surface_class": { "const": "ai_tool_proposed_companion_pending_review" } },
+            "required": ["companion_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "target_attach_class": { "const": "no_target_attach_inspection_only" },
+              "allowed_action_entries": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "allowed_action_class": {
+                      "enum": [
+                        "read_only_inspect_canonical_object",
+                        "ai_tool_proposed_action_pending_review"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "platform_unknown_pending_review forces every allowed_action_class to read_only_inspect_canonical_object.",
+          "if": {
+            "properties": { "companion_platform_class": { "const": "platform_unknown_pending_review" } },
+            "required": ["companion_platform_class"]
+          },
+          "then": {
+            "properties": {
+              "allowed_action_entries": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "allowed_action_class": {
+                      "enum": [
+                        "read_only_inspect_canonical_object",
+                        "ai_tool_proposed_action_pending_review"
+                      ]
+                    }
+                  }
+                }
+              },
+              "target_attach_class": { "const": "no_target_attach_inspection_only" }
+            }
+          }
+        },
+        {
+          "description": "auth_posture_unknown_pending_review forces every allowed_action_class to read_only_inspect_canonical_object and target_attach_class to no_target_attach_inspection_only.",
+          "if": {
+            "properties": { "auth_posture_class": { "const": "auth_posture_unknown_pending_review" } },
+            "required": ["auth_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "target_attach_class": { "const": "no_target_attach_inspection_only" },
+              "allowed_action_entries": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "allowed_action_class": {
+                      "enum": [
+                        "read_only_inspect_canonical_object"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "session_unauthenticated_inspect_only_public_evidence MUST resolve every allowed_action_class to read_only_inspect_canonical_object.",
+          "if": {
+            "properties": { "auth_posture_class": { "const": "session_unauthenticated_inspect_only_public_evidence" } },
+            "required": ["auth_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "allowed_action_entries": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "allowed_action_class": { "const": "read_only_inspect_canonical_object" }
+                  }
+                }
+              },
+              "target_attach_class": {
+                "enum": [
+                  "read_only_inspection_via_remote_attach_session_handle",
+                  "no_target_attach_inspection_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "deployment_profile_class_set including air_gapped MUST resolve notification_policy_class to no_companion_push_local_only_inspection.",
+          "if": {
+            "properties": {
+              "deployment_profile_class_set": {
+                "type": "array",
+                "contains": { "const": "air_gapped" }
+              }
+            },
+            "required": ["deployment_profile_class_set"]
+          },
+          "then": {
+            "properties": {
+              "notification_policy_class": { "const": "no_companion_push_local_only_inspection" }
+            }
+          }
+        },
+        {
+          "description": "offline_posture_class = imported_replay_no_live_target forces every allowed_action_class to read_only_inspect_canonical_object and target_attach_class to no_target_attach_inspection_only.",
+          "if": {
+            "properties": { "offline_posture_class": { "const": "imported_replay_no_live_target" } },
+            "required": ["offline_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "target_attach_class": { "const": "no_target_attach_inspection_only" },
+              "allowed_action_entries": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "allowed_action_class": {
+                      "enum": [
+                        "read_only_inspect_canonical_object"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "freshness_posture_class outside the live / warm / managed-stale set forbids mutating-shaped allowed_action_class entries (no pseudo-live parity).",
+          "if": {
+            "properties": {
+              "freshness_posture_class": {
+                "enum": [
+                  "imported_snapshot_no_refresh_path",
+                  "offline_no_refresh_path",
+                  "freshness_unverifiable_user_review_required",
+                  "freshness_class_unknown_pending_review"
+                ]
+              }
+            },
+            "required": ["freshness_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "allowed_action_entries": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "allowed_action_class": {
+                      "enum": [
+                        "read_only_inspect_canonical_object",
+                        "capture_offline_triage_snapshot_for_drain_to_desktop",
+                        "ai_tool_proposed_action_pending_review"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Workspace trust restricted forces every allowed_action_class to read_only_inspect_canonical_object or capture_offline_triage_snapshot_for_drain_to_desktop.",
+          "if": {
+            "properties": {
+              "policy_context": {
+                "properties": { "trust_state": { "enum": ["restricted", "untrusted"] } }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "allowed_action_entries": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "allowed_action_class": {
+                      "enum": [
+                        "read_only_inspect_canonical_object",
+                        "capture_offline_triage_snapshot_for_drain_to_desktop"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "notification_policy_class = no_companion_push_local_only_inspection forces supported_canonical_event_class_refs to be empty.",
+          "if": {
+            "properties": { "notification_policy_class": { "const": "no_companion_push_local_only_inspection" } },
+            "required": ["notification_policy_class"]
+          },
+          "then": {
+            "properties": {
+              "supported_canonical_event_class_refs": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "description": "One companion capability manifest record. Pins the closed list of canonical objects, scoped actions, auth posture, step-up posture, freshness / offline posture, notification policy, quiet-hours inheritance, target-attach posture, and no-bypass rules a browser / mobile companion surface is admitted under so later companion clients cannot silently become a parity shortcut around the desktop hero product."
+    }
+  }
+}

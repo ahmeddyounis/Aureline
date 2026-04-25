@@ -1,0 +1,737 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/companion/offline_triage_snapshot.schema.json",
+  "title": "Aureline browser / mobile companion offline triage snapshot",
+  "description": "Boundary schema for the offline_triage_snapshot_record frozen in docs/companion/companion_surface_contract.md. Each snapshot is one captured-on-companion triage observation (an inspection, an alert acknowledgment, an approval request, a comment, or a captured offline triage note) the companion surface has to drain back to the desktop / operational workspace before any provider mutation lands. The snapshot reuses the canonical object identity (incident_id, work_item_id, review_workspace_id, runbook_packet_id, evidence_handoff_bundle_id, alert_id, approval_ticket_id, browser_handoff_packet_id, console_handoff_session_id) and the canonical audit / event ids (canonical_event_id, audit_event_id) from the desktop / review / incident contracts; the companion never mints a parallel canonical object id, a parallel canonical_event_id, or a parallel audit lineage. The snapshot fails closed at drain_state_class = captured_local_only_pending_drain until the desktop publish-later / approval-ticket / handoff-packet envelope admits the drain. The record never carries raw provider URLs, raw provider payloads, raw OAuth tokens, raw lock-screen payloads, raw push-notification provider tokens, raw stack frames, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, or raw secret material; rows carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and freshness / drain / handoff tokens only. Composes with (and does not replace) ADR-0007 (secret-broker handle / raw-secret-forbidden boundary), ADR-0010 (browser-handoff and approval-ticket envelope), ADR-0011 (capability-lifecycle / freshness / redaction), schemas/companion/companion_capability_manifest.schema.json (companion capability manifest the snapshot is bound to), schemas/integration/approval_ticket.schema.json, schemas/integration/browser_handoff_packet.schema.json, schemas/ux/event_lineage.schema.json (canonical_event_id reuse), schemas/ops/incident_workspace.schema.json (operational incident workspace), schemas/ops/runbook_packet.schema.json (action-ledger entry record), schemas/work_items/work_item_detail.schema.json (work-item detail), schemas/vcs/review_workspace.schema.json (review workspace), and schemas/security/incident_workspace_packet.schema.json (security-side private-triage packet) without redefinition. The eventual companion-bridge crate's Rust types are the schema of record; this file is the cross-tool boundary every offline-triage drain reader, support / export reader, hosted-review reader, AI-tool review surface, and admin / policy review reads. Adding a new record_kind, snapshot_kind_class, referenced_canonical_object_kind_class, drain_state_class, drain_admission_class, replay_posture_class, denial_reason, or audit_event_id is additive-minor and bumps offline_triage_snapshot_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/offline_triage_snapshot_record",
+  "$defs": {
+    "offline_triage_snapshot_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the offline-triage-snapshot vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "offline_triage_snapshot_record",
+      "description": "Discriminator. Always offline_triage_snapshot_record for snapshots conforming to this schema."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, claim manifests, OS notification payloads, and admin reconciliation surfaces. Raw provider URLs, raw provider payloads, raw OAuth tokens, raw lock-screen payloads, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, and raw secret material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for offline-triage drain review, support / export, hosted-review, and admin reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, support / export, and review surfaces. Never carries the raw payload."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007 / ADR-0011. Raw provider payloads, raw stack frames, raw stdout / stderr, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, and raw secret material never cross this boundary regardless of class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["untrusted", "restricted", "trusted", "managed_admin"],
+      "description": "ADR-0018 / ADR-0009 workspace-trust state the snapshot was captured under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref (ADR-0008 / ADR-0009)."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009 / ADR-0018 so downstream lanes can reason about the snapshot's policy provenance without re-deriving it."
+    },
+
+    "snapshot_kind_class": {
+      "type": "string",
+      "enum": [
+        "incident_workspace_inspection_snapshot",
+        "runbook_packet_inspection_snapshot",
+        "evidence_handoff_bundle_inspection_snapshot",
+        "work_item_detail_inspection_snapshot",
+        "review_workspace_inspection_snapshot",
+        "alert_acknowledgment_snapshot",
+        "approval_request_capture_snapshot",
+        "comment_capture_snapshot",
+        "scoped_follow_handoff_capture_snapshot",
+        "ai_tool_proposed_snapshot_pending_review",
+        "snapshot_kind_unknown_requires_review"
+      ],
+      "description": "Frozen snapshot-kind vocabulary. Names what the companion captured for later drain. ai_tool_proposed_snapshot_pending_review forbids leaving pending review state and forbids drain to a live target. snapshot_kind_unknown_requires_review fails closed."
+    },
+
+    "referenced_canonical_object_kind_class": {
+      "type": "string",
+      "enum": [
+        "incident_workspace_record_target",
+        "runbook_packet_record_target",
+        "action_ledger_entry_record_target",
+        "evidence_handoff_bundle_record_target",
+        "work_item_detail_record_target",
+        "review_workspace_record_target",
+        "review_pack_record_target",
+        "support_bundle_record_target",
+        "alert_page_snapshot_target",
+        "claim_manifest_target",
+        "approval_ticket_target",
+        "browser_handoff_packet_target",
+        "console_handoff_session_target",
+        "publish_later_queue_item_target",
+        "object_kind_unknown_requires_review"
+      ],
+      "description": "Frozen canonical-object kind vocabulary. Names the canonical object the snapshot points at. Mirrors schemas/companion/companion_capability_manifest.schema.json#allowed_object_class so the snapshot reuses the canonical object identity already pinned by the desktop / review / incident contracts."
+    },
+
+    "drain_admission_class": {
+      "type": "string",
+      "enum": [
+        "drain_admitted_via_publish_later_queue_item",
+        "drain_admitted_via_approval_ticket_envelope",
+        "drain_admitted_via_browser_handoff_packet",
+        "drain_admitted_via_console_handoff_session",
+        "drain_admitted_via_action_ledger_entry_append",
+        "drain_admitted_via_canonical_event_id_dismissal_reuse",
+        "drain_blocked_pending_workspace_trust",
+        "drain_blocked_pending_step_up",
+        "drain_blocked_pending_target_resolution",
+        "drain_blocked_pending_freshness_floor",
+        "drain_admission_unknown_pending_review"
+      ],
+      "description": "Frozen drain-admission vocabulary. The drain class names the desktop envelope the companion routes the captured triage observation through. drain_admitted_via_publish_later_queue_item routes through the desktop publish-later queue (M00-163 vocabulary); drain_admitted_via_approval_ticket_envelope routes through the desktop approval-ticket envelope (ADR-0010); drain_admitted_via_browser_handoff_packet routes through the desktop browser-handoff packet (ADR-0010); drain_admitted_via_console_handoff_session routes through an attached console-handoff session; drain_admitted_via_action_ledger_entry_append appends a non-mutating evidence entry on the operational workspace's action-ledger; drain_admitted_via_canonical_event_id_dismissal_reuse reuses the desktop canonical_event_id dismissal verb. drain_admission_unknown_pending_review fails closed."
+    },
+
+    "drain_state_class": {
+      "type": "string",
+      "enum": [
+        "captured_local_only_pending_drain",
+        "drained_to_desktop_admitted_under_envelope",
+        "drained_rejected_with_typed_reason",
+        "superseded_by_handoff_packet",
+        "superseded_by_publish_later_queue_item",
+        "captured_offline_in_air_gapped_no_drain_path",
+        "ai_tool_proposed_drain_pending_review",
+        "drain_state_unknown_requires_review"
+      ],
+      "description": "Frozen drain-state vocabulary. captured_local_only_pending_drain is the safe default for any newly captured snapshot. drained_to_desktop_admitted_under_envelope MUST cite a non-null drain_admission_class outside the blocked / unknown set. drained_rejected_with_typed_reason MUST cite a non-empty drain_rejection_reason summary. superseded_by_* drain states MUST cite the matching superseder ref. ai_tool_proposed_drain_pending_review forbids leaving pending review state."
+    },
+
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "read_only_replay_no_live_drain_path",
+        "request_drain_admit_via_desktop_envelope",
+        "drained_replay_only_no_further_drain",
+        "ai_tool_proposed_replay_posture_pending_review",
+        "replay_posture_unknown_pending_review"
+      ],
+      "description": "Frozen replay-posture vocabulary. Names what a downstream support / hosted-review / postmortem reader is admissible to do with the snapshot. read_only_replay_no_live_drain_path forbids any drain attempt. request_drain_admit_via_desktop_envelope is the standard route for a captured triage observation that is still pending drain."
+    },
+
+    "freshness_posture_class": {
+      "type": "string",
+      "enum": [
+        "captured_live_authoritative_at_capture",
+        "captured_warm_within_grace_at_capture",
+        "captured_degraded_beyond_grace_at_capture",
+        "captured_imported_snapshot_no_live_path_at_capture",
+        "captured_offline_no_live_path_at_capture",
+        "freshness_unverifiable_user_review_required",
+        "freshness_class_unknown_pending_review"
+      ],
+      "description": "Frozen freshness-posture vocabulary the snapshot recorded at capture time. The companion MUST stamp every snapshot with one of these rows; pseudo-live parity (rendering a stale snapshot as fresh on drain) is forbidden by the matching denial reason offline_triage_snapshot_must_not_paint_stale_capture_as_live."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "offline_triage_snapshot_captured",
+        "offline_triage_snapshot_drained_to_desktop",
+        "offline_triage_snapshot_drain_rejected",
+        "offline_triage_snapshot_revoked_by_user_before_drain",
+        "offline_triage_snapshot_superseded_by_handoff_packet",
+        "offline_triage_snapshot_superseded_by_publish_later_queue_item",
+        "offline_triage_snapshot_silent_local_mutation_forbidden_denial",
+        "offline_triage_snapshot_silent_canonical_event_id_minting_forbidden_denial",
+        "offline_triage_snapshot_silent_audit_event_id_minting_forbidden_denial",
+        "offline_triage_snapshot_silent_freshness_widening_forbidden_denial",
+        "offline_triage_snapshot_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event vocabulary on the offline-triage-snapshot audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw OAuth tokens, raw lock-screen payloads, raw push-provider tokens, raw stack frames, or raw operator identity strings. The companion never mints a private audit_event_id on the operational workspace's audit stream; companion-side audit events live on this stream and resolve through the desktop's audit chronology by reference."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "snapshot_kind_class_must_resolve_to_typed_class",
+        "referenced_canonical_object_kind_class_must_resolve_to_typed_class",
+        "drain_state_class_must_resolve_to_typed_class",
+        "drain_admission_class_must_resolve_to_typed_class",
+        "replay_posture_class_must_resolve_to_typed_class",
+        "freshness_posture_class_must_resolve_to_typed_class",
+        "snapshot_must_cite_bound_companion_capability_manifest_id_ref",
+        "snapshot_must_cite_referenced_canonical_object_target_ref",
+        "ai_tool_proposed_snapshot_must_not_drain_pending_review",
+        "drained_to_desktop_must_cite_drain_admission_class_outside_blocked",
+        "drained_to_desktop_must_cite_drain_admitted_at",
+        "drained_rejected_must_cite_typed_rejection_reason",
+        "approval_request_capture_snapshot_must_cite_approval_ticket_ref",
+        "comment_or_acknowledgment_snapshot_must_reuse_desktop_canonical_event_id",
+        "alert_acknowledgment_snapshot_must_reuse_desktop_canonical_event_id",
+        "scoped_follow_handoff_capture_snapshot_must_cite_browser_handoff_packet_ref_or_console_handoff_session_ref",
+        "incident_workspace_inspection_snapshot_must_cite_incident_workspace_record_id_ref",
+        "runbook_packet_inspection_snapshot_must_cite_runbook_packet_record_id_ref",
+        "evidence_handoff_bundle_inspection_snapshot_must_cite_evidence_handoff_bundle_record_id_ref",
+        "work_item_detail_inspection_snapshot_must_cite_work_item_detail_record_id_ref",
+        "review_workspace_inspection_snapshot_must_cite_review_workspace_record_id_ref",
+        "drain_admitted_via_publish_later_queue_item_must_cite_publish_later_queue_item_record_id_ref",
+        "drain_admitted_via_approval_ticket_envelope_must_cite_approval_ticket_record_id_ref",
+        "drain_admitted_via_browser_handoff_packet_must_cite_browser_handoff_packet_record_id_ref",
+        "drain_admitted_via_console_handoff_session_must_cite_console_handoff_session_record_id_ref",
+        "drain_admitted_via_action_ledger_entry_append_must_cite_action_ledger_entry_record_id_ref",
+        "drain_admitted_via_canonical_event_id_dismissal_reuse_must_cite_canonical_event_id_ref",
+        "superseded_by_handoff_packet_must_cite_superseder_ref",
+        "superseded_by_publish_later_queue_item_must_cite_superseder_ref",
+        "offline_triage_snapshot_must_not_paint_stale_capture_as_live",
+        "offline_triage_snapshot_must_not_mint_private_canonical_event_id",
+        "offline_triage_snapshot_must_not_mint_private_audit_event_id",
+        "offline_triage_snapshot_must_not_persist_raw_token_or_secret",
+        "offline_triage_snapshot_must_not_initiate_provider_mutation_outside_desktop_envelope",
+        "raw_provider_url_in_offline_triage_snapshot_forbidden",
+        "raw_oauth_token_in_offline_triage_snapshot_forbidden",
+        "raw_lock_screen_payload_in_offline_triage_snapshot_forbidden",
+        "raw_author_identity_string_in_offline_triage_snapshot_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "denial_reason_class_unknown_requires_review"
+      ],
+      "description": "Frozen denial-reason vocabulary. Apply paths cite a typed reason rather than describing the cause in prose. Closed list; new values are additive-minor."
+    },
+
+    "offline_triage_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline_triage_snapshot_schema_version",
+        "record_kind",
+        "snapshot_id",
+        "title",
+        "summary",
+        "bound_companion_capability_manifest_id_ref",
+        "snapshot_kind_class",
+        "referenced_canonical_object_kind_class",
+        "referenced_canonical_object_target_ref",
+        "reused_canonical_event_id_ref",
+        "reused_audit_event_id_refs",
+        "linked_incident_workspace_record_id_ref",
+        "linked_runbook_packet_record_id_ref",
+        "linked_action_ledger_entry_record_id_ref",
+        "linked_evidence_handoff_bundle_record_id_ref",
+        "linked_work_item_detail_record_id_ref",
+        "linked_review_workspace_record_id_ref",
+        "linked_approval_ticket_record_id_ref",
+        "linked_browser_handoff_packet_record_id_ref",
+        "linked_console_handoff_session_record_id_ref",
+        "linked_publish_later_queue_item_record_id_ref",
+        "drain_state_class",
+        "drain_admission_class",
+        "drain_admitted_at",
+        "drain_rejection_reason",
+        "superseded_by_browser_handoff_packet_record_id_ref",
+        "superseded_by_publish_later_queue_item_record_id_ref",
+        "replay_posture_class",
+        "freshness_posture_class",
+        "redaction_class",
+        "policy_context",
+        "captured_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "offline_triage_snapshot_schema_version": { "$ref": "#/$defs/offline_triage_snapshot_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "snapshot_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for the snapshot. Stable across the snapshot's life and never rewritten on drain or supersede."
+        },
+        "title": { "$ref": "#/$defs/reviewable_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "bound_companion_capability_manifest_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/companion/companion_capability_manifest.schema.json. The snapshot is admissible only when the bound manifest's offline_posture_class admits offline-triage capture."
+        },
+        "snapshot_kind_class": { "$ref": "#/$defs/snapshot_kind_class" },
+        "referenced_canonical_object_kind_class": { "$ref": "#/$defs/referenced_canonical_object_kind_class" },
+        "referenced_canonical_object_target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the canonical object the snapshot points at (incident_workspace_record_id, runbook_packet_record_id, work_item_detail_record_id, review_workspace_record_id, approval_ticket_record_id, etc.). The companion reuses the canonical id rather than minting a parallel id (denial: snapshot_must_cite_referenced_canonical_object_target_ref)."
+        },
+        "reused_canonical_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the desktop canonical_event_id (schemas/ux/event_lineage.schema.json) the snapshot reuses. Required (non-null) for comment_capture_snapshot, alert_acknowledgment_snapshot, and approval_request_capture_snapshot. The companion never mints a private canonical_event_id (denial: offline_triage_snapshot_must_not_mint_private_canonical_event_id)."
+        },
+        "reused_audit_event_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the desktop audit_event_id rows the snapshot reuses (operational incident workspace audit, action-ledger audit, work-item-detail audit, review-workspace audit, capability-lifecycle audit). The companion never mints a parallel audit_event_id on the desktop / operational chronology; companion-side audit events live on the offline_triage_snapshot audit stream above and resolve through the desktop audit chronology by reference."
+        },
+        "linked_incident_workspace_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/ops/incident_workspace.schema.json. Required (non-null) for incident_workspace_inspection_snapshot."
+        },
+        "linked_runbook_packet_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/ops/runbook_packet.schema.json (runbook_packet_record). Required (non-null) for runbook_packet_inspection_snapshot."
+        },
+        "linked_action_ledger_entry_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/ops/runbook_packet.schema.json (action_ledger_entry_record). Required (non-null) for drain_admitted_via_action_ledger_entry_append; null otherwise."
+        },
+        "linked_evidence_handoff_bundle_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/ops/evidence_handoff_bundle.schema.json. Required (non-null) for evidence_handoff_bundle_inspection_snapshot."
+        },
+        "linked_work_item_detail_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/work_items/work_item_detail.schema.json. Required (non-null) for work_item_detail_inspection_snapshot."
+        },
+        "linked_review_workspace_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/vcs/review_workspace.schema.json. Required (non-null) for review_workspace_inspection_snapshot."
+        },
+        "linked_approval_ticket_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/integration/approval_ticket.schema.json. Required (non-null) for approval_request_capture_snapshot and for drain_admitted_via_approval_ticket_envelope."
+        },
+        "linked_browser_handoff_packet_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/integration/browser_handoff_packet.schema.json. Required (non-null) for scoped_follow_handoff_capture_snapshot routes that exit through the system browser, and for drain_admitted_via_browser_handoff_packet."
+        },
+        "linked_console_handoff_session_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a console-handoff session. Required (non-null) for scoped_follow_handoff_capture_snapshot routes that exit through an attached console, and for drain_admitted_via_console_handoff_session."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into the desktop publish-later queue item (M00-163 vocabulary). Required (non-null) for drain_admitted_via_publish_later_queue_item."
+        },
+        "drain_state_class": { "$ref": "#/$defs/drain_state_class" },
+        "drain_admission_class": { "$ref": "#/$defs/drain_admission_class" },
+        "drain_admitted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Wall-clock at which the desktop envelope admitted the drain. Required (non-null) on drained_to_desktop_admitted_under_envelope; null on captured-only / blocked / superseded / rejected drain states."
+        },
+        "drain_rejection_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short, redaction-safe summary of the typed rejection reason. Required (non-null) on drained_rejected_with_typed_reason."
+        },
+        "superseded_by_browser_handoff_packet_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the browser-handoff packet that supersedes this snapshot. Required (non-null) on superseded_by_handoff_packet drain state when the superseder is a browser-handoff packet."
+        },
+        "superseded_by_publish_later_queue_item_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the publish-later queue item that supersedes this snapshot. Required (non-null) on superseded_by_publish_later_queue_item drain state."
+        },
+        "replay_posture_class": { "$ref": "#/$defs/replay_posture_class" },
+        "freshness_posture_class": { "$ref": "#/$defs/freshness_posture_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "drain_state_class = drained_to_desktop_admitted_under_envelope MUST cite a non-null drain_admitted_at and resolve drain_admission_class outside the blocked / unknown set.",
+          "if": {
+            "properties": { "drain_state_class": { "const": "drained_to_desktop_admitted_under_envelope" } },
+            "required": ["drain_state_class"]
+          },
+          "then": {
+            "properties": {
+              "drain_admitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "drain_admission_class": {
+                "enum": [
+                  "drain_admitted_via_publish_later_queue_item",
+                  "drain_admitted_via_approval_ticket_envelope",
+                  "drain_admitted_via_browser_handoff_packet",
+                  "drain_admitted_via_console_handoff_session",
+                  "drain_admitted_via_action_ledger_entry_append",
+                  "drain_admitted_via_canonical_event_id_dismissal_reuse"
+                ]
+              }
+            },
+            "required": ["drain_admitted_at"]
+          }
+        },
+        {
+          "description": "drain_state_class = drained_rejected_with_typed_reason MUST cite a non-null drain_rejection_reason.",
+          "if": {
+            "properties": { "drain_state_class": { "const": "drained_rejected_with_typed_reason" } },
+            "required": ["drain_state_class"]
+          },
+          "then": {
+            "properties": {
+              "drain_rejection_reason": { "$ref": "#/$defs/reviewable_sentence" }
+            },
+            "required": ["drain_rejection_reason"]
+          }
+        },
+        {
+          "description": "drain_state_class = captured_local_only_pending_drain forces drain_admitted_at = null and forbids superseder refs.",
+          "if": {
+            "properties": { "drain_state_class": { "const": "captured_local_only_pending_drain" } },
+            "required": ["drain_state_class"]
+          },
+          "then": {
+            "properties": {
+              "drain_admitted_at": { "type": "null" },
+              "superseded_by_browser_handoff_packet_record_id_ref": { "type": "null" },
+              "superseded_by_publish_later_queue_item_record_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "drain_state_class = superseded_by_handoff_packet MUST cite a non-null superseded_by_browser_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": { "drain_state_class": { "const": "superseded_by_handoff_packet" } },
+            "required": ["drain_state_class"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_browser_handoff_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["superseded_by_browser_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "drain_state_class = superseded_by_publish_later_queue_item MUST cite a non-null superseded_by_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": { "drain_state_class": { "const": "superseded_by_publish_later_queue_item" } },
+            "required": ["drain_state_class"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["superseded_by_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "drain_admission_class = drain_admitted_via_publish_later_queue_item MUST cite a non-null linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": { "drain_admission_class": { "const": "drain_admitted_via_publish_later_queue_item" } },
+            "required": ["drain_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "drain_admission_class = drain_admitted_via_approval_ticket_envelope MUST cite a non-null linked_approval_ticket_record_id_ref.",
+          "if": {
+            "properties": { "drain_admission_class": { "const": "drain_admitted_via_approval_ticket_envelope" } },
+            "required": ["drain_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_approval_ticket_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_approval_ticket_record_id_ref"]
+          }
+        },
+        {
+          "description": "drain_admission_class = drain_admitted_via_browser_handoff_packet MUST cite a non-null linked_browser_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": { "drain_admission_class": { "const": "drain_admitted_via_browser_handoff_packet" } },
+            "required": ["drain_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_browser_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "drain_admission_class = drain_admitted_via_console_handoff_session MUST cite a non-null linked_console_handoff_session_record_id_ref.",
+          "if": {
+            "properties": { "drain_admission_class": { "const": "drain_admitted_via_console_handoff_session" } },
+            "required": ["drain_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_console_handoff_session_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_console_handoff_session_record_id_ref"]
+          }
+        },
+        {
+          "description": "drain_admission_class = drain_admitted_via_action_ledger_entry_append MUST cite a non-null linked_action_ledger_entry_record_id_ref.",
+          "if": {
+            "properties": { "drain_admission_class": { "const": "drain_admitted_via_action_ledger_entry_append" } },
+            "required": ["drain_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_action_ledger_entry_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_action_ledger_entry_record_id_ref"]
+          }
+        },
+        {
+          "description": "drain_admission_class = drain_admitted_via_canonical_event_id_dismissal_reuse MUST cite a non-null reused_canonical_event_id_ref.",
+          "if": {
+            "properties": { "drain_admission_class": { "const": "drain_admitted_via_canonical_event_id_dismissal_reuse" } },
+            "required": ["drain_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "reused_canonical_event_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["reused_canonical_event_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = approval_request_capture_snapshot MUST cite a non-null linked_approval_ticket_record_id_ref.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "approval_request_capture_snapshot" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_approval_ticket_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_approval_ticket_record_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = comment_capture_snapshot or alert_acknowledgment_snapshot MUST cite a non-null reused_canonical_event_id_ref.",
+          "if": {
+            "properties": {
+              "snapshot_kind_class": {
+                "enum": [
+                  "comment_capture_snapshot",
+                  "alert_acknowledgment_snapshot"
+                ]
+              }
+            },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "reused_canonical_event_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["reused_canonical_event_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = scoped_follow_handoff_capture_snapshot MUST cite a non-null linked_browser_handoff_packet_record_id_ref or a non-null linked_console_handoff_session_record_id_ref.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "scoped_follow_handoff_capture_snapshot" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "anyOf": [
+              { "properties": { "linked_browser_handoff_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" } }, "required": ["linked_browser_handoff_packet_record_id_ref"] },
+              { "properties": { "linked_console_handoff_session_record_id_ref": { "$ref": "#/$defs/opaque_id" } }, "required": ["linked_console_handoff_session_record_id_ref"] }
+            ]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = incident_workspace_inspection_snapshot MUST cite a non-null linked_incident_workspace_record_id_ref.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "incident_workspace_inspection_snapshot" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_incident_workspace_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_incident_workspace_record_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = runbook_packet_inspection_snapshot MUST cite a non-null linked_runbook_packet_record_id_ref.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "runbook_packet_inspection_snapshot" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_runbook_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_runbook_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = evidence_handoff_bundle_inspection_snapshot MUST cite a non-null linked_evidence_handoff_bundle_record_id_ref.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "evidence_handoff_bundle_inspection_snapshot" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_evidence_handoff_bundle_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_evidence_handoff_bundle_record_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = work_item_detail_inspection_snapshot MUST cite a non-null linked_work_item_detail_record_id_ref.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "work_item_detail_inspection_snapshot" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_work_item_detail_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_work_item_detail_record_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = review_workspace_inspection_snapshot MUST cite a non-null linked_review_workspace_record_id_ref.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "review_workspace_inspection_snapshot" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_review_workspace_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["linked_review_workspace_record_id_ref"]
+          }
+        },
+        {
+          "description": "snapshot_kind_class = ai_tool_proposed_snapshot_pending_review forces drain_state_class to ai_tool_proposed_drain_pending_review and replay_posture_class to ai_tool_proposed_replay_posture_pending_review.",
+          "if": {
+            "properties": { "snapshot_kind_class": { "const": "ai_tool_proposed_snapshot_pending_review" } },
+            "required": ["snapshot_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "drain_state_class": { "const": "ai_tool_proposed_drain_pending_review" },
+              "replay_posture_class": { "const": "ai_tool_proposed_replay_posture_pending_review" }
+            }
+          }
+        },
+        {
+          "description": "freshness_posture_class outside the live / warm capture set forbids drain_admission_class = drain_admitted_via_canonical_event_id_dismissal_reuse and forces drain_state_class to captured_local_only_pending_drain or superseded_by_* until the responder admits the drain through a typed envelope (no pseudo-live parity on stale capture).",
+          "if": {
+            "properties": {
+              "freshness_posture_class": {
+                "enum": [
+                  "captured_imported_snapshot_no_live_path_at_capture",
+                  "captured_offline_no_live_path_at_capture",
+                  "freshness_unverifiable_user_review_required"
+                ]
+              }
+            },
+            "required": ["freshness_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "drain_admission_class": {
+                "enum": [
+                  "drain_admitted_via_publish_later_queue_item",
+                  "drain_admitted_via_approval_ticket_envelope",
+                  "drain_admitted_via_browser_handoff_packet",
+                  "drain_admitted_via_console_handoff_session",
+                  "drain_admitted_via_action_ledger_entry_append",
+                  "drain_blocked_pending_workspace_trust",
+                  "drain_blocked_pending_step_up",
+                  "drain_blocked_pending_target_resolution",
+                  "drain_blocked_pending_freshness_floor",
+                  "drain_admission_unknown_pending_review"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One offline triage snapshot record. Captured on a companion surface for later drain back to the desktop / operational workspace through a typed envelope (publish-later queue, approval-ticket, browser-handoff packet, console-handoff session, action-ledger entry, canonical_event_id dismissal). Reuses the canonical object identity, the canonical_event_id, and the audit_event_id rows from the desktop / review / incident contracts; the companion never mints a parallel canonical id, a parallel canonical_event_id, or a parallel audit lineage."
+    }
+  }
+}
