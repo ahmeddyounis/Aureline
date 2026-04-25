@@ -1,0 +1,770 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/devcontainer_profile.schema.json",
+  "title": "Aureline devcontainer-profile, declared-base-image, declared-feature, lifecycle-hook, and compose-topology record",
+  "description": "Boundary schema for the devcontainer_profile_record frozen in docs/runtime/container_devcontainer_contract.md. The record is the cross-surface projection every devcontainer-aware surface (devcontainer 'reopen in container' lane, devcontainer manifest reader, prebuild warm-start backend, support / export reader, hosted-review reader, automation run review, AI tool review surface) emits when it needs one stable answer to four questions: what declared base-image source (Dockerfile in workspace, image ref pinned to digest, image ref pinned to tag, compose service image, AI-proposed pending review) backs the profile, what declared features and lifecycle hooks the profile asks the engine to apply, what workspace-mount declaration and declared-port-forward count the profile makes, and what known unsupported directives or trust postures the profile carries before a container_session_record is provisioned against it. The record does not replace the container_session_record (engine reachability, attach posture, mount admissibility live there) or the environment_capsule_record (toolchain identity, secret-projection markers live there); it is the profile-binding the session record cites through devcontainer_profile_record_ref. This schema re-exports identity_mode and workspace_trust_state_class from the identity family without redefinition. Raw devcontainer.json bodies, raw Dockerfile bodies, raw compose YAML bodies, raw image digests outside opaque image-handle classes, raw repository / registry URLs, raw absolute filesystem paths, raw OAuth / registry / SSH tokens, raw TLS material, raw lifecycle-hook command lines, and raw author identity strings never cross this boundary; opaque profile / image / feature / hook / volume / service / secret-broker / approval-ticket / policy-bundle / policy-epoch handles and class labels do. Adding a new devcontainer_profile_class, declared_base_image_source_class, declared_feature_class, lifecycle_hook_class, declared_compose_topology_class, declared_remote_user_class, declared_image_freshness_class, workspace_mount_declaration_class, declared_capability_class, declared_unsupported_directive_class, or declared_egress_posture_class value is additive-minor and bumps devcontainer_profile_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/devcontainer_profile_record" }
+  ],
+  "$defs": {
+    "devcontainer_profile_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this devcontainer-profile contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "devcontainer_profile_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw devcontainer.json bodies, raw Dockerfile bodies, raw compose YAML bodies, raw image digests outside the typed image-handle class, raw absolute paths, and raw author identity strings never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing sentence safe to render in profile chrome and export review. Raw image digests, raw repository / registry URLs, raw absolute paths, raw devcontainer.json bodies, raw lifecycle-hook command lines, and raw secret values never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at profile assembly."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ],
+      "description": "Re-export of the identity-mode vocabulary from schemas/runtime/execution_context.schema.json."
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_managed_locked"
+      ],
+      "description": "Re-export of the workspace-trust state vocabulary."
+    },
+
+    "devcontainer_profile_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local_profile",
+        "workspace_shared_committed_profile",
+        "managed_workspace_provisioned_profile",
+        "imported_from_export_bundle_profile",
+        "captured_from_handoff_profile",
+        "ai_tool_proposed_profile_pending_review",
+        "profile_class_unknown_requires_review"
+      ],
+      "description": "Closed devcontainer-profile class. user_authored_local_profile is the default for an individual workspace; workspace_shared_committed_profile is committed and shared. managed_workspace_provisioned_profile is provisioned by managed-workspace policy. imported_from_export_bundle_profile and captured_from_handoff_profile preserve the captured profile from an export / handoff. ai_tool_proposed_profile_pending_review forbids leaving pending review state."
+    },
+
+    "declared_base_image_source_class": {
+      "type": "string",
+      "enum": [
+        "dockerfile_in_workspace",
+        "image_ref_pinned_to_digest",
+        "image_ref_pinned_to_tag_user_review_required",
+        "compose_service_image",
+        "managed_workspace_image_pinned_by_admin",
+        "ai_proposed_image_pending_user_review",
+        "base_image_source_class_unknown_requires_review"
+      ],
+      "description": "Closed declared-base-image source vocabulary. image_ref_pinned_to_digest is the only source that admits silent reuse without freshness chips; image_ref_pinned_to_tag_user_review_required surfaces a freshness chip; ai_proposed_image_pending_user_review forbids the profile from leaving pending review state."
+    },
+
+    "declared_image_freshness_class": {
+      "type": "string",
+      "enum": [
+        "declared_pinned_to_digest_admissible",
+        "declared_pinned_to_tag_user_review_required",
+        "declared_unpinned_floating_user_review_required",
+        "declared_freshness_unknown_requires_review",
+        "not_applicable_built_from_dockerfile",
+        "not_applicable_compose_per_service"
+      ],
+      "description": "Closed declared-image freshness vocabulary the profile reader projects."
+    },
+
+    "declared_base_image_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_base_image_source_class",
+        "declared_image_freshness_class",
+        "image_handle_ref"
+      ],
+      "properties": {
+        "declared_base_image_source_class": { "$ref": "#/$defs/declared_base_image_source_class" },
+        "declared_image_freshness_class": { "$ref": "#/$defs/declared_image_freshness_class" },
+        "image_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque image-handle id naming the declared base image. Raw image digests, raw image tags, and raw repository / registry URLs never appear here."
+        },
+        "dockerfile_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque Dockerfile-handle id when declared_base_image_source_class is dockerfile_in_workspace. Raw absolute paths and raw Dockerfile bodies never appear here."
+        },
+        "compose_service_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque compose-service-handle id when declared_base_image_source_class is compose_service_image."
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "declared_feature_class": {
+      "type": "string",
+      "enum": [
+        "language_runtime_feature",
+        "package_manager_feature",
+        "shell_or_terminal_feature",
+        "vcs_feature",
+        "container_in_container_feature_user_review_required",
+        "kubernetes_in_container_feature_user_review_required",
+        "cloud_cli_feature",
+        "ide_or_editor_feature",
+        "credential_helper_feature_user_review_required",
+        "ssh_agent_feature_user_review_required",
+        "gpu_runtime_feature_user_review_required",
+        "ai_proposed_feature_pending_user_review",
+        "feature_class_unknown_requires_review"
+      ],
+      "description": "Closed declared-feature vocabulary. *_user_review_required classes surface a chip when the profile is admitted for the first time; ai_proposed_feature_pending_user_review forbids the profile from leaving pending review state."
+    },
+
+    "declared_feature_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_feature_class",
+        "feature_handle_ref"
+      ],
+      "properties": {
+        "declared_feature_class": { "$ref": "#/$defs/declared_feature_class" },
+        "feature_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque feature-handle id (feature-id-class). Raw feature URLs, raw feature versions, and raw OCI references never appear here."
+        },
+        "feature_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "lifecycle_hook_class": {
+      "type": "string",
+      "enum": [
+        "initialize_command_runs_on_host",
+        "on_create_command_runs_in_container",
+        "update_content_command_runs_in_container",
+        "post_create_command_runs_in_container",
+        "post_start_command_runs_in_container",
+        "post_attach_command_runs_in_container",
+        "wait_for_command_runs_in_container",
+        "ai_proposed_lifecycle_hook_pending_user_review",
+        "lifecycle_hook_class_unknown_requires_review"
+      ],
+      "description": "Closed lifecycle-hook vocabulary mirroring the standard devcontainer lifecycle. ai_proposed_lifecycle_hook_pending_user_review forbids the profile from leaving pending review state. initialize_command_runs_on_host is special-cased: it runs on the host rather than the container, and the schema requires it to cite a non-null hook_capability_class."
+    },
+
+    "lifecycle_hook_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_hook_class",
+        "hook_handle_ref",
+        "declared_blocking_class"
+      ],
+      "properties": {
+        "lifecycle_hook_class": { "$ref": "#/$defs/lifecycle_hook_class" },
+        "hook_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque hook-handle id (hook-id-class). Raw command lines, raw shell scripts, raw stdout / stderr, and raw error strings never appear here."
+        },
+        "declared_blocking_class": {
+          "type": "string",
+          "enum": [
+            "blocking_pre_attach",
+            "blocking_pre_exec",
+            "non_blocking_advisory",
+            "blocking_unknown_requires_review"
+          ]
+        },
+        "hook_capability_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "read_only_workspace_inspection",
+            "write_workspace_state",
+            "spawn_subprocess_in_container",
+            "spawn_subprocess_on_host_user_review_required",
+            "network_egress_user_review_required",
+            "secret_access_via_broker_handle",
+            "hook_capability_class_unknown_requires_review",
+            null
+          ]
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "declared_compose_topology_class": {
+      "type": "string",
+      "enum": [
+        "single_service_no_compose",
+        "compose_with_services",
+        "compose_with_overrides_user_review_required",
+        "compose_with_remote_extends_user_review_required",
+        "compose_topology_unknown_requires_review"
+      ],
+      "description": "Closed compose-topology vocabulary. compose_with_overrides_user_review_required and compose_with_remote_extends_user_review_required surface a chip and require user admit before provisioning."
+    },
+
+    "declared_compose_service_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_handle_ref",
+        "declared_service_role_class"
+      ],
+      "properties": {
+        "service_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "declared_service_role_class": {
+          "type": "string",
+          "enum": [
+            "application_service",
+            "api_service",
+            "web_app_service",
+            "worker_or_queue_service",
+            "database_service",
+            "cache_service",
+            "message_broker_service",
+            "search_service",
+            "object_store_service",
+            "mock_or_fixture_service",
+            "service_role_unknown_requires_review"
+          ],
+          "description": "Mirrors service_role_class on schemas/runtime/container_session.schema.json. The profile's declared roles inform the multi-service topology the session record materialises."
+        },
+        "depends_on_service_handle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "service_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "declared_compose_topology_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_compose_topology_class"],
+      "properties": {
+        "declared_compose_topology_class": { "$ref": "#/$defs/declared_compose_topology_class" },
+        "compose_file_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque compose-file-handle id. Raw absolute paths and raw compose YAML bodies never appear here."
+        },
+        "declared_compose_services": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_compose_service_entry" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "declared_remote_user_class": {
+      "type": "string",
+      "enum": [
+        "non_root_user_default",
+        "non_root_user_custom",
+        "root_user_user_review_required",
+        "managed_workspace_user_pinned_by_admin",
+        "ai_proposed_remote_user_pending_user_review",
+        "remote_user_class_unknown_requires_review"
+      ],
+      "description": "Closed declared-remote-user vocabulary. root_user_user_review_required surfaces a chip; ai_proposed_remote_user_pending_user_review forbids the profile from leaving pending review state."
+    },
+
+    "workspace_mount_declaration_class": {
+      "type": "string",
+      "enum": [
+        "workspace_bound_to_default_workspace_folder",
+        "workspace_bound_to_custom_workspace_folder",
+        "workspace_bound_to_named_volume",
+        "workspace_mount_omitted_user_review_required",
+        "workspace_mount_unknown_requires_review"
+      ],
+      "description": "Closed workspace-mount declaration vocabulary. workspace_mount_omitted_user_review_required and workspace_mount_unknown_requires_review surface a chip and force inspect-only fallback at session-provisioning time."
+    },
+
+    "declared_capability_class": {
+      "type": "string",
+      "enum": [
+        "no_added_capabilities",
+        "add_capabilities_user_review_required",
+        "drop_capabilities_admissible",
+        "privileged_full_capabilities_blocked_pending_admin_admit",
+        "no_new_privileges_admissible",
+        "declared_capability_class_unknown_requires_review"
+      ],
+      "description": "Closed declared-capability vocabulary. privileged_full_capabilities_blocked_pending_admin_admit forces the session record into a blocked / external-handoff class through the no_hidden_privileged_shell rule."
+    },
+
+    "declared_unsupported_directive_class": {
+      "type": "string",
+      "enum": [
+        "host_filesystem_bind_mount_outside_workspace",
+        "engine_socket_mount_inside_container",
+        "host_unrestricted_port_bind",
+        "privileged_full_capabilities_request",
+        "ssh_agent_socket_mount_user_review_required",
+        "credential_helper_with_host_socket_user_review_required",
+        "remote_extends_compose_user_review_required",
+        "user_namespace_disabled_request",
+        "declared_unsupported_directive_class_unknown_requires_review"
+      ],
+      "description": "Closed declared-unsupported-directive vocabulary. The profile lists every directive it asks the engine to apply that the contract has flagged as 'admin-admit required' or 'review required' so a reviewer reads the request before a container_session_record provisions against it."
+    },
+
+    "declared_unsupported_directive_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_unsupported_directive_class"
+      ],
+      "properties": {
+        "declared_unsupported_directive_class": { "$ref": "#/$defs/declared_unsupported_directive_class" },
+        "directive_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "declared_egress_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_network_egress_required",
+        "loopback_only",
+        "workspace_mirror_or_proxy_only",
+        "managed_workspace_egress_via_envelope",
+        "egress_to_public_internet_user_review_required",
+        "egress_to_community_origin_user_review_required",
+        "declared_egress_posture_class_unknown_requires_review"
+      ],
+      "description": "Closed declared-egress-posture vocabulary. The profile names the egress shape it asks the session to honor; *_user_review_required classes surface a chip on first admit."
+    },
+
+    "declared_port_forward_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "container_port_handle_ref",
+        "declared_share_class"
+      ],
+      "properties": {
+        "container_port_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "declared_share_class": {
+          "type": "string",
+          "enum": [
+            "loopback_only",
+            "workspace_only",
+            "organization_only_user_review_required",
+            "public_link_user_review_required",
+            "declared_share_class_unknown_requires_review"
+          ]
+        },
+        "label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "devcontainer_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "devcontainer_profile_schema_version",
+        "devcontainer_profile_record_id",
+        "captured_at",
+        "devcontainer_profile_class",
+        "identity_mode",
+        "workspace_trust_state_class",
+        "profile_handle_ref",
+        "declared_base_image",
+        "declared_features",
+        "lifecycle_hooks",
+        "declared_compose_topology",
+        "declared_remote_user_class",
+        "workspace_mount_declaration_class",
+        "declared_capability_class",
+        "declared_unsupported_directives",
+        "declared_egress_posture_class",
+        "declared_port_forwards",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "devcontainer_profile_schema_version": { "$ref": "#/$defs/devcontainer_profile_schema_version" },
+        "devcontainer_profile_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "devcontainer_profile_class": { "$ref": "#/$defs/devcontainer_profile_class" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "workspace_trust_state_class": { "$ref": "#/$defs/workspace_trust_state_class" },
+
+        "profile_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque profile-handle id (profile-id-class). Raw absolute paths to devcontainer.json, raw devcontainer.json bodies, and raw author identity strings never appear here."
+        },
+        "profile_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        },
+
+        "declared_base_image": { "$ref": "#/$defs/declared_base_image_block" },
+
+        "declared_features": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_feature_entry" },
+          "uniqueItems": true
+        },
+
+        "lifecycle_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_hook_entry" },
+          "uniqueItems": true
+        },
+
+        "declared_compose_topology": { "$ref": "#/$defs/declared_compose_topology_block" },
+
+        "declared_remote_user_class": { "$ref": "#/$defs/declared_remote_user_class" },
+        "workspace_mount_declaration_class": { "$ref": "#/$defs/workspace_mount_declaration_class" },
+        "declared_capability_class": { "$ref": "#/$defs/declared_capability_class" },
+
+        "declared_unsupported_directives": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_unsupported_directive_entry" },
+          "uniqueItems": true
+        },
+
+        "declared_egress_posture_class": { "$ref": "#/$defs/declared_egress_posture_class" },
+
+        "declared_port_forwards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_port_forward_entry" },
+          "uniqueItems": true
+        },
+
+        "environment_capsule_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the environment-capsule body whose toolchain identity, secret-projection markers, and export path govern sessions provisioned against this profile."
+        },
+
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional approval-ticket ref required when an unsupported directive or privilege-elevation request was approved (reuses the integration approval-ticket family)."
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "ai_tool_proposed_profile_pending_review forbids the profile's declared_base_image_source_class from leaving the AI-proposed lane and forbids any lifecycle hook from leaving ai_proposed_lifecycle_hook_pending_user_review.",
+          "if": {
+            "properties": {
+              "devcontainer_profile_class": { "const": "ai_tool_proposed_profile_pending_review" }
+            },
+            "required": ["devcontainer_profile_class"]
+          },
+          "then": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_base_image_source_class": { "const": "ai_proposed_image_pending_user_review" }
+                },
+                "required": ["declared_base_image_source_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_workspace_provisioned_profile resolves declared_base_image_source_class to managed_workspace_image_pinned_by_admin or image_ref_pinned_to_digest and resolves workspace_trust_state_class to workspace_trust_managed_locked.",
+          "if": {
+            "properties": {
+              "devcontainer_profile_class": { "const": "managed_workspace_provisioned_profile" }
+            },
+            "required": ["devcontainer_profile_class"]
+          },
+          "then": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_base_image_source_class": {
+                    "enum": [
+                      "managed_workspace_image_pinned_by_admin",
+                      "image_ref_pinned_to_digest"
+                    ]
+                  }
+                },
+                "required": ["declared_base_image_source_class"]
+              },
+              "workspace_trust_state_class": { "const": "workspace_trust_managed_locked" }
+            }
+          }
+        },
+        {
+          "description": "declared_base_image_source_class = dockerfile_in_workspace requires a non-null dockerfile_handle_ref and resolves declared_image_freshness_class to not_applicable_built_from_dockerfile.",
+          "if": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_base_image_source_class": { "const": "dockerfile_in_workspace" }
+                },
+                "required": ["declared_base_image_source_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "declared_base_image": {
+                "required": ["dockerfile_handle_ref"],
+                "properties": {
+                  "dockerfile_handle_ref": { "type": "string" },
+                  "declared_image_freshness_class": { "const": "not_applicable_built_from_dockerfile" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "declared_base_image_source_class = compose_service_image requires a non-null compose_service_handle_ref and resolves declared_image_freshness_class to not_applicable_compose_per_service.",
+          "if": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_base_image_source_class": { "const": "compose_service_image" }
+                },
+                "required": ["declared_base_image_source_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "declared_base_image": {
+                "required": ["compose_service_handle_ref"],
+                "properties": {
+                  "compose_service_handle_ref": { "type": "string" },
+                  "declared_image_freshness_class": { "const": "not_applicable_compose_per_service" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "declared_base_image_source_class = image_ref_pinned_to_digest resolves declared_image_freshness_class to declared_pinned_to_digest_admissible.",
+          "if": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_base_image_source_class": { "const": "image_ref_pinned_to_digest" }
+                },
+                "required": ["declared_base_image_source_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_image_freshness_class": { "const": "declared_pinned_to_digest_admissible" }
+                },
+                "required": ["declared_image_freshness_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "declared_base_image_source_class = image_ref_pinned_to_tag_user_review_required resolves declared_image_freshness_class to declared_pinned_to_tag_user_review_required.",
+          "if": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_base_image_source_class": { "const": "image_ref_pinned_to_tag_user_review_required" }
+                },
+                "required": ["declared_base_image_source_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "declared_base_image": {
+                "properties": {
+                  "declared_image_freshness_class": { "const": "declared_pinned_to_tag_user_review_required" }
+                },
+                "required": ["declared_image_freshness_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "declared_compose_topology_class = single_service_no_compose forbids any declared_compose_services entries.",
+          "if": {
+            "properties": {
+              "declared_compose_topology": {
+                "properties": {
+                  "declared_compose_topology_class": { "const": "single_service_no_compose" }
+                },
+                "required": ["declared_compose_topology_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "declared_compose_topology": {
+                "properties": {
+                  "compose_file_handle_ref": { "type": "null" },
+                  "declared_compose_services": {
+                    "type": "array",
+                    "maxItems": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "declared_compose_topology_class in {compose_with_services, compose_with_overrides_user_review_required, compose_with_remote_extends_user_review_required} requires a non-null compose_file_handle_ref and a non-empty declared_compose_services list.",
+          "if": {
+            "properties": {
+              "declared_compose_topology": {
+                "properties": {
+                  "declared_compose_topology_class": {
+                    "enum": [
+                      "compose_with_services",
+                      "compose_with_overrides_user_review_required",
+                      "compose_with_remote_extends_user_review_required"
+                    ]
+                  }
+                },
+                "required": ["declared_compose_topology_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "declared_compose_topology": {
+                "required": ["compose_file_handle_ref", "declared_compose_services"],
+                "properties": {
+                  "compose_file_handle_ref": { "type": "string" },
+                  "declared_compose_services": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Every initialize_command_runs_on_host hook MUST cite a non-null hook_capability_class so a reviewer can see what the host-side hook is allowed to do.",
+          "properties": {
+            "lifecycle_hooks": {
+              "items": {
+                "if": {
+                  "properties": {
+                    "lifecycle_hook_class": { "const": "initialize_command_runs_on_host" }
+                  },
+                  "required": ["lifecycle_hook_class"]
+                },
+                "then": {
+                  "required": ["hook_capability_class"],
+                  "properties": {
+                    "hook_capability_class": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_proposed_lifecycle_hook_pending_user_review hooks are admissible only on ai_tool_proposed_profile_pending_review profiles.",
+          "if": {
+            "properties": {
+              "lifecycle_hooks": {
+                "contains": {
+                  "properties": {
+                    "lifecycle_hook_class": { "const": "ai_proposed_lifecycle_hook_pending_user_review" }
+                  },
+                  "required": ["lifecycle_hook_class"]
+                }
+              }
+            },
+            "required": ["lifecycle_hooks"]
+          },
+          "then": {
+            "properties": {
+              "devcontainer_profile_class": { "const": "ai_tool_proposed_profile_pending_review" }
+            }
+          }
+        },
+        {
+          "description": "declared_capability_class = privileged_full_capabilities_blocked_pending_admin_admit requires the profile to declare host_filesystem_bind_mount_outside_workspace / engine_socket_mount_inside_container / privileged_full_capabilities_request as a declared_unsupported_directive and to forbid leaving workspace_trust_managed_locked.",
+          "if": {
+            "properties": {
+              "declared_capability_class": { "const": "privileged_full_capabilities_blocked_pending_admin_admit" }
+            },
+            "required": ["declared_capability_class"]
+          },
+          "then": {
+            "properties": {
+              "declared_unsupported_directives": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "One inspectable devcontainer profile emitted by the devcontainer 'reopen in container' lane, devcontainer manifest reader, prebuild warm-start backend, support / export reader, hosted-review reader, automation run review, or AI tool review surface."
+    }
+  }
+}

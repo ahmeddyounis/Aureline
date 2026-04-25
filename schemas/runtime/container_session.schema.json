@@ -1,0 +1,1296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/container_session.schema.json",
+  "title": "Aureline container / devcontainer session, mount-boundary, attach / exec posture, and multi-service topology record",
+  "description": "Boundary schema for the container_session_record frozen in docs/runtime/container_devcontainer_contract.md. The record is the cross-surface projection every container-aware surface (terminal attach, task / test / debug runner bound to a container, devcontainer 'reopen in container' lane, multi-service compose orchestrator, support / export reader, hosted-review reader, automation run review, AI tool review surface) emits when it needs one stable answer to five questions: what container engine identity is bound to this session, what mount and writable-path boundaries are admissible right now, what privilege and attach / exec / forward posture is admissible right now, what multi-service topology and dependency-order labels resolve the surface against, and which preflight results gate start / attach / exec before work begins. The record does not replace the execution_context_record (target identity, sandbox posture, policy epoch live there) or the environment_capsule_record (toolchain identity, secret projection markers live there); it is the compact projection consumers read so attach / exec / forward / mount / port / privileged-directive actions degrade honestly to inspect-only / blocked / external-handoff posture when engine reachability, mount boundary, or privilege posture is uncertain. This schema re-exports identity_mode and workspace_trust_state_class from the identity family, redaction_class from the governance / capability-lifecycle family, and target_class / reachability_state from schemas/runtime/execution_context.schema.json without redefinition. Raw container ids, raw image digests outside opaque image-handle classes, raw absolute filesystem paths, raw mount options bytes, raw bind-mount source paths, raw OAuth / registry / SSH tokens, raw TLS material, raw socket paths, raw inspect bodies, raw environment bodies, raw command lines, and raw author identity strings never cross this boundary; opaque engine / image / container / mount / port / volume / secret-broker / approval-ticket / policy-bundle / policy-epoch / actor handles and class labels do. Adding a new container_session_class, container_engine_class, engine_reachability_class, privilege_posture_class, user_namespace_mode_class, mount_kind_class, mount_writability_class, port_forward_class, attach_posture_class, attach_admissibility_class, multi_service_dependency_state_class, service_role_class, preflight_result_class, preflight_blocking_class, downgrade_trigger value, audit_event_id, or denial_reason value is additive-minor and bumps container_session_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/container_session_record" }
+  ],
+  "$defs": {
+    "container_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this container-session contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "container_session_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw container ids, raw image digests outside the typed image-handle class, raw socket paths, raw bind-mount source paths, raw absolute paths, and raw author identity strings never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing sentence safe to render in container chrome and export review. Raw image digests, raw container ids, raw socket paths, raw absolute paths, raw inspect bodies, raw command lines, and raw secret values never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at session assembly."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ],
+      "description": "Re-export of the identity-mode vocabulary from schemas/runtime/execution_context.schema.json. Never restated; copied from the active workspace authority."
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_managed_locked"
+      ],
+      "description": "Re-export of the workspace-trust state vocabulary. Attach / exec / forward and privileged-directive admissibility narrows on this state; live attach is admissible only under workspace_trust_trusted (with workspace_trust_session_only_temporary admissible for narrowly scoped session overrides) or via approval_ticket_ref."
+    },
+
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "container_local",
+        "devcontainer",
+        "managed_workspace",
+        "remote_workspace_vm",
+        "prebuild_runtime"
+      ],
+      "description": "Re-export of the execution-context target-class vocabulary narrowed to the classes a container session may resolve through. local_host / ssh_remote / notebook_kernel_* / ai_sandbox are never admissible here because they do not resolve through a container engine."
+    },
+
+    "container_session_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_dockerfile_session",
+        "compose_orchestrated_container_session",
+        "devcontainer_provisioned_session",
+        "managed_workspace_provisioned_container_session",
+        "imported_from_container_handoff_packet_session",
+        "replayed_from_container_capture_session",
+        "inspect_only_uncertain_engine_session",
+        "external_handoff_only_engine_remote_unreachable_session",
+        "blocked_engine_unreachable_session",
+        "ai_tool_proposed_container_session_pending_review"
+      ],
+      "description": "Closed container-session class. user_authored_dockerfile_session, compose_orchestrated_container_session, devcontainer_provisioned_session, and managed_workspace_provisioned_container_session are admissible only when engine reachability, privilege posture, and mount boundary are explicit. imported_from_container_handoff_packet_session and replayed_from_container_capture_session pin to a captured runtime identity (no live attach / exec / forward). inspect_only_uncertain_engine_session, external_handoff_only_engine_remote_unreachable_session, and blocked_engine_unreachable_session are degradation states. ai_tool_proposed_container_session_pending_review forbids any live attach pending user admit."
+    },
+
+    "container_engine_class": {
+      "type": "string",
+      "enum": [
+        "docker_engine_local",
+        "docker_engine_remote",
+        "podman_engine_local",
+        "podman_engine_remote",
+        "containerd_engine_local",
+        "nerdctl_engine_local",
+        "managed_workspace_container_runtime",
+        "captured_engine_handoff",
+        "engine_class_unknown_requires_review"
+      ],
+      "description": "Closed container-engine vocabulary. The exact engine version / build identity is referenced opaquely through engine_build_identity_ref; raw socket paths, raw context names, and raw connection strings never project here."
+    },
+
+    "engine_reachability_class": {
+      "type": "string",
+      "enum": [
+        "engine_reachable_verified",
+        "engine_warming_provisioning",
+        "engine_degraded_pending_diagnostics",
+        "engine_unreachable_socket_missing",
+        "engine_unreachable_permission_denied",
+        "engine_unreachable_remote_endpoint",
+        "engine_blocked_by_workspace_trust",
+        "engine_blocked_by_policy",
+        "engine_reachability_unknown_requires_review"
+      ],
+      "description": "Closed engine-reachability vocabulary. Only engine_reachable_verified admits live attach / exec / forward; every other state forces inspect-only / blocked / external-handoff posture and the matching downgrade trigger."
+    },
+
+    "privilege_posture_class": {
+      "type": "string",
+      "enum": [
+        "rootless_user_namespaced",
+        "rootless_user_namespaced_no_new_privileges",
+        "rooted_default_no_added_capabilities",
+        "rooted_with_added_capabilities_user_review_required",
+        "privileged_full_capabilities_blocked_pending_admin_admit",
+        "privileged_socket_mount_blocked_pending_admin_admit",
+        "privileged_host_filesystem_mount_blocked_pending_admin_admit",
+        "privilege_posture_unknown_requires_review"
+      ],
+      "description": "Closed privilege-posture vocabulary. The three privileged_* classes are blocked-pending-admit terminal states: a session that resolves to one of them MUST resolve container_session_class to blocked_engine_unreachable_session or pin attach_admissibility to blocked_pending_policy; ambient privileged-shell escalation is forbidden mechanically by the no_hidden_privileged_shell rule frozen in the contract."
+    },
+
+    "user_namespace_mode_class": {
+      "type": "string",
+      "enum": [
+        "userns_remap_host_uid_mapped",
+        "userns_keep_id_managed_workspace",
+        "userns_default_engine_managed",
+        "userns_disabled_user_review_required",
+        "userns_unknown_requires_review"
+      ],
+      "description": "Closed user-namespace-mode vocabulary. userns_disabled_user_review_required and userns_unknown_requires_review force inspect-only fallback for attach / exec / forward."
+    },
+
+    "mount_kind_class": {
+      "type": "string",
+      "enum": [
+        "workspace_bind_mount_read_write",
+        "workspace_bind_mount_read_only",
+        "non_workspace_bind_mount_read_only",
+        "non_workspace_bind_mount_read_write_user_review_required",
+        "named_volume_workspace_owned",
+        "named_volume_managed_workspace_owned",
+        "anonymous_volume_session_only",
+        "tmpfs_in_memory_session_only",
+        "secret_or_config_mount_via_broker_handle",
+        "forbidden_engine_socket_mount_pending_admin_admit",
+        "forbidden_host_filesystem_mount_pending_admin_admit",
+        "mount_kind_class_unknown_requires_review"
+      ],
+      "description": "Closed mount-kind vocabulary. forbidden_engine_socket_mount_pending_admin_admit and forbidden_host_filesystem_mount_pending_admin_admit are blocked-pending-admit terminal states: a mount that resolves to one of them denies with the matching denial reason and forces the session into a blocked / external-handoff class. secret_or_config_mount_via_broker_handle MUST cite a non-null secret_broker_handle_ref."
+    },
+
+    "mount_writability_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "read_write",
+        "read_write_session_only",
+        "writability_class_unknown_requires_review"
+      ],
+      "description": "Closed mount-writability vocabulary. writability_class_unknown_requires_review forces inspect-only fallback."
+    },
+
+    "mount_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mount_kind_class",
+        "mount_writability_class",
+        "mount_handle_ref",
+        "container_target_label_ref"
+      ],
+      "properties": {
+        "mount_kind_class": { "$ref": "#/$defs/mount_kind_class" },
+        "mount_writability_class": { "$ref": "#/$defs/mount_writability_class" },
+        "mount_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque mount-handle id (mount-id-class). Raw bind-mount source paths, raw absolute paths, and raw socket paths never appear here."
+        },
+        "container_target_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque container-side target-label id. Raw absolute container paths never appear here."
+        },
+        "secret_broker_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque secret-broker handle ref (ADR-0007). Required non-null when mount_kind_class is secret_or_config_mount_via_broker_handle."
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "description": "Per-mount entry projecting kind / writability / opaque mount handle / container-side target label and (for secret-mounts) the broker handle ref. Workspace mounts and named / anonymous / tmpfs / secret / forbidden mounts share this entry shape so a reviewer can read the mount model from one list."
+    },
+
+    "port_forward_class": {
+      "type": "string",
+      "enum": [
+        "loopback_to_loopback_local_only",
+        "loopback_to_workspace_only_share",
+        "loopback_to_managed_workspace_route",
+        "loopback_to_remote_managed_workspace_route",
+        "no_forward_internal_service_only",
+        "captured_handoff_no_forward",
+        "forbidden_host_unrestricted_bind_pending_admin_admit",
+        "port_forward_class_unknown_requires_review"
+      ],
+      "description": "Closed port-forward vocabulary. forbidden_host_unrestricted_bind_pending_admin_admit is the closed name for any host bind that exposes the port outside the loopback / workspace boundary without admin admit (covers 0.0.0.0 binds, public-interface binds, and IPv6 :: binds)."
+    },
+
+    "port_forward_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "port_forward_class",
+        "container_port_handle_ref",
+        "host_port_handle_ref"
+      ],
+      "properties": {
+        "port_forward_class": { "$ref": "#/$defs/port_forward_class" },
+        "container_port_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque container-port-handle id. Raw integer port numbers never appear here."
+        },
+        "host_port_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque host-port-handle id. Raw integer port numbers, raw IP literals, and raw bind-host names never appear here."
+        },
+        "preview_route_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional ref to a preview_route_record from schemas/runtime/preview_route.schema.json that bound this port-forward to a service identity, mapped port / route, target context, actor, expiry, and policy scope. Re-uses the preview-route record without redefinition."
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "description": "Per-port-forward entry. Re-uses the preview-route record by reference when the forward is exposed through a typed route binding."
+    },
+
+    "attach_posture_class": {
+      "type": "string",
+      "enum": [
+        "attach_to_running_container_interactive_pty",
+        "exec_one_shot_no_pty",
+        "exec_long_running_pseudo_tty",
+        "forward_only_no_attach",
+        "inspect_only_no_attach",
+        "attach_blocked_pending_user_admit",
+        "attach_blocked_pending_policy",
+        "attach_blocked_pending_workspace_trust",
+        "attach_posture_unknown_requires_review"
+      ],
+      "description": "Closed attach-posture vocabulary. The blocked / inspect-only classes force the matching attach_admissibility_class on every attach / exec / forward action."
+    },
+
+    "attach_action_class": {
+      "type": "string",
+      "enum": [
+        "attach_interactive_terminal",
+        "exec_one_shot_command",
+        "exec_long_running_command",
+        "forward_port_to_loopback",
+        "forward_port_to_workspace_only",
+        "forward_port_to_managed_workspace_route",
+        "open_external_browser_handoff",
+        "inspect_container_metadata_read_only"
+      ],
+      "description": "Closed attach-action vocabulary every container-aware surface MAY render. The session's effective_admissible_attach_actions enumerates the actions admissible at session time."
+    },
+
+    "attach_admissibility_class": {
+      "type": "string",
+      "enum": [
+        "admissible_under_workspace_trust",
+        "admissible_under_session_only_override",
+        "admissible_under_approval_ticket",
+        "inspect_only_engine_unreachable",
+        "inspect_only_engine_unsupported",
+        "inspect_only_privilege_posture_uncertain",
+        "inspect_only_mount_boundary_uncertain",
+        "external_handoff_only_engine_remote_unreachable",
+        "blocked_pending_user_admit",
+        "blocked_pending_policy",
+        "blocked_pending_workspace_trust",
+        "blocked_engine_unreachable",
+        "blocked_privileged_directive_pending_admin_admit",
+        "not_applicable_imported_or_replayed_session"
+      ],
+      "description": "Closed attach-admissibility vocabulary. Live attach / exec / forward (any admissible_under_* class) is admissible ONLY when engine reachability is verified, privilege posture is rootless / rooted_default / rooted_with_added_capabilities (with the latter requiring admissible_under_approval_ticket), the mount model has no forbidden_* entries, the user namespace is not userns_disabled / userns_unknown, and workspace trust is trusted / session-only-temporary (with admissible_under_approval_ticket admissible under restricted trust)."
+    },
+
+    "attach_admissibility_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attach_action_class", "attach_admissibility_class"],
+      "properties": {
+        "attach_action_class": { "$ref": "#/$defs/attach_action_class" },
+        "attach_admissibility_class": { "$ref": "#/$defs/attach_admissibility_class" },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "service_role_class": {
+      "type": "string",
+      "enum": [
+        "application_service",
+        "api_service",
+        "web_app_service",
+        "worker_or_queue_service",
+        "database_service",
+        "cache_service",
+        "message_broker_service",
+        "search_service",
+        "object_store_service",
+        "mock_or_fixture_service",
+        "service_role_unknown_requires_review"
+      ],
+      "description": "Closed service-role vocabulary. Multi-service topology rows cite this so API, queue, web-app, and database do not collapse into one opaque 'workspace started' state."
+    },
+
+    "multi_service_dependency_state_class": {
+      "type": "string",
+      "enum": [
+        "service_not_started_pending_dependency",
+        "service_starting_dependencies_in_progress",
+        "service_started_healthy",
+        "service_started_unhealthy_user_review_required",
+        "service_started_health_unknown_no_probe",
+        "service_failed_to_start_blocked",
+        "service_terminated_unexpectedly",
+        "service_terminated_after_dependent_failed",
+        "service_dependency_cycle_detected_blocked",
+        "service_state_unknown_requires_review"
+      ],
+      "description": "Closed multi-service dependency-state vocabulary. service_dependency_cycle_detected_blocked forces the session into a blocked class with the matching denial reason; service_started_health_unknown_no_probe forces inspect-only on dependent attach / exec actions until a probe resolves."
+    },
+
+    "multi_service_topology_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_handle_ref",
+        "service_role_class",
+        "multi_service_dependency_state_class",
+        "depends_on_service_handle_refs"
+      ],
+      "properties": {
+        "service_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "service_role_class": { "$ref": "#/$defs/service_role_class" },
+        "multi_service_dependency_state_class": { "$ref": "#/$defs/multi_service_dependency_state_class" },
+        "depends_on_service_handle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque service-handle refs this service depends on. The schema does not freeze cycle detection; producers MUST resolve service_dependency_cycle_detected_blocked when a cycle is observed."
+        },
+        "health_probe_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque health-probe handle. Null when service_started_health_unknown_no_probe is resolved."
+        },
+        "service_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Reviewer-facing redaction-safe service label. Raw image tags, raw container ids, and raw author identity strings never appear."
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "preflight_result_class": {
+      "type": "string",
+      "enum": [
+        "preflight_passed_admissible",
+        "preflight_engine_reachable",
+        "preflight_engine_unreachable_user_review_required",
+        "preflight_unsupported_directive_user_review_required",
+        "preflight_port_collision_user_review_required",
+        "preflight_mirror_unreachable_user_review_required",
+        "preflight_registry_auth_pending_user_review",
+        "preflight_image_unverifiable_user_review_required",
+        "preflight_workspace_trust_unset_blocked",
+        "preflight_policy_blocked",
+        "preflight_unknown_requires_review"
+      ],
+      "description": "Closed preflight-result vocabulary covering the four hooks (engine reachability, unsupported directives, port collisions, mirror or auth prerequisites) named in the spec plus image verification and workspace-trust / policy blockers. Start / attach / exec flows MUST cite a non-empty preflight_results list before live attach is admissible."
+    },
+
+    "preflight_blocking_class": {
+      "type": "string",
+      "enum": [
+        "non_blocking_advisory",
+        "blocking_pre_apply",
+        "blocking_pre_attach",
+        "blocking_pre_exec",
+        "blocking_pre_forward",
+        "not_applicable_inspect_only"
+      ],
+      "description": "Closed preflight-blocking vocabulary. blocking_pre_* classes prevent the matching action class from resolving to admissible_under_*; advisory results may surface as visible chips without blocking."
+    },
+
+    "preflight_result_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preflight_result_class",
+        "preflight_blocking_class"
+      ],
+      "properties": {
+        "preflight_result_class": { "$ref": "#/$defs/preflight_result_class" },
+        "preflight_blocking_class": { "$ref": "#/$defs/preflight_blocking_class" },
+        "preflight_check_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque preflight-check handle (check-id-class). Raw command lines, raw stdout / stderr, and raw error strings never appear here."
+        },
+        "repair_hook_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque repair-candidate hook Project Doctor / repair-action card MAY surface."
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_revoked",
+        "policy_narrowed",
+        "approval_scope_changed",
+        "support_export_boundary",
+        "engine_unreachable",
+        "engine_socket_missing",
+        "engine_permission_denied",
+        "engine_remote_endpoint_unreachable",
+        "privileged_directive_pending_admin_admit",
+        "host_filesystem_mount_pending_admin_admit",
+        "engine_socket_mount_pending_admin_admit",
+        "mount_boundary_uncertain",
+        "user_namespace_disabled",
+        "port_collision_observed",
+        "host_unrestricted_bind_pending_admin_admit",
+        "mirror_unreachable",
+        "registry_auth_pending",
+        "image_unverifiable",
+        "service_dependency_cycle_detected",
+        "service_health_unknown",
+        "captured_handoff_must_not_attach_live"
+      ],
+      "description": "Closed downgrade-trigger vocabulary. The first four values mirror the safe-preview ladder; the remaining seventeen values are container-runtime-specific extensions naming engine reachability, privilege posture, mount boundary, port collision, mirror / registry, image verification, multi-service topology, and capture / replay degradation paths. A session that needs to narrow MUST cite a typed trigger from this list rather than describing the cause in prose."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "container_session_admitted",
+        "container_session_attach_completed",
+        "container_session_attach_failed",
+        "container_session_blocked_pending_consent",
+        "container_session_blocked_pending_policy",
+        "container_session_blocked_pending_workspace_trust",
+        "container_session_engine_unreachable_denial",
+        "container_session_privileged_directive_blocked",
+        "container_session_engine_socket_mount_blocked",
+        "container_session_host_filesystem_mount_blocked",
+        "container_session_host_unrestricted_bind_blocked",
+        "container_session_port_collision_observed",
+        "container_session_mirror_unreachable_observed",
+        "container_session_registry_auth_pending",
+        "container_session_image_unverifiable_user_review",
+        "container_session_preflight_completed",
+        "container_session_preflight_blocked",
+        "container_session_multi_service_topology_resolved",
+        "container_session_service_dependency_cycle_blocked",
+        "container_session_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary. Every container-session admit / deny / preflight / topology event resolves to one of these ids; surface-local audit channels project rather than mint parallel ids."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "ambient_engine_socket_mount_forbidden",
+        "ambient_privileged_shell_escalation_forbidden",
+        "host_filesystem_mount_forbidden_pending_admin_admit",
+        "host_unrestricted_bind_forbidden_pending_admin_admit",
+        "engine_unreachable_user_review_required",
+        "engine_blocked_by_workspace_trust",
+        "engine_blocked_by_policy",
+        "mount_writability_must_resolve_to_typed_class",
+        "mount_kind_must_resolve_to_typed_class",
+        "privilege_posture_must_resolve_to_typed_class",
+        "user_namespace_mode_must_resolve_to_typed_class",
+        "attach_posture_must_resolve_to_typed_class",
+        "engine_class_must_resolve_to_typed_class",
+        "secret_or_config_mount_must_cite_broker_handle",
+        "ai_tool_proposed_session_must_not_attach_pending_review",
+        "captured_handoff_must_not_attach_to_live_engine",
+        "preflight_blocking_pre_attach_unsatisfied",
+        "preflight_blocking_pre_exec_unsatisfied",
+        "preflight_blocking_pre_forward_unsatisfied",
+        "service_dependency_cycle_must_block_start",
+        "workspace_trust_unset_or_restricted",
+        "policy_epoch_expired_re_evaluation_required"
+      ],
+      "description": "Closed denial-reason vocabulary. apply paths can never relabel privileged-shell escalation as ordinary attach, can never accept ambient engine-socket mounts, can never elide mount / privilege / preflight truth before attach, and can never auto-attach a captured handoff to a live engine."
+    },
+
+    "container_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "container_session_schema_version",
+        "container_session_id",
+        "captured_at",
+        "container_session_class",
+        "identity_mode",
+        "workspace_trust_state_class",
+        "target_class",
+        "container_engine_class",
+        "engine_build_identity_ref",
+        "engine_reachability_class",
+        "privilege_posture_class",
+        "user_namespace_mode_class",
+        "image_handle_ref",
+        "container_handle_ref",
+        "mounts",
+        "port_forwards",
+        "attach_posture_class",
+        "effective_admissible_attach_actions",
+        "multi_service_topology",
+        "preflight_results",
+        "downgrade_trigger_observations",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "container_session_schema_version": { "$ref": "#/$defs/container_session_schema_version" },
+        "container_session_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "container_session_class": { "$ref": "#/$defs/container_session_class" },
+
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "workspace_trust_state_class": { "$ref": "#/$defs/workspace_trust_state_class" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+
+        "container_engine_class": { "$ref": "#/$defs/container_engine_class" },
+        "engine_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque engine-build-identity handle (engine-build-id-class). Raw socket paths, raw context names, and raw connection strings never appear here."
+        },
+        "engine_reachability_class": { "$ref": "#/$defs/engine_reachability_class" },
+
+        "privilege_posture_class": { "$ref": "#/$defs/privilege_posture_class" },
+        "user_namespace_mode_class": { "$ref": "#/$defs/user_namespace_mode_class" },
+
+        "image_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque image-handle id naming the image / build identity the session was provisioned against. Raw image digests, raw image tags, and raw repository / registry URLs never appear here."
+        },
+        "image_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "container_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque container-handle id naming the materialised container instance the session attached to. Raw container ids never appear here."
+        },
+
+        "execution_context_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the execution-context record the session resolved through (target identity, sandbox posture, policy epoch). Pass-through; this record never restates execution-context fields."
+        },
+        "environment_capsule_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the environment-capsule body whose toolchain identity, secret-projection markers, and export path govern this session. Pass-through; this record never restates capsule fields."
+        },
+        "devcontainer_profile_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the devcontainer_profile_record this session was provisioned against, when the session class is devcontainer_provisioned_session or managed_workspace_provisioned_container_session."
+        },
+        "container_handoff_packet_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the container-handoff packet that captured this session, when the session class is imported_from_container_handoff_packet_session."
+        },
+        "container_capture_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the container capture this session was rehydrated from, when the session class is replayed_from_container_capture_session."
+        },
+
+        "mounts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mount_entry" },
+          "uniqueItems": true,
+          "description": "Mount model. Empty list is admissible only on inspect_only / blocked / external-handoff sessions. Live sessions enumerate every mount the surface expects to project, so writable paths and mount boundaries are explicit before attach or exec actions."
+        },
+        "port_forwards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/port_forward_entry" },
+          "uniqueItems": true,
+          "description": "Port-forward model. Empty list is admissible. Each entry MAY cite a preview_route_record_ref by reference; the route record stays the source of truth for service identity, mapped port / route, target context, actor, expiry, and policy scope."
+        },
+
+        "attach_posture_class": { "$ref": "#/$defs/attach_posture_class" },
+
+        "effective_admissible_attach_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/attach_admissibility_entry" },
+          "uniqueItems": true,
+          "description": "Per-attach-action admissibility map. Consumer surfaces MUST NOT offer an attach / exec / forward action whose entry resolves to inspect_only_* / external_handoff_only_* / blocked_*. The list MUST include every attach_action_class the surface intends to offer or grey out."
+        },
+
+        "multi_service_topology": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/multi_service_topology_entry" },
+          "uniqueItems": true,
+          "description": "Multi-service topology. compose_orchestrated_container_session and managed_workspace_provisioned_container_session resolve a non-empty list so API, queue, web-app, and database services do not collapse into one opaque 'workspace started' state. Other session classes MAY resolve an empty list."
+        },
+
+        "preflight_results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preflight_result_entry" },
+          "uniqueItems": true,
+          "description": "Preflight result hooks for engine reachability, unsupported directives, port collisions, and mirror / auth prerequisites. Start / attach / exec / forward flows cite this list to explain inspect-only or blocked posture before work begins."
+        },
+
+        "downgrade_trigger_observations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger" },
+          "uniqueItems": true,
+          "description": "Observed downgrade triggers narrowing this session. Surfaces project the same vocabulary; the session does not invent surface-local trigger names."
+        },
+
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional approval-ticket ref required when sandbox / trust / privilege expansion was approved (reuses the integration approval-ticket family)."
+        },
+
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_and_hashes_only",
+            "broadened_capture",
+            "none"
+          ],
+          "description": "Default export redaction class. metadata_and_hashes_only is the default; broadened_capture requires an explicit opt-in recorded on the paired environment_capsule export manifest."
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Live container-session classes (user_authored_dockerfile_session, compose_orchestrated_container_session, devcontainer_provisioned_session, managed_workspace_provisioned_container_session) require engine_reachability_class = engine_reachable_verified and forbid privilege postures that escalate without admin admit.",
+          "if": {
+            "properties": {
+              "container_session_class": {
+                "enum": [
+                  "user_authored_dockerfile_session",
+                  "compose_orchestrated_container_session",
+                  "devcontainer_provisioned_session",
+                  "managed_workspace_provisioned_container_session"
+                ]
+              }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "properties": {
+              "engine_reachability_class": { "const": "engine_reachable_verified" },
+              "privilege_posture_class": {
+                "not": {
+                  "enum": [
+                    "privileged_full_capabilities_blocked_pending_admin_admit",
+                    "privileged_socket_mount_blocked_pending_admin_admit",
+                    "privileged_host_filesystem_mount_blocked_pending_admin_admit",
+                    "privilege_posture_unknown_requires_review"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "engine_reachability_class outside engine_reachable_verified forces the session class into a degradation lane and forbids admissible_under_* on every attach / exec / forward action.",
+          "if": {
+            "properties": {
+              "engine_reachability_class": {
+                "not": { "const": "engine_reachable_verified" }
+              }
+            },
+            "required": ["engine_reachability_class"]
+          },
+          "then": {
+            "properties": {
+              "container_session_class": {
+                "enum": [
+                  "inspect_only_uncertain_engine_session",
+                  "external_handoff_only_engine_remote_unreachable_session",
+                  "blocked_engine_unreachable_session",
+                  "imported_from_container_handoff_packet_session",
+                  "replayed_from_container_capture_session",
+                  "ai_tool_proposed_container_session_pending_review"
+                ]
+              },
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "blocked_engine_unreachable_session forbids any admissible_under_* attach entry; every entry MUST resolve to a blocked_* / inspect_only_* / external_handoff_only_* / not_applicable class.",
+          "if": {
+            "properties": {
+              "container_session_class": { "const": "blocked_engine_unreachable_session" }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "properties": {
+              "attach_posture_class": {
+                "enum": [
+                  "attach_blocked_pending_user_admit",
+                  "attach_blocked_pending_policy",
+                  "attach_blocked_pending_workspace_trust",
+                  "inspect_only_no_attach"
+                ]
+              },
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "downgrade_trigger_observations": {
+                "contains": { "const": "engine_unreachable" }
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_container_session_pending_review forbids leaving pending review state and forbids admissible_under_* on every attach entry; container_handle_ref MAY remain a placeholder until admit.",
+          "if": {
+            "properties": {
+              "container_session_class": { "const": "ai_tool_proposed_container_session_pending_review" }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "properties": {
+              "attach_posture_class": {
+                "enum": [
+                  "attach_blocked_pending_user_admit",
+                  "inspect_only_no_attach"
+                ]
+              },
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_from_container_handoff_packet_session requires a non-null container_handoff_packet_ref and forbids live attach.",
+          "if": {
+            "properties": {
+              "container_session_class": { "const": "imported_from_container_handoff_packet_session" }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "required": ["container_handoff_packet_ref"],
+            "properties": {
+              "container_handoff_packet_ref": { "type": "string" },
+              "attach_posture_class": {
+                "enum": [
+                  "inspect_only_no_attach",
+                  "attach_blocked_pending_user_admit",
+                  "attach_blocked_pending_policy",
+                  "attach_blocked_pending_workspace_trust"
+                ]
+              },
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "enum": [
+                        "not_applicable_imported_or_replayed_session",
+                        "inspect_only_engine_unreachable",
+                        "inspect_only_engine_unsupported",
+                        "external_handoff_only_engine_remote_unreachable",
+                        "blocked_engine_unreachable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "replayed_from_container_capture_session requires a non-null container_capture_ref and forbids live attach.",
+          "if": {
+            "properties": {
+              "container_session_class": { "const": "replayed_from_container_capture_session" }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "required": ["container_capture_ref"],
+            "properties": {
+              "container_capture_ref": { "type": "string" },
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "enum": [
+                        "not_applicable_imported_or_replayed_session",
+                        "inspect_only_engine_unreachable",
+                        "inspect_only_engine_unsupported",
+                        "external_handoff_only_engine_remote_unreachable",
+                        "blocked_engine_unreachable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "devcontainer_provisioned_session and managed_workspace_provisioned_container_session require a non-null devcontainer_profile_record_ref so the session is bound to a profile reviewer can read.",
+          "if": {
+            "properties": {
+              "container_session_class": {
+                "enum": [
+                  "devcontainer_provisioned_session",
+                  "managed_workspace_provisioned_container_session"
+                ]
+              }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "required": ["devcontainer_profile_record_ref"],
+            "properties": {
+              "devcontainer_profile_record_ref": { "type": "string" }
+            }
+          }
+        },
+        {
+          "description": "Every admissible_under_approval_ticket attach entry MUST cite a non-null approval_ticket_ref on the entry.",
+          "properties": {
+            "effective_admissible_attach_actions": {
+              "items": {
+                "if": {
+                  "properties": {
+                    "attach_admissibility_class": { "const": "admissible_under_approval_ticket" }
+                  },
+                  "required": ["attach_admissibility_class"]
+                },
+                "then": {
+                  "required": ["approval_ticket_ref"],
+                  "properties": {
+                    "approval_ticket_ref": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "workspace_trust_state_class in {workspace_trust_unset, workspace_trust_restricted} forbids admissible_under_workspace_trust and admissible_under_session_only_override on every attach entry; admissible_under_approval_ticket remains the only admissible path under restricted trust.",
+          "if": {
+            "properties": {
+              "workspace_trust_state_class": {
+                "enum": ["workspace_trust_unset", "workspace_trust_restricted"]
+              }
+            },
+            "required": ["workspace_trust_state_class"]
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rooted_with_added_capabilities_user_review_required is admissible only when every admissible attach entry resolves to admissible_under_approval_ticket; ambient capability addition without a ticket is forbidden.",
+          "if": {
+            "properties": {
+              "privilege_posture_class": { "const": "rooted_with_added_capabilities_user_review_required" }
+            },
+            "required": ["privilege_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "user_namespace_mode_class in {userns_disabled_user_review_required, userns_unknown_requires_review} forbids admissible_under_* on every attach entry and forces the matching downgrade trigger.",
+          "if": {
+            "properties": {
+              "user_namespace_mode_class": {
+                "enum": [
+                  "userns_disabled_user_review_required",
+                  "userns_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["user_namespace_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "downgrade_trigger_observations": {
+                "contains": { "const": "user_namespace_disabled" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Every secret_or_config_mount_via_broker_handle mount entry MUST cite a non-null secret_broker_handle_ref.",
+          "properties": {
+            "mounts": {
+              "items": {
+                "if": {
+                  "properties": {
+                    "mount_kind_class": { "const": "secret_or_config_mount_via_broker_handle" }
+                  },
+                  "required": ["mount_kind_class"]
+                },
+                "then": {
+                  "required": ["secret_broker_handle_ref"],
+                  "properties": {
+                    "secret_broker_handle_ref": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Any mount entry resolving to forbidden_engine_socket_mount_pending_admin_admit / forbidden_host_filesystem_mount_pending_admin_admit forces the session into a blocked / external-handoff class and forbids admissible_under_* on every attach entry.",
+          "if": {
+            "properties": {
+              "mounts": {
+                "contains": {
+                  "properties": {
+                    "mount_kind_class": {
+                      "enum": [
+                        "forbidden_engine_socket_mount_pending_admin_admit",
+                        "forbidden_host_filesystem_mount_pending_admin_admit"
+                      ]
+                    }
+                  },
+                  "required": ["mount_kind_class"]
+                }
+              }
+            },
+            "required": ["mounts"]
+          },
+          "then": {
+            "properties": {
+              "container_session_class": {
+                "enum": [
+                  "blocked_engine_unreachable_session",
+                  "inspect_only_uncertain_engine_session",
+                  "external_handoff_only_engine_remote_unreachable_session",
+                  "ai_tool_proposed_container_session_pending_review",
+                  "imported_from_container_handoff_packet_session",
+                  "replayed_from_container_capture_session"
+                ]
+              },
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Any port_forward entry resolving to forbidden_host_unrestricted_bind_pending_admin_admit forbids admissible_under_* on forward_port_to_loopback / forward_port_to_workspace_only / forward_port_to_managed_workspace_route attach actions.",
+          "if": {
+            "properties": {
+              "port_forwards": {
+                "contains": {
+                  "properties": {
+                    "port_forward_class": {
+                      "const": "forbidden_host_unrestricted_bind_pending_admin_admit"
+                    }
+                  },
+                  "required": ["port_forward_class"]
+                }
+              }
+            },
+            "required": ["port_forwards"]
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "attach_action_class": {
+                        "enum": [
+                          "forward_port_to_loopback",
+                          "forward_port_to_workspace_only",
+                          "forward_port_to_managed_workspace_route"
+                        ]
+                      }
+                    },
+                    "required": ["attach_action_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "attach_admissibility_class": {
+                        "not": {
+                          "enum": [
+                            "admissible_under_workspace_trust",
+                            "admissible_under_session_only_override",
+                            "admissible_under_approval_ticket"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "downgrade_trigger_observations": {
+                "contains": { "const": "host_unrestricted_bind_pending_admin_admit" }
+              }
+            }
+          }
+        },
+        {
+          "description": "compose_orchestrated_container_session and managed_workspace_provisioned_container_session require a non-empty multi_service_topology so API, queue, web-app, and database services do not collapse into one opaque 'workspace started' state.",
+          "if": {
+            "properties": {
+              "container_session_class": {
+                "enum": [
+                  "compose_orchestrated_container_session",
+                  "managed_workspace_provisioned_container_session"
+                ]
+              }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "properties": {
+              "multi_service_topology": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "Any multi-service topology entry resolving to service_dependency_cycle_detected_blocked forces the session into a blocked class and forbids admissible_under_* on every attach entry.",
+          "if": {
+            "properties": {
+              "multi_service_topology": {
+                "contains": {
+                  "properties": {
+                    "multi_service_dependency_state_class": {
+                      "const": "service_dependency_cycle_detected_blocked"
+                    }
+                  },
+                  "required": ["multi_service_dependency_state_class"]
+                }
+              }
+            },
+            "required": ["multi_service_topology"]
+          },
+          "then": {
+            "properties": {
+              "container_session_class": {
+                "enum": [
+                  "blocked_engine_unreachable_session",
+                  "inspect_only_uncertain_engine_session"
+                ]
+              },
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "downgrade_trigger_observations": {
+                "contains": { "const": "service_dependency_cycle_detected" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Live container-session classes require a non-empty preflight_results list so engine reachability, unsupported directives, port collisions, and mirror / auth prerequisites are explicit before live attach.",
+          "if": {
+            "properties": {
+              "container_session_class": {
+                "enum": [
+                  "user_authored_dockerfile_session",
+                  "compose_orchestrated_container_session",
+                  "devcontainer_provisioned_session",
+                  "managed_workspace_provisioned_container_session"
+                ]
+              }
+            },
+            "required": ["container_session_class"]
+          },
+          "then": {
+            "properties": {
+              "preflight_results": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "Any preflight_results entry resolving to a blocking_pre_* class with a non-passed preflight_result_class forbids admissible_under_* on the matching action class.",
+          "if": {
+            "properties": {
+              "preflight_results": {
+                "contains": {
+                  "properties": {
+                    "preflight_blocking_class": {
+                      "enum": [
+                        "blocking_pre_attach",
+                        "blocking_pre_exec",
+                        "blocking_pre_forward",
+                        "blocking_pre_apply"
+                      ]
+                    },
+                    "preflight_result_class": {
+                      "not": {
+                        "enum": [
+                          "preflight_passed_admissible",
+                          "preflight_engine_reachable"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["preflight_blocking_class", "preflight_result_class"]
+                }
+              }
+            },
+            "required": ["preflight_results"]
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_attach_actions": {
+                "items": {
+                  "properties": {
+                    "attach_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One inspectable container / devcontainer session emitted by a terminal attach, task / test / debug runner bound to a container, devcontainer 'reopen in container' lane, multi-service compose orchestrator, support / export reader, hosted-review reader, automation run review, or AI tool review surface."
+    }
+  }
+}
