@@ -1,0 +1,671 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/statement_safety_result.schema.json",
+  "title": "Aureline statement-safety classification result boundary",
+  "description": "Boundary schema for one statement_safety_result_record frozen in docs/data/database_tooling_contract.md. Every database tool surface that admits, blocks, or annotates a statement (single SQL statement, batched multi-statement script, prepared template, ad-hoc paste, AI-tool proposal) emits exactly one statement_safety_result_record per classification pass, before the broker hands the statement to the engine. The record carries opaque statement / template / connection / object refs, typed enum values, integer-bucket counts, and reviewable sentences only. Raw statement bodies, raw template texts, raw user-supplied literals, raw object names that disclose tenant identity, and raw bind values never cross this boundary; the surface keeps the body in a local literal store and surfaces only a body_label_opaque_ref into a redaction-aware label registry. Re-exports identity_mode and workspace_trust_state_class from the identity family and redaction_class from the governance / capability-lifecycle family without redefinition. Adding a new statement_safety_class, transaction_context_class, object_impact_class, multi_statement_posture_class, ambiguity_reason_class, blocked_reason_class, audit_event_id, or denial_reason_class is additive-minor and bumps statement_safety_result_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/statement_safety_result_record" },
+    { "$ref": "#/$defs/statement_safety_audit_event_record" }
+  ],
+  "$defs": {
+    "statement_safety_result_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Opaque, stable, snake_case-safe id. Raw URLs, raw absolute paths, raw user names, raw secret bytes, raw statement bodies, and raw bind-value bytes never appear here."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short, reviewable sentence safe for banners, admin exports, and support packets. Raw statement bodies, raw bind values, and raw secret material MUST NOT appear."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_revoked"
+      ]
+    },
+
+    "statement_safety_class": {
+      "type": "string",
+      "enum": [
+        "read_only_query",
+        "read_only_pure_metadata_introspection",
+        "data_manipulation_insert",
+        "data_manipulation_update",
+        "data_manipulation_delete",
+        "data_manipulation_merge_or_upsert",
+        "data_definition_create",
+        "data_definition_alter",
+        "data_definition_drop",
+        "data_definition_truncate",
+        "data_control_grant_or_revoke",
+        "session_setting_change",
+        "transaction_control_statement",
+        "explain_or_plan_only_no_execution",
+        "stored_procedure_or_function_call_unknown_side_effects",
+        "multi_statement_script_mixed_classes",
+        "ambiguous_class_user_review_required",
+        "blocked_class_not_admissible_on_this_connection"
+      ],
+      "description": "Closed statement-safety class vocabulary. read_only_query and read_only_pure_metadata_introspection are read-only; data_manipulation_* are DML; data_definition_* are DDL; data_control_grant_or_revoke is DCL; session_setting_change is session-affecting; multi_statement_script_mixed_classes is a batched multi-statement payload that MUST cite a non-empty per_statement_class_set; ambiguous_class_user_review_required surfaces when the planner cannot determine the class; blocked_class_not_admissible_on_this_connection denies under the connection's read-only / write-capability posture."
+    },
+
+    "transaction_context_class": {
+      "type": "string",
+      "enum": [
+        "implicit_autocommit_no_transaction",
+        "explicit_transaction_open",
+        "savepoint_within_transaction",
+        "transaction_will_open_for_this_statement",
+        "transaction_will_commit_after_this_statement",
+        "transaction_will_rollback_after_this_statement",
+        "transaction_context_unknown_requires_review",
+        "transaction_context_not_applicable_explain_only"
+      ],
+      "description": "Closed transaction-context class. Mutation-class statements outside an explicit transaction (implicit_autocommit_no_transaction) force the surface to disclose the autocommit risk before admit."
+    },
+
+    "object_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_object_impact_read_only",
+        "rows_only_no_schema_change",
+        "schema_change_table_or_view",
+        "schema_change_index_or_constraint",
+        "schema_change_role_or_grant",
+        "schema_change_extension_or_database",
+        "object_impact_unknown_requires_review",
+        "object_impact_not_applicable_explain_only"
+      ],
+      "description": "Closed object-impact class. The result-grid contract uses this to decide whether to refresh schema-aware autocompletion after the statement runs."
+    },
+
+    "multi_statement_posture_class": {
+      "type": "string",
+      "enum": [
+        "single_statement",
+        "multi_statement_script_homogeneous_read_only",
+        "multi_statement_script_homogeneous_dml",
+        "multi_statement_script_homogeneous_ddl",
+        "multi_statement_script_mixed_classes",
+        "multi_statement_script_unknown_requires_review"
+      ],
+      "description": "Closed multi-statement posture vocabulary. multi_statement_script_mixed_classes forces the statement_safety_class to multi_statement_script_mixed_classes and forces a non-empty per_statement_class_set."
+    },
+
+    "ambiguity_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_ambiguity_classification_confident",
+        "dialect_specific_construct_unparsed",
+        "dynamic_sql_or_string_concatenation_observed",
+        "stored_procedure_body_not_visible_to_classifier",
+        "user_defined_function_with_unknown_side_effects",
+        "comment_only_or_empty_payload",
+        "ambiguity_reason_unknown_requires_review"
+      ]
+    },
+
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_blocked_admissible",
+        "blocked_write_on_read_only_connection",
+        "blocked_destructive_ddl_without_consent_ticket",
+        "blocked_truncate_or_drop_on_production_blast_radius_high",
+        "blocked_grant_or_revoke_outside_admin_console",
+        "blocked_session_setting_change_locked_by_policy",
+        "blocked_multi_statement_mixed_classes_without_user_admit",
+        "blocked_pending_workspace_trust",
+        "blocked_pending_policy",
+        "blocked_unknown_classification_requires_user_review"
+      ],
+      "description": "Closed blocked-reason vocabulary. not_blocked_admissible MUST be paired with statement_safety_class outside { blocked_class_not_admissible_on_this_connection }."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "statement_safety_classified",
+        "statement_safety_blocked",
+        "statement_safety_admitted_with_consent_ticket",
+        "statement_safety_admitted_session_only_override",
+        "statement_safety_audit_denial_emitted",
+        "statement_safety_misclassification_user_corrected"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "read_only_claim_must_not_resolve_to_dml_or_ddl",
+        "multi_statement_mixed_classes_must_cite_per_statement_class_set",
+        "blocked_class_must_cite_typed_blocked_reason",
+        "session_setting_change_locked_by_policy",
+        "explain_or_plan_only_must_not_execute",
+        "ambiguous_class_must_cite_ambiguity_reason",
+        "destructive_ddl_must_cite_consent_ticket_ref",
+        "workspace_trust_unset_or_restricted",
+        "policy_epoch_expired_re_evaluation_required",
+        "object_impact_required_when_object_impact_class_is_schema_change",
+        "transaction_context_required_for_mutation_class_statement",
+        "ai_tool_proposed_statement_must_not_execute_pending_user_admit"
+      ]
+    },
+
+    "per_statement_class_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinal",
+        "statement_safety_class"
+      ],
+      "properties": {
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based ordinal of this sub-statement inside the multi-statement script. Raw statement bodies MUST NOT appear; the body_label_opaque_ref resolves through the per-script literal-label registry."
+        },
+        "statement_safety_class": { "$ref": "#/$defs/statement_safety_class" },
+        "object_impact_class": { "$ref": "#/$defs/object_impact_class" },
+        "body_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+
+    "object_impact_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_impact_class",
+        "affected_object_count_bucket"
+      ],
+      "properties": {
+        "object_impact_class": { "$ref": "#/$defs/object_impact_class" },
+        "affected_object_count_bucket": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Coarse bucket count of distinct schema objects the statement is expected to touch. Raw object names MUST NOT appear; affected_object_label_refs resolves through the per-classification label registry."
+        },
+        "affected_object_label_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Zero or more opaque refs into a per-classification object-label registry. The registry resolves the human label; raw fully-qualified object names MUST NOT appear."
+        },
+        "row_estimate_bucket": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "row_estimate_unknown",
+                "row_estimate_zero",
+                "row_estimate_tens",
+                "row_estimate_hundreds",
+                "row_estimate_thousands",
+                "row_estimate_tens_of_thousands",
+                "row_estimate_hundreds_of_thousands_or_more"
+              ]
+            }
+          ],
+          "description": "UX-visible row-estimate bucket. The result-grid surface paints this next to mutation-class statements; raw EXPLAIN bodies MUST NOT appear."
+        },
+        "object_impact_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "transaction_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "transaction_context_class" ],
+      "properties": {
+        "transaction_context_class": { "$ref": "#/$defs/transaction_context_class" },
+        "transaction_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "savepoint_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "transaction_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "statement_safety_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "statement_safety_result_id",
+        "bound_connection_profile_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "execution_origin_class",
+        "statement_safety_class",
+        "multi_statement_posture_class",
+        "transaction_context",
+        "object_impact",
+        "ambiguity_reason_class",
+        "blocked_reason_class",
+        "workspace_trust_state",
+        "redaction_class",
+        "classified_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/statement_safety_result_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "statement_safety_result_record"
+        },
+        "statement_safety_result_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_connection_profile_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "execution_origin_class": {
+          "type": "string",
+          "enum": [
+            "desktop_sql_editor",
+            "cli_runner",
+            "ai_tool_review_surface",
+            "automation_run_review_surface",
+            "extension_host_runner",
+            "support_export_reader",
+            "admin_audit_reader",
+            "hosted_review_reader"
+          ]
+        },
+        "statement_safety_class": { "$ref": "#/$defs/statement_safety_class" },
+        "multi_statement_posture_class": { "$ref": "#/$defs/multi_statement_posture_class" },
+        "per_statement_class_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/per_statement_class_descriptor" },
+          "description": "Required non-empty when multi_statement_posture_class is multi_statement_script_homogeneous_dml / homogeneous_ddl / homogeneous_read_only / mixed_classes / unknown_requires_review; empty otherwise."
+        },
+        "transaction_context": { "$ref": "#/$defs/transaction_envelope" },
+        "object_impact": { "$ref": "#/$defs/object_impact_envelope" },
+        "ambiguity_reason_class": { "$ref": "#/$defs/ambiguity_reason_class" },
+        "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "workspace_trust_state": { "$ref": "#/$defs/workspace_trust_state_class" },
+        "consent_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when statement_safety_class is data_definition_drop / data_definition_truncate or when blocked_reason_class is blocked_destructive_ddl_without_consent_ticket and the user has admitted a consent ticket."
+        },
+        "linked_query_history_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_result_grid_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "body_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into the per-classification statement-body label registry. The registry resolves the redaction-aware reviewer-facing label; raw statement bodies and raw bind values MUST NOT appear here."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "classified_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admit_decided_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Read-only classes pair with no_object_impact_read_only and a not_blocked_admissible blocked_reason_class.",
+          "if": {
+            "properties": {
+              "statement_safety_class": {
+                "enum": [
+                  "read_only_query",
+                  "read_only_pure_metadata_introspection",
+                  "explain_or_plan_only_no_execution"
+                ]
+              }
+            },
+            "required": [ "statement_safety_class" ]
+          },
+          "then": {
+            "properties": {
+              "object_impact": {
+                "properties": {
+                  "object_impact_class": {
+                    "enum": [
+                      "no_object_impact_read_only",
+                      "object_impact_not_applicable_explain_only"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Mutation-class statements (DML / DDL / DCL) MUST cite a transaction_context_class outside not_applicable_explain_only.",
+          "if": {
+            "properties": {
+              "statement_safety_class": {
+                "enum": [
+                  "data_manipulation_insert",
+                  "data_manipulation_update",
+                  "data_manipulation_delete",
+                  "data_manipulation_merge_or_upsert",
+                  "data_definition_create",
+                  "data_definition_alter",
+                  "data_definition_drop",
+                  "data_definition_truncate",
+                  "data_control_grant_or_revoke"
+                ]
+              }
+            },
+            "required": [ "statement_safety_class" ]
+          },
+          "then": {
+            "properties": {
+              "transaction_context": {
+                "properties": {
+                  "transaction_context_class": {
+                    "not": { "const": "transaction_context_not_applicable_explain_only" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "multi_statement_script_mixed_classes statement_safety_class MUST be paired with multi_statement_posture_class = multi_statement_script_mixed_classes and a non-empty per_statement_class_set.",
+          "if": {
+            "properties": {
+              "statement_safety_class": { "const": "multi_statement_script_mixed_classes" }
+            },
+            "required": [ "statement_safety_class" ]
+          },
+          "then": {
+            "properties": {
+              "multi_statement_posture_class": { "const": "multi_statement_script_mixed_classes" },
+              "per_statement_class_set": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "Single-statement posture admits an empty per_statement_class_set.",
+          "if": {
+            "properties": {
+              "multi_statement_posture_class": { "const": "single_statement" }
+            },
+            "required": [ "multi_statement_posture_class" ]
+          },
+          "then": {
+            "properties": {
+              "per_statement_class_set": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "ambiguous_class_user_review_required MUST cite an ambiguity_reason_class outside no_ambiguity_classification_confident.",
+          "if": {
+            "properties": {
+              "statement_safety_class": { "const": "ambiguous_class_user_review_required" }
+            },
+            "required": [ "statement_safety_class" ]
+          },
+          "then": {
+            "properties": {
+              "ambiguity_reason_class": {
+                "not": { "const": "no_ambiguity_classification_confident" }
+              }
+            }
+          }
+        },
+        {
+          "description": "blocked_class_not_admissible_on_this_connection MUST cite a blocked_reason_class outside not_blocked_admissible.",
+          "if": {
+            "properties": {
+              "statement_safety_class": { "const": "blocked_class_not_admissible_on_this_connection" }
+            },
+            "required": [ "statement_safety_class" ]
+          },
+          "then": {
+            "properties": {
+              "blocked_reason_class": {
+                "not": { "const": "not_blocked_admissible" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Destructive DDL (drop / truncate) MUST cite a non-null consent_ticket_ref before admit; otherwise the surface denies with destructive_ddl_must_cite_consent_ticket_ref.",
+          "if": {
+            "properties": {
+              "statement_safety_class": {
+                "enum": [
+                  "data_definition_drop",
+                  "data_definition_truncate"
+                ]
+              },
+              "blocked_reason_class": { "const": "not_blocked_admissible" }
+            },
+            "required": [ "statement_safety_class", "blocked_reason_class" ]
+          },
+          "then": {
+            "required": [ "consent_ticket_ref" ],
+            "properties": {
+              "consent_ticket_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Schema-change object impact requires a non-empty affected_object_label_refs set so reviewers can see what the statement is expected to touch.",
+          "if": {
+            "properties": {
+              "object_impact": {
+                "properties": {
+                  "object_impact_class": {
+                    "enum": [
+                      "schema_change_table_or_view",
+                      "schema_change_index_or_constraint",
+                      "schema_change_role_or_grant",
+                      "schema_change_extension_or_database"
+                    ]
+                  }
+                },
+                "required": [ "object_impact_class" ]
+              }
+            },
+            "required": [ "object_impact" ]
+          },
+          "then": {
+            "properties": {
+              "object_impact": {
+                "required": [ "affected_object_label_refs" ],
+                "properties": {
+                  "affected_object_label_refs": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "statement_safety_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_statement_safety_result_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/statement_safety_result_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "statement_safety_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_statement_safety_result_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_consent_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "statement_safety_blocked",
+                  "statement_safety_audit_denial_emitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null so denial vocabulary is never used as a generic free-text channel.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "statement_safety_classified",
+                  "statement_safety_admitted_with_consent_ticket",
+                  "statement_safety_admitted_session_only_override",
+                  "statement_safety_misclassification_user_corrected"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

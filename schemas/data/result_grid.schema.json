@@ -1,0 +1,821 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/result_grid.schema.json",
+  "title": "Aureline database result-grid boundary",
+  "description": "Boundary schema for one result_grid_record frozen in docs/data/database_tooling_contract.md. Every database tool surface that renders structured rows back from a query (desktop SQL editor result panel, CLI runner table output, AI tool review preview, automation evidence projection, support / export reader, hosted-review reader, notebook handoff target) emits exactly this record shape. The record carries typed columns, virtualization posture, truncation truth, filter / sort state, row-count or size boundary truth, export posture, and notebook handoff refs. Raw row bodies, raw cell values, raw column-comment bodies, raw fully-qualified object names, and raw connection-string fragments never cross this boundary; cell payload moves through a separate raw-row stream that is never carried in this packet. Composes by reference with the output-viewer object family (schemas/ux/output_viewer_object.schema.json) when the surface chooses the result_grid_viewer family for active rendering. Adding a new column_type_class, column_provenance_class, virtualization_posture_class, truncation_state_class, truncation_reason_class, row_count_truth_class, export_posture_class, export_format_class, type_coercion_state_class, notebook_handoff_state_class, audit_event_id, or denial_reason_class is additive-minor and bumps result_grid_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/result_grid_record" },
+    { "$ref": "#/$defs/result_grid_audit_event_record" }
+  ],
+  "$defs": {
+    "result_grid_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "redaction_aware_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing short label. Raw fully-qualified object names that disclose tenant / customer identity, raw URLs, and raw secret material MUST NOT appear."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "column_type_class": {
+      "type": "string",
+      "enum": [
+        "boolean_logical",
+        "integer_signed",
+        "integer_unsigned",
+        "decimal_or_numeric",
+        "floating_point",
+        "string_text",
+        "string_bounded_varchar",
+        "binary_bytes",
+        "uuid_or_guid",
+        "json_or_jsonb_document",
+        "xml_document",
+        "date_only",
+        "time_only",
+        "timestamp_no_timezone",
+        "timestamp_with_timezone",
+        "interval_or_duration",
+        "geometry_or_geography",
+        "array_of_typed_values",
+        "user_defined_or_struct_record",
+        "enum_named_value",
+        "vector_embedding",
+        "blob_or_lob_handle",
+        "column_type_unknown_requires_review"
+      ],
+      "description": "Closed column-type class. The column_type_disclosure carries the engine-native type label as a redaction-aware sentence; raw engine-specific type strings that disclose customer object names MUST NOT appear here."
+    },
+
+    "column_provenance_class": {
+      "type": "string",
+      "enum": [
+        "from_base_table_or_view",
+        "from_subquery_or_cte",
+        "computed_expression",
+        "aggregate_or_window_function",
+        "literal_constant",
+        "engine_pseudo_column",
+        "column_provenance_unknown_requires_review"
+      ]
+    },
+
+    "virtualization_posture_class": {
+      "type": "string",
+      "enum": [
+        "inline_no_virtualization_small_result",
+        "row_virtualized_columns_inline",
+        "row_and_column_virtualized",
+        "open_in_detail_for_large_cell",
+        "blocked_active_content_in_cell",
+        "textual_fallback_no_grid",
+        "virtualization_posture_unknown_requires_review"
+      ]
+    },
+
+    "truncation_state_class": {
+      "type": "string",
+      "enum": [
+        "no_truncation_full_result_set",
+        "row_truncated_user_admit_required_to_continue",
+        "row_truncated_engine_capped",
+        "row_truncated_provider_capped",
+        "row_truncated_size_budget_capped",
+        "row_truncated_time_budget_capped",
+        "cell_truncated_open_in_detail",
+        "result_set_paged_more_pages_available",
+        "result_set_streaming_open_buffer",
+        "result_set_streaming_buffer_dropped_oldest",
+        "truncation_state_unknown_requires_review"
+      ],
+      "description": "Closed truncation-state class. truncation_reason_class carries the typed reason; the surface MUST NOT collapse multiple truncation reasons into a single 'truncated' label."
+    },
+
+    "truncation_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_truncation_reason_full_result",
+        "user_row_limit_applied",
+        "engine_max_rows_or_max_size_reached",
+        "provider_quota_or_billing_cap_reached",
+        "session_memory_budget_reached",
+        "session_time_budget_reached",
+        "viewer_inline_size_budget_reached",
+        "blob_or_lob_size_budget_reached",
+        "active_content_blocked_no_render",
+        "schema_drift_partial_result_typed",
+        "truncation_reason_unknown_requires_review"
+      ]
+    },
+
+    "row_count_truth_class": {
+      "type": "string",
+      "enum": [
+        "row_count_exact_total_known",
+        "row_count_exact_returned_only_total_unknown",
+        "row_count_estimate_engine_provided",
+        "row_count_estimate_planner_provided",
+        "row_count_unknown_streaming_in_flight",
+        "row_count_truth_class_unknown_requires_review"
+      ],
+      "description": "Closed row-count truth class. The row-count chip on the surface MUST cite this class so 'Showing 1000 rows' never silently means 'showing the first 1000 of an unknown total' on a streaming or capped result."
+    },
+
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "export_admissible_full_result_typed",
+        "export_admissible_visible_rows_only_typed",
+        "export_admissible_visible_rows_only_textual_fallback",
+        "export_blocked_pending_consent",
+        "export_blocked_pending_policy",
+        "export_blocked_redaction_class_too_high",
+        "export_blocked_active_content_present",
+        "export_blocked_provider_does_not_permit_export",
+        "export_posture_unknown_requires_review"
+      ],
+      "description": "Closed export-posture vocabulary. export_admissible_visible_rows_only_typed forces the export to disclose the truncation_state_class so 'Export to CSV' never silently exports only the first N rows under the appearance of a complete export."
+    },
+
+    "export_format_class": {
+      "type": "string",
+      "enum": [
+        "csv_with_typed_header",
+        "tsv_with_typed_header",
+        "json_lines_typed",
+        "json_array_typed",
+        "parquet_typed",
+        "arrow_ipc_typed",
+        "sql_insert_script_typed",
+        "markdown_table_textual_fallback",
+        "html_table_textual_fallback",
+        "clipboard_textual_fallback",
+        "notebook_handoff_typed",
+        "export_format_unknown_requires_review"
+      ]
+    },
+
+    "type_coercion_state_class": {
+      "type": "string",
+      "enum": [
+        "no_coercion_engine_typed_preserved",
+        "lossless_coercion_documented",
+        "lossy_coercion_explicit_user_choice",
+        "lossy_coercion_textual_fallback_only",
+        "coercion_blocked_for_high_redaction_class",
+        "type_coercion_state_unknown_requires_review"
+      ],
+      "description": "Closed type-coercion vocabulary. lossy_coercion_textual_fallback_only is the only state in which a typed value (timestamp_with_timezone, decimal_or_numeric, vector_embedding, ...) may be exported as a stringified textual approximation, and that case MUST be paired with export_format_class = clipboard_textual_fallback / markdown_table_textual_fallback / html_table_textual_fallback."
+    },
+
+    "notebook_handoff_state_class": {
+      "type": "string",
+      "enum": [
+        "no_notebook_handoff",
+        "notebook_handoff_proposed_pending_user_admit",
+        "notebook_handoff_admitted_dataframe_typed",
+        "notebook_handoff_admitted_textual_fallback_only",
+        "notebook_handoff_blocked_pending_policy",
+        "notebook_handoff_blocked_redaction_class_too_high",
+        "notebook_handoff_unknown_requires_review"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "result_grid_rendered",
+        "result_grid_truncation_disclosed",
+        "result_grid_exported",
+        "result_grid_export_blocked",
+        "result_grid_notebook_handoff_admitted",
+        "result_grid_notebook_handoff_blocked",
+        "result_grid_audit_denial_emitted",
+        "result_grid_type_coercion_lossy_user_admitted"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "export_must_disclose_truncation_state",
+        "export_must_preserve_typed_columns",
+        "export_textual_fallback_admissible_only_for_textual_format",
+        "export_blocked_redaction_class_too_high",
+        "export_blocked_active_content_present",
+        "export_blocked_pending_consent",
+        "lossy_coercion_must_cite_explicit_user_choice",
+        "row_count_truth_class_required",
+        "truncation_reason_class_required_when_truncation_state_class_is_not_full_result",
+        "notebook_handoff_must_disclose_truncation_state",
+        "notebook_handoff_typed_must_not_collapse_to_textual_fallback",
+        "policy_epoch_expired_re_evaluation_required"
+      ]
+    },
+
+    "column_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "column_index",
+        "column_label_ref",
+        "column_type_class",
+        "column_provenance_class",
+        "is_nullable"
+      ],
+      "properties": {
+        "column_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the per-result column-label registry. The registry resolves the redaction-aware reviewer-facing label; raw column names that disclose tenant / customer identity MUST NOT appear here."
+        },
+        "column_type_class": { "$ref": "#/$defs/column_type_class" },
+        "engine_native_type_label": {
+          "$ref": "#/$defs/redaction_aware_label",
+          "description": "Reviewable engine-native type label (e.g. 'numeric(18,4)', 'timestamptz', 'vector(1024)'). Raw user-defined-type fully-qualified names that disclose customer schema MUST NOT appear; the type-label registry resolves the human label."
+        },
+        "column_provenance_class": { "$ref": "#/$defs/column_provenance_class" },
+        "is_nullable": { "type": "boolean" },
+        "max_displayed_length_bucket": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "tiny",
+                "small",
+                "medium",
+                "large",
+                "very_large",
+                "unbounded_blob_or_lob"
+              ]
+            }
+          ]
+        },
+        "active_content_present_in_cells": {
+          "type": "boolean",
+          "description": "True when any cell in this column carries renderable active content (HTML, SVG event handlers, embedded scripts). Active-content cells MUST be rendered through virtualization_posture_class = blocked_active_content_in_cell or open_in_detail_for_large_cell."
+        },
+        "column_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "row_count_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count_truth_class",
+        "rows_returned_count_bucket"
+      ],
+      "properties": {
+        "row_count_truth_class": { "$ref": "#/$defs/row_count_truth_class" },
+        "rows_returned_count_bucket": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of rows the surface currently holds for this result. Coarse bucket; raw counts on extremely large unbounded streams may be reported at a sample boundary so reviewers do not over-trust a streaming pretotal."
+        },
+        "rows_total_estimate_bucket": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "rows_total_exact": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "row_count_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "size_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "size_bucket"
+      ],
+      "properties": {
+        "size_bucket": {
+          "type": "string",
+          "enum": [
+            "tiny",
+            "small",
+            "medium",
+            "large",
+            "very_large",
+            "unbounded_stream"
+          ]
+        },
+        "bytes_returned_bucket": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "bytes_total_estimate_bucket": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "size_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "truncation_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truncation_state_class",
+        "truncation_reason_class"
+      ],
+      "properties": {
+        "truncation_state_class": { "$ref": "#/$defs/truncation_state_class" },
+        "truncation_reason_class": { "$ref": "#/$defs/truncation_reason_class" },
+        "engine_or_provider_cap_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_label" }
+          ]
+        },
+        "user_row_limit_applied": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "truncation_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "filter_sort_state_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filter_predicate_count_bucket",
+        "sort_key_count_bucket",
+        "filter_evaluation_locus"
+      ],
+      "properties": {
+        "filter_predicate_count_bucket": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Coarse bucket of distinct filter predicates currently applied at the grid surface. Raw predicate strings, raw user-supplied literals, and raw column names MUST NOT appear; predicate label registry resolves the human form."
+        },
+        "sort_key_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "filter_evaluation_locus": {
+          "type": "string",
+          "enum": [
+            "engine_side_filter_pushed_down",
+            "client_side_filter_over_returned_rows_only",
+            "mixed_filter_locus_user_review_required",
+            "filter_evaluation_locus_unknown_requires_review"
+          ],
+          "description": "Where the filter actually runs. client_side_filter_over_returned_rows_only forces the surface to disclose that the filter only narrows the visible rows, not the full result set, so a 'no rows' state is never read as 'no rows in the database'."
+        },
+        "filter_sort_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "export_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_posture_class",
+        "type_coercion_state_class",
+        "preserves_typed_columns"
+      ],
+      "properties": {
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "export_format_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/export_format_class" }
+          ]
+        },
+        "type_coercion_state_class": { "$ref": "#/$defs/type_coercion_state_class" },
+        "preserves_typed_columns": {
+          "type": "boolean",
+          "description": "True when the export keeps engine-typed columns (CSV with typed header / Parquet / Arrow / Notebook handoff typed); false when the export is a textual fallback. preserves_typed_columns = false MUST be paired with a textual export_format_class."
+        },
+        "preserves_truncation_disclosure": {
+          "type": "boolean",
+          "description": "True when the exported artifact carries the truncation_state_class / truncation_reason_class chip so a downstream reader knows the export is row-truncated. MUST be true on every export of a non-full result; otherwise the surface denies with export_must_disclose_truncation_state."
+        },
+        "preserves_provenance_chip": {
+          "type": "boolean",
+          "description": "True when the exported artifact carries the connection_profile_id / statement_safety_result_id / query_history_entry_id / build_identity provenance chip so a downstream reviewer can trace the export back to its origin."
+        },
+        "export_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "notebook_handoff_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "notebook_handoff_state_class" ],
+      "properties": {
+        "notebook_handoff_state_class": { "$ref": "#/$defs/notebook_handoff_state_class" },
+        "notebook_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notebook_cell_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notebook_handoff_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "result_grid_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "result_grid_id",
+        "bound_connection_profile_id_ref",
+        "bound_statement_safety_result_id_ref",
+        "bound_query_history_entry_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "execution_origin_class",
+        "columns",
+        "row_count",
+        "size",
+        "virtualization_posture_class",
+        "truncation",
+        "filter_sort_state",
+        "export",
+        "notebook_handoff",
+        "redaction_class",
+        "rendered_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/result_grid_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "result_grid_record"
+        },
+        "result_grid_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_connection_profile_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_statement_safety_result_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_query_history_entry_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "execution_origin_class": {
+          "type": "string",
+          "enum": [
+            "desktop_sql_editor",
+            "cli_runner",
+            "ai_tool_review_surface",
+            "automation_run_review_surface",
+            "extension_host_runner",
+            "support_export_reader",
+            "admin_audit_reader",
+            "hosted_review_reader",
+            "notebook_kernel_handoff_target"
+          ]
+        },
+        "columns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/column_descriptor" },
+          "minItems": 0,
+          "uniqueItems": false
+        },
+        "row_count": { "$ref": "#/$defs/row_count_envelope" },
+        "size": { "$ref": "#/$defs/size_envelope" },
+        "virtualization_posture_class": { "$ref": "#/$defs/virtualization_posture_class" },
+        "truncation": { "$ref": "#/$defs/truncation_envelope" },
+        "filter_sort_state": { "$ref": "#/$defs/filter_sort_state_envelope" },
+        "export": { "$ref": "#/$defs/export_envelope" },
+        "notebook_handoff": { "$ref": "#/$defs/notebook_handoff_envelope" },
+        "linked_output_viewer_object_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional ref to a result_grid_viewer-family output_viewer_object_record when the surface chooses to compose with the output-viewer object family for active rendering. The output_viewer_object_record carries virtualization, truncation, autoscroll, freeze, and active-content posture; this result_grid_record carries typed columns, row-count truth, and export posture. Both packets cite each other when they coexist."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "rendered_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "When truncation_state_class is anything other than no_truncation_full_result_set, truncation_reason_class MUST NOT be no_truncation_reason_full_result.",
+          "if": {
+            "properties": {
+              "truncation": {
+                "properties": {
+                  "truncation_state_class": {
+                    "not": { "const": "no_truncation_full_result_set" }
+                  }
+                },
+                "required": [ "truncation_state_class" ]
+              }
+            },
+            "required": [ "truncation" ]
+          },
+          "then": {
+            "properties": {
+              "truncation": {
+                "properties": {
+                  "truncation_reason_class": {
+                    "not": { "const": "no_truncation_reason_full_result" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Every export of a non-full result MUST preserve the truncation disclosure so a downstream reader can see the result was truncated.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "truncation": {
+                    "properties": {
+                      "truncation_state_class": {
+                        "not": { "const": "no_truncation_full_result_set" }
+                      }
+                    },
+                    "required": [ "truncation_state_class" ]
+                  }
+                },
+                "required": [ "truncation" ]
+              },
+              {
+                "properties": {
+                  "export": {
+                    "properties": {
+                      "export_posture_class": {
+                        "enum": [
+                          "export_admissible_full_result_typed",
+                          "export_admissible_visible_rows_only_typed",
+                          "export_admissible_visible_rows_only_textual_fallback"
+                        ]
+                      }
+                    },
+                    "required": [ "export_posture_class" ]
+                  }
+                },
+                "required": [ "export" ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "export": {
+                "properties": {
+                  "preserves_truncation_disclosure": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "preserves_typed_columns = false is admissible only on textual export formats; typed formats MUST preserve typed columns.",
+          "if": {
+            "properties": {
+              "export": {
+                "properties": {
+                  "preserves_typed_columns": { "const": false }
+                },
+                "required": [ "preserves_typed_columns" ]
+              }
+            },
+            "required": [ "export" ]
+          },
+          "then": {
+            "properties": {
+              "export": {
+                "properties": {
+                  "export_format_class": {
+                    "enum": [
+                      "markdown_table_textual_fallback",
+                      "html_table_textual_fallback",
+                      "clipboard_textual_fallback",
+                      "sql_insert_script_typed"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Lossy coercion must be admitted by an explicit user choice or be a textual fallback.",
+          "if": {
+            "properties": {
+              "export": {
+                "properties": {
+                  "type_coercion_state_class": {
+                    "enum": [
+                      "lossy_coercion_explicit_user_choice",
+                      "lossy_coercion_textual_fallback_only"
+                    ]
+                  }
+                },
+                "required": [ "type_coercion_state_class" ]
+              }
+            },
+            "required": [ "export" ]
+          },
+          "then": {
+            "properties": {
+              "export": {
+                "properties": {
+                  "preserves_typed_columns": { "const": false },
+                  "export_format_class": {
+                    "enum": [
+                      "markdown_table_textual_fallback",
+                      "html_table_textual_fallback",
+                      "clipboard_textual_fallback"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "notebook_handoff_admitted_dataframe_typed MUST cite a non-null notebook_target_ref so the handoff is traceable.",
+          "if": {
+            "properties": {
+              "notebook_handoff": {
+                "properties": {
+                  "notebook_handoff_state_class": { "const": "notebook_handoff_admitted_dataframe_typed" }
+                },
+                "required": [ "notebook_handoff_state_class" ]
+              }
+            },
+            "required": [ "notebook_handoff" ]
+          },
+          "then": {
+            "properties": {
+              "notebook_handoff": {
+                "required": [ "notebook_target_ref" ],
+                "properties": {
+                  "notebook_target_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "result_grid_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_result_grid_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/result_grid_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "result_grid_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_result_grid_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "result_grid_export_blocked",
+                  "result_grid_notebook_handoff_blocked",
+                  "result_grid_audit_denial_emitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "result_grid_rendered",
+                  "result_grid_truncation_disclosed",
+                  "result_grid_exported",
+                  "result_grid_notebook_handoff_admitted",
+                  "result_grid_type_coercion_lossy_user_admitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

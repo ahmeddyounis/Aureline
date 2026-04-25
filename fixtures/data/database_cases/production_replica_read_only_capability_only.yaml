@@ -1,0 +1,93 @@
+__fixture__:
+  name: production_replica_read_only_capability_only
+  scenario: >-
+    Managed-workspace Postgres connection against a production read-only
+    replica. boundary_label_class = production_blast_radius_low_read_only_replica
+    is admissible because write_capability_posture_class is forced to
+    read_only_capability_only and the broker has already negotiated the
+    read-only session. delegated_identity_auth resolves the engine session
+    through the SSO identity broker; no raw secrets cross the boundary.
+    Validates that production-bound profiles can claim read-only authority
+    without an unlabeled write-capable path.
+  contract_sections:
+    - Connection class and connection-broker fields
+    - Acceptance-criteria cross-walk
+  acceptance_bullets:
+    - 1
+  linked_docs:
+    - docs/data/database_tooling_contract.md
+    - schemas/data/connection_profile.schema.json
+schema_version: 1
+record_kind: connection_profile_record
+connection_profile_id: conn_profile.postgres_production_replica
+actor_ref: actor.managed_workspace_user_primary
+command_id_ref: command.connection_profile.admit
+execution_origin_class: desktop_sql_editor
+connection_class: managed_workspace_provisioned_profile
+engine_class: postgres
+engine_version_label: Postgres 15.x managed read replica
+environment_class: production_environment
+endpoint:
+  endpoint_ref: endpoint.postgres_production_read_replica
+  transport_security_class: tls_required_pinned_certificate
+  tls_pin_ref: tls_pin.production_read_replica_2026
+  ssh_tunnel_handle_ref: null
+  vpn_route_ref: null
+  local_file_locator_ref: null
+  endpoint_disclosure: Production read-only replica reached over TLS with a pinned certificate.
+auth:
+  auth_handle_class: delegated_identity_auth
+  secret_broker_handle_ref: null
+  delegated_identity_handle_ref: delegated_identity.production_read_only
+  policy_injected_credential_ref: null
+  managed_service_identity_ref: null
+  mtls_client_certificate_ref: null
+  kerberos_principal_ref: null
+  iam_session_token_handle_ref: null
+  sso_oidc_token_handle_ref: null
+  device_flow_callback_ref: null
+  broker_lookup_outcome_class: broker_handle_resolved
+  raw_secret_in_workspace_state_observed: false
+  auth_disclosure: Delegated SSO identity admitted by the org identity broker; engine session inherits the read-only role.
+default_scope:
+  default_database_scope_class: default_database_and_schema
+  default_database_ref: db.production_app_primary
+  default_schema_ref: schema.production_app_public
+  default_role_ref: role.production_read_only
+  default_warehouse_or_cluster_ref: null
+  default_scope_disclosure: Production app database with delegated read-only role; default schema is the public application schema.
+write_capability:
+  write_capability_posture_class: read_only_capability_only
+  read_only_session_negotiated: true
+  session_override_admitted_at: null
+  session_override_expires_at: null
+  write_capability_disclosure: SET default_transaction_read_only = on negotiated; replica is hot-standby and rejects writes at the engine level.
+boundary_label:
+  boundary_label_class: production_blast_radius_low_read_only_replica
+  regulated_data_classification_refs: []
+  boundary_disclosure: Production blast radius low because the connection is bound to a read-only replica with a negotiated read-only session.
+mirror_or_offline_state:
+  mirror_or_offline_state_class: online_replica_routed_no_direct_origin
+  replica_endpoint_ref: endpoint.postgres_production_read_replica
+  offline_since_at: null
+  mirror_or_offline_state_disclosure: Read replica routed; the writer endpoint is not admissible from this profile.
+workspace_trust_state: workspace_trust_trusted
+linked_approval_ticket_ref: null
+linked_admin_publication_ref: admin_publication.production_read_only_replica_2026q2
+linked_managed_workspace_envelope_ref: managed_workspace_envelope.production_read_only_2026q2
+transport_posture_at_event:
+  active_deployment_profile: managed_cloud
+  active_identity_mode: managed_workspace
+  active_policy_bundle_ref: policy_bundle.managed_workspace_active
+  policy_epoch_ref: policy_epoch.2026_04_24_01
+  offline_or_deny_all_state: online_live_allowed
+  offline_since_at: null
+  transport_posture_note: Managed cloud profile; pinned TLS to production read replica.
+  captured_at: "2026-04-24T12:10:00Z"
+redaction_class: metadata_safe_default
+export_safe: true
+created_at: "2026-04-24T12:10:00Z"
+admitted_at: "2026-04-24T12:10:00.140Z"
+narrative_refs:
+  - docs/data/database_tooling_contract.md
+  - schemas/data/connection_profile.schema.json

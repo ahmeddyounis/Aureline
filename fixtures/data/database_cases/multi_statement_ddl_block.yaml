@@ -1,0 +1,62 @@
+__fixture__:
+  name: multi_statement_ddl_block
+  scenario: >-
+    Multi-statement script that mixes DDL (CREATE TABLE) and DML (INSERT)
+    classes against the staging Postgres connection. The classifier resolves
+    statement_safety_class = multi_statement_script_mixed_classes,
+    multi_statement_posture_class = multi_statement_script_mixed_classes,
+    a non-empty per_statement_class_set, and blocks with
+    blocked_multi_statement_mixed_classes_without_user_admit so the script
+    never silently executes without per-statement disclosure.
+  contract_sections:
+    - Statement-safety classification
+    - Audit streams and denial vocabulary
+  acceptance_bullets:
+    - 1
+  linked_docs:
+    - docs/data/database_tooling_contract.md
+    - schemas/data/statement_safety_result.schema.json
+schema_version: 1
+record_kind: statement_safety_result_record
+statement_safety_result_id: stmt_safety.multi_statement_ddl_block
+bound_connection_profile_id_ref: conn_profile.postgres_staging_read_only
+actor_ref: actor.self_hosted_org_user_primary
+command_id_ref: command.sql_editor.classify
+execution_origin_class: desktop_sql_editor
+statement_safety_class: multi_statement_script_mixed_classes
+multi_statement_posture_class: multi_statement_script_mixed_classes
+per_statement_class_set:
+  - ordinal: 0
+    statement_safety_class: data_definition_create
+    object_impact_class: schema_change_table_or_view
+    body_label_opaque_ref: stmt_body_label.multi_statement_ddl_block.create_table
+  - ordinal: 1
+    statement_safety_class: data_manipulation_insert
+    object_impact_class: rows_only_no_schema_change
+    body_label_opaque_ref: stmt_body_label.multi_statement_ddl_block.insert_seed
+transaction_context:
+  transaction_context_class: implicit_autocommit_no_transaction
+  transaction_id_ref: null
+  savepoint_id_ref: null
+  transaction_disclosure: Script would run under implicit autocommit; mixed-class admission required.
+object_impact:
+  object_impact_class: schema_change_table_or_view
+  affected_object_count_bucket: 1
+  affected_object_label_refs:
+    - object_label.multi_statement_ddl_block.target_table
+  row_estimate_bucket: row_estimate_tens
+  object_impact_disclosure: Creates one new table and inserts a small seed row set.
+ambiguity_reason_class: no_ambiguity_classification_confident
+blocked_reason_class: blocked_multi_statement_mixed_classes_without_user_admit
+workspace_trust_state: workspace_trust_trusted
+consent_ticket_ref: null
+linked_query_history_entry_ref: null
+linked_result_grid_ref: null
+body_label_opaque_ref: stmt_body_label.multi_statement_ddl_block.full_script
+redaction_class: metadata_safe_default
+export_safe: true
+classified_at: "2026-04-24T12:20:00Z"
+admit_decided_at: "2026-04-24T12:20:00.140Z"
+narrative_refs:
+  - docs/data/database_tooling_contract.md
+  - schemas/data/statement_safety_result.schema.json

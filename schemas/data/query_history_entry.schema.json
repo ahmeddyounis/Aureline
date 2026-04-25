@@ -1,0 +1,564 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/query_history_entry.schema.json",
+  "title": "Aureline database query-history entry boundary",
+  "description": "Boundary schema for one query_history_entry_record frozen in docs/data/database_tooling_contract.md. Every database tool surface that records a previously-run statement, replay-baseline, or AI-tool-proposed statement-pending-admit emits exactly this record shape so reviewers can see the connection class, engine identity / version, statement-template-vs-literal posture, replay-drift risk, retention-class default, and redactability before a re-run executes against an engine. Raw statement bodies, raw user-supplied literals, raw bind-value bytes, raw fully-qualified object names that disclose tenant identity, and raw connection-string fragments never cross this boundary. Statement bodies are kept in a local statement-body store and surfaced through a body_label_opaque_ref into a redaction-aware label registry; bind values are kept by reference through a bind_value_set_label_opaque_ref. Composes with schemas/data/connection_profile.schema.json by reference (bound_connection_profile_id_ref), with schemas/data/statement_safety_result.schema.json by reference (last_statement_safety_result_id_ref), and with schemas/data/result_grid.schema.json by reference (last_result_grid_id_ref). Adding a new entry_source_class, statement_template_posture_class, replay_drift_risk_class, retention_class, sharing_posture_class, audit_event_id, or denial_reason_class is additive-minor and bumps query_history_entry_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/query_history_entry_record" },
+    { "$ref": "#/$defs/query_history_entry_audit_event_record" }
+  ],
+  "$defs": {
+    "query_history_entry_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "entry_source_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local",
+        "workspace_shared_committed",
+        "ai_tool_proposed_pending_user_admit",
+        "captured_from_replay_baseline",
+        "captured_from_support_export",
+        "captured_from_automation_run",
+        "captured_from_hosted_review",
+        "imported_from_export_bundle",
+        "session_restore_replay"
+      ]
+    },
+
+    "statement_template_posture_class": {
+      "type": "string",
+      "enum": [
+        "template_only_no_literals_inlined",
+        "template_with_named_bind_values",
+        "template_with_positional_bind_values",
+        "literal_inlined_no_template",
+        "mixed_template_and_inlined_literals_user_review_required",
+        "statement_template_posture_unknown_requires_review"
+      ],
+      "description": "Closed statement-template-vs-literal posture. template_only_no_literals_inlined and template_with_named_bind_values / template_with_positional_bind_values keep user-supplied literals out of the statement body; literal_inlined_no_template carries the literals inside the body and forces the redaction-aware sentence and label registry to honour the matching retention_class. mixed_template_and_inlined_literals_user_review_required denies share or export until the user resolves the mixed posture."
+    },
+
+    "replay_drift_risk_class": {
+      "type": "string",
+      "enum": [
+        "no_drift_risk_pure_read_only_metadata",
+        "low_drift_risk_pure_select_idempotent",
+        "moderate_drift_risk_select_with_now_or_random",
+        "moderate_drift_risk_select_against_changing_dataset",
+        "high_drift_risk_dml_or_ddl_will_re_execute",
+        "high_drift_risk_engine_or_version_changed_since_capture",
+        "high_drift_risk_connection_class_changed_since_capture",
+        "drift_risk_unknown_requires_review"
+      ],
+      "description": "Closed replay-drift risk class. The surface paints this next to the re-run button so a reviewer sees the risk before re-running a captured statement. high_drift_risk_dml_or_ddl_will_re_execute is forced when the bound statement_safety_class is in the mutation set; high_drift_risk_engine_or_version_changed_since_capture is forced when the captured engine_class or engine_version_label drifts from the current bound connection."
+    },
+
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "local_only_default_no_remote_retention",
+        "local_only_redactable_on_user_request",
+        "workspace_shared_committed_explicit_admit",
+        "workspace_shared_with_literal_redaction_required",
+        "support_export_redacted_only",
+        "managed_admin_published_read_only_no_export",
+        "audit_only_no_user_facing_replay",
+        "retention_class_unknown_requires_review"
+      ],
+      "description": "Closed retention-class vocabulary. local_only_default_no_remote_retention is the default. user_authored_local entry sources MUST resolve to local_only_* . managed_admin_published_read_only_no_export forces sharing_posture_class = managed_admin_published_read_only_no_export. support_export_redacted_only forces redactable_literal_handling_class = literal_redacted_at_boundary_default or literal_hashed_with_local_salt."
+    },
+
+    "sharing_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_share",
+        "workspace_share_explicit_admit_required",
+        "org_share_admin_governed",
+        "support_export_redacted_only",
+        "managed_admin_published_read_only_no_export",
+        "share_disabled_by_policy"
+      ]
+    },
+
+    "redactable_literal_handling_class": {
+      "type": "string",
+      "enum": [
+        "literal_redacted_at_boundary_default",
+        "literal_hashed_with_local_salt",
+        "literal_kept_in_local_store_only",
+        "literal_disclosed_with_explicit_user_opt_in",
+        "literal_handling_unknown_requires_review"
+      ],
+      "description": "Closed literal-handling vocabulary. literal_redacted_at_boundary_default is the default at the boundary; literal_kept_in_local_store_only keeps literals in the per-workspace store and never crosses the boundary; literal_disclosed_with_explicit_user_opt_in is admissible only when entry_source_class is user_authored_local and the user has explicitly opted in."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "query_history_entry_recorded",
+        "query_history_entry_replayed",
+        "query_history_entry_replay_blocked_pending_drift_review",
+        "query_history_entry_shared",
+        "query_history_entry_share_blocked",
+        "query_history_entry_audit_denial_emitted",
+        "query_history_entry_redacted_for_export"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "replay_must_disclose_drift_risk",
+        "replay_must_pin_connection_profile_id",
+        "replay_must_pin_captured_engine_version",
+        "share_must_redact_inlined_literals",
+        "share_must_resolve_mixed_template_posture",
+        "managed_admin_published_must_not_carry_user_editable_literal",
+        "ai_tool_proposed_must_not_replay_pending_user_admit",
+        "support_export_literal_disclosure_requires_explicit_opt_in",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted"
+      ]
+    },
+
+    "captured_engine_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captured_engine_class",
+        "captured_engine_version_label",
+        "captured_at"
+      ],
+      "properties": {
+        "captured_engine_class": {
+          "type": "string",
+          "enum": [
+            "postgres",
+            "mysql_or_mariadb",
+            "sqlserver",
+            "oracle_database",
+            "sqlite_local_file",
+            "duckdb_local_file",
+            "snowflake_warehouse",
+            "bigquery_warehouse",
+            "redshift_warehouse",
+            "databricks_warehouse",
+            "clickhouse",
+            "cockroachdb",
+            "mongodb_document_store",
+            "cassandra_or_scylla",
+            "engine_class_unknown_requires_review"
+          ],
+          "description": "Engine class as observed at capture time. Re-export of the engine_class vocabulary from connection_profile.schema.json so a query-history packet validates standalone."
+        },
+        "captured_engine_version_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Engine-version label as observed at capture time. Used by the replay path to compute drift against the currently bound connection's engine_version_label."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "replay_baseline_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replay_drift_risk_class",
+        "captured_engine"
+      ],
+      "properties": {
+        "replay_drift_risk_class": { "$ref": "#/$defs/replay_drift_risk_class" },
+        "captured_engine": { "$ref": "#/$defs/captured_engine_envelope" },
+        "captured_connection_profile_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "captured_statement_safety_class_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Reviewable label naming the statement_safety_class observed at capture time. Used by the replay path to disclose drift against the current classification before a re-run executes."
+        },
+        "drift_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "retention_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_class",
+        "sharing_posture_class",
+        "redactable_literal_handling_class"
+      ],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "sharing_posture_class": { "$ref": "#/$defs/sharing_posture_class" },
+        "redactable_literal_handling_class": { "$ref": "#/$defs/redactable_literal_handling_class" },
+        "retention_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "query_history_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "query_history_entry_id",
+        "bound_connection_profile_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "execution_origin_class",
+        "entry_source_class",
+        "statement_template_posture_class",
+        "body_label_opaque_ref",
+        "replay_baseline",
+        "retention",
+        "redaction_class",
+        "captured_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/query_history_entry_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "query_history_entry_record"
+        },
+        "query_history_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_connection_profile_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "execution_origin_class": {
+          "type": "string",
+          "enum": [
+            "desktop_sql_editor",
+            "cli_runner",
+            "ai_tool_review_surface",
+            "automation_run_review_surface",
+            "extension_host_runner",
+            "support_export_reader",
+            "admin_audit_reader",
+            "hosted_review_reader",
+            "notebook_kernel_handoff_target"
+          ]
+        },
+        "entry_source_class": { "$ref": "#/$defs/entry_source_class" },
+        "statement_template_posture_class": { "$ref": "#/$defs/statement_template_posture_class" },
+        "body_label_opaque_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the per-workspace statement-body label registry. The registry resolves the redaction-aware reviewer-facing label; raw statement bodies, raw bind values, and raw user-supplied literals MUST NOT appear here."
+        },
+        "bind_value_set_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when statement_template_posture_class is template_with_named_bind_values or template_with_positional_bind_values; null otherwise. The label registry resolves the redaction-aware reviewer-facing label; raw bind-value bytes MUST NOT appear here."
+        },
+        "replay_baseline": { "$ref": "#/$defs/replay_baseline_envelope" },
+        "retention": { "$ref": "#/$defs/retention_envelope" },
+        "last_statement_safety_result_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "last_result_grid_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_run_record_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_replayed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "user_authored_local entry sources MUST resolve to a local-only retention class.",
+          "if": {
+            "properties": {
+              "entry_source_class": { "const": "user_authored_local" }
+            },
+            "required": [ "entry_source_class" ]
+          },
+          "then": {
+            "properties": {
+              "retention": {
+                "properties": {
+                  "retention_class": {
+                    "enum": [
+                      "local_only_default_no_remote_retention",
+                      "local_only_redactable_on_user_request"
+                    ]
+                  },
+                  "sharing_posture_class": { "const": "local_only_no_share" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "captured_from_support_export entry source MUST resolve to support_export_redacted_only retention and a literal-handling class that does not disclose user-supplied literals by default.",
+          "if": {
+            "properties": {
+              "entry_source_class": { "const": "captured_from_support_export" }
+            },
+            "required": [ "entry_source_class" ]
+          },
+          "then": {
+            "properties": {
+              "retention": {
+                "properties": {
+                  "retention_class": { "const": "support_export_redacted_only" },
+                  "redactable_literal_handling_class": {
+                    "enum": [
+                      "literal_redacted_at_boundary_default",
+                      "literal_hashed_with_local_salt",
+                      "literal_kept_in_local_store_only"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_pending_user_admit entry source MUST NOT carry a last_replayed_at value; the entry is non-executable until the user admits it through a separate query_history_entry_replayed audit event.",
+          "if": {
+            "properties": {
+              "entry_source_class": { "const": "ai_tool_proposed_pending_user_admit" }
+            },
+            "required": [ "entry_source_class" ]
+          },
+          "then": {
+            "properties": {
+              "last_replayed_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Template-posture with named or positional bind values MUST cite a non-null bind_value_set_label_opaque_ref.",
+          "if": {
+            "properties": {
+              "statement_template_posture_class": {
+                "enum": [
+                  "template_with_named_bind_values",
+                  "template_with_positional_bind_values"
+                ]
+              }
+            },
+            "required": [ "statement_template_posture_class" ]
+          },
+          "then": {
+            "required": [ "bind_value_set_label_opaque_ref" ],
+            "properties": {
+              "bind_value_set_label_opaque_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "literal_inlined_no_template and mixed_template_and_inlined_literals_user_review_required postures forbid org-share / managed-published sharing so inlined literals never silently cross a workspace / org boundary.",
+          "if": {
+            "properties": {
+              "statement_template_posture_class": {
+                "enum": [
+                  "literal_inlined_no_template",
+                  "mixed_template_and_inlined_literals_user_review_required"
+                ]
+              }
+            },
+            "required": [ "statement_template_posture_class" ]
+          },
+          "then": {
+            "properties": {
+              "retention": {
+                "properties": {
+                  "sharing_posture_class": {
+                    "enum": [
+                      "local_only_no_share",
+                      "workspace_share_explicit_admit_required",
+                      "support_export_redacted_only",
+                      "share_disabled_by_policy"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "literal_disclosed_with_explicit_user_opt_in is admissible only when entry_source_class is user_authored_local.",
+          "if": {
+            "properties": {
+              "retention": {
+                "properties": {
+                  "redactable_literal_handling_class": { "const": "literal_disclosed_with_explicit_user_opt_in" }
+                },
+                "required": [ "redactable_literal_handling_class" ]
+              }
+            },
+            "required": [ "retention" ]
+          },
+          "then": {
+            "properties": {
+              "entry_source_class": { "const": "user_authored_local" }
+            }
+          }
+        }
+      ]
+    },
+
+    "query_history_entry_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_query_history_entry_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/query_history_entry_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "query_history_entry_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_query_history_entry_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "query_history_entry_replay_blocked_pending_drift_review",
+                  "query_history_entry_share_blocked",
+                  "query_history_entry_audit_denial_emitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null so denial vocabulary is never used as a generic free-text channel.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "query_history_entry_recorded",
+                  "query_history_entry_replayed",
+                  "query_history_entry_shared",
+                  "query_history_entry_redacted_for_export"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

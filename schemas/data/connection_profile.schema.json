@@ -1,0 +1,1049 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/connection_profile.schema.json",
+  "title": "Aureline database connection-profile and connection-broker boundary",
+  "description": "Boundary schema for one connection_profile_record frozen in docs/data/database_tooling_contract.md. Every database tool surface (desktop SQL editor, CLI runner, AI tool review, automation evidence projection, support / export reader, hosted-review reader, admin / policy review surface) reads exactly this record shape when it claims a connection truth. The record carries opaque endpoint / catalog / schema / database / auth-handle refs, typed enum values, redaction-aware reviewable sentences, and integer-bucket counts only. Raw connection strings, raw URLs, raw hostnames, raw IPs, raw ports, raw usernames, raw passwords, raw token bytes, raw certificate / key material, raw TNS bodies, raw .pgpass / .my.cnf / odbc.ini bytes, and raw absolute filesystem paths never cross this boundary; the broker resolves a credential handle from the secret-broker / delegated-identity / policy-injected / managed-service-identity store and surfaces only the handle ref. Re-exports identity_mode and workspace_trust_state_class from the identity family, redaction_class from the governance / capability-lifecycle family, and the transport_posture object shape from the network family without redefinition. Adding a new connection_class, engine_class, environment_class, execution_origin_class, auth_handle_class, default_database_scope_class, boundary_label_class, write_capability_posture_class, transport_security_class, mirror_or_offline_state_class, broker_lookup_outcome_class, audit_event_id, or denial_reason_class value is additive-minor and bumps connection_profile_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/connection_profile_record" },
+    { "$ref": "#/$defs/connection_profile_audit_event_record" }
+  ],
+  "$defs": {
+    "connection_profile_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Additive-minor vocabulary additions bump this integer; repurposing an existing value is breaking."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Opaque, stable, snake_case-safe id. Safe to log, safe on RPC, safe in admin exports, support bundles, release evidence, and boundary-manifest rows. Raw URLs, raw host names, raw IPs, raw ports, raw user names, raw secret bytes, raw certificate / key material, raw connection-string bodies, and raw absolute filesystem paths never appear here."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short, reviewable sentence safe for banners, admin exports, support packets, and diagnostics cards. Raw URLs, raw connection strings, raw payloads, raw secret material, and raw absolute paths MUST NOT appear."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the support / release vocabulary."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001."
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_revoked"
+      ],
+      "description": "Workspace-trust state re-exported from the identity / workspace family. Write-capable connections are admissible only under workspace_trust_trusted; read_only_with_session_override is admissible under workspace_trust_session_only_temporary."
+    },
+
+    "connection_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local_profile",
+        "workspace_shared_committed_profile",
+        "org_curated_admin_published_profile",
+        "managed_workspace_provisioned_profile",
+        "imported_from_export_bundle_profile",
+        "ad_hoc_session_profile",
+        "ai_tool_proposed_profile_pending_review"
+      ],
+      "description": "Closed connection-class vocabulary. user_authored_local_profile and ad_hoc_session_profile are local-only by default; org_curated_admin_published_profile and managed_workspace_provisioned_profile inherit admin governance and never carry editable raw secrets in workspace state; ai_tool_proposed_profile_pending_review is non-executable until the user admits it."
+    },
+
+    "engine_class": {
+      "type": "string",
+      "enum": [
+        "postgres",
+        "mysql_or_mariadb",
+        "sqlserver",
+        "oracle_database",
+        "sqlite_local_file",
+        "duckdb_local_file",
+        "snowflake_warehouse",
+        "bigquery_warehouse",
+        "redshift_warehouse",
+        "databricks_warehouse",
+        "clickhouse",
+        "cockroachdb",
+        "mongodb_document_store",
+        "cassandra_or_scylla",
+        "engine_class_unknown_requires_review"
+      ],
+      "description": "Closed engine-class vocabulary. Adding a new engine value is additive-minor; this enum is the only place a SQL editor / runner reads dialect family from."
+    },
+
+    "environment_class": {
+      "type": "string",
+      "enum": [
+        "production_environment",
+        "staging_environment",
+        "qa_environment",
+        "development_environment",
+        "ephemeral_review_environment",
+        "local_workstation_environment",
+        "shared_demo_environment",
+        "environment_class_unknown_requires_review"
+      ],
+      "description": "Closed environment-class vocabulary. production_environment and staging_environment force the boundary_label_class to one of the high-blast-radius values."
+    },
+
+    "execution_origin_class": {
+      "type": "string",
+      "enum": [
+        "desktop_sql_editor",
+        "cli_runner",
+        "ai_tool_review_surface",
+        "automation_run_review_surface",
+        "extension_host_runner",
+        "support_export_reader",
+        "admin_audit_reader",
+        "hosted_review_reader"
+      ],
+      "description": "Closed execution-origin vocabulary. The same connection_profile_record may be referenced from multiple origins; each origin emits its own connection_profile_audit_event when it admits or rejects the profile."
+    },
+
+    "auth_handle_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_local_file",
+        "secret_broker_handle_auth",
+        "delegated_identity_auth",
+        "policy_injected_credential_auth",
+        "managed_service_identity_auth",
+        "mtls_client_certificate_auth",
+        "kerberos_or_gssapi_auth",
+        "iam_session_token_handle_auth",
+        "sso_oidc_token_handle_auth",
+        "device_flow_callback_auth",
+        "auth_handle_unknown_requires_review",
+        "auth_handle_unsupported_blocked"
+      ],
+      "description": "Closed auth-handle-class vocabulary. Raw passwords, raw connection-string secrets, raw API tokens, raw certificate / key material, and raw kerberos keytab bytes never cross this boundary; every credential surfaces only as an opaque handle ref. raw_secret_in_workspace_state_observed = true is admissible only on a profile whose connection_class is ad_hoc_session_profile or imported_from_export_bundle_profile and surfaces a denial event for migration to a broker handle."
+    },
+
+    "default_database_scope_class": {
+      "type": "string",
+      "enum": [
+        "default_database_only",
+        "default_database_and_schema",
+        "default_database_schema_and_role",
+        "no_default_scope_user_must_pick",
+        "default_scope_unknown_requires_review"
+      ],
+      "description": "Closed default-database-scope vocabulary describing what scope the broker resolves before the first statement runs."
+    },
+
+    "boundary_label_class": {
+      "type": "string",
+      "enum": [
+        "internal_safe_default",
+        "internal_sensitive_data",
+        "regulated_pii_or_phi",
+        "regulated_financial_or_payment",
+        "production_blast_radius_high",
+        "production_blast_radius_low_read_only_replica",
+        "shared_demo_seeded_data_only",
+        "ephemeral_disposable_environment",
+        "boundary_label_unknown_requires_review"
+      ],
+      "description": "Closed boundary-label vocabulary the surface paints prominently next to the connection chip. production_blast_radius_high is forced when environment_class is production_environment unless the connection cites production_blast_radius_low_read_only_replica with a write_capability_posture_class of read_only_capability_only."
+    },
+
+    "write_capability_posture_class": {
+      "type": "string",
+      "enum": [
+        "read_only_capability_only",
+        "read_only_with_session_override",
+        "write_capable_with_safety_net",
+        "write_capable_no_safety_net",
+        "write_capable_unknown_requires_review"
+      ],
+      "description": "Closed write-capability posture. read_only_capability_only forces the broker to negotiate a read-only session (default_transaction_read_only / SET TRANSACTION READ ONLY / equivalent) before any statement; read_only_with_session_override admits a session-only override under workspace_trust_session_only_temporary; write_capable_no_safety_net forces the boundary surface to display the dangerous-write chip and is forbidden on production_environment + regulated_pii_or_phi rows."
+    },
+
+    "transport_security_class": {
+      "type": "string",
+      "enum": [
+        "tls_required_verified",
+        "tls_required_pinned_certificate",
+        "mtls_mutual_authentication",
+        "ssh_tunnel_local",
+        "vpn_tunnel_managed",
+        "no_transport_security_local_file_only",
+        "transport_security_unknown_requires_review",
+        "transport_security_unsupported_blocked"
+      ],
+      "description": "Closed transport-security class. no_transport_security_local_file_only is admissible only on engine_class values that target a local file (sqlite_local_file, duckdb_local_file)."
+    },
+
+    "mirror_or_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_default_origin_admissible",
+        "online_replica_routed_no_direct_origin",
+        "offline_grace_window_using_warm_cache",
+        "offline_local_file_only",
+        "network_disabled_user_setting_or_policy",
+        "mirror_or_offline_state_unknown_requires_review"
+      ]
+    },
+
+    "broker_lookup_outcome_class": {
+      "type": "string",
+      "enum": [
+        "broker_handle_resolved",
+        "broker_handle_pending_step_up",
+        "broker_handle_denied_by_policy",
+        "broker_handle_unverifiable_user_review_required",
+        "broker_lookup_not_attempted_local_file_only",
+        "broker_lookup_skipped_audit_only_no_state_change"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "connection_profile_admitted",
+        "connection_profile_rejected",
+        "connection_profile_blocked_pending_consent",
+        "connection_profile_blocked_pending_policy",
+        "connection_profile_blocked_pending_workspace_trust",
+        "connection_profile_broker_handle_resolved",
+        "connection_profile_broker_handle_denied",
+        "connection_profile_raw_secret_observed_denial",
+        "connection_profile_write_posture_misclassification_denial",
+        "connection_profile_boundary_label_misclassification_denial",
+        "connection_profile_audit_denial_emitted"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_in_workspace_state_forbidden",
+        "write_capability_posture_required_for_write_capable_engine",
+        "boundary_label_required_for_production_environment",
+        "production_blast_radius_must_match_write_capability_posture",
+        "auth_handle_class_must_resolve_to_typed_class",
+        "transport_security_must_resolve_to_typed_class",
+        "transport_security_local_file_only_admissible_only_on_local_file_engine",
+        "managed_service_identity_admissible_only_on_managed_workspace",
+        "workspace_trust_unset_or_restricted",
+        "policy_epoch_expired_re_evaluation_required",
+        "ai_tool_proposed_profile_must_not_execute_pending_review",
+        "boundary_label_misclassification_forbidden",
+        "broker_handle_unverifiable_user_review_required",
+        "managed_admin_published_profile_must_not_carry_user_editable_secret"
+      ]
+    },
+
+    "transport_posture_at_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_deployment_profile",
+        "active_identity_mode",
+        "offline_or_deny_all_state",
+        "captured_at"
+      ],
+      "properties": {
+        "active_deployment_profile": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "air_gapped",
+            "managed_cloud"
+          ]
+        },
+        "active_identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "active_policy_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_epoch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "offline_or_deny_all_state": {
+          "type": "string",
+          "enum": [
+            "online_live_allowed",
+            "online_mirror_only",
+            "offline_grace_preserved",
+            "offline_air_gapped",
+            "deny_all_enforced",
+            "network_disabled_by_user",
+            "network_degraded_heuristic"
+          ]
+        },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "transport_posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Re-exported transport-posture object shape from the network family. The connection profile cites this verbatim at admit / resolve time so reviewers can see the deployment / identity / offline posture under which the broker was contacted."
+    },
+
+    "auth_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auth_handle_class",
+        "broker_lookup_outcome_class",
+        "raw_secret_in_workspace_state_observed"
+      ],
+      "properties": {
+        "auth_handle_class": { "$ref": "#/$defs/auth_handle_class" },
+        "secret_broker_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when auth_handle_class is secret_broker_handle_auth."
+        },
+        "delegated_identity_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when auth_handle_class is delegated_identity_auth."
+        },
+        "policy_injected_credential_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when auth_handle_class is policy_injected_credential_auth."
+        },
+        "managed_service_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when auth_handle_class is managed_service_identity_auth."
+        },
+        "mtls_client_certificate_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "kerberos_principal_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "iam_session_token_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "sso_oidc_token_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "device_flow_callback_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "broker_lookup_outcome_class": { "$ref": "#/$defs/broker_lookup_outcome_class" },
+        "raw_secret_in_workspace_state_observed": {
+          "type": "boolean",
+          "description": "True only when the workspace was scanned and a raw connection-string secret, raw password, raw token, or raw key was observed persisted in workspace state. On every connection_class except ad_hoc_session_profile and imported_from_export_bundle_profile this MUST be false; otherwise the surface denies with raw_secret_in_workspace_state_forbidden."
+        },
+        "auth_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "endpoint_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint_ref",
+        "transport_security_class"
+      ],
+      "properties": {
+        "endpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the endpoint registry. Raw host names, raw IPs, raw ports, and raw connection strings MUST NOT appear here."
+        },
+        "transport_security_class": { "$ref": "#/$defs/transport_security_class" },
+        "tls_pin_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "ssh_tunnel_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "vpn_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "local_file_locator_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when transport_security_class is no_transport_security_local_file_only; null otherwise. Raw absolute paths MUST NOT appear; the locator resolves through the filesystem-identity registry."
+        },
+        "endpoint_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "default_scope_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "default_database_scope_class" ],
+      "properties": {
+        "default_database_scope_class": { "$ref": "#/$defs/default_database_scope_class" },
+        "default_database_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "default_schema_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "default_role_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "default_warehouse_or_cluster_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "default_scope_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "write_capability_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "write_capability_posture_class"
+      ],
+      "properties": {
+        "write_capability_posture_class": { "$ref": "#/$defs/write_capability_posture_class" },
+        "read_only_session_negotiated": {
+          "type": "boolean",
+          "description": "True when the broker has negotiated a read-only session against the engine before the connection is admitted. MUST be true when write_capability_posture_class is read_only_capability_only."
+        },
+        "session_override_admitted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "session_override_expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "write_capability_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "boundary_label_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "boundary_label_class" ],
+      "properties": {
+        "boundary_label_class": { "$ref": "#/$defs/boundary_label_class" },
+        "regulated_data_classification_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Zero or more opaque refs into a data-classification registry. Raw classification strings (e.g. PII / PHI / PCI) MUST NOT appear; the registry resolves the human label."
+        },
+        "boundary_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "mirror_or_offline_state_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "mirror_or_offline_state_class" ],
+      "properties": {
+        "mirror_or_offline_state_class": { "$ref": "#/$defs/mirror_or_offline_state_class" },
+        "replica_endpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "mirror_or_offline_state_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "connection_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "connection_profile_id",
+        "actor_ref",
+        "command_id_ref",
+        "execution_origin_class",
+        "connection_class",
+        "engine_class",
+        "engine_version_label",
+        "environment_class",
+        "endpoint",
+        "auth",
+        "default_scope",
+        "write_capability",
+        "boundary_label",
+        "mirror_or_offline_state",
+        "workspace_trust_state",
+        "transport_posture_at_event",
+        "redaction_class",
+        "created_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/connection_profile_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "connection_profile_record"
+        },
+        "connection_profile_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "execution_origin_class": { "$ref": "#/$defs/execution_origin_class" },
+        "connection_class": { "$ref": "#/$defs/connection_class" },
+        "engine_class": { "$ref": "#/$defs/engine_class" },
+        "engine_version_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable engine-version label (e.g. 'Postgres 15.x', 'Snowflake 8.21'). Raw build strings, raw release-notes URLs, and raw issue links MUST NOT appear."
+        },
+        "environment_class": { "$ref": "#/$defs/environment_class" },
+        "endpoint": { "$ref": "#/$defs/endpoint_envelope" },
+        "auth": { "$ref": "#/$defs/auth_envelope" },
+        "default_scope": { "$ref": "#/$defs/default_scope_envelope" },
+        "write_capability": { "$ref": "#/$defs/write_capability_envelope" },
+        "boundary_label": { "$ref": "#/$defs/boundary_label_envelope" },
+        "mirror_or_offline_state": { "$ref": "#/$defs/mirror_or_offline_state_envelope" },
+        "workspace_trust_state": { "$ref": "#/$defs/workspace_trust_state_class" },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_admin_publication_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_managed_workspace_envelope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "transport_posture_at_event": { "$ref": "#/$defs/transport_posture_at_event" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admitted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block. Convention carries the fixture name, scenario, and contract sections exercised; never part of the runtime record."
+        }
+      },
+      "allOf": [
+        {
+          "description": "production_environment forces a high-blast-radius boundary label, except when the connection is a confirmed read-only replica with read_only_capability_only.",
+          "if": {
+            "properties": {
+              "environment_class": { "const": "production_environment" }
+            },
+            "required": [ "environment_class" ]
+          },
+          "then": {
+            "properties": {
+              "boundary_label": {
+                "properties": {
+                  "boundary_label_class": {
+                    "enum": [
+                      "production_blast_radius_high",
+                      "production_blast_radius_low_read_only_replica",
+                      "regulated_pii_or_phi",
+                      "regulated_financial_or_payment"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "production_blast_radius_low_read_only_replica MUST be paired with write_capability_posture_class = read_only_capability_only.",
+          "if": {
+            "properties": {
+              "boundary_label": {
+                "properties": {
+                  "boundary_label_class": { "const": "production_blast_radius_low_read_only_replica" }
+                },
+                "required": [ "boundary_label_class" ]
+              }
+            },
+            "required": [ "boundary_label" ]
+          },
+          "then": {
+            "properties": {
+              "write_capability": {
+                "properties": {
+                  "write_capability_posture_class": { "const": "read_only_capability_only" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "read_only_capability_only forces the broker to negotiate a read-only session before admit.",
+          "if": {
+            "properties": {
+              "write_capability": {
+                "properties": {
+                  "write_capability_posture_class": { "const": "read_only_capability_only" }
+                },
+                "required": [ "write_capability_posture_class" ]
+              }
+            },
+            "required": [ "write_capability" ]
+          },
+          "then": {
+            "properties": {
+              "write_capability": {
+                "required": [ "read_only_session_negotiated" ],
+                "properties": {
+                  "read_only_session_negotiated": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "secret_broker_handle_auth MUST cite a non-null secret_broker_handle_ref.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_handle_class": { "const": "secret_broker_handle_auth" }
+                },
+                "required": [ "auth_handle_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "secret_broker_handle_ref" ],
+                "properties": {
+                  "secret_broker_handle_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "delegated_identity_auth MUST cite a non-null delegated_identity_handle_ref.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_handle_class": { "const": "delegated_identity_auth" }
+                },
+                "required": [ "auth_handle_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "delegated_identity_handle_ref" ],
+                "properties": {
+                  "delegated_identity_handle_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_injected_credential_auth MUST cite a non-null policy_injected_credential_ref.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_handle_class": { "const": "policy_injected_credential_auth" }
+                },
+                "required": [ "auth_handle_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "policy_injected_credential_ref" ],
+                "properties": {
+                  "policy_injected_credential_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_service_identity_auth MUST cite a non-null managed_service_identity_ref and is admissible only on managed_workspace identity mode.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_handle_class": { "const": "managed_service_identity_auth" }
+                },
+                "required": [ "auth_handle_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "managed_service_identity_ref" ],
+                "properties": {
+                  "managed_service_identity_ref": { "not": { "type": "null" } }
+                }
+              },
+              "transport_posture_at_event": {
+                "properties": {
+                  "active_identity_mode": { "const": "managed_workspace" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "raw_secret_in_workspace_state_observed = true is admissible only on ad_hoc_session_profile or imported_from_export_bundle_profile connection classes.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "raw_secret_in_workspace_state_observed": { "const": true }
+                },
+                "required": [ "raw_secret_in_workspace_state_observed" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "connection_class": {
+                "enum": [
+                  "ad_hoc_session_profile",
+                  "imported_from_export_bundle_profile"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "no_transport_security_local_file_only is admissible only on local-file engines (sqlite_local_file or duckdb_local_file) and MUST cite a non-null local_file_locator_ref.",
+          "if": {
+            "properties": {
+              "endpoint": {
+                "properties": {
+                  "transport_security_class": { "const": "no_transport_security_local_file_only" }
+                },
+                "required": [ "transport_security_class" ]
+              }
+            },
+            "required": [ "endpoint" ]
+          },
+          "then": {
+            "properties": {
+              "engine_class": {
+                "enum": [ "sqlite_local_file", "duckdb_local_file" ]
+              },
+              "endpoint": {
+                "required": [ "local_file_locator_ref" ],
+                "properties": {
+                  "local_file_locator_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_profile_pending_review MUST NOT carry admitted_at; the profile is non-executable until the user admits it through a separate connection_profile_admitted audit event.",
+          "if": {
+            "properties": {
+              "connection_class": { "const": "ai_tool_proposed_profile_pending_review" }
+            },
+            "required": [ "connection_class" ]
+          },
+          "then": {
+            "properties": {
+              "admitted_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Write-capable connections (write_capable_with_safety_net or write_capable_no_safety_net) are admissible only under workspace_trust_trusted; read_only_with_session_override admits workspace_trust_session_only_temporary; everything else denies.",
+          "if": {
+            "properties": {
+              "write_capability": {
+                "properties": {
+                  "write_capability_posture_class": {
+                    "enum": [
+                      "write_capable_with_safety_net",
+                      "write_capable_no_safety_net"
+                    ]
+                  }
+                },
+                "required": [ "write_capability_posture_class" ]
+              }
+            },
+            "required": [ "write_capability" ]
+          },
+          "then": {
+            "properties": {
+              "workspace_trust_state": { "const": "workspace_trust_trusted" }
+            }
+          }
+        },
+        {
+          "description": "write_capable_no_safety_net is forbidden on production_environment paired with regulated_pii_or_phi or regulated_financial_or_payment.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "environment_class": { "const": "production_environment" }
+                },
+                "required": [ "environment_class" ]
+              },
+              {
+                "properties": {
+                  "boundary_label": {
+                    "properties": {
+                      "boundary_label_class": {
+                        "enum": [
+                          "regulated_pii_or_phi",
+                          "regulated_financial_or_payment"
+                        ]
+                      }
+                    },
+                    "required": [ "boundary_label_class" ]
+                  }
+                },
+                "required": [ "boundary_label" ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "write_capability": {
+                "properties": {
+                  "write_capability_posture_class": {
+                    "not": { "const": "write_capable_no_safety_net" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "connection_profile_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_connection_profile_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/connection_profile_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "connection_profile_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_connection_profile_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "connection_profile_rejected",
+                  "connection_profile_raw_secret_observed_denial",
+                  "connection_profile_write_posture_misclassification_denial",
+                  "connection_profile_boundary_label_misclassification_denial",
+                  "connection_profile_audit_denial_emitted",
+                  "connection_profile_broker_handle_denied"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null so denial vocabulary is never used as a generic free-text channel.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "connection_profile_admitted",
+                  "connection_profile_blocked_pending_consent",
+                  "connection_profile_blocked_pending_policy",
+                  "connection_profile_blocked_pending_workspace_trust",
+                  "connection_profile_broker_handle_resolved"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
