@@ -1,0 +1,720 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/review_evaluation_result.schema.json",
+  "title": "Aureline review-pack evaluation-result and per-finding vocabulary",
+  "description": "Boundary schema for the normalized review-pack evaluation-result family frozen in docs/vcs/review_pack_contract.md. One review_evaluation_result_record carries the per-pack-evaluation outcome that local diff explorers, CI pipelines, provider overlays, AI review overlays, browser companions, and support / export readers all read against — so no surface mints a parallel evaluator-state vocabulary, no surface relabels a missing evaluator as 'green by omission', and no surface buries an enforced check failure inside tool-specific copy. One review_evaluation_finding_record carries the per-check / per-ownership-rule outcome the evaluation produced. The matched review_pack_record at schemas/vcs/review_pack.schema.json owns the policy declaration the result evaluates against; this schema is the cross-tool boundary every evaluator publishes through. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw check command lines, raw tool output bodies, raw waiver bodies, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / authority / lifecycle state only. The eventual review-evaluation crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, evaluation-source class, evaluation-lifecycle state, check-outcome class, parity-state class, evaluation-staleness class, reuse-provenance class, denial reason, or audit-event id is additive-minor and bumps review_evaluation_result_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_evaluation_result_record" },
+    { "$ref": "#/$defs/review_evaluation_finding_record" },
+    { "$ref": "#/$defs/review_evaluation_audit_event_record" }
+  ],
+  "$defs": {
+    "review_evaluation_result_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the review-evaluation-result vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "review_evaluation_result_record",
+        "review_evaluation_finding_record",
+        "review_evaluation_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw check command lines, raw tool output bodies, raw waiver bodies, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the evaluation was minted under."
+    },
+
+    "evaluation_source_class": {
+      "type": "string",
+      "enum": [
+        "local_workstation_evaluation",
+        "ci_pipeline_evaluation",
+        "provider_overlay_evaluation",
+        "ai_review_overlay_evaluation",
+        "browser_companion_evaluation",
+        "export_reuse_evaluation"
+      ],
+      "description": "Frozen evaluation-source vocabulary. Every result names exactly one source so a reviewer can answer 'who produced this evaluation' without opening any other object. local_workstation_evaluation is the developer's own clone; ci_pipeline_evaluation is the CI runner; provider_overlay_evaluation is the result mirrored from the canonical code host; ai_review_overlay_evaluation is the AI review overlay's evidence; browser_companion_evaluation is the result published through the ADR-0010 browser-companion handoff; export_reuse_evaluation is the result re-read from a support / portability export and pinned to its captured build identity (the matched reuse_provenance_class records the source pin)."
+    },
+
+    "evaluation_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "evaluation_pending_admission",
+        "evaluation_running",
+        "evaluation_completed",
+        "evaluation_failed_with_error",
+        "evaluation_cancelled",
+        "evaluation_superseded_by_re_evaluation"
+      ],
+      "description": "Frozen evaluation-lifecycle vocabulary. evaluation_completed is the only state that admits a non-empty findings_ref_list; running / pending / failed / cancelled / superseded results MUST advertise their state honestly so a downstream surface never paints a partial result as green-by-omission."
+    },
+
+    "check_outcome_class": {
+      "type": "string",
+      "enum": [
+        "pass_admissible",
+        "fail_blocking",
+        "fail_advisory_non_blocking",
+        "skipped_not_in_scope",
+        "skipped_waiver_admitted_active",
+        "skipped_evaluator_unavailable_user_review_required",
+        "error_evaluator_internal_user_review_required"
+      ],
+      "description": "Frozen per-check outcome vocabulary. pass_admissible is the only outcome that participates in a divergence_label_class = local_ci_provider_all_match_pass label; fail_blocking is the unconditional landing blocker; fail_advisory_non_blocking surfaces the chip without blocking; skipped_not_in_scope is the explicit out-of-scope outcome (cited by the matched review_pack_record's scope_binding); skipped_waiver_admitted_active is the explicit waiver-admitted outcome and MUST cite a non-null waiver_record_id_ref; skipped_evaluator_unavailable_user_review_required and error_evaluator_internal_user_review_required force user review and MUST NOT be silently relabelled as pass_admissible."
+    },
+
+    "parity_state_class": {
+      "type": "string",
+      "enum": [
+        "parity_match_all_evaluators_agree_pass",
+        "parity_match_all_evaluators_agree_fail",
+        "parity_local_only_no_external_evaluator_admissible",
+        "parity_local_passes_ci_pending_no_judgement_yet",
+        "parity_local_passes_ci_passes_provider_overlay_unavailable_local_continues",
+        "parity_local_disagrees_with_ci_user_review_required",
+        "parity_local_passes_provider_overlay_disagrees_user_review_required",
+        "parity_provider_overlay_stale_local_continues",
+        "parity_evaluator_unavailable_user_review_required",
+        "parity_reused_from_export_pinned_to_build_identity"
+      ],
+      "description": "Frozen parity-state vocabulary. The parity state is the per-result chip a reviewer reads to know whether local, CI, and provider overlay agree. parity_match_all_evaluators_agree_* requires all three evaluators to have produced a result; parity_local_only_no_external_evaluator_admissible is the pre-CI baseline; the user_review_required values force an explicit user step before mutation; parity_provider_overlay_stale_local_continues honours the workspace's provider_overlay_stale_beyond_grace_local_continues posture (a result that asserts provider-authoritative parity under that posture denies with parity_state_must_match_workspace_overlay_freshness); parity_reused_from_export_pinned_to_build_identity is the reuse posture so a reused result does not appear as a freshly-evaluated pass."
+    },
+
+    "evaluation_staleness_class": {
+      "type": "string",
+      "enum": [
+        "evaluation_fresh_within_grace",
+        "evaluation_stale_within_grace_re_evaluation_recommended",
+        "evaluation_stale_beyond_grace_re_evaluation_required",
+        "evaluation_unverifiable_re_evaluation_required",
+        "evaluation_pinned_to_captured_build_identity_no_drift_assessable"
+      ],
+      "description": "Frozen evaluation-staleness vocabulary. evaluation_fresh_within_grace is the admissible-as-current state; evaluation_stale_within_grace_re_evaluation_recommended surfaces the chip without blocking; evaluation_stale_beyond_grace_re_evaluation_required forces re-evaluation before mutation; evaluation_unverifiable_re_evaluation_required is the outage state; evaluation_pinned_to_captured_build_identity_no_drift_assessable is the reuse-from-export state where staleness cannot be assessed against the current build because the result was pinned to a captured build identity (the matched reuse_provenance_class records the pin)."
+    },
+
+    "reuse_provenance_class": {
+      "type": "string",
+      "enum": [
+        "not_reused_evaluation_native",
+        "reused_from_support_export_pinned_to_build_identity",
+        "reused_from_browser_companion_pinned_to_build_identity",
+        "reused_from_provider_overlay_pinned_to_build_identity",
+        "reused_from_ai_review_overlay_pinned_to_build_identity",
+        "reuse_refused_build_identity_drifted",
+        "reuse_refused_evaluator_provenance_unverifiable"
+      ],
+      "description": "Frozen reuse-provenance vocabulary. not_reused_evaluation_native is the freshly-produced state; the four reused_from_* values record the source the reuse was pinned through and MUST cite a non-null reused_from_record_id_ref plus the captured build identity ref; reuse_refused_build_identity_drifted and reuse_refused_evaluator_provenance_unverifiable are the explicit refuse states the surface MUST advertise (a refuse without an explicit class denies with reuse_must_pin_source_evaluator_provenance)."
+    },
+
+    "finding_severity_class": {
+      "type": "string",
+      "enum": [
+        "severity_blocker",
+        "severity_high",
+        "severity_medium",
+        "severity_low",
+        "severity_informational"
+      ],
+      "description": "Frozen finding-severity vocabulary. severity_blocker MUST pair with check_outcome_class = fail_blocking; advisory and informational findings MUST NOT carry severity_blocker."
+    },
+
+    "ownership_outcome_class": {
+      "type": "string",
+      "enum": [
+        "ownership_review_satisfied",
+        "ownership_review_pending_user_action_required",
+        "ownership_signoff_satisfied",
+        "ownership_signoff_pending_user_action_required",
+        "ownership_advisory_notification_published",
+        "ownership_optional_notification_recorded",
+        "ownership_disabled_for_scope_no_outcome",
+        "ownership_evaluator_unavailable_user_review_required"
+      ],
+      "description": "Frozen ownership-outcome vocabulary. ownership_review_satisfied / ownership_signoff_satisfied are the admissible outcomes; the *_pending_user_action_required outcomes force an explicit user step before mutation; ownership_advisory_notification_published and ownership_optional_notification_recorded are the non-blocking outcomes; ownership_disabled_for_scope_no_outcome records the explicit disabled posture; ownership_evaluator_unavailable_user_review_required is the outage outcome and MUST NOT be silently relabelled as satisfied."
+    },
+
+    "review_evaluation_denial_reason": {
+      "type": "string",
+      "enum": [
+        "green_by_omission_forbidden_evaluation_must_be_explicit",
+        "evaluation_must_pin_running_build_identity",
+        "evaluation_must_pin_review_pack_id_ref",
+        "enforced_blocking_check_cannot_be_silently_skipped",
+        "enforced_blocking_check_cannot_be_silently_waived",
+        "check_enforcement_class_must_match_pack_declaration",
+        "divergence_label_must_match_evaluator_set",
+        "parity_state_must_match_workspace_overlay_freshness",
+        "reuse_must_pin_source_evaluator_provenance",
+        "required_output_artifact_family_missing",
+        "finding_outside_pack_scope",
+        "ownership_outcome_must_match_ownership_rule_class",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "review_evaluation_record_required_field_missing",
+        "review_evaluation_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the review_evaluation audit stream. green_by_omission_forbidden_evaluation_must_be_explicit is the headline rule: a result that omits a check the matched review_pack_record declared MUST surface either skipped_not_in_scope, skipped_waiver_admitted_active, skipped_evaluator_unavailable_user_review_required, or error_evaluator_internal_user_review_required — never silent omission."
+    },
+
+    "review_evaluation_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "review_evaluation_admitted",
+        "review_evaluation_started",
+        "review_evaluation_finding_recorded",
+        "review_evaluation_completed",
+        "review_evaluation_failed_with_error",
+        "review_evaluation_cancelled",
+        "review_evaluation_superseded_by_re_evaluation",
+        "review_evaluation_reused_from_source",
+        "review_evaluation_reuse_refused",
+        "review_evaluation_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the review_evaluation stream. review_evaluation_audit_denial_emitted MUST cite a review_evaluation_denial_reason."
+    },
+
+    "running_build_identity_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque ref to the running build identity (commit / revision / build artifact) the evaluation was produced against. Required (non-null) on every review_evaluation_result_record so a reuse / replay surface can decide reuse_refused_build_identity_drifted vs reuse_admitted_under_pinned_build_identity mechanically."
+    },
+
+    "evaluator_descriptor_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque ref to the evaluator descriptor (the tool / runner / external service identity) that produced the result. Raw command lines, raw runner URLs, and raw runner-id strings never appear here."
+    },
+
+    "review_evaluation_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_evaluation_result_schema_version",
+        "review_evaluation_result_id",
+        "review_pack_id_ref",
+        "target_review_workspace_id_ref",
+        "evaluation_source_class",
+        "evaluation_lifecycle_state",
+        "evaluator_descriptor_ref",
+        "running_build_identity_ref",
+        "parity_state_class",
+        "evaluation_staleness_class",
+        "reuse_provenance_class",
+        "divergence_label",
+        "findings_ref_list",
+        "output_artifact_refs",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "summary_label",
+        "started_at",
+        "updated_at",
+        "completed_at",
+        "reused_from_record_id_ref",
+        "reused_from_captured_build_identity_ref",
+        "hosted_review_inbox_record_id_ref",
+        "merge_policy_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_evaluation_result_record" },
+        "review_evaluation_result_schema_version": { "$ref": "#/$defs/review_evaluation_result_schema_version" },
+        "review_evaluation_result_id": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the review_pack_record (schemas/vcs/review_pack.schema.json) the evaluation evaluates against. Required (non-null); a missing ref denies with evaluation_must_pin_review_pack_id_ref."
+        },
+        "target_review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the review_workspace_record (schemas/vcs/review_workspace.schema.json) the evaluation operates on."
+        },
+        "evaluation_source_class": { "$ref": "#/$defs/evaluation_source_class" },
+        "evaluation_lifecycle_state": { "$ref": "#/$defs/evaluation_lifecycle_state" },
+        "evaluator_descriptor_ref": { "$ref": "#/$defs/evaluator_descriptor_ref" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "parity_state_class": { "$ref": "#/$defs/parity_state_class" },
+        "evaluation_staleness_class": { "$ref": "#/$defs/evaluation_staleness_class" },
+        "reuse_provenance_class": { "$ref": "#/$defs/reuse_provenance_class" },
+        "divergence_label": {
+          "type": "string",
+          "enum": [
+            "local_ci_provider_all_match_pass",
+            "local_ci_provider_all_match_fail",
+            "local_passes_ci_pending_no_judgement_yet",
+            "local_passes_ci_failed_user_review_required",
+            "local_failed_ci_passed_user_review_required",
+            "local_passes_provider_overlay_disagrees_user_review_required",
+            "local_only_no_external_evaluator_admissible",
+            "evaluator_unavailable_no_divergence_assessable",
+            "evaluation_reused_from_export_pinned_to_build_identity"
+          ],
+          "description": "Re-exported from schemas/vcs/review_pack.schema.json divergence_label_class. The label MUST be one the matched review_pack_record declared in divergence_labels_required; a label outside that set denies with divergence_label_must_match_evaluator_set."
+        },
+        "findings_ref_list": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of opaque refs to the matched review_evaluation_finding_record rows. MAY be empty when evaluation_lifecycle_state is evaluation_pending_admission, evaluation_running, evaluation_failed_with_error, evaluation_cancelled, or evaluation_superseded_by_re_evaluation; MUST be non-empty when evaluation_lifecycle_state is evaluation_completed and the matched pack declared at least one check (a completed result with no findings denies with green_by_omission_forbidden_evaluation_must_be_explicit)."
+        },
+        "output_artifact_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["output_artifact_family_class", "output_artifact_record_id_ref"],
+            "properties": {
+              "output_artifact_family_class": {
+                "type": "string",
+                "enum": [
+                  "evaluation_summary_artifact",
+                  "finding_list_artifact",
+                  "ownership_review_request_artifact",
+                  "waiver_proposal_artifact",
+                  "evidence_packet_artifact",
+                  "ai_review_evidence_artifact",
+                  "audit_event_stream_artifact"
+                ],
+                "description": "Re-exported from schemas/vcs/review_pack.schema.json output_artifact_family_class. The set of families published here MUST cover output_artifact_families_required on the matched review_pack_record; a missing family denies with required_output_artifact_family_missing."
+              },
+              "output_artifact_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          },
+          "description": "Output artifacts the evaluation produced. The set of family classes here MUST be a superset of output_artifact_families_required on the matched review_pack_record."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when evaluation_lifecycle_state is evaluation_completed, evaluation_failed_with_error, evaluation_cancelled, or evaluation_superseded_by_re_evaluation. Null otherwise."
+        },
+        "reused_from_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when reuse_provenance_class is one of the reused_from_* values; MUST be null otherwise. Cites the source review_evaluation_result_record / export envelope / browser-companion handoff packet the reuse pinned to."
+        },
+        "reused_from_captured_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when reuse_provenance_class is one of the reused_from_* values; MUST be null otherwise. Cites the captured build identity the reused result was pinned to. Drift between this value and the current running_build_identity_ref forces reuse_refused_build_identity_drifted on subsequent reads."
+        },
+        "hosted_review_inbox_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the hosted-review inbox contract. Currently always null."
+        },
+        "merge_policy_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge-policy contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "completed_at is required (non-null) when evaluation_lifecycle_state is one of evaluation_completed, evaluation_failed_with_error, evaluation_cancelled, evaluation_superseded_by_re_evaluation; MUST be null otherwise.",
+          "if": {
+            "properties": {
+              "evaluation_lifecycle_state": {
+                "enum": [
+                  "evaluation_completed",
+                  "evaluation_failed_with_error",
+                  "evaluation_cancelled",
+                  "evaluation_superseded_by_re_evaluation"
+                ]
+              }
+            },
+            "required": ["evaluation_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "completed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["completed_at"]
+          },
+          "else": {
+            "properties": {
+              "completed_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "reused_from_record_id_ref and reused_from_captured_build_identity_ref are required (non-null) when reuse_provenance_class is one of the reused_from_* values; MUST be null when reuse_provenance_class is not_reused_evaluation_native or one of the reuse_refused_* values.",
+          "if": {
+            "properties": {
+              "reuse_provenance_class": {
+                "enum": [
+                  "reused_from_support_export_pinned_to_build_identity",
+                  "reused_from_browser_companion_pinned_to_build_identity",
+                  "reused_from_provider_overlay_pinned_to_build_identity",
+                  "reused_from_ai_review_overlay_pinned_to_build_identity"
+                ]
+              }
+            },
+            "required": ["reuse_provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "reused_from_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "reused_from_captured_build_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["reused_from_record_id_ref", "reused_from_captured_build_identity_ref"]
+          },
+          "else": {
+            "properties": {
+              "reused_from_record_id_ref": { "type": "null" },
+              "reused_from_captured_build_identity_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Reuse from a support export forces evaluation_source_class = export_reuse_evaluation; a result whose reuse_provenance_class is reused_from_support_export_pinned_to_build_identity but whose source class is not export_reuse_evaluation denies with reuse_must_pin_source_evaluator_provenance.",
+          "if": {
+            "properties": {
+              "reuse_provenance_class": { "const": "reused_from_support_export_pinned_to_build_identity" }
+            },
+            "required": ["reuse_provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "evaluation_source_class": { "const": "export_reuse_evaluation" }
+            }
+          }
+        },
+        {
+          "description": "evaluation_completed results MUST cite a non-empty findings_ref_list when the matched review_pack_record declared at least one check; a completed result with no findings denies with green_by_omission_forbidden_evaluation_must_be_explicit. (The schema cannot enforce the cross-record cardinality, so the matched pack-vs-result auditor enforces this rule; the schema enforces the local form by requiring evaluation_completed results to advertise findings explicitly rather than implicitly.)",
+          "if": {
+            "properties": {
+              "evaluation_lifecycle_state": { "const": "evaluation_completed" }
+            },
+            "required": ["evaluation_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "findings_ref_list": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        {
+          "description": "parity_match_all_evaluators_agree_pass / _fail and parity_local_passes_ci_passes_provider_overlay_unavailable_local_continues require all three evaluator classes to have produced (or attempted) a result. Local-only or browser-companion-only results MUST cite parity_local_only_no_external_evaluator_admissible or one of the user_review_required values. (The schema enforces the local form; cross-record assertion that the partner results exist is enforced by the pack-vs-result auditor.)",
+          "if": {
+            "properties": {
+              "parity_state_class": {
+                "enum": [
+                  "parity_match_all_evaluators_agree_pass",
+                  "parity_match_all_evaluators_agree_fail",
+                  "parity_local_passes_ci_passes_provider_overlay_unavailable_local_continues"
+                ]
+              }
+            },
+            "required": ["parity_state_class"]
+          },
+          "then": {
+            "properties": {
+              "evaluation_source_class": {
+                "enum": [
+                  "local_workstation_evaluation",
+                  "ci_pipeline_evaluation",
+                  "provider_overlay_evaluation"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by local diff explorers, CI runners, provider overlays, AI review overlays, browser companions, support / export readers, and audit lanes. Exactly one row per (review_pack_id_ref, target_review_workspace_id_ref, evaluator_descriptor_ref, running_build_identity_ref, evaluation_source_class) tuple."
+    },
+
+    "review_evaluation_finding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_evaluation_result_schema_version",
+        "review_evaluation_finding_id",
+        "review_evaluation_result_id_ref",
+        "review_pack_check_id_ref",
+        "check_outcome_class",
+        "finding_severity_class",
+        "policy_context",
+        "redaction_class",
+        "summary_label",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_evaluation_finding_record" },
+        "review_evaluation_result_schema_version": { "$ref": "#/$defs/review_evaluation_result_schema_version" },
+        "review_evaluation_finding_id": { "$ref": "#/$defs/opaque_id" },
+        "review_evaluation_result_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the parent review_evaluation_result_record."
+        },
+        "review_pack_check_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the per-pack check_id (review_pack_check_descriptor.check_id) the finding evaluates. The matched pack's check_class and check_enforcement_class are the source of truth; a finding that re-asserts a different enforcement class denies with check_enforcement_class_must_match_pack_declaration."
+        },
+        "ownership_rule_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a per-pack ownership_rule_id (review_pack.ownership_rule_descriptor.ownership_rule_id) when the finding is an ownership outcome. Null when the finding is a check outcome."
+        },
+        "ownership_outcome_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/ownership_outcome_class" }
+          ],
+          "description": "Required (non-null) when ownership_rule_id_ref is non-null; MUST be null otherwise. The ownership outcome class MUST match the matched ownership_rule_class on the pack (e.g. ownership_required_signoff_blocking pairs with ownership_signoff_satisfied / _pending_user_action_required); a mismatch denies with ownership_outcome_must_match_ownership_rule_class."
+        },
+        "check_outcome_class": { "$ref": "#/$defs/check_outcome_class" },
+        "finding_severity_class": { "$ref": "#/$defs/finding_severity_class" },
+        "anchor_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a review_anchor_record (schemas/vcs/review_anchor.schema.json) the finding anchors against. Findings MAY anchor to a line range / cell / config node / image region / evidence section; an anchored finding cites the anchor row rather than re-minting the anchor."
+        },
+        "waiver_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when check_outcome_class is skipped_waiver_admitted_active; MUST be null otherwise. Cites the waiver row that admitted the skip. Raw waiver bodies never appear here."
+        },
+        "evidence_packet_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a release evidence packet the finding produced or cited (used by evidence_attached_check and ai_review_advisory_check classes)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "severity_blocker MUST pair with check_outcome_class = fail_blocking; a finding that pairs severity_blocker with any other outcome denies with check_enforcement_class_must_match_pack_declaration.",
+          "if": {
+            "properties": { "finding_severity_class": { "const": "severity_blocker" } },
+            "required": ["finding_severity_class"]
+          },
+          "then": {
+            "properties": {
+              "check_outcome_class": { "const": "fail_blocking" }
+            }
+          }
+        },
+        {
+          "description": "fail_blocking MUST pair with severity_blocker; a fail_blocking finding with any other severity is incoherent and denies with check_enforcement_class_must_match_pack_declaration.",
+          "if": {
+            "properties": { "check_outcome_class": { "const": "fail_blocking" } },
+            "required": ["check_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "finding_severity_class": { "const": "severity_blocker" }
+            }
+          }
+        },
+        {
+          "description": "skipped_waiver_admitted_active MUST cite a non-null waiver_record_id_ref; a finding that asserts the waiver outcome without a waiver ref denies with enforced_blocking_check_cannot_be_silently_waived.",
+          "if": {
+            "properties": { "check_outcome_class": { "const": "skipped_waiver_admitted_active" } },
+            "required": ["check_outcome_class"]
+          },
+          "then": {
+            "required": ["waiver_record_id_ref"],
+            "properties": {
+              "waiver_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          },
+          "else": {
+            "properties": {
+              "waiver_record_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "ownership_outcome_class is required (non-null) when ownership_rule_id_ref is non-null and MUST be null when ownership_rule_id_ref is null.",
+          "if": {
+            "properties": {
+              "ownership_rule_id_ref": { "type": "string" }
+            },
+            "required": ["ownership_rule_id_ref"]
+          },
+          "then": {
+            "properties": {
+              "ownership_outcome_class": { "$ref": "#/$defs/ownership_outcome_class" }
+            },
+            "required": ["ownership_outcome_class"]
+          },
+          "else": {
+            "properties": {
+              "ownership_outcome_class": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Per-finding row inside one review_evaluation_result_record. A finding is either a check outcome (review_pack_check_id_ref non-null, ownership_rule_id_ref null) or an ownership outcome (both refs non-null on the matched ownership-bearing check)."
+    },
+
+    "review_evaluation_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_evaluation_result_schema_version",
+        "review_evaluation_audit_event_id_value",
+        "audit_event_record_id",
+        "review_evaluation_result_id_ref",
+        "review_pack_id_ref",
+        "occurred_at",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_evaluation_audit_event_record" },
+        "review_evaluation_result_schema_version": { "$ref": "#/$defs/review_evaluation_result_schema_version" },
+        "review_evaluation_audit_event_id_value": { "$ref": "#/$defs/review_evaluation_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_evaluation_result_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque actor ref. Optional on system-driven events; required on user-driven events."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_evaluation_denial_reason" }
+          ],
+          "description": "Required (non-null) when review_evaluation_audit_event_id_value is review_evaluation_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is review_evaluation_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_evaluation_audit_event_id_value": { "const": "review_evaluation_audit_denial_emitted" } },
+            "required": ["review_evaluation_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/review_evaluation_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the review_evaluation stream."
+    }
+  }
+}

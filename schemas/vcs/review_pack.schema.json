@@ -1,0 +1,623 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/review_pack.schema.json",
+  "title": "Aureline review-pack manifest, ownership-policy, and must-run-check vocabulary",
+  "description": "Boundary schema for the declarative review-policy layer frozen in docs/vcs/review_pack_contract.md. One review_pack_record carries the per-scope evaluation policy every reviewer-facing surface (local diff explorer, CI pipeline, provider overlay, AI review overlay, browser companion, support / export reader) reads when it decides which checks MUST run, which checks are advisory, which paths require which ownership signoff, which divergence labels cover the local-vs-CI-vs-provider disagreement matrix, which waivers can suppress which check, and which output-artifact families an evaluation publishes. The matched review_evaluation_result_record at schemas/vcs/review_evaluation_result.schema.json is the normalized outcome model every evaluator emits — local, CI, provider, AI, browser companion, and reuse from export — so no surface mints a parallel evaluation-state vocabulary, no surface relabels a missing evaluator as 'green by omission', and no surface buries an enforced ownership requirement inside tool-specific copy. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw check command lines, raw waiver bodies, raw owner identity strings, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / authority / lifecycle state only. The eventual review-pack crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, pack class, lifecycle state, check class, enforcement class, ownership-rule class, divergence-label class, waiver-linkage class, output-artifact-family class, denial reason, or audit-event id is additive-minor and bumps review_pack_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_pack_record" },
+    { "$ref": "#/$defs/review_pack_audit_event_record" }
+  ],
+  "$defs": {
+    "review_pack_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the review-pack vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "review_pack_record",
+        "review_pack_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw check command lines, raw waiver bodies, raw owner identity strings, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). A review pack MAY be admitted on more than one client_scope; every evaluator that publishes a review_evaluation_result_record cites the same client_scopes set the pack admits."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Local-only packs default to metadata_safe_default; packs that touch organisationally restricted ownership routes MAY raise to internal_support_restricted; packs that wire into credentialed CI / provider rule snapshots MUST raise to operator_only_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Used by the pack-level freshness chip. Per-evaluation freshness lives on the matched review_evaluation_result_record in schemas/vcs/review_evaluation_result.schema.json under evaluation_staleness_class."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018. A pack minted under unset_pending_decision MUST resolve through a trust prompt before any enforced_blocking check is admitted."
+        }
+      },
+      "description": "Policy context the pack was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 / ADR-0018 trust state are re-validated on every evaluation; a stale policy epoch denies the evaluation with policy_epoch_expired_re_evaluation_required."
+    },
+
+    "review_pack_class": {
+      "type": "string",
+      "enum": [
+        "project_default_pack",
+        "scope_overlay_pack",
+        "owner_supplied_pack",
+        "ad_hoc_session_pack",
+        "imported_from_bundle_pack",
+        "managed_admin_published_pack"
+      ],
+      "description": "Frozen review-pack class vocabulary. project_default_pack is the repository's baseline pack; scope_overlay_pack overlays a sub-tree / sparse slice on top of the project default; owner_supplied_pack is a pack contributed by an owning team for paths inside their ownership scope; ad_hoc_session_pack is a per-session overlay used during exploratory review and not promoted; imported_from_bundle_pack was hydrated from a review bundle (no auto re-fetch against the canonical provider); managed_admin_published_pack is a read-only pack provisioned by a managed-admin surface and admissible only under managed_admin_surface client_scope."
+    },
+
+    "review_pack_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "review_pack_drafting",
+        "review_pack_active",
+        "review_pack_deprecated_pending_replacement",
+        "review_pack_archived_tombstone"
+      ],
+      "description": "Frozen review-pack lifecycle vocabulary. review_pack_drafting is editable but not yet admitted on any evaluator; review_pack_active is the admitted operating state; review_pack_deprecated_pending_replacement keeps the pack admissible but advertises that a replacement pack is imminent; review_pack_archived_tombstone is the retain-as-tombstone posture for retention / audit / restore."
+    },
+
+    "review_pack_check_class": {
+      "type": "string",
+      "enum": [
+        "format_check",
+        "lint_check",
+        "type_check",
+        "unit_test_check",
+        "integration_test_check",
+        "security_audit_check",
+        "license_audit_check",
+        "dependency_freshness_check",
+        "ownership_review_required_check",
+        "ai_review_advisory_check",
+        "evidence_attached_check",
+        "custom_external_check"
+      ],
+      "description": "Frozen must-run / advisory check-class vocabulary. format_check / lint_check / type_check / unit_test_check / integration_test_check are the standard local / CI lanes; security_audit_check, license_audit_check, dependency_freshness_check are governance lanes; ownership_review_required_check pairs with the ownership_rule_record family below to express 'a sign-off from the owner is required before landing'; ai_review_advisory_check carries AI review evidence as an advisory lane; evidence_attached_check forces a release-evidence anchor before landing; custom_external_check is the escape hatch for org-specific external evaluators that publish a review_evaluation_result_record. New check classes are additive-minor."
+    },
+
+    "review_pack_check_enforcement_class": {
+      "type": "string",
+      "enum": [
+        "enforced_blocking",
+        "enforced_blocking_unless_waived",
+        "advisory_non_blocking_with_visible_chip",
+        "advisory_non_blocking_silent",
+        "informational_only_no_chip"
+      ],
+      "description": "Frozen enforcement-class vocabulary that decides whether a check failure is a landing blocker, a waivable blocker, an advisory chip, an advisory toast, or purely informational. enforced_blocking blocks landing unconditionally; enforced_blocking_unless_waived blocks landing unless the matching waiver_linkage_class is waiver_admitted_active; advisory_non_blocking_with_visible_chip surfaces a chip without blocking; advisory_non_blocking_silent records the outcome without surfacing a chip; informational_only_no_chip records the outcome only on the audit lane. A check whose outcome is fail_blocking but whose enforcement_class is advisory_* MUST surface as advisory_non_blocking_with_visible_chip on the evaluation result; a result that flips an advisory check into a blocker denies with check_enforcement_class_must_match_pack_declaration."
+    },
+
+    "ownership_rule_class": {
+      "type": "string",
+      "enum": [
+        "ownership_required_review_blocking",
+        "ownership_required_signoff_blocking",
+        "ownership_advisory_notification_non_blocking",
+        "ownership_optional_notification_no_chip",
+        "ownership_disabled_for_scope"
+      ],
+      "description": "Frozen ownership-rule vocabulary. ownership_required_review_blocking forces an owner-review row to attach before landing; ownership_required_signoff_blocking forces an owner-signoff row to attach before landing; ownership_advisory_notification_non_blocking publishes a notification without blocking; ownership_optional_notification_no_chip records the notification on the audit lane only; ownership_disabled_for_scope explicitly disables ownership review for a sub-scope (used by ad_hoc_session_pack overlays where the project default would otherwise apply). The advisory-vs-enforced split is explicit on every row so the outcome is never buried in tool-specific copy."
+    },
+
+    "divergence_label_class": {
+      "type": "string",
+      "enum": [
+        "local_ci_provider_all_match_pass",
+        "local_ci_provider_all_match_fail",
+        "local_passes_ci_pending_no_judgement_yet",
+        "local_passes_ci_failed_user_review_required",
+        "local_failed_ci_passed_user_review_required",
+        "local_passes_provider_overlay_disagrees_user_review_required",
+        "local_only_no_external_evaluator_admissible",
+        "evaluator_unavailable_no_divergence_assessable",
+        "evaluation_reused_from_export_pinned_to_build_identity"
+      ],
+      "description": "Frozen divergence-label vocabulary. The pack declares which divergence labels its consumers must surface as visible chips on the matched review_evaluation_result_record so local-vs-CI-vs-provider disagreement is mechanical. local_ci_provider_all_match_pass / _fail are the agreement labels; local_passes_ci_pending is the in-flight label; the user_review_required labels MUST resolve through an explicit user step before mutation; local_only_no_external_evaluator_admissible is the pre-CI baseline; evaluator_unavailable_no_divergence_assessable is the outage label; evaluation_reused_from_export_pinned_to_build_identity is the reuse label so a result reused from an export does not silently appear as a freshly evaluated pass. A result that asserts local_ci_provider_all_match_* without all three evaluators present denies with divergence_label_must_match_evaluator_set."
+    },
+
+    "waiver_linkage_class": {
+      "type": "string",
+      "enum": [
+        "no_waiver_admissible",
+        "waiver_required_admin_signed",
+        "waiver_required_owner_signed",
+        "waiver_required_with_expiry",
+        "waiver_admitted_active",
+        "waiver_expired_re_evaluation_required",
+        "waiver_revoked_re_evaluation_required"
+      ],
+      "description": "Frozen waiver-linkage vocabulary. no_waiver_admissible forbids waivers on the named check; waiver_required_admin_signed / waiver_required_owner_signed / waiver_required_with_expiry name what kind of waiver is admissible; waiver_admitted_active is the active-waiver state used on the matched review_evaluation_result_record; waiver_expired_re_evaluation_required and waiver_revoked_re_evaluation_required force re-evaluation. A check whose enforcement_class is enforced_blocking with no_waiver_admissible MUST NOT carry a waiver_admitted_active outcome; the result denies with enforced_blocking_check_cannot_be_silently_waived."
+    },
+
+    "output_artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "evaluation_summary_artifact",
+        "finding_list_artifact",
+        "ownership_review_request_artifact",
+        "waiver_proposal_artifact",
+        "evidence_packet_artifact",
+        "ai_review_evidence_artifact",
+        "audit_event_stream_artifact"
+      ],
+      "description": "Frozen output-artifact-family vocabulary. The pack declares which output artifact families its evaluation MUST publish so support / export / replay can read one set of refs rather than guessing. evaluation_summary_artifact is the per-evaluation overview; finding_list_artifact is the per-finding list; ownership_review_request_artifact is the per-owner review request row; waiver_proposal_artifact is the per-check waiver proposal row; evidence_packet_artifact pins the release evidence the evaluation produced; ai_review_evidence_artifact pins the AI review evidence packet; audit_event_stream_artifact pins the matched audit-event rows. An evaluation that omits an output family the pack declared denies with required_output_artifact_family_missing."
+    },
+
+    "review_pack_denial_reason": {
+      "type": "string",
+      "enum": [
+        "review_pack_lifecycle_transition_forbidden",
+        "review_pack_check_required_field_missing",
+        "ownership_rule_target_scope_required",
+        "waiver_linkage_must_match_check_enforcement_class",
+        "ad_hoc_session_pack_must_not_promote_to_active",
+        "managed_admin_published_pack_client_scope_restricted",
+        "imported_from_bundle_pack_envelope_required",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "review_pack_record_required_field_missing",
+        "review_pack_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the review_pack audit stream."
+    },
+
+    "review_pack_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "review_pack_drafted",
+        "review_pack_admitted_active",
+        "review_pack_check_added",
+        "review_pack_check_removed",
+        "review_pack_ownership_rule_added",
+        "review_pack_ownership_rule_removed",
+        "review_pack_waiver_linkage_changed",
+        "review_pack_deprecated_pending_replacement",
+        "review_pack_archived",
+        "review_pack_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the review_pack stream. review_pack_audit_denial_emitted MUST cite a review_pack_denial_reason."
+    },
+
+    "review_pack_scope_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_target_ref"],
+      "properties": {
+        "scope_kind": {
+          "type": "string",
+          "enum": [
+            "whole_repository_scope",
+            "subtree_scope",
+            "sparse_slice_scope",
+            "named_workset_scope",
+            "ad_hoc_session_scope"
+          ],
+          "description": "Frozen scope-kind vocabulary. whole_repository_scope binds the pack to the repository as a whole; subtree_scope binds the pack to a directory subtree row; sparse_slice_scope binds the pack to a sparse slice row; named_workset_scope binds the pack to a named workset row in schemas/workspace/workset_artifact.schema.json; ad_hoc_session_scope binds the pack to a single review session and is not promoted."
+        },
+        "scope_target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the scope target row (subtree id, sparse-slice id, named-workset id, session id). Raw absolute paths and raw glob bodies never appear here."
+        }
+      },
+      "description": "Pack scope binding. The pack's checks and ownership rules apply to objects inside this scope; a finding outside the scope denies with finding_outside_pack_scope on the matched review_evaluation_result_record."
+    },
+
+    "review_pack_check_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "review_pack_check_class",
+        "review_pack_check_enforcement_class",
+        "waiver_linkage_class",
+        "summary_label"
+      ],
+      "properties": {
+        "check_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque per-pack check identity. The matched review_evaluation_finding_record cites this id."
+        },
+        "review_pack_check_class": { "$ref": "#/$defs/review_pack_check_class" },
+        "review_pack_check_enforcement_class": { "$ref": "#/$defs/review_pack_check_enforcement_class" },
+        "waiver_linkage_class": { "$ref": "#/$defs/waiver_linkage_class" },
+        "evaluator_descriptor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the evaluator descriptor (a tool / runner / external service identity in the commands family). Null when the check is informational_only_no_chip or when the evaluator is bound at evaluation time rather than at pack-admission time."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "Checks whose enforcement_class is enforced_blocking MUST cite waiver_linkage_class = no_waiver_admissible.",
+          "if": {
+            "properties": { "review_pack_check_enforcement_class": { "const": "enforced_blocking" } },
+            "required": ["review_pack_check_enforcement_class"]
+          },
+          "then": {
+            "properties": {
+              "waiver_linkage_class": { "const": "no_waiver_admissible" }
+            }
+          }
+        },
+        {
+          "description": "Checks whose enforcement_class is enforced_blocking_unless_waived MUST cite a waiver-required linkage (admin / owner / with-expiry) so the waiver path is mechanical.",
+          "if": {
+            "properties": { "review_pack_check_enforcement_class": { "const": "enforced_blocking_unless_waived" } },
+            "required": ["review_pack_check_enforcement_class"]
+          },
+          "then": {
+            "properties": {
+              "waiver_linkage_class": {
+                "enum": [
+                  "waiver_required_admin_signed",
+                  "waiver_required_owner_signed",
+                  "waiver_required_with_expiry"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One must-run / advisory check declaration inside a review pack. The matched review_evaluation_finding_record cites the check_id and inherits the enforcement_class and waiver_linkage_class from this descriptor."
+    },
+
+    "ownership_rule_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ownership_rule_id",
+        "ownership_rule_class",
+        "owner_route_ref",
+        "scope_binding",
+        "summary_label"
+      ],
+      "properties": {
+        "ownership_rule_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque per-pack ownership-rule identity. The matched review_evaluation_finding_record cites this id when the finding is an ownership outcome."
+        },
+        "ownership_rule_class": { "$ref": "#/$defs/ownership_rule_class" },
+        "owner_route_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the owner-route row in artifacts/governance/ownership_matrix.yaml or in the project's owners registry. Raw owner identity strings never appear here."
+        },
+        "scope_binding": {
+          "$ref": "#/$defs/review_pack_scope_binding",
+          "description": "The sub-scope inside the pack scope this rule applies to. A rule whose scope_binding.scope_kind is ad_hoc_session_scope MUST also pair with review_pack_class = ad_hoc_session_pack."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "One ownership rule declaration. The advisory-vs-enforced split is explicit on ownership_rule_class so the outcome is never buried in tool-specific copy."
+    },
+
+    "review_pack_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_pack_schema_version",
+        "review_pack_id",
+        "review_pack_class",
+        "review_pack_lifecycle_state",
+        "scope_binding",
+        "checks",
+        "ownership_rules",
+        "divergence_labels_required",
+        "output_artifact_families_required",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "created_at",
+        "updated_at",
+        "hosted_review_inbox_record_id_ref",
+        "merge_policy_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_pack_record" },
+        "review_pack_schema_version": { "$ref": "#/$defs/review_pack_schema_version" },
+        "review_pack_id": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_class": { "$ref": "#/$defs/review_pack_class" },
+        "review_pack_lifecycle_state": { "$ref": "#/$defs/review_pack_lifecycle_state" },
+        "scope_binding": { "$ref": "#/$defs/review_pack_scope_binding" },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_pack_check_descriptor" },
+          "description": "Ordered list of must-run / advisory checks. minItems is 1 so a pack always declares at least one check; an empty pack denies with review_pack_record_required_field_missing."
+        },
+        "ownership_rules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ownership_rule_descriptor" },
+          "description": "Ordered list of ownership rules. MAY be empty when the pack delegates ownership to a parent pack (project_default_pack); MUST be non-empty for owner_supplied_pack."
+        },
+        "divergence_labels_required": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/divergence_label_class" },
+          "description": "The set of divergence labels the pack's consumers MUST be prepared to surface on the matched review_evaluation_result_record. minItems is 1; a pack with no divergence labels declared denies with review_pack_record_required_field_missing."
+        },
+        "output_artifact_families_required": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/output_artifact_family_class" },
+          "description": "The set of output-artifact families an evaluation MUST publish. minItems is 1; an evaluation that omits a declared family denies with required_output_artifact_family_missing."
+        },
+        "imported_bundle_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["bundle_record_id_ref", "imported_at"],
+              "properties": {
+                "bundle_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+                "imported_at": { "$ref": "#/$defs/monotonic_timestamp" }
+              }
+            }
+          ],
+          "description": "Imported-bundle envelope. Required (non-null) when review_pack_class is imported_from_bundle_pack; null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when review_pack_lifecycle_state is review_pack_archived_tombstone. Null otherwise."
+        },
+        "hosted_review_inbox_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the hosted-review inbox contract. Currently always null; once the inbox contract lands, every pack admitted on a hosted-review inbox MUST cite the inbox row."
+        },
+        "merge_policy_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge-policy contract. Currently always null; once the merge-policy contract lands, every pack composing with a merge policy MUST cite the merge-policy row."
+        }
+      },
+      "allOf": [
+        {
+          "description": "imported_bundle_envelope is required (non-null) when review_pack_class is imported_from_bundle_pack and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_pack_class": { "const": "imported_from_bundle_pack" } },
+            "required": ["review_pack_class"]
+          },
+          "then": {
+            "required": ["imported_bundle_envelope"],
+            "properties": {
+              "imported_bundle_envelope": { "type": "object" }
+            }
+          },
+          "else": {
+            "properties": {
+              "imported_bundle_envelope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "managed_admin_published_pack MUST be admitted only on managed_admin_surface client_scope; a pack declaring other client scopes denies with managed_admin_published_pack_client_scope_restricted.",
+          "if": {
+            "properties": { "review_pack_class": { "const": "managed_admin_published_pack" } },
+            "required": ["review_pack_class"]
+          },
+          "then": {
+            "properties": {
+              "client_scopes": {
+                "type": "array",
+                "items": { "const": "managed_admin_surface" }
+              }
+            }
+          }
+        },
+        {
+          "description": "ad_hoc_session_pack MUST NOT be promoted past review_pack_drafting; the lifecycle state MUST be review_pack_drafting or review_pack_archived_tombstone. Promoting an ad_hoc_session_pack to review_pack_active denies with ad_hoc_session_pack_must_not_promote_to_active.",
+          "if": {
+            "properties": { "review_pack_class": { "const": "ad_hoc_session_pack" } },
+            "required": ["review_pack_class"]
+          },
+          "then": {
+            "properties": {
+              "review_pack_lifecycle_state": {
+                "enum": ["review_pack_drafting", "review_pack_archived_tombstone"]
+              }
+            }
+          }
+        },
+        {
+          "description": "owner_supplied_pack MUST cite a non-empty ownership_rules list.",
+          "if": {
+            "properties": { "review_pack_class": { "const": "owner_supplied_pack" } },
+            "required": ["review_pack_class"]
+          },
+          "then": {
+            "properties": {
+              "ownership_rules": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "archived_at is required (non-null) when review_pack_lifecycle_state is review_pack_archived_tombstone and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_pack_lifecycle_state": { "const": "review_pack_archived_tombstone" } },
+            "required": ["review_pack_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by local diff explorers, CI runners, provider overlays, AI review overlays, browser companions, support / export readers, and audit lanes. Exactly one row per active review-pack identity."
+    },
+
+    "review_pack_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_pack_schema_version",
+        "review_pack_audit_event_id_value",
+        "audit_event_record_id",
+        "review_pack_id_ref",
+        "occurred_at",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_pack_audit_event_record" },
+        "review_pack_schema_version": { "$ref": "#/$defs/review_pack_schema_version" },
+        "review_pack_audit_event_id_value": { "$ref": "#/$defs/review_pack_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque actor ref. Optional on system-driven events (lifecycle bookkeeping); required on user-driven mutation events."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_pack_denial_reason" }
+          ],
+          "description": "Required (non-null) when review_pack_audit_event_id_value is review_pack_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is review_pack_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_pack_audit_event_id_value": { "const": "review_pack_audit_denial_emitted" } },
+            "required": ["review_pack_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/review_pack_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the review_pack stream."
+    }
+  }
+}
