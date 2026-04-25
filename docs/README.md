@@ -398,6 +398,17 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`language/provider_graph_and_arbitration_contract.md`](./language/provider_graph_and_arbitration_contract.md)
+  — shared language-provider attribution, capability-negotiation,
+  arbitration, and result-provenance contract for definition,
+  reference, hover, rename, completion, code-action, diagnostics,
+  notebook context, and AI assistance. Boundary schemas in
+  [`/schemas/language/provider_status_row.schema.json`](../schemas/language/provider_status_row.schema.json),
+  [`/schemas/language/capability_negotiation_packet.schema.json`](../schemas/language/capability_negotiation_packet.schema.json),
+  and
+  [`/schemas/language/result_provenance.schema.json`](../schemas/language/result_provenance.schema.json);
+  worked fixtures in
+  [`/fixtures/language/provider_arbitration_cases/`](../fixtures/language/provider_arbitration_cases/).
 - [`verification/source_fidelity_and_undo_packet.md`](./verification/source_fidelity_and_undo_packet.md)
   — seed verification packet for save/source-fidelity fields,
   whole-file-rewrite disclosure, and undo-honesty copy. Pairs with the
