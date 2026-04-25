@@ -625,6 +625,49 @@ rows:
       decision-row linkage and the release family for posture
       crosswalks.
 
+  - family_id: navigation
+    schema_home: schemas/navigation/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/navigation/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/navigation/navigation_artifacts.schema.json
+    notes: >
+      Navigation-continuity boundary. The navigation_artifacts
+      schema freezes the durable navigation artifacts every editor,
+      docs, notebook, review, graph, AI, search, terminal-zone,
+      output-viewer, and support-export surface reads when restoring
+      back / forward, recent location, breadcrumb, outline, bookmark
+      / mark, or peek context: navigation_breadcrumb_trail_record,
+      navigation_outline_snapshot_record, navigation_bookmark_record
+      (with the six-value bookmark_drift_state machine — bound,
+      remapped, drifted, missing_target, scope_unavailable, archived
+      — and the five-value bookmark_drift_required_user_action
+      vocabulary so a downstream surface that re-renders a missing
+      or drifted bookmark as bound denies with bookmark_drift_state_
+      required_action_mismatch), navigation_history_entry_record
+      (one back / forward / recent-locations entry shape across
+      surfaces), navigation_peek_context_record (peek-without-jump
+      with promote-to-jump), and navigation_artifact_audit_event_
+      record. Re-exports surface_class, freshness_class, client_
+      scope, and redaction_class from the search-result-truth and
+      capability-lifecycle families without redefinition. Pairs
+      with the saved-query bundle / search-collection-snapshot
+      schema in the search family for the durable search-side of
+      the same contract. Adding a new navigation_target_kind,
+      breadcrumb_segment_class, outline_node_class, bookmark_drift
+      _state, bookmark_kind_class, navigation_history_origin_class
+      / direction_class, peek_projection_class, navigation_artifact
+      _denial_reason, or navigation_artifact_audit_event_id is
+      additive-minor and bumps navigation_artifacts_schema_version;
+      repurposing an existing value is breaking and requires a new
+      decision row.
+
   - family_id: network
     schema_home: schemas/network/
     publication_path_class: equal_to_schema_home
@@ -862,9 +905,49 @@ rows:
       role: runtime_surface
       dri: "@ahmeddyounis"
     lifecycle_state: seeded
-    representative_schemas: []
+    representative_schemas:
+      - schemas/search/saved_query_bundle.schema.json
     notes: >
       Search-readiness and result-truth boundary (see ADR-0014).
+      The saved_query_bundle schema freezes the
+      saved_query_bundle_record (a curated collection of
+      saved_query_record / scope_binding_record / search_deep_link
+      _binding_record entries shipped with one source-class label,
+      one share-policy class, one provider-backing class, one
+      sensitive-literal handling class, and one retention class so
+      reopen / export / share decisions resolve against the
+      bundle, not against per-record opinions), the search_
+      collection_snapshot_record (a captured planner-pass-pinned
+      view of what a saved query / bundle resolved to so reopen /
+      export / parity surfaces can compare current versus
+      captured scope honestly), and the saved_query_bundle_audit_
+      event_record. allOf gates force user_authored_local source
+      to resolve to local_only_no_share share + local_by_default_
+      no_remote_retention retention; support_export_captured
+      source to resolve to support_export_redacted_only share +
+      literal_redacted_at_boundary_default or literal_hashed_with
+      _local_salt handling; managed_workspace_provisioned source
+      to resolve to managed_admin_published_read_only_no_export
+      share + managed_provider_retention_locked retention; every
+      search_collection_snapshot_record to cite at minimum
+      snapshot_includes_planner_pass_ref plus snapshot_includes_
+      hidden_result_count_disclosure; and reopen attempts to
+      resolve exactly one reopen_honesty_state from the ten-value
+      vocabulary so a reopened query that paints stale captured
+      rows as the current authoritative result set denies with
+      reopen_must_disclose_current_versus_captured_drift. Composes
+      with the existing schemas/search/saved_query_and_scope_
+      binding.schema.json (per-record family) and schemas/search/
+      result_fusion_record.schema.json (planner-pass identity)
+      without redeclaring their payload shape. Adding a new
+      saved_query_source_class, saved_query_share_policy_class,
+      saved_query_provider_backing_class, saved_query_sensitive_
+      literal_handling_class, saved_query_retention_class,
+      snapshot_export_field_class, reopen_honesty_state, saved_
+      query_bundle_denial_reason, or saved_query_bundle_audit_
+      event_id is additive-minor and bumps saved_query_bundle_
+      schema_version; repurposing an existing value is breaking
+      and requires a new decision row.
 
   - family_id: security
     schema_home: schemas/security/

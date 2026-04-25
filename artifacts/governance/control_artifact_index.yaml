@@ -8049,6 +8049,233 @@ artifacts:
       no raw model weights, no raw pack bytes, no raw provider
       payloads).
 
+  - id: navigation_and_saved_query_contract
+    title: Navigation-continuity, bookmark-drift, and saved-query / deep-link contract
+    canonical_location: docs/navigation/navigation_and_saved_query_contract.md
+    overview_page: docs/navigation/navigation_and_saved_query_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative cross-tool contract binding the durable navigation
+      and search artifacts every editor, docs, notebook, review,
+      graph, AI, search, terminal-zone, output-viewer, and support
+      / export surface reads when restoring back / forward, recent
+      location, breadcrumb, outline, bookmark / mark, peek context,
+      saved query, query-history entry, scope binding, search deep
+      link, or search collection snapshot to one set of artifact
+      shapes, one bookmark-drift state machine, one set of privacy
+      / portability / sync / sharing rules for sensitive query
+      literals and provider-backed search, and one set of current-
+      versus-captured scope honesty rules every reopened query
+      and shared deep link must honour. Names the nine
+      navigation_target_kind values (file_path_target, symbol_
+      declaration_target, docs_anchor_target, notebook_cell_target,
+      review_diff_hunk_target, graph_node_target, search_result_
+      packet_target, terminal_zone_target, output_viewer_object_
+      target), the nine breadcrumb_segment_class values, the seven
+      outline_node_class values, the six-value bookmark_drift_state
+      vocabulary (bound, remapped, drifted, missing_target, scope
+      _unavailable, archived) plus the five-value bookmark_drift_
+      required_user_action vocabulary, the seven bookmark_kind_
+      class values, the ten-value navigation_history_origin_class
+      vocabulary, the five-value navigation_history_direction_
+      class vocabulary, the nine peek_projection_class values, the
+      ten-value saved_query_source_class vocabulary, the six-value
+      saved_query_share_policy_class vocabulary, the six-value
+      saved_query_provider_backing_class vocabulary, the five-
+      value saved_query_sensitive_literal_handling_class
+      vocabulary (literal_redacted_at_boundary_default by default),
+      the seven-value saved_query_retention_class vocabulary
+      (local_by_default_no_remote_retention by default), the
+      fifteen-value snapshot_export_field_class vocabulary, the
+      ten-value reopen_honesty_state vocabulary, the per-schema
+      denial-reason vocabularies, and the audit-event id
+      vocabularies. Composes with docs/adr/0014-search-readiness-
+      ranking-result-truth.md, docs/search/query_planner_contract_
+      seed.md, schemas/search/saved_query_and_scope_binding.
+      schema.json, schemas/workspace/workset_artifact.schema.json,
+      schemas/docs/citation_anchor.schema.json, docs/ux/
+      navigation_and_escalation_contract.md, ADR-0007 (broker-
+      owned redaction), ADR-0011 (capability lifecycle), and
+      ADR-0018 (workspace trust). Building the live navigation
+      crate, the back / forward stack implementation, the
+      breadcrumb / outline render pipelines, the bookmark UI, the
+      peek surface engine, the saved-query share UI, the
+      provider-backed search opt-in flow UI, the support-export
+      pipeline, the org-share sync transport, and the managed-
+      workspace provisioning pipeline are explicitly out of scope
+      at this revision.
+
+  - id: navigation_artifacts_schema
+    title: Navigation-artifacts boundary schema (breadcrumb / outline / bookmark / history / peek)
+    canonical_location: schemas/navigation/navigation_artifacts.schema.json
+    overview_page: docs/navigation/navigation_and_saved_query_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the six records frozen in the
+      navigation contract: navigation_breadcrumb_trail_record
+      (breadcrumb_trail_id, surface_class, ordered segments
+      starting at workspace_root_segment with contiguous indexes),
+      navigation_outline_snapshot_record (outline_snapshot_id,
+      outline_root_node_id, flat outline_nodes list keyed by
+      parent_outline_node_id_ref), navigation_bookmark_record
+      (bookmark_id, bookmark_kind_class, navigation_target_ref,
+      bookmark_drift_state, bookmark_drift_required_user_action,
+      remap_chain_target_id_refs for remapped state, supersedes_
+      bookmark_id_ref, archived_at / tombstoned_at), navigation_
+      history_entry_record (navigation_history_entry_id, surface_
+      class, navigation_target_ref, navigation_history_origin_
+      class, navigation_history_direction_class, previous_history_
+      entry_id_ref, originating_command_id_ref, originating_
+      search_session_id_ref), navigation_peek_context_record
+      (peek_context_id, peek_projection_class, navigation_target_
+      ref, originating_navigation_history_entry_id_ref, promoted_
+      to_navigation_history_entry_id_ref), and navigation_
+      artifact_audit_event_record. additionalProperties false
+      everywhere. allOf gates force the breadcrumb trail to start
+      at workspace_root_segment, force bound / remapped state to
+      pair with no_user_action_required_bound_or_remapped (and
+      every other state to pair with the matching user_must_*
+      action), force remapped state to cite a non-empty remap
+      chain, force archived state to cite archived_at, force
+      session_restore_replay origin to cite previous_history_
+      entry_id_ref, and force navigation_artifact_audit_denial_
+      emitted events to cite a denial reason. Re-exports
+      freshness_class, client_scope, and redaction_class from
+      schemas/governance/capability_lifecycle.schema.json without
+      redefinition. Adding a new record_kind, navigation_target_
+      kind, breadcrumb_segment_class, outline_node_class,
+      bookmark_drift_state, bookmark_kind_class, navigation_
+      history_origin_class, navigation_history_direction_class,
+      peek_projection_class, navigation_artifact_denial_reason,
+      or navigation_artifact_audit_event_id is additive-minor and
+      bumps navigation_artifacts_schema_version; repurposing an
+      existing value is breaking and requires a new decision row.
+
+  - id: saved_query_bundle_schema
+    title: Saved-query bundle and search-collection-snapshot boundary schema
+    canonical_location: schemas/search/saved_query_bundle.schema.json
+    overview_page: docs/navigation/navigation_and_saved_query_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the three records frozen on
+      the saved-query bundle / collection-snapshot side of the
+      navigation contract: saved_query_bundle_record (saved_query
+      _bundle_id, saved_query_source_class, saved_query_share_
+      policy_class, saved_query_provider_backing_class, saved_
+      query_sensitive_literal_handling_class, saved_query_
+      retention_class, saved_query_id_refs, scope_binding_id_refs,
+      search_deep_link_binding_id_refs, current_collection_
+      snapshot_id_ref, archived_at / tombstoned_at), search_
+      collection_snapshot_record (search_collection_snapshot_id,
+      originating_saved_query_id_ref, originating_planner_pass_
+      ref pinned through schemas/search/result_fusion_record.
+      schema.json shape, captured_scope_binding_id_ref, captured
+      _visible_row_id_refs, captured_hidden_result_count, captured
+      _partial_truth_cause_count, snapshot_export_field_classes
+      with minItems 2 and required contains snapshot_includes_
+      planner_pass_ref + snapshot_includes_hidden_result_count_
+      disclosure, captured_running_build_identity_ref, captured_
+      policy_epoch, captured_provider_backing_class, current_
+      reopen_honesty_state), and saved_query_bundle_audit_event_
+      record. additionalProperties false everywhere. allOf gates
+      force user_authored_local source to resolve to local_only_
+      no_share share + local_by_default_no_remote_retention
+      retention; support_export_captured source to resolve to
+      support_export_redacted_only share + literal_redacted_at_
+      boundary_default or literal_hashed_with_local_salt
+      handling; managed_workspace_provisioned source to resolve
+      to managed_admin_published_read_only_no_export share +
+      managed_provider_retention_locked retention; every snapshot
+      to cite the minimum two export-field classes; and reopen
+      attempts to resolve exactly one reopen_honesty_state from
+      the ten-value vocabulary so a reopened query that paints
+      stale captured rows as the current authoritative result
+      set denies with reopen_must_disclose_current_versus_
+      captured_drift. Re-exports freshness_class, client_scope,
+      and redaction_class from schemas/governance/capability_
+      lifecycle.schema.json without redefinition. Composes with
+      schemas/search/saved_query_and_scope_binding.schema.json
+      (per-record family) and schemas/search/result_fusion_
+      record.schema.json (planner-pass identity) without
+      redeclaring their payload shape. Adding a new saved_query_
+      source_class, saved_query_share_policy_class, saved_query_
+      provider_backing_class, saved_query_sensitive_literal_
+      handling_class, saved_query_retention_class, snapshot_
+      export_field_class, reopen_honesty_state, saved_query_
+      bundle_denial_reason, or saved_query_bundle_audit_event_id
+      is additive-minor and bumps saved_query_bundle_schema_
+      version; repurposing an existing value is breaking and
+      requires a new decision row.
+
+  - id: navigation_and_search_artifacts_fixtures
+    title: Navigation and search-artifacts worked fixtures
+    canonical_location: fixtures/navigation_and_search_artifacts/
+    overview_page: docs/navigation/navigation_and_saved_query_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example JSON fixtures for the navigation-continuity,
+      bookmark-drift, and saved-query / deep-link contract and
+      schemas. Covers one breadcrumb-trail row from workspace
+      root to a leaf symbol; one outline snapshot for a file
+      outline with container plus leaf symbol nodes; one bound
+      bookmark and one remapped bookmark with a non-empty remap
+      chain; one drifted bookmark requiring user disambiguation;
+      one missing-target bookmark requiring re-anchor or delete;
+      one scope-unavailable bookmark on a remote review-shard;
+      one archived bookmark tombstone; three navigation-history
+      entries (search_result_open, back_or_forward_step, and
+      session_restore_replay) demonstrating the cross-surface
+      back / forward and recent-locations model (acceptance
+      bullet 1); one peek context promoted to a jump; one
+      navigation-artifact audit denial when a downstream surface
+      attempted to render a missing-target bookmark as bound;
+      four saved-query bundles covering user_authored_local,
+      org_shared_admin_curated (provider-backed),
+      support_export_captured (literal-hashed retention), and
+      managed_workspace_provisioned (read-only) sources
+      (acceptance bullet 3 — sensitive search material is local
+      -only or hashed by default); four search-collection
+      snapshots covering current_scope_matches_captured_scope_
+      exact, current_scope_widened_versus_captured_scope_
+      disclosed, current_build_drifted_versus_captured_build_
+      disclosed, and current_policy_epoch_drifted_versus_
+      captured_disclosed reopen-honesty states (acceptance
+      bullet 2 — deep links reopen with current permissions
+      rather than claiming frozen certainty about current
+      results); and two saved-query-bundle audit denials
+      (reopen_must_disclose_current_versus_captured_drift and
+      sensitive_literal_export_requires_explicit_opt_in). Each
+      fixture cites the contract sections it exercises in the
+      directory README and carries only opaque workspace / file
+      / symbol / planner-pass / result-set / fused-row /
+      session / scope-binding / deep-link binding / saved-query
+      / bundle / snapshot / policy-epoch / build-identity
+      handles plus monotonic placeholder timestamps and
+      redaction-aware labels (no raw absolute paths, no raw
+      symbol bodies, no raw document bodies, no raw notebook
+      cell text, no raw terminal bytes, no raw URLs, no raw
+      query bodies).
+
 # -----------------------------------------------------------------------------
 # Review cadence vocabulary.
 #

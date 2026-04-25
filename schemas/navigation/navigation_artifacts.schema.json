@@ -1,0 +1,859 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/navigation/navigation_artifacts.schema.json",
+  "title": "Aureline navigation-continuity, breadcrumb, outline, bookmark, history, and peek-context artifact vocabulary",
+  "description": "Boundary schema for the durable navigation artifacts every editor, docs, notebook, review, graph, AI, and search surface reads when restoring back / forward, recent-location, breadcrumb, outline, bookmark / mark, or peek context. Every artifact in this family points at one navigable target identity from the frozen target-kind vocabulary (file_path_target, symbol_declaration_target, docs_anchor_target, notebook_cell_target, review_diff_hunk_target, graph_node_target, search_result_packet_target, terminal_zone_target, output_viewer_object_target) and resolves through opaque ids only. Raw absolute paths, raw symbol bodies, raw document bodies, raw notebook cell text, raw terminal bytes, raw URLs, and raw query bodies MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / drift state only. The eventual navigation crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, navigation-target kind, breadcrumb-segment class, outline-node class, bookmark-drift state, navigation-history origin class, peek-projection class, denial reason, or audit-event id is additive-minor and bumps navigation_artifacts_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/navigation_breadcrumb_trail_record" },
+    { "$ref": "#/$defs/navigation_outline_snapshot_record" },
+    { "$ref": "#/$defs/navigation_bookmark_record" },
+    { "$ref": "#/$defs/navigation_history_entry_record" },
+    { "$ref": "#/$defs/navigation_peek_context_record" },
+    { "$ref": "#/$defs/navigation_artifact_audit_event_record" }
+  ],
+  "$defs": {
+    "navigation_artifacts_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the navigation-artifacts vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "navigation_breadcrumb_trail_record",
+        "navigation_outline_snapshot_record",
+        "navigation_bookmark_record",
+        "navigation_history_entry_record",
+        "navigation_peek_context_record",
+        "navigation_artifact_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw absolute paths, raw symbol definitions, raw document bodies, raw notebook cell text, raw terminal bytes, raw URLs, and raw query bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "running_build_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to the running build identity the artifact was minted under. Pinned so a re-resolution can compare current build vs captured build for drift labelling."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "docs",
+        "notebook",
+        "review",
+        "graph_overlay",
+        "search",
+        "terminal_zone",
+        "output_viewer",
+        "support_export"
+      ],
+      "description": "Frozen surface-class vocabulary naming which surface family minted or resolves the navigation artifact. Re-exported names match shell-zone routing in docs/ux/navigation_and_escalation_contract.md but the search / output viewer / docs lanes here are intentionally narrower than the search-result-truth surface vocabulary because navigation artifacts ride the destination, not the result-fusion row."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Navigation artifacts MAY be admitted on more than one client_scope; the resolution surface MUST honour the descriptor's client-scope narrowing."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Navigation artifacts default to metadata_safe_default; bookmarks pinned by support exports MUST raise to internal_support_restricted; navigation-history entries that touched a credentialed flow MUST raise to operator_only_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). A navigation artifact whose target identity has not been re-resolved against the current build MUST NOT claim authoritative_live."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018. Navigation artifacts minted under unset_pending_decision MUST resolve through a trust prompt before re-opening."
+        }
+      },
+      "description": "Policy context the artifact was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every restore / re-open; a stale policy epoch denies the re-open with policy_epoch_expired."
+    },
+
+    "navigation_target_kind": {
+      "type": "string",
+      "enum": [
+        "file_path_target",
+        "symbol_declaration_target",
+        "docs_anchor_target",
+        "notebook_cell_target",
+        "review_diff_hunk_target",
+        "graph_node_target",
+        "search_result_packet_target",
+        "terminal_zone_target",
+        "output_viewer_object_target"
+      ],
+      "description": "Frozen vocabulary of the destination kind a navigation artifact may bind to. Every breadcrumb segment, outline node, bookmark, history entry, peek context, and saved-query collection-snapshot row resolves to exactly one navigation_target_kind. Adding a new kind is additive-minor; repurposing an existing kind is breaking."
+    },
+
+    "navigation_target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["navigation_target_kind", "target_id_ref"],
+      "properties": {
+        "navigation_target_kind": { "$ref": "#/$defs/navigation_target_kind" },
+        "target_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id resolving to the target's authoritative owner record (file row in workspace, symbol row in graph, docs anchor in citation registry, notebook cell row, review diff hunk row, graph node row, search_result_packet_record id, terminal-zone id, output_viewer_object_record id). The owner contract resolves the ref; this schema never carries raw target bodies."
+        },
+        "secondary_target_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional secondary target ref for compound targets (e.g. a symbol_declaration_target whose definition spans multiple files cites the primary file row plus a secondary span row). Null when the target is single-rooted."
+        },
+        "label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the target's display label in the label registry. The raw label string does NOT live on this record; resolution honours redaction_class and trust state."
+        }
+      },
+      "description": "Pinned reference to one navigable destination. Every navigation artifact resolves at least one target through this envelope."
+    },
+
+    "breadcrumb_segment_class": {
+      "type": "string",
+      "enum": [
+        "workspace_root_segment",
+        "folder_segment",
+        "file_segment",
+        "container_symbol_segment",
+        "leaf_symbol_segment",
+        "docs_section_segment",
+        "notebook_section_segment",
+        "review_section_segment",
+        "graph_neighbourhood_segment"
+      ],
+      "description": "Frozen breadcrumb-segment classes. The trail orders segments from the broadest scope (workspace_root_segment) down to the local target (leaf_symbol_segment, docs_section_segment, notebook_section_segment, review_section_segment, graph_neighbourhood_segment). Trails MUST start at exactly one workspace_root_segment and MUST NOT mix a docs_section_segment with a leaf_symbol_segment in the same trail."
+    },
+
+    "breadcrumb_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_index",
+        "breadcrumb_segment_class",
+        "navigation_target_ref"
+      ],
+      "properties": {
+        "segment_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based segment index in the trail. Index 0 MUST be the workspace_root_segment; subsequent segments MUST be strictly increasing and contiguous."
+        },
+        "breadcrumb_segment_class": { "$ref": "#/$defs/breadcrumb_segment_class" },
+        "navigation_target_ref": { "$ref": "#/$defs/navigation_target_ref" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "One segment in a breadcrumb trail."
+    },
+
+    "outline_node_class": {
+      "type": "string",
+      "enum": [
+        "file_outline_root",
+        "container_symbol_node",
+        "leaf_symbol_node",
+        "docs_section_node",
+        "notebook_cell_node",
+        "review_section_node",
+        "graph_subgraph_node"
+      ],
+      "description": "Frozen outline-node classes. An outline snapshot is a tree of one root and zero or more child nodes; outline_node_class names the per-node role. file_outline_root is the only admissible root for an editor outline; docs_section_node may be the root for a docs outline."
+    },
+
+    "outline_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outline_node_id",
+        "outline_node_class",
+        "navigation_target_ref"
+      ],
+      "properties": {
+        "outline_node_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_outline_node_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Null on the root node; otherwise references the parent node's outline_node_id."
+        },
+        "outline_node_class": { "$ref": "#/$defs/outline_node_class" },
+        "navigation_target_ref": { "$ref": "#/$defs/navigation_target_ref" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "child_outline_node_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Direct-child outline_node_ids. The schema validates the child-id list shape; the eventual outline owner is responsible for cycle / orphan detection."
+        }
+      },
+      "description": "One node in an outline snapshot tree."
+    },
+
+    "bookmark_drift_state": {
+      "type": "string",
+      "enum": [
+        "bound",
+        "remapped",
+        "drifted",
+        "missing_target",
+        "scope_unavailable",
+        "archived"
+      ],
+      "description": "Frozen bookmark-drift state vocabulary. bound = the target resolved exactly under the current build identity; remapped = the surface followed an authoritative rename / move with a recorded mapping (the bookmark owns its remap chain); drifted = the target moved but the resolver could not pick a single successor and the user MUST disambiguate; missing_target = the target no longer exists at any resolvable location and re-binding is forbidden without explicit user action; scope_unavailable = the workspace / workset / docs pack / graph / remote shard the target lives in is currently outside admitted scope (workset narrowing, sparse-slice exclusion, policy-limited view, remote shard unreachable, docs pack not loaded); archived = the bookmark was retired by the user or by a managed sweep and is kept as a tombstone for audit / restore. Re-running a bookmark whose state is missing_target or drifted MUST NOT silently jump; the surface advertises the typed required user action and refuses the implicit jump."
+    },
+
+    "bookmark_drift_required_user_action": {
+      "type": "string",
+      "enum": [
+        "no_user_action_required_bound_or_remapped",
+        "user_must_pick_successor_drifted",
+        "user_must_re_anchor_or_delete_missing_target",
+        "user_must_widen_scope_or_load_pack_or_reach_remote",
+        "user_must_restore_from_archive_or_acknowledge_tombstone"
+      ],
+      "description": "Frozen vocabulary naming the user-facing action that the typed drift state requires. The schema gates pair drift state to required action so a missing_target bookmark cannot be re-rendered as bound by a downstream surface."
+    },
+
+    "bookmark_kind_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_named_bookmark",
+        "user_authored_quick_mark",
+        "session_recent_location",
+        "review_pinned_anchor",
+        "ai_evidence_anchor",
+        "support_export_pinned_anchor",
+        "managed_workspace_pinned_anchor"
+      ],
+      "description": "Frozen bookmark-kind class vocabulary. user_authored_named_bookmark is the durable, labelled, named bookmark; user_authored_quick_mark is the unnamed numeric / single-letter mark common to terminal / vim-style flows; session_recent_location is the back-stack mirror durable across sessions only as configured; review_pinned_anchor is a bookmark scoped to a review diff hunk; ai_evidence_anchor is minted from an AI explanation citation; support_export_pinned_anchor is minted by the support-export pipeline; managed_workspace_pinned_anchor is minted by a managed admin surface. Bookmark kinds compose with redaction_class for retention."
+    },
+
+    "navigation_history_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_invoked_jump",
+        "command_palette_jump",
+        "search_result_open",
+        "deep_link_resolution",
+        "back_or_forward_step",
+        "recent_locations_pick",
+        "ai_explanation_jump",
+        "review_walk_through",
+        "notebook_cell_jump",
+        "session_restore_replay"
+      ],
+      "description": "Frozen origin classes for a navigation_history_entry_record. The origin pins which surface caused the navigation; downstream support / parity surfaces MUST NOT collapse origins. session_restore_replay is the only origin admissible after a window restore: the entry is replayed from the durable history rather than minted at the moment of restore."
+    },
+
+    "navigation_history_direction_class": {
+      "type": "string",
+      "enum": [
+        "navigated_forward_one_step",
+        "navigated_back_one_step",
+        "navigated_to_recent_location",
+        "navigated_to_new_target",
+        "no_op_already_at_target"
+      ],
+      "description": "Frozen direction classes naming whether the entry stepped back, stepped forward, jumped to a recent location, opened a brand-new target, or no-op'd because the user was already at the target."
+    },
+
+    "peek_projection_class": {
+      "type": "string",
+      "enum": [
+        "definition_peek",
+        "reference_peek",
+        "implementation_peek",
+        "type_definition_peek",
+        "docs_peek",
+        "notebook_outputs_peek",
+        "review_diff_peek",
+        "graph_neighbour_peek",
+        "search_result_preview_peek"
+      ],
+      "description": "Frozen peek-projection classes. A peek context is the durable record of an in-place, non-modal preview the user opened over a target without leaving the active surface. Every peek context resolves a single peek_projection_class plus a navigation_target_ref so the back / forward stack can model peek-without-jump correctly."
+    },
+
+    "navigation_artifact_denial_reason": {
+      "type": "string",
+      "enum": [
+        "navigation_target_unknown",
+        "navigation_target_kind_mismatch_for_record",
+        "breadcrumb_trail_must_start_at_workspace_root",
+        "breadcrumb_segment_index_not_contiguous",
+        "outline_node_parent_unknown",
+        "outline_root_must_have_no_parent",
+        "bookmark_drift_state_required_action_mismatch",
+        "bookmark_required_user_action_missing_for_non_bound",
+        "navigation_history_origin_session_restore_requires_replay_source",
+        "peek_projection_unknown_for_target_kind",
+        "raw_body_forbidden_on_boundary",
+        "navigation_artifacts_schema_version_lagging",
+        "policy_epoch_expired",
+        "policy_blocked",
+        "trust_state_excludes_resolution"
+      ],
+      "description": "Frozen denial-reason vocabulary on the navigation-artifacts audit stream. Denials fail closed; silent rebind of a missing or drifted target is forbidden."
+    },
+
+    "navigation_artifact_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "breadcrumb_trail_minted",
+        "breadcrumb_trail_resolved",
+        "breadcrumb_trail_drifted",
+        "outline_snapshot_minted",
+        "outline_snapshot_invalidated",
+        "bookmark_created",
+        "bookmark_updated",
+        "bookmark_resolved_bound",
+        "bookmark_resolved_remapped",
+        "bookmark_resolution_refused",
+        "bookmark_archived",
+        "bookmark_tombstoned",
+        "navigation_history_entry_appended",
+        "navigation_history_entry_pruned",
+        "navigation_history_replayed_for_restore",
+        "peek_context_opened",
+        "peek_context_promoted_to_jump",
+        "peek_context_dismissed",
+        "navigation_artifact_audit_denial_emitted",
+        "navigation_artifacts_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary on the navigation-artifacts audit stream."
+    },
+
+    "navigation_breadcrumb_trail_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "navigation_artifacts_schema_version",
+        "breadcrumb_trail_id",
+        "surface_class",
+        "segments",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "navigation_breadcrumb_trail_record" },
+        "navigation_artifacts_schema_version": { "$ref": "#/$defs/navigation_artifacts_schema_version" },
+        "breadcrumb_trail_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/breadcrumb_segment" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Segment 0 MUST be a workspace_root_segment.",
+          "if": {
+            "properties": {
+              "segments": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["segments"]
+          },
+          "then": {
+            "properties": {
+              "segments": {
+                "type": "array",
+                "items": { "type": "object" },
+                "prefixItems": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "segment_index": { "const": 0 },
+                      "breadcrumb_segment_class": { "const": "workspace_root_segment" }
+                    },
+                    "required": ["segment_index", "breadcrumb_segment_class"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Durable breadcrumb-trail record. Carries the ordered local-to-root path from the active workspace root down to the active target. The trail is a presentation-layer projection over canonical owners; the schema NEVER carries raw absolute paths or raw symbol bodies."
+    },
+
+    "navigation_outline_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "navigation_artifacts_schema_version",
+        "outline_snapshot_id",
+        "surface_class",
+        "outline_root_node_id",
+        "outline_nodes",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "navigation_outline_snapshot_record" },
+        "navigation_artifacts_schema_version": { "$ref": "#/$defs/navigation_artifacts_schema_version" },
+        "outline_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "outline_root_node_id": { "$ref": "#/$defs/opaque_id" },
+        "outline_nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/outline_node" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Durable outline-snapshot record. Carries the tree of nodes (file outline, docs outline, notebook outline, review-section outline, graph subgraph outline) as a flat node list keyed by outline_node_id. The schema validates list shape; cycle / orphan detection lives in the outline owner."
+    },
+
+    "navigation_bookmark_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "navigation_artifacts_schema_version",
+        "bookmark_id",
+        "bookmark_kind_class",
+        "surface_class",
+        "navigation_target_ref",
+        "bookmark_drift_state",
+        "bookmark_drift_required_user_action",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "navigation_bookmark_record" },
+        "navigation_artifacts_schema_version": { "$ref": "#/$defs/navigation_artifacts_schema_version" },
+        "bookmark_id": { "$ref": "#/$defs/opaque_id" },
+        "bookmark_kind_class": { "$ref": "#/$defs/bookmark_kind_class" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "navigation_target_ref": { "$ref": "#/$defs/navigation_target_ref" },
+        "bookmark_drift_state": { "$ref": "#/$defs/bookmark_drift_state" },
+        "bookmark_drift_required_user_action": { "$ref": "#/$defs/bookmark_drift_required_user_action" },
+        "remap_chain_target_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of prior target_id_refs the resolver followed when bookmark_drift_state is remapped. Empty (or absent) when state is bound; non-empty is required when state is remapped."
+        },
+        "supersedes_bookmark_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a prior bookmark this one supersedes. Used when the bookmark drifted and the user re-anchored: the new row supersedes rather than mutates the old row so the audit trail can replay the user's re-anchor."
+        },
+        "display_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the user's display label in the label registry. Raw label text never lives on this record."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "tombstoned_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "bound or remapped state MUST NOT carry user_must_* required user actions; missing_target / drifted / scope_unavailable / archived MUST NOT carry no_user_action_required_bound_or_remapped.",
+          "if": {
+            "properties": {
+              "bookmark_drift_state": {
+                "enum": ["bound", "remapped"]
+              }
+            },
+            "required": ["bookmark_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "bookmark_drift_required_user_action": {
+                "const": "no_user_action_required_bound_or_remapped"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "bookmark_drift_required_user_action": {
+                "enum": [
+                  "user_must_pick_successor_drifted",
+                  "user_must_re_anchor_or_delete_missing_target",
+                  "user_must_widen_scope_or_load_pack_or_reach_remote",
+                  "user_must_restore_from_archive_or_acknowledge_tombstone"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "remapped state MUST cite a non-empty remap chain.",
+          "if": {
+            "properties": {
+              "bookmark_drift_state": { "const": "remapped" }
+            },
+            "required": ["bookmark_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "remap_chain_target_id_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["remap_chain_target_id_refs"]
+          }
+        },
+        {
+          "description": "archived bookmarks MUST carry archived_at.",
+          "if": {
+            "properties": {
+              "bookmark_drift_state": { "const": "archived" }
+            },
+            "required": ["bookmark_drift_state"]
+          },
+          "then": {
+            "required": ["archived_at"],
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        }
+      ],
+      "description": "Durable bookmark / mark record. Binds a navigation_target_ref to a typed bookmark_drift_state and the typed required user action a downstream surface MUST surface to the user before silently re-rendering as bound."
+    },
+
+    "navigation_history_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "navigation_artifacts_schema_version",
+        "navigation_history_entry_id",
+        "surface_class",
+        "navigation_target_ref",
+        "navigation_history_origin_class",
+        "navigation_history_direction_class",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "navigated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "navigation_history_entry_record" },
+        "navigation_artifacts_schema_version": { "$ref": "#/$defs/navigation_artifacts_schema_version" },
+        "navigation_history_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "navigation_target_ref": { "$ref": "#/$defs/navigation_target_ref" },
+        "navigation_history_origin_class": { "$ref": "#/$defs/navigation_history_origin_class" },
+        "navigation_history_direction_class": { "$ref": "#/$defs/navigation_history_direction_class" },
+        "previous_history_entry_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prior entry in the back stack. Null on the first entry of a session."
+        },
+        "originating_command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command_id from the command registry (M00-148 / M00-183 adjacent) that produced the navigation, when one applies. Null for ambient back / forward stepping."
+        },
+        "originating_search_session_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the search_session_id_ref the navigation was opened from, if origin_class is search_result_open or deep_link_resolution. Null otherwise."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "navigated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "session_restore_replay origin MUST carry a previous_history_entry_id_ref it replays from.",
+          "if": {
+            "properties": {
+              "navigation_history_origin_class": { "const": "session_restore_replay" }
+            },
+            "required": ["navigation_history_origin_class"]
+          },
+          "then": {
+            "required": ["previous_history_entry_id_ref"],
+            "properties": {
+              "previous_history_entry_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ],
+      "description": "Durable navigation-history entry. One entry per back / forward / recent-locations / new-target navigation. The same row shape is read by editor, docs, notebook, review, and search surfaces so back / forward and recent-location can be referenced across them."
+    },
+
+    "navigation_peek_context_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "navigation_artifacts_schema_version",
+        "peek_context_id",
+        "surface_class",
+        "peek_projection_class",
+        "navigation_target_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "navigation_peek_context_record" },
+        "navigation_artifacts_schema_version": { "$ref": "#/$defs/navigation_artifacts_schema_version" },
+        "peek_context_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "peek_projection_class": { "$ref": "#/$defs/peek_projection_class" },
+        "navigation_target_ref": { "$ref": "#/$defs/navigation_target_ref" },
+        "originating_navigation_history_entry_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the navigation_history_entry the peek was opened on top of. Null when the peek opened from a fresh session that has not minted a history entry yet."
+        },
+        "promoted_to_navigation_history_entry_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the navigation_history_entry minted when the user promoted the peek to a full jump. Null if the peek was dismissed without promotion."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "dismissed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "Durable peek-context record for in-place, non-modal previews. The peek does NOT mint a history entry by default; promotion to a jump produces a paired navigation_history_entry_record and the promoted ref is recorded here."
+    },
+
+    "navigation_artifact_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "navigation_artifacts_schema_version",
+        "navigation_artifact_audit_event_id",
+        "subject_kind",
+        "subject_id_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "navigation_artifact_audit_event_record" },
+        "navigation_artifacts_schema_version": { "$ref": "#/$defs/navigation_artifacts_schema_version" },
+        "navigation_artifact_audit_event_id": { "$ref": "#/$defs/navigation_artifact_audit_event_id" },
+        "subject_kind": {
+          "type": "string",
+          "enum": [
+            "navigation_breadcrumb_trail_record",
+            "navigation_outline_snapshot_record",
+            "navigation_bookmark_record",
+            "navigation_history_entry_record",
+            "navigation_peek_context_record"
+          ]
+        },
+        "subject_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "navigation_artifact_denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/navigation_artifact_denial_reason" }
+          ],
+          "description": "Required (non-null) for navigation_artifact_audit_denial_emitted events; null otherwise."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial events MUST carry a denial reason.",
+          "if": {
+            "properties": {
+              "navigation_artifact_audit_event_id": { "const": "navigation_artifact_audit_denial_emitted" }
+            },
+            "required": ["navigation_artifact_audit_event_id"]
+          },
+          "then": {
+            "required": ["navigation_artifact_denial_reason"],
+            "properties": {
+              "navigation_artifact_denial_reason": { "$ref": "#/$defs/navigation_artifact_denial_reason" }
+            }
+          }
+        }
+      ],
+      "description": "Audit event emitted on the navigation-artifacts stream. Events MUST NOT carry raw absolute paths, raw symbol bodies, raw document bodies, raw URLs, or raw query bodies."
+    }
+  }
+}

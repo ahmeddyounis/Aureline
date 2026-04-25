@@ -1,0 +1,630 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/saved_query_bundle.schema.json",
+  "title": "Aureline saved-query bundle, search-collection-snapshot, and reopen-honesty boundary vocabulary",
+  "description": "Boundary schema for two durable composite artifacts that ride above the per-record family at schemas/search/saved_query_and_scope_binding.schema.json (saved_query_record, query_history_entry_record, scope_binding_record, search_deep_link_binding_record): the saved_query_bundle_record (a curated collection of saved queries / scope bindings / deep links shipped together with shared retention, source-class label, share-policy, and provider-backed posture) and the search_collection_snapshot_record (a captured, exportable view of what a given saved query / saved-query bundle resolved to at a specific planner pass — pinned for support export, AI evidence, and parity audit so reopened queries can compare current versus captured scope honestly rather than claiming frozen certainty about current results). This file MUST NOT redeclare per-record vocabulary already frozen in saved_query_and_scope_binding.schema.json or search_result_truth.schema.json; it cites those records by opaque ref. Raw query bodies, raw document bodies, raw symbol definitions, raw URLs, and raw absolute paths MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / share-policy / source-class state only. The eventual search / navigation crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, source-class label, share-policy class, snapshot-export-field class, reopen-honesty state, denial reason, or audit-event id is additive-minor and bumps saved_query_bundle_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/saved_query_bundle_record" },
+    { "$ref": "#/$defs/search_collection_snapshot_record" },
+    { "$ref": "#/$defs/saved_query_bundle_audit_event_record" }
+  ],
+  "$defs": {
+    "saved_query_bundle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the saved-query-bundle / search-collection-snapshot vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "saved_query_bundle_record",
+        "search_collection_snapshot_record",
+        "saved_query_bundle_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw query text, raw symbol definitions, raw document bodies, raw URLs, and raw absolute paths never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries presentation-only summary copy; never carries raw query bodies, raw document bodies, raw symbol definitions, or raw URLs."
+    },
+
+    "running_build_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to the running build identity the artifact was minted under. Pinned so a re-resolution can compare current build vs captured build for drift labelling."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011) via the search family."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011) via the search family."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every reopen / re-resolution; a stale policy epoch denies with policy_epoch_expired."
+    },
+
+    "saved_query_source_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local",
+        "workspace_shared_committed",
+        "profile_imported_portable",
+        "org_shared_admin_curated",
+        "org_shared_admin_published_read_only",
+        "managed_workspace_provisioned",
+        "support_export_captured",
+        "ai_explanation_captured",
+        "session_restore_replayed",
+        "parity_audit_captured"
+      ],
+      "description": "Frozen source-class label for a saved-query bundle. user_authored_local is local-by-default and never syncs without explicit user opt-in; workspace_shared_committed lives in a committed workspace artifact; profile_imported_portable arrived via portable-state import and may need rebinding; org_shared_admin_curated is admin-curated and writable; org_shared_admin_published_read_only is admin-curated and read-only on consumers; managed_workspace_provisioned is owned by a managed workspace provider; support_export_captured / ai_explanation_captured / session_restore_replayed / parity_audit_captured are derived sources whose retention is governed by their generator."
+    },
+
+    "saved_query_share_policy_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_share",
+        "workspace_share_explicit_admit_required",
+        "org_share_admin_governed",
+        "support_export_redacted_only",
+        "managed_admin_published_read_only_no_export",
+        "share_disabled_by_policy"
+      ],
+      "description": "Frozen share-policy class for a saved-query bundle. local_only_no_share is the default for user_authored_local source; workspace_share_explicit_admit_required requires the user to explicitly admit a bundle to a committed workspace artifact; org_share_admin_governed binds the bundle to an admin-governed org-share lane; support_export_redacted_only narrows the bundle to redacted support export only; managed_admin_published_read_only_no_export is the read-only managed-admin lane; share_disabled_by_policy is the refusal state when an admin policy narrows away the share lane the source class would otherwise admit."
+    },
+
+    "saved_query_provider_backing_class": {
+      "type": "string",
+      "enum": [
+        "first_party_local_only",
+        "first_party_with_remote_index",
+        "provider_hosted_index_user_consented",
+        "provider_hosted_index_admin_consented",
+        "provider_hosted_index_disabled_by_policy",
+        "provider_backing_not_applicable"
+      ],
+      "description": "Frozen provider-backing class for a saved-query bundle. Bundles whose backing is provider_hosted_index_user_consented or provider_hosted_index_admin_consented MUST emit the provider-attribution chip on every reopen surface; provider_hosted_index_disabled_by_policy refuses re-resolution against the provider lane and degrades to lexical-only. The class composes with semantic_fallback_state in schemas/search/search_result_truth.schema.json."
+    },
+
+    "saved_query_sensitive_literal_handling_class": {
+      "type": "string",
+      "enum": [
+        "literal_redacted_at_boundary_default",
+        "literal_hashed_with_local_salt",
+        "literal_kept_in_local_only_store",
+        "literal_kept_in_org_governed_vault",
+        "literal_disclosed_with_explicit_user_opt_in"
+      ],
+      "description": "Frozen sensitive-literal handling class. literal_redacted_at_boundary_default is the default for every bundle that crosses the schema boundary (the raw literal lives in the local store only and never leaves it); literal_hashed_with_local_salt is the hashed-export form; literal_kept_in_local_only_store is the local-by-default retention class; literal_kept_in_org_governed_vault is the admin-curated vault posture; literal_disclosed_with_explicit_user_opt_in is the only class under which a literal MAY accompany an export. A bundle whose source_class is support_export_captured MUST resolve to literal_redacted_at_boundary_default or literal_hashed_with_local_salt; a literal-disclosing class without explicit user opt-in denies with sensitive_literal_export_requires_explicit_opt_in."
+    },
+
+    "saved_query_retention_class": {
+      "type": "string",
+      "enum": [
+        "local_by_default_no_remote_retention",
+        "workspace_committed_with_workspace_retention",
+        "org_admin_governed_retention",
+        "support_export_redacted_retention",
+        "ai_evidence_retention_window",
+        "parity_audit_retention_window",
+        "managed_provider_retention_locked"
+      ],
+      "description": "Frozen retention class. local_by_default_no_remote_retention is the default; the other classes are admitted only when source_class and share_policy_class jointly admit them."
+    },
+
+    "snapshot_export_field_class": {
+      "type": "string",
+      "enum": [
+        "snapshot_includes_visible_row_ids_only",
+        "snapshot_includes_hidden_result_count_disclosure",
+        "snapshot_includes_partial_truth_causes",
+        "snapshot_includes_ranking_reason_classes",
+        "snapshot_includes_result_truth_classes",
+        "snapshot_includes_freshness_class_per_row",
+        "snapshot_includes_scope_filter_class_pin",
+        "snapshot_includes_workset_id_pin",
+        "snapshot_includes_planner_pass_ref",
+        "snapshot_includes_shard_authority_inventory",
+        "snapshot_includes_citation_anchor_refs",
+        "snapshot_includes_provider_attribution_chip",
+        "snapshot_includes_redaction_class_pin",
+        "snapshot_includes_running_build_identity_pin",
+        "snapshot_includes_policy_epoch_pin"
+      ],
+      "description": "Frozen snapshot-export-field class vocabulary. A search_collection_snapshot_record declares which export fields it carries; a snapshot that omits snapshot_includes_planner_pass_ref denies because the planner-pass pin is the only honest way to reconstruct what the user saw; a snapshot that asserts snapshot_includes_visible_row_ids_only without snapshot_includes_hidden_result_count_disclosure denies because hiding hidden-result counts re-introduces the partial-truth blind spot."
+    },
+
+    "reopen_honesty_state": {
+      "type": "string",
+      "enum": [
+        "current_scope_matches_captured_scope_exact",
+        "current_scope_widened_versus_captured_scope_disclosed",
+        "current_scope_narrowed_versus_captured_scope_disclosed",
+        "current_scope_remapped_versus_captured_scope_disclosed",
+        "current_build_drifted_versus_captured_build_disclosed",
+        "current_policy_epoch_drifted_versus_captured_disclosed",
+        "current_provider_backing_changed_versus_captured_disclosed",
+        "current_index_readiness_lower_than_captured_disclosed",
+        "captured_results_unverifiable_at_current_build",
+        "captured_snapshot_unavailable_replay_offered_only_as_history"
+      ],
+      "description": "Frozen reopen-honesty state vocabulary. Every reopen of a saved query / saved-query bundle / search-collection snapshot MUST resolve to exactly one state and MUST disclose the state on the reopened surface; a reopened query that paints stale captured rows as the current authoritative result set is non-conforming and denies with reopen_must_disclose_current_versus_captured_drift."
+    },
+
+    "saved_query_bundle_denial_reason": {
+      "type": "string",
+      "enum": [
+        "saved_query_bundle_unknown",
+        "saved_query_bundle_member_unknown",
+        "saved_query_bundle_member_redaction_class_mismatch",
+        "saved_query_bundle_member_share_policy_mismatch",
+        "share_policy_disabled_by_policy",
+        "sensitive_literal_export_requires_explicit_opt_in",
+        "snapshot_planner_pass_ref_missing_required",
+        "snapshot_hidden_result_count_disclosure_missing_required",
+        "reopen_must_disclose_current_versus_captured_drift",
+        "provider_hosted_index_disabled_by_policy",
+        "raw_body_forbidden_on_boundary",
+        "saved_query_bundle_schema_version_lagging",
+        "policy_epoch_expired",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary on the saved-query-bundle / collection-snapshot stream. Denials fail closed; silent reopen of a saved query against a drifted scope is forbidden."
+    },
+
+    "saved_query_bundle_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "saved_query_bundle_created",
+        "saved_query_bundle_updated",
+        "saved_query_bundle_member_added",
+        "saved_query_bundle_member_removed",
+        "saved_query_bundle_share_policy_changed",
+        "saved_query_bundle_provider_backing_changed",
+        "saved_query_bundle_archived",
+        "saved_query_bundle_deleted_tombstone",
+        "search_collection_snapshot_minted",
+        "search_collection_snapshot_reopened",
+        "search_collection_snapshot_reopen_refused",
+        "search_collection_snapshot_exported",
+        "saved_query_bundle_audit_denial_emitted",
+        "saved_query_bundle_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary on the saved-query-bundle / collection-snapshot stream."
+    },
+
+    "saved_query_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_bundle_schema_version",
+        "saved_query_bundle_id",
+        "saved_query_source_class",
+        "saved_query_share_policy_class",
+        "saved_query_provider_backing_class",
+        "saved_query_sensitive_literal_handling_class",
+        "saved_query_retention_class",
+        "saved_query_id_refs",
+        "scope_binding_id_refs",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "saved_query_bundle_record" },
+        "saved_query_bundle_schema_version": { "$ref": "#/$defs/saved_query_bundle_schema_version" },
+        "saved_query_bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "saved_query_source_class": { "$ref": "#/$defs/saved_query_source_class" },
+        "saved_query_share_policy_class": { "$ref": "#/$defs/saved_query_share_policy_class" },
+        "saved_query_provider_backing_class": { "$ref": "#/$defs/saved_query_provider_backing_class" },
+        "saved_query_sensitive_literal_handling_class": { "$ref": "#/$defs/saved_query_sensitive_literal_handling_class" },
+        "saved_query_retention_class": { "$ref": "#/$defs/saved_query_retention_class" },
+        "saved_query_id_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the saved_query_record entries this bundle composes. Every member resolves through the existing saved_query_and_scope_binding.schema.json registry; this bundle never redeclares per-record vocabulary."
+        },
+        "scope_binding_id_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to scope_binding_record entries the bundle binds to. A bundle MAY share one binding across all member queries or attach a per-query binding; resolution against the binding registry is the owner's job."
+        },
+        "search_deep_link_binding_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to search_deep_link_binding_record entries shipped with the bundle. Empty when the bundle ships only saved queries; non-empty when deep links travel with the bundle (e.g. for an org-curated review collection)."
+        },
+        "current_collection_snapshot_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the search_collection_snapshot_record currently pinned by the bundle, if any. Null when the bundle has never been resolved against a planner pass."
+        },
+        "display_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the bundle's display label. Raw label text never lives on this record."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "tombstoned_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "user_authored_local source MUST resolve to local_only_no_share share policy and local_by_default_no_remote_retention.",
+          "if": {
+            "properties": {
+              "saved_query_source_class": { "const": "user_authored_local" }
+            },
+            "required": ["saved_query_source_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_query_share_policy_class": { "const": "local_only_no_share" },
+              "saved_query_retention_class": { "const": "local_by_default_no_remote_retention" }
+            }
+          }
+        },
+        {
+          "description": "support_export_captured source MUST resolve to support_export_redacted_only share policy plus literal_redacted_at_boundary_default or literal_hashed_with_local_salt handling.",
+          "if": {
+            "properties": {
+              "saved_query_source_class": { "const": "support_export_captured" }
+            },
+            "required": ["saved_query_source_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_query_share_policy_class": { "const": "support_export_redacted_only" },
+              "saved_query_sensitive_literal_handling_class": {
+                "enum": [
+                  "literal_redacted_at_boundary_default",
+                  "literal_hashed_with_local_salt"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_workspace_provisioned source MUST resolve to managed_admin_published_read_only_no_export share policy and managed_provider_retention_locked retention.",
+          "if": {
+            "properties": {
+              "saved_query_source_class": { "const": "managed_workspace_provisioned" }
+            },
+            "required": ["saved_query_source_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_query_share_policy_class": { "const": "managed_admin_published_read_only_no_export" },
+              "saved_query_retention_class": { "const": "managed_provider_retention_locked" }
+            }
+          }
+        },
+        {
+          "description": "Archived bundles MUST carry archived_at; deleted-tombstone bundles MUST carry tombstoned_at.",
+          "if": {
+            "properties": {
+              "tombstoned_at": { "type": "string" }
+            },
+            "required": ["tombstoned_at"]
+          },
+          "then": {
+            "required": ["archived_at"]
+          }
+        }
+      ],
+      "description": "Durable saved-query bundle. A curated collection of saved queries, scope bindings, and (optionally) deep links shipped together with one source-class label, one share-policy class, one provider-backing class, one sensitive-literal handling class, and one retention class so reopen / export / share decisions resolve against the bundle, not against per-record opinions. Never carries raw query bodies."
+    },
+
+    "search_collection_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_bundle_schema_version",
+        "search_collection_snapshot_id",
+        "originating_saved_query_id_ref",
+        "originating_planner_pass_ref",
+        "captured_scope_binding_id_ref",
+        "snapshot_export_field_classes",
+        "captured_running_build_identity_ref",
+        "captured_policy_epoch",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "captured_at",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_collection_snapshot_record" },
+        "saved_query_bundle_schema_version": { "$ref": "#/$defs/saved_query_bundle_schema_version" },
+        "search_collection_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "originating_saved_query_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the saved_query_record the snapshot was captured against."
+        },
+        "originating_saved_query_bundle_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the saved_query_bundle the snapshot rolls up to, if any. Null when the snapshot was minted against a single saved query outside any bundle."
+        },
+        "originating_planner_pass_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["planner_pass_id_ref", "result_set_id_ref"],
+          "properties": {
+            "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+            "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+            "fused_row_id_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ]
+            },
+            "query_session_id_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ]
+            }
+          },
+          "description": "Pinned reference to the planner pass that produced the captured visible result set."
+        },
+        "captured_scope_binding_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the scope_binding_record the snapshot was captured under. The reopen flow compares this to the current scope binding to drive the reopen_honesty_state classification."
+        },
+        "captured_visible_row_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the visible search_result_packet_record ids the snapshot captured. The schema records ids only — never raw rendered row text."
+        },
+        "captured_hidden_result_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Captured hidden_result_count value from the originating planner pass. Mirrored here so the snapshot can be exported without losing the hidden-result-count disclosure."
+        },
+        "captured_partial_truth_cause_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Captured count of partial_truth_cause entries on the originating planner pass. The actual cause vocabulary is owned by schemas/search/search_result_truth.schema.json; the snapshot stores a count plus an opaque ref to the originating planner pass for replay."
+        },
+        "snapshot_export_field_classes": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/snapshot_export_field_class" },
+          "description": "Snapshot-export-field classes the snapshot carries. minItems 2 because every honest snapshot MUST carry at minimum snapshot_includes_planner_pass_ref plus snapshot_includes_hidden_result_count_disclosure (enforced by the allOf gates below)."
+        },
+        "captured_running_build_identity_ref": {
+          "$ref": "#/$defs/running_build_identity_ref",
+          "description": "Captured running build identity at the time of capture. Compared to running_build_identity_ref on reopen to detect build drift."
+        },
+        "captured_policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Captured policy epoch at the time of capture. Compared to policy_context.policy_epoch on reopen."
+        },
+        "captured_provider_backing_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/saved_query_provider_backing_class" }
+          ],
+          "description": "Captured provider-backing class at capture time. Null when the snapshot was minted from a first-party-only run."
+        },
+        "current_reopen_honesty_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reopen_honesty_state" }
+          ],
+          "description": "Resolved reopen-honesty state on the most recent reopen attempt. Null on a freshly minted snapshot that has not been reopened."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_reopened_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every honest snapshot MUST cite snapshot_includes_planner_pass_ref.",
+          "properties": {
+            "snapshot_export_field_classes": {
+              "type": "array",
+              "contains": { "const": "snapshot_includes_planner_pass_ref" }
+            }
+          }
+        },
+        {
+          "description": "Every honest snapshot MUST cite snapshot_includes_hidden_result_count_disclosure.",
+          "properties": {
+            "snapshot_export_field_classes": {
+              "type": "array",
+              "contains": { "const": "snapshot_includes_hidden_result_count_disclosure" }
+            }
+          }
+        }
+      ],
+      "description": "Durable search-collection snapshot. Captures one planner-pass-pinned view of what a saved query / bundle resolved to so reopen / export / parity surfaces can compare current versus captured scope honestly. Does not redeclare per-row payload vocabulary; the row owners (schemas/search/result_fusion_record.schema.json and schemas/search/search_result_truth.schema.json) own the row payloads."
+    },
+
+    "saved_query_bundle_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_bundle_schema_version",
+        "saved_query_bundle_audit_event_id",
+        "subject_kind",
+        "subject_id_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "saved_query_bundle_audit_event_record" },
+        "saved_query_bundle_schema_version": { "$ref": "#/$defs/saved_query_bundle_schema_version" },
+        "saved_query_bundle_audit_event_id": { "$ref": "#/$defs/saved_query_bundle_audit_event_id" },
+        "subject_kind": {
+          "type": "string",
+          "enum": [
+            "saved_query_bundle_record",
+            "search_collection_snapshot_record"
+          ]
+        },
+        "subject_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "saved_query_bundle_denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/saved_query_bundle_denial_reason" }
+          ],
+          "description": "Required (non-null) for saved_query_bundle_audit_denial_emitted and *_refused events; null otherwise."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial events MUST carry a denial reason.",
+          "if": {
+            "properties": {
+              "saved_query_bundle_audit_event_id": {
+                "enum": [
+                  "saved_query_bundle_audit_denial_emitted",
+                  "search_collection_snapshot_reopen_refused"
+                ]
+              }
+            },
+            "required": ["saved_query_bundle_audit_event_id"]
+          },
+          "then": {
+            "required": ["saved_query_bundle_denial_reason"],
+            "properties": {
+              "saved_query_bundle_denial_reason": { "$ref": "#/$defs/saved_query_bundle_denial_reason" }
+            }
+          }
+        }
+      ],
+      "description": "Audit event emitted on the saved-query-bundle / collection-snapshot stream. Events MUST NOT carry raw query bodies, raw document bodies, raw symbol definitions, raw URLs, or raw absolute paths."
+    }
+  }
+}
