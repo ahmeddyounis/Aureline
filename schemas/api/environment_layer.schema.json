@@ -1,0 +1,594 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/api/environment_layer.schema.json",
+  "title": "Aureline API environment-layer boundary",
+  "description": "Boundary schema for one environment_layer_record frozen in docs/api/request_workspace_contract.md. Every API tool surface that resolves an environment for a request reads exactly this record shape. The record carries opaque endpoint / variable / secret-broker / fingerprint refs, typed enum values, redaction-aware reviewable sentences, and integer-bucket counts only. Raw URLs, raw hostnames, raw IPs, raw ports, raw paths, raw bearer tokens, raw API keys, raw passwords, raw OAuth refresh tokens, raw mTLS keystore bytes, and raw absolute filesystem paths never cross this boundary; secret-handle variables resolve through an opaque secret_broker_handle_ref. Re-exports identity_mode and workspace_trust_state_class from the identity family and redaction_class from the governance / capability-lifecycle family without redefinition. Adding a new environment_layer_class, layer_precedence_class, variable_kind_class, retarget_protection_class, environment_resolution_outcome_class, audit_event_id, or denial_reason_class value is additive-minor and bumps environment_layer_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/environment_layer_record" },
+    { "$ref": "#/$defs/environment_layer_audit_event_record" }
+  ],
+  "$defs": {
+    "environment_layer_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_revoked"
+      ]
+    },
+
+    "environment_layer_class": {
+      "type": "string",
+      "enum": [
+        "workspace_default_layer",
+        "environment_named_layer",
+        "per_request_override_layer",
+        "ad_hoc_session_layer",
+        "imported_from_export_bundle_layer",
+        "org_curated_admin_published_layer",
+        "managed_workspace_provisioned_layer",
+        "ai_tool_proposed_layer_pending_review"
+      ],
+      "description": "Closed environment-layer class vocabulary. ai_tool_proposed_layer_pending_review is non-resolvable until the user admits it through a separate environment_layer_resolved audit event."
+    },
+
+    "environment_named_value_class": {
+      "type": "string",
+      "enum": [
+        "named_layer_dev",
+        "named_layer_staging",
+        "named_layer_qa",
+        "named_layer_production",
+        "named_layer_ephemeral_review",
+        "named_layer_local_workstation",
+        "named_layer_shared_demo",
+        "named_layer_custom_user_review_required",
+        "named_layer_not_applicable_non_named_layer"
+      ],
+      "description": "Closed named-value vocabulary used when environment_layer_class is environment_named_layer. named_layer_production forces retarget_locked_to_environment_no_silent_change or retarget_pending_user_admit; other named values may resolve to retarget_admissible_with_visible_warning."
+    },
+
+    "layer_precedence_class": {
+      "type": "string",
+      "enum": [
+        "precedence_lowest_default",
+        "precedence_lower",
+        "precedence_normal",
+        "precedence_higher",
+        "precedence_override_only_per_request"
+      ]
+    },
+
+    "variable_kind_class": {
+      "type": "string",
+      "enum": [
+        "literal_value",
+        "secret_handle_ref",
+        "computed_at_resolve_time_user_review_required",
+        "prompt_user_at_resolve_time",
+        "imported_from_environment_capsule",
+        "variable_kind_unknown_requires_review"
+      ]
+    },
+
+    "retarget_protection_class": {
+      "type": "string",
+      "enum": [
+        "retarget_locked_to_environment_no_silent_change",
+        "retarget_admissible_with_visible_warning",
+        "retarget_pending_user_admit",
+        "retarget_blocked_pending_policy",
+        "retarget_blocked_pending_workspace_trust"
+      ]
+    },
+
+    "environment_resolution_outcome_class": {
+      "type": "string",
+      "enum": [
+        "resolved_all_variables_admissible",
+        "resolved_with_user_prompt_pending",
+        "resolved_with_secret_handles_pending_broker_resolve",
+        "blocked_pending_secret_broker_unavailable",
+        "blocked_pending_user_admit_for_retarget",
+        "blocked_pending_workspace_trust",
+        "blocked_pending_policy",
+        "blocked_undefined_variable_user_review_required"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "environment_layer_resolved",
+        "environment_layer_blocked_pending_secret_broker",
+        "environment_layer_blocked_pending_user_admit_for_retarget",
+        "environment_layer_silent_retarget_forbidden_denial",
+        "environment_layer_audit_denial_emitted"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_in_portable_environment_forbidden",
+        "silent_endpoint_retarget_forbidden",
+        "production_layer_must_resolve_retarget_locked_or_pending_user_admit",
+        "secret_handle_variable_must_cite_broker_handle_ref",
+        "ai_tool_proposed_layer_must_not_resolve_pending_review",
+        "imported_bundle_must_not_inline_secret_value",
+        "variable_kind_class_must_resolve_to_typed_class",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "endpoint_identity_ref_required_non_null"
+      ]
+    },
+
+    "variable_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "variable_name_label_ref",
+        "variable_kind_class",
+        "value_inline_in_layer_body"
+      ],
+      "properties": {
+        "variable_name_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the per-layer variable-name registry. Raw variable names that disclose tenant / customer identity MUST NOT appear here."
+        },
+        "variable_kind_class": { "$ref": "#/$defs/variable_kind_class" },
+        "value_inline_in_layer_body": {
+          "type": "boolean",
+          "description": "True only for literal_value or imported_from_environment_capsule kinds where the value is admissible to inline. MUST be false for secret_handle_ref kinds; an imported_from_export_bundle_layer MUST set this to false for every secret_handle_ref variable so a re-imported bundle never carries a re-hydrated raw secret."
+        },
+        "literal_value_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when variable_kind_class is literal_value; resolves into a per-layer literal store. Raw literal values that disclose tenant / customer identity MUST NOT appear here."
+        },
+        "secret_broker_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when variable_kind_class is secret_handle_ref."
+        },
+        "computed_recipe_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "user_prompt_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "imported_from_capsule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "variable_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "literal_value MUST cite a non-null literal_value_label_ref.",
+          "if": {
+            "properties": {
+              "variable_kind_class": { "const": "literal_value" }
+            },
+            "required": [ "variable_kind_class" ]
+          },
+          "then": {
+            "required": [ "literal_value_label_ref" ],
+            "properties": {
+              "literal_value_label_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "secret_handle_ref MUST cite a non-null secret_broker_handle_ref and MUST set value_inline_in_layer_body = false.",
+          "if": {
+            "properties": {
+              "variable_kind_class": { "const": "secret_handle_ref" }
+            },
+            "required": [ "variable_kind_class" ]
+          },
+          "then": {
+            "required": [ "secret_broker_handle_ref" ],
+            "properties": {
+              "secret_broker_handle_ref": { "not": { "type": "null" } },
+              "value_inline_in_layer_body": { "const": false }
+            }
+          }
+        }
+      ]
+    },
+
+    "endpoint_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "endpoint_identity_ref" ],
+      "properties": {
+        "endpoint_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the endpoint registry. Raw URLs, raw hostnames, raw IPs, raw ports, and raw paths MUST NOT appear here."
+        },
+        "endpoint_identity_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "transport_posture_at_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_deployment_profile",
+        "active_identity_mode",
+        "offline_or_deny_all_state",
+        "captured_at"
+      ],
+      "properties": {
+        "active_deployment_profile": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "air_gapped",
+            "managed_cloud"
+          ]
+        },
+        "active_identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "active_policy_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_epoch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "offline_or_deny_all_state": {
+          "type": "string",
+          "enum": [
+            "online_live_allowed",
+            "online_mirror_only",
+            "offline_grace_preserved",
+            "offline_air_gapped",
+            "deny_all_enforced",
+            "network_disabled_by_user",
+            "network_degraded_heuristic"
+          ]
+        },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "transport_posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "environment_layer_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "environment_layer_id",
+        "actor_ref",
+        "command_id_ref",
+        "environment_layer_class",
+        "environment_named_value_class",
+        "layer_precedence_class",
+        "endpoint",
+        "variables",
+        "retarget_protection_class",
+        "environment_resolution_outcome_class",
+        "environment_fingerprint_ref",
+        "workspace_trust_state",
+        "transport_posture_at_event",
+        "redaction_class",
+        "created_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/environment_layer_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "environment_layer_record"
+        },
+        "environment_layer_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_layer_class": { "$ref": "#/$defs/environment_layer_class" },
+        "environment_named_value_class": { "$ref": "#/$defs/environment_named_value_class" },
+        "layer_precedence_class": { "$ref": "#/$defs/layer_precedence_class" },
+        "endpoint": { "$ref": "#/$defs/endpoint_envelope" },
+        "variables": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_descriptor_record" },
+          "uniqueItems": false
+        },
+        "retarget_protection_class": { "$ref": "#/$defs/retarget_protection_class" },
+        "environment_resolution_outcome_class": { "$ref": "#/$defs/environment_resolution_outcome_class" },
+        "environment_fingerprint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref hashing the resolved layer stack so reruns can prove the same environment was bound. The headless rerun cites this fingerprint at send time."
+        },
+        "precedence_tie_break_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "underlying_layer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Ordered list of underlying layer ids the resolver collapsed into this layer's fingerprint, lowest precedence first. Empty for a single standalone layer."
+        },
+        "linked_environment_capsule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "workspace_trust_state": { "$ref": "#/$defs/workspace_trust_state_class" },
+        "transport_posture_at_event": { "$ref": "#/$defs/transport_posture_at_event" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolved_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "environment_named_layer MUST cite a named_value_class outside named_layer_not_applicable_non_named_layer; non-named layers MUST cite named_layer_not_applicable_non_named_layer.",
+          "if": {
+            "properties": {
+              "environment_layer_class": { "const": "environment_named_layer" }
+            },
+            "required": [ "environment_layer_class" ]
+          },
+          "then": {
+            "properties": {
+              "environment_named_value_class": {
+                "not": { "const": "named_layer_not_applicable_non_named_layer" }
+              }
+            }
+          }
+        },
+        {
+          "description": "named_layer_production MUST resolve to retarget_locked_to_environment_no_silent_change or retarget_pending_user_admit; production layers may not resolve to retarget_admissible_with_visible_warning.",
+          "if": {
+            "properties": {
+              "environment_named_value_class": { "const": "named_layer_production" }
+            },
+            "required": [ "environment_named_value_class" ]
+          },
+          "then": {
+            "properties": {
+              "retarget_protection_class": {
+                "enum": [
+                  "retarget_locked_to_environment_no_silent_change",
+                  "retarget_pending_user_admit",
+                  "retarget_blocked_pending_policy",
+                  "retarget_blocked_pending_workspace_trust"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_layer_pending_review MUST NOT carry resolved_at; the layer is non-resolvable until the user admits it.",
+          "if": {
+            "properties": {
+              "environment_layer_class": { "const": "ai_tool_proposed_layer_pending_review" }
+            },
+            "required": [ "environment_layer_class" ]
+          },
+          "then": {
+            "properties": {
+              "resolved_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "imported_from_export_bundle_layer MUST set value_inline_in_layer_body = false on every secret_handle_ref variable (re-imported bundles must not carry a re-hydrated raw secret).",
+          "if": {
+            "properties": {
+              "environment_layer_class": { "const": "imported_from_export_bundle_layer" }
+            },
+            "required": [ "environment_layer_class" ]
+          },
+          "then": {
+            "properties": {
+              "variables": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "variable_kind_class": { "const": "secret_handle_ref" }
+                    },
+                    "required": [ "variable_kind_class" ]
+                  },
+                  "then": {
+                    "properties": {
+                      "value_inline_in_layer_body": { "const": false }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "environment_layer_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_environment_layer_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/environment_layer_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "environment_layer_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_environment_layer_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "environment_layer_silent_retarget_forbidden_denial",
+                  "environment_layer_audit_denial_emitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null so denial vocabulary is never used as a generic free-text channel.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "environment_layer_resolved",
+                  "environment_layer_blocked_pending_secret_broker",
+                  "environment_layer_blocked_pending_user_admit_for_retarget"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

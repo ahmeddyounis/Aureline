@@ -198,6 +198,138 @@ rows:
       become a hidden retention layer. Adding a new record class is
       additive-minor and bumps the per-record schema_version const.
 
+  - family_id: api
+    schema_home: schemas/api/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/api/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/api/request_document.schema.json
+      - schemas/api/environment_layer.schema.json
+      - schemas/api/assertion_suite.schema.json
+      - schemas/api/graphql_schema_snapshot.schema.json
+    notes: >
+      API request-workspace, environment-layer, assertion-suite,
+      and GraphQL schema-snapshot boundary (see
+      docs/api/request_workspace_contract.md).
+      request_document.schema.json freezes the
+      request_document_record (seven-value request_class,
+      eleven-value protocol_class covering REST / GraphQL query /
+      mutation / subscription / gRPC unary / server-stream /
+      client-stream / bidi / WebSocket / SSE / unknown,
+      eleven-value http_method_class, four-value
+      idempotency_class, six-value body_source_class, fourteen-
+      value auth_source_class preferring secret-broker /
+      delegated / managed-service-identity / mTLS / device-flow /
+      AWS SigV4 / GCP service account / Azure managed identity /
+      custom-signed handles over raw secrets in workspace state,
+      four-value response_trust_class re-exported from the safe-
+      preview vocabulary, five-value rerun_parity_class) plus the
+      matched request_document_audit_event_record (eight-value
+      audit_event_id and eleven-value denial_reason_class) under
+      allOf gates that force ai_tool_proposed_request_pending_
+      review to leave admitted_at null, force raw_secret_in_
+      workspace_state_observed = true to be admissible only on
+      ad_hoc_session_request or imported_from_export_bundle_
+      request, force preferred-credential-handle classes to cite
+      their matching non-null handle ref, force azure_managed_
+      identity_handle_auth to resolve only on managed_workspace
+      identity mode, force non-idempotent requests to admit only
+      under workspace_trust_trusted, force GraphQL protocol
+      classes to cite a non-null bound_graphql_schema_snapshot_
+      ref, force desktop_and_headless_parity_proven to cite a
+      non-null cli_command_id_ref and a non-null parity_proof_
+      recorded_at, force parity_blocked_pending_environment_
+      resolution to cite a non-null bound_environment_layer_ref,
+      and force non-HTTP protocols (gRPC / WebSocket / SSE) to
+      resolve http_method_class to method_not_applicable_non_
+      http_protocol. environment_layer.schema.json freezes the
+      environment_layer_record (eight-value environment_layer_
+      class, nine-value environment_named_value_class, five-value
+      layer_precedence_class, six-value variable_kind_class,
+      five-value retarget_protection_class, eight-value
+      environment_resolution_outcome_class) plus the matched
+      environment_layer_audit_event_record (five-value audit_
+      event_id and ten-value denial_reason_class) under allOf
+      gates that force environment_named_layer to cite a named
+      value outside named_layer_not_applicable_non_named_layer,
+      force named_layer_production to resolve to retarget_locked_
+      to_environment_no_silent_change or retarget_pending_user_
+      admit (or one of the blocked classes), force ai_tool_
+      proposed_layer_pending_review to leave resolved_at null,
+      force imported_from_export_bundle_layer to set value_
+      inline_in_layer_body = false on every secret_handle_ref
+      variable, force secret_handle_ref variables to cite a
+      non-null secret_broker_handle_ref and force value_inline_
+      in_layer_body = false, and force literal_value variables
+      to cite a non-null literal_value_label_ref. assertion_
+      suite.schema.json freezes the assertion_suite_record, the
+      assertion_evaluation_result_record (eighteen-value
+      assertion_class, five-value assertion_evaluation_mode_
+      class, eight-value assertion_outcome_class, six-value
+      assertion_degradation_class, seven-value evaluator_
+      provenance_class), and the matched assertion_suite_audit_
+      event_record (five-value audit_event_id and nine-value
+      denial_reason_class) under allOf gates that force enforce_
+      blocking_default to never resolve to fail_advisory_non_
+      blocking, force advisory mode classes to never resolve to
+      fail_blocking, force informational_only_no_chip to admit
+      only pass / skipped_not_in_scope, force pass_admissible to
+      cite not_degraded_evaluator_admissible, force skipped_
+      pending_schema_freshness_user_review_required to cite a
+      typed schema-degradation reason and a non-null bound_
+      graphql_schema_snapshot_ref, force skipped_evaluator_
+      unavailable_user_review_required to cite degraded_
+      evaluator_unavailable_user_review_required, force
+      skipped_waiver_admitted_active to cite a non-null waiver_
+      record_ref, force ai_tool_overlay_evaluator_advisory_only
+      to admit only advisory / informational evaluation modes,
+      and force graphql_field_presence and graphql_typed_
+      response_match to cite a non-null bound_graphql_schema_
+      snapshot_ref. graphql_schema_snapshot.schema.json freezes
+      the graphql_schema_snapshot_record (seven-value graphql_
+      schema_source_class, five-value graphql_schema_freshness_
+      class, five-value graphql_schema_stale_label_class) plus
+      the matched graphql_schema_snapshot_audit_event_record
+      (four-value audit_event_id and seven-value denial_reason_
+      class) under allOf gates that force snapshot_introspection_
+      disabled_at_endpoint to be admissible only on SDL-sourced
+      snapshots, force snapshot_fresh_within_grace to resolve
+      stale label to not_stale_admissible, force snapshot_stale_
+      beyond_grace_user_review_required to resolve stale label
+      to stale_beyond_grace_assertions_blocked, force snapshot_
+      unverifiable_user_review_required to resolve stale label
+      to unverifiable_user_review_required, and force sdl_
+      proposed_by_ai_tool_pending_review to leave admitted_at
+      null. Re-exports identity_mode and workspace_trust_state_
+      class from the identity family, redaction_class from the
+      governance / capability-lifecycle family, response_trust_
+      class from the safe-preview vocabulary, and the transport_
+      posture object shape from the network family without
+      redefinition. Adding a new request_class, protocol_class,
+      idempotency_class, body_source_class, auth_source_class,
+      response_trust_class, rerun_parity_class, environment_
+      layer_class, environment_named_value_class, layer_
+      precedence_class, variable_kind_class, retarget_protection_
+      class, environment_resolution_outcome_class, assertion_
+      class, assertion_evaluation_mode_class, assertion_outcome_
+      class, assertion_degradation_class, evaluator_provenance_
+      class, graphql_schema_source_class, graphql_schema_
+      freshness_class, graphql_schema_stale_label_class, audit_
+      event_id, or denial_reason_class is additive-minor and
+      bumps the per-record schema_version const; repurposing an
+      existing value is breaking and requires a new decision
+      row co-signed by security_trust_review and product_scope_
+      review. Implementing an API client or network stack
+      (HTTP / gRPC / WebSocket / SSE transport, real OAuth
+      dance, real introspection fetcher, real assertion
+      evaluator) named explicitly out of scope at this revision.
+
   - family_id: auth
     schema_home: schemas/auth/
     publication_path_class: equal_to_schema_home

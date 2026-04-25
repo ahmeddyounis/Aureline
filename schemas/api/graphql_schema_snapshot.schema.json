@@ -1,0 +1,456 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/api/graphql_schema_snapshot.schema.json",
+  "title": "Aureline GraphQL schema-snapshot and introspection-artifact boundary",
+  "description": "Boundary schema for one graphql_schema_snapshot_record and one graphql_schema_snapshot_audit_event_record frozen in docs/api/request_workspace_contract.md. Every API tool surface that captures, binds, refreshes, or annotates a GraphQL introspection artifact (desktop API client, CLI / headless runner, AI-tool review, automation run review, hosted-review reader, support / export reader, admin / policy review surface) emits exactly these record shapes. The records carry opaque endpoint / SDL / introspection / approval-ticket refs, typed enum values, redaction-aware reviewable sentences, and integer-bucket counts only. Raw introspection JSON bytes, raw SDL bodies, raw deprecated-field reasons, raw enum value descriptions, raw object-type comments, raw scalar comments, raw resolver paths, and raw GraphQL operation names that disclose tenant identity never cross this boundary. Re-exports identity_mode and workspace_trust_state_class from the identity family and redaction_class from the governance / capability-lifecycle family without redefinition. Adding a new graphql_schema_source_class, graphql_schema_freshness_class, graphql_schema_stale_label_class, audit_event_id, or denial_reason_class value is additive-minor and bumps graphql_schema_snapshot_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/graphql_schema_snapshot_record" },
+    { "$ref": "#/$defs/graphql_schema_snapshot_audit_event_record" }
+  ],
+  "$defs": {
+    "graphql_schema_snapshot_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_revoked"
+      ]
+    },
+
+    "graphql_schema_source_class": {
+      "type": "string",
+      "enum": [
+        "introspection_live_at_capture",
+        "introspection_persisted_at_capture",
+        "sdl_committed_to_workspace",
+        "sdl_imported_from_export_bundle",
+        "sdl_published_by_admin_read_only",
+        "sdl_proposed_by_ai_tool_pending_review",
+        "sdl_unverifiable_user_review_required"
+      ]
+    },
+
+    "graphql_schema_freshness_class": {
+      "type": "string",
+      "enum": [
+        "snapshot_fresh_within_grace",
+        "snapshot_stale_within_grace_user_continues",
+        "snapshot_stale_beyond_grace_user_review_required",
+        "snapshot_unverifiable_user_review_required",
+        "snapshot_introspection_disabled_at_endpoint"
+      ]
+    },
+
+    "graphql_schema_stale_label_class": {
+      "type": "string",
+      "enum": [
+        "not_stale_admissible",
+        "stale_within_grace_local_continues",
+        "stale_beyond_grace_assertions_blocked",
+        "stale_introspection_disabled_at_endpoint_user_review_required",
+        "unverifiable_user_review_required"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "graphql_schema_snapshot_captured",
+        "graphql_schema_snapshot_marked_stale",
+        "graphql_schema_snapshot_endpoint_identity_mismatch_denial",
+        "graphql_schema_snapshot_audit_denial_emitted"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "stale_schema_must_be_visible_to_reviewer",
+        "graphql_schema_endpoint_identity_must_match_request",
+        "ai_tool_proposed_schema_must_not_bind_pending_review",
+        "introspection_disabled_admissible_only_on_sdl_sourced_snapshot",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "graphql_schema_freshness_class_must_resolve_to_typed_class"
+      ]
+    },
+
+    "transport_posture_at_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_deployment_profile",
+        "active_identity_mode",
+        "offline_or_deny_all_state",
+        "captured_at"
+      ],
+      "properties": {
+        "active_deployment_profile": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "air_gapped",
+            "managed_cloud"
+          ]
+        },
+        "active_identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "active_policy_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_epoch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "offline_or_deny_all_state": {
+          "type": "string",
+          "enum": [
+            "online_live_allowed",
+            "online_mirror_only",
+            "offline_grace_preserved",
+            "offline_air_gapped",
+            "deny_all_enforced",
+            "network_disabled_by_user",
+            "network_degraded_heuristic"
+          ]
+        },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "transport_posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "graphql_schema_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "graphql_schema_snapshot_id",
+        "actor_ref",
+        "command_id_ref",
+        "endpoint_identity_ref",
+        "graphql_schema_source_class",
+        "graphql_schema_freshness_class",
+        "graphql_schema_stale_label_class",
+        "body_label_opaque_ref",
+        "captured_at",
+        "workspace_trust_state",
+        "transport_posture_at_event",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/graphql_schema_snapshot_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "graphql_schema_snapshot_record"
+        },
+        "graphql_schema_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "endpoint_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required non-null. A snapshot whose endpoint identity differs from the bound request's endpoint identity is non-admissible; the surface denies with graphql_schema_endpoint_identity_must_match_request."
+        },
+        "endpoint_identity_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "graphql_schema_source_class": { "$ref": "#/$defs/graphql_schema_source_class" },
+        "graphql_schema_freshness_class": { "$ref": "#/$defs/graphql_schema_freshness_class" },
+        "graphql_schema_stale_label_class": { "$ref": "#/$defs/graphql_schema_stale_label_class" },
+        "body_label_opaque_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the per-snapshot SDL store. Raw SDL bodies, raw introspection JSON bytes, raw deprecated-field reasons, raw enum value descriptions, raw object-type comments, raw scalar comments, raw resolver paths, and raw GraphQL operation names that disclose tenant identity never cross this boundary."
+        },
+        "introspection_query_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into the per-snapshot introspection-query store. Raw introspection query bodies MUST NOT appear here."
+        },
+        "type_count_bucket": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Integer bucket of distinct type definitions in the snapshot. Buckets, never raw type counts that disclose internal schema size."
+        },
+        "deprecated_field_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "last_verified_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "admitted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "workspace_trust_state": { "$ref": "#/$defs/workspace_trust_state_class" },
+        "transport_posture_at_event": { "$ref": "#/$defs/transport_posture_at_event" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "snapshot_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "description": "snapshot_introspection_disabled_at_endpoint is admissible only when graphql_schema_source_class is sdl_committed_to_workspace, sdl_imported_from_export_bundle, or sdl_published_by_admin_read_only.",
+          "if": {
+            "properties": {
+              "graphql_schema_freshness_class": { "const": "snapshot_introspection_disabled_at_endpoint" }
+            },
+            "required": [ "graphql_schema_freshness_class" ]
+          },
+          "then": {
+            "properties": {
+              "graphql_schema_source_class": {
+                "enum": [
+                  "sdl_committed_to_workspace",
+                  "sdl_imported_from_export_bundle",
+                  "sdl_published_by_admin_read_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "snapshot_fresh_within_grace MUST resolve graphql_schema_stale_label_class to not_stale_admissible.",
+          "if": {
+            "properties": {
+              "graphql_schema_freshness_class": { "const": "snapshot_fresh_within_grace" }
+            },
+            "required": [ "graphql_schema_freshness_class" ]
+          },
+          "then": {
+            "properties": {
+              "graphql_schema_stale_label_class": { "const": "not_stale_admissible" }
+            }
+          }
+        },
+        {
+          "description": "snapshot_stale_beyond_grace_user_review_required MUST resolve graphql_schema_stale_label_class to stale_beyond_grace_assertions_blocked.",
+          "if": {
+            "properties": {
+              "graphql_schema_freshness_class": { "const": "snapshot_stale_beyond_grace_user_review_required" }
+            },
+            "required": [ "graphql_schema_freshness_class" ]
+          },
+          "then": {
+            "properties": {
+              "graphql_schema_stale_label_class": { "const": "stale_beyond_grace_assertions_blocked" }
+            }
+          }
+        },
+        {
+          "description": "snapshot_unverifiable_user_review_required MUST resolve graphql_schema_stale_label_class to unverifiable_user_review_required.",
+          "if": {
+            "properties": {
+              "graphql_schema_freshness_class": { "const": "snapshot_unverifiable_user_review_required" }
+            },
+            "required": [ "graphql_schema_freshness_class" ]
+          },
+          "then": {
+            "properties": {
+              "graphql_schema_stale_label_class": { "const": "unverifiable_user_review_required" }
+            }
+          }
+        },
+        {
+          "description": "sdl_proposed_by_ai_tool_pending_review MUST NOT carry admitted_at; the snapshot is non-bindable until the user admits it.",
+          "if": {
+            "properties": {
+              "graphql_schema_source_class": { "const": "sdl_proposed_by_ai_tool_pending_review" }
+            },
+            "required": [ "graphql_schema_source_class" ]
+          },
+          "then": {
+            "properties": {
+              "admitted_at": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+
+    "graphql_schema_snapshot_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_graphql_schema_snapshot_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/graphql_schema_snapshot_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "graphql_schema_snapshot_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_graphql_schema_snapshot_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_request_document_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "graphql_schema_snapshot_endpoint_identity_mismatch_denial",
+                  "graphql_schema_snapshot_audit_denial_emitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null so denial vocabulary is never used as a generic free-text channel.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "graphql_schema_snapshot_captured",
+                  "graphql_schema_snapshot_marked_stale"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,606 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/api/assertion_suite.schema.json",
+  "title": "Aureline API assertion-suite and assertion-evaluation-result boundary",
+  "description": "Boundary schema for one assertion_suite_record, one assertion_evaluation_result_record, and one assertion_suite_audit_event_record frozen in docs/api/request_workspace_contract.md. Every API tool surface that admits, blocks, or annotates an assertion outcome (desktop API client, CLI / headless runner, AI-tool review, automation run review, hosted-review reader, support / export reader, admin / policy review surface) emits exactly these record shapes. The records carry opaque request / environment-fingerprint / schema-snapshot / suite / assertion / evaluator / waiver / approval-ticket refs, typed enum values, redaction-aware reviewable sentences, and integer-bucket counts only. Raw assertion script bodies, raw expected JSON bodies, raw expected GraphQL field values, raw regex bodies, and raw custom-assertion script paths never cross this boundary; the surface keeps the body in a per-suite literal store and surfaces only an expected_value_label_ref into a redaction-aware label registry. Re-exports redaction_class from the governance / capability-lifecycle family without redefinition. Adding a new assertion_class, assertion_evaluation_mode_class, assertion_outcome_class, assertion_degradation_class, evaluator_provenance_class, audit_event_id, or denial_reason_class value is additive-minor and bumps assertion_suite_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/assertion_suite_record" },
+    { "$ref": "#/$defs/assertion_evaluation_result_record" },
+    { "$ref": "#/$defs/assertion_suite_audit_event_record" }
+  ],
+  "$defs": {
+    "assertion_suite_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "assertion_class": {
+      "type": "string",
+      "enum": [
+        "status_code_match",
+        "status_code_in_set",
+        "header_present",
+        "header_value_match",
+        "header_value_regex_match_bounded",
+        "body_substring_match",
+        "body_regex_match_bounded",
+        "json_path_value_match",
+        "json_path_value_in_set",
+        "json_schema_validation",
+        "graphql_field_presence",
+        "graphql_typed_response_match",
+        "response_time_budget_under_ms",
+        "redirect_count_under",
+        "tls_handshake_ok",
+        "tls_certificate_pin_match",
+        "custom_assertion_script_ref",
+        "assertion_class_unknown_requires_review"
+      ]
+    },
+
+    "assertion_evaluation_mode_class": {
+      "type": "string",
+      "enum": [
+        "enforce_blocking_default",
+        "enforce_blocking_unless_waived",
+        "advisory_non_blocking_with_visible_chip",
+        "advisory_non_blocking_silent",
+        "informational_only_no_chip"
+      ]
+    },
+
+    "assertion_outcome_class": {
+      "type": "string",
+      "enum": [
+        "pass_admissible",
+        "fail_blocking",
+        "fail_advisory_non_blocking",
+        "skipped_not_in_scope",
+        "skipped_waiver_admitted_active",
+        "skipped_evaluator_unavailable_user_review_required",
+        "skipped_pending_schema_freshness_user_review_required",
+        "error_evaluator_internal_user_review_required"
+      ]
+    },
+
+    "assertion_degradation_class": {
+      "type": "string",
+      "enum": [
+        "not_degraded_evaluator_admissible",
+        "degraded_schema_snapshot_stale_assertion_skipped",
+        "degraded_schema_snapshot_unverifiable_assertion_skipped",
+        "degraded_endpoint_retarget_pending_review",
+        "degraded_environment_resolution_blocked",
+        "degraded_evaluator_unavailable_user_review_required"
+      ]
+    },
+
+    "evaluator_provenance_class": {
+      "type": "string",
+      "enum": [
+        "desktop_native_evaluator",
+        "cli_or_headless_evaluator",
+        "automation_run_evaluator",
+        "provider_overlay_evaluator",
+        "ai_tool_overlay_evaluator_advisory_only",
+        "support_export_reused_pinned_to_request_id",
+        "evaluator_provenance_unverifiable_user_review_required"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "assertion_suite_evaluated",
+        "assertion_suite_blocked_pending_schema_freshness",
+        "assertion_suite_evaluator_unavailable",
+        "assertion_suite_silent_downgrade_forbidden_denial",
+        "assertion_suite_audit_denial_emitted"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "assertion_evaluation_mode_silently_downgraded_forbidden",
+        "assertion_outcome_must_match_evaluation_mode",
+        "assertion_degradation_required_when_outcome_skipped_or_error",
+        "graphql_assertion_must_cite_bound_schema_snapshot",
+        "stale_schema_must_be_visible_to_reviewer",
+        "ai_tool_overlay_evaluator_admissible_only_as_advisory",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "evaluator_provenance_required_for_evaluation_result"
+      ]
+    },
+
+    "assertion_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assertion_id",
+        "assertion_class",
+        "assertion_evaluation_mode_class",
+        "expected_value_label_ref"
+      ],
+      "properties": {
+        "assertion_id": { "$ref": "#/$defs/opaque_id" },
+        "assertion_class": { "$ref": "#/$defs/assertion_class" },
+        "assertion_evaluation_mode_class": { "$ref": "#/$defs/assertion_evaluation_mode_class" },
+        "expected_value_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the per-suite literal store. Raw expected values that disclose tenant / customer identity, raw expected JSON bodies, raw expected GraphQL field values, raw regex bodies, and raw custom-assertion script paths MUST NOT appear here."
+        },
+        "bound_graphql_schema_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when assertion_class is graphql_field_presence or graphql_typed_response_match."
+        },
+        "custom_script_locator_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when assertion_class is custom_assertion_script_ref; resolves through the filesystem-identity registry. Raw absolute paths MUST NOT appear."
+        },
+        "waiver_record_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "assertion_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "graphql_field_presence and graphql_typed_response_match MUST cite a non-null bound_graphql_schema_snapshot_ref.",
+          "if": {
+            "properties": {
+              "assertion_class": {
+                "enum": [
+                  "graphql_field_presence",
+                  "graphql_typed_response_match"
+                ]
+              }
+            },
+            "required": [ "assertion_class" ]
+          },
+          "then": {
+            "required": [ "bound_graphql_schema_snapshot_ref" ],
+            "properties": {
+              "bound_graphql_schema_snapshot_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "custom_assertion_script_ref MUST cite a non-null custom_script_locator_ref.",
+          "if": {
+            "properties": {
+              "assertion_class": { "const": "custom_assertion_script_ref" }
+            },
+            "required": [ "assertion_class" ]
+          },
+          "then": {
+            "required": [ "custom_script_locator_ref" ],
+            "properties": {
+              "custom_script_locator_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+
+    "assertion_suite_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "assertion_suite_id",
+        "actor_ref",
+        "command_id_ref",
+        "bound_request_document_id_ref",
+        "assertions",
+        "redaction_class",
+        "created_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/assertion_suite_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "assertion_suite_record"
+        },
+        "assertion_suite_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_request_document_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/assertion_descriptor_record" }
+        },
+        "suite_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      }
+    },
+
+    "assertion_evaluation_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "assertion_evaluation_result_id",
+        "actor_ref",
+        "command_id_ref",
+        "bound_assertion_suite_id_ref",
+        "bound_assertion_id_ref",
+        "bound_request_document_id_ref",
+        "bound_environment_fingerprint_ref",
+        "assertion_class",
+        "assertion_evaluation_mode_class",
+        "assertion_outcome_class",
+        "assertion_degradation_class",
+        "evaluator_provenance_class",
+        "redaction_class",
+        "evaluated_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/assertion_suite_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "assertion_evaluation_result_record"
+        },
+        "assertion_evaluation_result_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_assertion_suite_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_assertion_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_request_document_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_environment_fingerprint_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_graphql_schema_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "assertion_class": { "$ref": "#/$defs/assertion_class" },
+        "assertion_evaluation_mode_class": { "$ref": "#/$defs/assertion_evaluation_mode_class" },
+        "assertion_outcome_class": { "$ref": "#/$defs/assertion_outcome_class" },
+        "assertion_degradation_class": { "$ref": "#/$defs/assertion_degradation_class" },
+        "evaluator_provenance_class": { "$ref": "#/$defs/evaluator_provenance_class" },
+        "waiver_record_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when assertion_outcome_class is skipped_waiver_admitted_active."
+        },
+        "outcome_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "evaluated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "description": "enforce_blocking_default paired with a fail outcome MUST resolve to fail_blocking; pairing with fail_advisory_non_blocking denies with assertion_evaluation_mode_silently_downgraded_forbidden.",
+          "if": {
+            "properties": {
+              "assertion_evaluation_mode_class": { "const": "enforce_blocking_default" }
+            },
+            "required": [ "assertion_evaluation_mode_class" ]
+          },
+          "then": {
+            "properties": {
+              "assertion_outcome_class": {
+                "not": { "const": "fail_advisory_non_blocking" }
+              }
+            }
+          }
+        },
+        {
+          "description": "advisory_non_blocking_with_visible_chip and advisory_non_blocking_silent paired with a fail outcome MUST NOT resolve to fail_blocking.",
+          "if": {
+            "properties": {
+              "assertion_evaluation_mode_class": {
+                "enum": [
+                  "advisory_non_blocking_with_visible_chip",
+                  "advisory_non_blocking_silent"
+                ]
+              }
+            },
+            "required": [ "assertion_evaluation_mode_class" ]
+          },
+          "then": {
+            "properties": {
+              "assertion_outcome_class": {
+                "not": { "const": "fail_blocking" }
+              }
+            }
+          }
+        },
+        {
+          "description": "informational_only_no_chip mode MUST resolve to pass_admissible or skipped_not_in_scope; fail and error outcomes are not admissible on informational-only assertions.",
+          "if": {
+            "properties": {
+              "assertion_evaluation_mode_class": { "const": "informational_only_no_chip" }
+            },
+            "required": [ "assertion_evaluation_mode_class" ]
+          },
+          "then": {
+            "properties": {
+              "assertion_outcome_class": {
+                "enum": [
+                  "pass_admissible",
+                  "skipped_not_in_scope"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "pass_admissible MUST cite not_degraded_evaluator_admissible.",
+          "if": {
+            "properties": {
+              "assertion_outcome_class": { "const": "pass_admissible" }
+            },
+            "required": [ "assertion_outcome_class" ]
+          },
+          "then": {
+            "properties": {
+              "assertion_degradation_class": { "const": "not_degraded_evaluator_admissible" }
+            }
+          }
+        },
+        {
+          "description": "skipped_pending_schema_freshness_user_review_required MUST cite a typed schema-degradation reason and a non-null bound_graphql_schema_snapshot_ref.",
+          "if": {
+            "properties": {
+              "assertion_outcome_class": { "const": "skipped_pending_schema_freshness_user_review_required" }
+            },
+            "required": [ "assertion_outcome_class" ]
+          },
+          "then": {
+            "required": [ "bound_graphql_schema_snapshot_ref" ],
+            "properties": {
+              "bound_graphql_schema_snapshot_ref": { "not": { "type": "null" } },
+              "assertion_degradation_class": {
+                "enum": [
+                  "degraded_schema_snapshot_stale_assertion_skipped",
+                  "degraded_schema_snapshot_unverifiable_assertion_skipped"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "skipped_evaluator_unavailable_user_review_required MUST cite degraded_evaluator_unavailable_user_review_required.",
+          "if": {
+            "properties": {
+              "assertion_outcome_class": { "const": "skipped_evaluator_unavailable_user_review_required" }
+            },
+            "required": [ "assertion_outcome_class" ]
+          },
+          "then": {
+            "properties": {
+              "assertion_degradation_class": { "const": "degraded_evaluator_unavailable_user_review_required" }
+            }
+          }
+        },
+        {
+          "description": "skipped_waiver_admitted_active MUST cite a non-null waiver_record_ref.",
+          "if": {
+            "properties": {
+              "assertion_outcome_class": { "const": "skipped_waiver_admitted_active" }
+            },
+            "required": [ "assertion_outcome_class" ]
+          },
+          "then": {
+            "required": [ "waiver_record_ref" ],
+            "properties": {
+              "waiver_record_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_overlay_evaluator_advisory_only MUST resolve to advisory_non_blocking_with_visible_chip, advisory_non_blocking_silent, or informational_only_no_chip; AI overlays cannot block.",
+          "if": {
+            "properties": {
+              "evaluator_provenance_class": { "const": "ai_tool_overlay_evaluator_advisory_only" }
+            },
+            "required": [ "evaluator_provenance_class" ]
+          },
+          "then": {
+            "properties": {
+              "assertion_evaluation_mode_class": {
+                "enum": [
+                  "advisory_non_blocking_with_visible_chip",
+                  "advisory_non_blocking_silent",
+                  "informational_only_no_chip"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "graphql_field_presence and graphql_typed_response_match MUST cite a non-null bound_graphql_schema_snapshot_ref.",
+          "if": {
+            "properties": {
+              "assertion_class": {
+                "enum": [
+                  "graphql_field_presence",
+                  "graphql_typed_response_match"
+                ]
+              }
+            },
+            "required": [ "assertion_class" ]
+          },
+          "then": {
+            "required": [ "bound_graphql_schema_snapshot_ref" ],
+            "properties": {
+              "bound_graphql_schema_snapshot_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+
+    "assertion_suite_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_assertion_suite_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/assertion_suite_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "assertion_suite_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_assertion_suite_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_assertion_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "bound_request_document_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "assertion_suite_silent_downgrade_forbidden_denial",
+                  "assertion_suite_audit_denial_emitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null so denial vocabulary is never used as a generic free-text channel.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "assertion_suite_evaluated",
+                  "assertion_suite_blocked_pending_schema_freshness",
+                  "assertion_suite_evaluator_unavailable"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

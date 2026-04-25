@@ -1,0 +1,916 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/api/request_document.schema.json",
+  "title": "Aureline API request-document boundary",
+  "description": "Boundary schema for one request_document_record frozen in docs/api/request_workspace_contract.md. Every API tool surface (desktop API client, CLI / headless runner, AI-tool review, automation run review, hosted-review reader, support / export reader, admin / policy review surface) reads exactly this record shape when it claims a request truth. The record carries opaque endpoint / body / header / auth-handle / environment-fingerprint / cli-command refs, typed enum values, redaction-aware reviewable sentences, and integer-bucket counts only. Raw URLs, raw hostnames, raw IPs, raw ports, raw paths, raw query strings, raw bearer tokens, raw API keys, raw passwords, raw OAuth refresh tokens, raw mTLS keystore bytes, raw request body bytes, raw cookie values, and raw absolute filesystem paths never cross this boundary; the broker resolves a credential handle from the secret-broker / delegated-identity / managed-service-identity store and surfaces only the handle ref. Re-exports identity_mode and workspace_trust_state_class from the identity family, redaction_class from the governance / capability-lifecycle family, response_trust_class from the safe-preview vocabulary, and the transport_posture object shape from the network family without redefinition. Adding a new request_class, protocol_class, idempotency_class, body_source_class, auth_source_class, response_trust_class, rerun_parity_class, audit_event_id, or denial_reason_class value is additive-minor and bumps request_document_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/request_document_record" },
+    { "$ref": "#/$defs/request_document_audit_event_record" }
+  ],
+  "$defs": {
+    "request_document_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Additive-minor vocabulary additions bump this integer; repurposing an existing value is breaking."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Opaque, stable, snake_case-safe id. Safe to log, safe on RPC, safe in admin exports, support bundles, release evidence, and boundary-manifest rows. Raw URLs, raw hostnames, raw IPs, raw ports, raw user names, raw secret bytes, raw certificate / key material, raw request body bytes, raw cookie values, and raw absolute filesystem paths never appear here."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short, reviewable sentence safe for banners, admin exports, support packets, and diagnostics cards. Raw URLs, raw connection strings, raw payloads, raw secret material, and raw absolute paths MUST NOT appear."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the support / release vocabulary."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001."
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_revoked"
+      ],
+      "description": "Workspace-trust state re-exported from the identity / workspace family. Non-idempotent requests are admissible only under workspace_trust_trusted."
+    },
+
+    "request_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local_request",
+        "workspace_shared_committed_request",
+        "org_curated_admin_published_request",
+        "managed_workspace_provisioned_request",
+        "imported_from_export_bundle_request",
+        "ad_hoc_session_request",
+        "ai_tool_proposed_request_pending_review"
+      ],
+      "description": "Closed request-class vocabulary. user_authored_local_request and ad_hoc_session_request are local-only by default; org_curated_admin_published_request and managed_workspace_provisioned_request inherit admin governance and never carry editable raw secrets in workspace state; ai_tool_proposed_request_pending_review is non-executable until the user admits it."
+    },
+
+    "protocol_class": {
+      "type": "string",
+      "enum": [
+        "rest_http_request",
+        "graphql_query_request",
+        "graphql_mutation_request",
+        "graphql_subscription_request",
+        "grpc_unary_request",
+        "grpc_server_stream_request",
+        "grpc_client_stream_request",
+        "grpc_bidi_stream_request",
+        "websocket_handshake_request",
+        "server_sent_events_open_request",
+        "protocol_class_unknown_requires_review"
+      ],
+      "description": "Closed protocol-class vocabulary. graphql_* protocols force a non-null bound_graphql_schema_snapshot_ref before assertions of class graphql_field_presence or graphql_typed_response_match are admissible."
+    },
+
+    "http_method_class": {
+      "type": "string",
+      "enum": [
+        "method_get",
+        "method_head",
+        "method_options",
+        "method_post",
+        "method_put",
+        "method_patch",
+        "method_delete",
+        "method_connect",
+        "method_trace",
+        "method_custom_user_review_required",
+        "method_not_applicable_non_http_protocol"
+      ],
+      "description": "Closed HTTP-method vocabulary. method_not_applicable_non_http_protocol is forced when protocol_class is gRPC, WebSocket, or SSE."
+    },
+
+    "idempotency_class": {
+      "type": "string",
+      "enum": [
+        "idempotent_read_only",
+        "idempotent_with_user_supplied_idempotency_key",
+        "non_idempotent_user_review_required",
+        "idempotency_unknown_requires_review"
+      ]
+    },
+
+    "body_source_class": {
+      "type": "string",
+      "enum": [
+        "no_request_body",
+        "inline_body_text_label_ref",
+        "file_attachment_locator_ref",
+        "multipart_form_locator_ref",
+        "generated_from_schema_pending_admit",
+        "ai_proposed_body_pending_user_admit"
+      ]
+    },
+
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "no_auth",
+        "bearer_token_handle_auth",
+        "api_key_handle_auth",
+        "basic_auth_handle_auth",
+        "oauth2_authorization_code_handle_auth",
+        "oauth2_client_credentials_handle_auth",
+        "oauth2_device_flow_callback_auth",
+        "mtls_client_certificate_handle_auth",
+        "aws_sigv4_handle_auth",
+        "gcp_service_account_handle_auth",
+        "azure_managed_identity_handle_auth",
+        "custom_signed_request_handle_auth",
+        "auth_source_unknown_requires_review",
+        "auth_source_unsupported_blocked"
+      ]
+    },
+
+    "response_trust_class": {
+      "type": "string",
+      "enum": [
+        "raw_text_default",
+        "sanitized_rich",
+        "trusted_local_active",
+        "isolated_remote_or_web_like"
+      ],
+      "description": "Re-exported from docs/security/safe_preview_trust_classes.md."
+    },
+
+    "rerun_parity_class": {
+      "type": "string",
+      "enum": [
+        "desktop_only_no_headless_admit",
+        "headless_admissible_no_parity_proof_yet",
+        "desktop_and_headless_parity_proven",
+        "parity_unverified_user_review_required",
+        "parity_blocked_pending_environment_resolution"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "request_document_admitted",
+        "request_document_rejected",
+        "request_document_blocked_pending_consent",
+        "request_document_blocked_pending_policy",
+        "request_document_blocked_pending_workspace_trust",
+        "request_document_raw_secret_observed_denial",
+        "request_document_parity_proof_recorded",
+        "request_document_audit_denial_emitted"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_in_portable_request_forbidden",
+        "auth_source_must_resolve_to_typed_handle",
+        "azure_managed_identity_admissible_only_on_managed_workspace",
+        "ai_tool_proposed_request_must_not_execute_pending_review",
+        "request_idempotency_class_must_match_workspace_trust",
+        "request_must_resolve_environment_layer",
+        "headless_parity_must_cite_cli_command_id",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "graphql_protocol_must_cite_bound_schema_snapshot",
+        "method_not_applicable_to_non_http_protocol_misuse"
+      ]
+    },
+
+    "transport_posture_at_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_deployment_profile",
+        "active_identity_mode",
+        "offline_or_deny_all_state",
+        "captured_at"
+      ],
+      "properties": {
+        "active_deployment_profile": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "air_gapped",
+            "managed_cloud"
+          ]
+        },
+        "active_identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "active_policy_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_epoch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "offline_or_deny_all_state": {
+          "type": "string",
+          "enum": [
+            "online_live_allowed",
+            "online_mirror_only",
+            "offline_grace_preserved",
+            "offline_air_gapped",
+            "deny_all_enforced",
+            "network_disabled_by_user",
+            "network_degraded_heuristic"
+          ]
+        },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "transport_posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Re-exported transport-posture object shape from the network family. The request document cites this verbatim at admit time so reviewers can see the deployment / identity / offline posture under which the request was authored or replayed."
+    },
+
+    "header_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header_name_label_ref",
+        "header_value_label_ref",
+        "header_value_kind_class"
+      ],
+      "properties": {
+        "header_name_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the per-request header-name registry. Raw header names that disclose tenant / customer identity MUST NOT appear here."
+        },
+        "header_value_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the per-request header-value literal store. Raw bearer tokens, raw API keys, raw cookies, raw signed-request authorization values, and raw user-supplied header values never cross this boundary."
+        },
+        "header_value_kind_class": {
+          "type": "string",
+          "enum": [
+            "static_literal_label_ref",
+            "environment_variable_ref",
+            "secret_handle_ref",
+            "computed_at_send_time_user_review_required"
+          ]
+        },
+        "header_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "body_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "body_source_class" ],
+      "properties": {
+        "body_source_class": { "$ref": "#/$defs/body_source_class" },
+        "body_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when body_source_class is inline_body_text_label_ref or generated_from_schema_pending_admit; resolves into a per-request literal store. Raw request body bytes never cross this boundary."
+        },
+        "file_attachment_locator_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when body_source_class is file_attachment_locator_ref; resolves through the filesystem-identity registry. Raw absolute paths MUST NOT appear."
+        },
+        "multipart_form_locator_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "body_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "auth_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auth_source_class",
+        "raw_secret_in_workspace_state_observed"
+      ],
+      "properties": {
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "bearer_token_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when auth_source_class is bearer_token_handle_auth."
+        },
+        "api_key_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "basic_auth_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "oauth2_authorization_code_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "oauth2_client_credentials_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "oauth2_device_flow_callback_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "mtls_client_certificate_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "aws_sigv4_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "gcp_service_account_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "azure_managed_identity_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "custom_signed_request_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "raw_secret_in_workspace_state_observed": {
+          "type": "boolean",
+          "description": "True only when the workspace was scanned and a raw bearer token, raw API key, raw password, raw client secret, raw refresh token, raw signing key, or raw certificate / key material was observed persisted in the request file or workspace state. On every request_class except ad_hoc_session_request and imported_from_export_bundle_request this MUST be false; otherwise the surface denies with raw_secret_in_portable_request_forbidden."
+        },
+        "auth_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "rerun_parity_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "rerun_parity_class" ],
+      "properties": {
+        "rerun_parity_class": { "$ref": "#/$defs/rerun_parity_class" },
+        "cli_command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when rerun_parity_class is desktop_and_headless_parity_proven; cites the matched row in artifacts/automation/cli_command_rows.yaml."
+        },
+        "cli_output_schema_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "parity_proof_recorded_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "parity_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "request_document_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "request_document_id",
+        "actor_ref",
+        "command_id_ref",
+        "request_class",
+        "protocol_class",
+        "http_method_class",
+        "idempotency_class",
+        "body",
+        "auth",
+        "headers",
+        "response_trust_class",
+        "rerun_parity",
+        "workspace_trust_state",
+        "transport_posture_at_event",
+        "redaction_class",
+        "created_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/request_document_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "request_document_record"
+        },
+        "request_document_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "request_class": { "$ref": "#/$defs/request_class" },
+        "protocol_class": { "$ref": "#/$defs/protocol_class" },
+        "http_method_class": { "$ref": "#/$defs/http_method_class" },
+        "idempotency_class": { "$ref": "#/$defs/idempotency_class" },
+        "endpoint_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into the endpoint registry; resolved either inline on the request or via the bound environment layer. Raw URLs, raw hostnames, raw IPs, raw ports, and raw paths MUST NOT appear here."
+        },
+        "endpoint_path_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "bound_environment_layer_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null at admit time; the environment-layer record carries the resolved precedence stack and the environment_fingerprint_ref the headless rerun cites at send time."
+        },
+        "bound_environment_fingerprint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "bound_graphql_schema_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required non-null when protocol_class is graphql_query_request, graphql_mutation_request, or graphql_subscription_request."
+        },
+        "bound_assertion_suite_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_environment_capsule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into the runtime environment-capsule (driver / kernel / toolchain identity) for replay parity."
+        },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "headers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/header_descriptor_record" },
+          "uniqueItems": false,
+          "description": "Ordered list of header descriptors. Raw header values MUST NOT appear; every value resolves through an opaque label ref."
+        },
+        "body": { "$ref": "#/$defs/body_envelope" },
+        "auth": { "$ref": "#/$defs/auth_envelope" },
+        "response_trust_class": { "$ref": "#/$defs/response_trust_class" },
+        "rerun_parity": { "$ref": "#/$defs/rerun_parity_envelope" },
+        "workspace_trust_state": { "$ref": "#/$defs/workspace_trust_state_class" },
+        "transport_posture_at_event": { "$ref": "#/$defs/transport_posture_at_event" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admitted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block. Convention carries the fixture name, scenario, and contract sections exercised; never part of the runtime record."
+        }
+      },
+      "allOf": [
+        {
+          "description": "ai_tool_proposed_request_pending_review MUST NOT carry admitted_at; the request is non-executable until the user admits it through a separate request_document_admitted audit event.",
+          "if": {
+            "properties": {
+              "request_class": { "const": "ai_tool_proposed_request_pending_review" }
+            },
+            "required": [ "request_class" ]
+          },
+          "then": {
+            "properties": {
+              "admitted_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "raw_secret_in_workspace_state_observed = true is admissible only on ad_hoc_session_request or imported_from_export_bundle_request request classes.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "raw_secret_in_workspace_state_observed": { "const": true }
+                },
+                "required": [ "raw_secret_in_workspace_state_observed" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "request_class": {
+                "enum": [
+                  "ad_hoc_session_request",
+                  "imported_from_export_bundle_request"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "bearer_token_handle_auth MUST cite a non-null bearer_token_handle_ref.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_source_class": { "const": "bearer_token_handle_auth" }
+                },
+                "required": [ "auth_source_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "bearer_token_handle_ref" ],
+                "properties": {
+                  "bearer_token_handle_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "api_key_handle_auth MUST cite a non-null api_key_handle_ref.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_source_class": { "const": "api_key_handle_auth" }
+                },
+                "required": [ "auth_source_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "api_key_handle_ref" ],
+                "properties": {
+                  "api_key_handle_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "oauth2_authorization_code_handle_auth MUST cite a non-null oauth2_authorization_code_handle_ref.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_source_class": { "const": "oauth2_authorization_code_handle_auth" }
+                },
+                "required": [ "auth_source_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "oauth2_authorization_code_handle_ref" ],
+                "properties": {
+                  "oauth2_authorization_code_handle_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "azure_managed_identity_handle_auth MUST cite a non-null azure_managed_identity_handle_ref and is admissible only on managed_workspace identity mode.",
+          "if": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "auth_source_class": { "const": "azure_managed_identity_handle_auth" }
+                },
+                "required": [ "auth_source_class" ]
+              }
+            },
+            "required": [ "auth" ]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "required": [ "azure_managed_identity_handle_ref" ],
+                "properties": {
+                  "azure_managed_identity_handle_ref": { "not": { "type": "null" } }
+                }
+              },
+              "transport_posture_at_event": {
+                "properties": {
+                  "active_identity_mode": { "const": "managed_workspace" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-idempotent requests are admissible only under workspace_trust_trusted.",
+          "if": {
+            "properties": {
+              "idempotency_class": { "const": "non_idempotent_user_review_required" }
+            },
+            "required": [ "idempotency_class" ]
+          },
+          "then": {
+            "properties": {
+              "workspace_trust_state": { "const": "workspace_trust_trusted" }
+            }
+          }
+        },
+        {
+          "description": "GraphQL protocol classes MUST cite a non-null bound_graphql_schema_snapshot_ref.",
+          "if": {
+            "properties": {
+              "protocol_class": {
+                "enum": [
+                  "graphql_query_request",
+                  "graphql_mutation_request",
+                  "graphql_subscription_request"
+                ]
+              }
+            },
+            "required": [ "protocol_class" ]
+          },
+          "then": {
+            "required": [ "bound_graphql_schema_snapshot_ref" ],
+            "properties": {
+              "bound_graphql_schema_snapshot_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "desktop_and_headless_parity_proven MUST cite a non-null cli_command_id_ref and a non-null parity_proof_recorded_at.",
+          "if": {
+            "properties": {
+              "rerun_parity": {
+                "properties": {
+                  "rerun_parity_class": { "const": "desktop_and_headless_parity_proven" }
+                },
+                "required": [ "rerun_parity_class" ]
+              }
+            },
+            "required": [ "rerun_parity" ]
+          },
+          "then": {
+            "properties": {
+              "rerun_parity": {
+                "required": [ "cli_command_id_ref", "parity_proof_recorded_at" ],
+                "properties": {
+                  "cli_command_id_ref": { "not": { "type": "null" } },
+                  "parity_proof_recorded_at": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "parity_blocked_pending_environment_resolution MUST cite a non-null bound_environment_layer_ref.",
+          "if": {
+            "properties": {
+              "rerun_parity": {
+                "properties": {
+                  "rerun_parity_class": { "const": "parity_blocked_pending_environment_resolution" }
+                },
+                "required": [ "rerun_parity_class" ]
+              }
+            },
+            "required": [ "rerun_parity" ]
+          },
+          "then": {
+            "required": [ "bound_environment_layer_ref" ],
+            "properties": {
+              "bound_environment_layer_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-HTTP protocol classes MUST resolve http_method_class to method_not_applicable_non_http_protocol; HTTP and GraphQL-over-HTTP protocols MUST resolve to a real method enum.",
+          "if": {
+            "properties": {
+              "protocol_class": {
+                "enum": [
+                  "grpc_unary_request",
+                  "grpc_server_stream_request",
+                  "grpc_client_stream_request",
+                  "grpc_bidi_stream_request",
+                  "websocket_handshake_request",
+                  "server_sent_events_open_request"
+                ]
+              }
+            },
+            "required": [ "protocol_class" ]
+          },
+          "then": {
+            "properties": {
+              "http_method_class": { "const": "method_not_applicable_non_http_protocol" }
+            }
+          }
+        }
+      ]
+    },
+
+    "request_document_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "audit_event_id",
+        "bound_request_document_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "event_note",
+        "recorded_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/request_document_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "request_document_audit_event_record"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "bound_request_document_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Denial-class audit events MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "request_document_rejected",
+                  "request_document_raw_secret_observed_denial",
+                  "request_document_audit_denial_emitted"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "required": [ "denial_reason_class" ],
+            "properties": {
+              "denial_reason_class": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Non-denial audit events MUST leave denial_reason_class null so denial vocabulary is never used as a generic free-text channel.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "request_document_admitted",
+                  "request_document_blocked_pending_consent",
+                  "request_document_blocked_pending_policy",
+                  "request_document_blocked_pending_workspace_trust",
+                  "request_document_parity_proof_recorded"
+                ]
+              }
+            },
+            "required": [ "audit_event_id" ]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
