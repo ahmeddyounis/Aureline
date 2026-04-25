@@ -1,0 +1,983 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/patch_stack.schema.json",
+  "title": "Aureline patch-stack and sequence-editor vocabulary",
+  "description": "Boundary schema for the patch-stack and sequence-editor record family frozen in docs/vcs/change_stack_contract.md. One record family pins which ordered, base-pinned, validation-aware sequence of change objects a surface is operating on (patch_stack_record), the per-member ordering / landing-state / validation-staleness row (patch_stack_member_record), the explicit history-edit plan that names a rebase / reword / squash / fixup / drop / exec / break / label / reset / merge_replay intent before any mutation begins (sequence_editor_plan_record), and the per-operation row that pairs the operation class with its target / output change-object refs (sequence_editor_operation_record); two audit streams (patch_stack and sequence_editor) carry the closed denial-reason and event-id vocabularies. The patch-stack base identity is immutable for the stack's life, member ordering is preserved through superseded_by_member_id_ref chains rather than destructively re-ordinaling in place, every plan that admits a mutation cites a non-null recovery_object_ref and a non-null actor_ref / command_id_ref / approval_ticket_ref, and every paused plan resolves through one of the conflict-handoff classes shipped on schemas/vcs/change_object.schema.json. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw run-log bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / authority / lifecycle state only. The eventual change-stack crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, patch_stack_lifecycle_state, patch_stack_member_landing_state, validation_staleness_class, sequence_editor_operation_class, sequence_op_status, sequence_editor_lifecycle_state, denial reason, or audit-event id is additive-minor and bumps patch_stack_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/patch_stack_record" },
+    { "$ref": "#/$defs/patch_stack_member_record" },
+    { "$ref": "#/$defs/patch_stack_audit_event_record" },
+    { "$ref": "#/$defs/sequence_editor_plan_record" },
+    { "$ref": "#/$defs/sequence_editor_operation_record" },
+    { "$ref": "#/$defs/sequence_editor_audit_event_record" }
+  ],
+  "$defs": {
+    "patch_stack_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the patch-stack and sequence-editor vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "patch_stack_record",
+        "patch_stack_member_record",
+        "patch_stack_audit_event_record",
+        "sequence_editor_plan_record",
+        "sequence_editor_operation_record",
+        "sequence_editor_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw run-log bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 / ADR-0018 trust state are re-validated on every restore and topology-changing mutation."
+    },
+
+    "conflict_handoff_class": {
+      "type": "string",
+      "enum": [
+        "no_conflict_path_required",
+        "conflict_resolution_packet_required_pending_decision",
+        "conflict_resolution_packet_admitted_user_resolved",
+        "history_edit_recovery_packet_required_pending_decision",
+        "history_edit_recovery_packet_admitted_user_resolved"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/change_object.schema.json. Pairs with merge_conflict_class_record_id_ref and history_edit_recovery_record_id_ref forward-dependency slots."
+    },
+
+    "patch_stack_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "patch_stack_drafting",
+        "patch_stack_active_review_open",
+        "patch_stack_paused_pending_conflict",
+        "patch_stack_paused_pending_history_edit_recovery",
+        "patch_stack_landed_completed",
+        "patch_stack_abandoned_rolled_back",
+        "patch_stack_archived_tombstone"
+      ],
+      "description": "Frozen patch-stack lifecycle vocabulary. patch_stack_drafting is the only state in which recovery_object_ref MAY be null; every other state MUST cite a non-null recovery_object_ref. patch_stack_paused_pending_conflict pairs with conflict_resolution_packet_required_pending_decision; patch_stack_paused_pending_history_edit_recovery pairs with history_edit_recovery_packet_required_pending_decision."
+    },
+
+    "patch_stack_member_landing_state": {
+      "type": "string",
+      "enum": [
+        "member_unsubmitted_local_only",
+        "member_submitted_review_pending",
+        "member_submitted_review_in_progress",
+        "member_accepted_landed_canonical",
+        "member_dropped_explicit_user_action",
+        "member_superseded_by_member_rewrite",
+        "member_blocked_pending_conflict_resolution",
+        "member_blocked_pending_history_edit_recovery"
+      ],
+      "description": "Frozen patch-stack-member landing-state vocabulary. member_blocked_pending_conflict_resolution MUST pair with conflict_resolution_packet_required_pending_decision conflict_handoff_class; member_blocked_pending_history_edit_recovery MUST pair with history_edit_recovery_packet_required_pending_decision conflict_handoff_class."
+    },
+
+    "validation_staleness_class": {
+      "type": "string",
+      "enum": [
+        "validation_fresh_against_current_base",
+        "validation_stale_base_advanced",
+        "validation_stale_member_rewritten",
+        "validation_unverified_no_run",
+        "validation_blocked_provider_unreachable"
+      ],
+      "description": "Frozen per-stack-member validation freshness vocabulary. The stack-level freshness chip lives on the host record; this row is the per-member parity boundary."
+    },
+
+    "sequence_editor_operation_class": {
+      "type": "string",
+      "enum": [
+        "sequence_op_pick",
+        "sequence_op_reword",
+        "sequence_op_edit",
+        "sequence_op_squash",
+        "sequence_op_fixup",
+        "sequence_op_drop",
+        "sequence_op_exec",
+        "sequence_op_break",
+        "sequence_op_label",
+        "sequence_op_reset",
+        "sequence_op_merge_replay"
+      ],
+      "description": "Frozen sequence-editor operation class vocabulary. pick / reword / edit / squash / fixup / drop / merge_replay MUST cite a target_change_object_id_ref; reword / edit / squash / fixup / merge_replay MUST cite a non-null output_change_object_id_ref once admitted; drop MUST cite a null output_change_object_id_ref; exec / break / label / reset MUST NOT cite a target_change_object_id_ref or an output_change_object_id_ref."
+    },
+
+    "sequence_op_status": {
+      "type": "string",
+      "enum": [
+        "op_admitted",
+        "op_in_progress",
+        "op_blocked_pending_conflict",
+        "op_completed",
+        "op_aborted_rolled_back",
+        "op_superseded"
+      ],
+      "description": "Frozen per-operation status vocabulary. op_blocked_pending_conflict MUST pair with conflict_resolution_packet_required_pending_decision conflict_handoff_class on the operation row."
+    },
+
+    "sequence_editor_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "sequence_plan_drafted",
+        "sequence_plan_admitted",
+        "sequence_plan_in_progress",
+        "sequence_plan_paused_pending_conflict",
+        "sequence_plan_paused_pending_user_resolution",
+        "sequence_plan_completed_recovery_object_minted",
+        "sequence_plan_aborted_rolled_back_to_recovery_object",
+        "sequence_plan_archived_tombstone"
+      ],
+      "description": "Frozen sequence-editor plan lifecycle vocabulary. sequence_plan_drafted is the only state in which recovery_object_ref MAY be null; every other state MUST cite a non-null recovery_object_ref or the row denies with sequence_editor_recovery_object_required_before_admission. sequence_plan_aborted_rolled_back_to_recovery_object MUST cite the recovery object the abort rolled back to (denies with sequence_editor_abort_recovery_object_required); sequence_plan_paused_pending_conflict MUST cite at least one operation whose sequence_op_status is op_blocked_pending_conflict; sequence_plan_paused_pending_user_resolution MUST cite at least one operation that escalated to a history-edit recovery packet."
+    },
+
+    "patch_stack_denial_reason": {
+      "type": "string",
+      "enum": [
+        "patch_stack_base_identity_must_not_mutate_in_place",
+        "patch_stack_member_silent_reorder_forbidden",
+        "patch_stack_member_ordinal_uniqueness_required",
+        "patch_stack_recovery_object_required_before_topology_change",
+        "rollback_or_export_recovery_object_required",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "patch_stack_record_required_field_missing",
+        "patch_stack_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the patch_stack audit stream."
+    },
+
+    "patch_stack_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "patch_stack_drafted",
+        "patch_stack_member_appended",
+        "patch_stack_member_superseded",
+        "patch_stack_validation_run_recorded",
+        "patch_stack_paused_pending_conflict",
+        "patch_stack_paused_pending_history_edit_recovery",
+        "patch_stack_landed_completed",
+        "patch_stack_abandoned_rolled_back",
+        "patch_stack_exported_for_handoff",
+        "patch_stack_imported_from_snapshot",
+        "patch_stack_archived",
+        "patch_stack_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the patch_stack stream. patch_stack_audit_denial_emitted MUST cite a patch_stack_denial_reason."
+    },
+
+    "sequence_editor_denial_reason": {
+      "type": "string",
+      "enum": [
+        "sequence_editor_recovery_object_required_before_admission",
+        "sequence_editor_attribution_missing",
+        "sequence_editor_operation_target_or_output_mismatch",
+        "sequence_editor_pause_resolution_required_before_resume",
+        "sequence_editor_abort_recovery_object_required",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "sequence_editor_record_required_field_missing",
+        "sequence_editor_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the sequence_editor audit stream."
+    },
+
+    "sequence_editor_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "sequence_editor_plan_drafted",
+        "sequence_editor_plan_admitted",
+        "sequence_editor_operation_admitted",
+        "sequence_editor_operation_in_progress",
+        "sequence_editor_operation_blocked_pending_conflict",
+        "sequence_editor_operation_completed",
+        "sequence_editor_plan_completed",
+        "sequence_editor_plan_paused",
+        "sequence_editor_plan_resumed",
+        "sequence_editor_plan_aborted_rolled_back",
+        "sequence_editor_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the sequence_editor stream. sequence_editor_audit_denial_emitted MUST cite a sequence_editor_denial_reason."
+    },
+
+    "patch_stack_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_stack_schema_version",
+        "patch_stack_id",
+        "workspace_id_ref",
+        "base_branch_or_worktree_ref",
+        "base_identity_ref",
+        "patch_stack_lifecycle_state",
+        "ordered_member_id_refs",
+        "recovery_object_ref",
+        "exported_patch_stack_snapshot_ref",
+        "imported_from_patch_stack_snapshot_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "summary_label",
+        "actor_ref",
+        "created_at",
+        "updated_at",
+        "archived_at",
+        "merge_conflict_class_record_id_ref",
+        "history_edit_recovery_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_stack_record" },
+        "patch_stack_schema_version": { "$ref": "#/$defs/patch_stack_schema_version" },
+        "patch_stack_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_branch_or_worktree_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the immutable base identity the stack is rooted on. A surface that retargets the stack onto a new base resolves to a fresh patch_stack_record whose recovery_object_ref cites the prior stack; in-place mutation denies with patch_stack_base_identity_must_not_mutate_in_place."
+        },
+        "patch_stack_lifecycle_state": { "$ref": "#/$defs/patch_stack_lifecycle_state" },
+        "ordered_member_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of patch_stack_member_record ids. Ordering is the stack's landing order. Mutating this order is a fresh stack version whose recovery_object_ref pins the prior order; member rows are not destructively re-ordinaled. A duplicate ordinal across two non-superseded member rows in the same stack denies with patch_stack_member_ordinal_uniqueness_required."
+        },
+        "recovery_object_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the pre-mutation recovery object. Required (non-null) when patch_stack_lifecycle_state is anything other than patch_stack_drafting; nullable on a freshly drafted stack that has not yet admitted a topology-changing mutation."
+        },
+        "exported_patch_stack_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the snapshot the stack was exported through. Required (non-null) when an export_patch_stack_snapshot_for_handoff or export_side_branch_for_collaborator_review action has been emitted against the stack; null otherwise."
+        },
+        "imported_from_patch_stack_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the snapshot the stack was imported from. Required (non-null) when the stack was hydrated through an import_patch_stack_snapshot_from_handoff action; null otherwise."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row admitting the most recent topology-changing mutation. Required (non-null) on rollback / export actions."
+        },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command-dispatch id under which the most recent mutation was invoked. Nullable on system-driven row mints; required (non-null) on rollback / export actions."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when patch_stack_lifecycle_state is patch_stack_archived_tombstone. Null otherwise."
+        },
+        "merge_conflict_class_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge / conflict-class contract. Currently always null."
+        },
+        "history_edit_recovery_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the dedicated history-edit recovery contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every patch_stack_lifecycle_state other than patch_stack_drafting MUST cite a non-null recovery_object_ref; a missing ref denies with patch_stack_recovery_object_required_before_topology_change.",
+          "if": {
+            "properties": {
+              "patch_stack_lifecycle_state": {
+                "not": { "const": "patch_stack_drafting" }
+              }
+            },
+            "required": ["patch_stack_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "recovery_object_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["recovery_object_ref"]
+          }
+        },
+        {
+          "description": "patch_stack_archived_tombstone MUST cite a non-null archived_at and MUST be null otherwise.",
+          "if": {
+            "properties": { "patch_stack_lifecycle_state": { "const": "patch_stack_archived_tombstone" } },
+            "required": ["patch_stack_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the patch-stack panel, the AI branch-agent review surface, the sequence-editor plan view, the import / export wizard, support / export, and audit lanes. Exactly one row per patch-stack identity."
+    },
+
+    "patch_stack_member_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_stack_schema_version",
+        "patch_stack_member_id",
+        "patch_stack_id_ref",
+        "ordinal",
+        "change_object_id_ref",
+        "patch_stack_member_landing_state",
+        "validation_staleness_class",
+        "conflict_handoff_class",
+        "superseded_by_member_id_ref",
+        "recovery_object_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_stack_member_record" },
+        "patch_stack_schema_version": { "$ref": "#/$defs/patch_stack_schema_version" },
+        "patch_stack_member_id": { "$ref": "#/$defs/opaque_id" },
+        "patch_stack_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based ordinal preserving the stack's landing order. A surface that mutates ordinals destructively in place denies with patch_stack_member_silent_reorder_forbidden; the legal path is to mint a fresh member row whose superseded_by_member_id_ref cites the prior row."
+        },
+        "change_object_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/vcs/change_object.schema.json#change_object_record."
+        },
+        "patch_stack_member_landing_state": { "$ref": "#/$defs/patch_stack_member_landing_state" },
+        "validation_staleness_class": { "$ref": "#/$defs/validation_staleness_class" },
+        "conflict_handoff_class": { "$ref": "#/$defs/conflict_handoff_class" },
+        "superseded_by_member_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when patch_stack_member_landing_state is member_superseded_by_member_rewrite; cites the successor member row in the same stack. Null otherwise."
+        },
+        "recovery_object_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the pre-mutation recovery object pinned before this member row was admitted. Required (non-null) when patch_stack_member_landing_state is member_dropped_explicit_user_action, member_superseded_by_member_rewrite, member_blocked_pending_conflict_resolution, or member_blocked_pending_history_edit_recovery."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "member_blocked_pending_conflict_resolution MUST pair with conflict_resolution_packet_required_pending_decision conflict_handoff_class.",
+          "if": {
+            "properties": { "patch_stack_member_landing_state": { "const": "member_blocked_pending_conflict_resolution" } },
+            "required": ["patch_stack_member_landing_state"]
+          },
+          "then": {
+            "properties": {
+              "conflict_handoff_class": { "const": "conflict_resolution_packet_required_pending_decision" }
+            }
+          }
+        },
+        {
+          "description": "member_blocked_pending_history_edit_recovery MUST pair with history_edit_recovery_packet_required_pending_decision conflict_handoff_class.",
+          "if": {
+            "properties": { "patch_stack_member_landing_state": { "const": "member_blocked_pending_history_edit_recovery" } },
+            "required": ["patch_stack_member_landing_state"]
+          },
+          "then": {
+            "properties": {
+              "conflict_handoff_class": { "const": "history_edit_recovery_packet_required_pending_decision" }
+            }
+          }
+        },
+        {
+          "description": "member_superseded_by_member_rewrite MUST cite a non-null superseded_by_member_id_ref and a non-null recovery_object_ref so the rewrite chain remains reversible.",
+          "if": {
+            "properties": { "patch_stack_member_landing_state": { "const": "member_superseded_by_member_rewrite" } },
+            "required": ["patch_stack_member_landing_state"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_member_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "recovery_object_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["superseded_by_member_id_ref", "recovery_object_ref"]
+          }
+        },
+        {
+          "description": "member_dropped_explicit_user_action MUST cite a non-null recovery_object_ref so the drop is reversible.",
+          "if": {
+            "properties": { "patch_stack_member_landing_state": { "const": "member_dropped_explicit_user_action" } },
+            "required": ["patch_stack_member_landing_state"]
+          },
+          "then": {
+            "properties": {
+              "recovery_object_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["recovery_object_ref"]
+          }
+        }
+      ],
+      "description": "Row shape consumed by the patch-stack panel and the sequence-editor plan view. Exactly one row per stack member version; rewrite chains travel through superseded_by_member_id_ref."
+    },
+
+    "patch_stack_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_stack_schema_version",
+        "patch_stack_audit_event_id_value",
+        "audit_event_record_id",
+        "patch_stack_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_stack_audit_event_record" },
+        "patch_stack_schema_version": { "$ref": "#/$defs/patch_stack_schema_version" },
+        "patch_stack_audit_event_id_value": { "$ref": "#/$defs/patch_stack_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "patch_stack_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/patch_stack_denial_reason" }
+          ],
+          "description": "Required (non-null) when patch_stack_audit_event_id_value is patch_stack_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is patch_stack_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "patch_stack_audit_event_id_value": { "const": "patch_stack_audit_denial_emitted" } },
+            "required": ["patch_stack_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/patch_stack_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the patch_stack stream."
+    },
+
+    "sequence_editor_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_stack_schema_version",
+        "sequence_editor_plan_id",
+        "target_workspace_id_ref",
+        "target_branch_or_worktree_ref",
+        "target_base_identity_ref",
+        "target_patch_stack_id_ref",
+        "sequence_editor_lifecycle_state",
+        "ordered_operation_id_refs",
+        "recovery_object_ref",
+        "actor_ref",
+        "command_id_ref",
+        "approval_ticket_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "summary_label",
+        "created_at",
+        "updated_at",
+        "archived_at",
+        "merge_conflict_class_record_id_ref",
+        "history_edit_recovery_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "sequence_editor_plan_record" },
+        "patch_stack_schema_version": { "$ref": "#/$defs/patch_stack_schema_version" },
+        "sequence_editor_plan_id": { "$ref": "#/$defs/opaque_id" },
+        "target_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_branch_or_worktree_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_base_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_patch_stack_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when the sequence edit operates on a known patch stack; null when the edit operates on a single branch with no stack overlay."
+        },
+        "sequence_editor_lifecycle_state": { "$ref": "#/$defs/sequence_editor_lifecycle_state" },
+        "ordered_operation_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to sequence_editor_operation_record rows in the order they will execute."
+        },
+        "recovery_object_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when sequence_editor_lifecycle_state is anything other than sequence_plan_drafted; nullable only on a fresh draft. A plan that admits an operation without citing a recovery object denies with sequence_editor_recovery_object_required_before_admission."
+        },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when sequence_editor_lifecycle_state is anything other than sequence_plan_drafted. Nullable only on a fresh draft; a missing ticket once admitted denies with sequence_editor_attribution_missing."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when sequence_editor_lifecycle_state is sequence_plan_archived_tombstone. Null otherwise."
+        },
+        "merge_conflict_class_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge / conflict-class contract. Currently always null."
+        },
+        "history_edit_recovery_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the dedicated history-edit recovery contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every sequence_editor_lifecycle_state other than sequence_plan_drafted MUST cite a non-null recovery_object_ref and a non-null approval_ticket_ref; a missing ref denies with sequence_editor_recovery_object_required_before_admission or sequence_editor_attribution_missing.",
+          "if": {
+            "properties": {
+              "sequence_editor_lifecycle_state": {
+                "not": { "const": "sequence_plan_drafted" }
+              }
+            },
+            "required": ["sequence_editor_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "recovery_object_ref": { "$ref": "#/$defs/opaque_id" },
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["recovery_object_ref", "approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "sequence_plan_aborted_rolled_back_to_recovery_object MUST cite the recovery object the abort rolled back to; a missing ref denies with sequence_editor_abort_recovery_object_required.",
+          "if": {
+            "properties": { "sequence_editor_lifecycle_state": { "const": "sequence_plan_aborted_rolled_back_to_recovery_object" } },
+            "required": ["sequence_editor_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "recovery_object_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["recovery_object_ref"]
+          }
+        },
+        {
+          "description": "sequence_plan_archived_tombstone MUST cite a non-null archived_at and MUST be null otherwise.",
+          "if": {
+            "properties": { "sequence_editor_lifecycle_state": { "const": "sequence_plan_archived_tombstone" } },
+            "required": ["sequence_editor_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the sequence-editor plan view. Exactly one row per history-edit plan."
+    },
+
+    "sequence_editor_operation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_stack_schema_version",
+        "sequence_editor_operation_id",
+        "sequence_editor_plan_id_ref",
+        "ordinal",
+        "sequence_editor_operation_class",
+        "sequence_op_status",
+        "target_change_object_id_ref",
+        "output_change_object_id_ref",
+        "conflict_handoff_class",
+        "policy_context",
+        "redaction_class",
+        "summary_label",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "sequence_editor_operation_record" },
+        "patch_stack_schema_version": { "$ref": "#/$defs/patch_stack_schema_version" },
+        "sequence_editor_operation_id": { "$ref": "#/$defs/opaque_id" },
+        "sequence_editor_plan_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based ordinal preserving the plan's operation order."
+        },
+        "sequence_editor_operation_class": { "$ref": "#/$defs/sequence_editor_operation_class" },
+        "sequence_op_status": { "$ref": "#/$defs/sequence_op_status" },
+        "target_change_object_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) for pick / reword / edit / squash / fixup / drop / merge_replay; null for exec / break / label / reset. A row that mismatches the table denies with sequence_editor_operation_target_or_output_mismatch."
+        },
+        "output_change_object_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) on admitted / completed reword / edit / squash / fixup / merge_replay operations whose synthesized output is a fresh change_object_record with class change_synthesized_during_history_edit. Null on drop / exec / break / label / reset."
+        },
+        "conflict_handoff_class": { "$ref": "#/$defs/conflict_handoff_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "pick / reword / edit / squash / fixup / drop / merge_replay MUST cite a non-null target_change_object_id_ref.",
+          "if": {
+            "properties": {
+              "sequence_editor_operation_class": {
+                "enum": [
+                  "sequence_op_pick",
+                  "sequence_op_reword",
+                  "sequence_op_edit",
+                  "sequence_op_squash",
+                  "sequence_op_fixup",
+                  "sequence_op_drop",
+                  "sequence_op_merge_replay"
+                ]
+              }
+            },
+            "required": ["sequence_editor_operation_class"]
+          },
+          "then": {
+            "properties": {
+              "target_change_object_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["target_change_object_id_ref"]
+          }
+        },
+        {
+          "description": "exec / break / label / reset MUST NOT cite a target_change_object_id_ref or an output_change_object_id_ref.",
+          "if": {
+            "properties": {
+              "sequence_editor_operation_class": {
+                "enum": [
+                  "sequence_op_exec",
+                  "sequence_op_break",
+                  "sequence_op_label",
+                  "sequence_op_reset"
+                ]
+              }
+            },
+            "required": ["sequence_editor_operation_class"]
+          },
+          "then": {
+            "properties": {
+              "target_change_object_id_ref": { "type": "null" },
+              "output_change_object_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "drop MUST cite a null output_change_object_id_ref.",
+          "if": {
+            "properties": { "sequence_editor_operation_class": { "const": "sequence_op_drop" } },
+            "required": ["sequence_editor_operation_class"]
+          },
+          "then": {
+            "properties": {
+              "output_change_object_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Completed reword / edit / squash / fixup / merge_replay MUST cite a non-null output_change_object_id_ref.",
+          "if": {
+            "properties": {
+              "sequence_editor_operation_class": {
+                "enum": [
+                  "sequence_op_reword",
+                  "sequence_op_edit",
+                  "sequence_op_squash",
+                  "sequence_op_fixup",
+                  "sequence_op_merge_replay"
+                ]
+              },
+              "sequence_op_status": { "const": "op_completed" }
+            },
+            "required": ["sequence_editor_operation_class", "sequence_op_status"]
+          },
+          "then": {
+            "properties": {
+              "output_change_object_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["output_change_object_id_ref"]
+          }
+        },
+        {
+          "description": "op_blocked_pending_conflict MUST pair with conflict_resolution_packet_required_pending_decision.",
+          "if": {
+            "properties": { "sequence_op_status": { "const": "op_blocked_pending_conflict" } },
+            "required": ["sequence_op_status"]
+          },
+          "then": {
+            "properties": {
+              "conflict_handoff_class": { "const": "conflict_resolution_packet_required_pending_decision" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the sequence-editor plan view. Exactly one row per history-edit operation."
+    },
+
+    "sequence_editor_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_stack_schema_version",
+        "sequence_editor_audit_event_id_value",
+        "audit_event_record_id",
+        "sequence_editor_plan_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "command_id_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "sequence_editor_audit_event_record" },
+        "patch_stack_schema_version": { "$ref": "#/$defs/patch_stack_schema_version" },
+        "sequence_editor_audit_event_id_value": { "$ref": "#/$defs/sequence_editor_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "sequence_editor_plan_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "sequence_editor_operation_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the operation this audit event names (set on sequence_editor_operation_* event ids; null on plan-level events)."
+        },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/sequence_editor_denial_reason" }
+          ],
+          "description": "Required (non-null) when sequence_editor_audit_event_id_value is sequence_editor_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is sequence_editor_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "sequence_editor_audit_event_id_value": { "const": "sequence_editor_audit_denial_emitted" } },
+            "required": ["sequence_editor_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/sequence_editor_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the sequence_editor stream."
+    }
+  }
+}

@@ -8516,6 +8516,282 @@ artifacts:
       ticket bodies, no raw notebook cell text, no raw
       terminal bytes, no raw URLs).
 
+  - id: change_stack_contract
+    title: Change-object, worktree, patch-stack, and sequence-editor contract
+    canonical_location: docs/vcs/change_stack_contract.md
+    overview_page: docs/vcs/change_stack_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative cross-tool contract binding every surface that
+      names a change (diff explorer, AI branch-agent panel,
+      patch-stack panel, sequence-editor plan view, import /
+      export wizard, support / export, audit lane) to one
+      change_object_record (change_object_class drawn from the
+      five-value vocabulary commit_authored_locally, commit_
+      imported_from_remote, change_authored_by_ai_branch_agent,
+      change_imported_from_patch_bundle, change_synthesized_
+      during_history_edit; change_object_authorship_class drawn
+      from the five-value vocabulary human_user_authored, pair_
+      session_co_authored, ai_branch_agent_authored, imported_
+      from_external_patch_bundle, synthesized_by_history_edit_
+      operation; change_object_landing_state drawn from the
+      eight-value vocabulary unsubmitted_local_only, submitted_
+      review_pending, submitted_review_in_progress, accepted_
+      landed_canonical, accepted_landed_via_squash_or_fixup,
+      dropped_explicit_user_action, superseded_by_rewrite,
+      abandoned_orphan_pending_cleanup; worktree_lifecycle_state
+      drawn from the seven-value vocabulary worktree_pristine,
+      worktree_active_editing, worktree_in_sequence_edit,
+      worktree_paused_pending_conflict, worktree_archived_orphan
+      _pending_cleanup, worktree_exported_for_handoff, worktree_
+      torn_down so cross-worktree writes are mechanically
+      forbidden), one patch_stack_record per ordered base-pinned
+      member sequence (patch_stack_lifecycle_state drawn from
+      the seven-value vocabulary patch_stack_drafting, patch_
+      stack_active_review_open, patch_stack_paused_pending_
+      conflict, patch_stack_paused_pending_history_edit_
+      recovery, patch_stack_landed_completed, patch_stack_
+      abandoned_rolled_back, patch_stack_archived_tombstone),
+      one patch_stack_member_record per stack member (eight-
+      value patch_stack_member_landing_state, five-value
+      validation_staleness_class), one sequence_editor_plan_
+      record per history-edit plan (eight-value sequence_editor
+      _lifecycle_state), and one sequence_editor_operation_
+      record per pick / reword / edit / squash / fixup / drop /
+      exec / break / label / reset / merge_replay operation
+      (six-value sequence_op_status). Forces every topology-
+      changing flow to mint exactly one recovery_object before
+      mutation (recovery_object_class drawn from the five-value
+      vocabulary pre_mutation_reflog_anchor_minted, pre_mutation
+      _local_history_checkpoint_minted, pre_mutation_patch_stack
+      _snapshot_minted, pre_mutation_branch_label_anchor_minted,
+      pre_mutation_combined_recovery_packet_minted) so a plan
+      that admits an operation without a recovery object denies
+      with sequence_editor_recovery_object_required_before_
+      admission, a stack lifecycle past patch_stack_drafting
+      without a recovery object denies with patch_stack_
+      recovery_object_required_before_topology_change, and a
+      synthesized history-edit output without a recovery object
+      denies with change_object_recovery_object_required_before_
+      topology_change. Forces ai_branch_agent_authored
+      authorship to cite a non-null ai_branch_agent_run_ref into
+      schemas/automation/run_record.schema.json (denies with ai_
+      branch_agent_run_ref_required_for_ai_authored_change),
+      imported_from_external_patch_bundle authorship to cite a
+      non-null imported_patch_bundle_ref (denies with imported_
+      patch_bundle_ref_required_for_imported_change), patch-
+      stack base_identity_ref to be immutable for the stack's
+      life (denies in-place mutation with patch_stack_base_
+      identity_must_not_mutate_in_place), member ordering to be
+      preserved through superseded_by_member_id_ref chains
+      (denies silent reorder with patch_stack_member_silent_
+      reorder_forbidden), and orphan-worktree cleanup under
+      cleanup_export_then_archive or cleanup_blocked_pending_
+      export_for_handoff to cite a non-null exported_patch_
+      stack_snapshot_ref (denies silent reaping with worktree_
+      orphan_silent_reap_forbidden). Defines the six-value
+      rollback_or_export_class vocabulary (rollback_to_pre_
+      mutation_recovery_object, export_patch_stack_snapshot_for
+      _handoff, export_ai_branch_agent_run_for_review, export_
+      side_branch_for_collaborator_review, export_for_support_
+      bundle, import_patch_stack_snapshot_from_handoff) so
+      rollback / export determinism is reviewable. Cross-
+      references the merge / conflict-class contract and the
+      dedicated history-edit recovery contract through the
+      five-value conflict_handoff_class vocabulary and reserves
+      merge_conflict_class_record_id_ref and history_edit_
+      recovery_record_id_ref forward-dependency slots that
+      become required non-null when those contracts land.
+      Composes with schemas/vcs/review_workspace.schema.json
+      (a submitted_review_* landing state cites a review_
+      workspace_record), schemas/recovery/local_history_entry.
+      schema.json (pre_mutation_local_history_checkpoint_minted
+      recovery objects), schemas/workspace/source_locator.
+      schema.json and schemas/workspace/checkout_plan.schema.
+      json (opaque locators), schemas/integration/approval_
+      ticket.schema.json (every rollback / export action),
+      schemas/automation/run_record.schema.json (AI branch-agent
+      run lineage), schemas/governance/capability_lifecycle.
+      schema.json (re-exported freshness / client_scope /
+      redaction vocabularies), and schemas/identity/policy_
+      bundle.schema.json (workspace trust / policy envelope).
+      Implementing Git plumbing, sequence editors, branch-agent
+      workflows, the merge / conflict-class contract, and the
+      dedicated history-edit recovery contract named explicitly
+      out of scope at this revision.
+
+  - id: change_object_schema
+    title: Change-object and worktree-lifecycle boundary schema
+    canonical_location: schemas/vcs/change_object.schema.json
+    overview_page: docs/vcs/change_stack_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the change_object_record
+      and change_object_audit_event_record shapes frozen in
+      docs/vcs/change_stack_contract.md. additionalProperties
+      false everywhere. allOf gates force ai_branch_agent_
+      envelope non-null when change_object_class is change_
+      authored_by_ai_branch_agent (and null otherwise),
+      imported_patch_bundle_envelope non-null when class is
+      change_imported_from_patch_bundle (and null otherwise),
+      change_synthesized_during_history_edit to resolve
+      authorship to synthesized_by_history_edit_operation and
+      cite a non-null recovery_object, abandoned_orphan_pending_
+      cleanup landing state to pair with a non-null worktree_
+      orphan_cleanup_class, worktree_archived_orphan_pending_
+      cleanup lifecycle to pair with a non-null worktree_
+      orphan_cleanup_class, cleanup_export_then_archive and
+      cleanup_blocked_pending_export_for_handoff to cite a
+      non-null exported_patch_stack_snapshot_ref, worktree_
+      paused_pending_conflict to pair with a conflict_
+      resolution_packet_* conflict_handoff_class, and
+      authorship classes to pair with their matching change-
+      object classes. Re-exports freshness_class / client_
+      scope / redaction_class from schemas/governance/
+      capability_lifecycle.schema.json and workspace_trust_
+      state_class from the identity family without
+      redefinition. Adding a new record_kind, change_object_
+      class, change_object_authorship_class, change_object_
+      landing_state, worktree_lifecycle_state, recovery_object
+      _class, conflict_handoff_class, worktree_orphan_cleanup_
+      class, rollback_or_export_class, change_object_denial_
+      reason, or change_object_audit_event_id is additive-
+      minor and bumps change_object_schema_version; repurposing
+      an existing value is breaking and requires a new
+      decision row.
+
+  - id: patch_stack_schema
+    title: Patch-stack and sequence-editor boundary schema
+    canonical_location: schemas/vcs/patch_stack.schema.json
+    overview_page: docs/vcs/change_stack_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the patch_stack_record,
+      patch_stack_member_record, patch_stack_audit_event_
+      record, sequence_editor_plan_record, sequence_editor_
+      operation_record, and sequence_editor_audit_event_record
+      shapes frozen in docs/vcs/change_stack_contract.md.
+      additionalProperties false everywhere. allOf gates force
+      every patch_stack_lifecycle_state past patch_stack_
+      drafting to cite a non-null recovery_object_ref, every
+      sequence_editor_lifecycle_state past sequence_plan_
+      drafted to cite a non-null recovery_object_ref plus a
+      non-null approval_ticket_ref, sequence_plan_aborted_
+      rolled_back_to_recovery_object to cite the recovery
+      object the abort rolled back to, member_blocked_pending_
+      conflict_resolution to pair with conflict_resolution_
+      packet_required_pending_decision conflict_handoff_class,
+      member_blocked_pending_history_edit_recovery to pair
+      with history_edit_recovery_packet_required_pending_
+      decision, member_superseded_by_member_rewrite to cite a
+      non-null superseded_by_member_id_ref and a non-null
+      recovery_object_ref, sequence-editor pick / reword /
+      edit / squash / fixup / drop / merge_replay operations
+      to cite a non-null target_change_object_id_ref, exec /
+      break / label / reset operations to cite null
+      target_change_object_id_ref and null output_change_
+      object_id_ref, drop to cite a null output_change_object_
+      id_ref, and op_completed reword / edit / squash / fixup /
+      merge_replay to cite a non-null output_change_object_id
+      _ref. Re-exports the conflict_handoff_class vocabulary
+      from schemas/vcs/change_object.schema.json verbatim;
+      re-exports freshness_class / client_scope / redaction_
+      class from schemas/governance/capability_lifecycle.
+      schema.json and workspace_trust_state_class from the
+      identity family without redefinition. Adding a new
+      record_kind, patch_stack_lifecycle_state, patch_stack_
+      member_landing_state, validation_staleness_class,
+      sequence_editor_operation_class, sequence_op_status,
+      sequence_editor_lifecycle_state, patch_stack_denial_
+      reason, patch_stack_audit_event_id, sequence_editor_
+      denial_reason, or sequence_editor_audit_event_id is
+      additive-minor and bumps patch_stack_schema_version;
+      repurposing an existing value is breaking and requires
+      a new decision row.
+
+  - id: change_stack_cases_fixtures
+    title: Change-object, worktree, patch-stack, and sequence-editor worked fixtures
+    canonical_location: fixtures/vcs/change_stack_cases/
+    overview_page: docs/vcs/change_stack_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example YAML fixtures for the change-object,
+      worktree-lifecycle, patch-stack, and sequence-editor
+      contract and schemas. Covers one locally authored solo
+      commit with a pre-mutation local-history checkpoint
+      pinned (acceptance bullet 1), one AI branch-agent
+      authored change attributable through ai_branch_agent_
+      run_ref into the run-record envelope (acceptance bullet
+      4), one orphan-worktree cleanup case under cleanup_
+      export_then_archive with a non-null exported_patch_
+      stack_snapshot_ref so silent reaping is forbidden
+      (acceptance bullet 3), one change_object_audit_event_
+      record carrying the cross_worktree_write_forbidden
+      denial when a downstream surface attempted to mutate a
+      change object through a different worktree (acceptance
+      bullet 3), one history-edit synthesized change_object_
+      record citing a predecessor chain and a pre_mutation_
+      combined_recovery_packet_minted recovery object
+      (acceptance bullet 1 + bullet 4); one three-member
+      patch_stack_record with the immutable base identity
+      pinned, ordered landing order, and a pre-mutation patch-
+      stack snapshot recovery object (acceptance bullet 2),
+      one patch_stack_member_record whose validation_
+      staleness_class is validation_stale_base_advanced so
+      the chip surfaces honest staleness, one patch_stack_
+      record imported through imported_from_patch_stack_
+      snapshot_ref, and one patch_stack_audit_event_record
+      carrying the patch_stack_member_silent_reorder_
+      forbidden denial when a downstream surface tried to
+      mutate ordered_member_id_refs in place (acceptance
+      bullet 3); one sequence_editor_plan_record admitted with
+      a non-null recovery_object_ref + actor_ref + command_id
+      _ref + approval_ticket_ref, one sequence_editor_
+      operation_record covering a completed squash whose
+      output_change_object_id_ref pairs with the synthesized
+      change-object fixture, one sequence_editor_plan_record
+      paused on a conflict citing op_blocked_pending_conflict
+      and conflict_resolution_packet_required_pending_decision,
+      one sequence_editor_plan_record aborted and rolled back
+      to the same pre-mutation recovery object the plan
+      pinned at admission (acceptance bullet 1 + bullet 4),
+      and one sequence_editor_audit_event_record carrying
+      the sequence_editor_recovery_object_required_before_
+      admission denial (acceptance bullet 1). Each fixture
+      cites the contract sections it exercises in the
+      directory README and carries only opaque workspace /
+      branch / revision / change-object / patch-stack /
+      patch-stack-member / sequence-editor-plan / sequence-
+      editor-operation / recovery-object / approval-ticket /
+      command / actor / run-record / patch-bundle / patch-
+      stack-snapshot / policy-epoch / build-identity handles
+      plus monotonic placeholder timestamps and redaction-
+      aware labels (no raw absolute paths, no raw branch /
+      commit URLs, no raw author identity strings, no raw
+      commit message bodies, no raw patch bodies, no raw
+      run-log bodies, no raw approval-ticket bodies, no raw
+      notebook cell text, no raw terminal bytes, no raw URLs).
+
 # -----------------------------------------------------------------------------
 # Review cadence vocabulary.
 #

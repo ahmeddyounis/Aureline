@@ -1211,9 +1211,13 @@ rows:
     representative_schemas:
       - schemas/vcs/review_workspace.schema.json
       - schemas/vcs/review_anchor.schema.json
+      - schemas/vcs/change_object.schema.json
+      - schemas/vcs/patch_stack.schema.json
     notes: >
       Review-workspace, comment-anchor, and merge-queue boundary
-      (see docs/vcs/review_workspace_contract.md).
+      (see docs/vcs/review_workspace_contract.md), plus the
+      change-object / worktree / patch-stack / sequence-editor
+      boundary (see docs/vcs/change_stack_contract.md).
       review_workspace.schema.json freezes the
       review_workspace_record (source class drawn from the
       five-value vocabulary local_branch_or_worktree, provider_
@@ -1257,7 +1261,54 @@ rows:
       blocked-reason value, denial reason, or audit-event id is
       additive-minor and bumps the per-record schema_version
       const; repurposing an existing value is breaking and
-      requires a new decision row.
+      requires a new decision row. change_object.schema.json
+      freezes the change_object_record (five-value change_object
+      _class, five-value change_object_authorship_class, eight-
+      value change_object_landing_state, seven-value worktree_
+      lifecycle_state, five-value recovery_object_class, five-
+      value conflict_handoff_class, four-value worktree_orphan_
+      cleanup_class, six-value rollback_or_export_class) under
+      allOf gates that pair authorship with class, force ai_
+      branch_agent_envelope and imported_patch_bundle_envelope
+      to be non-null only on the matching change-object class,
+      force change_synthesized_during_history_edit to cite a
+      non-null recovery_object, force abandoned_orphan_pending_
+      cleanup to cite a worktree_orphan_cleanup_class, force
+      cleanup_export_then_archive and cleanup_blocked_pending_
+      export_for_handoff to cite a non-null exported_patch_
+      stack_snapshot_ref, and force worktree_paused_pending_
+      conflict to pair with a conflict_resolution_packet_*
+      conflict_handoff_class. patch_stack.schema.json freezes
+      the patch_stack_record (seven-value patch_stack_
+      lifecycle_state), patch_stack_member_record (eight-value
+      patch_stack_member_landing_state, five-value validation
+      _staleness_class), sequence_editor_plan_record (eight-
+      value sequence_editor_lifecycle_state), and sequence_
+      editor_operation_record (eleven-value sequence_editor_
+      operation_class, six-value sequence_op_status) under
+      allOf gates that force every lifecycle past the draft
+      state to cite a non-null recovery_object_ref, force
+      sequence-editor plan admission to cite a non-null
+      approval_ticket_ref, force sequence_plan_aborted_rolled_
+      back_to_recovery_object to cite the rollback recovery
+      object, force pick / reword / edit / squash / fixup /
+      drop / merge_replay to cite a non-null target_change_
+      object_id_ref, force exec / break / label / reset to
+      cite null target_change_object_id_ref and null output
+      _change_object_id_ref, force drop to cite a null output
+      _change_object_id_ref, force op_completed reword / edit
+      / squash / fixup / merge_replay to cite a non-null
+      output_change_object_id_ref, force member_blocked_
+      pending_conflict_resolution and member_blocked_pending_
+      history_edit_recovery to pair with their respective
+      conflict_handoff_class values, force member_superseded_
+      by_member_rewrite to cite a non-null superseded_by_
+      member_id_ref and a non-null recovery_object_ref, and
+      reserve merge_conflict_class_record_id_ref and history_
+      edit_recovery_record_id_ref forward-dependency slots
+      that become required non-null when the merge / conflict-
+      class contract and the dedicated history-edit recovery
+      contract land.
 
   - family_id: workspace
     schema_home: schemas/workspace/

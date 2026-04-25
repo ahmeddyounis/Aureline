@@ -1,0 +1,708 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/change_object.schema.json",
+  "title": "Aureline change-object and worktree-lifecycle vocabulary",
+  "description": "Boundary schema for the change-object record family frozen in docs/vcs/change_stack_contract.md. One record family pins which change a surface is operating on (locally authored commit, commit imported from a remote authority, change authored by an AI branch-agent run, change imported from a patch bundle, or change synthesized during a history-edit operation), the bound worktree-lifecycle posture from the closed seven-value vocabulary so cross-worktree writes are mechanically forbidden, the change's authorship class, the immutable base identity and predecessor chain, the closed eight-value landing-state vocabulary, the recovery object minted before any topology-changing mutation (drawn from the closed five-value recovery_object_class vocabulary), the conflict-handoff class linking into the merge / conflict-class contract and the dedicated history-edit recovery contract (forward dependencies), the optional orphan-cleanup posture with the cleanup-export-then-archive subclass forced to cite an export ref before reaping, the rollback / export class vocabulary, the policy / trust envelope, and the audit-event row shape on the change_object stream. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw run-log bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / authority / lifecycle state only. The eventual change-stack crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, change_object_class, change_object_authorship_class, change_object_landing_state, worktree_lifecycle_state, recovery_object_class, conflict_handoff_class, worktree_orphan_cleanup_class, rollback_or_export_class, denial reason, or audit-event id is additive-minor and bumps change_object_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/change_object_record" },
+    { "$ref": "#/$defs/change_object_audit_event_record" }
+  ],
+  "$defs": {
+    "change_object_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the change-object vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "change_object_record",
+        "change_object_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw run-log bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Local-only change objects default to metadata_safe_default; AI branch-agent authored changes touching organisationally restricted state MAY raise to internal_support_restricted; change objects whose target touched a credentialed flow MUST raise to operator_only_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Used by the change-object's freshness chip; per-stack-member validation freshness lives in patch_stack.schema.json#validation_staleness_class."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018. A change object minted under unset_pending_decision MUST resolve through a trust prompt before topology-changing mutations are admissible; the schema enforces this through workspace_trust_unset_or_restricted denial."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 / ADR-0018 trust state are re-validated on every restore and topology-changing mutation; a stale policy epoch denies the action with policy_epoch_expired_re_evaluation_required."
+    },
+
+    "change_object_class": {
+      "type": "string",
+      "enum": [
+        "commit_authored_locally",
+        "commit_imported_from_remote",
+        "change_authored_by_ai_branch_agent",
+        "change_imported_from_patch_bundle",
+        "change_synthesized_during_history_edit"
+      ],
+      "description": "Frozen change-object class. commit_authored_locally is a commit / change authored on the user's own clone (authorship resolves to human_user_authored or pair_session_co_authored); commit_imported_from_remote is a commit fetched from a remote authority (authorship is whichever class the import chain reports); change_authored_by_ai_branch_agent is authored by an AI branch-agent run (authorship MUST resolve to ai_branch_agent_authored and ai_branch_agent_run_ref MUST be non-null); change_imported_from_patch_bundle is hydrated from an imported patch bundle (imported_patch_bundle_ref MUST be non-null); change_synthesized_during_history_edit is synthesized by a sequence-editor operation (authorship MUST resolve to synthesized_by_history_edit_operation and the row MUST cite a recovery_object_ref so a rollback to the pre-rewrite state is reachable)."
+    },
+
+    "change_object_authorship_class": {
+      "type": "string",
+      "enum": [
+        "human_user_authored",
+        "pair_session_co_authored",
+        "ai_branch_agent_authored",
+        "imported_from_external_patch_bundle",
+        "synthesized_by_history_edit_operation"
+      ],
+      "description": "Frozen change-object authorship class. Pairs with change_object_class through allOf gates: ai_branch_agent_authored MUST pair with change_authored_by_ai_branch_agent (and ai_branch_agent_run_ref MUST be non-null); imported_from_external_patch_bundle MUST pair with change_imported_from_patch_bundle; synthesized_by_history_edit_operation MUST pair with change_synthesized_during_history_edit."
+    },
+
+    "change_object_landing_state": {
+      "type": "string",
+      "enum": [
+        "unsubmitted_local_only",
+        "submitted_review_pending",
+        "submitted_review_in_progress",
+        "accepted_landed_canonical",
+        "accepted_landed_via_squash_or_fixup",
+        "dropped_explicit_user_action",
+        "superseded_by_rewrite",
+        "abandoned_orphan_pending_cleanup"
+      ],
+      "description": "Frozen change-object landing-state vocabulary. submitted_review_* MUST cite a review_workspace_record (this schema never duplicates the review-state vocabulary). abandoned_orphan_pending_cleanup MUST pair with a non-null worktree_orphan_cleanup_class."
+    },
+
+    "worktree_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "worktree_pristine",
+        "worktree_active_editing",
+        "worktree_in_sequence_edit",
+        "worktree_paused_pending_conflict",
+        "worktree_archived_orphan_pending_cleanup",
+        "worktree_exported_for_handoff",
+        "worktree_torn_down"
+      ],
+      "description": "Frozen worktree-lifecycle vocabulary. worktree_in_sequence_edit denies cross-worktree writes through the cross_worktree_write_forbidden denial; worktree_paused_pending_conflict MUST pair with a conflict_resolution_packet_* conflict_handoff_class; worktree_archived_orphan_pending_cleanup MUST cite a worktree_orphan_cleanup_class."
+    },
+
+    "recovery_object_class": {
+      "type": "string",
+      "enum": [
+        "pre_mutation_reflog_anchor_minted",
+        "pre_mutation_local_history_checkpoint_minted",
+        "pre_mutation_patch_stack_snapshot_minted",
+        "pre_mutation_branch_label_anchor_minted",
+        "pre_mutation_combined_recovery_packet_minted"
+      ],
+      "description": "Frozen recovery-object class vocabulary. Every topology-changing flow mints exactly one recovery object and pins its ref before the mutation begins. pre_mutation_local_history_checkpoint_minted resolves into schemas/recovery/local_history_entry.schema.json; pre_mutation_patch_stack_snapshot_minted resolves into schemas/vcs/patch_stack.schema.json#patch_stack_record (a snapshot ref pinning the pre-mutation ordered members); pre_mutation_combined_recovery_packet_minted cites two or more recovery surfaces."
+    },
+
+    "recovery_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recovery_object_ref", "recovery_object_class", "minted_at"],
+      "properties": {
+        "recovery_object_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the minted recovery object. Resolves into schemas/recovery/local_history_entry.schema.json or schemas/vcs/patch_stack.schema.json depending on recovery_object_class."
+        },
+        "recovery_object_class": { "$ref": "#/$defs/recovery_object_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Pre-mutation recovery object. Required (non-null) on every change object whose change_object_class is change_synthesized_during_history_edit and on every change object that admits a topology-changing mutation; nullable otherwise."
+    },
+
+    "conflict_handoff_class": {
+      "type": "string",
+      "enum": [
+        "no_conflict_path_required",
+        "conflict_resolution_packet_required_pending_decision",
+        "conflict_resolution_packet_admitted_user_resolved",
+        "history_edit_recovery_packet_required_pending_decision",
+        "history_edit_recovery_packet_admitted_user_resolved"
+      ],
+      "description": "Frozen conflict-handoff class vocabulary. Cross-link from a change object into the merge / conflict-class contract and the dedicated history-edit recovery contract (both forward dependencies). conflict_resolution_packet_* values pair with merge_conflict_class_record_id_ref once that contract lands; history_edit_recovery_packet_* values pair with history_edit_recovery_record_id_ref once that contract lands."
+    },
+
+    "worktree_orphan_cleanup_class": {
+      "type": "string",
+      "enum": [
+        "cleanup_archive_with_tombstone_only_no_reuse",
+        "cleanup_export_then_archive",
+        "cleanup_explicit_user_discard_acknowledged",
+        "cleanup_blocked_pending_export_for_handoff"
+      ],
+      "description": "Frozen orphan-cleanup vocabulary. cleanup_export_then_archive MUST cite a non-null exported_patch_stack_snapshot_ref before the orphan is reaped; silent reaping denies with worktree_orphan_silent_reap_forbidden."
+    },
+
+    "rollback_or_export_class": {
+      "type": "string",
+      "enum": [
+        "rollback_to_pre_mutation_recovery_object",
+        "export_patch_stack_snapshot_for_handoff",
+        "export_ai_branch_agent_run_for_review",
+        "export_side_branch_for_collaborator_review",
+        "export_for_support_bundle",
+        "import_patch_stack_snapshot_from_handoff"
+      ],
+      "description": "Frozen rollback / export vocabulary. rollback_to_pre_mutation_recovery_object MUST cite the recovery_object_ref it is rolling back to (denies with rollback_or_export_recovery_object_required); export_ai_branch_agent_run_for_review MUST cite a non-null ai_branch_agent_run_ref; export_for_support_bundle MUST raise redaction_class to internal_support_restricted; import_patch_stack_snapshot_from_handoff MUST cite a non-null imported_from_patch_stack_snapshot_ref and an approval ticket."
+    },
+
+    "change_object_denial_reason": {
+      "type": "string",
+      "enum": [
+        "cross_worktree_write_forbidden",
+        "ai_branch_agent_run_ref_required_for_ai_authored_change",
+        "imported_patch_bundle_ref_required_for_imported_change",
+        "change_object_recovery_object_required_before_topology_change",
+        "change_object_authorship_class_class_mismatch",
+        "worktree_orphan_silent_reap_forbidden",
+        "worktree_orphan_cleanup_class_required_for_orphan_state",
+        "rollback_or_export_recovery_object_required",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "change_object_record_required_field_missing",
+        "change_object_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the change_object audit stream."
+    },
+
+    "change_object_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "change_object_minted",
+        "change_object_authorship_resolved",
+        "change_object_landing_state_changed",
+        "change_object_recovery_object_pinned",
+        "change_object_rolled_back_to_recovery_object",
+        "change_object_exported_for_handoff",
+        "change_object_imported_from_bundle",
+        "change_object_archived",
+        "change_object_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the change_object stream. change_object_audit_denial_emitted MUST cite a change_object_denial_reason."
+    },
+
+    "local_locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_id_ref", "branch_or_worktree_ref", "worktree_lifecycle_state"],
+      "properties": {
+        "workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the workspace row in schemas/workspace/* the change is bound to."
+        },
+        "branch_or_worktree_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the single branch / worktree row the change pins. Raw branch names and raw absolute paths never appear here. A change object names exactly one branch_or_worktree_ref; a row that names two locators denies with cross_worktree_write_forbidden."
+        },
+        "worktree_lifecycle_state": { "$ref": "#/$defs/worktree_lifecycle_state" },
+        "head_revision_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the head revision the change is rooted on. Null until the change is pinned to a head."
+        }
+      },
+      "description": "Local locator. The change object names exactly one workspace, one branch / worktree, and one worktree-lifecycle state."
+    },
+
+    "ai_branch_agent_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ai_branch_agent_run_ref"],
+      "properties": {
+        "ai_branch_agent_run_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/automation/run_record.schema.json#run_record. The run shape (model class, capabilities, tool calls, outputs) lives there; this row never duplicates it."
+        }
+      },
+      "description": "AI branch-agent envelope. Required (non-null) when change_object_class is change_authored_by_ai_branch_agent and authorship is ai_branch_agent_authored."
+    },
+
+    "imported_patch_bundle_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["imported_patch_bundle_ref", "imported_at"],
+      "properties": {
+        "imported_patch_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the imported patch-bundle row. The bundle's source class, signing block, and provenance live on the bundle record; this row never duplicates them."
+        },
+        "imported_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Imported-patch-bundle envelope. Required (non-null) when change_object_class is change_imported_from_patch_bundle."
+    },
+
+    "change_object_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "change_object_schema_version",
+        "change_object_id",
+        "change_object_class",
+        "change_object_authorship_class",
+        "change_object_landing_state",
+        "local_locator",
+        "base_identity_ref",
+        "prior_change_object_id_refs",
+        "ai_branch_agent_envelope",
+        "imported_patch_bundle_envelope",
+        "recovery_object",
+        "conflict_handoff_class",
+        "worktree_orphan_cleanup_class",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "created_at",
+        "updated_at",
+        "archived_at",
+        "merge_conflict_class_record_id_ref",
+        "history_edit_recovery_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "change_object_record" },
+        "change_object_schema_version": { "$ref": "#/$defs/change_object_schema_version" },
+        "change_object_id": { "$ref": "#/$defs/opaque_id" },
+        "change_object_class": { "$ref": "#/$defs/change_object_class" },
+        "change_object_authorship_class": { "$ref": "#/$defs/change_object_authorship_class" },
+        "change_object_landing_state": { "$ref": "#/$defs/change_object_landing_state" },
+        "local_locator": { "$ref": "#/$defs/local_locator" },
+        "base_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the base / parent identity the change is rooted on. Immutable for the change's life; a surface that retargets onto a new base resolves to a fresh change_object_record whose recovery_object_ref cites the prior change."
+        },
+        "prior_change_object_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Predecessor chain of change-object id refs. Empty on a fresh change; non-empty when the change was rewritten / rebased / superseded. The successor's row records the chain rather than mutating the predecessor in place."
+        },
+        "ai_branch_agent_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/ai_branch_agent_envelope" }
+          ],
+          "description": "Required (non-null) when change_object_class is change_authored_by_ai_branch_agent. Null otherwise."
+        },
+        "imported_patch_bundle_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/imported_patch_bundle_envelope" }
+          ],
+          "description": "Required (non-null) when change_object_class is change_imported_from_patch_bundle. Null otherwise."
+        },
+        "recovery_object": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/recovery_object" }
+          ],
+          "description": "Pre-mutation recovery object. Required (non-null) when change_object_class is change_synthesized_during_history_edit; required (non-null) when the change_object_landing_state is dropped_explicit_user_action, superseded_by_rewrite, or abandoned_orphan_pending_cleanup; nullable on a fresh local commit that has not yet admitted a topology-changing mutation."
+        },
+        "conflict_handoff_class": { "$ref": "#/$defs/conflict_handoff_class" },
+        "worktree_orphan_cleanup_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/worktree_orphan_cleanup_class" }
+          ],
+          "description": "Required (non-null) when change_object_landing_state is abandoned_orphan_pending_cleanup or worktree_lifecycle_state is worktree_archived_orphan_pending_cleanup. Null otherwise."
+        },
+        "exported_patch_stack_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the patch-stack snapshot the change was exported through. Required (non-null) when worktree_orphan_cleanup_class is cleanup_export_then_archive or cleanup_blocked_pending_export_for_handoff or when worktree_lifecycle_state is worktree_exported_for_handoff. Null otherwise."
+        },
+        "imported_from_patch_stack_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the patch-stack snapshot the change was imported from. Required (non-null) when change_object_class is change_imported_from_patch_bundle and the import resolved through a patch-stack handoff snapshot; null otherwise."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row that admitted the most recent topology-changing mutation. Required (non-null) on rollback / export actions; nullable on local-only edits."
+        },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command-dispatch id under which the most recent mutation was invoked. Nullable on system-driven row mints; required (non-null) on rollback / export actions."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the acting identity (the user, the AI run actor, or the import actor). Always non-null so the row remains attributable; co-authors travel through the collaboration session record when authorship is pair_session_co_authored."
+        },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when worktree_lifecycle_state is worktree_torn_down or change_object_landing_state is abandoned_orphan_pending_cleanup. Null otherwise."
+        },
+        "merge_conflict_class_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge / conflict-class contract. Currently always null; once the conflict-class contract lands, every row whose conflict_handoff_class is conflict_resolution_packet_required_pending_decision or conflict_resolution_packet_admitted_user_resolved MUST cite the merge / conflict-class row that resolved the conflict."
+        },
+        "history_edit_recovery_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the dedicated history-edit recovery contract. Currently always null; once the history-edit recovery contract lands, every row whose conflict_handoff_class is history_edit_recovery_packet_required_pending_decision or history_edit_recovery_packet_admitted_user_resolved MUST cite the history-edit recovery row that resolved the escalation."
+        }
+      },
+      "allOf": [
+        {
+          "description": "ai_branch_agent_envelope is required (non-null) when change_object_class is change_authored_by_ai_branch_agent and MUST be null otherwise.",
+          "if": {
+            "properties": { "change_object_class": { "const": "change_authored_by_ai_branch_agent" } },
+            "required": ["change_object_class"]
+          },
+          "then": {
+            "properties": {
+              "ai_branch_agent_envelope": { "$ref": "#/$defs/ai_branch_agent_envelope" },
+              "change_object_authorship_class": { "const": "ai_branch_agent_authored" }
+            },
+            "required": ["ai_branch_agent_envelope"]
+          },
+          "else": {
+            "properties": {
+              "ai_branch_agent_envelope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "imported_patch_bundle_envelope is required (non-null) when change_object_class is change_imported_from_patch_bundle and MUST be null otherwise.",
+          "if": {
+            "properties": { "change_object_class": { "const": "change_imported_from_patch_bundle" } },
+            "required": ["change_object_class"]
+          },
+          "then": {
+            "properties": {
+              "imported_patch_bundle_envelope": { "$ref": "#/$defs/imported_patch_bundle_envelope" },
+              "change_object_authorship_class": { "const": "imported_from_external_patch_bundle" }
+            },
+            "required": ["imported_patch_bundle_envelope"]
+          },
+          "else": {
+            "properties": {
+              "imported_patch_bundle_envelope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "change_synthesized_during_history_edit MUST resolve change_object_authorship_class to synthesized_by_history_edit_operation and MUST cite a non-null recovery_object so a rollback to the pre-rewrite state is reachable.",
+          "if": {
+            "properties": { "change_object_class": { "const": "change_synthesized_during_history_edit" } },
+            "required": ["change_object_class"]
+          },
+          "then": {
+            "properties": {
+              "change_object_authorship_class": { "const": "synthesized_by_history_edit_operation" },
+              "recovery_object": { "$ref": "#/$defs/recovery_object" }
+            },
+            "required": ["recovery_object"]
+          }
+        },
+        {
+          "description": "abandoned_orphan_pending_cleanup landing-state MUST pair with a non-null worktree_orphan_cleanup_class.",
+          "if": {
+            "properties": { "change_object_landing_state": { "const": "abandoned_orphan_pending_cleanup" } },
+            "required": ["change_object_landing_state"]
+          },
+          "then": {
+            "properties": {
+              "worktree_orphan_cleanup_class": { "$ref": "#/$defs/worktree_orphan_cleanup_class" }
+            },
+            "required": ["worktree_orphan_cleanup_class"]
+          }
+        },
+        {
+          "description": "worktree_archived_orphan_pending_cleanup lifecycle MUST pair with a non-null worktree_orphan_cleanup_class.",
+          "if": {
+            "properties": {
+              "local_locator": {
+                "type": "object",
+                "properties": {
+                  "worktree_lifecycle_state": { "const": "worktree_archived_orphan_pending_cleanup" }
+                },
+                "required": ["worktree_lifecycle_state"]
+              }
+            },
+            "required": ["local_locator"]
+          },
+          "then": {
+            "properties": {
+              "worktree_orphan_cleanup_class": { "$ref": "#/$defs/worktree_orphan_cleanup_class" }
+            },
+            "required": ["worktree_orphan_cleanup_class"]
+          }
+        },
+        {
+          "description": "cleanup_export_then_archive and cleanup_blocked_pending_export_for_handoff MUST cite a non-null exported_patch_stack_snapshot_ref before the orphan is reaped; silent reaping denies with worktree_orphan_silent_reap_forbidden.",
+          "if": {
+            "properties": {
+              "worktree_orphan_cleanup_class": {
+                "enum": [
+                  "cleanup_export_then_archive",
+                  "cleanup_blocked_pending_export_for_handoff"
+                ]
+              }
+            },
+            "required": ["worktree_orphan_cleanup_class"]
+          },
+          "then": {
+            "properties": {
+              "exported_patch_stack_snapshot_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["exported_patch_stack_snapshot_ref"]
+          }
+        },
+        {
+          "description": "worktree_paused_pending_conflict lifecycle MUST pair with a conflict_resolution_packet_* conflict_handoff_class so a paused worktree is mechanically attributable to a conflict.",
+          "if": {
+            "properties": {
+              "local_locator": {
+                "type": "object",
+                "properties": {
+                  "worktree_lifecycle_state": { "const": "worktree_paused_pending_conflict" }
+                },
+                "required": ["worktree_lifecycle_state"]
+              }
+            },
+            "required": ["local_locator"]
+          },
+          "then": {
+            "properties": {
+              "conflict_handoff_class": {
+                "enum": [
+                  "conflict_resolution_packet_required_pending_decision",
+                  "conflict_resolution_packet_admitted_user_resolved"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_branch_agent_authored authorship MUST pair with change_authored_by_ai_branch_agent class; imported_from_external_patch_bundle authorship MUST pair with change_imported_from_patch_bundle class; synthesized_by_history_edit_operation authorship MUST pair with change_synthesized_during_history_edit class.",
+          "if": {
+            "properties": {
+              "change_object_authorship_class": { "const": "ai_branch_agent_authored" }
+            },
+            "required": ["change_object_authorship_class"]
+          },
+          "then": {
+            "properties": {
+              "change_object_class": { "const": "change_authored_by_ai_branch_agent" }
+            }
+          }
+        },
+        {
+          "description": "imported_from_external_patch_bundle authorship MUST pair with change_imported_from_patch_bundle class.",
+          "if": {
+            "properties": {
+              "change_object_authorship_class": { "const": "imported_from_external_patch_bundle" }
+            },
+            "required": ["change_object_authorship_class"]
+          },
+          "then": {
+            "properties": {
+              "change_object_class": { "const": "change_imported_from_patch_bundle" }
+            }
+          }
+        },
+        {
+          "description": "synthesized_by_history_edit_operation authorship MUST pair with change_synthesized_during_history_edit class.",
+          "if": {
+            "properties": {
+              "change_object_authorship_class": { "const": "synthesized_by_history_edit_operation" }
+            },
+            "required": ["change_object_authorship_class"]
+          },
+          "then": {
+            "properties": {
+              "change_object_class": { "const": "change_synthesized_during_history_edit" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the diff explorer, the AI branch-agent panel, the patch-stack panel, the sequence-editor plan view, the import / export wizard, support / export, and audit lanes. Exactly one row per change-object identity."
+    },
+
+    "change_object_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "change_object_schema_version",
+        "change_object_audit_event_id_value",
+        "audit_event_record_id",
+        "change_object_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "change_object_audit_event_record" },
+        "change_object_schema_version": { "$ref": "#/$defs/change_object_schema_version" },
+        "change_object_audit_event_id_value": { "$ref": "#/$defs/change_object_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "change_object_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_or_export_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/rollback_or_export_class" }
+          ],
+          "description": "Required (non-null) on change_object_rolled_back_to_recovery_object, change_object_exported_for_handoff, and change_object_imported_from_bundle event ids. Null otherwise."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/change_object_denial_reason" }
+          ],
+          "description": "Required (non-null) when change_object_audit_event_id_value is change_object_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is change_object_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "change_object_audit_event_id_value": { "const": "change_object_audit_denial_emitted" } },
+            "required": ["change_object_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/change_object_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the change_object stream."
+    }
+  }
+}
