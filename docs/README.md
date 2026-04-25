@@ -409,6 +409,18 @@ code.
   [`/schemas/language/result_provenance.schema.json`](../schemas/language/result_provenance.schema.json);
   worked fixtures in
   [`/fixtures/language/provider_arbitration_cases/`](../fixtures/language/provider_arbitration_cases/).
+- [`language/completion_and_inline_hint_contract.md`](./language/completion_and_inline_hint_contract.md)
+  — shared completion-row, signature-help, snippet-session, code-lens,
+  and inline-hint contract for the typing loop, including source
+  labeling, insert/commit posture, side-effect cues, ranking
+  attribution, active-parameter visibility, inline precedence, and
+  density-aware suppression. Boundary schemas in
+  [`/schemas/language/completion_row.schema.json`](../schemas/language/completion_row.schema.json),
+  [`/schemas/language/signature_help_state.schema.json`](../schemas/language/signature_help_state.schema.json),
+  and
+  [`/schemas/language/inline_hint_state.schema.json`](../schemas/language/inline_hint_state.schema.json);
+  worked fixtures in
+  [`/fixtures/language/completion_hint_cases/`](../fixtures/language/completion_hint_cases/).
 - [`verification/source_fidelity_and_undo_packet.md`](./verification/source_fidelity_and_undo_packet.md)
   — seed verification packet for save/source-fidelity fields,
   whole-file-rewrite disclosure, and undo-honesty copy. Pairs with the

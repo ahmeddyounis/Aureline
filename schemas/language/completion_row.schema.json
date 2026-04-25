@@ -1,0 +1,780 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/completion_row.schema.json",
+  "title": "Aureline completion row, side-effect cue, and ranking-attribution vocabulary",
+  "description": "Boundary schema for the completion_row_record frozen in docs/language/completion_and_inline_hint_contract.md. The record is the canonical export-safe packet for one completion row. It captures the row label, kind, source kind, locality, insert posture, commit posture, docs availability, availability or deprecation state, confidence or degraded label, side-effect cues, ranking attribution, and optional snippet-session preview when acceptance starts snippet mode. Raw source text, raw inserted text, raw provider payloads, raw ranking features, raw prompts, raw snippet bodies, raw generated files, raw URLs, raw hostnames, and raw secret material never cross this boundary; the record carries opaque ids, typed vocabulary, epoch bindings, and reviewable summaries only. Adding a new source kind, item kind, availability state, insert posture, commit posture, docs-availability state, confidence label, ranking signal, side-effect cue, snippet structure class, multi-cursor compatibility class, locality class, or epoch role is additive-minor and requires a completion_row_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/completion_row_record"
+    }
+  ],
+  "$defs": {
+    "completion_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the completion-row export. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "completion_row_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, RPC, support export, and replay."
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short export-safe summary. Never carries raw source text or raw provider payloads."
+    },
+
+    "completion_source_kind_class": {
+      "type": "string",
+      "enum": [
+        "local_word",
+        "local_index",
+        "language_service",
+        "framework_provider",
+        "snippet_pack",
+        "history_based",
+        "fallback_text",
+        "ai_assist"
+      ],
+      "description": "Frozen completion-source taxonomy."
+    },
+
+    "completion_item_kind_class": {
+      "type": "string",
+      "enum": [
+        "symbol",
+        "keyword",
+        "snippet",
+        "module_or_import",
+        "path",
+        "value_literal",
+        "semantic_action",
+        "template",
+        "unknown"
+      ],
+      "description": "Frozen completion-item kind vocabulary."
+    },
+
+    "availability_state_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "deprecated",
+        "unavailable",
+        "blocked_by_policy",
+        "blocked_by_mode"
+      ],
+      "description": "Whether the row is actively usable, deprecated, unavailable, or blocked."
+    },
+
+    "insert_posture_class": {
+      "type": "string",
+      "enum": [
+        "plain_insert",
+        "replace_range",
+        "insert_with_import_edits",
+        "insert_with_additional_edits",
+        "expand_snippet_session",
+        "preview_required_multi_file",
+        "blocked"
+      ],
+      "description": "What accepting the row actually does."
+    },
+
+    "commit_posture_class": {
+      "type": "string",
+      "enum": [
+        "explicit_accept_only",
+        "standard_accept_keys",
+        "commit_characters_allowed",
+        "manual_preview_required",
+        "blocked"
+      ],
+      "description": "How the row may be accepted."
+    },
+
+    "documentation_availability_class": {
+      "type": "string",
+      "enum": [
+        "inline_docs_available",
+        "full_docs_link_available",
+        "cached_docs_stale",
+        "summary_only",
+        "no_docs"
+      ],
+      "description": "Whether docs are available inline, through a full link, as stale cached copy, as a summary only, or not at all."
+    },
+
+    "confidence_label_class": {
+      "type": "string",
+      "enum": [
+        "semantic_current",
+        "semantic_partial",
+        "cached_recent",
+        "stale",
+        "limited_fallback",
+        "advisory_ai",
+        "blocked",
+        "unsupported"
+      ],
+      "description": "How trustworthy the row is right now."
+    },
+
+    "ranking_signal_class": {
+      "type": "string",
+      "enum": [
+        "provider_base_rank",
+        "prefix_or_fuzzy_match",
+        "history_recency",
+        "framework_context",
+        "diagnostic_fix_context",
+        "ai_boost",
+        "freshness_penalty",
+        "policy_or_mode_penalty"
+      ],
+      "description": "One signal that influenced row ordering."
+    },
+
+    "ranking_signal_direction_class": {
+      "type": "string",
+      "enum": [
+        "boost",
+        "penalty",
+        "neutral"
+      ],
+      "description": "Whether the signal boosted, penalized, or simply explained ordering."
+    },
+
+    "side_effect_cue_class": {
+      "type": "string",
+      "enum": [
+        "adds_imports",
+        "rewrites_surrounding_text",
+        "starts_snippet_session",
+        "generator_or_scaffold_work",
+        "network_or_remote_lookup",
+        "creates_files",
+        "changes_dependencies_or_config",
+        "opens_preview_before_apply"
+      ],
+      "description": "Visible side-effect cues that the row must disclose before accept."
+    },
+
+    "snippet_structure_class": {
+      "type": "string",
+      "enum": [
+        "plain_placeholders",
+        "mirrored_placeholders",
+        "transforms_present",
+        "generator_backed"
+      ],
+      "description": "Snippet placeholder or transform structure preview."
+    },
+
+    "snippet_multi_cursor_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "full_sync",
+        "primary_caret_only",
+        "insert_all_without_placeholder_sync",
+        "unsupported"
+      ],
+      "description": "How the snippet session behaves under multi-cursor editing."
+    },
+
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "local_user_pack",
+        "imported_snapshot"
+      ],
+      "description": "Where the source lane or ranking signal ran."
+    },
+
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "provider_session",
+        "ranking_context",
+        "docs_cache",
+        "snippet_pack_revision",
+        "generator_plan",
+        "history_corpus"
+      ],
+      "description": "Opaque epoch role carried for replayability and support. The schema names the role, not the epoch grammar."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Shared redaction posture. Raw payloads remain forbidden regardless of class."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "Minimal policy and trust context exported with the row."
+    },
+
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_role_class",
+        "epoch_ref"
+      ],
+      "properties": {
+        "epoch_role_class": {
+          "$ref": "#/$defs/epoch_role_class"
+        },
+        "epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "One opaque epoch binding relevant to this row."
+    },
+
+    "ranking_attribution_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ranking_signal_class",
+        "signal_direction_class",
+        "summary"
+      ],
+      "properties": {
+        "ranking_signal_class": {
+          "$ref": "#/$defs/ranking_signal_class"
+        },
+        "signal_direction_class": {
+          "$ref": "#/$defs/ranking_signal_direction_class"
+        },
+        "source_kind_class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/completion_source_kind_class"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ranking_signal_class": {
+                "const": "ai_boost"
+              }
+            },
+            "required": [
+              "ranking_signal_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "source_kind_class",
+              "source_ref"
+            ],
+            "properties": {
+              "source_kind_class": {
+                "const": "ai_assist"
+              },
+              "source_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        }
+      ],
+      "description": "One explicit ranking signal attached to the row. Signals may influence ordering but may not rewrite row source."
+    },
+
+    "snippet_session_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "placeholder_count",
+        "snippet_structure_class",
+        "multi_cursor_compatibility_class",
+        "structural_effect_summary",
+        "exit_semantics_summary"
+      ],
+      "properties": {
+        "placeholder_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "snippet_structure_class": {
+          "$ref": "#/$defs/snippet_structure_class"
+        },
+        "multi_cursor_compatibility_class": {
+          "$ref": "#/$defs/snippet_multi_cursor_compatibility_class"
+        },
+        "structural_effect_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "exit_semantics_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "description": "Preview of the snippet session that starts on accept."
+    },
+
+    "completion_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "completion_row_schema_version",
+        "completion_row_id",
+        "label",
+        "completion_item_kind_class",
+        "source_kind_class",
+        "source_display_label",
+        "locality_class",
+        "availability_state_class",
+        "insert_posture_class",
+        "commit_posture_class",
+        "documentation_availability_class",
+        "confidence_label_class",
+        "side_effect_cue_classes",
+        "ranking_attribution_rows",
+        "current_epoch_bindings",
+        "policy_context",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "completion_row_schema_version": {
+          "$ref": "#/$defs/completion_row_schema_version"
+        },
+        "completion_row_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "completion_session_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional completion-session or list id tying several rows together."
+        },
+        "label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "completion_item_kind_class": {
+          "$ref": "#/$defs/completion_item_kind_class"
+        },
+        "source_kind_class": {
+          "$ref": "#/$defs/completion_source_kind_class"
+        },
+        "source_display_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_status_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional ref to the provider-status row when this source is backed by the provider graph contract."
+        },
+        "locality_class": {
+          "$ref": "#/$defs/locality_class"
+        },
+        "availability_state_class": {
+          "$ref": "#/$defs/availability_state_class"
+        },
+        "availability_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reviewable_summary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "insert_posture_class": {
+          "$ref": "#/$defs/insert_posture_class"
+        },
+        "commit_posture_class": {
+          "$ref": "#/$defs/commit_posture_class"
+        },
+        "documentation_availability_class": {
+          "$ref": "#/$defs/documentation_availability_class"
+        },
+        "documentation_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reviewable_summary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confidence_label_class": {
+          "$ref": "#/$defs/confidence_label_class"
+        },
+        "side_effect_cue_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/side_effect_cue_class"
+          },
+          "uniqueItems": true,
+          "default": []
+        },
+        "ranking_attribution_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ranking_attribution_row"
+          },
+          "minItems": 1
+        },
+        "snippet_session_preview": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/snippet_session_preview"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blocked_reason_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reviewable_summary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epoch_binding"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "availability_state_class": {
+                "enum": [
+                  "deprecated",
+                  "unavailable",
+                  "blocked_by_policy",
+                  "blocked_by_mode"
+                ]
+              }
+            },
+            "required": [
+              "availability_state_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "availability_summary"
+            ],
+            "properties": {
+              "availability_summary": {
+                "$ref": "#/$defs/reviewable_summary"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "insert_posture_class": {
+                "const": "insert_with_import_edits"
+              }
+            },
+            "required": [
+              "insert_posture_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "side_effect_cue_classes": {
+                "contains": {
+                  "const": "adds_imports"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "insert_posture_class": {
+                "const": "expand_snippet_session"
+              }
+            },
+            "required": [
+              "insert_posture_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "snippet_session_preview"
+            ],
+            "properties": {
+              "snippet_session_preview": {
+                "$ref": "#/$defs/snippet_session_preview"
+              },
+              "side_effect_cue_classes": {
+                "contains": {
+                  "const": "starts_snippet_session"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "insert_posture_class": {
+                "const": "preview_required_multi_file"
+              }
+            },
+            "required": [
+              "insert_posture_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "commit_posture_class": {
+                "const": "manual_preview_required"
+              },
+              "side_effect_cue_classes": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "opens_preview_before_apply"
+                    }
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "contains": {
+                          "const": "generator_or_scaffold_work"
+                        }
+                      },
+                      {
+                        "contains": {
+                          "const": "creates_files"
+                        }
+                      },
+                      {
+                        "contains": {
+                          "const": "changes_dependencies_or_config"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "insert_posture_class": {
+                "const": "blocked"
+              }
+            },
+            "required": [
+              "insert_posture_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "blocked_reason_summary"
+            ],
+            "properties": {
+              "commit_posture_class": {
+                "const": "blocked"
+              },
+              "blocked_reason_summary": {
+                "$ref": "#/$defs/reviewable_summary"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_kind_class": {
+                "enum": [
+                  "local_word",
+                  "local_index",
+                  "snippet_pack",
+                  "history_based",
+                  "fallback_text"
+                ]
+              }
+            },
+            "required": [
+              "source_kind_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "confidence_label_class": {
+                "not": {
+                  "const": "semantic_current"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_kind_class": {
+                "const": "snippet_pack"
+              }
+            },
+            "required": [
+              "source_kind_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "completion_item_kind_class": {
+                "enum": [
+                  "snippet",
+                  "template"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_kind_class": {
+                "const": "ai_assist"
+              }
+            },
+            "required": [
+              "source_kind_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "confidence_label_class": {
+                "const": "advisory_ai"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

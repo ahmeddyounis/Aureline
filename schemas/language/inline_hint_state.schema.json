@@ -1,0 +1,545 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/inline_hint_state.schema.json",
+  "title": "Aureline inline hint, code-lens, density, and precedence vocabulary",
+  "description": "Boundary schema for the inline_hint_state_record frozen in docs/language/completion_and_inline_hint_contract.md. The record captures one inline semantic metadata row or cluster, including hint class, source kind, locality, actionability, confidence or degraded label, density mode, precedence band, visibility state, suppression reasons, competing higher-priority bands, and side-effect cues for action-capable inline affordances. Raw source text, raw rendered code, raw provider payloads, raw inline actions, raw URLs, raw hostnames, and raw secret material never cross this boundary; the record carries opaque ids, typed vocabulary, epoch bindings, and reviewable summaries only. Adding a new inline-metadata class, source kind, actionability class, confidence label, density mode, visibility state, suppression reason, precedence band, side-effect cue, locality class, or epoch role is additive-minor and requires an inline_hint_state_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/inline_hint_state_record"
+    }
+  ],
+  "$defs": {
+    "inline_hint_state_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "inline_hint_state_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "inline_metadata_class": {
+      "type": "string",
+      "enum": [
+        "type_hint",
+        "parameter_hint",
+        "return_hint",
+        "code_lens",
+        "inline_test_action",
+        "coverage_note",
+        "freshness_note",
+        "generated_safety_note"
+      ],
+      "description": "Frozen inline metadata taxonomy."
+    },
+
+    "source_kind_class": {
+      "type": "string",
+      "enum": [
+        "language_service",
+        "framework_provider",
+        "project_graph",
+        "runtime_or_test",
+        "review_or_diff",
+        "cached_snapshot",
+        "fallback_text"
+      ],
+      "description": "Frozen inline-metadata source taxonomy."
+    },
+
+    "actionability_class": {
+      "type": "string",
+      "enum": [
+        "informational_only",
+        "jump_or_peek",
+        "run_or_test",
+        "review_or_diff",
+        "preview_required_action",
+        "blocked"
+      ],
+      "description": "What the inline affordance does when invoked."
+    },
+
+    "confidence_label_class": {
+      "type": "string",
+      "enum": [
+        "semantic_current",
+        "semantic_partial",
+        "cached_recent",
+        "stale",
+        "limited",
+        "blocked",
+        "runtime_observed_nonsemantic"
+      ],
+      "description": "How trustworthy the current inline metadata is."
+    },
+
+    "density_mode_class": {
+      "type": "string",
+      "enum": [
+        "off",
+        "compact",
+        "rich",
+        "auto"
+      ],
+      "description": "Current inline density mode."
+    },
+
+    "visibility_state_class": {
+      "type": "string",
+      "enum": [
+        "visible_primary",
+        "visible_downgraded",
+        "suppressed",
+        "hidden_by_precedence"
+      ],
+      "description": "How the inline metadata currently appears."
+    },
+
+    "suppression_reason_class": {
+      "type": "string",
+      "enum": [
+        "large_file_mode",
+        "high_zoom",
+        "reduced_motion",
+        "low_certainty",
+        "read_only_or_generated",
+        "higher_priority_decoration",
+        "policy_blocked",
+        "typing_budget_protection"
+      ],
+      "description": "Why inline metadata density reduced or the hint disappeared."
+    },
+
+    "precedence_band_class": {
+      "type": "string",
+      "enum": [
+        "diagnostic_or_debug",
+        "merge_diff_review",
+        "test_coverage_execution",
+        "code_lens_or_inlay",
+        "decorative_qualifier"
+      ],
+      "description": "Priority band that governs whether the hint may remain visible when other inline truth is present."
+    },
+
+    "side_effect_cue_class": {
+      "type": "string",
+      "enum": [
+        "runs_tests_or_debugger",
+        "opens_review_or_diff",
+        "network_or_remote_lookup",
+        "generator_or_scaffold_work",
+        "changes_dependencies_or_config",
+        "opens_preview_before_apply"
+      ],
+      "description": "Visible side-effect cues for action-capable inline metadata."
+    },
+
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot"
+      ]
+    },
+
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "provider_session",
+        "review_slice",
+        "execution_run",
+        "hint_cache",
+        "large_file_mode_state"
+      ]
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_role_class",
+        "epoch_ref"
+      ],
+      "properties": {
+        "epoch_role_class": {
+          "$ref": "#/$defs/epoch_role_class"
+        },
+        "epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "inline_hint_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "inline_hint_state_schema_version",
+        "inline_hint_state_id",
+        "anchor_ref",
+        "inline_metadata_class",
+        "source_kind_class",
+        "source_display_label",
+        "locality_class",
+        "actionability_class",
+        "confidence_label_class",
+        "density_mode_class",
+        "precedence_band_class",
+        "visibility_state_class",
+        "suppression_reason_classes",
+        "competing_priority_bands",
+        "side_effect_cue_classes",
+        "current_epoch_bindings",
+        "policy_context",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "inline_hint_state_schema_version": {
+          "$ref": "#/$defs/inline_hint_state_schema_version"
+        },
+        "inline_hint_state_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "anchor_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "path_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inline_metadata_class": {
+          "$ref": "#/$defs/inline_metadata_class"
+        },
+        "source_kind_class": {
+          "$ref": "#/$defs/source_kind_class"
+        },
+        "source_display_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_status_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "locality_class": {
+          "$ref": "#/$defs/locality_class"
+        },
+        "actionability_class": {
+          "$ref": "#/$defs/actionability_class"
+        },
+        "confidence_label_class": {
+          "$ref": "#/$defs/confidence_label_class"
+        },
+        "density_mode_class": {
+          "$ref": "#/$defs/density_mode_class"
+        },
+        "precedence_band_class": {
+          "$ref": "#/$defs/precedence_band_class"
+        },
+        "visibility_state_class": {
+          "$ref": "#/$defs/visibility_state_class"
+        },
+        "suppression_reason_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/suppression_reason_class"
+          },
+          "uniqueItems": true
+        },
+        "competing_priority_bands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/precedence_band_class"
+          },
+          "uniqueItems": true
+        },
+        "side_effect_cue_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/side_effect_cue_class"
+          },
+          "uniqueItems": true
+        },
+        "visibility_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reviewable_summary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epoch_binding"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "visibility_state_class": {
+                "enum": [
+                  "suppressed",
+                  "hidden_by_precedence"
+                ]
+              }
+            },
+            "required": [
+              "visibility_state_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "visibility_summary"
+            ],
+            "properties": {
+              "suppression_reason_classes": {
+                "minItems": 1
+              },
+              "visibility_summary": {
+                "$ref": "#/$defs/reviewable_summary"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "visibility_state_class": {
+                "const": "visible_primary"
+              }
+            },
+            "required": [
+              "visibility_state_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppression_reason_classes": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "confidence_label_class": {
+                "enum": [
+                  "semantic_partial",
+                  "cached_recent",
+                  "stale",
+                  "limited",
+                  "blocked"
+                ]
+              }
+            },
+            "required": [
+              "confidence_label_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "visibility_state_class": {
+                "not": {
+                  "const": "visible_primary"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_kind_class": {
+                "enum": [
+                  "cached_snapshot",
+                  "fallback_text"
+                ]
+              }
+            },
+            "required": [
+              "source_kind_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "confidence_label_class": {
+                "not": {
+                  "const": "semantic_current"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "visibility_state_class": {
+                "const": "hidden_by_precedence"
+              }
+            },
+            "required": [
+              "visibility_state_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "competing_priority_bands": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actionability_class": {
+                "const": "preview_required_action"
+              }
+            },
+            "required": [
+              "actionability_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "side_effect_cue_classes": {
+                "contains": {
+                  "const": "opens_preview_before_apply"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actionability_class": {
+                "const": "blocked"
+              }
+            },
+            "required": [
+              "actionability_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "confidence_label_class": {
+                "const": "blocked"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
