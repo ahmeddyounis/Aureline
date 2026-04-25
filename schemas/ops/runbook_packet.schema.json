@@ -1,0 +1,845 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/runbook_packet.schema.json",
+  "title": "Aureline operational runbook packet and action-ledger entry",
+  "description": "Boundary schema for the runbook_packet_record and action_ledger_entry_record frozen in docs/ops/incident_workspace_contract.md. One record family freezes the operational runbook a responder reads when an incident-workspace points at it: the typed step grammar (diagnostic inspection, evidence capture, communication, mitigation that mutates target state, and approval-gate checkpoints), the sandbox-and-approval posture every mutating step inherits from the same execution-context / workspace-trust / approval-ticket vocabulary that ordinary runtime actions use, the preview-hash pin every mutating step computes before apply, and the outcome vocabulary every action-ledger entry records after the step ran. action_ledger_entry_record is append-only: prior entries never mutate and are never backdated; corrections land as new entries that supersede earlier ones by stable id. The record never carries raw provider URLs, raw provider payloads, raw stack frames, raw stdout / stderr, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, or raw secret material; rows carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and freshness / approval / target-context / outcome tokens only. Composes with (and does not replace) ADR-0007 (secret-broker handle / raw-secret-forbidden boundary), ADR-0009 (execution-context and scope), ADR-0010 (browser-handoff and approval-ticket envelope), ADR-0018 (workspace-trust state), schemas/runtime/execution_context.schema.json (target identity / sandbox posture / policy epoch), schemas/integration/approval_ticket.schema.json (approval-ticket envelope), schemas/integration/browser_handoff_packet.schema.json (browser-handoff packet envelope), schemas/security/emergency_action_record.schema.json (emergency-action / revocation / break-glass linkage), and schemas/ops/evidence_handoff_bundle.schema.json (immutable-snapshot bundle the action-ledger feeds when a postmortem / review bundle is exported). The eventual ops crate's Rust types are the schema of record; this file is the cross-tool boundary every incident-workspace render, support / export reader, postmortem / review reader, AI-tool review surface, and admin / policy review reads. Adding a new record_kind, step_intent_class, sandbox_admission_class, approval_admission_class, action_admission_class, outcome_class, raw_ref_class, denial_reason, or audit_event_id is additive-minor and bumps runbook_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/runbook_packet_record" },
+    { "$ref": "#/$defs/action_ledger_entry_record" }
+  ],
+  "$defs": {
+    "runbook_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the runbook-packet vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "runbook_packet_record",
+        "action_ledger_entry_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, postmortem / review bundles, and admin reconciliation surfaces. Raw provider URLs, raw provider payloads, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, and raw secret material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for incident-workspace render, postmortem / review, support / export, and admin reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, postmortem / review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "preview_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque content hash of the mutation preview computed before apply. The same value is recorded on the matching action_ledger_entry_record so a reviewer can confirm the applied mutation matches the previewed mutation. Raw payload bytes never appear; only the opaque hash crosses this boundary."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw provider payloads, raw stack frames, raw stdout / stderr, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, and raw approval-ticket bodies never cross this boundary regardless of class. private_triage_only is admissible only when the runbook-packet is bound to a security-side incident_workspace_packet record."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["untrusted", "restricted", "trusted", "managed_admin"],
+      "description": "ADR-0018 / ADR-0009 workspace-trust state the runbook-packet was admitted under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref (ADR-0008 / ADR-0009)."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009 / ADR-0018 so downstream lanes can reason about the packet's policy provenance without re-deriving it."
+    },
+
+    "target_context_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_target",
+        "self_hosted_runtime_target",
+        "enterprise_online_runtime_target",
+        "managed_cloud_runtime_target",
+        "air_gapped_runtime_target",
+        "browser_handoff_external_target",
+        "console_handoff_external_target",
+        "target_unverifiable_user_review_required"
+      ],
+      "description": "Frozen target-context vocabulary. Names which execution context the runbook step or action-ledger entry resolves against. browser_handoff_external_target / console_handoff_external_target reflect attributable transitions out of the local control plane; target_unverifiable_user_review_required is the safe-default that strips admissible_under_* on every mutating step."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile vocabulary mirrored from artifacts/governance/deployment_profiles.yaml and schemas/security/incident_workspace_packet.schema.json."
+    },
+
+    "step_intent_class": {
+      "type": "string",
+      "enum": [
+        "diagnostic_inspection_read_only",
+        "evidence_capture_read_only",
+        "communication_read_only",
+        "approval_gate_no_mutation",
+        "mitigation_mutating_under_runtime_approval",
+        "mitigation_mutating_under_break_glass",
+        "mitigation_mutating_browser_handoff",
+        "mitigation_mutating_console_handoff",
+        "automation_invoke_recorded_recipe",
+        "step_intent_unknown_requires_review"
+      ],
+      "description": "Frozen step-intent vocabulary. Read-only intents (diagnostic_inspection_read_only, evidence_capture_read_only, communication_read_only, approval_gate_no_mutation) MUST resolve sandbox_admission_class to inspect_only_no_mutation and approval_admission_class to no_approval_required_read_only. Mutating intents inherit the same sandbox / approval posture as ordinary runtime actions. step_intent_unknown_requires_review is the safe-default that strips every admissible_under_* posture."
+    },
+
+    "sandbox_admission_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only_no_mutation",
+        "sandboxed_dry_run_in_execution_context",
+        "admissible_under_workspace_trust_trusted",
+        "admissible_under_session_only_override",
+        "admissible_under_approval_ticket",
+        "admissible_under_break_glass_event",
+        "blocked_pending_workspace_trust",
+        "blocked_pending_policy_review",
+        "blocked_pending_target_context_resolution",
+        "blocked_pending_break_glass_close_out",
+        "external_handoff_only_browser_or_console"
+      ],
+      "description": "Frozen sandbox-admission vocabulary. Mirrors the ordinary runtime-action vocabulary so a mutating runbook step never carries a private 'incident-only' bypass. external_handoff_only_browser_or_console is admissible only on mitigation_mutating_browser_handoff / mitigation_mutating_console_handoff."
+    },
+
+    "approval_admission_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required_read_only",
+        "approval_required_pending_user_admit",
+        "approval_required_pending_two_person_admit",
+        "approval_admitted_under_runtime_approval_ticket",
+        "approval_admitted_under_break_glass_event",
+        "approval_blocked_pending_quorum",
+        "approval_blocked_pending_policy_review",
+        "approval_admission_unknown_requires_review"
+      ],
+      "description": "Frozen approval-admission vocabulary. approval_admitted_under_break_glass_event is admissible only when a non-null break_glass_event_ref is cited and the matching break-glass profile is admitted in artifacts/governance/signing_quorum.yaml. approval_admission_unknown_requires_review is the safe-default that strips admissible_under_* sandbox postures."
+    },
+
+    "raw_ref_class": {
+      "type": "string",
+      "enum": [
+        "no_raw_ref_required",
+        "raw_command_invocation_by_reference",
+        "raw_provider_callback_envelope_by_reference",
+        "raw_browser_handoff_packet_by_reference",
+        "raw_console_handoff_session_by_reference",
+        "raw_alert_or_page_payload_by_reference",
+        "raw_metric_or_log_slice_by_reference",
+        "raw_emergency_action_record_by_reference",
+        "raw_break_glass_event_by_reference",
+        "raw_approval_ticket_by_reference",
+        "raw_ref_unverifiable_user_review_required"
+      ],
+      "description": "Frozen raw-ref-class vocabulary. Names which raw artefact the action-ledger entry links to by-reference. Raw bodies never cross this boundary; only the opaque ref is recorded. raw_ref_unverifiable_user_review_required strips admissible_under_* approval postures."
+    },
+
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "success_observed",
+        "success_under_partial_evidence",
+        "no_change_observed",
+        "failed_with_typed_reason",
+        "denied_pending_approval",
+        "denied_pending_workspace_trust",
+        "denied_pending_target_context_resolution",
+        "rolled_back_after_partial_apply",
+        "captured_offline_pending_drain",
+        "external_handoff_pending_provider_callback",
+        "outcome_unverifiable_user_review_required"
+      ],
+      "description": "Frozen outcome vocabulary recorded on action-ledger entries after the step ran. captured_offline_pending_drain / external_handoff_pending_provider_callback describe attributable transitions: the entry stays open until the matching publish-later or callback envelope drains. outcome_unverifiable_user_review_required is the safe-default when the responder cannot classify."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "runbook_packet_admitted",
+        "runbook_packet_step_inspected_read_only",
+        "runbook_packet_step_evidence_captured",
+        "runbook_packet_step_approval_gate_resolved",
+        "runbook_packet_step_mutating_apply_recorded",
+        "runbook_packet_step_mutating_apply_denied",
+        "runbook_packet_step_mutating_apply_rolled_back",
+        "runbook_packet_step_routed_to_browser_handoff",
+        "runbook_packet_step_routed_to_console_handoff",
+        "runbook_packet_step_captured_offline_pending_drain",
+        "runbook_packet_audit_denial_emitted",
+        "action_ledger_entry_appended",
+        "action_ledger_entry_superseded_by_correction",
+        "action_ledger_entry_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event vocabulary for runbook-packet and action-ledger surfaces. Audit denials cite the matching denial_reason."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "step_intent_class_must_resolve_to_typed_class",
+        "sandbox_admission_class_must_resolve_to_typed_class",
+        "approval_admission_class_must_resolve_to_typed_class",
+        "outcome_class_must_resolve_to_typed_class",
+        "raw_ref_class_must_resolve_to_typed_class",
+        "read_only_intent_must_resolve_inspect_only_no_mutation",
+        "mutating_intent_must_cite_typed_sandbox_admission",
+        "mutating_intent_must_cite_typed_approval_admission",
+        "mutating_intent_must_cite_preview_hash",
+        "approval_admitted_under_break_glass_must_cite_break_glass_event_ref",
+        "approval_admitted_under_runtime_approval_must_cite_approval_ticket_ref",
+        "browser_handoff_intent_must_cite_browser_handoff_packet_ref",
+        "console_handoff_intent_must_cite_console_handoff_session_ref",
+        "external_handoff_only_admissible_only_on_browser_or_console_handoff_intent",
+        "captured_offline_outcome_must_cite_publish_later_queue_item_ref",
+        "external_handoff_outcome_must_cite_provider_callback_envelope_ref",
+        "rolled_back_outcome_must_cite_rollback_checkpoint_ref",
+        "raw_provider_url_in_runbook_packet_forbidden",
+        "raw_command_line_in_runbook_packet_forbidden",
+        "raw_secret_in_runbook_packet_forbidden",
+        "raw_author_identity_string_in_runbook_packet_forbidden",
+        "raw_alert_payload_in_runbook_packet_forbidden",
+        "action_ledger_entry_must_cite_runbook_packet_id_ref",
+        "action_ledger_entry_must_cite_step_id_ref",
+        "action_ledger_entry_silent_backdate_forbidden",
+        "action_ledger_entry_post_hoc_rewrite_forbidden_correction_must_supersede",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "denial_reason_class_unknown_requires_review"
+      ],
+      "description": "Frozen denial-reason vocabulary. Apply paths cite a typed reason rather than describing the cause in prose. Closed list; new values are additive-minor."
+    },
+
+    "step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "ordinal",
+        "step_intent_class",
+        "title",
+        "description",
+        "target_context_class",
+        "sandbox_admission_class",
+        "approval_admission_class",
+        "preview_hash",
+        "approval_ticket_ref",
+        "break_glass_event_ref",
+        "browser_handoff_packet_ref",
+        "console_handoff_session_ref",
+        "automation_recipe_ref",
+        "expected_outcome_summary"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Stable ordinal of the step within the runbook. Steps are ordered by ordinal; gaps are admitted (a runbook may renumber on edit) and the matching action-ledger entries cite the step_id, not the ordinal."
+        },
+        "step_intent_class": { "$ref": "#/$defs/step_intent_class" },
+        "title": { "$ref": "#/$defs/reviewable_label" },
+        "description": { "$ref": "#/$defs/reviewable_sentence" },
+        "target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "sandbox_admission_class": { "$ref": "#/$defs/sandbox_admission_class" },
+        "approval_admission_class": { "$ref": "#/$defs/approval_admission_class" },
+        "preview_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/preview_hash" }
+          ],
+          "description": "Opaque preview-hash for mutating steps. Non-null when step_intent_class resolves to mitigation_mutating_under_runtime_approval / mitigation_mutating_under_break_glass / mitigation_mutating_browser_handoff / mitigation_mutating_console_handoff / automation_invoke_recorded_recipe; null on read-only intents."
+          },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket envelope (ADR-0010). Non-null when approval_admission_class is approval_admitted_under_runtime_approval_ticket; null otherwise."
+        },
+        "break_glass_event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to schemas/security/break_glass_event.schema.json. Non-null when approval_admission_class is approval_admitted_under_break_glass_event; null otherwise."
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to schemas/integration/browser_handoff_packet.schema.json. Non-null when step_intent_class is mitigation_mutating_browser_handoff; null otherwise."
+        },
+        "console_handoff_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the console-handoff session envelope. Non-null when step_intent_class is mitigation_mutating_console_handoff; null otherwise."
+        },
+        "automation_recipe_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to schemas/automation/recipe_manifest.schema.json. Non-null when step_intent_class is automation_invoke_recorded_recipe; null otherwise."
+        },
+        "expected_outcome_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Read-only intents MUST resolve sandbox_admission_class to inspect_only_no_mutation and approval_admission_class to no_approval_required_read_only.",
+          "if": {
+            "properties": {
+              "step_intent_class": {
+                "enum": [
+                  "diagnostic_inspection_read_only",
+                  "evidence_capture_read_only",
+                  "communication_read_only",
+                  "approval_gate_no_mutation"
+                ]
+              }
+            },
+            "required": ["step_intent_class"]
+          },
+          "then": {
+            "properties": {
+              "sandbox_admission_class": { "const": "inspect_only_no_mutation" },
+              "approval_admission_class": { "const": "no_approval_required_read_only" },
+              "preview_hash": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Mutating intents MUST cite a non-null preview_hash.",
+          "if": {
+            "properties": {
+              "step_intent_class": {
+                "enum": [
+                  "mitigation_mutating_under_runtime_approval",
+                  "mitigation_mutating_under_break_glass",
+                  "mitigation_mutating_browser_handoff",
+                  "mitigation_mutating_console_handoff",
+                  "automation_invoke_recorded_recipe"
+                ]
+              }
+            },
+            "required": ["step_intent_class"]
+          },
+          "then": {
+            "properties": {
+              "preview_hash": { "$ref": "#/$defs/preview_hash" }
+            },
+            "required": ["preview_hash"]
+          }
+        },
+        {
+          "description": "approval_admitted_under_runtime_approval_ticket MUST cite a non-null approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "approval_admission_class": { "const": "approval_admitted_under_runtime_approval_ticket" }
+            },
+            "required": ["approval_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "approval_admitted_under_break_glass_event MUST cite a non-null break_glass_event_ref.",
+          "if": {
+            "properties": {
+              "approval_admission_class": { "const": "approval_admitted_under_break_glass_event" }
+            },
+            "required": ["approval_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "break_glass_event_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["break_glass_event_ref"]
+          }
+        },
+        {
+          "description": "mitigation_mutating_browser_handoff MUST cite a non-null browser_handoff_packet_ref and target_context_class browser_handoff_external_target.",
+          "if": {
+            "properties": {
+              "step_intent_class": { "const": "mitigation_mutating_browser_handoff" }
+            },
+            "required": ["step_intent_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" },
+              "target_context_class": { "const": "browser_handoff_external_target" }
+            },
+            "required": ["browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "mitigation_mutating_console_handoff MUST cite a non-null console_handoff_session_ref and target_context_class console_handoff_external_target.",
+          "if": {
+            "properties": {
+              "step_intent_class": { "const": "mitigation_mutating_console_handoff" }
+            },
+            "required": ["step_intent_class"]
+          },
+          "then": {
+            "properties": {
+              "console_handoff_session_ref": { "$ref": "#/$defs/opaque_id" },
+              "target_context_class": { "const": "console_handoff_external_target" }
+            },
+            "required": ["console_handoff_session_ref"]
+          }
+        },
+        {
+          "description": "automation_invoke_recorded_recipe MUST cite a non-null automation_recipe_ref.",
+          "if": {
+            "properties": {
+              "step_intent_class": { "const": "automation_invoke_recorded_recipe" }
+            },
+            "required": ["step_intent_class"]
+          },
+          "then": {
+            "properties": {
+              "automation_recipe_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["automation_recipe_ref"]
+          }
+        },
+        {
+          "description": "external_handoff_only_browser_or_console sandbox is admissible only on browser / console handoff intents.",
+          "if": {
+            "properties": {
+              "sandbox_admission_class": { "const": "external_handoff_only_browser_or_console" }
+            },
+            "required": ["sandbox_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "step_intent_class": {
+                "enum": [
+                  "mitigation_mutating_browser_handoff",
+                  "mitigation_mutating_console_handoff"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One runbook step record. Composes the typed step grammar and the sandbox / approval / preview / target-context posture every responder reads before apply."
+    },
+
+    "runbook_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runbook_packet_schema_version",
+        "record_kind",
+        "runbook_id",
+        "title",
+        "summary",
+        "applicable_severity_class_set",
+        "applicable_deployment_profile_class_set",
+        "default_target_context_class",
+        "step_records",
+        "policy_context",
+        "redaction_class",
+        "authored_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "runbook_packet_schema_version": { "$ref": "#/$defs/runbook_packet_schema_version" },
+        "record_kind": { "const": "runbook_packet_record" },
+        "runbook_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/reviewable_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "applicable_severity_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "operational_severity.sev1",
+              "operational_severity.sev2",
+              "operational_severity.sev3",
+              "operational_severity.sev4",
+              "operational_severity.sev5",
+              "operational_severity.unknown_pending_review"
+            ]
+          },
+          "description": "Operational-severity classes the runbook is admissible against. Mirrors the operational-severity vocabulary in docs/ops/incident_workspace_contract.md and is distinct from the security-severity vocabulary in schemas/security/advisory_record.schema.json."
+        },
+        "applicable_deployment_profile_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment-profile classes the runbook is admissible against."
+        },
+        "default_target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "step_records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step_record" },
+          "description": "Step records ordered by ordinal. The first entry SHOULD be a diagnostic_inspection_read_only or evidence_capture_read_only step so a responder reads the runbook in inspect-only posture by default."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One runbook packet. Carries the typed step grammar, the sandbox / approval / preview / target-context posture every step inherits, and the policy / redaction envelope. Mutating steps inherit the same sandbox-and-approval rules as ordinary runtime actions."
+    },
+
+    "action_ledger_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runbook_packet_schema_version",
+        "record_kind",
+        "entry_id",
+        "incident_workspace_id_ref",
+        "runbook_packet_id_ref",
+        "step_id_ref",
+        "executed_at",
+        "actor_ref",
+        "step_intent_class",
+        "target_context_class",
+        "sandbox_admission_class",
+        "approval_admission_class",
+        "preview_hash",
+        "applied_preview_hash",
+        "approval_ticket_ref",
+        "break_glass_event_ref",
+        "browser_handoff_packet_ref",
+        "console_handoff_session_ref",
+        "publish_later_queue_item_ref",
+        "provider_callback_envelope_ref",
+        "rollback_checkpoint_ref",
+        "raw_ref_class",
+        "raw_ref_id",
+        "outcome_class",
+        "outcome_summary",
+        "supersedes_action_ledger_entry_ref",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "runbook_packet_schema_version": { "$ref": "#/$defs/runbook_packet_schema_version" },
+        "record_kind": { "const": "action_ledger_entry_record" },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "incident_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the incident_workspace_record this entry was recorded against. The action-ledger is append-only inside the incident workspace."
+        },
+        "runbook_packet_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the runbook_packet_record the executed step belongs to."
+        },
+        "step_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the step_record.step_id. Stable across runbook renumber operations."
+        },
+        "executed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the executing actor (responder pseudonym, on-call handle, automation actor). Raw operator identity strings never appear here."
+        },
+        "step_intent_class": { "$ref": "#/$defs/step_intent_class" },
+        "target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "sandbox_admission_class": { "$ref": "#/$defs/sandbox_admission_class" },
+        "approval_admission_class": { "$ref": "#/$defs/approval_admission_class" },
+        "preview_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/preview_hash" }
+          ],
+          "description": "Preview-hash recorded at apply time. Non-null when the step is mutating; equal to applied_preview_hash on a clean apply, distinct on a rolled-back or denied apply."
+        },
+        "applied_preview_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/preview_hash" }
+          ],
+          "description": "Preview-hash observed on apply. Non-null when outcome_class is success_observed / success_under_partial_evidence / rolled_back_after_partial_apply."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "break_glass_event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "console_handoff_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "publish_later_queue_item_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to schemas/providers/publish_later_record.schema.json. Non-null when outcome_class is captured_offline_pending_drain; null otherwise."
+        },
+        "provider_callback_envelope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to schemas/providers/provider_callback_envelope.schema.json. Non-null when outcome_class is external_handoff_pending_provider_callback; null otherwise."
+        },
+        "rollback_checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the rollback-checkpoint record. Non-null when outcome_class is rolled_back_after_partial_apply; null otherwise."
+        },
+        "raw_ref_class": { "$ref": "#/$defs/raw_ref_class" },
+        "raw_ref_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the raw artefact named by raw_ref_class. Null when raw_ref_class is no_raw_ref_required."
+        },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "outcome_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "supersedes_action_ledger_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a prior action_ledger_entry_record that this entry supersedes. Non-null only when this entry is a correction landed after a typed denial or a partial apply; the prior entry remains visible in the chronology and is never deleted or backdated."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "captured_offline_pending_drain outcome MUST cite a non-null publish_later_queue_item_ref.",
+          "if": {
+            "properties": { "outcome_class": { "const": "captured_offline_pending_drain" } },
+            "required": ["outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_later_queue_item_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["publish_later_queue_item_ref"]
+          }
+        },
+        {
+          "description": "external_handoff_pending_provider_callback outcome MUST cite a non-null provider_callback_envelope_ref.",
+          "if": {
+            "properties": { "outcome_class": { "const": "external_handoff_pending_provider_callback" } },
+            "required": ["outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_callback_envelope_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["provider_callback_envelope_ref"]
+          }
+        },
+        {
+          "description": "rolled_back_after_partial_apply outcome MUST cite a non-null rollback_checkpoint_ref.",
+          "if": {
+            "properties": { "outcome_class": { "const": "rolled_back_after_partial_apply" } },
+            "required": ["outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["rollback_checkpoint_ref"]
+          }
+        },
+        {
+          "description": "Read-only step intents MUST resolve preview_hash and applied_preview_hash to null and outcome_class to one of the read-only-admissible outcomes.",
+          "if": {
+            "properties": {
+              "step_intent_class": {
+                "enum": [
+                  "diagnostic_inspection_read_only",
+                  "evidence_capture_read_only",
+                  "communication_read_only",
+                  "approval_gate_no_mutation"
+                ]
+              }
+            },
+            "required": ["step_intent_class"]
+          },
+          "then": {
+            "properties": {
+              "preview_hash": { "type": "null" },
+              "applied_preview_hash": { "type": "null" },
+              "outcome_class": {
+                "enum": [
+                  "success_observed",
+                  "success_under_partial_evidence",
+                  "no_change_observed",
+                  "outcome_unverifiable_user_review_required"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Mutating step intents MUST cite a non-null preview_hash.",
+          "if": {
+            "properties": {
+              "step_intent_class": {
+                "enum": [
+                  "mitigation_mutating_under_runtime_approval",
+                  "mitigation_mutating_under_break_glass",
+                  "mitigation_mutating_browser_handoff",
+                  "mitigation_mutating_console_handoff",
+                  "automation_invoke_recorded_recipe"
+                ]
+              }
+            },
+            "required": ["step_intent_class"]
+          },
+          "then": {
+            "properties": {
+              "preview_hash": { "$ref": "#/$defs/preview_hash" }
+            },
+            "required": ["preview_hash"]
+          }
+        },
+        {
+          "description": "approval_admitted_under_runtime_approval_ticket entries MUST cite a non-null approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "approval_admission_class": { "const": "approval_admitted_under_runtime_approval_ticket" }
+            },
+            "required": ["approval_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "approval_admitted_under_break_glass_event entries MUST cite a non-null break_glass_event_ref.",
+          "if": {
+            "properties": {
+              "approval_admission_class": { "const": "approval_admitted_under_break_glass_event" }
+            },
+            "required": ["approval_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "break_glass_event_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["break_glass_event_ref"]
+          }
+        },
+        {
+          "description": "raw_ref_class outside no_raw_ref_required and raw_ref_unverifiable_user_review_required MUST cite a non-null raw_ref_id.",
+          "if": {
+            "properties": {
+              "raw_ref_class": {
+                "enum": [
+                  "raw_command_invocation_by_reference",
+                  "raw_provider_callback_envelope_by_reference",
+                  "raw_browser_handoff_packet_by_reference",
+                  "raw_console_handoff_session_by_reference",
+                  "raw_alert_or_page_payload_by_reference",
+                  "raw_metric_or_log_slice_by_reference",
+                  "raw_emergency_action_record_by_reference",
+                  "raw_break_glass_event_by_reference",
+                  "raw_approval_ticket_by_reference"
+                ]
+              }
+            },
+            "required": ["raw_ref_class"]
+          },
+          "then": {
+            "properties": {
+              "raw_ref_id": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["raw_ref_id"]
+          }
+        }
+      ],
+      "description": "One append-only action-ledger entry. Recorded after a runbook step runs (or is denied / rolled back / captured offline / handed off externally). Prior entries never mutate and are never backdated; corrections land as new entries that supersede earlier ones via supersedes_action_ledger_entry_ref."
+    }
+  }
+}

@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/evidence_handoff_bundle.schema.json",
+  "title": "Aureline operational evidence-handoff bundle",
+  "description": "Boundary schema for the evidence_handoff_bundle_record frozen in docs/ops/incident_workspace_contract.md. One bundle is an immutable snapshot exported from an incident workspace for postmortem / review reading, browser / console handoff, or last-synced offline view consumption. The bundle records the source incident_workspace_id, the bundle_kind (postmortem / review / browser-handoff / console-handoff / last_synced_offline_view), the immutable_snapshot_at timestamp, an opaque integrity_hash that pins the snapshot's content, the preserved target context (execution-context / deployment-profile / exact-build identity), and the closed list of evidence-item, runbook-packet, action-ledger-entry, and signal-slice refs the bundle pinned at snapshot time. The bundle is frozen-no-post-hoc-rewrite by default: corrections land as a new bundle that supersedes the prior one by stable id; the prior bundle remains visible in the chronology and is never deleted, backdated, or rewritten in place. Browser / console handoffs travel through this bundle so the exit transition is attributable rather than a hidden alternate control plane. The bundle never carries raw provider URLs, raw provider payloads, raw stdout / stderr, raw stack frames, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, or raw secret material; rows carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and freshness / target-context / handoff tokens only. Composes with (and does not replace) ADR-0007 (secret-broker handle / raw-secret-forbidden boundary), ADR-0010 (browser-handoff and approval-ticket envelope), ADR-0018 (workspace-trust state), schemas/runtime/execution_context.schema.json (target identity / sandbox posture / policy epoch), schemas/runtime/browser_runtime_session.schema.json (browser-runtime session and preview-route record), schemas/integration/browser_handoff_packet.schema.json (browser-handoff packet envelope), schemas/support/support_bundle.schema.json (support / export bundle the evidence-handoff bundle may compose with by reference), schemas/security/incident_workspace_packet.schema.json (security-side private-triage packet the bundle composes with by reference), and schemas/ops/runbook_packet.schema.json (runbook-packet / action-ledger entry the bundle pins by reference). The eventual ops crate's Rust types are the schema of record; this file is the cross-tool boundary every postmortem / review reader, support / export reader, AI-tool review surface, browser-handoff exit, console-handoff exit, last-synced offline view reader, and admin / policy review reads. Adding a new record_kind, bundle_kind_class, integrity_class, handoff_class, retention_posture_class, denial_reason, or audit_event_id is additive-minor and bumps evidence_handoff_bundle_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/evidence_handoff_bundle_record",
+  "$defs": {
+    "evidence_handoff_bundle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the evidence-handoff-bundle vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "evidence_handoff_bundle_record",
+      "description": "Discriminator. Always evidence_handoff_bundle_record for bundles conforming to this schema."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, postmortem / review bundles, and admin reconciliation surfaces. Raw provider URLs, raw provider payloads, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, and raw secret material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for postmortem / review, support / export, browser / console handoff exit, last-synced offline view, and admin reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, postmortem / review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "integrity_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque content hash pinning the bundle's snapshotted content at immutable_snapshot_at. Raw payload bytes never appear; only the opaque hash crosses this boundary."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw provider payloads, raw stack frames, raw stdout / stderr, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, raw approval-ticket bodies, raw browser-cookie material, and raw secret material never cross this boundary regardless of class. private_triage_only is admissible only when the bundle is bound to a security-side incident_workspace_packet record."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["untrusted", "restricted", "trusted", "managed_admin"],
+      "description": "ADR-0018 / ADR-0009 workspace-trust state the bundle was admitted under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref (ADR-0008 / ADR-0009)."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009 / ADR-0018."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile vocabulary mirrored from artifacts/governance/deployment_profiles.yaml."
+    },
+
+    "bundle_kind_class": {
+      "type": "string",
+      "enum": [
+        "postmortem_bundle_for_review",
+        "internal_review_bundle_pre_publication",
+        "browser_console_handoff_attributable_exit",
+        "console_handoff_attributable_exit",
+        "last_synced_offline_view_read_only",
+        "support_export_bundle_companion",
+        "ai_tool_proposed_bundle_pending_review",
+        "imported_evidence_replay_bundle_no_live_target",
+        "bundle_kind_unknown_requires_review"
+      ],
+      "description": "Frozen bundle-kind vocabulary. browser_console_handoff_attributable_exit / console_handoff_attributable_exit make a browser or console handoff attributable rather than a hidden alternate control plane: the exit travels through this bundle and is recorded in the chronology. last_synced_offline_view_read_only is the offline / mirrored read-only projection. ai_tool_proposed_bundle_pending_review forbids leaving pending review state. imported_evidence_replay_bundle_no_live_target forbids any live-target attach."
+    },
+
+    "integrity_class": {
+      "type": "string",
+      "enum": [
+        "frozen_no_post_hoc_rewrite",
+        "superseded_by_new_bundle",
+        "withdrawn_invalid_invocation",
+        "expired_retention_envelope",
+        "integrity_unverifiable_user_review_required"
+      ],
+      "description": "Frozen integrity-class vocabulary. frozen_no_post_hoc_rewrite is the default: prior bundles are never deleted, backdated, or rewritten in place. superseded_by_new_bundle requires a non-null superseded_by_bundle_id_ref; the prior bundle remains visible in the chronology. integrity_unverifiable_user_review_required is the safe-default."
+    },
+
+    "handoff_destination_class": {
+      "type": "string",
+      "enum": [
+        "no_handoff_local_review_only",
+        "system_browser_review_handoff",
+        "device_code_review_handoff",
+        "console_attached_session_handoff",
+        "support_export_destination",
+        "managed_admin_handoff_destination",
+        "private_security_channel_destination",
+        "imported_replay_no_live_destination",
+        "handoff_destination_unverifiable_user_review_required"
+      ],
+      "description": "Frozen handoff-destination vocabulary. no_handoff_local_review_only is admissible only on postmortem_bundle_for_review / internal_review_bundle_pre_publication / last_synced_offline_view_read_only / imported_evidence_replay_bundle_no_live_target. browser / console handoff bundles MUST resolve to system_browser_review_handoff / device_code_review_handoff / console_attached_session_handoff."
+    },
+
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "retained_until_incident_resolved_then_archived",
+        "retained_until_postmortem_published_then_archived",
+        "retained_for_release_evidence_review",
+        "retained_for_security_response_review",
+        "retained_local_only_no_export",
+        "retained_managed_admin_review_only",
+        "retention_posture_unknown_requires_review"
+      ],
+      "description": "Frozen retention-posture vocabulary. Names how long the bundle is held and where it is admissible to read from. retention_posture_unknown_requires_review is the safe-default that strips export-routing admissibility."
+    },
+
+    "rewrite_admissibility_class": {
+      "type": "string",
+      "enum": [
+        "no_post_hoc_rewrite_admitted",
+        "correction_must_supersede_via_new_bundle",
+        "ai_tool_proposed_correction_pending_review"
+      ],
+      "description": "Frozen rewrite-admissibility vocabulary. The default is no_post_hoc_rewrite_admitted; corrections MUST land as a new bundle that supersedes the prior one. ai_tool_proposed_correction_pending_review forbids leaving pending review state."
+    },
+
+    "evidence_origin_class": {
+      "type": "string",
+      "enum": [
+        "live_capture_from_incident_workspace",
+        "live_capture_from_runbook_step",
+        "live_capture_from_action_ledger_entry",
+        "imported_from_browser_handoff_packet",
+        "imported_from_console_handoff_session",
+        "imported_from_support_export_bundle",
+        "imported_from_replay_capture",
+        "evidence_origin_unverifiable_user_review_required"
+      ],
+      "description": "Frozen evidence-origin vocabulary. Names where the snapshotted evidence came from at immutable_snapshot_at."
+    },
+
+    "preserved_target_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_id_ref",
+        "deployment_profile_class_set",
+        "exact_build_identity_refs",
+        "preserved_at"
+      ],
+      "properties": {
+        "execution_context_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/runtime/execution_context.schema.json. Pinned at immutable_snapshot_at so a postmortem / review reader resolves the same target identity the responder saw."
+        },
+        "deployment_profile_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/build/exact_build_identity.schema.json. Pinned at immutable_snapshot_at."
+        },
+        "preserved_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Preserved target-context envelope. The bundle pins the execution-context / deployment-profile / exact-build identity the responder observed at immutable_snapshot_at; postmortem / review readers resolve the same target context the responder saw."
+    },
+
+    "evidence_item_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_item_id_ref", "evidence_origin_class"],
+      "properties": {
+        "evidence_item_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the evidence item the bundle pinned at snapshot time. Stable across redaction-pass reruns."
+        },
+        "evidence_origin_class": { "$ref": "#/$defs/evidence_origin_class" }
+      },
+      "description": "One evidence-item ref pinned by the bundle. Raw bodies never cross this boundary; the bundle pins the opaque ref and the typed origin class only."
+    },
+
+    "evidence_handoff_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_handoff_bundle_schema_version",
+        "record_kind",
+        "bundle_id",
+        "title",
+        "summary",
+        "bundle_kind_class",
+        "source_incident_workspace_id_ref",
+        "immutable_snapshot_at",
+        "integrity_hash",
+        "integrity_class",
+        "rewrite_admissibility_class",
+        "superseded_by_bundle_id_ref",
+        "supersedes_bundle_id_ref",
+        "handoff_destination_class",
+        "retention_posture_class",
+        "preserved_target_context",
+        "evidence_item_refs",
+        "included_runbook_packet_id_refs",
+        "included_action_ledger_entry_id_refs",
+        "included_signal_slice_id_refs",
+        "linked_support_bundle_refs",
+        "linked_security_incident_packet_refs",
+        "linked_advisory_refs",
+        "linked_emergency_action_refs",
+        "linked_break_glass_event_refs",
+        "linked_browser_handoff_packet_refs",
+        "linked_console_handoff_session_refs",
+        "linked_postmortem_review_refs",
+        "policy_context",
+        "redaction_class",
+        "authored_at"
+      ],
+      "properties": {
+        "evidence_handoff_bundle_schema_version": { "$ref": "#/$defs/evidence_handoff_bundle_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/reviewable_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "bundle_kind_class": { "$ref": "#/$defs/bundle_kind_class" },
+        "source_incident_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the incident_workspace_record the bundle was exported from. Stable across the bundle's life; never rewritten."
+        },
+        "immutable_snapshot_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Wall-clock at which the bundle's content was frozen. Never rewritten; corrections land as a new bundle."
+        },
+        "integrity_hash": { "$ref": "#/$defs/integrity_hash" },
+        "integrity_class": { "$ref": "#/$defs/integrity_class" },
+        "rewrite_admissibility_class": { "$ref": "#/$defs/rewrite_admissibility_class" },
+        "superseded_by_bundle_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the bundle that supersedes this one. Non-null when integrity_class is superseded_by_new_bundle; null otherwise. The prior bundle remains visible in the chronology."
+        },
+        "supersedes_bundle_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prior bundle this bundle supersedes. Non-null only when this bundle was authored as a correction to a prior bundle."
+        },
+        "handoff_destination_class": { "$ref": "#/$defs/handoff_destination_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "preserved_target_context": { "$ref": "#/$defs/preserved_target_context" },
+        "evidence_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_item_ref" },
+          "description": "Closed list of evidence items the bundle pinned at snapshot time. Never rewritten in place; corrections land as a new bundle."
+        },
+        "included_runbook_packet_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to runbook_packet_record ids the bundle pinned at snapshot time. Never rewritten in place."
+        },
+        "included_action_ledger_entry_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to action_ledger_entry_record ids the bundle pinned at snapshot time. Never rewritten in place."
+        },
+        "included_signal_slice_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to signal_slice ids the bundle pinned at snapshot time. Never rewritten in place."
+        },
+        "linked_support_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/support/support_bundle.schema.json. The bundle composes with the support / export bundle by reference rather than re-embedding raw payloads."
+        },
+        "linked_security_incident_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/security/incident_workspace_packet.schema.json (private-triage) when the operational incident also opened a security triage."
+        },
+        "linked_advisory_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/security/advisory_record.schema.json."
+        },
+        "linked_emergency_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/security/emergency_action_record.schema.json. The bundle pins the emergency-action ref the action-ledger invoked, not a copy of the action body."
+        },
+        "linked_break_glass_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/security/break_glass_event.schema.json."
+        },
+        "linked_browser_handoff_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to schemas/integration/browser_handoff_packet.schema.json. Non-empty when bundle_kind_class is browser_console_handoff_attributable_exit."
+        },
+        "linked_console_handoff_session_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to console-handoff sessions. Non-empty when bundle_kind_class is console_handoff_attributable_exit."
+        },
+        "linked_postmortem_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to postmortem / review records the bundle feeds. Empty when bundle_kind_class is browser_console_handoff_attributable_exit / console_handoff_attributable_exit / last_synced_offline_view_read_only."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "integrity_class = frozen_no_post_hoc_rewrite forbids superseded_by_bundle_id_ref.",
+          "if": {
+            "properties": { "integrity_class": { "const": "frozen_no_post_hoc_rewrite" } },
+            "required": ["integrity_class"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_bundle_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "integrity_class = superseded_by_new_bundle MUST cite a non-null superseded_by_bundle_id_ref.",
+          "if": {
+            "properties": { "integrity_class": { "const": "superseded_by_new_bundle" } },
+            "required": ["integrity_class"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_bundle_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["superseded_by_bundle_id_ref"]
+          }
+        },
+        {
+          "description": "bundle_kind_class = browser_console_handoff_attributable_exit MUST cite a non-empty linked_browser_handoff_packet_refs and resolve handoff_destination_class to system_browser_review_handoff or device_code_review_handoff.",
+          "if": {
+            "properties": { "bundle_kind_class": { "const": "browser_console_handoff_attributable_exit" } },
+            "required": ["bundle_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_refs": { "minItems": 1 },
+              "handoff_destination_class": {
+                "enum": [
+                  "system_browser_review_handoff",
+                  "device_code_review_handoff"
+                ]
+              }
+            },
+            "required": ["linked_browser_handoff_packet_refs"]
+          }
+        },
+        {
+          "description": "bundle_kind_class = console_handoff_attributable_exit MUST cite a non-empty linked_console_handoff_session_refs and resolve handoff_destination_class to console_attached_session_handoff.",
+          "if": {
+            "properties": { "bundle_kind_class": { "const": "console_handoff_attributable_exit" } },
+            "required": ["bundle_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_console_handoff_session_refs": { "minItems": 1 },
+              "handoff_destination_class": { "const": "console_attached_session_handoff" }
+            },
+            "required": ["linked_console_handoff_session_refs"]
+          }
+        },
+        {
+          "description": "bundle_kind_class = ai_tool_proposed_bundle_pending_review forbids leaving pending review and forbids handoff to live destinations.",
+          "if": {
+            "properties": { "bundle_kind_class": { "const": "ai_tool_proposed_bundle_pending_review" } },
+            "required": ["bundle_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "handoff_destination_class": {
+                "enum": [
+                  "no_handoff_local_review_only",
+                  "handoff_destination_unverifiable_user_review_required"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "bundle_kind_class = imported_evidence_replay_bundle_no_live_target forbids any live destination.",
+          "if": {
+            "properties": { "bundle_kind_class": { "const": "imported_evidence_replay_bundle_no_live_target" } },
+            "required": ["bundle_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "handoff_destination_class": {
+                "enum": [
+                  "no_handoff_local_review_only",
+                  "imported_replay_no_live_destination",
+                  "handoff_destination_unverifiable_user_review_required"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "rewrite_admissibility_class = ai_tool_proposed_correction_pending_review forbids leaving pending review.",
+          "if": {
+            "properties": { "rewrite_admissibility_class": { "const": "ai_tool_proposed_correction_pending_review" } },
+            "required": ["rewrite_admissibility_class"]
+          },
+          "then": {
+            "properties": {
+              "integrity_class": {
+                "enum": [
+                  "withdrawn_invalid_invocation",
+                  "integrity_unverifiable_user_review_required"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One evidence-handoff bundle. Carries the immutable snapshot every postmortem / review, browser / console handoff exit, last-synced offline view, and admin reconciliation reader resolves against. Frozen-no-post-hoc-rewrite by default; corrections supersede via a new bundle, never by editing the prior one."
+    }
+  }
+}
