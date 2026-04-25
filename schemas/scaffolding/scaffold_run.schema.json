@@ -1,0 +1,775 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/scaffolding/scaffold_run.schema.json",
+  "title": "Aureline scaffold-run and generated-project lineage contract",
+  "description": "Boundary schema for the scaffold-run and generated-project lineage contract frozen in docs/scaffolding/template_and_scaffold_contract.md. Every attempted scaffold-run dispatch (whether the run completes, is dry-run only, is denied at a gate, is aborted by the user, is rolled back after partial application, or is queued pending an AI-proposed-run admission) MUST publish exactly one scaffold_run_record against this schema. Every workspace produced by such a run MUST publish exactly one generated_project_lineage_record that is the on-disk projection of the lineage_metadata_file_for_generated_project generated-file class — a plain reviewable JSON / JSONC artifact under version control, never a hidden Aureline-only project database. The records bind one opaque run id and one opaque lineage id to the manifest revision the run was dispatched against, the dry-run preview ref, the parameter values supplied, the hooks and setup tasks invoked (subset of the manifest's declared rows), the rollback checkpoint, the delete-generated-output recovery route, the post-create handoff summary, and the generated-project lineage / update / rebase / drift / reopen-preflight state. Raw bearer tokens, raw API keys, raw passwords, raw signing keys, raw certificate / key material, raw absolute filesystem paths, raw repository URLs, raw author email addresses, raw stdout / stderr, and raw post-install script bodies never cross this boundary; the schema carries opaque ids, closed vocabulary, content-addresses, integer-bucket counts, and short reviewable sentences only. Adding a new scaffold_run_outcome_class, scaffold_dry_run_posture_class, dispatched_by_actor_class, denial_reason_class, generated_project_lineage_state_class, generated_project_update_or_rebase_state_class, or delete_generated_output_recovery_route_class is additive-minor and bumps the per-record schema_version const; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/scaffold_run_record" },
+    { "$ref": "#/$defs/generated_project_lineage_record" }
+  ],
+  "$defs": {
+    "scaffold_run_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "generated_project_lineage_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw paths, raw URLs, raw JSON payloads, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "semver_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dispatched_by_actor_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local",
+        "workspace_shared_committed",
+        "org_curated_admin_published",
+        "managed_workspace_provisioned",
+        "imported_from_export_bundle",
+        "ad_hoc_session",
+        "ai_tool_proposed_pending_review"
+      ]
+    },
+    "scaffold_run_outcome_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_preview_only_no_files_written",
+        "applied_all_files_no_post_create_action",
+        "applied_all_files_post_create_succeeded",
+        "applied_files_post_create_partial_success",
+        "applied_files_post_create_failed",
+        "denied_at_trust_gate",
+        "denied_at_policy_gate",
+        "denied_at_approval_gate",
+        "denied_pre_apply_undeclared_hook_or_task",
+        "aborted_by_user_no_files_written",
+        "aborted_by_user_after_partial_apply_rolled_back",
+        "rolled_back_after_partial_apply",
+        "rolled_back_after_failure",
+        "ai_tool_proposed_run_pending_admission",
+        "run_outcome_class_unknown_requires_review"
+      ]
+    },
+    "scaffold_dry_run_posture_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_required_before_apply",
+        "dry_run_offered_before_apply_user_may_skip",
+        "dry_run_not_applicable_pure_files_no_side_effects",
+        "dry_run_unavailable_irreversible_under_approval_only"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "undeclared_hook_or_setup_task_must_not_run",
+        "dry_run_required_before_apply_was_skipped",
+        "raw_secret_in_template_manifest_forbidden",
+        "raw_absolute_path_in_template_manifest_forbidden",
+        "parameter_kind_must_resolve_to_typed_class",
+        "template_egress_posture_must_resolve_to_typed_class",
+        "template_trust_posture_must_match_declared_hooks_and_tasks",
+        "workspace_trust_unset_or_restricted",
+        "policy_epoch_expired_re_evaluation_required",
+        "signature_review_required_user_review_required",
+        "community_or_uncertified_template_pending_user_admit",
+        "ai_tool_proposed_template_must_not_apply_pending_review",
+        "ai_tool_proposed_run_must_not_apply_pending_admission",
+        "manifest_content_address_unverifiable_user_review_required",
+        "template_revision_archived_no_apply_path",
+        "lineage_metadata_must_be_plain_reviewable_file",
+        "denial_reason_class_unknown_requires_review"
+      ]
+    },
+    "generated_project_lineage_state_class": {
+      "type": "string",
+      "enum": [
+        "linked_to_template_revision",
+        "linked_to_template_revision_with_local_overrides",
+        "unlinked_user_disclaimed_link",
+        "unlinked_template_revision_archived",
+        "drifted_from_template_revision_user_review_required",
+        "rebased_to_newer_template_revision",
+        "forked_to_local_template_revision",
+        "lineage_unknown_imported_without_lineage_packet",
+        "ai_tool_proposed_relink_pending_review",
+        "lineage_state_class_unknown_requires_review"
+      ]
+    },
+    "generated_project_update_or_rebase_state_class": {
+      "type": "string",
+      "enum": [
+        "in_sync_with_bound_template_revision",
+        "update_available_minor_no_breaking_change",
+        "update_available_major_breaking_change_review_required",
+        "rebase_required_breaking_change_pending_user_review",
+        "rebase_blocked_pending_user_admit",
+        "rebase_blocked_pending_policy_review",
+        "rebase_blocked_pending_workspace_trust",
+        "no_update_path_template_revision_archived",
+        "no_update_path_unlinked_or_lineage_unknown",
+        "update_state_class_unknown_requires_review"
+      ]
+    },
+    "template_reopen_preflight_class": {
+      "type": "string",
+      "enum": [
+        "reopen_preflight_in_sync_admissible",
+        "reopen_preflight_template_revision_unchanged_admissible",
+        "reopen_preflight_template_revision_advanced_update_available",
+        "reopen_preflight_template_revision_advanced_breaking_rebase_required",
+        "reopen_preflight_template_revision_archived_no_update_path",
+        "reopen_preflight_template_revision_unverifiable_user_review_required",
+        "reopen_preflight_lineage_unknown_imported_without_lineage_packet"
+      ]
+    },
+    "delete_generated_output_recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "delete_with_lockfile_checkpoint_recovery",
+        "delete_with_workspace_snapshot_recovery",
+        "delete_with_local_history_recovery_only",
+        "delete_with_regenerate_from_template_recovery",
+        "delete_with_no_lineage_packet_local_history_only_review_required",
+        "delete_unrecoverable_user_review_required"
+      ]
+    },
+    "lineage_packet_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "exportable_via_portable_profile",
+        "exportable_via_support_bundle_redacted",
+        "exportable_via_organization_share_managed_only",
+        "not_exportable_local_only",
+        "export_denied_by_policy"
+      ],
+      "description": "Re-exported from the recipe / macro contract export-posture vocabulary without modification."
+    },
+    "lineage_packet_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ]
+    },
+    "scaffold_run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scaffold_run_schema_version",
+        "scaffold_run_id",
+        "bound_template_id_ref",
+        "bound_template_revision_ref",
+        "dispatched_by_actor_class",
+        "scaffold_run_outcome_class",
+        "scaffold_dry_run_posture_class",
+        "parameter_value_refs",
+        "applied_generated_file_ids",
+        "invoked_declared_hook_ids",
+        "invoked_declared_setup_task_ids",
+        "dispatched_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "scaffold_run_record" },
+        "scaffold_run_schema_version": {
+          "$ref": "#/$defs/scaffold_run_schema_version"
+        },
+        "scaffold_run_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_revision_semver": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver_string" }
+          ]
+        },
+        "dispatched_by_actor_class": {
+          "$ref": "#/$defs/dispatched_by_actor_class"
+        },
+        "scaffold_run_outcome_class": {
+          "$ref": "#/$defs/scaffold_run_outcome_class"
+        },
+        "scaffold_dry_run_posture_class": {
+          "$ref": "#/$defs/scaffold_dry_run_posture_class"
+        },
+        "dry_run_preview_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "parameter_value_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "applied_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "applied_generated_file_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "invoked_declared_hook_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "invoked_declared_setup_task_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "rollback_checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "delete_generated_output_recovery_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "delete_generated_output_recovery_route_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/delete_generated_output_recovery_route_class" }
+          ]
+        },
+        "post_create_handoff_summary_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "created_workspace_lineage_record_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "ai_tool_proposed_run_review_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "dispatched_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Outcomes that produce no files MUST leave applied_at null and applied_generated_file_ids empty.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "dry_run_preview_only_no_files_written",
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_approval_gate",
+                  "denied_pre_apply_undeclared_hook_or_task",
+                  "aborted_by_user_no_files_written",
+                  "ai_tool_proposed_run_pending_admission"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "applied_at": { "type": "null" },
+              "applied_generated_file_ids": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "Outcomes that apply files MUST cite a non-null applied_at timestamp.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "applied_all_files_no_post_create_action",
+                  "applied_all_files_post_create_succeeded",
+                  "applied_files_post_create_partial_success",
+                  "applied_files_post_create_failed",
+                  "rolled_back_after_partial_apply",
+                  "rolled_back_after_failure",
+                  "aborted_by_user_after_partial_apply_rolled_back"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["applied_at"],
+            "properties": {
+              "applied_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        },
+        {
+          "description": "Outcomes that produced files MUST cite a non-null delete_generated_output_recovery_route_ref + class so a future delete-generated-output flow can resolve the recovery route without inventing a parallel registry.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "applied_all_files_no_post_create_action",
+                  "applied_all_files_post_create_succeeded",
+                  "applied_files_post_create_partial_success",
+                  "applied_files_post_create_failed",
+                  "rolled_back_after_partial_apply",
+                  "rolled_back_after_failure",
+                  "aborted_by_user_after_partial_apply_rolled_back"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "delete_generated_output_recovery_route_ref",
+              "delete_generated_output_recovery_route_class"
+            ],
+            "properties": {
+              "delete_generated_output_recovery_route_ref": {
+                "$ref": "#/$defs/opaque_id"
+              },
+              "delete_generated_output_recovery_route_class": {
+                "$ref": "#/$defs/delete_generated_output_recovery_route_class"
+              }
+            }
+          }
+        },
+        {
+          "description": "Rollback outcomes MUST cite a non-null rollback_checkpoint_ref.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "rolled_back_after_partial_apply",
+                  "rolled_back_after_failure",
+                  "aborted_by_user_after_partial_apply_rolled_back"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["rollback_checkpoint_ref"],
+            "properties": {
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Outcomes that produce a workspace MUST cite a non-null created_workspace_lineage_record_ref so the on-disk lineage record exists.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "applied_all_files_no_post_create_action",
+                  "applied_all_files_post_create_succeeded",
+                  "applied_files_post_create_partial_success",
+                  "applied_files_post_create_failed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["created_workspace_lineage_record_ref"],
+            "properties": {
+              "created_workspace_lineage_record_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "Outcomes that produce post-create actions MUST cite a non-null post_create_handoff_summary_ref so the handoff axes (succeeded / skipped / partial / failed / cleanup) are reviewable.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "applied_all_files_post_create_succeeded",
+                  "applied_files_post_create_partial_success",
+                  "applied_files_post_create_failed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["post_create_handoff_summary_ref"],
+            "properties": {
+              "post_create_handoff_summary_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "denied_pre_apply_undeclared_hook_or_task MUST cite undeclared_hook_or_setup_task_must_not_run as denial_reason_class.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "const": "denied_pre_apply_undeclared_hook_or_task"
+              }
+            }
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": {
+                "const": "undeclared_hook_or_setup_task_must_not_run"
+              }
+            }
+          }
+        },
+        {
+          "description": "Every denied_* outcome MUST cite a non-null denial_reason_class.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_approval_gate",
+                  "denied_pre_apply_undeclared_hook_or_task"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": {
+                "$ref": "#/$defs/denial_reason_class"
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_run_pending_admission MUST cite a non-null ai_tool_proposed_run_review_ticket_ref and leave applied_at null.",
+          "if": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "const": "ai_tool_proposed_run_pending_admission"
+              }
+            }
+          },
+          "then": {
+            "required": ["ai_tool_proposed_run_review_ticket_ref"],
+            "properties": {
+              "ai_tool_proposed_run_review_ticket_ref": {
+                "$ref": "#/$defs/opaque_id"
+              },
+              "applied_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "When scaffold_dry_run_posture_class is dry_run_required_before_apply, every applied / rolled-back outcome MUST cite a non-null dry_run_preview_ref.",
+          "if": {
+            "properties": {
+              "scaffold_dry_run_posture_class": {
+                "const": "dry_run_required_before_apply"
+              },
+              "scaffold_run_outcome_class": {
+                "enum": [
+                  "applied_all_files_no_post_create_action",
+                  "applied_all_files_post_create_succeeded",
+                  "applied_files_post_create_partial_success",
+                  "applied_files_post_create_failed",
+                  "rolled_back_after_partial_apply",
+                  "rolled_back_after_failure",
+                  "aborted_by_user_after_partial_apply_rolled_back"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["dry_run_preview_ref"],
+            "properties": {
+              "dry_run_preview_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_pending_review actor MUST resolve to ai_tool_proposed_run_pending_admission outcome.",
+          "if": {
+            "properties": {
+              "dispatched_by_actor_class": {
+                "const": "ai_tool_proposed_pending_review"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "scaffold_run_outcome_class": {
+                "const": "ai_tool_proposed_run_pending_admission"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "generated_project_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "generated_project_lineage_schema_version",
+        "lineage_id",
+        "created_workspace_label_ref",
+        "generated_project_lineage_state_class",
+        "generated_project_update_or_rebase_state_class",
+        "template_reopen_preflight_class",
+        "delete_generated_output_recovery_route_default_class",
+        "lineage_packet_export_posture_class",
+        "lineage_packet_redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "generated_project_lineage_record" },
+        "generated_project_lineage_schema_version": {
+          "$ref": "#/$defs/generated_project_lineage_schema_version"
+        },
+        "lineage_id": { "$ref": "#/$defs/opaque_id" },
+        "created_workspace_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "bound_template_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "bound_template_revision_semver": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver_string" }
+          ]
+        },
+        "generated_project_lineage_state_class": {
+          "$ref": "#/$defs/generated_project_lineage_state_class"
+        },
+        "generated_project_update_or_rebase_state_class": {
+          "$ref": "#/$defs/generated_project_update_or_rebase_state_class"
+        },
+        "template_reopen_preflight_class": {
+          "$ref": "#/$defs/template_reopen_preflight_class"
+        },
+        "dispatched_scaffold_run_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "relinked_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "delete_generated_output_recovery_route_default_class": {
+          "$ref": "#/$defs/delete_generated_output_recovery_route_class"
+        },
+        "lineage_packet_export_posture_class": {
+          "$ref": "#/$defs/lineage_packet_export_posture_class"
+        },
+        "lineage_packet_redaction_class": {
+          "$ref": "#/$defs/lineage_packet_redaction_class"
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "linked / drifted / rebased states MUST cite a non-null bound_template_revision_ref.",
+          "if": {
+            "properties": {
+              "generated_project_lineage_state_class": {
+                "enum": [
+                  "linked_to_template_revision",
+                  "linked_to_template_revision_with_local_overrides",
+                  "drifted_from_template_revision_user_review_required",
+                  "rebased_to_newer_template_revision"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["bound_template_revision_ref"],
+            "properties": {
+              "bound_template_revision_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "unlinked / forked / lineage-unknown / AI-proposed-relink states MUST leave bound_template_revision_ref null.",
+          "if": {
+            "properties": {
+              "generated_project_lineage_state_class": {
+                "enum": [
+                  "unlinked_user_disclaimed_link",
+                  "unlinked_template_revision_archived",
+                  "forked_to_local_template_revision",
+                  "lineage_unknown_imported_without_lineage_packet",
+                  "ai_tool_proposed_relink_pending_review"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bound_template_revision_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "lineage_unknown_imported_without_lineage_packet MUST resolve template_reopen_preflight_class to the matching unknown class.",
+          "if": {
+            "properties": {
+              "generated_project_lineage_state_class": {
+                "const": "lineage_unknown_imported_without_lineage_packet"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "template_reopen_preflight_class": {
+                "const": "reopen_preflight_lineage_unknown_imported_without_lineage_packet"
+              }
+            }
+          }
+        },
+        {
+          "description": "in_sync / update_available_* states MUST pair with linked / linked-with-overrides / rebased lineage states.",
+          "if": {
+            "properties": {
+              "generated_project_update_or_rebase_state_class": {
+                "enum": [
+                  "in_sync_with_bound_template_revision",
+                  "update_available_minor_no_breaking_change",
+                  "update_available_major_breaking_change_review_required"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "generated_project_lineage_state_class": {
+                "enum": [
+                  "linked_to_template_revision",
+                  "linked_to_template_revision_with_local_overrides",
+                  "rebased_to_newer_template_revision"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "no_update_path_unlinked_or_lineage_unknown MUST pair with unlinked / forked / lineage-unknown lineage states.",
+          "if": {
+            "properties": {
+              "generated_project_update_or_rebase_state_class": {
+                "const": "no_update_path_unlinked_or_lineage_unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "generated_project_lineage_state_class": {
+                "enum": [
+                  "unlinked_user_disclaimed_link",
+                  "unlinked_template_revision_archived",
+                  "forked_to_local_template_revision",
+                  "lineage_unknown_imported_without_lineage_packet"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_relink_pending_review MUST leave relinked_at null.",
+          "if": {
+            "properties": {
+              "generated_project_lineage_state_class": {
+                "const": "ai_tool_proposed_relink_pending_review"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "relinked_at": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

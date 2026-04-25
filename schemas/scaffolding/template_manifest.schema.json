@@ -1,0 +1,1219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/scaffolding/template_manifest.schema.json",
+  "title": "Aureline template-manifest contract",
+  "description": "Boundary schema for the template-manifest contract frozen in docs/scaffolding/template_and_scaffold_contract.md. Every template revision (first-party, team-managed, community, local-only, mirror-cached, or AI-tool-proposed-pending-review) MUST publish exactly one template_manifest_record against this schema. The record names every file class the template generates, every hook the scaffold runner MAY invoke, every setup task the runner MAY enqueue, every required parameter, every supported ecosystem, every supported platform, the trust posture, the egress posture, the support class, the lifecycle class, the declared freshness, the known-issue rows, the reopen-preflight default, the create-without-starter route ids, the post-create handoff axes reserved, the delete-generated-output recovery route default, and the redaction class. Nothing the scaffold runner does is admissible unless it resolves to one of the manifest's declared rows; the scaffold_run schema's allOf gate enforces that invariant mechanically. Raw bearer tokens, raw API keys, raw passwords, raw signing keys, raw certificate / key material, raw absolute filesystem paths, raw repository URLs, and raw author email addresses never cross this boundary; the manifest carries opaque ids, closed vocabulary, content-addresses, and short reviewable sentences only. Adding a new template_archetype_class, supported_ecosystem_class, supported_platform_class, required_parameter_kind_class, generated_file_class, declared_hook_class, declared_setup_task_class, template_trust_posture_class, template_egress_posture_class, template_known_issue_class, template_reopen_preflight_class, or delete_generated_output_recovery_route_class is additive-minor and bumps template_manifest_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/template_manifest_record",
+  "$defs": {
+    "template_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw paths, raw URLs, raw JSON payloads, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Short reviewable sentence intended for gallery preview, preflight summary, and post-create handoff cards."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SemVer string the template revision was minted against."
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "template_archetype_class": {
+      "type": "string",
+      "enum": [
+        "web_application",
+        "web_frontend_library",
+        "backend_service",
+        "cli_tool",
+        "library_or_sdk",
+        "data_or_ml_workbench",
+        "mobile_application",
+        "embedded_or_firmware",
+        "monorepo_root_with_workspaces",
+        "monorepo_member_workspace",
+        "documentation_site",
+        "infrastructure_or_pipeline",
+        "extension_or_plugin",
+        "archetype_class_unknown_requires_review"
+      ]
+    },
+    "template_source_class": {
+      "type": "string",
+      "enum": [
+        "first_party",
+        "team_managed",
+        "community",
+        "local_only",
+        "mirror_cached",
+        "uncertified"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.2 without modification."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "officially_supported",
+        "community_supported",
+        "experimental",
+        "legacy_deprecated",
+        "unsupported",
+        "support_unknown"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.3 without modification."
+    },
+    "template_lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "resume_live_workspace",
+        "start_from_snapshot",
+        "clone_fresh_repository",
+        "template_based_start",
+        "prebuild_warm_start",
+        "open_without_starter",
+        "ai_tool_proposed_pending_review"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.5; this contract adds the ai_tool_proposed_pending_review value as additive-minor (gallery surfaces SHOULD render the matching policy notice when a manifest carries this lifecycle class)."
+    },
+    "runtime_and_toolchain_scope": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_with_devcontainer",
+        "local_with_container",
+        "remote_image_required",
+        "managed_cloud_required",
+        "mixed_local_and_remote",
+        "not_declared"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.4 without modification."
+    },
+    "declared_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.6 without modification."
+    },
+    "starter_setup_cost_class": {
+      "type": "string",
+      "enum": [
+        "no_setup",
+        "light_local_setup",
+        "network_package_restore",
+        "devcontainer_bootstrap",
+        "container_bootstrap",
+        "managed_remote_provisioning",
+        "prebuild_attach_warm",
+        "time_unknown_network_unknown"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.7 without modification."
+    },
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "continuous_with_previous_acquisition",
+        "first_acquisition_no_prior_signer",
+        "signer_changed_review_required",
+        "signer_unknown_user_review_required",
+        "signer_continuity_not_applicable"
+      ],
+      "description": "Re-exported from the source-acquisition / bootstrap seed §1.5 without modification."
+    },
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "unsigned",
+        "author_signature",
+        "author_and_organization_signature",
+        "organization_signature_only",
+        "managed_only_channel_signature",
+        "quarantined_no_signature"
+      ],
+      "description": "Re-exported from the recipe / macro contract without modification."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ],
+      "description": "Re-exported from the capability-lifecycle / secret-broker contract without modification."
+    },
+    "automation_capability_class": {
+      "type": "string",
+      "enum": [
+        "read_only_workspace_inspection",
+        "reversible_local_editor_mutation",
+        "irreversible_local_editor_mutation",
+        "reversible_workspace_filesystem_mutation",
+        "irreversible_workspace_filesystem_mutation",
+        "network_read_on_permitted_hosts",
+        "network_mutation_on_permitted_hosts",
+        "remote_agent_invocation",
+        "credential_broker_handshake",
+        "managed_only_channel_invocation",
+        "ai_tool_invocation",
+        "extension_invocation",
+        "terminal_session_invocation",
+        "debug_session_invocation",
+        "notebook_kernel_invocation",
+        "settings_or_profile_mutation",
+        "policy_admission_revalidation",
+        "trust_state_revalidation",
+        "recorded_macro_ui_state_replay",
+        "recorded_macro_editor_state_replay",
+        "deferred_intent_hook",
+        "queued_action_hook"
+      ],
+      "description": "Re-exported from schemas/automation/recipe_manifest.schema.json without modification."
+    },
+    "trust_gate_class": {
+      "type": "string",
+      "enum": [
+        "no_trust_gate_required",
+        "workspace_trust_required",
+        "workspace_trust_revalidated_each_step",
+        "restricted_mode_tolerated_read_only_only",
+        "restricted_mode_denied"
+      ]
+    },
+    "policy_gate_class": {
+      "type": "string",
+      "enum": [
+        "policy_not_applicable",
+        "admin_policy_observed",
+        "admin_policy_revalidated_each_step",
+        "managed_only_channel_required",
+        "kill_switch_gated"
+      ]
+    },
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "approval_required_once_per_run",
+        "approval_required_per_step",
+        "approval_required_on_every_high_blast_step",
+        "approval_required_on_every_irreversible_step",
+        "approval_denied_for_recipe"
+      ]
+    },
+    "dry_run_posture_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_required_before_apply",
+        "dry_run_supported",
+        "dry_run_not_applicable_read_only",
+        "dry_run_not_supported_irreversible_under_approval_only"
+      ]
+    },
+    "supported_ecosystem_class": {
+      "type": "string",
+      "enum": [
+        "rust_cargo",
+        "node_npm",
+        "node_pnpm",
+        "node_yarn",
+        "node_bun",
+        "python_pip",
+        "python_poetry",
+        "python_uv",
+        "go_modules",
+        "java_maven",
+        "java_gradle",
+        "dotnet_nuget",
+        "ruby_bundler",
+        "swift_package_manager",
+        "multi_ecosystem_polyglot",
+        "no_ecosystem_pure_files",
+        "ecosystem_class_unknown_requires_review"
+      ]
+    },
+    "supported_platform_class": {
+      "type": "string",
+      "enum": [
+        "linux_x86_64",
+        "linux_arm64",
+        "macos_x86_64",
+        "macos_arm64",
+        "windows_x86_64",
+        "windows_arm64",
+        "web_browser_runtime",
+        "container_runtime_target",
+        "devcontainer_runtime_target",
+        "managed_workspace_remote_target",
+        "mobile_ios_target",
+        "mobile_android_target",
+        "embedded_target",
+        "platform_class_unknown_requires_review"
+      ]
+    },
+    "required_parameter_kind_class": {
+      "type": "string",
+      "enum": [
+        "typed_string_label",
+        "typed_enum_choice_from_closed_set",
+        "typed_boolean_choice",
+        "typed_integer_value_with_bounds",
+        "typed_directory_label_no_raw_path",
+        "typed_identity_label_no_raw_email",
+        "typed_secret_broker_handle_only",
+        "typed_organization_provenance_handle_only",
+        "parameter_kind_unknown_requires_review"
+      ]
+    },
+    "generated_file_class": {
+      "type": "string",
+      "enum": [
+        "source_file_text_human_authored",
+        "configuration_json_human_edited",
+        "configuration_jsonc_with_comments_preserved",
+        "configuration_yaml_human_edited",
+        "lockfile_or_manifest_paired_text_round_trip",
+        "license_or_legal_text_immutable",
+        "documentation_markdown_or_text",
+        "static_asset_image_or_binary",
+        "test_fixture_or_golden_artifact",
+        "script_or_executable_file_no_post_create_invocation",
+        "script_or_executable_file_invoked_under_declared_hook",
+        "generated_only_artifact_back_linked_to_canonical_source",
+        "lineage_metadata_file_for_generated_project",
+        "generated_file_class_unknown_requires_review"
+      ]
+    },
+    "generated_file_origin_class": {
+      "type": "string",
+      "enum": [
+        "human_authored_no_round_trip",
+        "paired_text_round_trip",
+        "paired_text_one_way",
+        "generated_only"
+      ],
+      "description": "Re-exported from docs/config/artifact_format_and_migration_policy.md without modification."
+    },
+    "declared_hook_class": {
+      "type": "string",
+      "enum": [
+        "pre_fetch_inspect_only_no_mutation",
+        "pre_write_validate_parameters_no_mutation",
+        "post_write_format_generated_files_local_only",
+        "post_write_apply_lineage_metadata_local_only",
+        "post_create_invoke_declarative_recipe",
+        "post_create_invoke_recorded_macro_ui_state_replay_only",
+        "post_create_open_workspace_in_editor_no_mutation",
+        "post_create_print_handoff_summary_no_mutation",
+        "post_delete_emit_recovery_breadcrumb_local_only",
+        "hook_class_unknown_requires_review"
+      ]
+    },
+    "declared_setup_task_class": {
+      "type": "string",
+      "enum": [
+        "no_setup_task_pure_files",
+        "package_restore_for_ecosystem",
+        "toolchain_detect_local_only",
+        "settings_materialize_local_only",
+        "profile_materialize_local_only",
+        "devcontainer_attach_under_declared_image",
+        "container_attach_under_declared_image",
+        "index_warm_up_local_only",
+        "docs_import_local_only",
+        "credential_provisioning_via_secret_broker_handle_only",
+        "remote_attach_handshake_for_managed_workspace",
+        "setup_task_class_unknown_requires_review"
+      ]
+    },
+    "template_trust_posture_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_not_required_pure_local_files_only",
+        "workspace_trust_required_before_post_create_actions",
+        "workspace_trust_required_before_any_apply",
+        "workspace_trust_revalidated_each_step",
+        "restricted_mode_tolerated_read_only_only",
+        "ai_tool_proposed_template_pending_review"
+      ]
+    },
+    "template_egress_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_network_egress_required",
+        "egress_to_first_party_origin_only",
+        "egress_to_team_managed_mirror_only",
+        "egress_to_community_origin_user_review_required",
+        "egress_to_managed_workspace_envelope_only",
+        "egress_envelope_unknown_requires_review"
+      ]
+    },
+    "template_known_issue_class": {
+      "type": "string",
+      "enum": [
+        "no_known_issue",
+        "known_issue_active_workaround_documented",
+        "known_issue_active_blocking_user_review_required",
+        "known_issue_mitigated_by_workaround_in_template",
+        "known_issue_resolved_in_revision",
+        "known_issue_class_unknown_requires_review"
+      ]
+    },
+    "template_reopen_preflight_class": {
+      "type": "string",
+      "enum": [
+        "reopen_preflight_in_sync_admissible",
+        "reopen_preflight_template_revision_unchanged_admissible",
+        "reopen_preflight_template_revision_advanced_update_available",
+        "reopen_preflight_template_revision_advanced_breaking_rebase_required",
+        "reopen_preflight_template_revision_archived_no_update_path",
+        "reopen_preflight_template_revision_unverifiable_user_review_required",
+        "reopen_preflight_lineage_unknown_imported_without_lineage_packet"
+      ]
+    },
+    "template_health_check_class": {
+      "type": "string",
+      "enum": [
+        "toolchain_compatibility",
+        "os_runtime_compatibility",
+        "template_freshness",
+        "policy_restriction",
+        "signature_state",
+        "network_reachability",
+        "dependency_manifest",
+        "extension_availability"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.11 without modification."
+    },
+    "template_health_signal_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "cached",
+        "policy_evaluated",
+        "not_checked",
+        "stale_or_invalid"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.10 without modification."
+    },
+    "post_create_handoff_axis": {
+      "type": "string",
+      "enum": [
+        "created_workspace_identity",
+        "pending_setup_actions_list",
+        "trust_state_after_create",
+        "run_now_actions",
+        "run_later_actions",
+        "review_files_actions",
+        "rollback_or_delete_action",
+        "local_only_continuation_path",
+        "post_create_cleanup_if_failed",
+        "setup_outcome_summary"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.13 without modification."
+    },
+    "bypass_path_id": {
+      "type": "string",
+      "enum": [
+        "bypass.open_folder_without_starter",
+        "bypass.open_workspace_without_starter",
+        "bypass.clone_repository_without_starter",
+        "bypass.create_empty_workspace",
+        "bypass.open_prebuild_minimal",
+        "bypass.set_up_later",
+        "bypass.continue_without_starter"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.9 without modification."
+    },
+    "delete_generated_output_recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "delete_with_lockfile_checkpoint_recovery",
+        "delete_with_workspace_snapshot_recovery",
+        "delete_with_local_history_recovery_only",
+        "delete_with_regenerate_from_template_recovery",
+        "delete_with_no_lineage_packet_local_history_only_review_required",
+        "delete_unrecoverable_user_review_required"
+      ]
+    },
+    "required_parameter_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_id",
+        "parameter_label_ref",
+        "required_parameter_kind_class"
+      ],
+      "properties": {
+        "parameter_id": { "$ref": "#/$defs/opaque_id" },
+        "parameter_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "required_parameter_kind_class": {
+          "$ref": "#/$defs/required_parameter_kind_class"
+        },
+        "enum_choice_set_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "default_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "typed_enum_choice_from_closed_set requires a non-null enum_choice_set_ref.",
+          "if": {
+            "properties": {
+              "required_parameter_kind_class": {
+                "const": "typed_enum_choice_from_closed_set"
+              }
+            }
+          },
+          "then": {
+            "required": ["enum_choice_set_ref"],
+            "properties": {
+              "enum_choice_set_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "generated_file_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generated_file_id",
+        "generated_file_label_ref",
+        "generated_file_class",
+        "generated_file_origin_class"
+      ],
+      "properties": {
+        "generated_file_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_file_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "generated_file_class": { "$ref": "#/$defs/generated_file_class" },
+        "generated_file_origin_class": {
+          "$ref": "#/$defs/generated_file_origin_class"
+        },
+        "back_link_to_canonical_source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "invoked_under_declared_hook_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "generated_only_artifact_back_linked_to_canonical_source requires a non-null back_link_to_canonical_source_ref.",
+          "if": {
+            "properties": {
+              "generated_file_class": {
+                "const": "generated_only_artifact_back_linked_to_canonical_source"
+              }
+            }
+          },
+          "then": {
+            "required": ["back_link_to_canonical_source_ref"],
+            "properties": {
+              "back_link_to_canonical_source_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "script_or_executable_file_invoked_under_declared_hook requires a non-null invoked_under_declared_hook_id_ref so the manifest cannot ship a script that executes outside a declared hook.",
+          "if": {
+            "properties": {
+              "generated_file_class": {
+                "const": "script_or_executable_file_invoked_under_declared_hook"
+              }
+            }
+          },
+          "then": {
+            "required": ["invoked_under_declared_hook_id_ref"],
+            "properties": {
+              "invoked_under_declared_hook_id_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "declared_hook_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_hook_id",
+        "declared_hook_class",
+        "automation_capability_class",
+        "trust_gate_class",
+        "policy_gate_class",
+        "approval_posture_class"
+      ],
+      "properties": {
+        "declared_hook_id": { "$ref": "#/$defs/opaque_id" },
+        "declared_hook_class": { "$ref": "#/$defs/declared_hook_class" },
+        "automation_capability_class": {
+          "$ref": "#/$defs/automation_capability_class"
+        },
+        "recipe_manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "recorded_macro_manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "trust_gate_class": { "$ref": "#/$defs/trust_gate_class" },
+        "policy_gate_class": { "$ref": "#/$defs/policy_gate_class" },
+        "approval_posture_class": {
+          "$ref": "#/$defs/approval_posture_class"
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "post_create_invoke_declarative_recipe requires a non-null recipe_manifest_ref so the hook resolves through schemas/automation/recipe_manifest.schema.json rather than inlining raw shell.",
+          "if": {
+            "properties": {
+              "declared_hook_class": {
+                "const": "post_create_invoke_declarative_recipe"
+              }
+            }
+          },
+          "then": {
+            "required": ["recipe_manifest_ref"],
+            "properties": {
+              "recipe_manifest_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "post_create_invoke_recorded_macro_ui_state_replay_only requires a non-null recorded_macro_manifest_ref so ambient network / process / secret access is forbidden mechanically by the recorded-macro shape.",
+          "if": {
+            "properties": {
+              "declared_hook_class": {
+                "const": "post_create_invoke_recorded_macro_ui_state_replay_only"
+              }
+            }
+          },
+          "then": {
+            "required": ["recorded_macro_manifest_ref"],
+            "properties": {
+              "recorded_macro_manifest_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Read-only / no-mutation hook classes MUST resolve to read_only_workspace_inspection automation capability.",
+          "if": {
+            "properties": {
+              "declared_hook_class": {
+                "enum": [
+                  "pre_fetch_inspect_only_no_mutation",
+                  "pre_write_validate_parameters_no_mutation",
+                  "post_create_open_workspace_in_editor_no_mutation",
+                  "post_create_print_handoff_summary_no_mutation",
+                  "post_delete_emit_recovery_breadcrumb_local_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "automation_capability_class": {
+                "const": "read_only_workspace_inspection"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "declared_setup_task_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_setup_task_id",
+        "declared_setup_task_class",
+        "starter_setup_cost_class",
+        "dry_run_posture_class"
+      ],
+      "properties": {
+        "declared_setup_task_id": { "$ref": "#/$defs/opaque_id" },
+        "declared_setup_task_class": {
+          "$ref": "#/$defs/declared_setup_task_class"
+        },
+        "bound_supported_ecosystem_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/supported_ecosystem_class" }
+          ]
+        },
+        "container_image_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "secret_broker_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "managed_workspace_envelope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "starter_setup_cost_class": {
+          "$ref": "#/$defs/starter_setup_cost_class"
+        },
+        "dry_run_posture_class": { "$ref": "#/$defs/dry_run_posture_class" },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "package_restore_for_ecosystem requires a non-null bound_supported_ecosystem_class.",
+          "if": {
+            "properties": {
+              "declared_setup_task_class": {
+                "const": "package_restore_for_ecosystem"
+              }
+            }
+          },
+          "then": {
+            "required": ["bound_supported_ecosystem_class"],
+            "properties": {
+              "bound_supported_ecosystem_class": {
+                "$ref": "#/$defs/supported_ecosystem_class"
+              }
+            }
+          }
+        },
+        {
+          "description": "devcontainer_attach_under_declared_image and container_attach_under_declared_image require a non-null container_image_handle_ref.",
+          "if": {
+            "properties": {
+              "declared_setup_task_class": {
+                "enum": [
+                  "devcontainer_attach_under_declared_image",
+                  "container_attach_under_declared_image"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["container_image_handle_ref"],
+            "properties": {
+              "container_image_handle_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "credential_provisioning_via_secret_broker_handle_only requires a non-null secret_broker_handle_ref.",
+          "if": {
+            "properties": {
+              "declared_setup_task_class": {
+                "const": "credential_provisioning_via_secret_broker_handle_only"
+              }
+            }
+          },
+          "then": {
+            "required": ["secret_broker_handle_ref"],
+            "properties": {
+              "secret_broker_handle_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "remote_attach_handshake_for_managed_workspace requires a non-null managed_workspace_envelope_ref.",
+          "if": {
+            "properties": {
+              "declared_setup_task_class": {
+                "const": "remote_attach_handshake_for_managed_workspace"
+              }
+            }
+          },
+          "then": {
+            "required": ["managed_workspace_envelope_ref"],
+            "properties": {
+              "managed_workspace_envelope_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "template_health_check_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template_health_check_class",
+        "default_template_health_signal_class"
+      ],
+      "properties": {
+        "template_health_check_class": {
+          "$ref": "#/$defs/template_health_check_class"
+        },
+        "default_template_health_signal_class": {
+          "$ref": "#/$defs/template_health_signal_class"
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "template_known_issue_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "known_issue_id",
+        "template_known_issue_class",
+        "issue_summary"
+      ],
+      "properties": {
+        "known_issue_id": { "$ref": "#/$defs/opaque_id" },
+        "template_known_issue_class": {
+          "$ref": "#/$defs/template_known_issue_class"
+        },
+        "issue_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "affected_template_revision_ref_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "workaround_summary_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "resolution_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "known_issue_resolved_in_revision requires a non-null resolution_revision_ref.",
+          "if": {
+            "properties": {
+              "template_known_issue_class": {
+                "const": "known_issue_resolved_in_revision"
+              }
+            }
+          },
+          "then": {
+            "required": ["resolution_revision_ref"],
+            "properties": {
+              "resolution_revision_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "template_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "template_manifest_schema_version",
+        "template_id",
+        "template_revision_ref",
+        "template_revision_semver",
+        "title",
+        "summary",
+        "template_archetype_class",
+        "template_source_class",
+        "support_class",
+        "template_lifecycle_class",
+        "publisher_identity_ref",
+        "signature_class",
+        "manifest_content_address",
+        "supported_ecosystem_class_set",
+        "supported_platform_class_set",
+        "runtime_and_toolchain_scope",
+        "required_parameters",
+        "generated_files",
+        "declared_hooks",
+        "declared_setup_tasks",
+        "template_trust_posture_class",
+        "template_egress_posture_class",
+        "starter_setup_cost_class",
+        "declared_freshness_class",
+        "template_health_check_descriptors",
+        "known_issue_rows",
+        "reopen_preflight_default_class",
+        "create_without_starter_route_ids",
+        "post_create_handoff_axes_reserved_set",
+        "delete_generated_output_recovery_route_default_class",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "template_manifest_record" },
+        "template_manifest_schema_version": {
+          "$ref": "#/$defs/template_manifest_schema_version"
+        },
+        "template_id": { "$ref": "#/$defs/opaque_id" },
+        "template_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "template_revision_semver": { "$ref": "#/$defs/semver_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "template_archetype_class": {
+          "$ref": "#/$defs/template_archetype_class"
+        },
+        "template_source_class": { "$ref": "#/$defs/template_source_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "template_lifecycle_class": {
+          "$ref": "#/$defs/template_lifecycle_class"
+        },
+        "signer_continuity_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/signer_continuity_class" }
+          ]
+        },
+        "publisher_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "manifest_content_address": { "$ref": "#/$defs/content_address" },
+        "supported_ecosystem_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/supported_ecosystem_class" }
+        },
+        "supported_platform_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/supported_platform_class" }
+        },
+        "runtime_and_toolchain_scope": {
+          "$ref": "#/$defs/runtime_and_toolchain_scope"
+        },
+        "required_parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_parameter_descriptor" }
+        },
+        "generated_files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/generated_file_descriptor" }
+        },
+        "declared_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_hook_descriptor" }
+        },
+        "declared_setup_tasks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_setup_task_descriptor" }
+        },
+        "template_trust_posture_class": {
+          "$ref": "#/$defs/template_trust_posture_class"
+        },
+        "template_egress_posture_class": {
+          "$ref": "#/$defs/template_egress_posture_class"
+        },
+        "starter_setup_cost_class": {
+          "$ref": "#/$defs/starter_setup_cost_class"
+        },
+        "declared_freshness_class": {
+          "$ref": "#/$defs/declared_freshness_class"
+        },
+        "template_health_check_descriptors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/template_health_check_descriptor" }
+        },
+        "known_issue_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/template_known_issue_descriptor" }
+        },
+        "reopen_preflight_default_class": {
+          "$ref": "#/$defs/template_reopen_preflight_class"
+        },
+        "create_without_starter_route_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bypass_path_id" }
+        },
+        "post_create_handoff_axes_reserved_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/post_create_handoff_axis" }
+        },
+        "delete_generated_output_recovery_route_default_class": {
+          "$ref": "#/$defs/delete_generated_output_recovery_route_class"
+        },
+        "linked_artifact_format_policy_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_structured_artifact_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "admitted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Community / uncertified templates MUST cite a non-null signer_continuity_class so the gallery can render the trust chip.",
+          "if": {
+            "properties": {
+              "template_source_class": {
+                "enum": ["community", "uncertified"]
+              }
+            }
+          },
+          "then": {
+            "required": ["signer_continuity_class"],
+            "properties": {
+              "signer_continuity_class": {
+                "$ref": "#/$defs/signer_continuity_class"
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_pending_review lifecycle requires the matching trust posture and forbids carrying admitted_at.",
+          "if": {
+            "properties": {
+              "template_lifecycle_class": {
+                "const": "ai_tool_proposed_pending_review"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "template_trust_posture_class": {
+                "const": "ai_tool_proposed_template_pending_review"
+              },
+              "admitted_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "ai_tool_proposed_template_pending_review trust posture forbids admitted_at.",
+          "if": {
+            "properties": {
+              "template_trust_posture_class": {
+                "const": "ai_tool_proposed_template_pending_review"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "admitted_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "managed_cloud_required runtime scope MUST include managed_workspace_remote_target in supported_platform_class_set.",
+          "if": {
+            "properties": {
+              "runtime_and_toolchain_scope": {
+                "const": "managed_cloud_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "supported_platform_class_set": {
+                "type": "array",
+                "contains": { "const": "managed_workspace_remote_target" }
+              }
+            }
+          }
+        },
+        {
+          "description": "restricted_mode_tolerated_read_only_only trust posture requires every declared hook to resolve automation_capability_class to read_only_workspace_inspection.",
+          "if": {
+            "properties": {
+              "template_trust_posture_class": {
+                "const": "restricted_mode_tolerated_read_only_only"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "declared_hooks": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "automation_capability_class": {
+                      "const": "read_only_workspace_inspection"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Manifests that emit a generated_only_artifact_back_linked_to_canonical_source row MUST cite linked_structured_artifact_review_ref so the structured-artifact review seed resolves the back-link without inventing a parallel registry.",
+          "if": {
+            "properties": {
+              "generated_files": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "generated_file_class": {
+                      "const": "generated_only_artifact_back_linked_to_canonical_source"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": ["linked_structured_artifact_review_ref"],
+            "properties": {
+              "linked_structured_artifact_review_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "Manifests that emit configuration_jsonc_with_comments_preserved or lockfile_or_manifest_paired_text_round_trip rows MUST cite linked_artifact_format_policy_ref so the comment-preservation / round-trip policy is bound by reference.",
+          "if": {
+            "properties": {
+              "generated_files": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "generated_file_class": {
+                      "enum": [
+                        "configuration_jsonc_with_comments_preserved",
+                        "lockfile_or_manifest_paired_text_round_trip"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": ["linked_artifact_format_policy_ref"],
+            "properties": {
+              "linked_artifact_format_policy_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        }
+      ],
+      "description": "Canonical template-manifest row. Every template revision publishes one of these; nothing the scaffold runner does is admissible unless it resolves to one of the manifest's declared rows."
+    }
+  }
+}
