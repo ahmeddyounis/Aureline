@@ -19,6 +19,11 @@ The companion fixtures live under:
 
 - [`/fixtures/ux/start_center_rows/`](../../fixtures/ux/start_center_rows/)
 
+The companion row-anatomy contract for concrete recent-work rows,
+restore cards, and workspace-switcher entries lives at:
+
+- [`/docs/ux/recent_work_and_restore_card_contract.md`](./recent_work_and_restore_card_contract.md)
+
 This contract is normative for the disclosure posture. Where it
 disagrees with the PRD, TAD, TDD, UI/UX spec, or milestone document,
 those sources win and this document plus its companion schema and
@@ -614,7 +619,8 @@ disclosure posture.
   upstream §2.6 set. Every row MUST expose a subset covering at
   minimum `pin` / `unpin`, `remove_from_recents`, and one of
   `open` / `open_in_new_window` / `open_restricted` /
-  `locate_missing_target` / `reconnect` / `reauth` /
+  `open_read_only_cached_view` / `locate_missing_target` /
+  `reconnect` / `reauth` / `retry_later` /
   `compare_before_restore` / `open_without_restore` /
   `reveal_in_explorer` — consistent with the row's target
   state. `Open anyway` is non-conforming.

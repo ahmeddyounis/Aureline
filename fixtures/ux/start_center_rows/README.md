@@ -57,3 +57,5 @@ Every fixture:
   [`/fixtures/ux/entry_restore_states/`](../entry_restore_states/).
 - Entry / restore record shapes the disclosure rows wrap:
   [`/fixtures/workspace/entry_restore_examples/`](../../workspace/entry_restore_examples/).
+- Concrete recent-work row, restore-card, and switcher-row anatomy:
+  [`/fixtures/ux/recent_work_rows/`](../recent_work_rows/).

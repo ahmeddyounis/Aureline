@@ -36,6 +36,11 @@ The dedicated migration-center companion contract lives at:
 
 - [`/docs/migration/migration_center_object_model.md`](../migration/migration_center_object_model.md)
 
+The concrete recent-work row, restore-card, and switcher-row
+anatomy companion lives at:
+
+- [`/docs/ux/recent_work_and_restore_card_contract.md`](../ux/recent_work_and_restore_card_contract.md)
+
 This contract is normative. Where it disagrees with the PRD, TAD,
 TDD, or UI/UX spec quotations cited in §10, those documents win and
 this document MUST be updated in the same change. Where this
@@ -409,6 +414,8 @@ Free-form action labels are non-conforming.
 - `locate_missing_target`
 - `reconnect`
 - `reauth`
+- `open_read_only_cached_view`
+- `retry_later`
 - `compare_before_restore`
 - `open_without_restore`
 - `unpin`

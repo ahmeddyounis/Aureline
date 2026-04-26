@@ -598,6 +598,20 @@ code.
   resume managed workspace, start from prebuild, recent-work row
   with missing target) in
   [`/fixtures/workspace/entry_restore_examples/`](../fixtures/workspace/entry_restore_examples/).
+- [`ux/recent_work_and_restore_card_contract.md`](./ux/recent_work_and_restore_card_contract.md)
+  — concrete recent-work row, restore-card summary, and workspace-
+  switcher row anatomy for startup and switching surfaces. Freezes
+  primary labels, location / target subtitles, root kind, last-opened
+  or last-validated times, trust state, restore availability,
+  unavailable-target states, recovery actions
+  (`open_read_only_cached_view`, `retry_later`, locate, reconnect,
+  reauthorize, remove), privacy-reduction controls, write-safety
+  badges, restore-card counts, dirty-buffer and remote-session
+  summaries, and cross-window switching consequences. Boundary
+  schema in
+  [`/schemas/ux/recent_work_row.schema.json`](../schemas/ux/recent_work_row.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/recent_work_rows/`](../fixtures/ux/recent_work_rows/).
 - [`migration/migration_center_object_model.md`](./migration/migration_center_object_model.md)
   — durable migration-center session, importer-outcome, shortcut-digest,
   and restore-record contract for import flows that must stay
