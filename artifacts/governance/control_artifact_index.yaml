@@ -10333,6 +10333,234 @@ artifacts:
       run-log bodies, no raw approval-ticket bodies, no raw
       notebook cell text, no raw terminal bytes, no raw URLs).
 
+  - id: git_state_and_worktree_contract
+    title: Git local-vs-provider truth, branch / worktree / history / stash contract
+    canonical_location: docs/vcs/git_state_and_worktree_contract.md
+    overview_page: docs/vcs/git_state_and_worktree_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative cross-tool contract binding every Git-aware surface
+      (branch picker, change-stack strip, source-control panel,
+      worktree picker, in-progress-operation banner, branch-switch
+      and worktree-removal review sheets, AI branch-agent panel,
+      support / export bundle's git section, audit lane) to one
+      branch_row_record, one stash_row_record, one worktree_row_
+      record, and one history_operation_state_record. Local Git
+      truth is authoritative; provider PR / MR overlays appear
+      visually secondary only. Pairs with the change-stack contract
+      (docs/vcs/change_stack_contract.md) for change-object identity
+      under each branch and with the review-workspace contract
+      (docs/vcs/review_workspace_contract.md) for the provider
+      overlay row a branch row layers on. Reviewers can answer
+      where a change lives, which working directory owns it,
+      whether there are unpublished commits, and how to recover
+      before switching / removing / rebasing; worktree removal
+      cannot blur metadata-only removal, filesystem deletion, and
+      path-preserve behaviour behind one generic action; sparse /
+      cone / partial-clone surfaces label cleanliness honestly;
+      stash apply against a drifted base is mechanically forbidden;
+      and in-progress merge / rebase / cherry-pick / revert /
+      mailbox-apply / bisect operations escalate cleanly through
+      the conflict-handoff class re-exported from the change-stack
+      contract. Reserves merge_conflict_class_record_id_ref and
+      history_edit_recovery_record_id_ref forward-dependency slots
+      that become required non-null when the merge / conflict-class
+      contract and the dedicated history-edit recovery contract
+      land.
+
+  - id: branch_row_schema
+    title: Branch-row, stash-row, and remote-tracking boundary schema
+    canonical_location: schemas/vcs/branch_row.schema.json
+    overview_page: docs/vcs/git_state_and_worktree_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the branch_row_record,
+      stash_row_record, and branch_row_audit_event_record shapes
+      frozen in docs/vcs/git_state_and_worktree_contract.md.
+      additionalProperties false everywhere. allOf gates pair
+      tracking branch_class values (in_sync / ahead / behind /
+      diverged / gone_upstream_deleted) with a non-null remote_
+      tracking_envelope and pair non-tracking values (local_branch_
+      no_remote_tracking / detached_head_state_no_branch_label /
+      imported_or_synthetic_branch_label) with null. local_branch_
+      tracking_remote_ahead is forced to pair with unpublished_
+      commits_present_local_only; local_branch_tracking_remote_
+      diverged is forced to pair with unpublished_commits_present_
+      diverged_with_remote. unpublished_commits_present_* risk
+      classes are forced to resolve branch_recovery_action_class
+      to a non-recovery_no_action_required value (denies with
+      branch_recovery_action_required_for_unpublished_commits).
+      open_action_blocked_pending_in_progress_operation_resolution
+      is forced to cite the bound worktree's in_progress_history_
+      operation_state_id_ref. The provider_overlay_visual_secondary
+      block is optional; when omitted, no provider chip may render
+      (denies with provider_overlay_chip_required_overlay_record);
+      when present, the chip is mechanically secondary (denies
+      with provider_overlay_must_not_replace_local_branch_label
+      on any surface that renders the overlay as the primary
+      label). Stash rows are forced to cite a non-null base_
+      branch_or_worktree_ref and base_revision_id_ref so apply
+      against a drifted base is forbidden silently (denies with
+      stash_base_ref_required_for_apply_admission); stash_archived
+      _tombstone is forced to cite a non-null archived_at and null
+      otherwise; stash_applied_consumed and stash_dropped_explicit
+      _user_action are forced to cite a non-null approval_ticket_
+      ref. Adding a new record_kind, branch class, unpublished-
+      commit-risk class, remote-tracking-freshness class, workset-
+      cleanliness class, provider-overlay visual-secondary class,
+      branch-recovery-action class, branch-open-action class,
+      stash class, stash-lifecycle state, denial reason, or audit-
+      event id is additive-minor and bumps branch_row_schema_
+      version; repurposing an existing value is breaking and
+      requires a new decision row.
+
+  - id: worktree_row_schema
+    title: Worktree-row registry boundary schema
+    canonical_location: schemas/vcs/worktree_row.schema.json
+    overview_page: docs/vcs/git_state_and_worktree_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the worktree_row_record and
+      worktree_row_audit_event_record shapes frozen in docs/vcs/
+      git_state_and_worktree_contract.md. additionalProperties
+      false everywhere. allOf gates force worktree_registered_
+      active_with_in_progress_operation and worktree_registered_
+      paused_pending_conflict to cite a non-null in_progress_
+      history_operation_state_id_ref so the in-progress block is
+      mechanically attributable; worktree_pending_removal_user_
+      review_required to cite a non-null worktree_removal_class
+      and a non-review_sheet_not_applicable_no_removal_pending
+      review_sheet_class (denies single generic remove with
+      worktree_removal_generic_action_forbidden); worktree_removed
+      _metadata_only_admin_directory_pruned to cite worktree_
+      removal_class = worktree_removal_metadata_only_admin_
+      directory_pruned and worktree_removed_filesystem_deleted_
+      admin_directory_pruned to cite worktree_removal_class =
+      worktree_removal_filesystem_deletion_admin_directory_pruned
+      (denies with worktree_removal_class_required_for_removed_
+      lifecycle); worktree_removal_metadata_only_admin_directory_
+      pruned and worktree_removal_filesystem_deletion_admin_
+      directory_pruned to pair with review_sheet_metadata_only_
+      vs_filesystem_deletion_distinction_required; worktree_
+      removal_path_preserve_admin_directory_pruned_only to pair
+      with review_sheet_path_preserve_explicit_user_acknowledge
+      ment_required; worktree_removal_blocked_pending_in_progress_
+      operation_resolution to pair with review_sheet_blocked_
+      pending_in_progress_operation_resolution; and archived_at
+      to be non-null on archived / removed lifecycles and null
+      otherwise. Adding a new record_kind, worktree-kind class,
+      registry-lifecycle state, removal class, review-sheet
+      class, workset-cleanliness class, denial reason, or audit-
+      event id is additive-minor and bumps worktree_row_schema_
+      version; repurposing an existing value is breaking and
+      requires a new decision row.
+
+  - id: history_operation_state_schema
+    title: In-progress-history-operation state boundary schema
+    canonical_location: schemas/vcs/history_operation_state.schema.json
+    overview_page: docs/vcs/git_state_and_worktree_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the history_operation_state_
+      record and history_operation_state_audit_event_record shapes
+      frozen in docs/vcs/git_state_and_worktree_contract.md.
+      additionalProperties false everywhere. allOf gates force
+      no_operation_clean to pair with not_applicable_clean state,
+      banner_no_banner_required_clean banner, review_sheet_no_
+      sheet_required_clean review sheet, no_conflict_path_required
+      conflict-handoff class, and null target_worktree_id_ref /
+      recovery_object_ref / actor_ref / command_id_ref / approval_
+      ticket_ref / completed_at / aborted_at; every other kind
+      to cite a non-null target_worktree_id_ref / recovery_object_
+      ref / actor_ref / command_id_ref / approval_ticket_ref;
+      paused_pending_conflict_resolution to pair with conflict_
+      resolution_packet_required_pending_decision, banner_in_
+      progress_operation_resume_or_abort, and review_sheet_in_
+      progress_operation_resume_or_abort; paused_pending_user_
+      continuation to pair with one of conflict_resolution_packet_
+      admitted_user_resolved, history_edit_recovery_packet_
+      required_pending_decision, or history_edit_recovery_packet_
+      admitted_user_resolved; aborted_rolled_back_to_recovery_
+      object to cite a non-null aborted_at and a non-null
+      recovery_object_ref (denies with history_operation_abort_
+      recovery_object_required); completed_recovery_object_minted
+      to cite a non-null completed_at; bisect_in_progress to pair
+      with banner_bisect_next_step_required; and apply_or_am_
+      imported_patch_in_progress to pair with banner_apply_
+      imported_patch_continue_or_skip. Re-exports conflict_
+      handoff_class verbatim from schemas/vcs/change_object.schema.
+      json. Adding a new record_kind, history-operation-kind class,
+      history-operation-state class, in-progress-banner class,
+      review-sheet class, denial reason, or audit-event id is
+      additive-minor and bumps history_operation_state_schema_
+      version; repurposing an existing value is breaking and
+      requires a new decision row.
+
+  - id: git_state_cases_fixtures
+    title: Git local-vs-provider truth, branch / worktree / history / stash worked fixtures
+    canonical_location: fixtures/vcs/git_state_cases/
+    overview_page: docs/vcs/git_state_and_worktree_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example YAML fixtures for the branch-row, worktree-
+      row, history-operation-state, and stash-row contract and
+      schemas. Covers one local-only branch with unpublished
+      commits and a recovery prompt before switch (acceptance
+      bullet 1), one tracking branch with a fresh provider overlay
+      layered visually secondary (acceptance bullet 3), one
+      detached-head state pinned in a linked worktree (acceptance
+      bullet 3), one linked secondary checkout
+      (acceptance bullet 3), one sparse worktree with workset-
+      limited cleanliness explicitly labelled (acceptance bullet
+      3), one pending-removal worktree under the metadata-only
+      removal class with the metadata-only-vs-filesystem-deletion
+      review sheet (acceptance bullet 2), one worktree_row_audit_
+      event_record carrying the worktree_removal_generic_action_
+      forbidden denial when a downstream surface tried a single
+      generic remove (acceptance bullet 2), one in-progress
+      interactive rebase paused on a conflict citing the resume /
+      abort banner and review sheet (acceptance bullet 1), one
+      in-progress bisect on a detached head citing the bisect-
+      next-step banner (acceptance bullet 1), and one stash row
+      pinned to a base branch / base revision so apply against a
+      drifted base is mechanically forbidden (acceptance bullet
+      3). Each fixture cites the contract sections it exercises
+      in the directory README and carries only opaque workspace /
+      branch / worktree / revision / change-object / history-
+      operation / recovery-object / approval-ticket / command /
+      actor / patch-stack-snapshot / local-history / review-
+      workspace / policy-epoch handles plus monotonic placeholder
+      timestamps and redaction-aware labels (no raw absolute paths,
+      no raw branch / commit / remote URLs, no raw author identity
+      strings, no raw commit message bodies, no raw patch bodies,
+      no raw stash payload bytes, no raw provider rule bodies, no
+      raw approval-ticket bodies).
+
   - id: review_pack_contract
     title: Review-pack, ownership-policy, and local / CI / provider / AI parity contract
     canonical_location: docs/vcs/review_pack_contract.md

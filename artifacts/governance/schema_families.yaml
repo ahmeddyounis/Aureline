@@ -2018,13 +2018,18 @@ rows:
       - schemas/vcs/review_evaluation_result.schema.json
       - schemas/vcs/change_object.schema.json
       - schemas/vcs/patch_stack.schema.json
+      - schemas/vcs/branch_row.schema.json
+      - schemas/vcs/worktree_row.schema.json
+      - schemas/vcs/history_operation_state.schema.json
     notes: >
       Review-workspace, comment-anchor, and merge-queue boundary
       (see docs/vcs/review_workspace_contract.md), the review-pack
       / ownership-policy / evaluation-result boundary (see docs/
-      vcs/review_pack_contract.md), plus the change-object /
-      worktree / patch-stack / sequence-editor boundary (see
-      docs/vcs/change_stack_contract.md).
+      vcs/review_pack_contract.md), the change-object / worktree /
+      patch-stack / sequence-editor boundary (see docs/vcs/change_
+      stack_contract.md), plus the local-vs-provider truth, branch
+      / worktree / history / stash boundary (see docs/vcs/git_
+      state_and_worktree_contract.md).
       review_workspace.schema.json freezes the
       review_workspace_record (source class drawn from the
       five-value vocabulary local_branch_or_worktree, provider_
@@ -2174,7 +2179,88 @@ rows:
       edit_recovery_record_id_ref forward-dependency slots
       that become required non-null when the merge / conflict-
       class contract and the dedicated history-edit recovery
-      contract land.
+      contract land. branch_row.schema.json freezes the branch_
+      row_record (eight-value branch_class, five-value
+      unpublished_commit_risk_class, four-value remote_tracking_
+      freshness_class, five-value workset_cleanliness_class,
+      three-value provider_overlay_visual_secondary_class,
+      seven-value branch_recovery_action_class, six-value branch_
+      open_action_class) and the stash_row_record (four-value
+      stash_class, four-value stash_lifecycle_state) under allOf
+      gates that pair branch_class with the matching unpublished_
+      commit_risk_class for ahead / diverged rows, force tracking
+      branch classes to cite a non-null remote_tracking_envelope
+      and non-tracking branch classes to cite null, force
+      unpublished_commits_present_* risk classes to resolve to a
+      non-recovery_no_action_required branch_recovery_action_class,
+      force open_action_blocked_pending_in_progress_operation_
+      resolution to cite the in-progress operation row, force
+      stash_archived_tombstone to cite a non-null archived_at,
+      and force stash_applied_consumed and stash_dropped_explicit_
+      user_action to cite a non-null approval_ticket_ref. worktree_
+      row.schema.json freezes the worktree_row_record (four-value
+      worktree_kind_class, five-value worktree_workset_cleanliness_
+      class, seven-value worktree_registry_lifecycle_state, five-
+      value worktree_removal_class, four-value worktree_removal_
+      review_sheet_class) under allOf gates that force worktree_
+      registered_active_with_in_progress_operation and worktree_
+      registered_paused_pending_conflict to cite a non-null in_
+      progress_history_operation_state_id_ref, force worktree_
+      pending_removal_user_review_required to cite a non-null
+      worktree_removal_class and a non-review_sheet_not_applicable
+      review_sheet_class (denies single generic remove with worktree_
+      removal_generic_action_forbidden), force worktree_removed_
+      metadata_only_admin_directory_pruned to cite worktree_removal_
+      class = worktree_removal_metadata_only_admin_directory_pruned
+      and worktree_removed_filesystem_deleted_admin_directory_
+      pruned to cite worktree_removal_class = worktree_removal_
+      filesystem_deletion_admin_directory_pruned (denies with
+      worktree_removal_class_required_for_removed_lifecycle), force
+      metadata-only and filesystem-deletion classes to pair with
+      review_sheet_metadata_only_vs_filesystem_deletion_distinction_
+      required, force worktree_removal_path_preserve_admin_
+      directory_pruned_only to pair with review_sheet_path_
+      preserve_explicit_user_acknowledgement_required, and force
+      archived_at to be non-null on archived / removed lifecycles
+      and null otherwise. history_operation_state.schema.json
+      freezes the history_operation_state_record (nine-value
+      history_operation_kind_class, six-value history_operation_
+      state_class, six-value in_progress_banner_class, five-value
+      review_sheet_class) under allOf gates that force no_operation_
+      clean to pair with not_applicable_clean state, banner_no_
+      banner_required_clean banner, review_sheet_no_sheet_required_
+      clean review sheet, no_conflict_path_required, and null
+      target_worktree_id_ref / recovery_object_ref / actor_ref /
+      command_id_ref / approval_ticket_ref / completed_at /
+      aborted_at; force every other kind to cite non-null target_
+      worktree_id_ref / recovery_object_ref / actor_ref / command_
+      id_ref / approval_ticket_ref; force paused_pending_conflict_
+      resolution to pair with conflict_resolution_packet_required_
+      pending_decision conflict_handoff_class, banner_in_progress_
+      operation_resume_or_abort, and review_sheet_in_progress_
+      operation_resume_or_abort; force paused_pending_user_
+      continuation to pair with one of the resolved conflict-
+      handoff classes; force aborted_rolled_back_to_recovery_object
+      to cite a non-null aborted_at and a non-null recovery_object_
+      ref (denies with history_operation_abort_recovery_object_
+      required); force completed_recovery_object_minted to cite
+      a non-null completed_at; force bisect_in_progress to pair
+      with banner_bisect_next_step_required; and force apply_or_am_
+      imported_patch_in_progress to pair with banner_apply_imported_
+      patch_continue_or_skip. All three schemas reserve merge_
+      conflict_class_record_id_ref and history_edit_recovery_
+      record_id_ref forward-dependency slots. Adding a new record_
+      kind, branch class, unpublished-commit-risk class, remote-
+      tracking-freshness class, workset-cleanliness class, provider-
+      overlay visual-secondary class, branch-recovery-action class,
+      branch-open-action class, stash class, stash-lifecycle state,
+      worktree-kind class, worktree-registry-lifecycle state,
+      worktree-removal class, worktree-removal-review-sheet class,
+      history-operation-kind class, history-operation-state class,
+      in-progress-banner class, review-sheet class, denial reason,
+      or audit-event id is additive-minor and bumps the per-record
+      schema_version const; repurposing an existing value is
+      breaking and requires a new decision row.
 
   - family_id: work_items
     schema_home: schemas/work_items/

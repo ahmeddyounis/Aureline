@@ -1,0 +1,758 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/branch_row.schema.json",
+  "title": "Aureline branch-row, stash-row, and remote-tracking vocabulary",
+  "description": "Boundary schema for the branch-row and stash-row record family frozen in docs/vcs/git_state_and_worktree_contract.md. One record family pins which branch a surface is operating on (branch_row_record) including the branch class drawn from the closed eight-value vocabulary, the unpublished-commit-risk class drawn from the closed five-value vocabulary, the optional remote-tracking envelope (tracking ref id, last-known remote revision, ahead/behind counts, last-fetched timestamp, four-value remote_tracking_freshness_class), the linked worktree the branch is currently checked out in, the optional provider-review overlay block carrying the provider review-workspace ref and the closed three-value provider_overlay_visual_secondary_class so the chip is mechanically secondary, the closed five-value workset_cleanliness_class so sparse / cone / partial-clone surfaces label cleanliness honestly, the closed seven-value branch_recovery_action_class for branch-switch / worktree-remove / rebase admission, and the closed six-value branch_open_action_class for the open-action surface; one stash_row_record pins which stash a surface is operating on (stash class, base branch / worktree ref + base revision id ref both required, linked worktree, four-value stash_lifecycle_state). One audit stream (branch_row) carries the closed denial-reason and event-id vocabularies. Local Git is the authoritative truth; provider PR / MR overlays appear visually secondary only. Raw absolute paths, raw branch / commit / remote URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw stash payload bytes, raw provider rule bodies, and raw approval-ticket bodies MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / authority / lifecycle state only. The eventual git-service crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, branch class, unpublished-commit-risk class, remote-tracking-freshness class, workset-cleanliness class, provider-overlay visual-secondary class, branch-recovery-action class, branch-open-action class, stash class, stash-lifecycle state, denial reason, or audit-event id is additive-minor and bumps branch_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/branch_row_record" },
+    { "$ref": "#/$defs/stash_row_record" },
+    { "$ref": "#/$defs/branch_row_audit_event_record" }
+  ],
+  "$defs": {
+    "branch_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the branch-row and stash-row vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "branch_row_record",
+        "stash_row_record",
+        "branch_row_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit / remote URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw stash payload bytes, and raw approval-ticket bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Local-only branch / stash rows default to metadata_safe_default; rows that touched a credentialed flow MUST raise to operator_only_restricted; support exports MUST raise to internal_support_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Used by the branch-row / stash-row freshness chip; per-tracking-ref freshness lives in remote_tracking_freshness_class."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018. A topology-changing flow (branch switch with unpublished commits, worktree removal, in-progress operation abort) never appears available under unset_pending_decision; the schema enforces this through workspace_trust_unset_or_restricted denial."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 / ADR-0018 trust state are re-validated on every restore and topology-changing mutation."
+    },
+
+    "branch_class": {
+      "type": "string",
+      "enum": [
+        "local_branch_no_remote_tracking",
+        "local_branch_tracking_remote_in_sync",
+        "local_branch_tracking_remote_ahead",
+        "local_branch_tracking_remote_behind",
+        "local_branch_tracking_remote_diverged",
+        "local_branch_tracking_remote_gone_upstream_deleted",
+        "detached_head_state_no_branch_label",
+        "imported_or_synthetic_branch_label"
+      ],
+      "description": "Frozen branch-class vocabulary. local_branch_no_remote_tracking and detached_head_state_no_branch_label and imported_or_synthetic_branch_label MUST resolve remote_tracking_envelope to null; every other class MUST cite a non-null remote_tracking_envelope. local_branch_tracking_remote_ahead pairs with unpublished_commits_present_local_only; local_branch_tracking_remote_diverged pairs with unpublished_commits_present_diverged_with_remote."
+    },
+
+    "unpublished_commit_risk_class": {
+      "type": "string",
+      "enum": [
+        "no_unpublished_commits_clean",
+        "unpublished_commits_present_local_only",
+        "unpublished_commits_present_diverged_with_remote",
+        "unpublished_commits_unknown_remote_unreachable",
+        "unpublished_commits_not_applicable_no_tracking"
+      ],
+      "description": "Frozen unpublished-commit-risk vocabulary. unpublished_commits_present_local_only and unpublished_commits_present_diverged_with_remote MUST pair with a branch_recovery_action_class other than recovery_no_action_required_no_unpublished_commits; a violation denies with branch_recovery_action_required_for_unpublished_commits."
+    },
+
+    "remote_tracking_freshness_class": {
+      "type": "string",
+      "enum": [
+        "remote_tracking_fresh",
+        "remote_tracking_stale_within_grace",
+        "remote_tracking_stale_beyond_grace_local_continues",
+        "remote_tracking_unavailable_local_continues"
+      ],
+      "description": "Frozen remote-tracking-ref freshness vocabulary. Independent from the provider-overlay freshness; this row covers the tracking ref only."
+    },
+
+    "remote_tracking_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remote_tracking_ref_id_ref",
+        "last_known_remote_revision_id_ref",
+        "ahead_count",
+        "behind_count",
+        "remote_tracking_freshness_class",
+        "last_fetched_at"
+      ],
+      "properties": {
+        "remote_tracking_ref_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the remote-tracking ref row. Raw remote names and raw branch names never appear here."
+        },
+        "last_known_remote_revision_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the last-known remote revision the tracking ref points at."
+        },
+        "ahead_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of local commits not yet on the tracking ref."
+        },
+        "behind_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of remote commits not yet on local."
+        },
+        "remote_tracking_freshness_class": { "$ref": "#/$defs/remote_tracking_freshness_class" },
+        "last_fetched_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Remote-tracking envelope. Required (non-null) on every branch_class other than local_branch_no_remote_tracking, detached_head_state_no_branch_label, and imported_or_synthetic_branch_label."
+    },
+
+    "workset_cleanliness_class": {
+      "type": "string",
+      "enum": [
+        "full_worktree_cleanliness",
+        "sparse_worktree_workset_limited_cleanliness",
+        "cone_mode_workset_limited_cleanliness",
+        "partial_clone_promisor_limited_cleanliness",
+        "unknown_workset_cleanliness_unverified"
+      ],
+      "description": "Frozen workset-cleanliness vocabulary. Anything other than full_worktree_cleanliness MUST surface the workset-limited cue on the chip; a row that renders 'clean' without the matching disclosure denies with workset_cleanliness_must_match_chip_disclosure."
+    },
+
+    "provider_overlay_visual_secondary_class": {
+      "type": "string",
+      "enum": [
+        "overlay_visual_secondary_local_truth_authoritative",
+        "overlay_visual_secondary_provider_authoritative_for_provider_owned_rows",
+        "overlay_unavailable_local_truth_only_no_chip"
+      ],
+      "description": "Frozen provider-overlay visibility class. The chip is rendered as a secondary cue only; local Git is authoritative for the row class. A surface that renders the provider overlay as the primary label denies with provider_overlay_must_not_replace_local_branch_label."
+    },
+
+    "provider_overlay_visual_secondary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_review_workspace_id_ref",
+        "provider_overlay_visual_secondary_class",
+        "last_observed_at"
+      ],
+      "properties": {
+        "provider_review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the review_workspace_record (schemas/vcs/review_workspace.schema.json) the overlay cites. Raw URLs, raw provider rule bodies, raw PR / MR titles, and raw remote names never appear here."
+        },
+        "provider_overlay_visual_secondary_class": { "$ref": "#/$defs/provider_overlay_visual_secondary_class" },
+        "last_observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Provider-overlay visual-secondary block. Optional. When present, the row carries a non-null block; when absent, the row MUST resolve provider_overlay_visual_secondary to null. A row that renders a provider chip without citing the block denies with provider_overlay_chip_required_overlay_record."
+    },
+
+    "branch_recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "recovery_no_action_required_no_unpublished_commits",
+        "recovery_local_history_checkpoint_minted_before_switch",
+        "recovery_branch_label_anchor_minted_before_switch",
+        "recovery_export_unpublished_to_patch_stack_snapshot_before_switch",
+        "recovery_export_to_side_branch_for_collaborator_review_before_switch",
+        "recovery_combined_packet_minted_before_switch",
+        "recovery_blocked_pending_user_review"
+      ],
+      "description": "Frozen branch-recovery-action vocabulary. unpublished_commits_present_local_only and unpublished_commits_present_diverged_with_remote MUST resolve to a non-recovery_no_action_required_no_unpublished_commits value; a violation denies with branch_recovery_action_required_for_unpublished_commits."
+    },
+
+    "branch_open_action_class": {
+      "type": "string",
+      "enum": [
+        "open_action_check_out_branch_in_main_worktree",
+        "open_action_check_out_branch_in_linked_worktree",
+        "open_action_attach_provider_review_overlay_view_only",
+        "open_action_view_only_no_mutation_admissible",
+        "open_action_blocked_pending_in_progress_operation_resolution",
+        "open_action_blocked_pending_workspace_trust_decision"
+      ],
+      "description": "Frozen branch-open-action vocabulary. open_action_blocked_pending_in_progress_operation_resolution MUST cite the in-progress operation row through the bound worktree's in_progress_history_operation_state_id_ref; a missing ref denies with in_progress_operation_block_must_cite_state_record."
+    },
+
+    "stash_class": {
+      "type": "string",
+      "enum": [
+        "stash_authored_locally",
+        "stash_imported_from_handoff",
+        "stash_synthesized_during_branch_switch_recovery",
+        "stash_archived_tombstone"
+      ],
+      "description": "Frozen stash-class vocabulary."
+    },
+
+    "stash_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "stash_active_apply_admissible",
+        "stash_applied_consumed",
+        "stash_dropped_explicit_user_action",
+        "stash_archived_tombstone"
+      ],
+      "description": "Frozen stash-lifecycle vocabulary."
+    },
+
+    "branch_row_denial_reason": {
+      "type": "string",
+      "enum": [
+        "branch_recovery_action_required_for_unpublished_commits",
+        "branch_switch_recovery_review_sheet_required_before_switch",
+        "provider_overlay_must_not_replace_local_branch_label",
+        "provider_overlay_chip_required_overlay_record",
+        "in_progress_operation_block_must_cite_state_record",
+        "workset_cleanliness_must_match_chip_disclosure",
+        "stash_base_ref_required_for_apply_admission",
+        "remote_tracking_envelope_required_for_tracking_branch",
+        "remote_tracking_envelope_must_be_null_for_non_tracking_branch",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "branch_row_record_required_field_missing",
+        "branch_row_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the branch_row audit stream."
+    },
+
+    "branch_row_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "branch_row_minted",
+        "branch_row_remote_tracking_fetched",
+        "branch_row_unpublished_risk_recomputed",
+        "branch_row_provider_overlay_attached",
+        "branch_row_provider_overlay_detached",
+        "branch_row_recovery_object_pinned_before_switch",
+        "branch_row_switched",
+        "branch_row_archived",
+        "stash_row_minted",
+        "stash_row_applied",
+        "stash_row_dropped",
+        "stash_row_archived",
+        "branch_row_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the branch_row stream. branch_row_audit_denial_emitted MUST cite a branch_row_denial_reason."
+    },
+
+    "branch_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "branch_row_schema_version",
+        "branch_row_id",
+        "workspace_id_ref",
+        "branch_label_ref",
+        "branch_class",
+        "unpublished_commit_risk_class",
+        "remote_tracking_envelope",
+        "linked_worktree_id_ref",
+        "head_revision_id_ref",
+        "change_object_id_refs",
+        "workset_cleanliness_class",
+        "provider_overlay_visual_secondary",
+        "branch_recovery_action_class",
+        "branch_open_action_class",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "created_at",
+        "updated_at",
+        "archived_at",
+        "merge_conflict_class_record_id_ref",
+        "history_edit_recovery_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "branch_row_record" },
+        "branch_row_schema_version": { "$ref": "#/$defs/branch_row_schema_version" },
+        "branch_row_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the workspace row in schemas/workspace/* the branch is bound to."
+        },
+        "branch_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the branch label row. Raw branch names never appear here. detached_head_state_no_branch_label rows still carry an opaque ref pointing at the synthetic 'detached head' label so the row remains attributable."
+        },
+        "branch_class": { "$ref": "#/$defs/branch_class" },
+        "unpublished_commit_risk_class": { "$ref": "#/$defs/unpublished_commit_risk_class" },
+        "remote_tracking_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/remote_tracking_envelope" }
+          ],
+          "description": "Required (non-null) when branch_class is one of local_branch_tracking_remote_in_sync, local_branch_tracking_remote_ahead, local_branch_tracking_remote_behind, local_branch_tracking_remote_diverged, or local_branch_tracking_remote_gone_upstream_deleted. Null when branch_class is local_branch_no_remote_tracking, detached_head_state_no_branch_label, or imported_or_synthetic_branch_label."
+        },
+        "linked_worktree_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the worktree_row_record currently checked out on this branch. Null when no worktree currently owns the branch."
+        },
+        "head_revision_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the branch's head revision. Null when the branch label has not yet been pinned to a revision (e.g. an empty imported_or_synthetic_branch_label row before hydration)."
+        },
+        "change_object_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque change-object id refs covering the unpublished commits on this branch (cited from schemas/vcs/change_object.schema.json). Empty array when unpublished_commit_risk_class is no_unpublished_commits_clean or unpublished_commits_not_applicable_no_tracking; non-empty when the row's risk class is one of the unpublished_commits_present_* values so the unpublished commits are reviewable through the change-stack contract."
+        },
+        "workset_cleanliness_class": { "$ref": "#/$defs/workset_cleanliness_class" },
+        "provider_overlay_visual_secondary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/provider_overlay_visual_secondary" }
+          ],
+          "description": "Optional provider-overlay visual-secondary block. When present, the chip is rendered as a secondary cue only. A row that renders a provider chip without citing this block denies with provider_overlay_chip_required_overlay_record."
+        },
+        "branch_recovery_action_class": { "$ref": "#/$defs/branch_recovery_action_class" },
+        "branch_open_action_class": { "$ref": "#/$defs/branch_open_action_class" },
+        "in_progress_history_operation_state_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the history_operation_state_record bound to this branch's worktree (when an in-progress operation is running). Required (non-null) when branch_open_action_class is open_action_blocked_pending_in_progress_operation_resolution; null otherwise."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row admitting the most recent topology-changing mutation on this branch. Required (non-null) on rows whose branch_open_action_class is open_action_check_out_branch_in_main_worktree paired with an unpublished_commits_present_* risk class; nullable on local-only edits."
+        },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command-dispatch id under which the most recent mutation was invoked. Nullable on system-driven row mints; required (non-null) on switch / recovery-pin actions."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when the branch row has been archived. Null otherwise."
+        },
+        "merge_conflict_class_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge / conflict-class contract. Currently always null."
+        },
+        "history_edit_recovery_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the dedicated history-edit recovery contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Tracking branch_class values (in_sync / ahead / behind / diverged / gone_upstream_deleted) MUST cite a non-null remote_tracking_envelope; non-tracking branch_class values (local_branch_no_remote_tracking / detached_head_state_no_branch_label / imported_or_synthetic_branch_label) MUST cite null.",
+          "if": {
+            "properties": {
+              "branch_class": {
+                "enum": [
+                  "local_branch_tracking_remote_in_sync",
+                  "local_branch_tracking_remote_ahead",
+                  "local_branch_tracking_remote_behind",
+                  "local_branch_tracking_remote_diverged",
+                  "local_branch_tracking_remote_gone_upstream_deleted"
+                ]
+              }
+            },
+            "required": ["branch_class"]
+          },
+          "then": {
+            "properties": {
+              "remote_tracking_envelope": { "$ref": "#/$defs/remote_tracking_envelope" }
+            },
+            "required": ["remote_tracking_envelope"]
+          },
+          "else": {
+            "properties": {
+              "remote_tracking_envelope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "local_branch_tracking_remote_ahead MUST pair with unpublished_commits_present_local_only.",
+          "if": {
+            "properties": { "branch_class": { "const": "local_branch_tracking_remote_ahead" } },
+            "required": ["branch_class"]
+          },
+          "then": {
+            "properties": {
+              "unpublished_commit_risk_class": { "const": "unpublished_commits_present_local_only" }
+            }
+          }
+        },
+        {
+          "description": "local_branch_tracking_remote_diverged MUST pair with unpublished_commits_present_diverged_with_remote.",
+          "if": {
+            "properties": { "branch_class": { "const": "local_branch_tracking_remote_diverged" } },
+            "required": ["branch_class"]
+          },
+          "then": {
+            "properties": {
+              "unpublished_commit_risk_class": { "const": "unpublished_commits_present_diverged_with_remote" }
+            }
+          }
+        },
+        {
+          "description": "Unpublished commits present (local-only or diverged) MUST resolve branch_recovery_action_class to a non-recovery_no_action_required_no_unpublished_commits value; a row that admits a switch with unpublished commits and no recovery action denies with branch_recovery_action_required_for_unpublished_commits.",
+          "if": {
+            "properties": {
+              "unpublished_commit_risk_class": {
+                "enum": [
+                  "unpublished_commits_present_local_only",
+                  "unpublished_commits_present_diverged_with_remote"
+                ]
+              }
+            },
+            "required": ["unpublished_commit_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "branch_recovery_action_class": {
+                "not": { "const": "recovery_no_action_required_no_unpublished_commits" }
+              }
+            }
+          }
+        },
+        {
+          "description": "open_action_blocked_pending_in_progress_operation_resolution MUST cite a non-null in_progress_history_operation_state_id_ref so the block is mechanically attributable.",
+          "if": {
+            "properties": {
+              "branch_open_action_class": { "const": "open_action_blocked_pending_in_progress_operation_resolution" }
+            },
+            "required": ["branch_open_action_class"]
+          },
+          "then": {
+            "properties": {
+              "in_progress_history_operation_state_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["in_progress_history_operation_state_id_ref"]
+          }
+        }
+      ],
+      "description": "Row shape consumed by the branch picker, the change-stack strip, the source-control panel, the AI branch-agent panel, the support / export bundle's git section, and audit lanes. Exactly one row per branch identity."
+    },
+
+    "stash_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "branch_row_schema_version",
+        "stash_row_id",
+        "workspace_id_ref",
+        "stash_class",
+        "stash_lifecycle_state",
+        "base_branch_or_worktree_ref",
+        "base_revision_id_ref",
+        "linked_worktree_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "created_at",
+        "updated_at",
+        "archived_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "stash_row_record" },
+        "branch_row_schema_version": { "$ref": "#/$defs/branch_row_schema_version" },
+        "stash_row_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stash_class": { "$ref": "#/$defs/stash_class" },
+        "stash_lifecycle_state": { "$ref": "#/$defs/stash_lifecycle_state" },
+        "base_branch_or_worktree_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the base branch / worktree the stash was minted against. Always non-null; a stash row that omits this ref denies with stash_base_ref_required_for_apply_admission."
+        },
+        "base_revision_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the base revision the stash was minted at. Always non-null; a stash row that omits this ref denies with stash_base_ref_required_for_apply_admission."
+        },
+        "linked_worktree_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the worktree_row_record the stash was minted in."
+        },
+        "stashed_patch_stack_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the patch-stack snapshot row that holds the stashed payload. Optional; null when the stash is held through a local-history entry instead. Raw stash payload bytes never appear on this row."
+        },
+        "stashed_local_history_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the local-history entry row that holds the stashed payload. Optional; null when the stash is held through a patch-stack snapshot instead."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row admitting the apply / drop action. Required (non-null) when stash_lifecycle_state is stash_applied_consumed or stash_dropped_explicit_user_action."
+        },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command-dispatch id under which the most recent stash mutation was invoked."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when stash_lifecycle_state is stash_archived_tombstone. Null otherwise."
+        }
+      },
+      "allOf": [
+        {
+          "description": "stash_archived_tombstone MUST cite a non-null archived_at and MUST be null otherwise.",
+          "if": {
+            "properties": { "stash_lifecycle_state": { "const": "stash_archived_tombstone" } },
+            "required": ["stash_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "stash_applied_consumed and stash_dropped_explicit_user_action MUST cite a non-null approval_ticket_ref so the action is attributable.",
+          "if": {
+            "properties": {
+              "stash_lifecycle_state": {
+                "enum": [
+                  "stash_applied_consumed",
+                  "stash_dropped_explicit_user_action"
+                ]
+              }
+            },
+            "required": ["stash_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        }
+      ],
+      "description": "Row shape consumed by the stash list, the source-control panel, and the support / export bundle. Exactly one row per stash identity."
+    },
+
+    "branch_row_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "branch_row_schema_version",
+        "branch_row_audit_event_id_value",
+        "audit_event_record_id",
+        "branch_row_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "branch_row_audit_event_record" },
+        "branch_row_schema_version": { "$ref": "#/$defs/branch_row_schema_version" },
+        "branch_row_audit_event_id_value": { "$ref": "#/$defs/branch_row_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "branch_row_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the branch_row_record or stash_row_record the event refers to. Stash-row events cite the stash_row_id through this slot."
+        },
+        "stash_row_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the stash_row_record the event refers to (when the event is a stash-row event). Null on branch-row events."
+        },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/branch_row_denial_reason" }
+          ],
+          "description": "Required (non-null) when branch_row_audit_event_id_value is branch_row_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is branch_row_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "branch_row_audit_event_id_value": { "const": "branch_row_audit_denial_emitted" } },
+            "required": ["branch_row_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/branch_row_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the branch_row stream."
+    }
+  }
+}

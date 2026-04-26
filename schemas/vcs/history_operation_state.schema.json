@@ -1,0 +1,541 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/history_operation_state.schema.json",
+  "title": "Aureline in-progress-history-operation state vocabulary",
+  "description": "Boundary schema for the in-progress-history-operation record family frozen in docs/vcs/git_state_and_worktree_contract.md. One history_operation_state_record pins which in-progress operation a surface is operating on (history_operation_kind_class drawn from the closed nine-value vocabulary covering merge, rebase interactive / noninteractive, cherry-pick, revert, mailbox-apply, bisect, and apply-imported-patch; history_operation_state_class drawn from the closed six-value vocabulary covering not_applicable_clean, paused_pending_conflict_resolution, paused_pending_user_continuation, running_no_user_action_required, completed_recovery_object_minted, and aborted_rolled_back_to_recovery_object; the target worktree id ref the operation owns; the optional target branch id ref; the recovery_object_ref required when the kind is anything other than no_operation_clean; the conflict_handoff_class re-exported from the change-stack contract; the in_progress_banner_class drawn from the closed six-value vocabulary; the review_sheet_class drawn from the closed five-value vocabulary; and the actor / command / approval-ticket attribution required for every state past not_applicable_clean). One audit stream (history_operation_state) carries the closed denial-reason and event-id vocabularies. Raw absolute paths, raw branch / commit / remote URLs, raw author identity strings, raw commit message bodies, raw patch bodies, and raw approval-ticket bodies MUST NOT appear on any record emitted against this schema. The eventual git-service crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, history-operation-kind class, history-operation-state class, in-progress-banner class, review-sheet class, denial reason, or audit-event id is additive-minor and bumps history_operation_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/history_operation_state_record" },
+    { "$ref": "#/$defs/history_operation_state_audit_event_record" }
+  ],
+  "$defs": {
+    "history_operation_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the in-progress-history-operation vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "history_operation_state_record",
+        "history_operation_state_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "conflict_handoff_class": {
+      "type": "string",
+      "enum": [
+        "no_conflict_path_required",
+        "conflict_resolution_packet_required_pending_decision",
+        "conflict_resolution_packet_admitted_user_resolved",
+        "history_edit_recovery_packet_required_pending_decision",
+        "history_edit_recovery_packet_admitted_user_resolved"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/change_object.schema.json. Pairs with merge_conflict_class_record_id_ref and history_edit_recovery_record_id_ref forward-dependency slots."
+    },
+
+    "history_operation_kind_class": {
+      "type": "string",
+      "enum": [
+        "no_operation_clean",
+        "merge_in_progress",
+        "rebase_interactive_in_progress",
+        "rebase_noninteractive_in_progress",
+        "cherry_pick_in_progress",
+        "revert_in_progress",
+        "apply_mailbox_in_progress",
+        "bisect_in_progress",
+        "apply_or_am_imported_patch_in_progress"
+      ],
+      "description": "Frozen history-operation-kind vocabulary. no_operation_clean MUST pair with history_operation_state_class = not_applicable_clean, banner_no_banner_required_clean, review_sheet_no_sheet_required_clean, conflict_handoff_class = no_conflict_path_required, and a null recovery_object_ref. Every other kind MUST cite a non-null target_worktree_id_ref and a non-null recovery_object_ref."
+    },
+
+    "history_operation_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_clean",
+        "paused_pending_conflict_resolution",
+        "paused_pending_user_continuation",
+        "running_no_user_action_required",
+        "completed_recovery_object_minted",
+        "aborted_rolled_back_to_recovery_object"
+      ],
+      "description": "Frozen history-operation-state vocabulary. paused_pending_conflict_resolution MUST pair with conflict_handoff_class = conflict_resolution_packet_required_pending_decision; paused_pending_user_continuation MUST pair with one of conflict_resolution_packet_admitted_user_resolved, history_edit_recovery_packet_required_pending_decision, or history_edit_recovery_packet_admitted_user_resolved; aborted_rolled_back_to_recovery_object MUST cite a non-null recovery_object_ref (denies with history_operation_abort_recovery_object_required); completed_recovery_object_minted MUST cite a non-null recovery_object_ref."
+    },
+
+    "in_progress_banner_class": {
+      "type": "string",
+      "enum": [
+        "banner_no_banner_required_clean",
+        "banner_in_progress_operation_resume_or_abort",
+        "banner_branch_switch_blocked_pending_in_progress_operation",
+        "banner_worktree_removal_blocked_pending_in_progress_operation",
+        "banner_bisect_next_step_required",
+        "banner_apply_imported_patch_continue_or_skip"
+      ],
+      "description": "Frozen in-progress-banner vocabulary. banner_no_banner_required_clean MUST pair with no_operation_clean; banner_bisect_next_step_required MUST pair with bisect_in_progress; banner_apply_imported_patch_continue_or_skip MUST pair with apply_or_am_imported_patch_in_progress."
+    },
+
+    "review_sheet_class": {
+      "type": "string",
+      "enum": [
+        "review_sheet_no_sheet_required_clean",
+        "review_sheet_in_progress_operation_resume_or_abort",
+        "review_sheet_in_progress_operation_abort_to_recovery_object_only",
+        "review_sheet_branch_switch_with_unpublished_commits_recovery_required",
+        "review_sheet_worktree_removal_metadata_vs_filesystem_distinction_required"
+      ],
+      "description": "Frozen review-sheet vocabulary. review_sheet_no_sheet_required_clean MUST pair with no_operation_clean; review_sheet_in_progress_operation_resume_or_abort and review_sheet_in_progress_operation_abort_to_recovery_object_only MUST pair with a paused or aborted state."
+    },
+
+    "history_operation_state_denial_reason": {
+      "type": "string",
+      "enum": [
+        "history_operation_recovery_object_required_for_in_progress_kind",
+        "history_operation_abort_recovery_object_required",
+        "history_operation_state_class_kind_mismatch",
+        "history_operation_banner_class_state_mismatch",
+        "history_operation_review_sheet_class_state_mismatch",
+        "history_operation_attribution_missing_for_in_progress_kind",
+        "history_operation_target_worktree_required_for_in_progress_kind",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "history_operation_state_record_required_field_missing",
+        "history_operation_state_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the history_operation_state audit stream."
+    },
+
+    "history_operation_state_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "history_operation_state_admitted",
+        "history_operation_state_paused_pending_conflict",
+        "history_operation_state_paused_pending_user_continuation",
+        "history_operation_state_continued",
+        "history_operation_state_completed",
+        "history_operation_state_aborted_rolled_back",
+        "history_operation_state_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the history_operation_state stream. history_operation_state_audit_denial_emitted MUST cite a history_operation_state_denial_reason."
+    },
+
+    "history_operation_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "history_operation_state_schema_version",
+        "history_operation_state_id",
+        "workspace_id_ref",
+        "history_operation_kind_class",
+        "history_operation_state_class",
+        "target_worktree_id_ref",
+        "target_branch_id_ref",
+        "recovery_object_ref",
+        "conflict_handoff_class",
+        "in_progress_banner_class",
+        "review_sheet_class",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "command_id_ref",
+        "approval_ticket_ref",
+        "created_at",
+        "updated_at",
+        "completed_at",
+        "aborted_at",
+        "merge_conflict_class_record_id_ref",
+        "history_edit_recovery_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "history_operation_state_record" },
+        "history_operation_state_schema_version": { "$ref": "#/$defs/history_operation_state_schema_version" },
+        "history_operation_state_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the workspace row in schemas/workspace/* the operation is bound to."
+        },
+        "history_operation_kind_class": { "$ref": "#/$defs/history_operation_kind_class" },
+        "history_operation_state_class": { "$ref": "#/$defs/history_operation_state_class" },
+        "target_worktree_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the worktree_row_record the operation owns. Required (non-null) when history_operation_kind_class is anything other than no_operation_clean; null on no_operation_clean rows."
+        },
+        "target_branch_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the branch_row_record the operation runs on. Null when history_operation_kind_class is bisect_in_progress on a detached head, or when the kind is no_operation_clean."
+        },
+        "recovery_object_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the pre-mutation recovery object. Required (non-null) when history_operation_kind_class is anything other than no_operation_clean; null on no_operation_clean rows. A row whose state is aborted_rolled_back_to_recovery_object MUST cite the recovery object the abort rolled back to (denies with history_operation_abort_recovery_object_required)."
+        },
+        "conflict_handoff_class": { "$ref": "#/$defs/conflict_handoff_class" },
+        "in_progress_banner_class": { "$ref": "#/$defs/in_progress_banner_class" },
+        "review_sheet_class": { "$ref": "#/$defs/review_sheet_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the acting identity. Required (non-null) when history_operation_kind_class is anything other than no_operation_clean; null otherwise."
+        },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command-dispatch id under which the operation was admitted. Required (non-null) when history_operation_kind_class is anything other than no_operation_clean."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row admitting the operation. Required (non-null) when history_operation_kind_class is anything other than no_operation_clean and the state is past admission."
+        },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when history_operation_state_class is completed_recovery_object_minted. Null otherwise."
+        },
+        "aborted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when history_operation_state_class is aborted_rolled_back_to_recovery_object. Null otherwise."
+        },
+        "merge_conflict_class_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge / conflict-class contract. Currently always null."
+        },
+        "history_edit_recovery_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the dedicated history-edit recovery contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "no_operation_clean MUST pair with not_applicable_clean state, banner_no_banner_required_clean banner, review_sheet_no_sheet_required_clean review sheet, no_conflict_path_required conflict handoff, and null target_worktree_id_ref / recovery_object_ref / actor_ref / command_id_ref / approval_ticket_ref / completed_at / aborted_at.",
+          "if": {
+            "properties": { "history_operation_kind_class": { "const": "no_operation_clean" } },
+            "required": ["history_operation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "history_operation_state_class": { "const": "not_applicable_clean" },
+              "in_progress_banner_class": { "const": "banner_no_banner_required_clean" },
+              "review_sheet_class": { "const": "review_sheet_no_sheet_required_clean" },
+              "conflict_handoff_class": { "const": "no_conflict_path_required" },
+              "target_worktree_id_ref": { "type": "null" },
+              "recovery_object_ref": { "type": "null" },
+              "actor_ref": { "type": "null" },
+              "command_id_ref": { "type": "null" },
+              "approval_ticket_ref": { "type": "null" },
+              "completed_at": { "type": "null" },
+              "aborted_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Every kind other than no_operation_clean MUST cite a non-null target_worktree_id_ref, recovery_object_ref, actor_ref, command_id_ref, and approval_ticket_ref so the in-progress operation is mechanically attributable.",
+          "if": {
+            "properties": {
+              "history_operation_kind_class": {
+                "not": { "const": "no_operation_clean" }
+              }
+            },
+            "required": ["history_operation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "target_worktree_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "recovery_object_ref": { "$ref": "#/$defs/opaque_id" },
+              "actor_ref": { "$ref": "#/$defs/opaque_id" },
+              "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": [
+              "target_worktree_id_ref",
+              "recovery_object_ref",
+              "actor_ref",
+              "command_id_ref",
+              "approval_ticket_ref"
+            ]
+          }
+        },
+        {
+          "description": "paused_pending_conflict_resolution MUST pair with conflict_resolution_packet_required_pending_decision conflict handoff and banner_in_progress_operation_resume_or_abort banner and review_sheet_in_progress_operation_resume_or_abort review sheet.",
+          "if": {
+            "properties": { "history_operation_state_class": { "const": "paused_pending_conflict_resolution" } },
+            "required": ["history_operation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_handoff_class": { "const": "conflict_resolution_packet_required_pending_decision" },
+              "in_progress_banner_class": { "const": "banner_in_progress_operation_resume_or_abort" },
+              "review_sheet_class": { "const": "review_sheet_in_progress_operation_resume_or_abort" }
+            }
+          }
+        },
+        {
+          "description": "paused_pending_user_continuation MUST pair with one of conflict_resolution_packet_admitted_user_resolved, history_edit_recovery_packet_required_pending_decision, or history_edit_recovery_packet_admitted_user_resolved conflict handoff.",
+          "if": {
+            "properties": { "history_operation_state_class": { "const": "paused_pending_user_continuation" } },
+            "required": ["history_operation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_handoff_class": {
+                "enum": [
+                  "conflict_resolution_packet_admitted_user_resolved",
+                  "history_edit_recovery_packet_required_pending_decision",
+                  "history_edit_recovery_packet_admitted_user_resolved"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "completed_recovery_object_minted MUST cite a non-null completed_at and null aborted_at.",
+          "if": {
+            "properties": { "history_operation_state_class": { "const": "completed_recovery_object_minted" } },
+            "required": ["history_operation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "completed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "aborted_at": { "type": "null" }
+            },
+            "required": ["completed_at"]
+          }
+        },
+        {
+          "description": "aborted_rolled_back_to_recovery_object MUST cite a non-null aborted_at and a non-null recovery_object_ref (denies with history_operation_abort_recovery_object_required) and null completed_at.",
+          "if": {
+            "properties": { "history_operation_state_class": { "const": "aborted_rolled_back_to_recovery_object" } },
+            "required": ["history_operation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "aborted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "recovery_object_ref": { "$ref": "#/$defs/opaque_id" },
+              "completed_at": { "type": "null" }
+            },
+            "required": ["aborted_at", "recovery_object_ref"]
+          }
+        },
+        {
+          "description": "bisect_in_progress MUST pair with banner_bisect_next_step_required banner.",
+          "if": {
+            "properties": { "history_operation_kind_class": { "const": "bisect_in_progress" } },
+            "required": ["history_operation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "in_progress_banner_class": { "const": "banner_bisect_next_step_required" }
+            }
+          }
+        },
+        {
+          "description": "apply_or_am_imported_patch_in_progress MUST pair with banner_apply_imported_patch_continue_or_skip banner.",
+          "if": {
+            "properties": { "history_operation_kind_class": { "const": "apply_or_am_imported_patch_in_progress" } },
+            "required": ["history_operation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "in_progress_banner_class": { "const": "banner_apply_imported_patch_continue_or_skip" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the in-progress-operation banner, the source-control panel's status section, the branch-switch / worktree-removal review sheets, and the support / export bundle's git section. Exactly one row per in-progress operation identity."
+    },
+
+    "history_operation_state_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "history_operation_state_schema_version",
+        "history_operation_state_audit_event_id_value",
+        "audit_event_record_id",
+        "history_operation_state_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "history_operation_state_audit_event_record" },
+        "history_operation_state_schema_version": { "$ref": "#/$defs/history_operation_state_schema_version" },
+        "history_operation_state_audit_event_id_value": { "$ref": "#/$defs/history_operation_state_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "history_operation_state_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/history_operation_state_denial_reason" }
+          ],
+          "description": "Required (non-null) when history_operation_state_audit_event_id_value is history_operation_state_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is history_operation_state_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "history_operation_state_audit_event_id_value": { "const": "history_operation_state_audit_denial_emitted" } },
+            "required": ["history_operation_state_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/history_operation_state_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the history_operation_state stream."
+    }
+  }
+}

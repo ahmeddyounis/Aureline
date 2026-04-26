@@ -1,0 +1,556 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/worktree_row.schema.json",
+  "title": "Aureline worktree-row registry vocabulary",
+  "description": "Boundary schema for the worktree-row record family frozen in docs/vcs/git_state_and_worktree_contract.md. One worktree_row_record pins which worktree a surface is operating on (worktree_kind_class drawn from the closed four-value vocabulary, worktree_path_ref opaque locator, bound_branch_id_ref optional, head_revision_id_ref optional, worktree_workset_cleanliness_class drawn from the closed five-value vocabulary so sparse / cone / partial-clone surfaces label cleanliness honestly, worktree_registry_lifecycle_state drawn from the closed seven-value vocabulary, optional worktree_removal_class drawn from the closed five-value vocabulary, worktree_removal_review_sheet_class drawn from the closed four-value vocabulary so a single generic 'remove' action is mechanically forbidden, optional in_progress_history_operation_state_id_ref required when the lifecycle is registered_active_with_in_progress_operation or registered_paused_pending_conflict). One audit stream (worktree_row) carries the closed denial-reason and event-id vocabularies. Worktree removal cannot blur metadata-only removal, filesystem deletion, and path-preserve behaviour behind one generic action; the schema's allOf gates pin the removal class against the lifecycle and the matching review sheet against the removal class. Raw absolute paths, raw branch / commit / remote URLs, raw author identity strings, and raw approval-ticket bodies MUST NOT appear on any record emitted against this schema. The eventual git-service crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, worktree-kind class, registry-lifecycle state, removal class, review-sheet class, workset-cleanliness class, denial reason, or audit-event id is additive-minor and bumps worktree_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/worktree_row_record" },
+    { "$ref": "#/$defs/worktree_row_audit_event_record" }
+  ],
+  "$defs": {
+    "worktree_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the worktree-row vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "worktree_row_record",
+        "worktree_row_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit / remote URLs, raw author identity strings, and raw approval-ticket bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "worktree_kind_class": {
+      "type": "string",
+      "enum": [
+        "worktree_main_repository_checkout",
+        "worktree_linked_secondary_checkout",
+        "worktree_imported_handoff_snapshot_view_only",
+        "worktree_synthetic_recovery_view_only"
+      ],
+      "description": "Frozen worktree-kind vocabulary. worktree_imported_handoff_snapshot_view_only and worktree_synthetic_recovery_view_only forbid mutations through this row; the schema enforces this through the worktree_view_only_mutation_forbidden denial."
+    },
+
+    "worktree_workset_cleanliness_class": {
+      "type": "string",
+      "enum": [
+        "full_worktree_cleanliness",
+        "sparse_worktree_workset_limited_cleanliness",
+        "cone_mode_workset_limited_cleanliness",
+        "partial_clone_promisor_limited_cleanliness",
+        "unknown_workset_cleanliness_unverified"
+      ],
+      "description": "Frozen workset-cleanliness vocabulary. Anything other than full_worktree_cleanliness MUST surface the workset-limited cue on the chip; a row that renders 'clean' without the matching disclosure denies with workset_cleanliness_must_match_chip_disclosure."
+    },
+
+    "worktree_registry_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "worktree_registered_active_clean",
+        "worktree_registered_active_with_in_progress_operation",
+        "worktree_registered_paused_pending_conflict",
+        "worktree_pending_removal_user_review_required",
+        "worktree_removed_metadata_only_admin_directory_pruned",
+        "worktree_removed_filesystem_deleted_admin_directory_pruned",
+        "worktree_archived_tombstone"
+      ],
+      "description": "Frozen worktree-registry lifecycle vocabulary. worktree_registered_active_with_in_progress_operation and worktree_registered_paused_pending_conflict MUST cite a non-null in_progress_history_operation_state_id_ref. worktree_pending_removal_user_review_required MUST cite a non-null worktree_removal_class and a non-review_sheet_not_applicable_no_removal_pending worktree_removal_review_sheet_class. worktree_removed_metadata_only_admin_directory_pruned MUST cite worktree_removal_class = worktree_removal_metadata_only_admin_directory_pruned; worktree_removed_filesystem_deleted_admin_directory_pruned MUST cite worktree_removal_class = worktree_removal_filesystem_deletion_admin_directory_pruned."
+    },
+
+    "worktree_removal_class": {
+      "type": "string",
+      "enum": [
+        "worktree_removal_metadata_only_admin_directory_pruned",
+        "worktree_removal_filesystem_deletion_admin_directory_pruned",
+        "worktree_removal_path_preserve_admin_directory_pruned_only",
+        "worktree_removal_blocked_pending_export_for_handoff",
+        "worktree_removal_blocked_pending_in_progress_operation_resolution"
+      ],
+      "description": "Frozen worktree-removal vocabulary. worktree_removal_metadata_only_admin_directory_pruned prunes only the admin entry under .git/worktrees; the working directory is preserved. worktree_removal_filesystem_deletion_admin_directory_pruned prunes the admin entry and removes the working directory from disk. worktree_removal_path_preserve_admin_directory_pruned_only prunes the admin entry; the working directory is explicitly preserved with an acknowledgement event on the audit stream. worktree_removal_blocked_pending_export_for_handoff and worktree_removal_blocked_pending_in_progress_operation_resolution forbid removal until the blocking condition resolves."
+    },
+
+    "worktree_removal_review_sheet_class": {
+      "type": "string",
+      "enum": [
+        "review_sheet_not_applicable_no_removal_pending",
+        "review_sheet_metadata_only_vs_filesystem_deletion_distinction_required",
+        "review_sheet_path_preserve_explicit_user_acknowledgement_required",
+        "review_sheet_blocked_pending_in_progress_operation_resolution"
+      ],
+      "description": "Frozen worktree-removal-review-sheet vocabulary. review_sheet_metadata_only_vs_filesystem_deletion_distinction_required pairs with worktree_removal_metadata_only_admin_directory_pruned or worktree_removal_filesystem_deletion_admin_directory_pruned; review_sheet_path_preserve_explicit_user_acknowledgement_required pairs with worktree_removal_path_preserve_admin_directory_pruned_only; review_sheet_blocked_pending_in_progress_operation_resolution pairs with worktree_removal_blocked_pending_in_progress_operation_resolution. A row whose pair is mismatched denies with worktree_removal_review_sheet_class_required_for_removal_class."
+    },
+
+    "worktree_row_denial_reason": {
+      "type": "string",
+      "enum": [
+        "worktree_removal_generic_action_forbidden",
+        "worktree_removal_class_required_for_removed_lifecycle",
+        "worktree_removal_review_sheet_class_required_for_removal_class",
+        "in_progress_operation_block_must_cite_state_record",
+        "workset_cleanliness_must_match_chip_disclosure",
+        "worktree_view_only_mutation_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "worktree_row_record_required_field_missing",
+        "worktree_row_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the worktree_row audit stream."
+    },
+
+    "worktree_row_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "worktree_row_registered",
+        "worktree_row_in_progress_operation_started",
+        "worktree_row_paused_pending_conflict",
+        "worktree_row_in_progress_operation_completed",
+        "worktree_row_pending_removal_review_required",
+        "worktree_row_removed_metadata_only",
+        "worktree_row_removed_filesystem_deleted",
+        "worktree_row_path_preserved_acknowledged",
+        "worktree_row_archived",
+        "worktree_row_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the worktree_row stream. worktree_row_audit_denial_emitted MUST cite a worktree_row_denial_reason."
+    },
+
+    "worktree_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "worktree_row_schema_version",
+        "worktree_row_id",
+        "workspace_id_ref",
+        "worktree_kind_class",
+        "worktree_path_ref",
+        "bound_branch_id_ref",
+        "head_revision_id_ref",
+        "worktree_workset_cleanliness_class",
+        "worktree_registry_lifecycle_state",
+        "worktree_removal_class",
+        "worktree_removal_review_sheet_class",
+        "in_progress_history_operation_state_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "created_at",
+        "updated_at",
+        "archived_at",
+        "merge_conflict_class_record_id_ref",
+        "history_edit_recovery_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "worktree_row_record" },
+        "worktree_row_schema_version": { "$ref": "#/$defs/worktree_row_schema_version" },
+        "worktree_row_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the workspace row in schemas/workspace/* the worktree is bound to."
+        },
+        "worktree_kind_class": { "$ref": "#/$defs/worktree_kind_class" },
+        "worktree_path_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque locator into the workspace family for the worktree's filesystem path. Raw absolute paths never appear here."
+        },
+        "bound_branch_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the branch_row_record the worktree currently checks out. Null when the worktree's bound branch class is detached_head_state_no_branch_label or when the worktree is a view-only row not bound to a branch."
+        },
+        "head_revision_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the worktree's head revision. Null when the worktree has not yet been pinned to a revision."
+        },
+        "worktree_workset_cleanliness_class": { "$ref": "#/$defs/worktree_workset_cleanliness_class" },
+        "worktree_registry_lifecycle_state": { "$ref": "#/$defs/worktree_registry_lifecycle_state" },
+        "worktree_removal_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/worktree_removal_class" }
+          ],
+          "description": "Required (non-null) when worktree_registry_lifecycle_state is worktree_pending_removal_user_review_required, worktree_removed_metadata_only_admin_directory_pruned, or worktree_removed_filesystem_deleted_admin_directory_pruned. Null otherwise."
+        },
+        "worktree_removal_review_sheet_class": { "$ref": "#/$defs/worktree_removal_review_sheet_class" },
+        "in_progress_history_operation_state_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the history_operation_state_record the worktree owns. Required (non-null) when worktree_registry_lifecycle_state is worktree_registered_active_with_in_progress_operation or worktree_registered_paused_pending_conflict; null otherwise."
+        },
+        "exported_handoff_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the handoff snapshot the worktree was exported through. Required (non-null) when worktree_removal_class is worktree_removal_blocked_pending_export_for_handoff and the export has been minted; null otherwise."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row admitting the most recent topology-changing mutation. Required (non-null) on every removal action; nullable on registration."
+        },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command-dispatch id under which the most recent mutation was invoked. Required (non-null) on every removal action."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when worktree_registry_lifecycle_state is worktree_archived_tombstone or one of the worktree_removed_* states. Null otherwise."
+        },
+        "merge_conflict_class_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge / conflict-class contract. Currently always null."
+        },
+        "history_edit_recovery_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the dedicated history-edit recovery contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "worktree_registered_active_with_in_progress_operation MUST cite a non-null in_progress_history_operation_state_id_ref so the in-progress block is mechanically attributable.",
+          "if": {
+            "properties": {
+              "worktree_registry_lifecycle_state": { "const": "worktree_registered_active_with_in_progress_operation" }
+            },
+            "required": ["worktree_registry_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "in_progress_history_operation_state_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["in_progress_history_operation_state_id_ref"]
+          }
+        },
+        {
+          "description": "worktree_registered_paused_pending_conflict MUST cite a non-null in_progress_history_operation_state_id_ref so the paused block is mechanically attributable.",
+          "if": {
+            "properties": {
+              "worktree_registry_lifecycle_state": { "const": "worktree_registered_paused_pending_conflict" }
+            },
+            "required": ["worktree_registry_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "in_progress_history_operation_state_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["in_progress_history_operation_state_id_ref"]
+          }
+        },
+        {
+          "description": "worktree_pending_removal_user_review_required MUST cite a non-null worktree_removal_class and a worktree_removal_review_sheet_class other than review_sheet_not_applicable_no_removal_pending; a row that admits a generic 'remove' action without naming the removal class denies with worktree_removal_generic_action_forbidden.",
+          "if": {
+            "properties": {
+              "worktree_registry_lifecycle_state": { "const": "worktree_pending_removal_user_review_required" }
+            },
+            "required": ["worktree_registry_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "worktree_removal_class": { "$ref": "#/$defs/worktree_removal_class" },
+              "worktree_removal_review_sheet_class": {
+                "not": { "const": "review_sheet_not_applicable_no_removal_pending" }
+              }
+            },
+            "required": ["worktree_removal_class"]
+          }
+        },
+        {
+          "description": "worktree_removed_metadata_only_admin_directory_pruned MUST cite worktree_removal_class = worktree_removal_metadata_only_admin_directory_pruned; landing the removed lifecycle without the matching removal class denies with worktree_removal_class_required_for_removed_lifecycle.",
+          "if": {
+            "properties": {
+              "worktree_registry_lifecycle_state": { "const": "worktree_removed_metadata_only_admin_directory_pruned" }
+            },
+            "required": ["worktree_registry_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "worktree_removal_class": { "const": "worktree_removal_metadata_only_admin_directory_pruned" }
+            },
+            "required": ["worktree_removal_class"]
+          }
+        },
+        {
+          "description": "worktree_removed_filesystem_deleted_admin_directory_pruned MUST cite worktree_removal_class = worktree_removal_filesystem_deletion_admin_directory_pruned; landing the removed lifecycle without the matching removal class denies with worktree_removal_class_required_for_removed_lifecycle.",
+          "if": {
+            "properties": {
+              "worktree_registry_lifecycle_state": { "const": "worktree_removed_filesystem_deleted_admin_directory_pruned" }
+            },
+            "required": ["worktree_registry_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "worktree_removal_class": { "const": "worktree_removal_filesystem_deletion_admin_directory_pruned" }
+            },
+            "required": ["worktree_removal_class"]
+          }
+        },
+        {
+          "description": "worktree_removal_metadata_only_admin_directory_pruned and worktree_removal_filesystem_deletion_admin_directory_pruned MUST pair with review_sheet_metadata_only_vs_filesystem_deletion_distinction_required.",
+          "if": {
+            "properties": {
+              "worktree_removal_class": {
+                "enum": [
+                  "worktree_removal_metadata_only_admin_directory_pruned",
+                  "worktree_removal_filesystem_deletion_admin_directory_pruned"
+                ]
+              }
+            },
+            "required": ["worktree_removal_class"]
+          },
+          "then": {
+            "properties": {
+              "worktree_removal_review_sheet_class": { "const": "review_sheet_metadata_only_vs_filesystem_deletion_distinction_required" }
+            }
+          }
+        },
+        {
+          "description": "worktree_removal_path_preserve_admin_directory_pruned_only MUST pair with review_sheet_path_preserve_explicit_user_acknowledgement_required so the user explicitly acknowledges the path-preserve posture.",
+          "if": {
+            "properties": {
+              "worktree_removal_class": { "const": "worktree_removal_path_preserve_admin_directory_pruned_only" }
+            },
+            "required": ["worktree_removal_class"]
+          },
+          "then": {
+            "properties": {
+              "worktree_removal_review_sheet_class": { "const": "review_sheet_path_preserve_explicit_user_acknowledgement_required" }
+            }
+          }
+        },
+        {
+          "description": "worktree_removal_blocked_pending_in_progress_operation_resolution MUST pair with review_sheet_blocked_pending_in_progress_operation_resolution.",
+          "if": {
+            "properties": {
+              "worktree_removal_class": { "const": "worktree_removal_blocked_pending_in_progress_operation_resolution" }
+            },
+            "required": ["worktree_removal_class"]
+          },
+          "then": {
+            "properties": {
+              "worktree_removal_review_sheet_class": { "const": "review_sheet_blocked_pending_in_progress_operation_resolution" }
+            }
+          }
+        },
+        {
+          "description": "worktree_archived_tombstone, worktree_removed_metadata_only_admin_directory_pruned, and worktree_removed_filesystem_deleted_admin_directory_pruned MUST cite a non-null archived_at; every other lifecycle state MUST cite null.",
+          "if": {
+            "properties": {
+              "worktree_registry_lifecycle_state": {
+                "enum": [
+                  "worktree_archived_tombstone",
+                  "worktree_removed_metadata_only_admin_directory_pruned",
+                  "worktree_removed_filesystem_deleted_admin_directory_pruned"
+                ]
+              }
+            },
+            "required": ["worktree_registry_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the worktree picker, the source-control panel, the worktree-aware status / removal review sheets, and the support / export bundle's git section. Exactly one row per worktree identity."
+    },
+
+    "worktree_row_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "worktree_row_schema_version",
+        "worktree_row_audit_event_id_value",
+        "audit_event_record_id",
+        "worktree_row_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "worktree_row_audit_event_record" },
+        "worktree_row_schema_version": { "$ref": "#/$defs/worktree_row_schema_version" },
+        "worktree_row_audit_event_id_value": { "$ref": "#/$defs/worktree_row_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "worktree_row_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/worktree_row_denial_reason" }
+          ],
+          "description": "Required (non-null) when worktree_row_audit_event_id_value is worktree_row_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is worktree_row_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "worktree_row_audit_event_id_value": { "const": "worktree_row_audit_denial_emitted" } },
+            "required": ["worktree_row_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/worktree_row_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the worktree_row stream."
+    }
+  }
+}
