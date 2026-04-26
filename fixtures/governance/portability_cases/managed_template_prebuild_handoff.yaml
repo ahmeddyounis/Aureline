@@ -1,0 +1,86 @@
+__fixture__:
+  name: managed_template_prebuild_handoff
+  scenario: >
+    An admin assembles the managed template and prebuild handoff
+    bundle to migrate org-scoped templates from a managed-cloud
+    deployment to a self-hosted control plane. The bundle is
+    admin-packaged, runs without a support ticket, and is admissible
+    by the destination control plane without managed-cloud
+    dependence. A destruction receipt is emitted for the managed
+    copies once the destination acknowledges the handoff.
+  contract_sections:
+    - rows.managed_templates_and_prebuilds
+
+record_kind: portability_case
+schema_version: 1
+
+fixture_id: managed_template_prebuild_handoff
+case_kind: handoff
+portability_row_refs:
+  - managed_templates_and_prebuilds
+
+invocation:
+  invoker_role: admin
+  scriptable: true
+  support_ticket_required: false
+  documented_path_ref: docs/service/managed_service_seed.md
+  invocation_summary: >
+    Admin runs the documented template handoff against the managed
+    control plane. The bundle includes prebuild manifests and warm-
+    cache pointers; the destination control plane resolves them
+    locally.
+
+export_assertions:
+  minimum_export_format: manifest_bundle
+  manifest_required: true
+  raw_secret_excluded_required: true
+  credential_storage_mode: handle_only
+  artifact_storage_mode: mirrored_copy
+  retention_mode: exportable
+  raw_secret_excluded_asserted: true
+
+import_assertions:
+  unknown_field_rule: preserve_round_trip
+  round_trip_supported: true
+  notes:
+    - The destination control plane round-trips template handles and prebuild manifests verbatim; future-build manifests preserved without truncation.
+
+scope_assertions:
+  admin_user_scope: admin_scope_only
+  managed_local_dependency: managed_authoritative_with_local_cache
+  notes:
+    - User installs hold a handle and a local cache; the bundle is the carrier between control planes.
+
+deletion_assertions:
+  story_class: managed_delete_with_receipt
+  local_and_managed_actions_are_distinct: true
+  completion_evidence: destruction_receipt
+  partial_result_cause_set:
+    - reference_only_managed_content
+
+withdrawal_assertions:
+  - scenario: staged_migration
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: self_host_move
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: air_gap_continuity
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: saas_cancellation
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: managed_only_withdrawal
+    local_core_workflow_remains_truthful: false
+    export_api_remains_truthful: false
+    rule_notes:
+      - Live template provisioning is a managed-only capability; without a control plane only the last handoff bundle remains usable.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "kept private"
+    occurrences: 0

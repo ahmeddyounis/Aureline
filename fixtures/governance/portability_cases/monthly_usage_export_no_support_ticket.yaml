@@ -1,0 +1,83 @@
+__fixture__:
+  name: monthly_usage_export_no_support_ticket
+  scenario: >
+    An admin runs the monthly usage export from a documented admin
+    path during a SaaS-cancellation window. The export delivers
+    seat, quota, and entitlement summaries against a signed JSON
+    manifest. Obtaining the export does not require a support
+    ticket. Deleting the downloaded packet locally has no effect on
+    the managed aggregate, which retains under finance and audit
+    policy and follows its own delete posture.
+  contract_sections:
+    - rows.usage_and_billing_exports
+
+record_kind: portability_case
+schema_version: 1
+
+fixture_id: monthly_usage_export_no_support_ticket
+case_kind: export
+portability_row_refs:
+  - usage_and_billing_exports
+
+invocation:
+  invoker_role: admin
+  scriptable: true
+  support_ticket_required: false
+  documented_path_ref: docs/service/managed_service_seed.md
+  invocation_summary: >
+    Admin invokes the documented usage-export path during a
+    cancellation window. The export runs from a scriptable surface;
+    no support handoff is required.
+
+export_assertions:
+  minimum_export_format: csv
+  manifest_required: true
+  raw_secret_excluded_required: true
+  credential_storage_mode: handle_only
+  artifact_storage_mode: uploaded_copy
+  retention_mode: exportable
+  raw_secret_excluded_asserted: true
+
+import_assertions:
+  unknown_field_rule: drop_with_diagnostic
+  round_trip_supported: false
+  notes:
+    - Usage exports are read-only artifacts; downstream finance pipelines parse them but the canonical aggregate stays managed.
+    - Unknown future-build columns are dropped with a diagnostic so reconciling pipelines can detect the asymmetry.
+
+scope_assertions:
+  admin_user_scope: admin_scope_only
+  managed_local_dependency: generated_packet_only
+  notes:
+    - The packet is generated from managed aggregates and cites the schema revision it was built against.
+
+deletion_assertions:
+  story_class: not_deletable_after_export
+  local_and_managed_actions_are_distinct: true
+  completion_evidence: tombstone_or_summary
+  partial_result_cause_set:
+    - policy_retained
+
+withdrawal_assertions:
+  - scenario: staged_migration
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: self_host_move
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: air_gap_continuity
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: saas_cancellation
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+    rule_notes:
+      - The cancellation-window export delivers the contractually promised packet before access ends; no support ticket is required.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "kept private"
+    occurrences: 0

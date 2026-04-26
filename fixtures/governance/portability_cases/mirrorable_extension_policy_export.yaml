@@ -1,0 +1,77 @@
+__fixture__:
+  name: mirrorable_extension_policy_export
+  scenario: >
+    An admin exports the extension inventory and the mirrorable
+    registry policy for an air-gapped self-host destination. The
+    export runs from a documented admin-scoped path without filing
+    a support ticket. The destination self-hosted registry ingests
+    the policy and inventory and refuses unknown fields it cannot
+    interpret, surfacing a diagnostic instead of silently dropping
+    them.
+  contract_sections:
+    - rows.extension_inventory_and_registry_policy
+    - rows.extension_lockfiles_and_recommendations
+
+record_kind: portability_case
+schema_version: 1
+
+fixture_id: mirrorable_extension_policy_export
+case_kind: export
+portability_row_refs:
+  - extension_inventory_and_registry_policy
+  - extension_lockfiles_and_recommendations
+
+invocation:
+  invoker_role: admin
+  scriptable: true
+  support_ticket_required: false
+  documented_path_ref: docs/governance/data_portability_and_exit_matrix.md
+  invocation_summary: >
+    Admin invokes the scriptable extension-policy export to mirror
+    the registry policy onto an air-gapped self-hosted destination.
+
+export_assertions:
+  minimum_export_format: json
+  manifest_required: true
+  raw_secret_excluded_required: true
+  credential_storage_mode: handle_only
+  artifact_storage_mode: mirrored_copy
+  retention_mode: pinned
+  raw_secret_excluded_asserted: true
+
+import_assertions:
+  unknown_field_rule: preserve_with_warning
+  round_trip_supported: true
+  notes:
+    - Unknown registry-policy fields preserved with a diagnostic so the destination admin notices when an importer must defer to the original policy author.
+    - Lockfiles round-trip verbatim; user-authored recommendation hints survive future-build extensions.
+
+scope_assertions:
+  admin_user_scope: user_and_admin_distinct
+  managed_local_dependency: local_authoritative_optional_managed_mirror
+  notes:
+    - User installs are local-authoritative; admin policy bundles ride a separate row but are referenced here for inventory completeness.
+
+withdrawal_assertions:
+  - scenario: staged_migration
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: self_host_move
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: air_gap_continuity
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+    rule_notes:
+      - The mirrored policy is the canonical artifact for air-gap; the destination registry never reaches a managed control plane.
+  - scenario: saas_cancellation
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "kept private"
+    occurrences: 0

@@ -1,0 +1,88 @@
+__fixture__:
+  name: admin_scoped_collaboration_export
+  scenario: >
+    An admin runs the documented collaboration archive export for a
+    managed workspace covering review comments, replay packs, role-
+    grant history, and audit trails. The export is admin-packaged
+    and runs without a support ticket. A retention-minimum hold is
+    active on a subset of the archive, so the exported manifest
+    surfaces blocked_by_hold as a partial-result cause rather than
+    silently omitting the held subset.
+  contract_sections:
+    - rows.collaboration_comments_and_audit
+
+record_kind: portability_case
+schema_version: 1
+
+fixture_id: admin_scoped_collaboration_export
+case_kind: export
+portability_row_refs:
+  - collaboration_comments_and_audit
+
+invocation:
+  invoker_role: admin
+  scriptable: true
+  support_ticket_required: false
+  documented_path_ref: docs/service/managed_service_seed.md
+  invocation_summary: >
+    Admin invokes the scriptable collaboration export against the
+    managed archive. Role-grant history and audit trails are
+    included; held subsets ride a partial-result cause.
+
+export_assertions:
+  minimum_export_format: jsonl
+  manifest_required: true
+  raw_secret_excluded_required: true
+  credential_storage_mode: handle_only
+  artifact_storage_mode: mirrored_copy
+  retention_mode: policy_held
+  raw_secret_excluded_asserted: true
+
+import_assertions:
+  unknown_field_rule: preserve_with_warning
+  round_trip_supported: false
+  notes:
+    - Collaboration archives are read-only on import; the destination tool ingests them but does not write back into the managed archive.
+
+scope_assertions:
+  admin_user_scope: admin_scope_only
+  managed_local_dependency: managed_authoritative_with_local_cache
+  notes:
+    - User-scope export is limited to the requesting user's own comments; the admin export is the canonical archive surface.
+
+deletion_assertions:
+  story_class: managed_delete_with_receipt
+  local_and_managed_actions_are_distinct: true
+  completion_evidence: destruction_receipt_with_retained_subset
+  partial_result_cause_set:
+    - blocked_by_hold
+    - reference_only_managed_content
+
+withdrawal_assertions:
+  - scenario: staged_migration
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: self_host_move
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: air_gap_continuity
+    local_core_workflow_remains_truthful: false
+    export_api_remains_truthful: true
+    manual_capture_required: true
+    rule_notes:
+      - Air-gap deployments cannot host live collaboration; previously exported bundles remain readable but new sessions are out of scope.
+  - scenario: saas_cancellation
+    local_core_workflow_remains_truthful: true
+    export_api_remains_truthful: true
+  - scenario: managed_only_withdrawal
+    local_core_workflow_remains_truthful: false
+    export_api_remains_truthful: false
+    manual_capture_required: true
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "kept private"
+    occurrences: 0

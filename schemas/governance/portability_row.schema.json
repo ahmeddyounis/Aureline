@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/portability_row.schema.json",
+  "title": "Aureline data-portability and customer-exit matrix row",
+  "description": "Boundary schema for the artifact-domain rows seeded in artifacts/governance/portability_artifact_matrix.yaml and explained in docs/governance/data_portability_and_exit_matrix.md. A portability_row turns each managed, hybrid, or local-only artifact domain into an auditable contract: minimum export format, scriptability requirement, offboarding and deletion story, import unknown-field preservation rule, admin-versus-user scope, managed-versus-local dependency notes, and the staged-migration / self-host-move / air-gap / SaaS-cancellation rules that keep local-core workflows and export APIs truthful after service withdrawal. Adding a vocabulary value is additive-minor and bumps portability_row_schema_version; repurposing or reusing a value is breaking and opens a decision row.",
+  "$ref": "#/$defs/portability_row",
+  "$defs": {
+    "portability_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the portability-row vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+
+    "posture_note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence clarifying a posture. Free-text and vague phrasing such as 'saved securely' are non-conforming."
+    },
+
+    "artifact_domain_class": {
+      "type": "string",
+      "enum": [
+        "settings_keybindings_profiles_snippets",
+        "workspaces_tasks_launch_policy_files",
+        "extension_inventory_and_registry_policy",
+        "local_history_and_ai_evidence",
+        "collaboration_comments_and_audit",
+        "managed_templates_and_prebuilds",
+        "usage_and_billing_exports",
+        "profile_library_artifacts",
+        "sync_metadata_and_conflict_journals",
+        "policy_bundles",
+        "extension_lockfiles_and_recommendations",
+        "execution_context_summaries"
+      ],
+      "description": "Closed set of artifact domains the matrix governs. Every domain that influences user exit, self-host move, or migration story must resolve to one of these classes. Adding a class is additive-minor and bumps portability_row_schema_version."
+    },
+
+    "export_format_floor": {
+      "type": "string",
+      "enum": [
+        "json",
+        "jsonl",
+        "yaml",
+        "markdown",
+        "csv",
+        "tar_gz_archive",
+        "manifest_bundle",
+        "signed_json"
+      ],
+      "description": "Minimum default export format the row is contractually obliged to deliver. Open, text-friendly formats are preferred; binary or tarball formats are valid only when the artifact body genuinely requires them."
+    },
+
+    "scriptability_requirement": {
+      "type": "string",
+      "enum": [
+        "scriptable_required",
+        "scriptable_with_admin_consent",
+        "manual_export_only",
+        "not_applicable"
+      ],
+      "description": "Whether the export must be runnable from a documented CLI or API path without filing a support ticket. manual_export_only rows MUST cite the local recovery path; not_applicable rows MUST justify why scriptability is meaningless for the class."
+    },
+
+    "admin_user_scope": {
+      "type": "string",
+      "enum": [
+        "user_scope_only",
+        "admin_scope_only",
+        "user_and_admin_distinct",
+        "user_with_admin_visibility"
+      ],
+      "description": "Which actor may invoke the export and whose scope of data it covers. user_and_admin_distinct rows MUST keep the two scopes as separate exports; admin scope MUST NOT silently widen a user-initiated request."
+    },
+
+    "managed_local_dependency_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_authoritative_optional_managed_mirror",
+        "managed_authoritative_with_local_cache",
+        "managed_only_no_local_form",
+        "generated_packet_only"
+      ],
+      "description": "Dependency truth between local materialization and any managed copy. managed_only_no_local_form rows MUST disclose what the user loses on managed withdrawal; generated_packet_only rows describe artifacts that exist only when an export action assembles them."
+    },
+
+    "import_unknown_field_rule": {
+      "type": "string",
+      "enum": [
+        "preserve_round_trip",
+        "preserve_with_warning",
+        "drop_with_diagnostic",
+        "reject_unknown_fields",
+        "not_importable"
+      ],
+      "description": "How an importer must treat fields it does not recognise. preserve_round_trip is the default for user-authored portable artifacts; reject_unknown_fields and not_importable rows MUST justify the closed posture in offboarding_notes."
+    },
+
+    "deletion_story_class": {
+      "type": "string",
+      "enum": [
+        "local_delete_only",
+        "local_and_managed_delete_distinct",
+        "managed_delete_with_receipt",
+        "policy_held_until_release",
+        "not_deletable_after_export"
+      ],
+      "description": "How deletion completes for the domain. local_and_managed_delete_distinct rows MUST keep the two actions as separate operations with separate receipts; not_deletable_after_export is reserved for receipts and append-only ledgers."
+    },
+
+    "offboarding_story_class": {
+      "type": "string",
+      "enum": [
+        "no_managed_lifecycle",
+        "user_self_serve_export",
+        "admin_packaged_export",
+        "exit_packet_required",
+        "manual_capture_outside_platform"
+      ],
+      "description": "How the artifact participates in customer-exit. exit_packet_required rows MUST list the exit-packet fields that cite the row; manual_capture_outside_platform rows MUST name the local recovery path."
+    },
+
+    "service_withdrawal_rule_class": {
+      "type": "string",
+      "enum": [
+        "staged_migration",
+        "self_host_move",
+        "air_gap_continuity",
+        "saas_cancellation",
+        "managed_only_withdrawal"
+      ],
+      "description": "Withdrawal scenario the rule covers. Every row MUST seed at least one rule per applicable scenario; managed_only_withdrawal is reserved for artifacts that cannot survive managed withdrawal and exists so the matrix surfaces the loss explicitly."
+    },
+
+    "service_withdrawal_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario", "rule_summary", "local_core_workflow_remains_truthful", "export_api_remains_truthful"],
+      "properties": {
+        "scenario": { "$ref": "#/$defs/service_withdrawal_rule_class" },
+        "rule_summary": { "$ref": "#/$defs/posture_note" },
+        "local_core_workflow_remains_truthful": {
+          "type": "boolean",
+          "description": "Whether the documented local-core workflow remains valid after the scenario fires. False values MUST be paired with a manual-capture or exit-packet note; silent loss is non-conforming."
+        },
+        "export_api_remains_truthful": {
+          "type": "boolean",
+          "description": "Whether the documented export API or scriptable path keeps the same shape after the scenario fires. False values MUST cite the surface that takes over and the migration window."
+        },
+        "manual_capture_required": {
+          "type": "boolean",
+          "description": "Whether the scenario forces a manual local capture step the user must perform before access ends. Default false; surfaces MUST disclose this when true."
+        },
+        "rule_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/posture_note" },
+          "description": "Optional additional notes for the rule (mirrors, parity windows, replay options, etc.)."
+        }
+      }
+    },
+
+    "service_withdrawal_rules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/service_withdrawal_rule" },
+      "description": "Per-scenario rules covering staged-migration, self-host move, air-gap, SaaS cancellation, and managed-only withdrawal. The same scenario value MUST NOT appear twice in one row."
+    },
+
+    "export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_export_format", "scriptability", "manifest_required", "raw_secret_excluded_required"],
+      "properties": {
+        "minimum_export_format": { "$ref": "#/$defs/export_format_floor" },
+        "additional_export_formats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_format_floor" },
+          "description": "Additional formats the surface MAY emit beyond the floor; the floor itself is mandatory."
+        },
+        "scriptability": { "$ref": "#/$defs/scriptability_requirement" },
+        "manifest_required": {
+          "type": "boolean",
+          "description": "Whether a separate manifest is required to call the export interpretable. Embedded-only exports without a manifest are non-conforming for hybrid or managed rows."
+        },
+        "raw_secret_excluded_required": {
+          "type": "boolean",
+          "description": "Whether the export MUST assert raw_secret_excluded per the storage-and-retention vocabulary. true is the default for any row that touches credential or token references."
+        },
+        "scriptability_path_ref": { "$ref": "#/$defs/path_ref" }
+      }
+    },
+
+    "import_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_field_rule", "round_trip_supported"],
+      "properties": {
+        "unknown_field_rule": { "$ref": "#/$defs/import_unknown_field_rule" },
+        "round_trip_supported": {
+          "type": "boolean",
+          "description": "Whether export-then-import on the same Aureline build is contractually a no-op for user-authored fields. False values MUST cite the import_notes that explain the asymmetry."
+        },
+        "import_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/posture_note" },
+          "description": "Notes about importer behavior (downgrade rules, fidelity caveats, etc.)."
+        }
+      }
+    },
+
+    "scope_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["admin_user_scope", "managed_local_dependency"],
+      "properties": {
+        "admin_user_scope": { "$ref": "#/$defs/admin_user_scope" },
+        "managed_local_dependency": { "$ref": "#/$defs/managed_local_dependency_class" },
+        "scope_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/posture_note" },
+          "description": "Notes about admin-vs-user scope or managed-vs-local dependency rules the row inherits."
+        }
+      }
+    },
+
+    "deletion_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["story_class", "local_and_managed_actions_are_distinct", "completion_evidence"],
+      "properties": {
+        "story_class": { "$ref": "#/$defs/deletion_story_class" },
+        "local_and_managed_actions_are_distinct": {
+          "type": "boolean",
+          "description": "Whether deleting the local materialization is a separate action from deleting any managed copy. MUST be true on rows whose managed_local_dependency is anything but local_only."
+        },
+        "completion_evidence": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "tombstone_or_summary",
+            "destruction_receipt",
+            "destruction_receipt_with_retained_subset"
+          ],
+          "description": "Evidence vocabulary that MUST agree with the record-class registry's completion_evidence enum."
+        },
+        "deletion_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/posture_note" },
+          "description": "Notes about delete behavior (legal-hold blockers, retained-subset reasoning, etc.)."
+        }
+      }
+    },
+
+    "offboarding_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["story_class", "support_ticket_required", "offboarding_notes"],
+      "properties": {
+        "story_class": { "$ref": "#/$defs/offboarding_story_class" },
+        "support_ticket_required": {
+          "type": "boolean",
+          "description": "Whether obtaining the export currently requires filing a support ticket. The acceptance bar is false for at least one fixture per major export class; surfaces that fail this MUST cite the decision row that justifies the dependency."
+        },
+        "offboarding_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/posture_note" },
+          "description": "Offboarding-specific notes the exit-packet builder or admin export UI must preserve."
+        }
+      }
+    },
+
+    "governance_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_class_refs", "storage_mode_refs", "source_docs"],
+      "properties": {
+        "record_class_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lower_snake_id" },
+          "description": "record_class_id values from artifacts/governance/record_class_registry.yaml that constrain the row. Every row MUST cite at least one record class so retention and hold posture is inherited rather than re-declared."
+        },
+        "storage_mode_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lower_snake_id" },
+          "description": "Consumer ids from artifacts/governance/storage_modes.yaml whose default credential / artifact / retention modes the row inherits."
+        },
+        "source_docs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Repo docs a reviewer should consult when changing the row."
+        },
+        "schema_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional downstream boundary schemas associated with the row."
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lower_snake_id" },
+          "description": "Optional deployment_profile_id values whose withdrawal scenarios the row's rules cover."
+        }
+      }
+    },
+
+    "portability_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "portability_row_schema_version",
+        "portability_row_id",
+        "title",
+        "description",
+        "artifact_domain",
+        "scope_posture",
+        "export_posture",
+        "import_posture",
+        "deletion_posture",
+        "offboarding_posture",
+        "service_withdrawal_rules",
+        "governance_links"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "portability_row",
+          "description": "Discriminator for this payload shape."
+        },
+        "portability_row_schema_version": { "$ref": "#/$defs/portability_row_schema_version" },
+        "portability_row_id": { "$ref": "#/$defs/lower_snake_id" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short human-readable title for the row."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-paragraph statement of which artifact class the row covers and what it does not."
+        },
+        "artifact_domain": { "$ref": "#/$defs/artifact_domain_class" },
+        "scope_posture": { "$ref": "#/$defs/scope_posture" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "import_posture": { "$ref": "#/$defs/import_posture" },
+        "deletion_posture": { "$ref": "#/$defs/deletion_posture" },
+        "offboarding_posture": { "$ref": "#/$defs/offboarding_posture" },
+        "service_withdrawal_rules": { "$ref": "#/$defs/service_withdrawal_rules" },
+        "governance_links": { "$ref": "#/$defs/governance_links" },
+        "notes": {
+          "type": "string",
+          "description": "Optional additional note for future consumers."
+        }
+      }
+    }
+  }
+}

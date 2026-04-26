@@ -1,0 +1,918 @@
+# Data-portability and customer-exit artifact matrix.
+#
+# Machine-readable companion to
+# docs/governance/data_portability_and_exit_matrix.md. Every row turns one
+# artifact domain into an auditable contract for export, import, deletion,
+# offboarding, admin-vs-user scope, managed-vs-local dependency, and the
+# staged-migration / self-host move / air-gap / SaaS-cancellation rules
+# that keep local-core workflows and export APIs truthful after service
+# withdrawal.
+#
+# Conformance: every row conforms to
+#   schemas/governance/portability_row.schema.json
+# as a `portability_row`.
+#
+# Rules:
+#   - Every row MUST cite at least one record_class_id from
+#     artifacts/governance/record_class_registry.yaml and at least one
+#     consumer_id from artifacts/governance/storage_modes.yaml. The
+#     record-class registry is the retention / hold / delete ceiling;
+#     this matrix narrows the export, import, scriptability, and
+#     offboarding posture for the user-facing artifact domain.
+#   - Every row MUST seed at least one service_withdrawal_rule. Rows for
+#     hybrid or managed-bearing classes MUST cover staged_migration,
+#     self_host_move, air_gap_continuity, and saas_cancellation; rows
+#     whose artifact cannot survive managed withdrawal MUST surface that
+#     loss explicitly with a managed_only_withdrawal rule.
+#   - offboarding_posture.support_ticket_required MUST be false for at
+#     least one fixture per major export class so the matrix is
+#     structurally challengeable instead of hiding behind support copy.
+#   - deletion_posture.local_and_managed_actions_are_distinct MUST be
+#     true on every row whose managed_local_dependency is anything but
+#     local_only.
+#   - Adding a vocabulary value (artifact_domain_class,
+#     export_format_floor, scriptability_requirement, admin_user_scope,
+#     managed_local_dependency_class, import_unknown_field_rule,
+#     deletion_story_class, offboarding_story_class, or
+#     service_withdrawal_rule_class) is additive-minor and bumps
+#     schema_version on this file in the same change. Repurposing a
+#     value is breaking and opens a decision row under
+#     artifacts/governance/decision_index.yaml.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field. Describe what the row covers, not which planning item it
+#     came from.
+#   - The literal string "saved securely" and equivalent vague phrasing
+#     ("stored safely", "kept private", "handled securely") MUST NOT
+#     appear in this matrix or any user-facing surface that cites it.
+
+schema_version: 1
+schema_ref: schemas/governance/portability_row.schema.json
+overview_page: docs/governance/data_portability_and_exit_matrix.md
+fixture_home: fixtures/governance/portability_cases/
+record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+storage_modes_ref: artifacts/governance/storage_modes.yaml
+deployment_profiles_ref: artifacts/governance/deployment_profiles.yaml
+managed_service_seed_ref: docs/service/managed_service_seed.md
+profile_state_map_ref: docs/state/profile_and_state_map.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.24 local-first operation"
+      - "§5.53 managed control-plane boundary"
+      - "§5.57 air-gapped operation"
+      - "Appendix AN continuity truth"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§9.6 managed-service separation"
+      - "§9.7 local-core resilience"
+      - "§9.8 mirror and offline posture"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§11.4.2 control-plane degrade"
+      - "§11.4.3 data-plane degrade"
+
+# -----------------------------------------------------------------------------
+# Rows.
+# One row per artifact domain in scope at this seed. Add a row in the
+# same change that introduces a new managed or hybrid artifact class.
+# -----------------------------------------------------------------------------
+
+rows:
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: settings_keybindings_profiles_snippets
+    title: Settings, keybindings, profiles, and snippets
+    description: >
+      User-authored editor settings, keybinding bindings, named profiles,
+      and snippet libraries. The portable profile artifact carries this
+      domain across machines as diffable text without secrets, machine-
+      unique trust anchors, or admin-policy bundles.
+    artifact_domain: settings_keybindings_profiles_snippets
+    scope_posture:
+      admin_user_scope: user_scope_only
+      managed_local_dependency: local_authoritative_optional_managed_mirror
+      scope_notes:
+        - User-authored fields are local-authoritative; managed sync, when enabled, mirrors them by reference and never elevates a managed copy above the local one.
+        - Managed mirroring stays opt-in; first-run and air-gap workflows MUST work without a managed mirror.
+    export_posture:
+      minimum_export_format: json
+      additional_export_formats:
+        - yaml
+        - tar_gz_archive
+      scriptability: scriptable_required
+      manifest_required: true
+      raw_secret_excluded_required: true
+      scriptability_path_ref: docs/state/profile_and_state_map.md
+    import_posture:
+      unknown_field_rule: preserve_round_trip
+      round_trip_supported: true
+      import_notes:
+        - Unknown user-authored fields preserved by default so a profile authored against a newer build still round-trips when re-imported into the original build.
+        - Aliases for credentials project as handle_only references; raw tokens never ride the import.
+    deletion_posture:
+      story_class: local_and_managed_delete_distinct
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: tombstone_or_summary
+      deletion_notes:
+        - Local profile deletion is a file-system action; deleting a managed mirror requires an explicit managed-action and emits its own receipt.
+    offboarding_posture:
+      story_class: user_self_serve_export
+      support_ticket_required: false
+      offboarding_notes:
+        - The user can export the portable profile artifact at any time without a support ticket; the same path is offered as a final action during managed offboarding.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Profile artifact format pinned across migration so a profile authored on the prior version still imports cleanly.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: The profile artifact is the carrier; no managed dependency is required to move settings to a self-hosted deployment.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Local export and import work without any managed call; sync metadata is absent, not silently failing.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation of a managed sync subscription leaves the local profile authoritative; the managed mirror is removed under a destruction-receipt action.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+        rule_notes:
+          - Cancellation MUST NOT clear the local artifact; the managed mirror is deleted with its own receipt.
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - profile_export
+        - sync_payload
+      source_docs:
+        - docs/state/profile_and_state_map.md
+        - docs/governance/storage_and_retention_vocabulary.md
+        - docs/service/managed_service_seed.md
+      schema_refs:
+        - schemas/profile/portable_profile.schema.json
+      deployment_profile_refs:
+        - individual_local
+        - self_hosted
+        - air_gapped
+        - managed_cloud
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: workspaces_tasks_launch_policy_files
+    title: Workspaces, tasks, launch configs, and policy files
+    description: >
+      Workspace folders, repo-relative task definitions, launch
+      configurations, and the in-repo policy or .editorconfig-style
+      files that travel with the workspace. The workspace itself is
+      local-authoritative; portability concerns the manifest of which
+      workspaces, tasks, and policy files an Aureline install presents.
+    artifact_domain: workspaces_tasks_launch_policy_files
+    scope_posture:
+      admin_user_scope: user_with_admin_visibility
+      managed_local_dependency: local_authoritative_optional_managed_mirror
+      scope_notes:
+        - Workspace contents stay on disk; the export inventory references them so a destination machine can locate the same checkout.
+        - Admin-scoped policy bundles ride a separate row; this row covers user-scoped task and launch config files only.
+    export_posture:
+      minimum_export_format: json
+      additional_export_formats:
+        - yaml
+        - markdown
+      scriptability: scriptable_required
+      manifest_required: true
+      raw_secret_excluded_required: true
+      scriptability_path_ref: docs/state/profile_and_state_map.md
+    import_posture:
+      unknown_field_rule: preserve_round_trip
+      round_trip_supported: true
+      import_notes:
+        - Unknown task or launch fields preserved verbatim so future-build options survive a downgrade-and-restore cycle.
+    deletion_posture:
+      story_class: local_delete_only
+      local_and_managed_actions_are_distinct: false
+      completion_evidence: not_applicable
+      deletion_notes:
+        - Workspace files are user-owned files on disk; this row's deletion story is the user removing them locally.
+    offboarding_posture:
+      story_class: user_self_serve_export
+      support_ticket_required: false
+      offboarding_notes:
+        - Workspace inventory is included in the offboarding exit packet by reference; the workspaces themselves are local files the user retains regardless of managed status.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Workspace, task, and launch schemas pinned across migration; importer preserves unknown fields under preserve_round_trip.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Workspaces are file-system artifacts; self-host move only re-links the inventory references on the new install.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Inventory export and re-import succeed offline; managed mirror, if any, is absent rather than failing implicitly.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation removes any managed inventory mirror; local workspaces, tasks, and launch configs remain on disk.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - profile_export
+        - sync_payload
+      source_docs:
+        - docs/state/profile_and_state_map.md
+        - docs/governance/storage_and_retention_vocabulary.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: extension_inventory_and_registry_policy
+    title: Extension inventory and registry policy
+    description: >
+      Inventory of installed extensions, their pinned versions, the
+      mirrorable registry policy, and the recommendation set the
+      workspace projects. Recommendation sets and lockfiles travel
+      separately on dedicated rows; this row covers the install
+      inventory and the registry-policy reference.
+    artifact_domain: extension_inventory_and_registry_policy
+    scope_posture:
+      admin_user_scope: user_and_admin_distinct
+      managed_local_dependency: local_authoritative_optional_managed_mirror
+      scope_notes:
+        - User installs are local-authoritative; admin policy bundles narrow which extensions are admissible and ride a separate row.
+        - Registry-policy files are mirrorable; the row's export references the policy artifact rather than embedding raw bytes.
+    export_posture:
+      minimum_export_format: json
+      additional_export_formats:
+        - yaml
+        - manifest_bundle
+      scriptability: scriptable_required
+      manifest_required: true
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: preserve_with_warning
+      round_trip_supported: true
+      import_notes:
+        - Unknown registry-policy fields preserved with a diagnostic so admins notice when an importer must defer to the original policy author.
+    deletion_posture:
+      story_class: local_and_managed_delete_distinct
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      deletion_notes:
+        - Removing the local inventory is a user action; removing a managed mirror or org-scoped policy is an admin action with its own receipt.
+    offboarding_posture:
+      story_class: admin_packaged_export
+      support_ticket_required: false
+      offboarding_notes:
+        - The mirrorable extension-policy export is admin-scoped and runs without a support ticket; user-scoped installs ride the user offboarding path.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Extension inventory and registry-policy schemas pinned; downgrade keeps unknown fields under preserve_with_warning.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Self-hosted registry can ingest the mirrored policy and inventory without managed control-plane dependence.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Mirrored registry policy is the canonical artifact; air-gap deployments never reach back to a managed registry.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation removes managed policy distribution; local installs remain pinned to their last admissible versions.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - profile_export
+        - retained_evidence_generic
+      source_docs:
+        - docs/state/profile_and_state_map.md
+        - docs/governance/storage_and_retention_vocabulary.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: local_history_and_ai_evidence
+    title: Local history and AI evidence
+    description: >
+      Per-file local history captures, replay caches, AI evidence
+      packets, citation anchors, and tainted-fence state. Local
+      copies remain user-owned; managed retained evidence is a
+      separately governed copy.
+    artifact_domain: local_history_and_ai_evidence
+    scope_posture:
+      admin_user_scope: user_and_admin_distinct
+      managed_local_dependency: local_authoritative_optional_managed_mirror
+      scope_notes:
+        - User-scoped local history exports the file's own change log; admin-scoped AI evidence exports cover managed retained evidence packets.
+        - Embedded body bytes assert raw_secret_excluded; managed copies project as by_reference_evidence in the export manifest.
+    export_posture:
+      minimum_export_format: json
+      additional_export_formats:
+        - tar_gz_archive
+        - markdown
+      scriptability: scriptable_with_admin_consent
+      manifest_required: true
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: preserve_with_warning
+      round_trip_supported: false
+      import_notes:
+        - Local history is replayed into the destination's history store, not transplanted; managed AI evidence is read-only on import.
+        - Tainted-fence state preserved verbatim so review surfaces continue to surface fenced citations after restore.
+    deletion_posture:
+      story_class: local_and_managed_delete_distinct
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      deletion_notes:
+        - Deleting local history is a user action; deleting managed retained AI evidence is governed by the record-class hold posture and may retain a held subset.
+    offboarding_posture:
+      story_class: exit_packet_required
+      support_ticket_required: false
+      offboarding_notes:
+        - Managed AI evidence rides the offboarding exit packet by reference; local history travels in the user's portable export.
+        - Held subsets surface as partial-result causes (blocked_by_hold, policy_retained) rather than silent omissions.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: AI evidence schema and tainted-fence vocabulary pinned across migration; replay surfaces continue to render fenced citations.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Self-hosted deployments can ingest the by-reference evidence packet without reaching back to a managed control plane.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Air-gap deployments retain local history without a managed mirror; AI evidence rows that require live provider access surface as outside_platform_scope.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation closes managed AI evidence retention; the cancellation-window export delivers the last contractually promised packet before access ends.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+        rule_notes:
+          - Cancellation MUST NOT delete local history or local replay caches.
+    governance_links:
+      record_class_refs:
+        - ai_retained_evidence_packet
+        - crash_diagnostic_payload
+      storage_mode_refs:
+        - ai_evidence_packet
+        - retained_evidence_generic
+      source_docs:
+        - docs/state/profile_and_state_map.md
+        - docs/governance/record_class_governance.md
+      schema_refs:
+        - schemas/ai/evidence_packet.schema.json
+        - schemas/ai/evidence_replay_packet.schema.json
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: collaboration_comments_and_audit
+    title: Collaboration comments and audit
+    description: >
+      Shared review comments, replay packs, role-grant history, and
+      audit trails kept on the managed collaboration archive. Local
+      replay caches are not the source of record; the managed archive
+      is.
+    artifact_domain: collaboration_comments_and_audit
+    scope_posture:
+      admin_user_scope: admin_scope_only
+      managed_local_dependency: managed_authoritative_with_local_cache
+      scope_notes:
+        - Admin-scoped export covers the entire archived session, role-grant history, and audit trail; user self-export is limited to comments authored by the requesting user.
+        - Local replay caches are a preview surface, not a destruction proof.
+    export_posture:
+      minimum_export_format: jsonl
+      additional_export_formats:
+        - csv
+        - markdown
+        - manifest_bundle
+      scriptability: scriptable_with_admin_consent
+      manifest_required: true
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: preserve_with_warning
+      round_trip_supported: false
+      import_notes:
+        - Collaboration archives are read-only on import; downstream tools ingest them but do not write back into the managed archive.
+        - Unknown reviewer-metadata fields preserved with a diagnostic so admins notice when newer review surfaces emit additional fields.
+    deletion_posture:
+      story_class: managed_delete_with_receipt
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      deletion_notes:
+        - Held archives surface partial-result causes (blocked_by_hold) rather than reporting a silent success.
+        - Local replay caches must be cleared by the user; deleting the managed archive does not implicitly clear the cache.
+    offboarding_posture:
+      story_class: admin_packaged_export
+      support_ticket_required: false
+      offboarding_notes:
+        - The admin-packaged collaboration export is the canonical handoff and runs without a support ticket; partial-result causes ride explicit caveats.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Collaboration archive schema pinned across migration; replay surfaces and audit trails remain interpretable on the new build.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Self-hosted deployments can ingest the collaboration archive bundle without managed-cloud dependence.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Air-gap deployments without managed collaboration surface this row as managed_only_no_local_form for the live archive; previously exported bundles remain readable.
+        local_core_workflow_remains_truthful: false
+        export_api_remains_truthful: true
+        manual_capture_required: true
+        rule_notes:
+          - Live collaboration is not a local-core capability; the matrix surfaces the loss explicitly rather than hiding it behind a vague offline mode.
+      - scenario: saas_cancellation
+        rule_summary: Cancellation triggers the contractually promised collaboration export before access ends; held subsets ride the destruction receipt.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: managed_only_withdrawal
+        rule_summary: Without a managed collaboration plane, only locally cached previews remain; the matrix surfaces the loss instead of implying silent equivalence.
+        local_core_workflow_remains_truthful: false
+        export_api_remains_truthful: false
+        manual_capture_required: true
+    governance_links:
+      record_class_refs:
+        - collaboration_evidence_packet
+      storage_mode_refs:
+        - incident_bundle
+        - retained_evidence_generic
+      source_docs:
+        - docs/governance/record_class_governance.md
+        - docs/service/managed_service_seed.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: managed_templates_and_prebuilds
+    title: Managed templates and prebuilds
+    description: >
+      Org-scoped templates, prebuild manifests, and warm-cache pointers
+      provisioned by a managed control plane. The artifact lives on the
+      managed side; local installs hold a handle and a manifest by
+      reference.
+    artifact_domain: managed_templates_and_prebuilds
+    scope_posture:
+      admin_user_scope: admin_scope_only
+      managed_local_dependency: managed_authoritative_with_local_cache
+      scope_notes:
+        - Templates and prebuilds are admin-scoped artifacts; user installs receive a handle and may project a local cache for offline use.
+        - Cache contents are not the source of record; the managed manifest is.
+    export_posture:
+      minimum_export_format: manifest_bundle
+      additional_export_formats:
+        - json
+        - tar_gz_archive
+      scriptability: scriptable_with_admin_consent
+      manifest_required: true
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: preserve_round_trip
+      round_trip_supported: true
+      import_notes:
+        - Template handoff bundles round-trip into a self-hosted control plane without managed-cloud dependence.
+    deletion_posture:
+      story_class: managed_delete_with_receipt
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt
+      deletion_notes:
+        - Deleting a managed template emits a destruction receipt; local caches expire under the row's retention timer or on explicit clear.
+    offboarding_posture:
+      story_class: admin_packaged_export
+      support_ticket_required: false
+      offboarding_notes:
+        - The managed template handoff bundle is the offboarding artifact for this row; it runs without a support ticket and is admissible by self-hosted control planes.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Template and prebuild manifests pinned across migration; old handles remain resolvable until the migration window closes.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: The handoff bundle is the canonical carrier; the destination control plane ingests templates and prebuilds without managed-cloud dependence.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Air-gap deployments resolve templates from the mirrored manifest; live managed-template features that require online resolution ride a managed_only_withdrawal rule.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation triggers the handoff bundle and a destruction receipt for managed copies; local caches expire under their declared retention.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: managed_only_withdrawal
+        rule_summary: Live template provisioning is a managed-only capability; without a managed control plane only the last handoff bundle remains usable.
+        local_core_workflow_remains_truthful: false
+        export_api_remains_truthful: false
+        manual_capture_required: false
+    governance_links:
+      record_class_refs:
+        - entitlement_usage_export_packet
+      storage_mode_refs:
+        - retained_evidence_generic
+      source_docs:
+        - docs/service/managed_service_seed.md
+        - docs/governance/record_class_governance.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: usage_and_billing_exports
+    title: Usage and billing exports
+    description: >
+      Monthly usage snapshots, seat and quota summaries, entitlement
+      state, and finance-facing aggregates exposed to admins. The
+      packet is the export shape; managed aggregates remain the source
+      of record under finance and audit retention.
+    artifact_domain: usage_and_billing_exports
+    scope_posture:
+      admin_user_scope: admin_scope_only
+      managed_local_dependency: generated_packet_only
+      scope_notes:
+        - Admins invoke a scriptable export; the packet is generated from managed aggregates and includes the schema revision it was built against.
+        - Deleting a downloaded packet does not erase the managed aggregate; the matrix surfaces that distinction explicitly.
+    export_posture:
+      minimum_export_format: csv
+      additional_export_formats:
+        - json
+        - signed_json
+      scriptability: scriptable_required
+      manifest_required: true
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: drop_with_diagnostic
+      round_trip_supported: false
+      import_notes:
+        - Usage exports are read-only artifacts; downstream tools may parse them but the canonical aggregate stays managed.
+        - Unknown future-build columns are dropped with a diagnostic so finance pipelines see the asymmetry.
+    deletion_posture:
+      story_class: not_deletable_after_export
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: tombstone_or_summary
+      deletion_notes:
+        - Deleting a downloaded packet is a local action; the managed aggregate retains under finance, audit, or entitlement-policy retention and is governed by its own delete posture.
+    offboarding_posture:
+      story_class: user_self_serve_export
+      support_ticket_required: false
+      offboarding_notes:
+        - Monthly usage export runs from a documented admin path without a support ticket and is the contract surface for cancellation-window data delivery.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Usage export schema pinned across migration; the packet cites the schema revision so a downstream finance pipeline can reconcile the version.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Self-hosted deployments emit usage exports from their own aggregates; the matrix names the schema parity contract that survives the move.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Air-gap deployments emit usage exports against their local aggregates; managed-cloud aggregates are out of scope.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation triggers the final monthly usage export under the contractually promised cadence; managed aggregates retain under finance and audit policy.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+        rule_notes:
+          - The export path MUST NOT depend on filing a support ticket.
+    governance_links:
+      record_class_refs:
+        - entitlement_usage_export_packet
+      storage_mode_refs:
+        - retained_evidence_generic
+      source_docs:
+        - docs/service/managed_service_seed.md
+        - docs/governance/record_class_governance.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: profile_library_artifacts
+    title: Profile library artifacts
+    description: >
+      Profile library entries the user maintains across machines:
+      named profiles, layout presets, AI preset references, recipe
+      shortcuts, and theme bundles assembled in the portable profile.
+    artifact_domain: profile_library_artifacts
+    scope_posture:
+      admin_user_scope: user_scope_only
+      managed_local_dependency: local_authoritative_optional_managed_mirror
+      scope_notes:
+        - Profile library entries are user-authored; managed sync mirrors them by reference under explicit consent.
+    export_posture:
+      minimum_export_format: json
+      additional_export_formats:
+        - yaml
+        - tar_gz_archive
+      scriptability: scriptable_required
+      manifest_required: true
+      raw_secret_excluded_required: true
+      scriptability_path_ref: docs/state/profile_and_state_map.md
+    import_posture:
+      unknown_field_rule: preserve_round_trip
+      round_trip_supported: true
+      import_notes:
+        - Library entries authored against a newer build round-trip when re-imported into the original build.
+    deletion_posture:
+      story_class: local_and_managed_delete_distinct
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: tombstone_or_summary
+      deletion_notes:
+        - Deleting a library entry locally is a file-system action; clearing the managed mirror requires a separate managed action.
+    offboarding_posture:
+      story_class: user_self_serve_export
+      support_ticket_required: false
+      offboarding_notes:
+        - Profile library export rides the portable profile artifact; admins do not gate the user-scoped export.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Library schema pinned; unknown fields preserved across migration boundaries.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Library entries travel in the portable profile artifact; no managed dependency is required.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Library export and re-import work offline; managed mirror, if any, is absent rather than failing implicitly.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation removes any managed mirror; the local library remains authoritative.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - profile_export
+        - sync_payload
+      source_docs:
+        - docs/state/profile_and_state_map.md
+      schema_refs:
+        - schemas/profile/portable_profile.schema.json
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: sync_metadata_and_conflict_journals
+    title: Sync metadata and conflict journals
+    description: >
+      Sync engine metadata, conflict journals, and reconciliation
+      provenance produced by the optional managed sync lane. Local
+      copies preserve the journal so a user can replay or audit a
+      conflict resolution after managed withdrawal.
+    artifact_domain: sync_metadata_and_conflict_journals
+    scope_posture:
+      admin_user_scope: user_scope_only
+      managed_local_dependency: managed_authoritative_with_local_cache
+      scope_notes:
+        - Sync metadata is managed-authoritative while sync is enabled; local journals are user-readable copies.
+        - Disabling sync MUST NOT erase the local journal; it freezes the journal under raw_secret_excluded.
+    export_posture:
+      minimum_export_format: jsonl
+      additional_export_formats:
+        - json
+        - tar_gz_archive
+      scriptability: scriptable_required
+      manifest_required: true
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: preserve_with_warning
+      round_trip_supported: false
+      import_notes:
+        - Sync journals are diagnostic artifacts; they are not replayed into a new sync engine but remain readable for audit.
+    deletion_posture:
+      story_class: local_and_managed_delete_distinct
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt
+      deletion_notes:
+        - Clearing the local journal is a user action; deleting the managed sync metadata is governed by the sync row's retention timer and emits a destruction receipt.
+    offboarding_posture:
+      story_class: user_self_serve_export
+      support_ticket_required: false
+      offboarding_notes:
+        - The sync journal export runs without a support ticket and is the canonical artifact for explaining past conflict resolutions.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Sync journal schema pinned; older journals remain interpretable after migration so a conflict explainer never silently regresses.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Self-hosted sync ingests the journal export by reference; managed-cloud is not required.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Air-gap deployments retain the local journal; live sync is out of scope.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation freezes the local journal and emits a destruction receipt for the managed copy.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - sync_payload
+        - retained_evidence_generic
+      source_docs:
+        - docs/state/profile_and_state_map.md
+        - docs/governance/storage_and_retention_vocabulary.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: policy_bundles
+    title: Policy bundles
+    description: >
+      Admin-distributed policy bundles, signed policy bundle caches,
+      and policy-epoch metadata. Bundles ride a separate row from
+      the workspace task / launch row because the admin scope and
+      managed dependency posture differ.
+    artifact_domain: policy_bundles
+    scope_posture:
+      admin_user_scope: admin_scope_only
+      managed_local_dependency: managed_authoritative_with_local_cache
+      scope_notes:
+        - Policy bundles are admin-authoritative; local installs hold a signed cache and a policy epoch.
+        - Mirroring is supported so air-gap and self-hosted deployments can replicate the canonical bundle without managed-cloud dependence.
+    export_posture:
+      minimum_export_format: signed_json
+      additional_export_formats:
+        - json
+        - manifest_bundle
+      scriptability: scriptable_with_admin_consent
+      manifest_required: true
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: reject_unknown_fields
+      round_trip_supported: true
+      import_notes:
+        - Policy bundles refuse unknown fields by default to preserve admin-policy integrity; an explicit decision row is required to soften the import rule.
+    deletion_posture:
+      story_class: managed_delete_with_receipt
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt
+      deletion_notes:
+        - Removing a policy bundle is an admin action with a destruction receipt; local caches expire under the bundle's declared retention.
+    offboarding_posture:
+      story_class: admin_packaged_export
+      support_ticket_required: false
+      offboarding_notes:
+        - The signed policy bundle export is the offboarding artifact for admins; it runs without a support ticket and remains verifiable on a self-hosted destination.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Policy bundle schema and signing chain pinned across migration; older epochs remain verifiable.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Self-hosted deployments verify the signed bundle without managed-cloud dependence.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Air-gap deployments mirror the signed bundle; live distribution is replaced by the mirrored artifact rather than failing implicitly.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation freezes the local cache at its last admissible epoch; the destruction receipt names which managed-side state was removed.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - retained_evidence_generic
+      source_docs:
+        - docs/governance/storage_and_retention_vocabulary.md
+        - docs/service/managed_service_seed.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: extension_lockfiles_and_recommendations
+    title: Extension lockfiles and recommendation sets
+    description: >
+      Extension lockfiles and recommendation sets the workspace
+      projects so a destination machine reproduces the same
+      extension surface area. These artifacts are user-authored and
+      diffable.
+    artifact_domain: extension_lockfiles_and_recommendations
+    scope_posture:
+      admin_user_scope: user_scope_only
+      managed_local_dependency: local_only
+      scope_notes:
+        - Lockfiles and recommendation sets ride the workspace; the row stays local-only because no managed copy exists by default.
+    export_posture:
+      minimum_export_format: json
+      additional_export_formats:
+        - yaml
+      scriptability: scriptable_required
+      manifest_required: false
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: preserve_round_trip
+      round_trip_supported: true
+      import_notes:
+        - Lockfiles round-trip across machines; recommendation sets preserve unknown future-build hints under preserve_round_trip.
+    deletion_posture:
+      story_class: local_delete_only
+      local_and_managed_actions_are_distinct: false
+      completion_evidence: not_applicable
+      deletion_notes:
+        - Lockfiles and recommendation sets are user-owned files on disk; the deletion story is the user removing them.
+    offboarding_posture:
+      story_class: user_self_serve_export
+      support_ticket_required: false
+      offboarding_notes:
+        - The lockfile and recommendation set ride the workspace; offboarding is a workspace-level action.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Lockfile and recommendation schemas pinned across migration; unknown fields preserved verbatim.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Lockfiles travel with the workspace; no managed dependency exists.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Lockfiles and recommendation sets work offline; nothing in the row depends on a managed control plane.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation has no effect on this row; the artifacts are local-only by definition.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - profile_export
+      source_docs:
+        - docs/state/profile_and_state_map.md
+
+  - record_kind: portability_row
+    portability_row_schema_version: 1
+    portability_row_id: execution_context_summaries
+    title: Execution-context summaries
+    description: >
+      Stable summaries of the execution context (selected toolchain,
+      runtime versions, container / devcontainer references, last-
+      known-good build snapshots) that influence how a workspace
+      runs. The artifact is user-readable and diffable; any managed
+      mirror is by reference.
+    artifact_domain: execution_context_summaries
+    scope_posture:
+      admin_user_scope: user_with_admin_visibility
+      managed_local_dependency: local_authoritative_optional_managed_mirror
+      scope_notes:
+        - Local-authoritative summaries; admins can read the summary alongside collaboration evidence but do not own it.
+    export_posture:
+      minimum_export_format: json
+      additional_export_formats:
+        - yaml
+        - markdown
+      scriptability: scriptable_required
+      manifest_required: false
+      raw_secret_excluded_required: true
+    import_posture:
+      unknown_field_rule: preserve_round_trip
+      round_trip_supported: true
+      import_notes:
+        - Execution-context summaries round-trip with the workspace; unknown future-build runtime descriptors are preserved verbatim.
+    deletion_posture:
+      story_class: local_delete_only
+      local_and_managed_actions_are_distinct: false
+      completion_evidence: not_applicable
+      deletion_notes:
+        - Execution-context summaries are local files; deletion is a user action.
+    offboarding_posture:
+      story_class: user_self_serve_export
+      support_ticket_required: false
+      offboarding_notes:
+        - Execution-context summaries ride the workspace export and the offboarding exit packet by reference.
+    service_withdrawal_rules:
+      - scenario: staged_migration
+        rule_summary: Execution-context schema pinned; older summaries remain interpretable.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: self_host_move
+        rule_summary: Summaries travel with the workspace; the destination resolves toolchains against its own registry.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: air_gap_continuity
+        rule_summary: Summaries work offline; nothing in the row requires a managed control plane.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+      - scenario: saas_cancellation
+        rule_summary: Cancellation has no effect on the local summary; managed mirrors, if any, are removed under the row's retention timer.
+        local_core_workflow_remains_truthful: true
+        export_api_remains_truthful: true
+    governance_links:
+      record_class_refs:
+        - telemetry_contract_schema
+      storage_mode_refs:
+        - profile_export
+        - retained_evidence_generic
+      source_docs:
+        - docs/state/profile_and_state_map.md
