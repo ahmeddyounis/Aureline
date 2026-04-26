@@ -1,0 +1,834 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/speech_provider_entry.schema.json",
+  "title": "Aureline speech provider, local speech pack, handoff disclosure, grammar / intent resolver, and editor integration bridge contract",
+  "description": "Boundary schema for the speech_provider_entry_record, local_speech_pack_entry_record, speech_provider_handoff_disclosure_record, grammar_intent_resolver_record, and editor_integration_bridge_record frozen in docs/ux/voice_and_dictation_contract.md. Every speech (ASR / TTS / hybrid) provider the product might route against — first-party self-hosted, first-party managed, vendor or self-hosted connected provider, BYOK, enterprise-gateway-brokered, vendor-hosted-first-party-managed, extension-provided, mocked, or disabled — resolves to one governed row before any voice turn can cite its identity. Every local speech pack the product can serve from resolves to one local_speech_pack_entry_record declaring its origin, signature-verification state, and trust posture; an unverified pack MUST NOT serve voice turns. Every invocation carries a matching speech_provider_handoff_disclosure_record minted at or before the call so provider identity, locus, transport, auth mode, retention stance, region posture, supported features, allowed data classes, and disclosure kind are inspectable at the point of intent; silent widening of any axis after disclosure is forbidden. Every grammar / intent resolver row resolves voice intents to canonical command_id_refs on the command registry; voice cannot mint commands. Every editor integration bridge enforces undo-stack, command_id, trust-model, and accessibility-announcement parity with the keyboard lane. The schema composes with (and does not replace) schemas/ai/provider_registry.schema.json (provider / locus / transport / auth / retention / region / pack vocabularies), schemas/commands/command_descriptor.schema.json (command_id, capability_scope_class, preview_class), schemas/security/trust_decision_packet.schema.json (trust state), schemas/ux/interaction_safety.schema.json (preview / apply / revert phases), and artifacts/governance/deployment_profiles.yaml (deployment profile envelope). Raw audio bytes, raw transcript text, raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, raw voice-print embeddings, and raw credential bodies never cross this boundary; records carry opaque refs, structured fields, and fingerprints only. Adding a new speech_provider_class, execution_locus_class, transport_class, auth_mode_class, retention_stance_class, region_posture_class, supported_feature_class, data_class, pack_origin_class, pack_verification_state_class, pre_invocation_disclosure_kind, voice_intent_resolution_class, undo_stack_parity_class, command_id_parity_class, trust_model_parity_class, accessibility_announcement_class, evidence_hook_class, or denial_reason is additive-minor and bumps speech_provider_entry_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/speech_provider_entry_record" },
+    { "$ref": "#/$defs/local_speech_pack_entry_record" },
+    { "$ref": "#/$defs/speech_provider_handoff_disclosure_record" },
+    { "$ref": "#/$defs/grammar_intent_resolver_record" },
+    { "$ref": "#/$defs/editor_integration_bridge_record" }
+  ],
+  "$defs": {
+    "speech_provider_entry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this speech-provider-entry vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "speech_provider_entry_record",
+        "local_speech_pack_entry_record",
+        "speech_provider_handoff_disclosure_record",
+        "grammar_intent_resolver_record",
+        "editor_integration_bridge_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / portable profile packages / support bundles. Raw URLs, raw absolute paths, raw API keys, raw OAuth tokens, raw model weights, raw pack bytes, raw audio bodies, raw transcript bodies, raw provider payloads, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short privacy-safe label text. MUST NOT embed raw paths, raw URLs, raw secret material, raw audio bodies, or raw transcript text."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "speech_provider_class": {
+      "type": "string",
+      "enum": [
+        "first_party_self_hosted_speech",
+        "first_party_managed_speech",
+        "connected_provider_vendor_speech",
+        "connected_provider_self_hosted_speech",
+        "byok_speech",
+        "enterprise_gateway_brokered_speech",
+        "extension_provided_speech",
+        "mocked_test_speech",
+        "disabled_no_speech_provider"
+      ],
+      "description": "Closed speech-provider-class vocabulary. disabled_no_speech_provider is the canonical state for a registry row that exists but is suspended / withdrawn / not admitted; an entry whose provider class is disabled_no_speech_provider MUST NOT be cited as the serving provider on a voice-mode session."
+    },
+
+    "execution_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process_speech",
+        "local_sandbox_process_speech",
+        "local_companion_service_speech",
+        "byok_remote_vendor_direct_speech",
+        "byok_remote_self_hosted_direct_speech",
+        "enterprise_gateway_brokered_locus_speech",
+        "vendor_hosted_first_party_managed_speech",
+        "extension_provided_locus_speech",
+        "mocked_test_locus_speech",
+        "disabled_no_locus_speech"
+      ],
+      "description": "Closed execution-locus vocabulary naming where the speech inference (ASR / TTS) actually runs. local_in_process_speech = same OS process as Aureline. local_sandbox_process_speech = a separate local sandboxed process / container on the same device. local_companion_service_speech = a local long-running companion service on loopback. byok_remote_vendor_direct_speech = the user brought a vendor credential and audio lands on the vendor's endpoint with no first-party broker. byok_remote_self_hosted_direct_speech = the user brought a self-hosted endpoint and audio lands there with no first-party broker. enterprise_gateway_brokered_locus_speech = every call is brokered through a customer-operated or customer-contracted enterprise gateway. vendor_hosted_first_party_managed_speech = the first-party product operates the relationship with the vendor and the user does not see per-vendor credential handling. extension_provided_locus_speech = an extension provider owns the locus. mocked_test_locus_speech = a mocked locus for parity / record-replay tests only. disabled_no_locus_speech is the locus when speech_provider_class = disabled_no_speech_provider."
+    },
+
+    "transport_class": {
+      "type": "string",
+      "enum": [
+        "in_process_call",
+        "local_stdio_pipe",
+        "local_unix_domain_socket",
+        "local_named_pipe",
+        "local_http_loopback",
+        "local_grpc_loopback",
+        "remote_https",
+        "remote_grpc_over_tls",
+        "extension_mediated_transport",
+        "mocked_test_transport",
+        "no_transport_disabled"
+      ],
+      "description": "Closed transport-class vocabulary the speech route uses to move audio frames and transcript fragments. Must match the execution_locus_class; a mismatch denies."
+    },
+
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_local",
+        "byok_user_credential",
+        "oauth_user_authorized",
+        "mtls_enterprise",
+        "enterprise_gateway_brokered_auth",
+        "extension_provided_auth",
+        "mocked_test_auth",
+        "no_auth_disabled"
+      ],
+      "description": "Closed auth-mode-class vocabulary the speech route uses. no_auth_local is reserved for local in-process / sandbox / companion routes; remote routes MUST resolve a non-local auth class."
+    },
+
+    "retention_stance_class": {
+      "type": "string",
+      "enum": [
+        "no_audio_retained_no_transcript_retained",
+        "ephemeral_audio_local_only_no_transcript_retained",
+        "transcript_retained_local_only",
+        "transcript_retained_redacted_in_support_bundle",
+        "transcript_retained_provider_per_contract",
+        "retention_blocked_by_policy",
+        "retention_unavailable_in_envelope"
+      ],
+      "description": "Closed retention-stance vocabulary declaring the provider's default retention posture for raw audio and resolved transcripts. transcript_retained_provider_per_contract is reserved for vendor-hosted lanes that retain transcript bodies under a customer contract; that class MUST be disclosed before invocation."
+    },
+
+    "region_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_machine_only_no_region",
+        "local_region_user_machine",
+        "customer_managed_region",
+        "vendor_managed_region_named",
+        "vendor_managed_region_unspecified",
+        "region_unavailable_in_envelope"
+      ],
+      "description": "Closed region-posture vocabulary. vendor_managed_region_unspecified is admitted only when the surface explicitly discloses 'we do not know which vendor region this lands in'; air-gapped envelopes MUST resolve a local-only or unavailable class."
+    },
+
+    "supported_feature_class": {
+      "type": "string",
+      "enum": [
+        "dictation_supported",
+        "command_mode_supported",
+        "push_to_talk_supported",
+        "continuous_listening_supported",
+        "transcript_correction_supported",
+        "redaction_on_capture_supported",
+        "tts_readback_supported",
+        "none_supported_disabled"
+      ],
+      "description": "Closed supported-feature-class vocabulary declaring which speech features the provider entry supports. A row whose speech_provider_class = disabled_no_speech_provider MUST resolve supported_feature_classes to [none_supported_disabled]."
+    },
+
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "raw_audio_bytes",
+        "transcript_text",
+        "partial_transcript_text",
+        "command_intent_payload",
+        "voice_print_or_speaker_embedding",
+        "none_disabled"
+      ],
+      "description": "Closed allowed-data-class vocabulary. Names which data shapes the provider entry is allowed to handle. voice_print_or_speaker_embedding is admitted only when explicitly disclosed at handoff time."
+    },
+
+    "pack_origin_class": {
+      "type": "string",
+      "enum": [
+        "first_party_signed_pack",
+        "vendor_signed_pack_distributed_via_first_party",
+        "byok_user_imported_pack",
+        "enterprise_managed_pack",
+        "extension_provided_pack",
+        "mocked_test_pack"
+      ],
+      "description": "Closed pack-origin-class vocabulary. byok_user_imported_pack and extension_provided_pack require a verified signature before they can serve."
+    },
+
+    "pack_verification_state_class": {
+      "type": "string",
+      "enum": [
+        "signature_verified",
+        "signature_pending",
+        "signature_failed",
+        "signature_unsupported_disabled",
+        "signature_unavailable_offline_only_self_signed"
+      ],
+      "description": "Closed pack-verification-state-class vocabulary. signature_pending / signature_failed / signature_unsupported_disabled MUST suppress voice activation; signature_unavailable_offline_only_self_signed is admitted only on individual_local / self_hosted / air_gapped profiles with explicit disclosure."
+    },
+
+    "pre_invocation_disclosure_kind": {
+      "type": "string",
+      "enum": [
+        "local_capture_only_no_handoff",
+        "byok_remote_handoff_disclosed",
+        "enterprise_gateway_handoff_disclosed",
+        "vendor_hosted_handoff_disclosed",
+        "extension_provided_handoff_disclosed",
+        "handoff_blocked_by_policy",
+        "handoff_unavailable_in_envelope"
+      ],
+      "description": "Closed pre-invocation-disclosure-kind vocabulary the handoff disclosure resolves under. local_capture_only_no_handoff is the only class admitted for local execution loci; remote loci MUST resolve a *_handoff_disclosed value."
+    },
+
+    "voice_intent_resolution_class": {
+      "type": "string",
+      "enum": [
+        "resolves_to_canonical_command_id",
+        "resolves_to_dictation_text_only",
+        "resolves_to_no_command_disambiguation_required",
+        "resolution_denied_uncanonical_verb",
+        "resolution_denied_low_confidence",
+        "resolution_blocked_by_envelope"
+      ],
+      "description": "Closed voice-intent-resolution-class vocabulary. resolves_to_canonical_command_id requires a populated command_id_ref; resolution_denied_uncanonical_verb is the deny class for grammar entries that cannot land on a registry command and MUST NOT silently mint one."
+    },
+
+    "undo_stack_parity_class": {
+      "type": "string",
+      "enum": [
+        "same_undo_stack_as_keyboard_lane",
+        "dedicated_dictation_segment_within_unified_undo_stack",
+        "undo_unavailable_inert_metadata_only",
+        "parity_blocked_by_envelope"
+      ],
+      "description": "Closed undo-stack-parity-class vocabulary. dedicated_dictation_segment_within_unified_undo_stack is admitted only for dictation segments and still rides the unified keyboard undo stack; a private 'voice undo' lane is non-conforming."
+    },
+
+    "command_id_parity_class": {
+      "type": "string",
+      "enum": [
+        "same_command_ids_as_keyboard_lane",
+        "command_ids_re_exported_with_voice_aliases",
+        "parity_blocked_by_envelope"
+      ],
+      "description": "Closed command-id-parity-class vocabulary. command_ids_re_exported_with_voice_aliases is admitted only when the alias lifecycle on the command registry is satisfied; voice cannot mint commands outside the registry."
+    },
+
+    "trust_model_parity_class": {
+      "type": "string",
+      "enum": [
+        "inherits_workspace_trust_state_strict",
+        "inherits_workspace_trust_state_with_envelope_narrowing",
+        "parity_blocked_by_envelope"
+      ],
+      "description": "Closed trust-model-parity-class vocabulary. Voice cannot widen trust; envelope narrowing is admitted only when the policy-bundle declares the narrowing."
+    },
+
+    "accessibility_announcement_class": {
+      "type": "string",
+      "enum": [
+        "announces_via_screen_reader_lane",
+        "announces_via_keyboard_announcement_lane",
+        "announces_via_visual_indicator_only",
+        "announcement_blocked_by_envelope"
+      ],
+      "description": "Closed accessibility-announcement-class vocabulary the voice-issued action MUST emit. A voice command issuing a privileged action without an announcement on the screen-reader or keyboard-announcement lane is non-conforming."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "evidence_hook_class": {
+      "type": "string",
+      "enum": [
+        "speech_handoff_audit",
+        "local_pack_continuity",
+        "voice_mode_parity_review",
+        "transcript_correction_audit",
+        "privacy_bounded_export_artifact"
+      ],
+      "description": "Reserved evidence-hook vocabulary speech-provider, local-pack, handoff-disclosure, grammar-resolver, and editor-bridge records may attach without redefining object shape."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "speech_provider_unverified_pack_admitted",
+        "speech_provider_handoff_undisclosed",
+        "speech_provider_retention_widened_after_disclosure",
+        "speech_provider_envelope_mismatch",
+        "speech_provider_action_opens_private_mutation_path",
+        "speech_provider_grammar_resolves_to_uncanonical_command",
+        "speech_provider_schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary publishers MUST emit when a speech-provider, local-pack, handoff-disclosure, grammar-resolver, or editor-bridge row would otherwise render non-conforming state."
+    },
+
+    "speech_provider_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "speech_provider_entry_schema_version",
+        "provider_id",
+        "speech_provider_class",
+        "execution_locus_class",
+        "transport_class",
+        "auth_mode_class",
+        "retention_stance_class",
+        "region_posture_class",
+        "supported_feature_classes",
+        "allowed_data_classes",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "speech_provider_entry_record" },
+        "speech_provider_entry_schema_version": { "$ref": "#/$defs/speech_provider_entry_schema_version" },
+        "provider_id": { "$ref": "#/$defs/opaque_id" },
+        "speech_provider_class": { "$ref": "#/$defs/speech_provider_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "auth_mode_class": { "$ref": "#/$defs/auth_mode_class" },
+        "retention_stance_class": { "$ref": "#/$defs/retention_stance_class" },
+        "region_posture_class": { "$ref": "#/$defs/region_posture_class" },
+        "supported_feature_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supported_feature_class" },
+          "uniqueItems": true
+        },
+        "allowed_data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/data_class" },
+          "uniqueItems": true
+        },
+        "local_speech_pack_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque pin to the local_speech_pack_entry_record this provider serves from. Required when execution_locus_class is one of the local_* classes."
+        },
+        "default_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Air-gapped envelopes admit only local execution loci; remote and vendor-hosted loci are non-conforming under air_gapped or air_gapped_mirror_only profiles.",
+          "if": {
+            "properties": {
+              "deployment_profile_refs": {
+                "type": "array",
+                "contains": { "enum": ["air_gapped", "air_gapped_mirror_only"] }
+              }
+            },
+            "required": ["deployment_profile_refs"]
+          },
+          "then": {
+            "properties": {
+              "execution_locus_class": {
+                "enum": [
+                  "local_in_process_speech",
+                  "local_sandbox_process_speech",
+                  "local_companion_service_speech",
+                  "disabled_no_locus_speech"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "disabled_no_speech_provider forces disabled locus, no_transport_disabled, no_auth_disabled, and supported_feature_classes = [none_supported_disabled].",
+          "if": {
+            "properties": { "speech_provider_class": { "const": "disabled_no_speech_provider" } },
+            "required": ["speech_provider_class"]
+          },
+          "then": {
+            "properties": {
+              "execution_locus_class": { "const": "disabled_no_locus_speech" },
+              "transport_class": { "const": "no_transport_disabled" },
+              "auth_mode_class": { "const": "no_auth_disabled" },
+              "supported_feature_classes": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "const": "none_supported_disabled" }
+              },
+              "allowed_data_classes": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "const": "none_disabled" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Local execution loci forbid remote transports.",
+          "if": {
+            "properties": {
+              "execution_locus_class": {
+                "enum": [
+                  "local_in_process_speech",
+                  "local_sandbox_process_speech",
+                  "local_companion_service_speech"
+                ]
+              }
+            },
+            "required": ["execution_locus_class"]
+          },
+          "then": {
+            "properties": {
+              "transport_class": {
+                "enum": [
+                  "in_process_call",
+                  "local_stdio_pipe",
+                  "local_unix_domain_socket",
+                  "local_named_pipe",
+                  "local_http_loopback",
+                  "local_grpc_loopback",
+                  "extension_mediated_transport"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One registered speech provider entry. See voice_and_dictation_contract.md §1.1 and §3."
+    },
+
+    "local_speech_pack_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "speech_provider_entry_schema_version",
+        "pack_id",
+        "pack_origin_class",
+        "pack_verification_state_class",
+        "pack_locale",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "local_speech_pack_entry_record" },
+        "speech_provider_entry_schema_version": { "$ref": "#/$defs/speech_provider_entry_schema_version" },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_origin_class": { "$ref": "#/$defs/pack_origin_class" },
+        "pack_verification_state_class": { "$ref": "#/$defs/pack_verification_state_class" },
+        "pack_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "supported_feature_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supported_feature_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One local speech pack entry. See voice_and_dictation_contract.md §1.1 and §3 rule 2."
+    },
+
+    "speech_provider_handoff_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "speech_provider_entry_schema_version",
+        "disclosure_id",
+        "provider_ref",
+        "pre_invocation_disclosure_kind",
+        "execution_locus_class",
+        "transport_class",
+        "auth_mode_class",
+        "retention_stance_class",
+        "region_posture_class",
+        "allowed_data_classes",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "speech_provider_handoff_disclosure_record" },
+        "speech_provider_entry_schema_version": { "$ref": "#/$defs/speech_provider_entry_schema_version" },
+        "disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the speech_provider_entry_record this disclosure derives from. The disclosure's locus / transport / auth / retention / region / data classes MUST equal the provider entry's at the moment of the call; silent widening between mint and call denies."
+        },
+        "voice_mode_session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the voice_mode_session_record this disclosure attaches to."
+        },
+        "pre_invocation_disclosure_kind": { "$ref": "#/$defs/pre_invocation_disclosure_kind" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "auth_mode_class": { "$ref": "#/$defs/auth_mode_class" },
+        "retention_stance_class": { "$ref": "#/$defs/retention_stance_class" },
+        "region_posture_class": { "$ref": "#/$defs/region_posture_class" },
+        "allowed_data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/data_class" },
+          "uniqueItems": true
+        },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque pin to a browser_handoff_packet for connected-provider authorization / sign-in flows; raw URL launches from a voice command are forbidden."
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Local execution loci forbid a *_handoff_disclosed disclosure kind; only local_capture_only_no_handoff is admitted.",
+          "if": {
+            "properties": {
+              "execution_locus_class": {
+                "enum": [
+                  "local_in_process_speech",
+                  "local_sandbox_process_speech",
+                  "local_companion_service_speech"
+                ]
+              }
+            },
+            "required": ["execution_locus_class"]
+          },
+          "then": {
+            "properties": {
+              "pre_invocation_disclosure_kind": { "const": "local_capture_only_no_handoff" }
+            }
+          }
+        },
+        {
+          "description": "Remote execution loci forbid local_capture_only_no_handoff; the matching *_handoff_disclosed value MUST be set.",
+          "if": {
+            "properties": {
+              "execution_locus_class": {
+                "enum": [
+                  "byok_remote_vendor_direct_speech",
+                  "byok_remote_self_hosted_direct_speech",
+                  "enterprise_gateway_brokered_locus_speech",
+                  "vendor_hosted_first_party_managed_speech"
+                ]
+              }
+            },
+            "required": ["execution_locus_class"]
+          },
+          "then": {
+            "properties": {
+              "pre_invocation_disclosure_kind": {
+                "enum": [
+                  "byok_remote_handoff_disclosed",
+                  "enterprise_gateway_handoff_disclosed",
+                  "vendor_hosted_handoff_disclosed",
+                  "extension_provided_handoff_disclosed"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One pre-invocation handoff disclosure for a speech turn. See voice_and_dictation_contract.md §1.1 and §3 rule 1."
+    },
+
+    "voice_intent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent_id", "voice_intent_resolution_class"],
+      "oneOf": [
+        { "required": ["intent_id", "voice_intent_resolution_class", "command_id_ref"] },
+        {
+          "properties": {
+            "voice_intent_resolution_class": {
+              "enum": [
+                "resolves_to_dictation_text_only",
+                "resolves_to_no_command_disambiguation_required",
+                "resolution_denied_uncanonical_verb",
+                "resolution_denied_low_confidence",
+                "resolution_blocked_by_envelope"
+              ]
+            }
+          },
+          "required": ["intent_id", "voice_intent_resolution_class"]
+        }
+      ],
+      "properties": {
+        "intent_id": { "$ref": "#/$defs/opaque_id" },
+        "voice_intent_resolution_class": { "$ref": "#/$defs/voice_intent_resolution_class" },
+        "command_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a canonical command_id on schemas/commands/command_registry_entry.schema.json. Required when voice_intent_resolution_class = resolves_to_canonical_command_id; forbidden otherwise."
+        },
+        "command_descriptor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque pin to a command_descriptor_record so the resolver can reference the descriptor's preview class / capability scope class without re-mintng it."
+        },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        }
+      }
+    },
+
+    "grammar_intent_resolver_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "speech_provider_entry_schema_version",
+        "resolver_id",
+        "provider_ref",
+        "intent_records",
+        "default_locale",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "grammar_intent_resolver_record" },
+        "speech_provider_entry_schema_version": { "$ref": "#/$defs/speech_provider_entry_schema_version" },
+        "resolver_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_ref": { "$ref": "#/$defs/opaque_id" },
+        "intent_records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/voice_intent_record" },
+          "uniqueItems": true
+        },
+        "default_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One grammar / intent resolver row. See voice_and_dictation_contract.md §3 rule 4."
+    },
+
+    "editor_integration_bridge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "speech_provider_entry_schema_version",
+        "bridge_id",
+        "provider_ref",
+        "undo_stack_parity_class",
+        "command_id_parity_class",
+        "trust_model_parity_class",
+        "accessibility_announcement_class",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "editor_integration_bridge_record" },
+        "speech_provider_entry_schema_version": { "$ref": "#/$defs/speech_provider_entry_schema_version" },
+        "bridge_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_ref": { "$ref": "#/$defs/opaque_id" },
+        "voice_mode_session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque pin to the voice_mode_session_record this bridge backs."
+        },
+        "editor_canvas_surface_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque pin to the editor canvas surface (or other interaction-safety protected surface) this bridge integrates with."
+        },
+        "undo_stack_parity_class": { "$ref": "#/$defs/undo_stack_parity_class" },
+        "command_id_parity_class": { "$ref": "#/$defs/command_id_parity_class" },
+        "trust_model_parity_class": { "$ref": "#/$defs/trust_model_parity_class" },
+        "accessibility_announcement_class": { "$ref": "#/$defs/accessibility_announcement_class" },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One editor integration bridge row. See voice_and_dictation_contract.md §3 rule 5."
+    }
+  }
+}

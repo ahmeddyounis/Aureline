@@ -1,0 +1,558 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/voice_mode_state.schema.json",
+  "title": "Aureline voice-mode session, transition, mic-indicator, and invariant manifest contract",
+  "description": "Boundary schema for the voice_mode_session_record, voice_mode_transition_record, mic_indicator_state_record, and voice_mode_invariant_manifest_record frozen in docs/ux/voice_and_dictation_contract.md. Every voice session resolves through one voice_mode_session_record naming the active voice_mode_class (idle / dictation / command / continuous_listening / blocked_*), the activation_class, the persistent mic_indicator_class, the command_preview_class, the transcript_correction_posture, the accessibility_announcement_class, the bound speech_provider_entry_ref, the bound editor_integration_bridge_ref, the optional grammar_intent_resolver_ref, and the bound trust_decision_ref so the session inherits the workspace trust state. Every transition between voice-mode classes resolves through one voice_mode_transition_record. Every render of the persistent mic-state cue resolves through one mic_indicator_state_record. Every aggregator declares the ten const-true invariants on a voice_mode_invariant_manifest_record. The contract mints no new command_id, capability_scope_class, preview_class, trust_state, or layout_target_class vocabulary; those re-export verbatim from schemas/commands/command_descriptor.schema.json, schemas/commands/command_registry_entry.schema.json, schemas/security/trust_decision_packet.schema.json, schemas/ux/interaction_safety.schema.json, and schemas/ux/guided_tour.schema.json. Voice cannot widen trust, cannot mint commands outside the registry, and cannot bypass the preview / apply / revert phases the keyboard lane uses. Adding a new voice_mode_class, activation_class, mic_indicator_class, command_preview_class, transcript_correction_posture, voice_mode_transition_kind, evidence_hook_class, invariant_id, or denial_reason is additive-minor and bumps voice_mode_state_schema_version; repurposing an existing value is breaking and requires a new decision row. Raw audio bytes, raw transcript text, raw paths, raw URLs, raw prompt / completion text, raw provider payloads, and raw credential material never cross this boundary; the schema carries opaque ids, typed vocabulary, short privacy-safe labels, and typed policy / redaction metadata only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/voice_mode_session_record" },
+    { "$ref": "#/$defs/voice_mode_transition_record" },
+    { "$ref": "#/$defs/mic_indicator_state_record" },
+    { "$ref": "#/$defs/voice_mode_invariant_manifest_record" }
+  ],
+  "$defs": {
+    "voice_mode_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this voice-mode-state vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "voice_mode_session_record",
+        "voice_mode_transition_record",
+        "mic_indicator_state_record",
+        "voice_mode_invariant_manifest_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / portable profile packages / support bundles. Raw URLs, raw absolute paths, raw audio bodies, raw transcript bodies, raw account identifiers, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short privacy-safe label text. MUST NOT embed raw paths, raw URLs, raw secret material, raw audio bodies, or raw transcript text."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "voice_mode_class": {
+      "type": "string",
+      "enum": [
+        "idle_microphone_off",
+        "dictation_mode_active",
+        "command_mode_active",
+        "continuous_listening_active_user_opted_in",
+        "voice_mode_blocked_by_policy",
+        "voice_mode_blocked_by_envelope"
+      ],
+      "description": "Closed voice-mode-class vocabulary. A session is in exactly one mode at every moment; conflating dictation and command mode into a single ambiguous lane is non-conforming."
+    },
+
+    "activation_class": {
+      "type": "string",
+      "enum": [
+        "push_to_talk_held",
+        "push_to_talk_toggle",
+        "wake_phrase_continuous_user_opted_in",
+        "manual_command_activation",
+        "activation_blocked_by_policy",
+        "activation_unavailable_in_envelope"
+      ],
+      "description": "Closed activation-class vocabulary. wake_phrase_continuous_user_opted_in is admitted only with an opt-in consent ledger entry on the speech-privacy-ledger; it MUST NOT be the default."
+    },
+
+    "mic_indicator_class": {
+      "type": "string",
+      "enum": [
+        "persistent_indicator_visible_capture_active",
+        "persistent_indicator_visible_capture_idle",
+        "persistent_indicator_hidden_capture_disabled",
+        "persistent_indicator_unavailable_degraded"
+      ],
+      "description": "Closed mic-indicator-class vocabulary. The persistent indicator MUST be visible while a session is in any *_mode_active state; persistent_indicator_hidden_capture_disabled is admitted only when no capture is active."
+    },
+
+    "command_preview_class": {
+      "type": "string",
+      "enum": [
+        "preview_required_for_privileged_actions",
+        "preview_optional_for_reversible_local_actions",
+        "preview_skipped_for_inert_metadata_only",
+        "preview_blocked_by_envelope"
+      ],
+      "description": "Closed command-preview-class vocabulary. preview_required_for_privileged_actions is the only admitted class for command-mode sessions whose resolved command's capability_scope_class is recoverable_durable_mutation, externally_visible_mutation, irreversible_high_blast_mutation, credential_or_secret_bearing, managed_workspace_control, or policy_authoring_or_waiver."
+    },
+
+    "transcript_correction_posture": {
+      "type": "string",
+      "enum": [
+        "correction_required_before_commit",
+        "correction_optional_before_commit",
+        "correction_unavailable_capture_only",
+        "correction_blocked_by_envelope"
+      ],
+      "description": "Closed transcript-correction-posture vocabulary. correction_required_before_commit is the only admitted class for sessions whose resolved command's capability_scope_class is privileged."
+    },
+
+    "voice_mode_transition_kind": {
+      "type": "string",
+      "enum": [
+        "idle_to_dictation",
+        "idle_to_command",
+        "dictation_to_command",
+        "command_to_dictation",
+        "dictation_to_idle",
+        "command_to_idle",
+        "opt_in_continuous_listening",
+        "opt_out_continuous_listening",
+        "transition_blocked_by_policy",
+        "transition_blocked_by_envelope"
+      ],
+      "description": "Closed voice-mode-transition-kind vocabulary. opt_in_continuous_listening MUST be paired with a consent ledger entry; opt_out_continuous_listening MUST drop continuous listening immediately."
+    },
+
+    "accessibility_announcement_class": {
+      "type": "string",
+      "enum": [
+        "announces_via_screen_reader_lane",
+        "announces_via_keyboard_announcement_lane",
+        "announces_via_visual_indicator_only",
+        "announcement_blocked_by_envelope"
+      ],
+      "description": "Re-exported from schemas/ux/speech_provider_entry.schema.json without modification."
+    },
+
+    "layout_target_class": {
+      "type": "string",
+      "enum": [
+        "start_center",
+        "command_palette",
+        "workspace_switcher",
+        "primary_editor",
+        "docs_pane",
+        "architecture_map_canvas",
+        "review_pane",
+        "activity_center",
+        "support_center",
+        "settings_pane",
+        "no_canvas_target_facilitator_only"
+      ],
+      "description": "Re-exported from schemas/ux/guided_tour.schema.json layout_target_class without modification."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "evidence_hook_class": {
+      "type": "string",
+      "enum": [
+        "speech_handoff_audit",
+        "local_pack_continuity",
+        "voice_mode_parity_review",
+        "transcript_correction_audit",
+        "privacy_bounded_export_artifact"
+      ],
+      "description": "Reserved evidence-hook vocabulary voice-mode session, transition, mic-indicator, and manifest records may attach without redefining object shape."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "voice_mode_dictation_and_command_conflated",
+        "voice_mode_continuous_listening_without_opt_in",
+        "voice_mode_indicator_hidden_during_active_capture",
+        "voice_mode_command_preview_skipped_for_privileged_action",
+        "voice_mode_transcript_commit_without_correction_window",
+        "voice_mode_undo_stack_diverged_from_keyboard_lane",
+        "voice_mode_accessibility_announcement_missing",
+        "voice_mode_schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary."
+    },
+
+    "invariant_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "asserted_true"],
+      "properties": {
+        "invariant_id": {
+          "type": "string",
+          "enum": [
+            "dictation_and_command_modes_are_separate_states",
+            "continuous_listening_requires_explicit_opt_in",
+            "persistent_mic_indicator_visible_during_active_capture",
+            "command_preview_required_for_privileged_voice_actions",
+            "transcript_correction_window_precedes_privileged_commit",
+            "voice_actions_share_undo_stack_with_keyboard_lane",
+            "voice_actions_resolve_to_canonical_command_ids",
+            "voice_actions_inherit_workspace_trust_state",
+            "voice_actions_emit_keyboard_parity_accessibility_announcements",
+            "evidence_hooks_reserved_for_voice_mode_parity_review"
+          ]
+        },
+        "asserted_true": { "type": "boolean", "const": true },
+        "notes": { "$ref": "#/$defs/short_label_text" }
+      }
+    },
+
+    "voice_mode_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "voice_mode_state_schema_version",
+        "session_id",
+        "voice_mode_class",
+        "activation_class",
+        "mic_indicator_class",
+        "command_preview_class",
+        "transcript_correction_posture",
+        "accessibility_announcement_class",
+        "speech_provider_entry_ref",
+        "editor_integration_bridge_ref",
+        "trust_decision_ref",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "voice_mode_session_record" },
+        "voice_mode_state_schema_version": { "$ref": "#/$defs/voice_mode_state_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "voice_mode_class": { "$ref": "#/$defs/voice_mode_class" },
+        "activation_class": { "$ref": "#/$defs/activation_class" },
+        "mic_indicator_class": { "$ref": "#/$defs/mic_indicator_class" },
+        "command_preview_class": { "$ref": "#/$defs/command_preview_class" },
+        "transcript_correction_posture": { "$ref": "#/$defs/transcript_correction_posture" },
+        "accessibility_announcement_class": { "$ref": "#/$defs/accessibility_announcement_class" },
+        "speech_provider_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the speech_provider_entry_record that backs this session's speech route."
+        },
+        "speech_provider_handoff_disclosure_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque pin to the speech_provider_handoff_disclosure_record minted at or before the invocation; required when the bound provider entry's execution_locus_class is a remote / vendor-hosted / extension-provided locus."
+        },
+        "grammar_intent_resolver_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque pin to the grammar_intent_resolver_record this session's command-mode resolves through. Required when voice_mode_class = command_mode_active."
+        },
+        "editor_integration_bridge_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the editor_integration_bridge_record this session uses for undo / command_id / trust / accessibility parity."
+        },
+        "trust_decision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the trust_decision_record on schemas/security/trust_decision_packet.schema.json that backs this session's workspace trust state. Voice cannot widen trust beyond this row."
+        },
+        "speech_privacy_ledger_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque pins to speech_capture_event_records / transcript_correction_records / transcript_export_records associated with this session on schemas/ux/speech_privacy_ledger.schema.json."
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "continuous_listening_active_user_opted_in requires wake_phrase_continuous_user_opted_in activation.",
+          "if": {
+            "properties": { "voice_mode_class": { "const": "continuous_listening_active_user_opted_in" } },
+            "required": ["voice_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "activation_class": { "const": "wake_phrase_continuous_user_opted_in" }
+            }
+          }
+        },
+        {
+          "description": "Active voice modes require a visible-capture-active mic indicator.",
+          "if": {
+            "properties": {
+              "voice_mode_class": {
+                "enum": [
+                  "dictation_mode_active",
+                  "command_mode_active",
+                  "continuous_listening_active_user_opted_in"
+                ]
+              }
+            },
+            "required": ["voice_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "mic_indicator_class": { "const": "persistent_indicator_visible_capture_active" }
+            }
+          }
+        },
+        {
+          "description": "command_mode_active requires a grammar_intent_resolver_ref.",
+          "if": {
+            "properties": { "voice_mode_class": { "const": "command_mode_active" } },
+            "required": ["voice_mode_class"]
+          },
+          "then": {
+            "required": ["grammar_intent_resolver_ref"]
+          }
+        },
+        {
+          "description": "Blocked-by-envelope / blocked-by-policy modes forbid an active activation class and force preview_blocked_by_envelope and correction_blocked_by_envelope.",
+          "if": {
+            "properties": {
+              "voice_mode_class": {
+                "enum": ["voice_mode_blocked_by_policy", "voice_mode_blocked_by_envelope"]
+              }
+            },
+            "required": ["voice_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "activation_class": {
+                "enum": ["activation_blocked_by_policy", "activation_unavailable_in_envelope"]
+              },
+              "command_preview_class": { "const": "preview_blocked_by_envelope" },
+              "transcript_correction_posture": { "const": "correction_blocked_by_envelope" },
+              "mic_indicator_class": {
+                "enum": [
+                  "persistent_indicator_hidden_capture_disabled",
+                  "persistent_indicator_unavailable_degraded"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One voice-mode session row. See voice_and_dictation_contract.md §1.2 and §4."
+    },
+
+    "voice_mode_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "voice_mode_state_schema_version",
+        "transition_id",
+        "session_ref",
+        "voice_mode_transition_kind",
+        "from_voice_mode_class",
+        "to_voice_mode_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "voice_mode_transition_record" },
+        "voice_mode_state_schema_version": { "$ref": "#/$defs/voice_mode_state_schema_version" },
+        "transition_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "voice_mode_transition_kind": { "$ref": "#/$defs/voice_mode_transition_kind" },
+        "from_voice_mode_class": { "$ref": "#/$defs/voice_mode_class" },
+        "to_voice_mode_class": { "$ref": "#/$defs/voice_mode_class" },
+        "consent_ledger_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required when voice_mode_transition_kind = opt_in_continuous_listening; opaque pin to the speech_capture_event_record (or its consent record) carrying the consent class on schemas/ux/speech_privacy_ledger.schema.json."
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "opt_in_continuous_listening transitions require a consent_ledger_entry_ref.",
+          "if": {
+            "properties": { "voice_mode_transition_kind": { "const": "opt_in_continuous_listening" } },
+            "required": ["voice_mode_transition_kind"]
+          },
+          "then": {
+            "required": ["consent_ledger_entry_ref"]
+          }
+        }
+      ],
+      "description": "One voice-mode transition row. See voice_and_dictation_contract.md §4 rule 1 and rule 2."
+    },
+
+    "mic_indicator_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "voice_mode_state_schema_version",
+        "indicator_id",
+        "session_ref",
+        "mic_indicator_class",
+        "layout_target_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "mic_indicator_state_record" },
+        "voice_mode_state_schema_version": { "$ref": "#/$defs/voice_mode_state_schema_version" },
+        "indicator_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "mic_indicator_class": { "$ref": "#/$defs/mic_indicator_class" },
+        "layout_target_class": { "$ref": "#/$defs/layout_target_class" },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One render of the persistent mic-state cue. See voice_and_dictation_contract.md §4 rule 3."
+    },
+
+    "voice_mode_invariant_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "voice_mode_state_schema_version",
+        "manifest_id",
+        "session_refs",
+        "deployment_profile_refs",
+        "invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "voice_mode_invariant_manifest_record" },
+        "voice_mode_state_schema_version": { "$ref": "#/$defs/voice_mode_state_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "session_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "transition_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "mic_indicator_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 10,
+          "items": { "$ref": "#/$defs/invariant_assertion" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Top-level aggregator declaring const-true invariants for voice-mode sessions, transitions, and mic-indicator rows. See voice_and_dictation_contract.md §7."
+    }
+  }
+}
