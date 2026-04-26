@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/crash_dump_card.schema.json",
+  "title": "Aureline crash-dump card record",
+  "description": "Boundary schema for the crash_dump_card_record an inspect-only debug session renders alongside a captured / restored / imported dump (minidump, core, lightweight snapshot, kernel panic). The card pins the user-visible dump-truth a reviewer needs before reading any frame: dump kind, capture posture, provenance, redaction posture, exception summary, the per-module symbol-strip / source-map-strip roll-up, and the join to the debug_artifact_entry_record (schemas/debug/debug_artifact_manifest.schema.json) and the parent debug_session_record (schemas/execution/debug_session.schema.json). Raw dump bytes, raw register state, raw memory bytes, raw exception messages, raw signal payloads, raw fault addresses, raw command lines, raw env bodies, raw absolute paths, raw URLs, and raw secret values MUST NOT cross this boundary; rows carry refs, hashes, counts, and class labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a crash_dump_card_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/crash_dump_card_record" }
+  ],
+  "$defs": {
+    "crash_dump_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["crash_dump_card_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support / evidence / replay exports."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (debug_session_record, debug_artifact_entry_record, debug_thread_record, support-bundle anchor, release artifact-graph node, crash envelope, symbolication report, etc.)."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence. Raw command lines, raw env bodies, raw secret values, raw API bodies, raw fault addresses, and raw stack traces MUST NOT appear here."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for the record. metadata_and_hashes_only is the default; broadened_capture requires an explicit approval-ticket ref."
+    },
+    "dump_kind_class": {
+      "type": "string",
+      "enum": [
+        "dump_minidump_windows",
+        "dump_core_posix",
+        "dump_lightweight_snapshot_envelope",
+        "dump_kernel_panic_capture",
+        "dump_kind_unknown_requires_review"
+      ],
+      "description": "Closed dump-kind vocabulary. dump_lightweight_snapshot_envelope covers the in-process crash-snapshot envelope (no full memory image). dump_kernel_panic_capture covers a kernel-panic capture. dump_kind_unknown_requires_review fails closed."
+    },
+    "dump_capture_posture_class": {
+      "type": "string",
+      "enum": [
+        "dump_captured_local_no_upload",
+        "dump_captured_local_with_consent_upload",
+        "dump_imported_from_support_bundle",
+        "dump_imported_from_remote_capture",
+        "dump_capture_posture_unknown_requires_review"
+      ],
+      "description": "Closed capture-posture vocabulary. dump_captured_local_no_upload is the default for local crashes that have not been promoted. dump_captured_local_with_consent_upload requires an explicit consent record. dump_imported_from_support_bundle covers a dump pulled out of a support bundle. dump_imported_from_remote_capture covers a dump produced by a remote / managed agent under a typed target-identity witness."
+    },
+    "dump_provenance_class": {
+      "type": "string",
+      "enum": [
+        "provenance_workspace_local_capture",
+        "provenance_managed_workspace_capture",
+        "provenance_remote_target_capture",
+        "provenance_user_supplied_side_loaded",
+        "provenance_unknown_requires_review"
+      ],
+      "description": "Closed provenance vocabulary. provenance_user_supplied_side_loaded covers a dump the user supplied directly (drag-drop, file picker); the parent debug session MUST cite an explicit consent ref on its audit log."
+    },
+    "dump_redaction_posture_class": {
+      "type": "string",
+      "enum": [
+        "dump_redaction_metadata_only",
+        "dump_redaction_summary_only_no_body",
+        "dump_redaction_body_under_internal_support_only",
+        "dump_redaction_body_under_evidence_packet_only",
+        "dump_redaction_unknown_requires_review"
+      ],
+      "description": "Closed redaction-posture vocabulary. dump_redaction_metadata_only is the default for any export under metadata_and_hashes_only redaction. body_under_internal_support_only and body_under_evidence_packet_only are admissible only under the matching support / evidence frames; raw bodies never travel under metadata_only."
+    },
+    "fault_address_kind_class": {
+      "type": "string",
+      "enum": [
+        "fault_address_inside_loaded_module",
+        "fault_address_outside_loaded_modules",
+        "fault_address_null_or_low_pages",
+        "fault_address_misaligned",
+        "fault_address_redacted_under_redaction_class",
+        "fault_address_kind_unknown_requires_review"
+      ],
+      "description": "Closed fault-address-kind vocabulary. Raw fault addresses MUST NOT appear on the card; renderers project the typed kind class plus an optional module ref."
+    },
+    "exception_class_label": {
+      "type": "string",
+      "enum": [
+        "exception_native_segfault",
+        "exception_native_illegal_instruction",
+        "exception_native_floating_point",
+        "exception_native_arithmetic",
+        "exception_native_access_violation",
+        "exception_native_stack_overflow",
+        "exception_managed_runtime_unhandled",
+        "exception_managed_runtime_handled_caught_in_debugger",
+        "exception_signal_terminated_external",
+        "exception_panic_or_assertion",
+        "exception_kind_unknown_requires_review"
+      ],
+      "description": "Closed exception-class vocabulary. Raw exception messages, raw signal payloads, and raw fault addresses MUST NOT appear here."
+    },
+    "signal_class_label": {
+      "type": "string",
+      "enum": [
+        "signal_sigsegv_or_access_violation",
+        "signal_sigill_or_illegal_instruction",
+        "signal_sigfpe_or_floating_point",
+        "signal_sigabrt_or_assertion",
+        "signal_sigbus_or_misaligned_access",
+        "signal_sigterm_external_termination",
+        "signal_sigkill_external_kill",
+        "signal_no_signal_managed_runtime_path",
+        "signal_class_unknown_requires_review"
+      ],
+      "description": "Closed signal-class vocabulary for POSIX-style signal-driven dumps. Renderers MUST narrow the signal chip to the matching class rather than minting per-platform signal numbers."
+    },
+    "module_strip_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_count_full_present",
+        "module_count_split_external_resolved",
+        "module_count_split_external_missing",
+        "module_count_minimal_line_tables",
+        "module_count_fully_stripped",
+        "module_count_unknown_requires_review",
+        "source_map_count_full_present",
+        "source_map_count_partial_names_missing",
+        "source_map_count_digest_mismatch",
+        "source_map_count_absent_no_mapping",
+        "source_map_count_unknown_requires_review"
+      ],
+      "properties": {
+        "module_count_full_present": { "type": "integer", "minimum": 0 },
+        "module_count_split_external_resolved": { "type": "integer", "minimum": 0 },
+        "module_count_split_external_missing": { "type": "integer", "minimum": 0 },
+        "module_count_minimal_line_tables": { "type": "integer", "minimum": 0 },
+        "module_count_fully_stripped": { "type": "integer", "minimum": 0 },
+        "module_count_unknown_requires_review": { "type": "integer", "minimum": 0 },
+        "source_map_count_full_present": { "type": "integer", "minimum": 0 },
+        "source_map_count_partial_names_missing": { "type": "integer", "minimum": 0 },
+        "source_map_count_digest_mismatch": { "type": "integer", "minimum": 0 },
+        "source_map_count_absent_no_mapping": { "type": "integer", "minimum": 0 },
+        "source_map_count_unknown_requires_review": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Compact roll-up of the per-module symbol-strip and per-asset source-map-strip vocabulary observed on this dump. Renderers MUST resolve this block against the joined debug_artifact_entry_record's content_linkage; the strip-class counts are not re-derived on the card."
+    },
+    "exception_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exception_class_label",
+        "fault_address_kind_class",
+        "primary_thread_ref",
+        "frame_count_observed_summary"
+      ],
+      "properties": {
+        "exception_class_label": { "$ref": "#/$defs/exception_class_label" },
+        "signal_class_label": {
+          "oneOf": [
+            { "$ref": "#/$defs/signal_class_label" },
+            { "type": "null" }
+          ],
+          "description": "Required non-null for POSIX-style signal-driven dumps. Null on managed-runtime-only crashes (e.g. exception_managed_runtime_unhandled)."
+        },
+        "fault_address_kind_class": { "$ref": "#/$defs/fault_address_kind_class" },
+        "fault_module_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the debug_module_summary_record whose loaded-address range covers the fault address. Null when fault_address_kind_class is fault_address_outside_loaded_modules / fault_address_null_or_low_pages / fault_address_redacted_under_redaction_class / fault_address_kind_unknown_requires_review."
+        },
+        "primary_thread_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the debug_thread_record for the thread that caught the exception / signal."
+        },
+        "frame_count_observed_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frames_with_full_source_count",
+            "frames_with_line_only_count",
+            "frames_with_symbol_only_count",
+            "frames_unresolved_count",
+            "frames_imported_dependency_count",
+            "frames_disasm_only_count"
+          ],
+          "properties": {
+            "frames_with_full_source_count": { "type": "integer", "minimum": 0 },
+            "frames_with_line_only_count": { "type": "integer", "minimum": 0 },
+            "frames_with_symbol_only_count": { "type": "integer", "minimum": 0 },
+            "frames_unresolved_count": { "type": "integer", "minimum": 0 },
+            "frames_imported_dependency_count": { "type": "integer", "minimum": 0 },
+            "frames_disasm_only_count": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Compact frame-count summary for the primary-thread frame stack on this dump. Mirrors the mapping_quality_class vocabulary so a reviewer can see 'how much of the crash is mapped' without resolving every frame."
+        },
+        "summary_sentence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional reviewer-facing summary. Raw exception messages and raw fault addresses MUST NOT appear here."
+        }
+      },
+      "description": "Compact exception summary the dump card carries. Raw exception messages, raw signal payloads, raw fault addresses, and raw register state MUST NOT cross this boundary."
+    },
+    "surface_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "debug_session_record_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Required ref to the parent debug_session_record (schemas/execution/debug_session.schema.json) this dump card renders under."
+        },
+        "support_bundle_anchor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the support-bundle anchor that would include this dump card under its declared posture."
+        },
+        "release_artifact_graph_node_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the release-governance artifact-graph node when the dump joins to a release-anchored crash-symbols archive."
+        },
+        "crash_envelope_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the crash envelope (in-process snapshot) this dump joins to."
+        },
+        "symbolication_report_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the symbolication report consuming this dump."
+        }
+      },
+      "required": ["debug_session_record_ref"],
+      "description": "Surface linkage. Every surface that resolves this dump card carries the same crash_dump_card_record_id and the same debug_artifact_ref."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "crash_dump_card_record_must_cite_debug_session_record_ref",
+        "crash_dump_card_record_must_cite_debug_artifact_ref",
+        "crash_dump_card_record_must_cite_primary_thread_ref",
+        "crash_dump_card_record_must_not_admit_auto_rerun_on_dump",
+        "crash_dump_card_record_must_redact_body_when_no_upload_consent",
+        "crash_dump_card_record_must_cite_consent_ref_when_user_supplied",
+        "crash_dump_card_record_must_render_exception_summary_with_class_label",
+        "crash_dump_card_record_must_match_module_strip_summary_to_joined_artifact_entry",
+        "crash_dump_card_record_kind_unknown_requires_review",
+        "crash_dump_card_record_capture_posture_unknown_requires_review",
+        "crash_dump_card_record_provenance_unknown_requires_review",
+        "crash_dump_card_record_redaction_posture_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary for crash_dump_card_record refusals. Every refusal fails closed and cites exactly one value."
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "crash_dump_card_record_published",
+        "crash_dump_card_record_posture_transitioned",
+        "crash_dump_card_record_redaction_posture_narrowed",
+        "crash_dump_card_record_redaction_posture_broadened_with_approval_ticket",
+        "crash_dump_card_record_silent_paint_dump_as_live_forbidden_denial",
+        "crash_dump_card_record_silent_admit_restart_on_dump_forbidden_denial",
+        "crash_dump_card_record_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary for the crash-dump-card family. Raw dump bytes, raw exception messages, raw register state, raw memory bytes, and raw fault addresses MUST NOT appear on any audit event."
+    },
+    "crash_dump_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "crash_dump_card_schema_version",
+        "crash_dump_card_record_id",
+        "debug_artifact_ref",
+        "dump_kind_class",
+        "dump_capture_posture_class",
+        "dump_provenance_class",
+        "dump_redaction_posture_class",
+        "exception_summary",
+        "module_strip_summary",
+        "surface_linkage",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "crash_dump_card_record" },
+        "crash_dump_card_schema_version": { "$ref": "#/$defs/crash_dump_card_schema_version" },
+        "crash_dump_card_record_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for one crash-dump card. Debugger UI, support bundle, and release artifact graph surfaces resolve this id field-for-field rather than minting a parallel id per surface."
+        },
+        "debug_artifact_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the debug_artifact_entry_record (schemas/debug/debug_artifact_manifest.schema.json) describing the dump bytes (artifact_class is one of crash_artifact_minidump / crash_artifact_core_dump / crash_artifact_snapshot). Same id token-for-token across debugger UI, support bundle, and release artifact graph."
+        },
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1, "maxLength": 320 }
+          ],
+          "description": "Short redaction-safe dump label (e.g. 'aureline-shell.20260425T1230Z.minidump', 'renderer-panic-snapshot'). Raw absolute paths and raw URLs never appear here."
+        },
+        "dump_kind_class": { "$ref": "#/$defs/dump_kind_class" },
+        "dump_capture_posture_class": { "$ref": "#/$defs/dump_capture_posture_class" },
+        "dump_provenance_class": { "$ref": "#/$defs/dump_provenance_class" },
+        "dump_redaction_posture_class": { "$ref": "#/$defs/dump_redaction_posture_class" },
+        "captured_origin_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the originating run_record when known. Null for fully-imported / fully-side-loaded dumps whose original run is unknown."
+        },
+        "consent_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when dump_capture_posture_class is dump_captured_local_with_consent_upload or when dump_provenance_class is provenance_user_supplied_side_loaded. Null otherwise."
+        },
+        "exception_summary": { "$ref": "#/$defs/exception_summary" },
+        "module_strip_summary": { "$ref": "#/$defs/module_strip_summary" },
+        "surface_linkage": { "$ref": "#/$defs/surface_linkage" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to audit-event ids drawn from this schema's audit_event_id vocabulary. Raw bodies never appear."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Closed denial reason when the record is published as a typed refusal. Null on admitted records."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when redaction_class is broadened_capture or when dump_redaction_posture_class is dump_redaction_body_under_evidence_packet_only. Null otherwise."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Local-no-upload posture MUST stay under metadata_only or summary_only_no_body redaction.",
+          "if": {
+            "properties": {
+              "dump_capture_posture_class": { "const": "dump_captured_local_no_upload" }
+            },
+            "required": ["dump_capture_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "dump_redaction_posture_class": {
+                "enum": [
+                  "dump_redaction_metadata_only",
+                  "dump_redaction_summary_only_no_body"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Consent-upload posture MUST cite a consent_ref.",
+          "if": {
+            "properties": {
+              "dump_capture_posture_class": { "const": "dump_captured_local_with_consent_upload" }
+            },
+            "required": ["dump_capture_posture_class"]
+          },
+          "then": {
+            "required": ["consent_ref"],
+            "properties": {
+              "consent_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "User-supplied side-loaded provenance MUST cite a consent_ref.",
+          "if": {
+            "properties": {
+              "dump_provenance_class": { "const": "provenance_user_supplied_side_loaded" }
+            },
+            "required": ["dump_provenance_class"]
+          },
+          "then": {
+            "required": ["consent_ref"],
+            "properties": {
+              "consent_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

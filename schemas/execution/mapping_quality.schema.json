@@ -1,0 +1,454 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/mapping_quality.schema.json",
+  "title": "Aureline mapping-quality record for debug frames, source navigation, and dump cards",
+  "description": "Boundary schema for the mapping_quality_record every debug frame, every 'Go to source' jump, every variable / watch source-jump, and every dump-card frame narrows to before navigating. The record carries the closed mapping_quality_class vocabulary frozen in docs/execution/debug_truth_contract.md (exact / approximate / symbol-only / unresolved / build-mismatch / imported-symbol / no-symbol) plus the typed fallback_action_class vocabulary the renderer uses when navigation is denied or degraded. Each row joins a debug_artifact_entry_record (schemas/debug/debug_artifact_manifest.schema.json) so the same row token-for-token appears on the debugger UI, the support-bundle anchor, and the release artifact-graph node. Raw source bytes, raw absolute paths, raw URLs, raw register state, raw memory bytes, and raw symbol bytes MUST NOT cross this boundary; rows carry refs, hashes, counts, and class labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a mapping_quality_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/mapping_quality_record" }
+  ],
+  "$defs": {
+    "mapping_quality_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["mapping_quality_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support / evidence / replay exports. Raw absolute paths, raw URLs, raw symbol bytes, and raw source bytes never appear here."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (debug_artifact_entry_record, debug_session_record, debug_frame_record, command-dispatch descriptor, exact-build identity, etc.). Consumers resolve refs through the owning registry."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in preview, history, and export-review surfaces. Raw command lines, raw env bodies, raw secret values, raw API bodies, and raw stack traces MUST NOT appear here."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for the record. metadata_and_hashes_only is the default; broadened_capture requires an explicit approval-ticket ref."
+    },
+    "mapping_quality_class": {
+      "type": "string",
+      "enum": [
+        "mapping_exact_full_source_and_symbols",
+        "mapping_approximate_lines_only_no_columns",
+        "mapping_symbol_only_no_source_lines",
+        "mapping_unresolved_no_source_no_symbols",
+        "mapping_build_mismatch_resolved_to_different_build",
+        "mapping_imported_symbol_external_dependency_only",
+        "mapping_no_symbol_unmapped_address_disasm_fallback",
+        "mapping_quality_unknown_requires_review"
+      ],
+      "description": "Closed mapping-quality vocabulary. mapping_exact_full_source_and_symbols requires field-for-field build-identity verification and a source-bytes hash match. mapping_approximate_lines_only_no_columns drops column / inline detail but keeps line truth. mapping_symbol_only_no_source_lines names the symbol with no line table. mapping_unresolved_no_source_no_symbols admits the address has no resolved mapping. mapping_build_mismatch_resolved_to_different_build records a found-but-rejected candidate; navigation MUST NOT proceed. mapping_imported_symbol_external_dependency_only flags a third-party / OS-framework frame; navigation goes to a pinned summary, not local source. mapping_no_symbol_unmapped_address_disasm_fallback admits no symbol record exists. mapping_quality_unknown_requires_review fails closed and forbids navigation."
+    },
+    "fallback_action_class": {
+      "type": "string",
+      "enum": [
+        "open_authoritative_source",
+        "open_pinned_decompiled_source",
+        "open_imported_symbol_summary",
+        "open_disasm_view",
+        "open_no_navigable_target_show_address_only",
+        "open_redacted_under_redaction_class",
+        "open_unknown_requires_review"
+      ],
+      "description": "Closed fallback-action vocabulary. Names what the renderer should open when the user invokes 'Go to source' on a row whose mapping_quality_class is anything other than exact / approximate. open_no_navigable_target_show_address_only is the load-bearing answer for build-mismatch rows; the renderer surfaces only the address with a typed mismatch chip and forbids navigation. open_redacted_under_redaction_class is the answer when the row's redaction class hides any source location."
+    },
+    "evidence_state_class": {
+      "type": "string",
+      "enum": [
+        "evidence_resolved_terminal",
+        "evidence_pending_resolver_walk",
+        "evidence_unresolved_offline",
+        "evidence_state_unknown_requires_review"
+      ],
+      "description": "Whether the resolver walk that produced this mapping_quality row has completed. evidence_pending_resolver_walk is admissible only while the walk is in flight; evidence_unresolved_offline names a walk that bottomed out without reaching higher-trust sources. evidence_state_unknown_requires_review fails closed and forbids navigation."
+    },
+    "build_match_field_class": {
+      "type": "string",
+      "enum": [
+        "workspace_version",
+        "release_channel_class",
+        "commit.full_hash",
+        "commit.tree_hash",
+        "toolchain.toolchain_pin_digest",
+        "toolchain.lockfile_digest",
+        "target.target_triple",
+        "build_epoch.source_date_epoch",
+        "producer_lane.lane_class",
+        "profile.debug_info_class",
+        "profile.strip_class",
+        "profile.panic_class",
+        "module_identity.build_id",
+        "module_identity.debug_id",
+        "module_identity.source_map_digest",
+        "module_identity.uuid",
+        "generated_source.generator_identity",
+        "generated_source.spec_digest",
+        "generated_source.generator_command_digest"
+      ],
+      "description": "Re-export of schemas/debug/debug_artifact_manifest.schema.json#expected_build_match_fields. Mapping-quality rows that claim mapping_exact_* MUST cite the same axes the resolver verified field-for-field."
+    },
+    "mismatch_reason_class": {
+      "type": "string",
+      "enum": [
+        "mismatch_build_id",
+        "mismatch_commit_hash",
+        "mismatch_tree_hash",
+        "mismatch_toolchain_pin_digest",
+        "mismatch_lockfile_digest",
+        "mismatch_target_triple",
+        "mismatch_build_epoch",
+        "mismatch_producer_lane",
+        "mismatch_debug_info_class",
+        "mismatch_strip_class",
+        "mismatch_module_build_id",
+        "mismatch_module_debug_id",
+        "mismatch_module_uuid",
+        "mismatch_source_map_digest",
+        "mismatch_generator_identity",
+        "mismatch_generator_spec_digest",
+        "mismatch_generator_command_digest",
+        "stale_source_map_mapping",
+        "partial_source_mapping_only",
+        "symbol_index_missing",
+        "split_symbols_missing",
+        "trust_store_rejected_source",
+        "policy_denied_egress",
+        "policy_denied_side_load",
+        "pending_build_completion",
+        "pending_user_upload_consent"
+      ],
+      "description": "Re-export of schemas/debug/debug_artifact_manifest.schema.json#mismatch_reason_class. mapping_quality rows that claim mapping_build_mismatch_resolved_to_different_build MUST cite at least one matching token here."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "mapping_quality_record_must_cite_debug_artifact_ref",
+        "mapping_quality_record_must_cite_module_identity_ref",
+        "mapping_quality_record_must_not_navigate_under_build_mismatch",
+        "mapping_quality_record_must_not_collapse_imported_symbol_into_exact",
+        "mapping_quality_record_must_cite_mismatch_reason_when_build_mismatch",
+        "mapping_quality_record_must_cite_expected_build_match_fields_when_exact",
+        "mapping_quality_record_must_cite_fallback_action_per_class",
+        "mapping_quality_record_must_redact_when_redaction_blocks_source",
+        "mapping_quality_record_quality_class_unknown_requires_review",
+        "mapping_quality_record_evidence_state_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary for mapping_quality_record refusals. Every refusal fails closed and cites exactly one value."
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "mapping_quality_record_published",
+        "mapping_quality_record_quality_class_narrowed",
+        "mapping_quality_record_fallback_action_narrowed",
+        "mapping_quality_record_silent_collapse_of_imported_symbol_forbidden_denial",
+        "mapping_quality_record_silent_navigate_under_build_mismatch_forbidden_denial",
+        "mapping_quality_record_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary for the mapping_quality_record family. Raw bodies, raw command lines, raw env bodies, raw API bodies, and raw secret values MUST NOT appear on any audit event."
+    },
+    "mapping_quality_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "mapping_quality_schema_version",
+        "mapping_quality_record_id",
+        "debug_artifact_ref",
+        "module_identity_ref",
+        "quality_class",
+        "fallback_action_class",
+        "evidence_state_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "mapping_quality_record" },
+        "mapping_quality_schema_version": { "$ref": "#/$defs/mapping_quality_schema_version" },
+        "mapping_quality_record_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for one mapping_quality row. Debugger UI, support bundle, and release artifact graph surfaces resolve this id field-for-field rather than minting a parallel id per surface."
+        },
+        "debug_artifact_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the debug_artifact_entry_record (schemas/debug/debug_artifact_manifest.schema.json) the row resolved against. Same id token-for-token across debugger UI, support bundle, and release artifact graph."
+        },
+        "module_identity_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the module-identity row the mapping resolved against (e.g. PDB debug-id, Mach-O UUID, GNU build-id, source-map digest). Pinned by the joined debug_artifact_entry_record's content_linkage.module_identity block."
+        },
+        "frame_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the debug_frame_record this mapping_quality row resolves for. Null when the row resolves a non-frame navigation target (e.g. a watch / variable source-jump or a dump-card frame projection)."
+        },
+        "watch_or_variable_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the debug_watch_record or debug_variable_record this mapping_quality row resolves a source-jump for. Null when the row resolves a frame instead."
+        },
+        "address_summary": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["address_kind_class"],
+              "properties": {
+                "address_kind_class": {
+                  "type": "string",
+                  "enum": [
+                    "instruction_pointer_in_module",
+                    "instruction_pointer_outside_loaded_modules",
+                    "data_pointer_resolved",
+                    "data_pointer_unresolved",
+                    "address_kind_unknown_requires_review"
+                  ]
+                },
+                "module_offset_present": {
+                  "type": "boolean",
+                  "description": "Whether the row carries a module-offset (relative to the module base). Raw address bytes never appear here; only the boolean is admissible."
+                }
+              },
+              "description": "Compact address summary. Raw address values MUST NOT appear here; renderers project the typed address-kind class plus an offset-present boolean."
+            }
+          ]
+        },
+        "quality_class": { "$ref": "#/$defs/mapping_quality_class" },
+        "fallback_action_class": { "$ref": "#/$defs/fallback_action_class" },
+        "evidence_state_class": { "$ref": "#/$defs/evidence_state_class" },
+        "expected_build_match_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/build_match_field_class" },
+          "uniqueItems": true,
+          "description": "Required non-empty when quality_class is mapping_exact_full_source_and_symbols or mapping_approximate_lines_only_no_columns; the row MUST cite the axes the resolver verified field-for-field. MUST be empty when quality_class is mapping_unresolved_no_source_no_symbols / mapping_no_symbol_unmapped_address_disasm_fallback / mapping_quality_unknown_requires_review."
+        },
+        "mismatch_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mismatch_reason_class" },
+          "uniqueItems": true,
+          "description": "Required non-empty when quality_class is mapping_build_mismatch_resolved_to_different_build; cites the typed mismatch tokens the resolver recorded. MUST be empty when quality_class is mapping_exact_* or mapping_approximate_*."
+        },
+        "imported_dependency_summary": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["dependency_kind_class", "display_label"],
+              "properties": {
+                "dependency_kind_class": {
+                  "type": "string",
+                  "enum": [
+                    "third_party_crate_or_npm_module",
+                    "operating_system_framework",
+                    "language_runtime_or_kernel",
+                    "vendored_decompiled_stub",
+                    "imported_dependency_kind_unknown_requires_review"
+                  ]
+                },
+                "display_label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Short redaction-safe label (e.g. 'serde 1.0.197', 'CoreFoundation', 'libc.so.6 (glibc 2.39)'). Raw absolute paths and raw URLs never appear here."
+                },
+                "version_or_revision_ref": {
+                  "$ref": "#/$defs/opaque_ref_nullable",
+                  "description": "Optional opaque ref to the pinned version / revision row for this dependency."
+                },
+                "package_or_module_id_ref": {
+                  "$ref": "#/$defs/opaque_ref_nullable",
+                  "description": "Optional opaque ref to the package / module identity row (e.g. crates.io package digest, npm package digest, framework UUID)."
+                }
+              },
+              "description": "Required non-null when quality_class is mapping_imported_symbol_external_dependency_only. Names the dependency, the pinned version, and the package / module identity so the renderer can open a typed summary card instead of a generic 'no source' chip."
+            }
+          ]
+        },
+        "navigation_target": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["target_kind_class"],
+              "properties": {
+                "target_kind_class": {
+                  "type": "string",
+                  "enum": [
+                    "workspace_relative_source_ref",
+                    "pinned_decompiled_source_ref",
+                    "imported_dependency_summary_ref",
+                    "disasm_view_ref",
+                    "address_only_no_navigable_target",
+                    "redacted_under_redaction_class",
+                    "navigation_target_unknown_requires_review"
+                  ]
+                },
+                "source_ref": {
+                  "$ref": "#/$defs/opaque_ref_nullable",
+                  "description": "Opaque ref to the source row the renderer opens (workspace-relative file ref, decompiled-source ref, dependency summary ref, or disasm view ref). Null when target_kind_class is address_only_no_navigable_target / redacted_under_redaction_class / navigation_target_unknown_requires_review."
+                },
+                "line_number": {
+                  "type": ["integer", "null"],
+                  "minimum": 1,
+                  "description": "Line number to navigate to (1-based). Null when target_kind_class is anything other than workspace_relative_source_ref / pinned_decompiled_source_ref."
+                },
+                "column_number": {
+                  "type": ["integer", "null"],
+                  "minimum": 1,
+                  "description": "Column number to navigate to (1-based). Null on mapping_approximate_* rows by definition (column / inline detail is absent)."
+                }
+              },
+              "description": "Typed navigation target the renderer resolves when the user invokes 'Go to source'. MUST be consistent with fallback_action_class: open_authoritative_source / open_pinned_decompiled_source resolve workspace_relative_source_ref / pinned_decompiled_source_ref; open_imported_symbol_summary resolves imported_dependency_summary_ref; open_disasm_view resolves disasm_view_ref; open_no_navigable_target_show_address_only resolves address_only_no_navigable_target."
+            }
+          ]
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true,
+          "description": "Ordered refs to audit-event ids drawn from this schema's audit_event_id vocabulary. Raw bodies never appear."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Closed denial reason when the record is published as a typed refusal. Null on admitted records."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when redaction_class is broadened_capture. Null otherwise."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "mapping_exact_* and mapping_approximate_* rows MUST cite the build-match fields the resolver verified.",
+          "if": {
+            "properties": {
+              "quality_class": {
+                "enum": [
+                  "mapping_exact_full_source_and_symbols",
+                  "mapping_approximate_lines_only_no_columns"
+                ]
+              }
+            },
+            "required": ["quality_class"]
+          },
+          "then": {
+            "required": ["expected_build_match_fields"],
+            "properties": {
+              "expected_build_match_fields": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "mapping_build_mismatch_* rows MUST cite at least one mismatch reason and MUST resolve fallback_action_class to open_no_navigable_target_show_address_only.",
+          "if": {
+            "properties": {
+              "quality_class": { "const": "mapping_build_mismatch_resolved_to_different_build" }
+            },
+            "required": ["quality_class"]
+          },
+          "then": {
+            "required": ["mismatch_reasons"],
+            "properties": {
+              "mismatch_reasons": { "minItems": 1 },
+              "fallback_action_class": { "const": "open_no_navigable_target_show_address_only" }
+            }
+          }
+        },
+        {
+          "description": "mapping_imported_symbol_* rows MUST cite an imported_dependency_summary and MUST resolve fallback_action_class to open_imported_symbol_summary.",
+          "if": {
+            "properties": {
+              "quality_class": { "const": "mapping_imported_symbol_external_dependency_only" }
+            },
+            "required": ["quality_class"]
+          },
+          "then": {
+            "required": ["imported_dependency_summary"],
+            "properties": {
+              "imported_dependency_summary": { "type": "object" },
+              "fallback_action_class": { "const": "open_imported_symbol_summary" }
+            }
+          }
+        },
+        {
+          "description": "mapping_no_symbol_* and mapping_unresolved_* rows MUST resolve fallback_action_class to a disasm or address-only view.",
+          "if": {
+            "properties": {
+              "quality_class": {
+                "enum": [
+                  "mapping_no_symbol_unmapped_address_disasm_fallback",
+                  "mapping_unresolved_no_source_no_symbols"
+                ]
+              }
+            },
+            "required": ["quality_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_action_class": {
+                "enum": [
+                  "open_disasm_view",
+                  "open_no_navigable_target_show_address_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "mapping_quality_unknown_requires_review fails closed and forbids navigation.",
+          "if": {
+            "properties": {
+              "quality_class": { "const": "mapping_quality_unknown_requires_review" }
+            },
+            "required": ["quality_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_action_class": { "const": "open_unknown_requires_review" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

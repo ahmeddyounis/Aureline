@@ -1,0 +1,1013 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/debug_session.schema.json",
+  "title": "Aureline debug-session truth, posture, process / thread tree, frame stack, variables / watch / REPL, and action-authority record",
+  "description": "Boundary schema for the debug_session_record every debug surface (debugger UI, support bundle, replay / import probe, release-evidence reviewer) reads when it needs to answer 'is this a live session under our control, an inspect-only live overlay, a captured dump, a restored session, or an imported evidence-only session, what is the stopped state, what is the process / thread / frame tree, what does the variables / watch / evaluate / REPL rail look like, and what authority does restart / rerun / reattach / reopen-dump carry?'. The schema composes with - and never re-mints - the run / attempt / artifact-event records (schemas/execution/run.schema.json, schemas/execution/attempt.schema.json, schemas/execution/artifact_event.schema.json), the execution-context root (schemas/runtime/execution_context.schema.json), the terminal-session truth contract (schemas/execution/terminal_session.schema.json), the debug artifact manifest (schemas/debug/debug_artifact_manifest.schema.json), the mapping-quality record (schemas/execution/mapping_quality.schema.json), the crash-dump card (schemas/execution/crash_dump_card.schema.json), the trust-decision packet (ADR-0018), the identity-mode envelope (ADR-0001), the admin-policy epoch, the secret-broker credential-handle classes (ADR-0007), the command-dispatch descriptor (ADR-0016), and the collaboration session-authority contract's shared_terminal_control_metadata row. Raw register state, raw memory bytes, raw stack-frame argv, raw evaluation values, raw watch expressions, raw REPL histories, raw command lines, raw env bodies, raw API request / response bodies, raw absolute paths, raw URLs, raw secret values, and raw stack traces MUST NOT cross any of these boundaries; records carry refs, hashes, counts, and class labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a debug_session_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/debug_session_record" },
+    { "$ref": "#/$defs/debug_process_record" },
+    { "$ref": "#/$defs/debug_thread_record" },
+    { "$ref": "#/$defs/debug_frame_record" },
+    { "$ref": "#/$defs/debug_variable_record" },
+    { "$ref": "#/$defs/debug_watch_record" },
+    { "$ref": "#/$defs/debug_repl_entry_record" },
+    { "$ref": "#/$defs/debug_module_summary_record" }
+  ],
+  "$defs": {
+    "debug_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "debug_session_record",
+        "debug_process_record",
+        "debug_thread_record",
+        "debug_frame_record",
+        "debug_variable_record",
+        "debug_watch_record",
+        "debug_repl_entry_record",
+        "debug_module_summary_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support / evidence / replay exports. Raw absolute paths, raw URLs, raw symbol bytes, and raw register state never appear here."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (run_record, attempt_record, debug_artifact_entry_record, mapping_quality_record, crash_dump_card_record, command-dispatch descriptor, trust-decision packet, etc.). Consumers resolve refs through the owning registry."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence. Raw command lines, raw env bodies, raw secret values, raw API bodies, and raw stack traces MUST NOT appear here."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for the record. metadata_and_hashes_only is the default; broadened_capture requires an explicit approval-ticket ref."
+    },
+    "host_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_host_runtime",
+        "ssh_remote_runtime",
+        "remote_workspace_agent_runtime",
+        "managed_workspace_agent_runtime",
+        "container_local_runtime",
+        "devcontainer_runtime",
+        "provider_remote_agent_runtime",
+        "compatibility_bridge_remote_runtime",
+        "ai_sandbox_runtime",
+        "host_boundary_unknown_requires_review"
+      ],
+      "description": "Re-export of schemas/execution/run.schema.json#host_boundary_class. Every non-local boundary MUST cite a remote target-identity witness ref. host_boundary_unknown_requires_review fails closed."
+    },
+    "debug_posture_class": {
+      "type": "string",
+      "enum": [
+        "debug_posture_launch_local_owns_lifetime",
+        "debug_posture_launch_remote_owns_lifetime_with_witness",
+        "debug_posture_attach_to_local_process",
+        "debug_posture_attach_to_remote_process_with_witness",
+        "debug_posture_live_shared_inspect_only",
+        "debug_posture_live_shared_with_temporary_step_grant",
+        "debug_posture_captured_dump_no_live_control",
+        "debug_posture_restored_session_no_live_control",
+        "debug_posture_imported_session_evidence_only",
+        "debug_posture_unknown_requires_review"
+      ],
+      "description": "Closed debug-posture vocabulary. launch_* postures own the inferior lifetime; attach_* postures attached to a pre-existing process. live_shared_* postures ride a shared-debug overlay; inspect-only is the default and the temporary_step_grant variant requires an explicit grant on the parent shared-control metadata row. captured_dump / restored_session / imported_session postures are inspect-only; restart / rerun / reattach / step / continue / pause / set-breakpoint MUST resolve to typed denials. debug_posture_unknown_requires_review fails closed and forbids any mutating action."
+    },
+    "stopped_state_class": {
+      "type": "string",
+      "enum": [
+        "running_no_stopped_thread",
+        "stopped_at_breakpoint",
+        "stopped_at_step",
+        "stopped_at_exception_or_signal",
+        "stopped_at_entry",
+        "stopped_at_pause_request",
+        "stopped_state_unknown_requires_review"
+      ],
+      "description": "Closed stopped-state vocabulary. running_no_stopped_thread MUST imply empty frame_stack_refs on every thread (frames are not navigable while running). stopped_at_exception_or_signal MUST cite an exception_summary_ref on the stopped thread. Captured / restored / imported sessions MUST report stopped_at_*; they MUST NOT report running_no_stopped_thread. stopped_state_unknown_requires_review fails closed."
+    },
+    "process_role_class": {
+      "type": "string",
+      "enum": [
+        "process_root_target_inferior",
+        "process_child_inferior",
+        "process_attached_external_process",
+        "process_managed_worker",
+        "process_role_unknown_requires_review"
+      ],
+      "description": "Closed process-role vocabulary. process_root_target_inferior is the primary target. process_child_inferior covers child processes the debugger followed under follow-fork-mode. process_attached_external_process covers a pre-existing process the debugger attached to. process_managed_worker covers a managed-runtime worker (e.g. a forked notebook kernel)."
+    },
+    "thread_role_class": {
+      "type": "string",
+      "enum": [
+        "thread_main",
+        "thread_worker",
+        "thread_io",
+        "thread_gpu_or_compute",
+        "thread_role_unknown_requires_review"
+      ],
+      "description": "Closed thread-role vocabulary. Renderers MUST narrow the thread chip to the matching class rather than minting per-platform thread labels."
+    },
+    "frame_kind_class": {
+      "type": "string",
+      "enum": [
+        "frame_user_source",
+        "frame_user_generated_source",
+        "frame_third_party_dependency",
+        "frame_runtime_or_kernel",
+        "frame_inlined_into_caller",
+        "frame_disasm_only_no_source",
+        "frame_kind_unknown_requires_review"
+      ],
+      "description": "Closed frame-kind vocabulary. frame_user_source is workspace-owned source. frame_user_generated_source is workspace-owned generated source (codegen, OpenAPI, protobuf). frame_third_party_dependency rides through an imported-dependency mapping. frame_runtime_or_kernel covers runtime / OS frames. frame_inlined_into_caller MUST cite the parent frame ref. frame_disasm_only_no_source admits no source mapping. frame_kind_unknown_requires_review fails closed."
+    },
+    "evaluation_state_class": {
+      "type": "string",
+      "enum": [
+        "watch_evaluated_value_observed",
+        "watch_pending_evaluation",
+        "watch_evaluation_held_pending_purity_confirmation",
+        "watch_evaluation_blocked_under_purity_unknown",
+        "watch_evaluation_failed",
+        "watch_evaluation_redacted_under_redaction_class",
+        "watch_evaluation_state_unknown_requires_review"
+      ],
+      "description": "Closed evaluation-state vocabulary for variables / watches. watch_evaluation_held_pending_purity_confirmation pairs with evaluation_purity_unknown_requires_explicit_confirmation; the renderer prompts before re-resolving. watch_evaluation_blocked_under_purity_unknown is the typed denial when the user declined to confirm. watch_evaluation_redacted_under_redaction_class admits the value was redacted by class. watch_evaluation_state_unknown_requires_review fails closed."
+    },
+    "evaluation_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "evaluation_observed_pure_no_side_effects",
+        "evaluation_observed_local_writes_only",
+        "evaluation_observed_external_calls",
+        "evaluation_observed_state_mutation",
+        "evaluation_purity_unknown_requires_explicit_confirmation",
+        "evaluation_admitted_unsafe_irreversible_under_explicit_consent",
+        "evaluation_blocked_under_purity_unknown",
+        "evaluation_side_effect_class_unknown_requires_review"
+      ],
+      "description": "Closed evaluation side-effect vocabulary. evaluation_admitted_unsafe_irreversible_under_explicit_consent is the typed answer for an evaluation the user explicitly admitted under a fresh command-dispatch descriptor; once any row resolves to this value the parent session's auto_rerun_admitted_on_this_record locks false. evaluation_purity_unknown_requires_explicit_confirmation holds the row pending typed confirmation. Captured / restored / imported sessions MUST NOT admit evaluation_admitted_unsafe_*."
+    },
+    "value_summary_class": {
+      "type": "string",
+      "enum": [
+        "value_literal_summary",
+        "value_structured_summary",
+        "value_truncated_summary",
+        "value_no_value_yet",
+        "value_no_summary_secret_or_redacted",
+        "value_summary_unknown_requires_review"
+      ],
+      "description": "Closed value-summary vocabulary. Raw values never cross this boundary. value_no_summary_secret_or_redacted is required whenever credential_handle_class_refs is non-empty."
+    },
+    "repl_history_entry_class": {
+      "type": "string",
+      "enum": [
+        "repl_entry_pure_evaluation_admitted",
+        "repl_entry_held_pending_purity_confirmation",
+        "repl_entry_admitted_with_explicit_unsafe_consent",
+        "repl_entry_blocked_under_purity_unknown",
+        "repl_entry_redacted_under_redaction_class",
+        "repl_entry_state_unknown_requires_review"
+      ],
+      "description": "Closed REPL / Evaluate entry vocabulary. repl_entry_admitted_with_explicit_unsafe_consent MUST cite a command_dispatch_descriptor_ref. The REPL log is append-only; replacing or eliding an entry is a typed denial."
+    },
+    "symbol_strip_class": {
+      "type": "string",
+      "enum": [
+        "symbols_full_present",
+        "symbols_split_external_resolved",
+        "symbols_split_external_missing",
+        "symbols_minimal_strip_only_line_tables",
+        "symbols_fully_stripped_no_symbols",
+        "symbol_strip_class_unknown_requires_review"
+      ],
+      "description": "Closed symbol-strip vocabulary. symbols_full_present is the unstripped baseline. symbols_split_external_resolved / *_missing distinguish a split-debug-info layout where the external symbols package was found vs missing. symbols_minimal_strip_only_line_tables admits line tables but no full symbol index. symbols_fully_stripped_no_symbols is the honest answer for fully-stripped binaries. symbol_strip_class_unknown_requires_review fails closed."
+    },
+    "source_map_strip_class": {
+      "type": "string",
+      "enum": [
+        "source_map_full_present",
+        "source_map_partial_names_missing",
+        "source_map_digest_mismatch",
+        "source_map_absent_no_mapping",
+        "source_map_strip_class_unknown_requires_review"
+      ],
+      "description": "Closed source-map-strip vocabulary for JS / TS / CSS / generated frames. source_map_digest_mismatch is the load-bearing 'mapping is stale' answer; renderers MUST surface the typed mismatch chip rather than silently using the mapping."
+    },
+    "exception_class_label": {
+      "type": "string",
+      "enum": [
+        "exception_native_segfault",
+        "exception_native_illegal_instruction",
+        "exception_native_floating_point",
+        "exception_native_arithmetic",
+        "exception_native_access_violation",
+        "exception_native_stack_overflow",
+        "exception_managed_runtime_unhandled",
+        "exception_managed_runtime_handled_caught_in_debugger",
+        "exception_signal_terminated_external",
+        "exception_panic_or_assertion",
+        "exception_kind_unknown_requires_review"
+      ],
+      "description": "Closed exception-class vocabulary the stopped thread carries when stopped_state_class is stopped_at_exception_or_signal. Raw exception messages, raw signal payloads, and raw fault addresses MUST NOT appear here."
+    },
+    "credential_handle_class_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true,
+      "description": "Refs to credential-handle classes (ADR-0007) the value / expression intersects. Non-empty rows MUST resolve value_summary_class to value_no_summary_secret_or_redacted."
+    },
+    "restart_authority_class": {
+      "type": "string",
+      "enum": [
+        "restart_admitted_under_command_dispatch_descriptor",
+        "restart_denied_no_live_control",
+        "restart_denied_irreversible_side_effect_published",
+        "restart_denied_dump_or_restored_session_inspect_only",
+        "restart_denied_workspace_trust_restricted",
+        "restart_denied_session_quarantine",
+        "restart_authority_class_unknown_requires_review"
+      ],
+      "description": "Closed authority vocabulary for the 'Restart' affordance. Captured / restored / imported postures MUST resolve to restart_denied_dump_or_restored_session_inspect_only. A run that published an irreversible side effect MUST resolve to restart_denied_irreversible_side_effect_published."
+    },
+    "rerun_authority_class": {
+      "type": "string",
+      "enum": [
+        "rerun_admitted_under_command_dispatch_descriptor",
+        "rerun_denied_irreversible_side_effect_published",
+        "rerun_denied_dump_or_restored_session_inspect_only",
+        "rerun_denied_workspace_trust_restricted",
+        "rerun_denied_session_quarantine",
+        "rerun_authority_class_unknown_requires_review"
+      ],
+      "description": "Closed authority vocabulary for the 'Rerun' affordance. Mints a new run and a fresh debug session under a fresh command-dispatch descriptor when admitted."
+    },
+    "reattach_authority_class": {
+      "type": "string",
+      "enum": [
+        "reattach_admitted_under_command_dispatch_descriptor",
+        "reattach_denied_target_unreachable",
+        "reattach_denied_dump_or_restored_session_inspect_only",
+        "reattach_denied_no_live_control",
+        "reattach_denied_workspace_trust_restricted",
+        "reattach_denied_session_quarantine",
+        "reattach_authority_class_unknown_requires_review"
+      ],
+      "description": "Closed authority vocabulary for the 'Reattach' affordance. Captured / restored / imported postures MUST resolve to reattach_denied_dump_or_restored_session_inspect_only."
+    },
+    "reopen_dump_authority_class": {
+      "type": "string",
+      "enum": [
+        "reopen_dump_admitted_inspect_only",
+        "reopen_dump_denied_under_redaction_class",
+        "reopen_dump_denied_workspace_trust_restricted",
+        "reopen_dump_denied_session_quarantine",
+        "reopen_dump_authority_class_unknown_requires_review"
+      ],
+      "description": "Closed authority vocabulary for the 'Reopen dump' affordance. Always inspect-only; opens a fresh debug_session_record citing the new dump's crash_dump_card_record."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "debug_session_record_must_cite_execution_context_root_ref",
+        "debug_session_record_must_cite_command_dispatch_descriptor_ref",
+        "debug_session_record_must_cite_remote_target_identity_witness_when_remote",
+        "debug_session_record_must_cite_container_target_identity_when_container_or_devcontainer",
+        "debug_session_record_must_not_paint_dump_or_restored_session_as_live",
+        "debug_session_record_must_cite_action_authority_class_per_action",
+        "debug_session_record_must_cite_temporary_step_grant_ref_when_shared",
+        "debug_session_record_must_forbid_mutating_action_under_workspace_trust_restricted",
+        "debug_session_record_must_forbid_mutating_action_on_quarantined_session",
+        "debug_session_record_must_forbid_unsafe_evaluation_on_dump_or_restored_session",
+        "debug_session_record_must_hold_evaluation_pending_purity_confirmation_when_unknown",
+        "debug_session_record_must_cite_command_dispatch_descriptor_when_unsafe_admitted",
+        "debug_session_record_must_narrow_auto_rerun_when_irreversible_or_unsafe_evaluated",
+        "debug_session_record_must_not_admit_silent_overwrite_of_repl_history",
+        "debug_session_record_must_cite_crash_dump_card_ref_when_dump_posture",
+        "debug_session_record_must_cite_exception_summary_ref_when_stopped_at_exception",
+        "debug_session_record_must_redact_value_summary_when_secret_class_refs_present",
+        "debug_session_record_posture_unknown_requires_review",
+        "debug_session_record_stopped_state_unknown_requires_review",
+        "debug_session_record_host_boundary_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary for debug_session_record refusals. Every refusal fails closed and cites exactly one value."
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "debug_session_record_published",
+        "debug_session_record_revoked",
+        "debug_session_record_posture_transitioned",
+        "debug_session_record_stopped_state_transitioned",
+        "debug_session_record_process_tree_attached",
+        "debug_session_record_variables_view_resolved",
+        "debug_session_record_watch_row_attached",
+        "debug_session_record_watch_row_evaluated",
+        "debug_session_record_watch_row_held_pending_purity",
+        "debug_session_record_watch_row_admitted_unsafe",
+        "debug_session_record_repl_entry_attached",
+        "debug_session_record_repl_entry_blocked_under_purity",
+        "debug_session_record_repl_entry_admitted_unsafe",
+        "debug_session_record_restart_admitted",
+        "debug_session_record_restart_denied",
+        "debug_session_record_rerun_admitted",
+        "debug_session_record_rerun_denied",
+        "debug_session_record_reattach_admitted",
+        "debug_session_record_reattach_denied",
+        "debug_session_record_reopen_dump_admitted",
+        "debug_session_record_silent_paint_as_live_forbidden_denial",
+        "debug_session_record_silent_overwrite_of_repl_history_forbidden_denial",
+        "debug_session_record_silent_collapse_of_imported_symbol_forbidden_denial",
+        "debug_session_record_silent_navigate_under_build_mismatch_forbidden_denial",
+        "debug_session_record_silent_step_without_grant_forbidden_denial",
+        "debug_session_record_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary for the debug-session family. Raw register state, raw memory bytes, raw evaluation values, raw watch expressions, raw REPL histories, raw command lines, raw env bodies, raw API request / response bodies, raw absolute paths, raw URLs, raw secret values, and raw stack traces MUST NOT appear on any audit event."
+    },
+    "symbol_strip_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_count_full_present",
+        "module_count_split_external_resolved",
+        "module_count_split_external_missing",
+        "module_count_minimal_line_tables",
+        "module_count_fully_stripped",
+        "module_count_unknown_requires_review",
+        "source_map_count_full_present",
+        "source_map_count_partial_names_missing",
+        "source_map_count_digest_mismatch",
+        "source_map_count_absent_no_mapping",
+        "source_map_count_unknown_requires_review"
+      ],
+      "properties": {
+        "module_count_full_present": { "type": "integer", "minimum": 0 },
+        "module_count_split_external_resolved": { "type": "integer", "minimum": 0 },
+        "module_count_split_external_missing": { "type": "integer", "minimum": 0 },
+        "module_count_minimal_line_tables": { "type": "integer", "minimum": 0 },
+        "module_count_fully_stripped": { "type": "integer", "minimum": 0 },
+        "module_count_unknown_requires_review": { "type": "integer", "minimum": 0 },
+        "source_map_count_full_present": { "type": "integer", "minimum": 0 },
+        "source_map_count_partial_names_missing": { "type": "integer", "minimum": 0 },
+        "source_map_count_digest_mismatch": { "type": "integer", "minimum": 0 },
+        "source_map_count_absent_no_mapping": { "type": "integer", "minimum": 0 },
+        "source_map_count_unknown_requires_review": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Compact roll-up of the per-module symbol-strip and per-asset source-map-strip vocabulary. Lets a reviewer answer 'how many modules have full symbols vs are stripped' without resolving every frame."
+    },
+    "action_authority_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restart_authority_class",
+        "rerun_authority_class",
+        "reattach_authority_class",
+        "reopen_dump_authority_class"
+      ],
+      "properties": {
+        "restart_authority_class": { "$ref": "#/$defs/restart_authority_class" },
+        "rerun_authority_class": { "$ref": "#/$defs/rerun_authority_class" },
+        "reattach_authority_class": { "$ref": "#/$defs/reattach_authority_class" },
+        "reopen_dump_authority_class": { "$ref": "#/$defs/reopen_dump_authority_class" },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to a fresh command-dispatch descriptor required for any *_admitted_under_command_dispatch_descriptor value. Null when every authority resolves to a denial."
+        }
+      },
+      "description": "Compact projection of the four debug-action authorities. Renderers MUST resolve every Restart / Rerun / Reattach / Reopen-dump affordance through this summary; the session record never mints authority by itself."
+    },
+    "debug_module_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "module_summary_record_id",
+        "display_label",
+        "debug_artifact_ref",
+        "module_identity_ref",
+        "symbol_strip_class",
+        "source_map_strip_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_module_summary_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "module_summary_record_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short redaction-safe module label (e.g. 'aureline-shell.exe', 'libcore-1.84.0.so', 'renderer.main.bundle.js'). Raw absolute paths and raw URLs never appear here."
+        },
+        "debug_artifact_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the debug_artifact_entry_record (schemas/debug/debug_artifact_manifest.schema.json) describing this module's symbols / source map / sibling artifacts."
+        },
+        "module_identity_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the module-identity row (PDB debug-id, Mach-O UUID, GNU build-id, source-map digest)."
+        },
+        "symbol_strip_class": { "$ref": "#/$defs/symbol_strip_class" },
+        "source_map_strip_class": { "$ref": "#/$defs/source_map_strip_class" },
+        "is_external_dependency": {
+          "type": "boolean",
+          "description": "Whether the module is an external dependency (third-party library, OS framework). Renders as the 'imported' chip on the modules pane."
+        },
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the exact_build_identity row this module joins to. Null for modules whose build identity is unknown / pending / external."
+        }
+      }
+    },
+    "debug_frame_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "frame_record_id",
+        "frame_index",
+        "frame_kind_class",
+        "module_summary_ref",
+        "mapping_quality_record_ref",
+        "symbol_strip_class",
+        "source_map_strip_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_frame_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "frame_record_id": { "$ref": "#/$defs/opaque_id" },
+        "frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0-based index of the frame within its thread's frame stack, outermost-first. Frame 0 is the topmost (most recent) frame."
+        },
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1, "maxLength": 320 }
+          ],
+          "description": "Short redaction-safe frame label (e.g. 'aureline_shell::main', 'render_loop', 'serde::de::Deserialize::deserialize'). Raw absolute paths, raw URLs, and raw stack-frame argv MUST NOT appear here."
+        },
+        "frame_kind_class": { "$ref": "#/$defs/frame_kind_class" },
+        "module_summary_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the debug_module_summary_record this frame's instruction pointer resolves through."
+        },
+        "mapping_quality_record_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the mapping_quality_record (schemas/execution/mapping_quality.schema.json) the frame uses to resolve 'Go to source'."
+        },
+        "symbol_strip_class": { "$ref": "#/$defs/symbol_strip_class" },
+        "source_map_strip_class": { "$ref": "#/$defs/source_map_strip_class" },
+        "inlined_into_caller_frame_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when frame_kind_class is frame_inlined_into_caller. Renderers MUST preserve the inlined relationship rather than collapsing it."
+        },
+        "exception_summary_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the exception summary row when this frame is the throwing frame. Null otherwise."
+        }
+      }
+    },
+    "debug_thread_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "thread_record_id",
+        "thread_index",
+        "thread_role_class",
+        "stopped_state_class",
+        "frame_stack_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_thread_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "thread_record_id": { "$ref": "#/$defs/opaque_id" },
+        "thread_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0-based per-process thread index. Thread 0 is conventionally the main thread."
+        },
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1, "maxLength": 320 }
+          ],
+          "description": "Short redaction-safe thread label (e.g. 'main', 'renderer::raster', 'tokio-runtime-worker'). Raw absolute paths and raw URLs never appear here."
+        },
+        "thread_role_class": { "$ref": "#/$defs/thread_role_class" },
+        "stopped_state_class": { "$ref": "#/$defs/stopped_state_class" },
+        "exception_summary_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when stopped_state_class is stopped_at_exception_or_signal. Null otherwise."
+        },
+        "frame_stack_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to debug_frame_record rows for this thread, outermost-first. MUST be empty when stopped_state_class is running_no_stopped_thread."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Running threads MUST NOT carry frame stacks (frames are not navigable while running).",
+          "if": {
+            "properties": {
+              "stopped_state_class": { "const": "running_no_stopped_thread" }
+            },
+            "required": ["stopped_state_class"]
+          },
+          "then": {
+            "properties": {
+              "frame_stack_refs": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "debug_process_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "process_record_id",
+        "process_role_class",
+        "thread_refs",
+        "module_summary_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_process_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "process_record_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1, "maxLength": 320 }
+          ],
+          "description": "Short redaction-safe process label (e.g. 'aureline-shell', 'renderer #2', 'jupyter-kernel:python3'). Raw absolute paths and raw URLs never appear here."
+        },
+        "process_role_class": { "$ref": "#/$defs/process_role_class" },
+        "parent_process_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the parent debug_process_record when this process is a follow-fork child. Null for the root inferior."
+        },
+        "thread_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to debug_thread_record rows for this process."
+        },
+        "module_summary_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true,
+          "description": "Refs to debug_module_summary_record rows for every module loaded into this process."
+        }
+      }
+    },
+    "debug_variable_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "variable_record_id",
+        "frame_ref",
+        "display_label",
+        "evaluation_state_class",
+        "evaluation_side_effect_class",
+        "value_summary_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_variable_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "variable_record_id": { "$ref": "#/$defs/opaque_id" },
+        "frame_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the debug_frame_record this variable's scope belongs to."
+        },
+        "display_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 320,
+          "description": "Short redaction-safe variable label (e.g. 'self', 'request', 'config'). Raw evaluation values and raw secrets MUST NOT appear here."
+        },
+        "scope_kind_class": {
+          "type": "string",
+          "enum": [
+            "local_scope",
+            "argument_scope",
+            "captured_scope",
+            "static_or_global_scope",
+            "this_or_self_scope",
+            "scope_kind_unknown_requires_review"
+          ],
+          "description": "Closed scope-kind vocabulary. Renderers narrow the scope chip to the matching class."
+        },
+        "evaluation_state_class": { "$ref": "#/$defs/evaluation_state_class" },
+        "evaluation_side_effect_class": { "$ref": "#/$defs/evaluation_side_effect_class" },
+        "value_summary_class": { "$ref": "#/$defs/value_summary_class" },
+        "credential_handle_class_refs": {
+          "$ref": "#/$defs/credential_handle_class_refs"
+        },
+        "mapping_quality_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to a mapping_quality_record when 'Go to source / declaration' is admissible for this variable."
+        }
+      }
+    },
+    "debug_watch_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "watch_record_id",
+        "expression_ref",
+        "evaluation_state_class",
+        "evaluation_side_effect_class",
+        "value_summary_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_watch_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "watch_record_id": { "$ref": "#/$defs/opaque_id" },
+        "expression_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the canonical expression record. Raw expression bytes never cross this boundary; consumers resolve the ref through the expression registry."
+        },
+        "frame_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the debug_frame_record at the time of evaluation. Null when the watch is global / not bound to a frame."
+        },
+        "evaluation_state_class": { "$ref": "#/$defs/evaluation_state_class" },
+        "evaluation_side_effect_class": { "$ref": "#/$defs/evaluation_side_effect_class" },
+        "value_summary_class": { "$ref": "#/$defs/value_summary_class" },
+        "credential_handle_class_refs": {
+          "$ref": "#/$defs/credential_handle_class_refs"
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when evaluation_side_effect_class is evaluation_admitted_unsafe_irreversible_under_explicit_consent. Null otherwise."
+        },
+        "mapping_quality_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to a mapping_quality_record when 'Go to source / declaration' is admissible for this watch."
+        }
+      }
+    },
+    "debug_repl_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "repl_entry_record_id",
+        "repl_index",
+        "expression_ref",
+        "repl_history_entry_class",
+        "evaluation_side_effect_class",
+        "value_summary_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_repl_entry_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "repl_entry_record_id": { "$ref": "#/$defs/opaque_id" },
+        "repl_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0-based monotonic index within the parent debug_session_record's REPL history. The REPL log is append-only; replacing a prior entry is a typed denial."
+        },
+        "expression_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the canonical expression record."
+        },
+        "frame_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the debug_frame_record at the time of evaluation."
+        },
+        "repl_history_entry_class": { "$ref": "#/$defs/repl_history_entry_class" },
+        "evaluation_side_effect_class": { "$ref": "#/$defs/evaluation_side_effect_class" },
+        "value_summary_class": { "$ref": "#/$defs/value_summary_class" },
+        "credential_handle_class_refs": {
+          "$ref": "#/$defs/credential_handle_class_refs"
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when repl_history_entry_class is repl_entry_admitted_with_explicit_unsafe_consent. Null otherwise."
+        }
+      }
+    },
+    "debug_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_schema_version",
+        "debug_session_record_id",
+        "parent_run_ref",
+        "command_dispatch_descriptor_ref",
+        "host_boundary_class",
+        "execution_context_root_ref",
+        "trust_state_ref",
+        "identity_mode_ref",
+        "debug_posture_class",
+        "stopped_state_class",
+        "process_refs",
+        "symbol_strip_summary",
+        "action_authority_summary",
+        "auto_rerun_admitted_on_this_record",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_session_record" },
+        "debug_session_schema_version": { "$ref": "#/$defs/debug_session_schema_version" },
+        "debug_session_record_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for one debug session. Debugger UI, support bundle, and release-evidence surfaces resolve this id field-for-field rather than minting a per-surface id."
+        },
+        "parent_run_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the parent run_record (schemas/execution/run.schema.json) this debug session attaches to. Captured / restored / imported sessions cite the originating run when known."
+        },
+        "parent_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the parent attempt_record (schemas/execution/attempt.schema.json) for live sessions. Null on captured / restored / imported sessions whose parent attempt is not active."
+        },
+        "originating_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the originating run_record when this session is captured / restored / imported. Null otherwise."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0016 command-dispatch entry that opened this session. Restart / rerun / reattach / reopen-dump authority resolves through this descriptor."
+        },
+        "host_boundary_class": { "$ref": "#/$defs/host_boundary_class" },
+        "remote_target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when host_boundary_class is one of the remote / managed / provider / compatibility-bridge / ai-sandbox classes."
+        },
+        "container_target_identity_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when host_boundary_class is container_local_runtime or devcontainer_runtime."
+        },
+        "execution_context_root_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0009 execution-context root the session resolved through."
+        },
+        "trust_state_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0018 trust-decision record governing this session at capture time."
+        },
+        "identity_mode_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0001 identity-mode envelope at capture time."
+        },
+        "admin_policy_epoch_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the admin-policy epoch in force at capture time. Null only in identity_mode = account_free_local with no policy pack bound."
+        },
+        "shared_terminal_control_metadata_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when debug_posture_class is debug_posture_live_shared_inspect_only or debug_posture_live_shared_with_temporary_step_grant. Null otherwise."
+        },
+        "temporary_step_grant_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when debug_posture_class is debug_posture_live_shared_with_temporary_step_grant. Cites the explicit grant row on the parent shared-control metadata. Null on every other posture."
+        },
+        "debug_posture_class": { "$ref": "#/$defs/debug_posture_class" },
+        "stopped_state_class": { "$ref": "#/$defs/stopped_state_class" },
+        "process_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to debug_process_record rows. The first entry is the root inferior; child / attached / managed-worker processes follow."
+        },
+        "variables_view_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to debug_variable_record rows currently materialised for the focused frame. Empty for sessions without a focused frame."
+        },
+        "watch_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to debug_watch_record rows that survive frame changes."
+        },
+        "repl_history_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Append-only ordered refs to debug_repl_entry_record rows. Replacing or eliding an entry is a typed denial under debug_session_record_must_not_admit_silent_overwrite_of_repl_history."
+        },
+        "crash_dump_card_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required non-null when debug_posture_class is debug_posture_captured_dump_no_live_control or debug_posture_imported_session_evidence_only with a dump-bound originating capture. Null otherwise."
+        },
+        "symbol_strip_summary": { "$ref": "#/$defs/symbol_strip_summary" },
+        "action_authority_summary": { "$ref": "#/$defs/action_authority_summary" },
+        "auto_rerun_admitted_on_this_record": {
+          "type": "boolean",
+          "description": "MUST be false on every record whose debug_posture_class is captured / restored / imported / unknown, whose parent run's latest outcome carried side_effects_irreversible_action_published, or whose REPL / watch rail resolved any evaluation_admitted_unsafe_* row. The contract forbids silent rerun under those conditions; an explicit user-initiated fresh run under a fresh command-dispatch descriptor is the only path back to a new debug session."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to audit-event ids drawn from this schema's audit_event_id vocabulary. Raw bodies never appear."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Closed denial reason when the record is published as a typed refusal. Null on admitted records."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when redaction_class is broadened_capture. Null otherwise."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Non-local host boundaries MUST cite the matching target-identity witness.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": [
+                  "ssh_remote_runtime",
+                  "remote_workspace_agent_runtime",
+                  "managed_workspace_agent_runtime",
+                  "provider_remote_agent_runtime",
+                  "compatibility_bridge_remote_runtime",
+                  "ai_sandbox_runtime"
+                ]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["remote_target_identity_witness_ref"],
+            "properties": {
+              "remote_target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Container / devcontainer host boundaries MUST cite the container target identity.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": ["container_local_runtime", "devcontainer_runtime"]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["container_target_identity_ref"],
+            "properties": {
+              "container_target_identity_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Captured / restored / imported postures MUST deny restart and reattach.",
+          "if": {
+            "properties": {
+              "debug_posture_class": {
+                "enum": [
+                  "debug_posture_captured_dump_no_live_control",
+                  "debug_posture_restored_session_no_live_control",
+                  "debug_posture_imported_session_evidence_only"
+                ]
+              }
+            },
+            "required": ["debug_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "auto_rerun_admitted_on_this_record": { "const": false },
+              "action_authority_summary": {
+                "properties": {
+                  "restart_authority_class": { "const": "restart_denied_dump_or_restored_session_inspect_only" },
+                  "reattach_authority_class": { "const": "reattach_denied_dump_or_restored_session_inspect_only" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Live shared sessions MUST cite the shared-terminal-control metadata ref.",
+          "if": {
+            "properties": {
+              "debug_posture_class": {
+                "enum": [
+                  "debug_posture_live_shared_inspect_only",
+                  "debug_posture_live_shared_with_temporary_step_grant"
+                ]
+              }
+            },
+            "required": ["debug_posture_class"]
+          },
+          "then": {
+            "required": ["shared_terminal_control_metadata_ref"],
+            "properties": {
+              "shared_terminal_control_metadata_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Live shared sessions with a temporary step grant MUST cite the explicit grant ref.",
+          "if": {
+            "properties": {
+              "debug_posture_class": { "const": "debug_posture_live_shared_with_temporary_step_grant" }
+            },
+            "required": ["debug_posture_class"]
+          },
+          "then": {
+            "required": ["temporary_step_grant_ref"],
+            "properties": {
+              "temporary_step_grant_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Captured-dump posture MUST cite a crash_dump_card_ref.",
+          "if": {
+            "properties": {
+              "debug_posture_class": { "const": "debug_posture_captured_dump_no_live_control" }
+            },
+            "required": ["debug_posture_class"]
+          },
+          "then": {
+            "required": ["crash_dump_card_ref"],
+            "properties": {
+              "crash_dump_card_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Running sessions never carry stopped-state-only conditions.",
+          "if": {
+            "properties": {
+              "stopped_state_class": { "const": "running_no_stopped_thread" }
+            },
+            "required": ["stopped_state_class"]
+          },
+          "then": {
+            "properties": {
+              "debug_posture_class": {
+                "enum": [
+                  "debug_posture_launch_local_owns_lifetime",
+                  "debug_posture_launch_remote_owns_lifetime_with_witness",
+                  "debug_posture_attach_to_local_process",
+                  "debug_posture_attach_to_remote_process_with_witness",
+                  "debug_posture_live_shared_inspect_only",
+                  "debug_posture_live_shared_with_temporary_step_grant"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
