@@ -1,0 +1,143 @@
+# yaml-language-server: $schema=../../../schemas/collab/session_topology.schema.json
+__fixture__:
+  name: relay_outage_local_continuation
+  scenario: >
+    A healthy shared editing session loses the collaboration relay. The
+    presence plane becomes unavailable first, the shared text projection
+    pauses, and local editing remains available. The topology keeps
+    canonical workspace refs separate from the shared-session operation
+    window and records a pending proposal queue for explicit local work
+    that can be reviewed after rejoin.
+  exercised_contract_sections:
+    - "Presence plane separation"
+    - "Downgrade and offline continuation"
+    - "Compaction and snapshots"
+
+records:
+  - record_kind: collab_presence_plane_record
+    session_topology_schema_version: 1
+    presence_plane_id: "collab:presence:relay-outage:01"
+    session_ref: "collab:session:relay-outage:01"
+    storage_boundary_class: presence_plane_ephemeral
+    presence_state_class: unavailable
+    presence_signal_classes:
+      - online_status
+      - cursor_position
+      - selection_range
+      - follow_target
+      - latency_health
+    follow_presenter_state_class: presenter_broadcast_degraded
+    replay_queue_policy_class: drop_ephemeral_presence_without_replay
+    sample_ttl_seconds: 15
+    retention_posture_class: not_retained_ephemeral
+    summary_label: "Relay outage dropped live presence; no presence sample will replay as edits or control."
+    minted_at: "2026-04-26T18:00:00Z"
+    expires_at: "2026-04-26T18:00:15Z"
+
+  - record_kind: collab_compaction_snapshot_record
+    session_topology_schema_version: 1
+    compaction_snapshot_id: "collab:snapshot:relay-outage:01"
+    session_ref: "collab:session:relay-outage:01"
+    storage_boundary_class: shared_session_artifact
+    compaction_state_class: snapshot_pending
+    operation_window_policy_class: bounded_by_operation_count
+    snapshot_cadence_class: on_operation_window_threshold
+    tombstone_gc_class: gc_deferred_for_anchor_drift
+    snapshot_authority_class: session_snapshot_not_canonical
+    operation_window_ref: "collab:operation-window:relay-outage:01"
+    canonical_checkpoint_refs:
+      - "workspace:checkpoint:owner:relay-outage:01"
+      - "workspace:checkpoint:participant:relay-outage:01"
+    summary_label: "Shared operation window is snapshot-pending and remains a session artifact, not canonical storage."
+    minted_at: "2026-04-26T18:00:01Z"
+
+  - record_kind: collab_offline_continuation_record
+    session_topology_schema_version: 1
+    offline_continuation_id: "collab:offline:relay-outage:01"
+    session_ref: "collab:session:relay-outage:01"
+    downgrade_state_class: relay_outage
+    offline_continuation_state_class: offline_local_safe
+    local_work_preservation_state_class: preserved_in_pending_outbound_proposal_queue
+    recovery_path_classes:
+      - rejoin_same_session_same_authority
+      - export_local_patch_for_review
+    replay_queue_policy_class: queue_explicit_idempotent_proposal_only
+    reconciliation_state_class: pending_revalidation
+    affected_actor_refs:
+      - "actor:owner:relay-outage:01"
+      - "actor:participant:relay-outage:01"
+    affected_share_scope_refs:
+      - "collab:scope:buffer-projection:relay-outage:01"
+      - "collab:scope:follow-presenter:relay-outage:01"
+    pending_proposal_queue_ref: "collab:proposal-queue:relay-outage:01"
+    local_journal_ref: "workspace:journal:participant:relay-outage:01"
+    policy_epoch_ref: "policy:epoch:relay-outage:01"
+    summary_label: "Local work continues and explicit proposals wait for revalidation before replay."
+    minted_at: "2026-04-26T18:00:02Z"
+
+  - record_kind: collab_session_topology_record
+    session_topology_schema_version: 1
+    topology_id: "collab:topology:relay-outage:01"
+    session_ref: "collab:session:relay-outage:01"
+    lifecycle_state_class: shared_degraded
+    owner_actor_ref: "actor:owner:relay-outage:01"
+    policy_epoch_ref: "policy:epoch:relay-outage:01"
+    participants:
+      - actor_ref: "actor:owner:relay-outage:01"
+        role_classes:
+          - owner
+          - editor
+          - presenter
+        share_scope_classes:
+          - buffer_projection
+          - follow_presenter_scope
+        presence_state_class: unavailable
+        follow_presenter_state_class: presenter_broadcast_degraded
+        local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+        visible_role_label: "Owner remains local-editor authoritative while shared propagation is paused."
+      - actor_ref: "actor:participant:relay-outage:01"
+        role_classes:
+          - editor
+          - navigator
+        share_scope_classes:
+          - buffer_projection
+          - follow_presenter_scope
+          - local_journal_diff_export
+        presence_state_class: unavailable
+        follow_presenter_state_class: presenter_broadcast_degraded
+        local_work_preservation_state_class: preserved_in_pending_outbound_proposal_queue
+        pending_proposal_queue_ref: "collab:proposal-queue:relay-outage:01"
+        visible_role_label: "Participant local edits are preserved for review after rejoin."
+    share_scopes:
+      - scope_ref: "collab:scope:buffer-projection:relay-outage:01"
+        share_scope_class: buffer_projection
+        storage_boundary_class: shared_session_artifact
+        canonical_source_refs:
+          - "workspace:file-ref:relay-outage:01"
+        session_artifact_refs:
+          - "collab:operation-window:relay-outage:01"
+          - "collab:snapshot:relay-outage:01"
+        authority_summary_label: "Buffer projection is paused as shared-session state; canonical file authority stays local."
+      - scope_ref: "collab:scope:follow-presenter:relay-outage:01"
+        share_scope_class: follow_presenter_scope
+        storage_boundary_class: presence_plane_ephemeral
+        session_artifact_refs:
+          - "collab:presence:relay-outage:01"
+        authority_summary_label: "Follow state is ephemeral and dropped rather than replayed."
+    canonical_project_state_refs:
+      - "workspace:file-ref:relay-outage:01"
+      - "workspace:journal:participant:relay-outage:01"
+    shared_session_artifact_refs:
+      - "collab:operation-window:relay-outage:01"
+      - "collab:snapshot:relay-outage:01"
+      - "collab:proposal-queue:relay-outage:01"
+    captured_export_evidence_refs: []
+    presence_plane_ref: "collab:presence:relay-outage:01"
+    compaction_snapshot_ref: "collab:snapshot:relay-outage:01"
+    downgrade_state_class: relay_outage
+    offline_continuation_state_class: offline_local_safe
+    reconciliation_state_class: pending_revalidation
+    retention_posture_class: bounded_session_metadata
+    redaction_profile_class: metadata_only_default
+    summary_label: "Relay outage produced a degraded shared topology while preserving local editing."
+    minted_at: "2026-04-26T18:00:03Z"

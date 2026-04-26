@@ -1,0 +1,587 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collab/shared_object_authority.schema.json",
+  "title": "Aureline collaboration shared-object authority, storage boundary, anchor drift, and export evidence boundary",
+  "description": "Boundary schema for shared-object authority records in the collaboration session layer. It separates canonical project state, shared-session artifacts, ephemeral presence, and captured export evidence; names authority and durability for each shared object; captures anchor drift; and freezes replay/export/retention/redaction posture so collaboration logs and captured artifacts do not silently become the canonical project database. Records carry opaque refs and reviewable labels only; raw buffer text, terminal bytes, debug payloads, URLs, absolute paths, user identifiers, tokens, secrets, and provider payloads never cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/collab_shared_object_authority_record" },
+    { "$ref": "#/$defs/collab_shared_object_authority_transition_record" },
+    { "$ref": "#/$defs/collab_anchor_drift_record" },
+    { "$ref": "#/$defs/collab_captured_export_record" },
+    { "$ref": "#/$defs/collab_shared_object_authority_fixture" }
+  ],
+  "$defs": {
+    "shared_object_authority_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collab_shared_object_authority_record",
+        "collab_shared_object_authority_transition_record",
+        "collab_anchor_drift_record",
+        "collab_captured_export_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id or ref safe for logs, schemas, support manifests, and evidence packets. Raw content, raw paths, raw identities, and credential material never appear here."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable label safe for shared-object inspectors, archive manifests, support bundles, and audit/export rows. It never contains raw code, shell/debug payloads, URLs, raw paths, or credential material."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "storage_boundary_class": {
+      "type": "string",
+      "enum": [
+        "canonical_project_state",
+        "shared_session_artifact",
+        "presence_plane_ephemeral",
+        "captured_export_evidence"
+      ]
+    },
+    "shared_object_class": {
+      "type": "string",
+      "enum": [
+        "editor_buffer",
+        "anchored_comment",
+        "follow_or_presenter_state",
+        "shared_terminal_control_metadata",
+        "shared_debug_control_metadata",
+        "sealed_session_archive"
+      ],
+      "description": "Shared-object classes re-exported from schemas/collaboration/shared_object.schema.json without renaming. Notebook and review sharing bind through editor_buffer, anchored_comment, and anchor_target_class rather than minting an incompatible object family."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "host_workspace_authoritative",
+        "participant_authoritative_within_session_only",
+        "presenter_authoritative_for_view_only",
+        "driver_authoritative_for_named_action",
+        "approver_authoritative_for_admission",
+        "local_authoritative_no_session_authority"
+      ],
+      "description": "Authority classes re-exported from schemas/collaboration/shared_object.schema.json without renaming. Presenter/follow authority is view-only; driver authority is lane-scoped; captured exports are immutable evidence by storage boundary and capture posture, not by a parallel authority enum."
+    },
+    "durability_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_session_only",
+        "persisted_in_local_workspace",
+        "persisted_in_local_workspace_for_owner_only",
+        "persisted_in_remote_workspace",
+        "persisted_in_sealed_archive_only"
+      ],
+      "description": "Durability classes re-exported from schemas/collaboration/shared_object.schema.json without renaming."
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "exportable_in_session_archive",
+        "exportable_in_local_workspace_only",
+        "not_exportable_ephemeral_only",
+        "exportable_metadata_only"
+      ],
+      "description": "Export-posture classes re-exported from schemas/collaboration/shared_object.schema.json without renaming."
+    },
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "live_only_no_retention",
+        "metadata_audited_no_payload_retention",
+        "replayable_review_or_teaching",
+        "support_or_regulated_retention_with_hold_eligibility"
+      ]
+    },
+    "redaction_profile_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "redacted_content_refs_only",
+        "session_archive_redacted",
+        "support_bundle_redacted",
+        "admin_policy_forced_redaction"
+      ]
+    },
+    "driver_lane_class": {
+      "type": "string",
+      "enum": [
+        "terminal_lane",
+        "debug_lane",
+        "runbook_lane",
+        "notebook_kernel_lane",
+        "build_task_lane",
+        "editor_buffer_lane",
+        "review_comment_lane"
+      ]
+    },
+    "anchor_target_class": {
+      "type": "string",
+      "enum": [
+        "buffer_byte_range_anchor",
+        "buffer_line_range_anchor",
+        "buffer_logical_node_anchor",
+        "notebook_cell_anchor",
+        "graph_node_anchor",
+        "review_diff_hunk_anchor",
+        "debug_location_anchor"
+      ]
+    },
+    "anchor_drift_state_class": {
+      "type": "string",
+      "enum": [
+        "anchor_target_match_exact",
+        "anchor_target_match_with_label_only",
+        "anchor_target_drift_label_unmatched_relocation_forbidden",
+        "anchor_target_drift_target_deleted_relocation_forbidden",
+        "anchor_target_drift_local_only_no_remote_resolution",
+        "anchor_reanchored_by_new_superseding_object"
+      ]
+    },
+    "anchor_drift_match_label_kind": {
+      "type": "string",
+      "enum": [
+        "enclosing_function_name_plus_line_offset",
+        "enclosing_class_name_plus_method_name",
+        "notebook_cell_id_plus_output_index",
+        "graph_node_label_plus_kind",
+        "diff_hunk_header_match",
+        "structural_path_match",
+        "no_match_label_available"
+      ]
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_replay_ephemeral_only",
+        "view_only_replay_allowed",
+        "import_requires_review",
+        "apply_requires_new_local_mutation",
+        "replay_blocked_policy_or_hold"
+      ],
+      "description": "Replay posture for captured artifacts. Replay is view/review by default; applying to a workspace requires a new local mutation path."
+    },
+    "delete_posture_class": {
+      "type": "string",
+      "enum": [
+        "delete_not_applicable_ephemeral",
+        "delete_local_copy_only",
+        "delete_requested_managed_copy_pending",
+        "delete_completed_receipt_logged",
+        "delete_blocked_policy_retained",
+        "delete_blocked_legal_hold"
+      ]
+    },
+    "capture_class": {
+      "type": "string",
+      "enum": [
+        "not_captured",
+        "metadata_capture",
+        "redacted_replay_capture",
+        "sealed_archive_capture",
+        "support_bundle_capture"
+      ]
+    },
+    "collab_shared_object_authority_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_object_authority_schema_version",
+        "record_kind",
+        "object_authority_id",
+        "shared_object_ref",
+        "session_ref",
+        "shared_object_class",
+        "storage_boundary_class",
+        "authority_class",
+        "durability_class",
+        "export_posture_class",
+        "retention_posture_class",
+        "redaction_profile_class",
+        "owner_actor_ref",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_shared_object_authority_record" },
+        "shared_object_authority_schema_version": { "$ref": "#/$defs/shared_object_authority_schema_version" },
+        "object_authority_id": { "$ref": "#/$defs/opaque_id" },
+        "shared_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "shared_object_class": { "$ref": "#/$defs/shared_object_class" },
+        "storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "durability_class": { "$ref": "#/$defs/durability_class" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "redaction_profile_class": { "$ref": "#/$defs/redaction_profile_class" },
+        "owner_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "author_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_source_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "presence_plane_ref": { "$ref": "#/$defs/opaque_id" },
+        "capture_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "driver_lane_class": { "$ref": "#/$defs/driver_lane_class" },
+        "anchor_target_class": { "$ref": "#/$defs/anchor_target_class" },
+        "anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "storage_boundary_class": { "const": "canonical_project_state" }
+            }
+          },
+          "then": {
+            "required": ["canonical_source_ref"],
+            "properties": {
+              "authority_class": { "const": "host_workspace_authoritative" },
+              "export_posture_class": { "enum": ["exportable_in_local_workspace_only", "exportable_metadata_only"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "storage_boundary_class": { "const": "presence_plane_ephemeral" }
+            }
+          },
+          "then": {
+            "required": ["presence_plane_ref"],
+            "properties": {
+              "durability_class": { "const": "ephemeral_session_only" },
+              "export_posture_class": { "const": "not_exportable_ephemeral_only" },
+              "retention_posture_class": { "const": "live_only_no_retention" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "storage_boundary_class": { "const": "captured_export_evidence" }
+            }
+          },
+          "then": {
+            "required": ["capture_manifest_ref"],
+            "properties": {
+              "authority_class": { "const": "host_workspace_authoritative" },
+              "durability_class": { "const": "persisted_in_sealed_archive_only" },
+              "export_posture_class": { "enum": ["exportable_in_session_archive", "exportable_metadata_only"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authority_class": { "const": "driver_authoritative_for_named_action" }
+            }
+          },
+          "then": {
+            "required": ["driver_lane_class"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "shared_object_class": {
+                "const": "anchored_comment"
+              }
+            }
+          },
+          "then": {
+            "required": ["anchor_target_class", "anchor_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "shared_object_class": {
+                "const": "follow_or_presenter_state"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "presenter_authoritative_for_view_only" }
+            }
+          }
+        }
+      ],
+      "description": "Authority row for one shared object. It names the storage boundary and authority so shared-session logs, ephemeral presence, canonical project state, and captured evidence cannot collapse into one ambiguous object."
+    },
+    "collab_shared_object_authority_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_object_authority_schema_version",
+        "record_kind",
+        "authority_transition_id",
+        "shared_object_ref",
+        "session_ref",
+        "prior_authority_class",
+        "next_authority_class",
+        "prior_storage_boundary_class",
+        "next_storage_boundary_class",
+        "transition_reason_class",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_shared_object_authority_transition_record" },
+        "shared_object_authority_schema_version": { "$ref": "#/$defs/shared_object_authority_schema_version" },
+        "authority_transition_id": { "$ref": "#/$defs/opaque_id" },
+        "shared_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "prior_authority_class": { "$ref": "#/$defs/authority_class" },
+        "next_authority_class": { "$ref": "#/$defs/authority_class" },
+        "prior_storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "next_storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "transition_reason_class": {
+          "type": "string",
+          "enum": [
+            "session_admitted_shared_projection",
+            "participant_viewer_fallback",
+            "relay_outage_local_authority_only",
+            "archive_seal_minted_evidence",
+            "explicit_import_to_local_workspace",
+            "policy_narrowed_authority",
+            "control_grant_admitted",
+            "control_grant_revoked"
+          ]
+        },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "next_authority_class": {
+                "enum": [
+                  "driver_authoritative_for_named_action",
+                  "approver_authoritative_for_admission"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition_reason_class": { "const": "explicit_import_to_local_workspace" }
+            }
+          },
+          "then": {
+            "properties": {
+              "next_storage_boundary_class": { "const": "canonical_project_state" },
+              "next_authority_class": { "const": "host_workspace_authoritative" }
+            }
+          }
+        }
+      ],
+      "description": "Authority transition row. Movement from session/evidence into canonical project state is only admitted through an explicit import/apply path that writes new local mutations."
+    },
+    "collab_anchor_drift_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_object_authority_schema_version",
+        "record_kind",
+        "anchor_drift_id",
+        "shared_object_ref",
+        "session_ref",
+        "anchor_target_class",
+        "anchor_drift_state_class",
+        "export_posture_class",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_anchor_drift_record" },
+        "shared_object_authority_schema_version": { "$ref": "#/$defs/shared_object_authority_schema_version" },
+        "anchor_drift_id": { "$ref": "#/$defs/opaque_id" },
+        "shared_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_target_class": { "$ref": "#/$defs/anchor_target_class" },
+        "anchor_drift_state_class": { "$ref": "#/$defs/anchor_drift_state_class" },
+        "anchor_drift_match_label_kind": { "$ref": "#/$defs/anchor_drift_match_label_kind" },
+        "anchor_drift_match_label_value": { "$ref": "#/$defs/reviewable_sentence" },
+        "superseded_by_shared_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "anchor_drift_state_class": { "const": "anchor_target_match_with_label_only" }
+            }
+          },
+          "then": {
+            "required": ["anchor_drift_match_label_kind", "anchor_drift_match_label_value"],
+            "properties": {
+              "anchor_drift_match_label_kind": {
+                "not": { "const": "no_match_label_available" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "anchor_drift_state_class": {
+                "enum": [
+                  "anchor_target_drift_label_unmatched_relocation_forbidden",
+                  "anchor_target_drift_target_deleted_relocation_forbidden"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "export_posture_class": { "const": "exportable_metadata_only" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "anchor_drift_state_class": { "const": "anchor_reanchored_by_new_superseding_object" }
+            }
+          },
+          "then": {
+            "required": ["superseded_by_shared_object_ref"]
+          }
+        }
+      ],
+      "description": "Anchor drift row. Ambiguous or deleted anchors remain explicit metadata-only drift states; silent relocation is forbidden. Legal re-anchoring mints a new superseding shared object."
+    },
+    "collab_captured_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_object_authority_schema_version",
+        "record_kind",
+        "captured_export_id",
+        "session_ref",
+        "capture_class",
+        "source_storage_boundary_class",
+        "result_storage_boundary_class",
+        "replay_posture_class",
+        "retention_posture_class",
+        "delete_posture_class",
+        "redaction_profile_class",
+        "capture_manifest_ref",
+        "attribution_actor_refs",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_captured_export_record" },
+        "shared_object_authority_schema_version": { "$ref": "#/$defs/shared_object_authority_schema_version" },
+        "captured_export_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "capture_class": { "$ref": "#/$defs/capture_class" },
+        "source_storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "result_storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "replay_posture_class": { "$ref": "#/$defs/replay_posture_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "redaction_profile_class": { "$ref": "#/$defs/redaction_profile_class" },
+        "capture_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_shared_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "omitted_or_redacted_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "attribution_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "result_storage_boundary_class": { "const": "captured_export_evidence" }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "capture_class": { "const": "not_captured" }
+            }
+          },
+          "then": {
+            "properties": {
+              "replay_posture_class": { "const": "no_replay_ephemeral_only" },
+              "delete_posture_class": { "const": "delete_not_applicable_ephemeral" }
+            }
+          }
+        }
+      ],
+      "description": "Captured export/evidence row. Captured artifacts carry attribution, retention, delete, replay, and redaction posture and never become canonical project state without an explicit import/apply mutation."
+    },
+    "fixture_prelude": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "collab_shared_object_authority_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["__fixture__", "records"],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_prelude" },
+        "records": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/collab_shared_object_authority_record" },
+              { "$ref": "#/$defs/collab_shared_object_authority_transition_record" },
+              { "$ref": "#/$defs/collab_anchor_drift_record" },
+              { "$ref": "#/$defs/collab_captured_export_record" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

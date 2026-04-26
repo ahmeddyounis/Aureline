@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=../../../schemas/collab/session_topology.schema.json
+__fixture__:
+  name: viewer_fallback_unsent_work
+  scenario: >
+    A participant loses edit admission after a policy narrowing. The
+    session moves to a participant-degraded topology, future shared
+    writes stop, and unsent local edits are preserved in the pending
+    outbound proposal queue and local journal for diff/export recovery.
+  exercised_contract_sections:
+    - "Participant role and share-scope topology"
+    - "Unsent local work preservation"
+    - "Reconciliation pending review"
+
+records:
+  - record_kind: collab_presence_plane_record
+    session_topology_schema_version: 1
+    presence_plane_id: "collab:presence:viewer-fallback:01"
+    session_ref: "collab:session:viewer-fallback:01"
+    storage_boundary_class: presence_plane_ephemeral
+    presence_state_class: active
+    presence_signal_classes:
+      - online_status
+      - cursor_position
+      - selection_range
+      - active_pane
+    follow_presenter_state_class: follow_paused_local_view
+    replay_queue_policy_class: drop_ephemeral_presence_without_replay
+    sample_ttl_seconds: 20
+    retention_posture_class: not_retained_ephemeral
+    summary_label: "Presence remains active, but the downgraded participant's local view is independent."
+    minted_at: "2026-04-26T18:10:00Z"
+    expires_at: "2026-04-26T18:10:20Z"
+
+  - record_kind: collab_offline_continuation_record
+    session_topology_schema_version: 1
+    offline_continuation_id: "collab:offline:viewer-fallback:01"
+    session_ref: "collab:session:viewer-fallback:01"
+    downgrade_state_class: viewer_fallback
+    offline_continuation_state_class: reconciliation_pending_review
+    local_work_preservation_state_class: preserved_in_pending_outbound_proposal_queue
+    recovery_path_classes:
+      - rejoin_same_session_viewer_only
+      - recover_via_local_journal_diff_export
+      - export_local_patch_for_review
+    replay_queue_policy_class: queue_explicit_idempotent_proposal_only
+    reconciliation_state_class: ready_for_review
+    affected_actor_refs:
+      - "actor:participant:viewer-fallback:01"
+    affected_share_scope_refs:
+      - "collab:scope:buffer-projection:viewer-fallback:participant"
+    pending_proposal_queue_ref: "collab:proposal-queue:viewer-fallback:01"
+    local_journal_ref: "workspace:journal:viewer-fallback:participant"
+    policy_epoch_ref: "policy:epoch:viewer-fallback:narrowed"
+    summary_label: "Participant is viewer-only; unsent proposals are preserved and require review before replay."
+    minted_at: "2026-04-26T18:10:01Z"
+
+  - record_kind: collab_compaction_snapshot_record
+    session_topology_schema_version: 1
+    compaction_snapshot_id: "collab:snapshot:viewer-fallback:01"
+    session_ref: "collab:session:viewer-fallback:01"
+    storage_boundary_class: shared_session_artifact
+    compaction_state_class: compaction_blocked_unsent_work
+    operation_window_policy_class: bounded_by_snapshot_epoch
+    snapshot_cadence_class: manual_admin_or_owner_request
+    tombstone_gc_class: gc_deferred_for_policy_hold
+    snapshot_authority_class: session_snapshot_not_canonical
+    operation_window_ref: "collab:operation-window:viewer-fallback:01"
+    blocked_local_work_refs:
+      - "collab:proposal-queue:viewer-fallback:01"
+      - "workspace:journal:viewer-fallback:participant"
+    summary_label: "Compaction is blocked until unsent local work is reviewed or exported."
+    minted_at: "2026-04-26T18:10:02Z"
+
+  - record_kind: collab_session_topology_record
+    session_topology_schema_version: 1
+    topology_id: "collab:topology:viewer-fallback:01"
+    session_ref: "collab:session:viewer-fallback:01"
+    lifecycle_state_class: participant_degraded
+    owner_actor_ref: "actor:owner:viewer-fallback:01"
+    policy_epoch_ref: "policy:epoch:viewer-fallback:narrowed"
+    participants:
+      - actor_ref: "actor:owner:viewer-fallback:01"
+        role_classes:
+          - owner
+          - editor
+        share_scope_classes:
+          - buffer_projection
+          - review_comment_scope
+        presence_state_class: active
+        follow_presenter_state_class: no_follow_active
+        local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+        visible_role_label: "Owner remains host-authoritative for shared buffer admission."
+      - actor_ref: "actor:participant:viewer-fallback:01"
+        role_classes:
+          - viewer
+          - reviewer
+        share_scope_classes:
+          - buffer_projection
+          - local_journal_diff_export
+        presence_state_class: active
+        follow_presenter_state_class: follow_paused_local_view
+        local_work_preservation_state_class: preserved_in_pending_outbound_proposal_queue
+        pending_proposal_queue_ref: "collab:proposal-queue:viewer-fallback:01"
+        visible_role_label: "Participant is viewer-only; local proposals remain recoverable."
+    share_scopes:
+      - scope_ref: "collab:scope:buffer-projection:viewer-fallback:owner"
+        share_scope_class: buffer_projection
+        storage_boundary_class: shared_session_artifact
+        canonical_source_refs:
+          - "workspace:file-ref:viewer-fallback:01"
+        session_artifact_refs:
+          - "collab:operation-window:viewer-fallback:01"
+        authority_summary_label: "Owner-admitted shared buffer projection remains session-scoped."
+      - scope_ref: "collab:scope:buffer-projection:viewer-fallback:participant"
+        share_scope_class: local_journal_diff_export
+        storage_boundary_class: canonical_project_state
+        canonical_source_refs:
+          - "workspace:journal:viewer-fallback:participant"
+        session_artifact_refs:
+          - "collab:proposal-queue:viewer-fallback:01"
+        authority_summary_label: "Participant unsent work is local project/recovery state, not shared truth."
+    canonical_project_state_refs:
+      - "workspace:file-ref:viewer-fallback:01"
+      - "workspace:journal:viewer-fallback:participant"
+    shared_session_artifact_refs:
+      - "collab:operation-window:viewer-fallback:01"
+      - "collab:proposal-queue:viewer-fallback:01"
+      - "collab:snapshot:viewer-fallback:01"
+    captured_export_evidence_refs: []
+    presence_plane_ref: "collab:presence:viewer-fallback:01"
+    compaction_snapshot_ref: "collab:snapshot:viewer-fallback:01"
+    downgrade_state_class: viewer_fallback
+    offline_continuation_state_class: reconciliation_pending_review
+    reconciliation_state_class: ready_for_review
+    retention_posture_class: local_workspace_retained
+    redaction_profile_class: redacted_content_refs_only
+    summary_label: "Viewer fallback preserves unsent local work and blocks compaction until reviewed."
+    minted_at: "2026-04-26T18:10:03Z"

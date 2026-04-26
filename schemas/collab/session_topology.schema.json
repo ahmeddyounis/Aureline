@@ -1,0 +1,658 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collab/session_topology.schema.json",
+  "title": "Aureline collaboration session topology, presence plane, compaction, and offline-continuation boundary",
+  "description": "Boundary schema for collaboration session topology records. This schema keeps CRDT-style session artifacts, ephemeral presence, canonical project state refs, and captured export evidence separate. It covers participant roles, share scopes, unsent-local-work preservation, presenter/follow semantics, compaction and snapshot posture, and typed downgrade or offline-continuation states. Records carry opaque refs and reviewable labels only; raw buffer text, terminal bytes, debug payloads, URLs, absolute paths, user identifiers, tokens, secrets, and provider payloads never cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/collab_session_topology_record" },
+    { "$ref": "#/$defs/collab_presence_plane_record" },
+    { "$ref": "#/$defs/collab_compaction_snapshot_record" },
+    { "$ref": "#/$defs/collab_offline_continuation_record" },
+    { "$ref": "#/$defs/collab_session_topology_fixture" }
+  ],
+  "$defs": {
+    "session_topology_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collab_session_topology_record",
+        "collab_presence_plane_record",
+        "collab_compaction_snapshot_record",
+        "collab_offline_continuation_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id or ref safe for logs, schemas, support manifests, and evidence packets. Raw content, raw paths, raw identities, and credential material never appear here."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable label safe for session strips, audit trays, export manifests, and support bundles. It never contains raw code, shell/debug payloads, URLs, raw paths, or credential material."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "session_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "solo",
+        "publish_pending",
+        "shared_active",
+        "participant_degraded",
+        "shared_degraded",
+        "ended",
+        "archived"
+      ],
+      "description": "Session lifecycle vocabulary inherited from the collaboration session-authority contract."
+    },
+    "participant_role_class": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "editor",
+        "viewer",
+        "presenter",
+        "co_presenter",
+        "driver",
+        "navigator",
+        "reviewer",
+        "commenter",
+        "observer",
+        "approver",
+        "support_agent"
+      ],
+      "description": "Role class for one participant in one session. Roles do not by themselves widen workspace trust, terminal/debug authority, or file-system write authority."
+    },
+    "share_scope_class": {
+      "type": "string",
+      "enum": [
+        "buffer_projection",
+        "notebook_projection",
+        "review_comment_scope",
+        "follow_presenter_scope",
+        "terminal_control_metadata",
+        "debug_control_metadata",
+        "workspace_read_only_context",
+        "local_journal_diff_export",
+        "sealed_archive_scope"
+      ],
+      "description": "Scope shared into the session. Text, notebook, terminal/debug metadata, local-journal export, and sealed archive scopes stay distinct."
+    },
+    "storage_boundary_class": {
+      "type": "string",
+      "enum": [
+        "canonical_project_state",
+        "shared_session_artifact",
+        "presence_plane_ephemeral",
+        "captured_export_evidence"
+      ],
+      "description": "Storage boundary for a row or ref. The collaboration session layer may reference canonical project state but does not become canonical project state."
+    },
+    "presence_signal_class": {
+      "type": "string",
+      "enum": [
+        "online_status",
+        "cursor_position",
+        "selection_range",
+        "viewport_scroll",
+        "active_pane",
+        "follow_target",
+        "presenter_focus",
+        "latency_health",
+        "typing_activity"
+      ]
+    },
+    "presence_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "degraded_sampled",
+        "stale_last_seen",
+        "unavailable",
+        "expired"
+      ],
+      "description": "Presence plane state. Presence may disappear without implying edit rollback, save order, or control transfer."
+    },
+    "follow_presenter_state_class": {
+      "type": "string",
+      "enum": [
+        "no_follow_active",
+        "following_presenter",
+        "follow_paused_local_view",
+        "presenter_broadcast_active",
+        "presenter_broadcast_degraded",
+        "presenter_handoff_required",
+        "presenter_handoff_not_queueable"
+      ],
+      "description": "Follow/presenter semantics for topology and presence records. Presenter/follow state is view authority only."
+    },
+    "compaction_state_class": {
+      "type": "string",
+      "enum": [
+        "live_operation_window",
+        "snapshot_pending",
+        "snapshot_compacted",
+        "archive_sealed_snapshot",
+        "compaction_blocked_unsent_work",
+        "compaction_blocked_policy_hold"
+      ]
+    },
+    "operation_window_policy_class": {
+      "type": "string",
+      "enum": [
+        "bounded_by_operation_count",
+        "bounded_by_elapsed_time",
+        "bounded_by_snapshot_epoch",
+        "bounded_by_retention_policy"
+      ]
+    },
+    "snapshot_cadence_class": {
+      "type": "string",
+      "enum": [
+        "on_join",
+        "on_operation_window_threshold",
+        "on_archive_seal",
+        "manual_admin_or_owner_request",
+        "disabled_live_only"
+      ]
+    },
+    "tombstone_gc_class": {
+      "type": "string",
+      "enum": [
+        "gc_after_snapshot_ack",
+        "gc_after_archive_seal",
+        "gc_deferred_for_anchor_drift",
+        "gc_deferred_for_policy_hold",
+        "gc_disabled_live_only"
+      ]
+    },
+    "snapshot_authority_class": {
+      "type": "string",
+      "enum": [
+        "session_snapshot_not_canonical",
+        "local_workspace_checkpoint_ref",
+        "sealed_archive_evidence_snapshot"
+      ],
+      "description": "Authority of a session snapshot. A session snapshot is not a writable canonical file unless it is imported through a fresh local-workspace mutation path."
+    },
+    "downgrade_state_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade",
+        "participant_degraded",
+        "shared_degraded",
+        "viewer_fallback",
+        "relay_outage",
+        "provider_outage",
+        "policy_narrowed",
+        "archive_deferred",
+        "ended_offline_archive_pending"
+      ]
+    },
+    "offline_continuation_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_session",
+        "offline_local_safe",
+        "reconciliation_pending_review",
+        "provider_unavailable_local_continuation",
+        "manual_rejoin_required",
+        "archive_only_replay_available",
+        "ended_no_live_claim"
+      ],
+      "description": "Typed offline or degraded-continuation state. Offline continuation is a narrowing and never claims false parity with a live shared session."
+    },
+    "local_work_preservation_state_class": {
+      "type": "string",
+      "enum": [
+        "preserved_in_local_buffer_unchanged",
+        "preserved_in_local_journal_with_annotation",
+        "preserved_in_pending_outbound_proposal_queue",
+        "not_preserved_explicit_user_discard",
+        "not_preserved_explicit_admin_discard"
+      ]
+    },
+    "recovery_path_class": {
+      "type": "string",
+      "enum": [
+        "rejoin_same_session_same_authority",
+        "rejoin_same_session_viewer_only",
+        "rejoin_new_session_with_diff_to_local",
+        "recover_via_local_journal_diff_export",
+        "recover_via_sealed_archive_replay",
+        "manual_rejoin_fresh_grant_required",
+        "export_local_patch_for_review"
+      ]
+    },
+    "replay_queue_policy_class": {
+      "type": "string",
+      "enum": [
+        "not_queueable_live_authority_required",
+        "queue_explicit_idempotent_proposal_only",
+        "drop_ephemeral_presence_without_replay",
+        "manual_rejoin_or_fresh_grant_required"
+      ],
+      "description": "Offline queue policy. Control grants, presenter handoffs, shared terminal/debug input, and other live-authority actions are not silently queued."
+    },
+    "reconciliation_state_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending_revalidation",
+        "ready_for_review",
+        "replay_admitted",
+        "replay_denied_policy_or_target_drift",
+        "superseded_by_local_export"
+      ]
+    },
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_retained_ephemeral",
+        "bounded_session_metadata",
+        "local_workspace_retained",
+        "sealed_archive_retained",
+        "support_or_regulated_retained"
+      ]
+    },
+    "redaction_profile_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "redacted_content_refs_only",
+        "session_archive_redacted",
+        "support_bundle_redacted",
+        "admin_policy_forced_redaction"
+      ]
+    },
+    "participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_ref",
+        "role_classes",
+        "share_scope_classes",
+        "presence_state_class"
+      ],
+      "properties": {
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "role_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/participant_role_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "share_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/share_scope_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "presence_state_class": { "$ref": "#/$defs/presence_state_class" },
+        "follow_presenter_state_class": { "$ref": "#/$defs/follow_presenter_state_class" },
+        "local_work_preservation_state_class": { "$ref": "#/$defs/local_work_preservation_state_class" },
+        "pending_proposal_queue_ref": { "$ref": "#/$defs/opaque_id" },
+        "visible_role_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "share_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_ref",
+        "share_scope_class",
+        "storage_boundary_class",
+        "authority_summary_label"
+      ],
+      "properties": {
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "share_scope_class": { "$ref": "#/$defs/share_scope_class" },
+        "storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "canonical_source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "session_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "captured_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "authority_summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "collab_session_topology_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_topology_schema_version",
+        "record_kind",
+        "topology_id",
+        "session_ref",
+        "lifecycle_state_class",
+        "owner_actor_ref",
+        "participants",
+        "share_scopes",
+        "presence_plane_ref",
+        "compaction_snapshot_ref",
+        "downgrade_state_class",
+        "offline_continuation_state_class",
+        "retention_posture_class",
+        "redaction_profile_class",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_session_topology_record" },
+        "session_topology_schema_version": { "$ref": "#/$defs/session_topology_schema_version" },
+        "topology_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_state_class": { "$ref": "#/$defs/session_lifecycle_state_class" },
+        "owner_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "participants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/participant" },
+          "minItems": 1
+        },
+        "share_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/share_scope" },
+          "minItems": 1
+        },
+        "canonical_project_state_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "shared_session_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "captured_export_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "presence_plane_ref": { "$ref": "#/$defs/opaque_id" },
+        "compaction_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "downgrade_state_class": { "$ref": "#/$defs/downgrade_state_class" },
+        "offline_continuation_state_class": { "$ref": "#/$defs/offline_continuation_state_class" },
+        "reconciliation_state_class": { "$ref": "#/$defs/reconciliation_state_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "redaction_profile_class": { "$ref": "#/$defs/redaction_profile_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" },
+        "ended_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "description": "Topology record for one collaboration session. The row binds participant roles, share scopes, canonical project-state refs, shared-session artifact refs, captured evidence refs, presence-plane refs, and downgrade/offline posture without collapsing storage boundaries."
+    },
+    "collab_presence_plane_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_topology_schema_version",
+        "record_kind",
+        "presence_plane_id",
+        "session_ref",
+        "storage_boundary_class",
+        "presence_state_class",
+        "presence_signal_classes",
+        "follow_presenter_state_class",
+        "replay_queue_policy_class",
+        "retention_posture_class",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_presence_plane_record" },
+        "session_topology_schema_version": { "$ref": "#/$defs/session_topology_schema_version" },
+        "presence_plane_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "presence_state_class": { "$ref": "#/$defs/presence_state_class" },
+        "presence_signal_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/presence_signal_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "follow_presenter_state_class": { "$ref": "#/$defs/follow_presenter_state_class" },
+        "replay_queue_policy_class": { "$ref": "#/$defs/replay_queue_policy_class" },
+        "sample_ttl_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "storage_boundary_class": { "const": "presence_plane_ephemeral" }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "presence_state_class": {
+                "enum": ["unavailable", "expired"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "replay_queue_policy_class": { "const": "drop_ephemeral_presence_without_replay" },
+              "retention_posture_class": { "const": "not_retained_ephemeral" }
+            }
+          }
+        }
+      ],
+      "description": "Presence-plane row. Presence is ephemeral, may be dropped or sampled, and never replays as edit authority, save ordering, control grants, or presenter handoff."
+    },
+    "collab_compaction_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_topology_schema_version",
+        "record_kind",
+        "compaction_snapshot_id",
+        "session_ref",
+        "storage_boundary_class",
+        "compaction_state_class",
+        "operation_window_policy_class",
+        "snapshot_cadence_class",
+        "tombstone_gc_class",
+        "snapshot_authority_class",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_compaction_snapshot_record" },
+        "session_topology_schema_version": { "$ref": "#/$defs/session_topology_schema_version" },
+        "compaction_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "storage_boundary_class": { "$ref": "#/$defs/storage_boundary_class" },
+        "compaction_state_class": { "$ref": "#/$defs/compaction_state_class" },
+        "operation_window_policy_class": { "$ref": "#/$defs/operation_window_policy_class" },
+        "snapshot_cadence_class": { "$ref": "#/$defs/snapshot_cadence_class" },
+        "tombstone_gc_class": { "$ref": "#/$defs/tombstone_gc_class" },
+        "snapshot_authority_class": { "$ref": "#/$defs/snapshot_authority_class" },
+        "operation_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "blocked_local_work_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "storage_boundary_class": { "enum": ["shared_session_artifact", "captured_export_evidence"] }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "compaction_state_class": { "const": "compaction_blocked_unsent_work" }
+            }
+          },
+          "then": {
+            "required": ["blocked_local_work_refs"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "snapshot_authority_class": { "const": "sealed_archive_evidence_snapshot" }
+            }
+          },
+          "then": {
+            "properties": {
+              "storage_boundary_class": { "const": "captured_export_evidence" }
+            }
+          }
+        }
+      ],
+      "description": "Compaction and snapshot row for a CRDT-style session artifact. Snapshot authority stays distinct from canonical workspace authority."
+    },
+    "collab_offline_continuation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_topology_schema_version",
+        "record_kind",
+        "offline_continuation_id",
+        "session_ref",
+        "downgrade_state_class",
+        "offline_continuation_state_class",
+        "local_work_preservation_state_class",
+        "recovery_path_classes",
+        "replay_queue_policy_class",
+        "reconciliation_state_class",
+        "affected_actor_refs",
+        "summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collab_offline_continuation_record" },
+        "session_topology_schema_version": { "$ref": "#/$defs/session_topology_schema_version" },
+        "offline_continuation_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "downgrade_state_class": { "$ref": "#/$defs/downgrade_state_class" },
+        "offline_continuation_state_class": { "$ref": "#/$defs/offline_continuation_state_class" },
+        "local_work_preservation_state_class": { "$ref": "#/$defs/local_work_preservation_state_class" },
+        "recovery_path_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_path_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "replay_queue_policy_class": { "$ref": "#/$defs/replay_queue_policy_class" },
+        "reconciliation_state_class": { "$ref": "#/$defs/reconciliation_state_class" },
+        "affected_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "affected_share_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "pending_proposal_queue_ref": { "$ref": "#/$defs/opaque_id" },
+        "local_journal_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "replay_queue_policy_class": { "const": "queue_explicit_idempotent_proposal_only" }
+            }
+          },
+          "then": {
+            "required": ["pending_proposal_queue_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "local_work_preservation_state_class": {
+                "enum": [
+                  "preserved_in_local_journal_with_annotation",
+                  "preserved_in_pending_outbound_proposal_queue"
+                ]
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["pending_proposal_queue_ref"] },
+              { "required": ["local_journal_ref"] }
+            ]
+          }
+        }
+      ],
+      "description": "Offline-continuation or downgrade row. The row makes local-work preservation, queue policy, recovery, and reconciliation explicit instead of claiming live-session parity."
+    },
+    "fixture_prelude": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "collab_session_topology_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["__fixture__", "records"],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_prelude" },
+        "records": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/collab_session_topology_record" },
+              { "$ref": "#/$defs/collab_presence_plane_record" },
+              { "$ref": "#/$defs/collab_compaction_snapshot_record" },
+              { "$ref": "#/$defs/collab_offline_continuation_record" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

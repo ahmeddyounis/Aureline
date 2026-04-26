@@ -1,0 +1,128 @@
+# yaml-language-server: $schema=../../../schemas/collab/session_topology.schema.json
+__fixture__:
+  name: presenter_follow_presence_ephemeral
+  scenario: >
+    A presenter broadcast degrades while participants are following.
+    The follow state remains an ephemeral presence-plane object. The
+    session offers manual rejoin or a fresh presenter grant; it does not
+    queue a hidden presenter handoff or infer terminal/debug control
+    from the presenter's role.
+  exercised_contract_sections:
+    - "Presence plane"
+    - "Presenter and follow semantics"
+    - "Offline queue policy"
+
+records:
+  - record_kind: collab_presence_plane_record
+    session_topology_schema_version: 1
+    presence_plane_id: "collab:presence:presenter-follow:01"
+    session_ref: "collab:session:presenter-follow:01"
+    storage_boundary_class: presence_plane_ephemeral
+    presence_state_class: degraded_sampled
+    presence_signal_classes:
+      - online_status
+      - viewport_scroll
+      - active_pane
+      - follow_target
+      - presenter_focus
+      - latency_health
+    follow_presenter_state_class: presenter_handoff_not_queueable
+    replay_queue_policy_class: manual_rejoin_or_fresh_grant_required
+    sample_ttl_seconds: 10
+    retention_posture_class: not_retained_ephemeral
+    summary_label: "Presenter follow degraded; handoff is not queued and must be re-admitted live."
+    minted_at: "2026-04-26T18:20:00Z"
+    expires_at: "2026-04-26T18:20:10Z"
+
+  - record_kind: collab_compaction_snapshot_record
+    session_topology_schema_version: 1
+    compaction_snapshot_id: "collab:snapshot:presenter-follow:01"
+    session_ref: "collab:session:presenter-follow:01"
+    storage_boundary_class: shared_session_artifact
+    compaction_state_class: live_operation_window
+    operation_window_policy_class: bounded_by_elapsed_time
+    snapshot_cadence_class: disabled_live_only
+    tombstone_gc_class: gc_disabled_live_only
+    snapshot_authority_class: session_snapshot_not_canonical
+    operation_window_ref: "collab:operation-window:presenter-follow:01"
+    summary_label: "Follow/presenter state remains live-only and is not retained as edit history."
+    minted_at: "2026-04-26T18:20:01Z"
+
+  - record_kind: collab_offline_continuation_record
+    session_topology_schema_version: 1
+    offline_continuation_id: "collab:offline:presenter-follow:01"
+    session_ref: "collab:session:presenter-follow:01"
+    downgrade_state_class: participant_degraded
+    offline_continuation_state_class: manual_rejoin_required
+    local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+    recovery_path_classes:
+      - manual_rejoin_fresh_grant_required
+    replay_queue_policy_class: manual_rejoin_or_fresh_grant_required
+    reconciliation_state_class: not_required
+    affected_actor_refs:
+      - "actor:participant:presenter-follow:01"
+    affected_share_scope_refs:
+      - "collab:scope:follow-presenter:presenter-follow:01"
+    summary_label: "Participant must manually rejoin follow; no control or presenter handoff is replayed."
+    minted_at: "2026-04-26T18:20:02Z"
+
+  - record_kind: collab_session_topology_record
+    session_topology_schema_version: 1
+    topology_id: "collab:topology:presenter-follow:01"
+    session_ref: "collab:session:presenter-follow:01"
+    lifecycle_state_class: participant_degraded
+    owner_actor_ref: "actor:owner:presenter-follow:01"
+    policy_epoch_ref: "policy:epoch:presenter-follow:01"
+    participants:
+      - actor_ref: "actor:owner:presenter-follow:01"
+        role_classes:
+          - owner
+          - presenter
+        share_scope_classes:
+          - follow_presenter_scope
+          - workspace_read_only_context
+        presence_state_class: degraded_sampled
+        follow_presenter_state_class: presenter_broadcast_degraded
+        local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+        visible_role_label: "Presenter may direct view state only; no mutation rides this role."
+      - actor_ref: "actor:participant:presenter-follow:01"
+        role_classes:
+          - observer
+          - navigator
+        share_scope_classes:
+          - follow_presenter_scope
+          - workspace_read_only_context
+        presence_state_class: degraded_sampled
+        follow_presenter_state_class: presenter_handoff_not_queueable
+        local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+        visible_role_label: "Follower keeps local view and must rejoin for fresh follow state."
+    share_scopes:
+      - scope_ref: "collab:scope:follow-presenter:presenter-follow:01"
+        share_scope_class: follow_presenter_scope
+        storage_boundary_class: presence_plane_ephemeral
+        session_artifact_refs:
+          - "collab:presence:presenter-follow:01"
+        authority_summary_label: "Follow state is ephemeral view state and never confers mutating authority."
+      - scope_ref: "collab:scope:workspace-context:presenter-follow:01"
+        share_scope_class: workspace_read_only_context
+        storage_boundary_class: shared_session_artifact
+        canonical_source_refs:
+          - "workspace:graph-ref:presenter-follow:01"
+        session_artifact_refs:
+          - "collab:operation-window:presenter-follow:01"
+        authority_summary_label: "Read-only context projection remains separate from presenter/follow state."
+    canonical_project_state_refs:
+      - "workspace:graph-ref:presenter-follow:01"
+    shared_session_artifact_refs:
+      - "collab:operation-window:presenter-follow:01"
+      - "collab:snapshot:presenter-follow:01"
+    captured_export_evidence_refs: []
+    presence_plane_ref: "collab:presence:presenter-follow:01"
+    compaction_snapshot_ref: "collab:snapshot:presenter-follow:01"
+    downgrade_state_class: participant_degraded
+    offline_continuation_state_class: manual_rejoin_required
+    reconciliation_state_class: not_required
+    retention_posture_class: bounded_session_metadata
+    redaction_profile_class: metadata_only_default
+    summary_label: "Presenter/follow degradation stays in the ephemeral presence plane."
+    minted_at: "2026-04-26T18:20:03Z"

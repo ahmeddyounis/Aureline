@@ -1,0 +1,139 @@
+# yaml-language-server: $schema=../../../schemas/collab/session_topology.schema.json
+__fixture__:
+  name: provider_outage_archive_deferred
+  scenario: >
+    A managed archive provider is unavailable when a retained review
+    session ends. Local journals, the redacted archive manifest, and
+    pending proposals remain local and attributable. The session does
+    not claim the provider archive is complete; reconciliation is
+    pending review after the provider returns.
+  exercised_contract_sections:
+    - "Provider outage continuation"
+    - "Archive deferred state"
+    - "Local evidence preservation"
+
+records:
+  - record_kind: collab_presence_plane_record
+    session_topology_schema_version: 1
+    presence_plane_id: "collab:presence:provider-outage:01"
+    session_ref: "collab:session:provider-outage:01"
+    storage_boundary_class: presence_plane_ephemeral
+    presence_state_class: expired
+    presence_signal_classes:
+      - online_status
+      - presenter_focus
+      - latency_health
+    follow_presenter_state_class: no_follow_active
+    replay_queue_policy_class: drop_ephemeral_presence_without_replay
+    sample_ttl_seconds: 5
+    retention_posture_class: not_retained_ephemeral
+    summary_label: "Presence expired after session end and is not retained in the deferred archive."
+    minted_at: "2026-04-26T18:50:00Z"
+    expires_at: "2026-04-26T18:50:05Z"
+
+  - record_kind: collab_compaction_snapshot_record
+    session_topology_schema_version: 1
+    compaction_snapshot_id: "collab:snapshot:provider-outage:01"
+    session_ref: "collab:session:provider-outage:01"
+    storage_boundary_class: shared_session_artifact
+    compaction_state_class: compaction_blocked_policy_hold
+    operation_window_policy_class: bounded_by_retention_policy
+    snapshot_cadence_class: on_archive_seal
+    tombstone_gc_class: gc_deferred_for_policy_hold
+    snapshot_authority_class: session_snapshot_not_canonical
+    operation_window_ref: "collab:operation-window:provider-outage:01"
+    canonical_checkpoint_refs:
+      - "workspace:checkpoint:provider-outage:owner"
+      - "workspace:checkpoint:provider-outage:participant"
+    summary_label: "Archive snapshot waits locally because managed archive publication is unavailable."
+    minted_at: "2026-04-26T18:50:01Z"
+
+  - record_kind: collab_offline_continuation_record
+    session_topology_schema_version: 1
+    offline_continuation_id: "collab:offline:provider-outage:01"
+    session_ref: "collab:session:provider-outage:01"
+    downgrade_state_class: provider_outage
+    offline_continuation_state_class: provider_unavailable_local_continuation
+    local_work_preservation_state_class: preserved_in_local_journal_with_annotation
+    recovery_path_classes:
+      - recover_via_local_journal_diff_export
+      - rejoin_new_session_with_diff_to_local
+    replay_queue_policy_class: queue_explicit_idempotent_proposal_only
+    reconciliation_state_class: pending_revalidation
+    affected_actor_refs:
+      - "actor:owner:provider-outage:01"
+      - "actor:participant:provider-outage:01"
+    affected_share_scope_refs:
+      - "collab:scope:archive:provider-outage:01"
+      - "collab:scope:local-journal:provider-outage:01"
+    pending_proposal_queue_ref: "collab:proposal-queue:provider-outage:01"
+    local_journal_ref: "workspace:journal:provider-outage:01"
+    policy_epoch_ref: "policy:epoch:provider-outage:01"
+    summary_label: "Provider outage deferred archive publication; local journal and proposals remain recoverable."
+    minted_at: "2026-04-26T18:50:02Z"
+
+  - record_kind: collab_session_topology_record
+    session_topology_schema_version: 1
+    topology_id: "collab:topology:provider-outage:01"
+    session_ref: "collab:session:provider-outage:01"
+    lifecycle_state_class: ended
+    owner_actor_ref: "actor:owner:provider-outage:01"
+    policy_epoch_ref: "policy:epoch:provider-outage:01"
+    participants:
+      - actor_ref: "actor:owner:provider-outage:01"
+        role_classes:
+          - owner
+          - approver
+        share_scope_classes:
+          - sealed_archive_scope
+          - local_journal_diff_export
+        presence_state_class: expired
+        follow_presenter_state_class: no_follow_active
+        local_work_preservation_state_class: preserved_in_local_journal_with_annotation
+        visible_role_label: "Owner keeps local evidence while archive publication is deferred."
+      - actor_ref: "actor:participant:provider-outage:01"
+        role_classes:
+          - reviewer
+        share_scope_classes:
+          - review_comment_scope
+          - local_journal_diff_export
+        presence_state_class: expired
+        follow_presenter_state_class: no_follow_active
+        local_work_preservation_state_class: preserved_in_local_journal_with_annotation
+        pending_proposal_queue_ref: "collab:proposal-queue:provider-outage:01"
+        visible_role_label: "Participant work remains in local journal until provider reconciliation."
+    share_scopes:
+      - scope_ref: "collab:scope:archive:provider-outage:01"
+        share_scope_class: sealed_archive_scope
+        storage_boundary_class: shared_session_artifact
+        session_artifact_refs:
+          - "collab:snapshot:provider-outage:01"
+          - "collab:archive-manifest:provider-outage:local"
+        authority_summary_label: "Archive manifest is local/deferred and is not a completed provider archive."
+      - scope_ref: "collab:scope:local-journal:provider-outage:01"
+        share_scope_class: local_journal_diff_export
+        storage_boundary_class: canonical_project_state
+        canonical_source_refs:
+          - "workspace:journal:provider-outage:01"
+        session_artifact_refs:
+          - "collab:proposal-queue:provider-outage:01"
+        authority_summary_label: "Local journal is user-owned recovery state and survives provider outage."
+    canonical_project_state_refs:
+      - "workspace:journal:provider-outage:01"
+      - "workspace:checkpoint:provider-outage:owner"
+      - "workspace:checkpoint:provider-outage:participant"
+    shared_session_artifact_refs:
+      - "collab:snapshot:provider-outage:01"
+      - "collab:archive-manifest:provider-outage:local"
+      - "collab:proposal-queue:provider-outage:01"
+    captured_export_evidence_refs: []
+    presence_plane_ref: "collab:presence:provider-outage:01"
+    compaction_snapshot_ref: "collab:snapshot:provider-outage:01"
+    downgrade_state_class: provider_outage
+    offline_continuation_state_class: provider_unavailable_local_continuation
+    reconciliation_state_class: pending_revalidation
+    retention_posture_class: local_workspace_retained
+    redaction_profile_class: support_bundle_redacted
+    summary_label: "Provider archive outage leaves a truthful local-only continuation state."
+    minted_at: "2026-04-26T18:50:03Z"
+    ended_at: "2026-04-26T18:50:03Z"
