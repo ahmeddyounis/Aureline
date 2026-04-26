@@ -10561,6 +10561,223 @@ artifacts:
       no raw stash payload bytes, no raw provider rule bodies, no
       raw approval-ticket bodies).
 
+  - id: merge_and_conflict_contract
+    title: Merge / conflict-resolution contract for text, structured, generated, binary, and notebook artifacts
+    canonical_location: docs/vcs/merge_and_conflict_contract.md
+    overview_page: docs/vcs/merge_and_conflict_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative cross-tool contract binding every conflict-aware
+      surface (inline three-way merge view, structure-aware merge
+      view, regenerate-first surface, choose-source-only surface,
+      cell-aware notebook merge view, external-tool handoff, evidence
+      reader, resume / abort review sheet, change-stack panel, AI
+      branch-agent panel, support / export bundle's merge section,
+      audit lane) to one conflict_class_record, one conflict_
+      resolution_session_record (with ordered conflict_resolution_
+      action_record rows), and one or more merge_validation_hint_
+      record rows. Pairs with the branch / worktree / history /
+      stash contract (docs/vcs/git_state_and_worktree_contract.md)
+      and the change-stack / patch-stack / sequence-editor contract
+      (docs/vcs/change_stack_contract.md): the merge_conflict_class_
+      record_id_ref slots reserved on those contracts become
+      consumable through this contract once a conflict-resolution
+      session is admitted. Reviewers can tell conflict class,
+      source-of-truth, unresolved count, and safe escape path
+      before taking action; structured and generated conflicts
+      cannot silently degrade into lossy text merges (raw text
+      fallback is mechanically forbidden on lockfile, generated,
+      binary, and evidence rows; admissible only on structured-
+      config rows with an explicit lossy acknowledgement on the
+      audit stream); regenerate-first conflicts pin a canonical
+      input; external-tool handoff requires a verified round-trip
+      before merge-complete; abandon and reopen are reachable
+      through the recovery object the session pinned at admission.
+
+  - id: conflict_class_schema
+    title: Merge / conflict-class taxonomy boundary schema
+    canonical_location: schemas/vcs/conflict_class.schema.json
+    overview_page: docs/vcs/merge_and_conflict_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the conflict_class_record and
+      conflict_class_audit_event_record shapes frozen in docs/vcs/
+      merge_and_conflict_contract.md. additionalProperties false
+      everywhere. allOf gates pin every conflict_class_value (plain_
+      text_line_oriented_merge, structured_config_key_aware_merge,
+      lockfile_or_dependency_manifest_regenerate_first, generated_
+      or_derived_source_regenerate_first, binary_or_unmergeable_
+      choose_source_only, notebook_cell_aware_merge, evidence_
+      immutable_no_merge) to its matching default_resolution_
+      surface_class, default_source_of_truth_authority_class,
+      default_unresolved_count_navigation_class, default_regenerate
+      _first_required_class, default_fallback_to_text_class, default
+      _unknown_key_preservation_class, and default_abandon_reopen_
+      safety_class so a row that mismatches denies with resolution_
+      surface_must_match_conflict_class. Lockfile / generated /
+      binary / evidence rows MUST cite raw_text_fallback_forbidden_
+      for_class so structured-or-generated silent text merge denies
+      with structured_or_generated_silent_text_merge_forbidden.
+      Evidence rows MUST cite evidence_reader_no_resolution_
+      admissible and abandon_blocked_pending_user_review so
+      resolution actions deny with evidence_immutable_class_forbids_
+      resolution_action. Re-exports the structured-artifact review
+      _artifact_class vocabulary (with the line_oriented_source_
+      artifact token added) from schemas/review/review_surface_
+      record.schema.json so each conflict class binds to one or
+      more structured-artifact review surfaces. Adding a new record
+      _kind, conflict_class_value, resolution_surface_class, source
+      _of_truth_authority_class, fallback_to_text_class, unknown_key
+      _preservation_class, unresolved_count_navigation_class,
+      regenerate_first_required_class, abandon_reopen_safety_class,
+      denial reason, or audit-event id is additive-minor and bumps
+      conflict_class_schema_version; repurposing an existing value
+      is breaking and requires a new decision row.
+
+  - id: conflict_resolution_session_schema
+    title: Conflict-resolution session boundary schema
+    canonical_location: schemas/vcs/conflict_resolution_session.schema.json
+    overview_page: docs/vcs/merge_and_conflict_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the conflict_resolution_session
+      _record, conflict_resolution_action_record, and conflict_
+      resolution_session_audit_event_record shapes frozen in docs/
+      vcs/merge_and_conflict_contract.md. additionalProperties false
+      everywhere. allOf gates force every conflict_class_value on
+      the session row to cite the matching resolution_surface_class,
+      unresolved_count_navigation_class, and fallback_to_text_class
+      from the conflict_class taxonomy; force regenerate_first_with
+      _canonical_input_pinned to cite a non-null regenerate_
+      canonical_input_envelope (denies with regenerate_first_
+      canonical_input_pinned_required); force external_tool_
+      handoff_with_round_trip_required to cite a non-null external_
+      tool_handoff_envelope (denies with external_tool_handoff_
+      envelope_required); force session_completed_merge_admitted
+      to cite a non-null result_revision_id_ref and completed_at
+      (denies with merge_complete_result_revision_required); force
+      session_abandoned_rolled_back_to_recovery_object to cite a
+      non-null abandoned_at and null result_revision_id_ref / null
+      completed_at; force session_archived_tombstone to cite a
+      non-null archived_at; and force draft / active / paused
+      lifecycles to cite null completed_at, null abandoned_at, null
+      archived_at, and null result_revision_id_ref. Action rows
+      force merge_complete_admit_result to cite a non-null output
+      _revision_id_ref and approval_ticket_ref, force abandon /
+      regenerate / external-tool actions to cite a non-null approval
+      _ticket_ref, and force accept_hunk_* actions to cite a non-
+      null target_hunk_or_cell_or_section_ref. Re-exports conflict_
+      class_value, resolution_surface_class, fallback_to_text_class,
+      unresolved_count_navigation_class, and abandon_reopen_safety_
+      class verbatim from schemas/vcs/conflict_class.schema.json.
+      Adding a new record_kind, session_lifecycle_state, action_
+      class, action_consequence_class, denial reason, or audit-
+      event id is additive-minor and bumps conflict_resolution_
+      session_schema_version; repurposing an existing value is
+      breaking and requires a new decision row.
+
+  - id: merge_validation_hint_schema
+    title: Merge validation-hint boundary schema
+    canonical_location: schemas/vcs/merge_validation_hint.schema.json
+    overview_page: docs/vcs/merge_and_conflict_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the merge_validation_hint_
+      record and merge_validation_hint_audit_event_record shapes
+      frozen in docs/vcs/merge_and_conflict_contract.md.
+      additionalProperties false everywhere. allOf gates force
+      hint_resolved to cite a non-null resolved_at, force hint_
+      archived_tombstone to cite a non-null archived_at, force
+      hint_open_unacknowledged and hint_acknowledged_advisory_only
+      to cite null resolved_at and null archived_at, forbid
+      blocking_must_resolve_before_merge_complete severity from
+      hint_acknowledged_advisory_only (denies with validation_hint_
+      acknowledged_advisory_forbidden_for_blocking_severity), and
+      require a non-null waiver_review_event_record_id_ref on
+      hint_resolved at blocking severity (denies with validation_
+      hint_resolution_requires_waiver_review_for_blocking_severity)
+      while forbidding the waiver-review ref on every other
+      severity. Adding a new record_kind, merge_validation_hint_
+      class, merge_validation_hint_severity_class, merge_validation
+      _hint_lifecycle_state, denial reason, or audit-event id is
+      additive-minor and bumps merge_validation_hint_schema_
+      version; repurposing an existing value is breaking and
+      requires a new decision row.
+
+  - id: conflict_cases_fixtures
+    title: Merge / conflict-resolution worked fixtures
+    canonical_location: fixtures/vcs/conflict_cases/
+    overview_page: docs/vcs/merge_and_conflict_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example YAML fixtures for the merge / conflict-class,
+      conflict-resolution session, and validation-hint contract
+      and schemas. Covers one plain text three-way merge session
+      with three unresolved hunks (acceptance bullet 3); one
+      structured config session preserving unknown vendor keys
+      through structure-aware merge view (acceptance bullet 3);
+      one lockfile session routed through regenerate-first with
+      the manifest pinned as canonical input (acceptance bullet
+      3); one binary image-snapshot session resolved through
+      choose-source-only with byte merge mechanically forbidden
+      (acceptance bullet 3); one notebook session resolving four
+      cells through cell-aware merge with metadata-filter and
+      output-handling presets inherited from the structured-
+      artifact review-surface row (acceptance bullet 3); one
+      structured config session that opted into raw_text_fallback
+      _explicit_user_acknowledged_lossy with a paired text_
+      fallback_lossy_paired_with_structured_artifact warning hint
+      (acceptance bullet 2); one blocking-severity validation
+      hint that prevents merge-complete admission until the
+      lifecycle reaches hint_resolved through a waiver-review
+      event (acceptance bullet 1); and one conflict_resolution_
+      session_audit_event_record carrying the structured_or_
+      generated_silent_text_merge_forbidden denial when a
+      downstream surface tried to admit a generated-source
+      session under inline_three_way_merge_view (acceptance
+      bullet 2). Three conflict_class_record rows
+      (plain_text_line_oriented_merge, lockfile_or_dependency_
+      manifest_regenerate_first, notebook_cell_aware_merge) pin
+      the per-class defaults — the remaining four conflict
+      classes are covered through their session fixtures and
+      through the schema's allOf gates which enforce the per-
+      class defaults whenever a row is admitted. Each fixture
+      cites the contract sections it exercises in the directory
+      README and carries only opaque workspace / revision /
+      artifact / conflict-class / session / action / hint /
+      recovery-object / approval-ticket / command / actor /
+      policy-epoch handles plus monotonic placeholder timestamps
+      and redaction-aware labels (no raw absolute paths, no raw
+      branch / commit / remote URLs, no raw author identity
+      strings, no raw commit message bodies, no raw patch
+      bodies, no raw notebook output bytes, no raw generator
+      argv, no raw secrets, and no raw lockfile / SBOM bodies).
+
   - id: review_pack_contract
     title: Review-pack, ownership-policy, and local / CI / provider / AI parity contract
     canonical_location: docs/vcs/review_pack_contract.md

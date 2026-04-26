@@ -2021,6 +2021,9 @@ rows:
       - schemas/vcs/branch_row.schema.json
       - schemas/vcs/worktree_row.schema.json
       - schemas/vcs/history_operation_state.schema.json
+      - schemas/vcs/conflict_class.schema.json
+      - schemas/vcs/conflict_resolution_session.schema.json
+      - schemas/vcs/merge_validation_hint.schema.json
     notes: >
       Review-workspace, comment-anchor, and merge-queue boundary
       (see docs/vcs/review_workspace_contract.md), the review-pack
@@ -2258,6 +2261,97 @@ rows:
       worktree-removal class, worktree-removal-review-sheet class,
       history-operation-kind class, history-operation-state class,
       in-progress-banner class, review-sheet class, denial reason,
+      or audit-event id is additive-minor and bumps the per-record
+      schema_version const; repurposing an existing value is
+      breaking and requires a new decision row. conflict_class.
+      schema.json, conflict_resolution_session.schema.json, and
+      merge_validation_hint.schema.json freeze the merge / conflict-
+      resolution contract (see docs/vcs/merge_and_conflict_contract.
+      md). conflict_class.schema.json freezes the conflict_class_
+      record (seven-value conflict_class_value: plain_text_line_
+      oriented_merge, structured_config_key_aware_merge, lockfile_
+      or_dependency_manifest_regenerate_first, generated_or_derived_
+      source_regenerate_first, binary_or_unmergeable_choose_source_
+      only, notebook_cell_aware_merge, evidence_immutable_no_merge;
+      seven-value resolution_surface_class; seven-value source_of_
+      truth_authority_class; three-value fallback_to_text_class;
+      three-value unknown_key_preservation_class; five-value
+      unresolved_count_navigation_class; three-value regenerate_
+      first_required_class; three-value abandon_reopen_safety_class)
+      under allOf gates that pin every conflict_class_value to its
+      matching surface, source-of-truth, navigation, regenerate-
+      first posture, fallback-to-text, unknown-key preservation,
+      and abandon-safety constraints (lockfile / generated / binary
+      / evidence rows MUST cite raw_text_fallback_forbidden_for_
+      class; structured_config rows MUST cite structure_aware_merge_
+      view_with_unknown_key_preservation; notebook rows MUST cite
+      cell_aware_merge_view with required_round_trip_preservation;
+      evidence rows MUST cite evidence_reader_no_resolution_
+      admissible and abandon_blocked_pending_user_review).
+      conflict_resolution_session.schema.json freezes the conflict_
+      resolution_session_record (seven-value session_lifecycle_
+      state) and the conflict_resolution_action_record (ten-value
+      action_class: choose_source_current/incoming, accept_hunk_
+      from_current/incoming, accept_combined_hunk_user_edited,
+      regenerate_from_canonical_input, external_tool_handoff_round_
+      trip_required, merge_complete_admit_result, abandon_rollback_
+      to_recovery_object, reopen_after_validation_hint_review; six-
+      value action_consequence_class) under allOf gates that pair
+      each conflict_class_value with the matching session
+      resolution_surface_class / unresolved_count_navigation_class
+      / fallback_to_text_class, force regenerate_first_with_
+      canonical_input_pinned to cite a non-null regenerate_
+      canonical_input_envelope, force external_tool_handoff_with_
+      round_trip_required to cite a non-null external_tool_handoff_
+      envelope, force session_completed_merge_admitted to cite a
+      non-null result_revision_id_ref and completed_at, force
+      session_abandoned_rolled_back_to_recovery_object to cite a
+      non-null abandoned_at and null result_revision_id_ref /
+      completed_at, and force merge_complete_admit_result actions
+      to cite a non-null output_revision_id_ref and approval_
+      ticket_ref. merge_validation_hint.schema.json freezes the
+      merge_validation_hint_record (ten-value merge_validation_
+      hint_class: unresolved_marker_remaining, unknown_key_dropped_
+      or_renamed, regenerate_input_drifted_from_pin, cell_identity_
+      collision_unstable, output_payload_modified_outside_cell_
+      aware_view, binary_payload_silent_byte_diff_detected,
+      evidence_packet_modification_attempted, text_fallback_lossy_
+      paired_with_structured_artifact, external_tool_round_trip_
+      unverified, validation_hint_recovery_object_drifted; three-
+      value merge_validation_hint_severity_class; four-value
+      merge_validation_hint_lifecycle_state) under allOf gates that
+      force hint_resolved to cite a non-null resolved_at, force
+      hint_archived_tombstone to cite a non-null archived_at, force
+      blocking_must_resolve_before_merge_complete severity to
+      forbid hint_acknowledged_advisory_only and to require a non-
+      null waiver_review_event_record_id_ref on hint_resolved
+      (denies with validation_hint_resolution_requires_waiver_
+      review_for_blocking_severity), and forbid the waiver-review
+      ref on every other severity. Re-exports conflict_class_value,
+      resolution_surface_class, fallback_to_text_class, unresolved_
+      count_navigation_class, and abandon_reopen_safety_class
+      verbatim from schemas/vcs/conflict_class.schema.json into
+      schemas/vcs/conflict_resolution_session.schema.json without
+      redefinition; re-exports the structured-artifact review_
+      artifact_class vocabulary from schemas/review/review_surface_
+      record.schema.json (with the line_oriented_source_artifact
+      token added) so every conflict class binds to one or more
+      structured-artifact review surfaces. The merge / conflict-
+      class contract is the downstream consumer of the merge_
+      conflict_class_record_id_ref slots reserved on schemas/vcs/
+      branch_row.schema.json, schemas/vcs/worktree_row.schema.json,
+      schemas/vcs/history_operation_state.schema.json, schemas/
+      vcs/change_object.schema.json, and schemas/vcs/patch_stack.
+      schema.json (those slots remain nullable until rows that
+      admitted a conflict-resolution session begin citing the
+      session id ref). Adding a new record_kind, conflict_class_
+      value, resolution_surface_class, source_of_truth_authority_
+      class, fallback_to_text_class, unknown_key_preservation_
+      class, unresolved_count_navigation_class, regenerate_first_
+      required_class, abandon_reopen_safety_class, session_
+      lifecycle_state, action_class, action_consequence_class,
+      merge_validation_hint_class, merge_validation_hint_severity_
+      class, merge_validation_hint_lifecycle_state, denial reason,
       or audit-event id is additive-minor and bumps the per-record
       schema_version const; repurposing an existing value is
       breaking and requires a new decision row.

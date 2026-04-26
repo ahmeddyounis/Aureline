@@ -1,0 +1,899 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/conflict_resolution_session.schema.json",
+  "title": "Aureline conflict-resolution session vocabulary",
+  "description": "Boundary schema for the conflict-resolution-session record family frozen in docs/vcs/merge_and_conflict_contract.md. One conflict_resolution_session_record pins which conflict a surface is resolving (conflict_class_record_id_ref pointing into schemas/vcs/conflict_class.schema.json; the base/current/incoming/result locator quartet pinned to opaque revision and artifact identity refs; the per-class side-of-truth labels resolved from the conflict-class row; the unresolved_count and the unresolved_count_navigation_class so reviewers can see how many hunks / cells / sections remain; the resolution surface and fallback-to-text class actually rendered; the regenerate-first canonical input ref when the class requires it; the optional external-tool round-trip envelope when the class routes through external handoff; the recovery_object_ref pinned at admission so abandon rolls back deterministically and reopen reattaches safely; the abandon_reopen_safety_class; the session lifecycle drawn from the closed seven-value vocabulary; the actor / command / approval-ticket attribution; and the ordered_action_id_refs chain into conflict_resolution_action_record rows). One conflict_resolution_action_record pins one resolution action (action_class drawn from the closed ten-value vocabulary covering choose-source-current/incoming, accept-hunk-from-current/incoming, accept-combined-user-edited, regenerate-from-canonical-input, external-tool-handoff-round-trip-required, merge-complete-admit-result, abandon-rollback-to-recovery-object, reopen-after-validation-hint-review; consequence_class drawn from the closed six-value vocabulary; the targeted hunk / cell / section ref; the optional output_revision_id_ref produced by the action). One audit stream (conflict_resolution_session) carries the closed denial-reason and event-id vocabularies. The session pairs through merge_validation_hint_id_refs into schemas/vcs/merge_validation_hint.schema.json so blocking validation hints prevent merge-complete admission. Local Git / structured-artifact / generator-input / notebook / evidence truth (drawn from the conflict-class row) is authoritative; raw text fallback is admissible only when the conflict-class row's fallback_to_text_class is raw_text_fallback_explicit_user_acknowledged_lossy. Raw absolute paths, raw branch / commit / remote URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw notebook output bytes, raw generator argv, raw secrets, and raw lockfile / SBOM bodies MUST NOT appear on any record emitted against this schema. The eventual git-service crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, session_lifecycle_state, action_class, action_consequence_class, denial reason, or audit-event id is additive-minor and bumps conflict_resolution_session_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/conflict_resolution_session_record" },
+    { "$ref": "#/$defs/conflict_resolution_action_record" },
+    { "$ref": "#/$defs/conflict_resolution_session_audit_event_record" }
+  ],
+  "$defs": {
+    "conflict_resolution_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the conflict-resolution-session vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "conflict_resolution_session_record",
+        "conflict_resolution_action_record",
+        "conflict_resolution_session_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit / remote URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw notebook output bytes, raw generator argv, raw secrets, and raw lockfile / SBOM bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "conflict_class_value": {
+      "type": "string",
+      "enum": [
+        "plain_text_line_oriented_merge",
+        "structured_config_key_aware_merge",
+        "lockfile_or_dependency_manifest_regenerate_first",
+        "generated_or_derived_source_regenerate_first",
+        "binary_or_unmergeable_choose_source_only",
+        "notebook_cell_aware_merge",
+        "evidence_immutable_no_merge"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/conflict_class.schema.json. Pinned on the session row so the resolution surface, the merge-complete admission gate, and the audit lane all agree on the conflict class without re-resolving the conflict_class_record_id_ref."
+    },
+
+    "resolution_surface_class": {
+      "type": "string",
+      "enum": [
+        "inline_three_way_merge_view",
+        "structure_aware_merge_view_with_unknown_key_preservation",
+        "regenerate_first_with_canonical_input_pinned",
+        "choose_source_only_no_byte_merge",
+        "cell_aware_merge_view",
+        "external_tool_handoff_with_round_trip_required",
+        "evidence_reader_no_resolution_admissible"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/conflict_class.schema.json. The session row pins the actually-rendered surface; a row whose surface does not match the conflict_class_value's required surface denies with resolution_surface_must_match_conflict_class."
+    },
+
+    "fallback_to_text_class": {
+      "type": "string",
+      "enum": [
+        "no_fallback_admitted_native_surface_only",
+        "raw_text_fallback_explicit_user_acknowledged_lossy",
+        "raw_text_fallback_forbidden_for_class"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/conflict_class.schema.json. raw_text_fallback_explicit_user_acknowledged_lossy is admissible only on structured_config_key_aware_merge sessions whose audit stream carries a paired text_fallback_lossy_paired_with_structured_artifact validation hint."
+    },
+
+    "unresolved_count_navigation_class": {
+      "type": "string",
+      "enum": [
+        "count_required_with_next_unresolved_navigation",
+        "count_required_with_next_cell_or_section_navigation",
+        "count_not_applicable_choose_source_only",
+        "count_not_applicable_regenerate_first",
+        "count_not_applicable_evidence_immutable"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/conflict_class.schema.json."
+    },
+
+    "abandon_reopen_safety_class": {
+      "type": "string",
+      "enum": [
+        "abandon_rolls_back_to_recovery_object_reopen_admissible",
+        "abandon_blocked_pending_user_review",
+        "abandon_with_lossy_state_export_required_before_reopen"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/conflict_class.schema.json."
+    },
+
+    "session_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "session_drafted_no_resolution_in_progress",
+        "session_active_resolution_in_progress",
+        "session_paused_pending_external_tool_handoff",
+        "session_paused_pending_validation_hint_review",
+        "session_completed_merge_admitted",
+        "session_abandoned_rolled_back_to_recovery_object",
+        "session_archived_tombstone"
+      ],
+      "description": "Frozen session-lifecycle vocabulary. session_completed_merge_admitted MUST cite a non-null result_revision_id_ref and a non-null completed_at; session_abandoned_rolled_back_to_recovery_object MUST cite the recovery object the session pinned at admission and a non-null abandoned_at; session_archived_tombstone MUST cite a non-null archived_at."
+    },
+
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "choose_source_current",
+        "choose_source_incoming",
+        "accept_hunk_from_current",
+        "accept_hunk_from_incoming",
+        "accept_combined_hunk_user_edited",
+        "regenerate_from_canonical_input",
+        "external_tool_handoff_round_trip_required",
+        "merge_complete_admit_result",
+        "abandon_rollback_to_recovery_object",
+        "reopen_after_validation_hint_review"
+      ],
+      "description": "Frozen resolution-action vocabulary. choose_source_* takes one side wholesale (admissible on every conflict class except evidence_immutable_no_merge). accept_hunk_* takes a single hunk / cell / section from one side (forbidden on binary_or_unmergeable_choose_source_only — denies with choose_source_only_class_forbids_accept_hunk). accept_combined_hunk_user_edited produces a user-edited combined hunk. regenerate_from_canonical_input is the regenerate-first action; admissible only when the conflict class is regenerate_first_required_*. external_tool_handoff_round_trip_required hands the conflict to an external tool and pauses the session. merge_complete_admit_result admits the resolution; denied when blocking validation hints are open. abandon_rollback_to_recovery_object rolls back to the recovery object pinned at admission. reopen_after_validation_hint_review reattaches a paused session after a validation hint is acknowledged or resolved."
+    },
+
+    "action_consequence_class": {
+      "type": "string",
+      "enum": [
+        "local_only_reversible_via_recovery_object",
+        "mutates_canonical_artifact_reversible_via_recovery_object",
+        "regenerates_derived_artifact_input_unchanged",
+        "routes_through_external_tool_user_must_round_trip",
+        "irreversible_provider_side_effect_blocked_until_admission",
+        "evidence_immutable_no_consequence_admissible"
+      ],
+      "description": "Frozen action-consequence vocabulary. evidence_immutable_no_consequence_admissible is the only consequence reachable from an evidence_immutable_no_merge row and pairs with no admissible action class. irreversible_provider_side_effect_blocked_until_admission covers a merge-complete that would publish to a provider before approval-ticket admission and denies."
+    },
+
+    "external_tool_handoff_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["external_tool_id_ref", "round_trip_artifact_ref", "round_trip_verification_state"],
+      "properties": {
+        "external_tool_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the external tool the handoff routed through (e.g. a Git mergetool registry id). Raw tool argv and raw filesystem paths never appear here."
+        },
+        "round_trip_artifact_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the round-trip artifact the external tool returned. Required (non-null) when round_trip_verification_state is round_trip_verified_against_corpus or round_trip_verification_pending; null when the handoff has not yet returned."
+        },
+        "round_trip_verification_state": {
+          "type": "string",
+          "enum": [
+            "round_trip_not_yet_returned",
+            "round_trip_verification_pending",
+            "round_trip_verified_against_corpus",
+            "round_trip_failed_artifact_does_not_round_trip"
+          ],
+          "description": "Closed verification state. merge_complete_admit_result is admissible only when round_trip_verification_state is round_trip_verified_against_corpus."
+        }
+      },
+      "description": "External-tool handoff envelope. Required (non-null) when resolution_surface_class is external_tool_handoff_with_round_trip_required."
+    },
+
+    "regenerate_canonical_input_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_input_ref", "canonical_input_pin_class"],
+      "properties": {
+        "canonical_input_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the canonical input row (e.g. the manifest a lockfile is regenerated from, the generator-input record a generated source is regenerated from). Raw paths, raw URLs, and raw input payloads never appear here."
+        },
+        "canonical_input_pin_class": {
+          "type": "string",
+          "enum": [
+            "canonical_input_pin_fresh",
+            "canonical_input_pin_drifted_warning",
+            "canonical_input_pin_drifted_blocking"
+          ],
+          "description": "Closed pin class. canonical_input_pin_drifted_warning emits a regenerate_input_drifted_from_pin warning hint; canonical_input_pin_drifted_blocking pairs with a blocking_must_resolve_before_merge_complete validation hint."
+        }
+      },
+      "description": "Regenerate-first canonical-input envelope. Required (non-null) when resolution_surface_class is regenerate_first_with_canonical_input_pinned."
+    },
+
+    "conflict_resolution_session_denial_reason": {
+      "type": "string",
+      "enum": [
+        "conflict_class_record_id_ref_required",
+        "resolution_surface_must_match_conflict_class",
+        "fallback_to_text_must_be_explicit_for_non_text_class",
+        "structured_or_generated_silent_text_merge_forbidden",
+        "regenerate_first_canonical_input_pinned_required",
+        "external_tool_handoff_envelope_required",
+        "external_tool_round_trip_unverified_for_merge_complete",
+        "choose_source_only_class_forbids_accept_hunk",
+        "binary_or_unmergeable_class_forbids_byte_merge",
+        "evidence_immutable_class_forbids_resolution_action",
+        "abandon_reopen_recovery_object_required",
+        "merge_complete_blocked_pending_blocking_validation_hint",
+        "merge_complete_result_revision_required",
+        "session_recovery_object_required_at_admission",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "conflict_resolution_session_record_required_field_missing",
+        "conflict_resolution_session_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the conflict_resolution_session audit stream."
+    },
+
+    "conflict_resolution_session_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "conflict_resolution_session_admitted",
+        "conflict_resolution_session_action_recorded",
+        "conflict_resolution_session_paused_pending_external_tool",
+        "conflict_resolution_session_paused_pending_validation_hint_review",
+        "conflict_resolution_session_resumed",
+        "conflict_resolution_session_completed",
+        "conflict_resolution_session_abandoned",
+        "conflict_resolution_session_archived",
+        "conflict_resolution_session_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the conflict_resolution_session stream. conflict_resolution_session_audit_denial_emitted MUST cite a conflict_resolution_session_denial_reason."
+    },
+
+    "conflict_resolution_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "conflict_resolution_session_schema_version",
+        "conflict_resolution_session_id",
+        "workspace_id_ref",
+        "conflict_class_record_id_ref",
+        "conflict_class_value",
+        "history_operation_state_id_ref",
+        "base_revision_id_ref",
+        "current_revision_id_ref",
+        "incoming_revision_id_ref",
+        "result_revision_id_ref",
+        "artifact_identity_ref",
+        "resolution_surface_class",
+        "fallback_to_text_class",
+        "unresolved_count",
+        "unresolved_count_navigation_class",
+        "regenerate_canonical_input_envelope",
+        "external_tool_handoff_envelope",
+        "abandon_reopen_safety_class",
+        "session_lifecycle_state",
+        "recovery_object_ref",
+        "ordered_action_id_refs",
+        "merge_validation_hint_id_refs",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "command_id_ref",
+        "approval_ticket_ref",
+        "created_at",
+        "updated_at",
+        "completed_at",
+        "abandoned_at",
+        "archived_at",
+        "merge_conflict_class_record_id_ref",
+        "history_edit_recovery_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "conflict_resolution_session_record" },
+        "conflict_resolution_session_schema_version": { "$ref": "#/$defs/conflict_resolution_session_schema_version" },
+        "conflict_resolution_session_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the workspace row in schemas/workspace/* the session is bound to."
+        },
+        "conflict_class_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the conflict_class_record row (schemas/vcs/conflict_class.schema.json) this session resolves against. Always non-null; a session that omits this ref denies with conflict_class_record_id_ref_required."
+        },
+        "conflict_class_value": { "$ref": "#/$defs/conflict_class_value" },
+        "history_operation_state_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the history_operation_state_record (schemas/vcs/history_operation_state.schema.json) the session is bound to (a paused merge / rebase / cherry-pick / revert / mailbox-apply). Null when the session was minted outside an in-progress history operation (e.g. a stash-apply conflict on a clean worktree)."
+        },
+        "base_revision_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the base revision (the merge base / fork point) the conflict was minted against."
+        },
+        "current_revision_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the current-side revision. The current side is the local-branch head at conflict mint."
+        },
+        "incoming_revision_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the incoming-side revision. The incoming side is the merge / rebase / cherry-pick source."
+        },
+        "result_revision_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the result revision the session admitted. Required (non-null) when session_lifecycle_state is session_completed_merge_admitted (denies with merge_complete_result_revision_required); null otherwise."
+        },
+        "artifact_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the artifact identity (path-equivalent locator family token) the conflict targets. Raw absolute paths never appear here."
+        },
+        "resolution_surface_class": { "$ref": "#/$defs/resolution_surface_class" },
+        "fallback_to_text_class": { "$ref": "#/$defs/fallback_to_text_class" },
+        "unresolved_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of unresolved hunks / cells / sections remaining. The unresolved_count_navigation_class governs how the surface renders this count and what 'next unresolved' navigation means."
+        },
+        "unresolved_count_navigation_class": { "$ref": "#/$defs/unresolved_count_navigation_class" },
+        "regenerate_canonical_input_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/regenerate_canonical_input_envelope" }
+          ],
+          "description": "Required (non-null) when resolution_surface_class is regenerate_first_with_canonical_input_pinned (denies with regenerate_first_canonical_input_pinned_required). Null otherwise."
+        },
+        "external_tool_handoff_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/external_tool_handoff_envelope" }
+          ],
+          "description": "Required (non-null) when resolution_surface_class is external_tool_handoff_with_round_trip_required (denies with external_tool_handoff_envelope_required). Null otherwise."
+        },
+        "abandon_reopen_safety_class": { "$ref": "#/$defs/abandon_reopen_safety_class" },
+        "session_lifecycle_state": { "$ref": "#/$defs/session_lifecycle_state" },
+        "recovery_object_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the pre-mutation recovery object the session pinned at admission. Always non-null on every lifecycle past session_drafted_no_resolution_in_progress (denies with session_recovery_object_required_at_admission and abandon_reopen_recovery_object_required)."
+        },
+        "ordered_action_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to conflict_resolution_action_record rows in resolution order. Empty in session_drafted_no_resolution_in_progress; non-empty thereafter."
+        },
+        "merge_validation_hint_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to merge_validation_hint_record rows emitted against this session. A session whose lifecycle is session_completed_merge_admitted MUST resolve every hint whose severity is blocking_must_resolve_before_merge_complete to lifecycle hint_resolved (denies with merge_complete_blocked_pending_blocking_validation_hint)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when session_lifecycle_state is session_completed_merge_admitted. Null otherwise."
+        },
+        "abandoned_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when session_lifecycle_state is session_abandoned_rolled_back_to_recovery_object. Null otherwise."
+        },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when session_lifecycle_state is session_archived_tombstone. Null otherwise."
+        },
+        "merge_conflict_class_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for cross-citation by paired merge / conflict-class records minted by other surfaces. Currently always null on rows that themselves resolve a conflict; non-null only when this session is itself a downstream consumer of another merge / conflict-class record."
+        },
+        "history_edit_recovery_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the dedicated history-edit recovery contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "session_completed_merge_admitted MUST cite a non-null result_revision_id_ref and a non-null completed_at and null abandoned_at.",
+          "if": {
+            "properties": { "session_lifecycle_state": { "const": "session_completed_merge_admitted" } },
+            "required": ["session_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "result_revision_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "completed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "abandoned_at": { "type": "null" }
+            },
+            "required": ["result_revision_id_ref", "completed_at"]
+          }
+        },
+        {
+          "description": "session_abandoned_rolled_back_to_recovery_object MUST cite a non-null abandoned_at and null completed_at and null result_revision_id_ref.",
+          "if": {
+            "properties": { "session_lifecycle_state": { "const": "session_abandoned_rolled_back_to_recovery_object" } },
+            "required": ["session_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "abandoned_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "completed_at": { "type": "null" },
+              "result_revision_id_ref": { "type": "null" }
+            },
+            "required": ["abandoned_at"]
+          }
+        },
+        {
+          "description": "session_archived_tombstone MUST cite a non-null archived_at.",
+          "if": {
+            "properties": { "session_lifecycle_state": { "const": "session_archived_tombstone" } },
+            "required": ["session_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          }
+        },
+        {
+          "description": "session_drafted_no_resolution_in_progress, session_active_resolution_in_progress, session_paused_pending_external_tool_handoff, and session_paused_pending_validation_hint_review MUST cite null completed_at, null abandoned_at, null archived_at, and null result_revision_id_ref.",
+          "if": {
+            "properties": {
+              "session_lifecycle_state": {
+                "enum": [
+                  "session_drafted_no_resolution_in_progress",
+                  "session_active_resolution_in_progress",
+                  "session_paused_pending_external_tool_handoff",
+                  "session_paused_pending_validation_hint_review"
+                ]
+              }
+            },
+            "required": ["session_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "completed_at": { "type": "null" },
+              "abandoned_at": { "type": "null" },
+              "archived_at": { "type": "null" },
+              "result_revision_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "plain_text_line_oriented_merge MUST cite inline_three_way_merge_view and count_required_with_next_unresolved_navigation.",
+          "if": {
+            "properties": { "conflict_class_value": { "const": "plain_text_line_oriented_merge" } },
+            "required": ["conflict_class_value"]
+          },
+          "then": {
+            "properties": {
+              "resolution_surface_class": { "const": "inline_three_way_merge_view" },
+              "unresolved_count_navigation_class": { "const": "count_required_with_next_unresolved_navigation" }
+            }
+          }
+        },
+        {
+          "description": "structured_config_key_aware_merge MUST cite structure_aware_merge_view_with_unknown_key_preservation and count_required_with_next_cell_or_section_navigation, and the fallback_to_text_class MUST be one of the structured-admissible values (no_fallback_admitted_native_surface_only or raw_text_fallback_explicit_user_acknowledged_lossy).",
+          "if": {
+            "properties": { "conflict_class_value": { "const": "structured_config_key_aware_merge" } },
+            "required": ["conflict_class_value"]
+          },
+          "then": {
+            "properties": {
+              "resolution_surface_class": { "const": "structure_aware_merge_view_with_unknown_key_preservation" },
+              "unresolved_count_navigation_class": { "const": "count_required_with_next_cell_or_section_navigation" },
+              "fallback_to_text_class": {
+                "enum": [
+                  "no_fallback_admitted_native_surface_only",
+                  "raw_text_fallback_explicit_user_acknowledged_lossy"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "lockfile_or_dependency_manifest_regenerate_first MUST cite regenerate_first_with_canonical_input_pinned, count_not_applicable_regenerate_first, raw_text_fallback_forbidden_for_class, and a non-null regenerate_canonical_input_envelope.",
+          "if": {
+            "properties": { "conflict_class_value": { "const": "lockfile_or_dependency_manifest_regenerate_first" } },
+            "required": ["conflict_class_value"]
+          },
+          "then": {
+            "properties": {
+              "resolution_surface_class": { "const": "regenerate_first_with_canonical_input_pinned" },
+              "unresolved_count_navigation_class": { "const": "count_not_applicable_regenerate_first" },
+              "fallback_to_text_class": { "const": "raw_text_fallback_forbidden_for_class" },
+              "regenerate_canonical_input_envelope": { "$ref": "#/$defs/regenerate_canonical_input_envelope" }
+            },
+            "required": ["regenerate_canonical_input_envelope"]
+          }
+        },
+        {
+          "description": "generated_or_derived_source_regenerate_first MUST cite regenerate_first_with_canonical_input_pinned, count_not_applicable_regenerate_first, raw_text_fallback_forbidden_for_class, and a non-null regenerate_canonical_input_envelope.",
+          "if": {
+            "properties": { "conflict_class_value": { "const": "generated_or_derived_source_regenerate_first" } },
+            "required": ["conflict_class_value"]
+          },
+          "then": {
+            "properties": {
+              "resolution_surface_class": { "const": "regenerate_first_with_canonical_input_pinned" },
+              "unresolved_count_navigation_class": { "const": "count_not_applicable_regenerate_first" },
+              "fallback_to_text_class": { "const": "raw_text_fallback_forbidden_for_class" },
+              "regenerate_canonical_input_envelope": { "$ref": "#/$defs/regenerate_canonical_input_envelope" }
+            },
+            "required": ["regenerate_canonical_input_envelope"]
+          }
+        },
+        {
+          "description": "binary_or_unmergeable_choose_source_only MUST cite choose_source_only_no_byte_merge, count_not_applicable_choose_source_only, and raw_text_fallback_forbidden_for_class.",
+          "if": {
+            "properties": { "conflict_class_value": { "const": "binary_or_unmergeable_choose_source_only" } },
+            "required": ["conflict_class_value"]
+          },
+          "then": {
+            "properties": {
+              "resolution_surface_class": { "const": "choose_source_only_no_byte_merge" },
+              "unresolved_count_navigation_class": { "const": "count_not_applicable_choose_source_only" },
+              "fallback_to_text_class": { "const": "raw_text_fallback_forbidden_for_class" }
+            }
+          }
+        },
+        {
+          "description": "notebook_cell_aware_merge MUST cite cell_aware_merge_view and count_required_with_next_cell_or_section_navigation.",
+          "if": {
+            "properties": { "conflict_class_value": { "const": "notebook_cell_aware_merge" } },
+            "required": ["conflict_class_value"]
+          },
+          "then": {
+            "properties": {
+              "resolution_surface_class": { "const": "cell_aware_merge_view" },
+              "unresolved_count_navigation_class": { "const": "count_required_with_next_cell_or_section_navigation" }
+            }
+          }
+        },
+        {
+          "description": "evidence_immutable_no_merge MUST cite evidence_reader_no_resolution_admissible, count_not_applicable_evidence_immutable, raw_text_fallback_forbidden_for_class, and abandon_blocked_pending_user_review.",
+          "if": {
+            "properties": { "conflict_class_value": { "const": "evidence_immutable_no_merge" } },
+            "required": ["conflict_class_value"]
+          },
+          "then": {
+            "properties": {
+              "resolution_surface_class": { "const": "evidence_reader_no_resolution_admissible" },
+              "unresolved_count_navigation_class": { "const": "count_not_applicable_evidence_immutable" },
+              "fallback_to_text_class": { "const": "raw_text_fallback_forbidden_for_class" },
+              "abandon_reopen_safety_class": { "const": "abandon_blocked_pending_user_review" }
+            }
+          }
+        },
+        {
+          "description": "external_tool_handoff_with_round_trip_required surface MUST cite a non-null external_tool_handoff_envelope (denies with external_tool_handoff_envelope_required); other surfaces MUST cite null.",
+          "if": {
+            "properties": { "resolution_surface_class": { "const": "external_tool_handoff_with_round_trip_required" } },
+            "required": ["resolution_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "external_tool_handoff_envelope": { "$ref": "#/$defs/external_tool_handoff_envelope" }
+            },
+            "required": ["external_tool_handoff_envelope"]
+          },
+          "else": {
+            "properties": {
+              "external_tool_handoff_envelope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "regenerate_first_with_canonical_input_pinned surface MUST cite a non-null regenerate_canonical_input_envelope; other surfaces MUST cite null.",
+          "if": {
+            "properties": { "resolution_surface_class": { "const": "regenerate_first_with_canonical_input_pinned" } },
+            "required": ["resolution_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "regenerate_canonical_input_envelope": { "$ref": "#/$defs/regenerate_canonical_input_envelope" }
+            },
+            "required": ["regenerate_canonical_input_envelope"]
+          },
+          "else": {
+            "properties": {
+              "regenerate_canonical_input_envelope": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the merge / resolution surface, the change-stack panel, the source-control panel, the AI branch-agent panel, the support / export bundle, and the audit lane. Exactly one row per conflict-resolution-session identity."
+    },
+
+    "conflict_resolution_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "conflict_resolution_session_schema_version",
+        "conflict_resolution_action_id",
+        "conflict_resolution_session_id_ref",
+        "ordinal",
+        "action_class",
+        "action_consequence_class",
+        "target_hunk_or_cell_or_section_ref",
+        "output_revision_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "summary_label",
+        "actor_ref",
+        "command_id_ref",
+        "approval_ticket_ref",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "conflict_resolution_action_record" },
+        "conflict_resolution_session_schema_version": { "$ref": "#/$defs/conflict_resolution_session_schema_version" },
+        "conflict_resolution_action_id": { "$ref": "#/$defs/opaque_id" },
+        "conflict_resolution_session_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the parent conflict_resolution_session_record."
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based position in the parent session's ordered_action_id_refs."
+        },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "action_consequence_class": { "$ref": "#/$defs/action_consequence_class" },
+        "target_hunk_or_cell_or_section_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the targeted hunk / cell / section. Required (non-null) when action_class is accept_hunk_from_current, accept_hunk_from_incoming, or accept_combined_hunk_user_edited; null on choose-source / regenerate / external-tool-handoff / merge-complete / abandon / reopen actions."
+        },
+        "output_revision_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the revision the action produced. Required (non-null) when action_class is merge_complete_admit_result; null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket admitting the action. Required (non-null) when action_class is merge_complete_admit_result, abandon_rollback_to_recovery_object, regenerate_from_canonical_input, or external_tool_handoff_round_trip_required; nullable on local-only choose-source / accept-hunk actions."
+        },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "merge_complete_admit_result MUST cite a non-null output_revision_id_ref and a non-null approval_ticket_ref.",
+          "if": {
+            "properties": { "action_class": { "const": "merge_complete_admit_result" } },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "output_revision_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["output_revision_id_ref", "approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "abandon_rollback_to_recovery_object, regenerate_from_canonical_input, and external_tool_handoff_round_trip_required MUST cite a non-null approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "abandon_rollback_to_recovery_object",
+                  "regenerate_from_canonical_input",
+                  "external_tool_handoff_round_trip_required"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "accept_hunk_from_current, accept_hunk_from_incoming, and accept_combined_hunk_user_edited MUST cite a non-null target_hunk_or_cell_or_section_ref.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "accept_hunk_from_current",
+                  "accept_hunk_from_incoming",
+                  "accept_combined_hunk_user_edited"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "target_hunk_or_cell_or_section_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["target_hunk_or_cell_or_section_ref"]
+          }
+        }
+      ],
+      "description": "Row shape for one resolution action recorded against a session. Exactly one row per ordinal."
+    },
+
+    "conflict_resolution_session_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "conflict_resolution_session_schema_version",
+        "conflict_resolution_session_audit_event_id_value",
+        "audit_event_record_id",
+        "conflict_resolution_session_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "conflict_resolution_session_audit_event_record" },
+        "conflict_resolution_session_schema_version": { "$ref": "#/$defs/conflict_resolution_session_schema_version" },
+        "conflict_resolution_session_audit_event_id_value": { "$ref": "#/$defs/conflict_resolution_session_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "conflict_resolution_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/conflict_resolution_session_denial_reason" }
+          ],
+          "description": "Required (non-null) when conflict_resolution_session_audit_event_id_value is conflict_resolution_session_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is conflict_resolution_session_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "conflict_resolution_session_audit_event_id_value": { "const": "conflict_resolution_session_audit_denial_emitted" } },
+            "required": ["conflict_resolution_session_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/conflict_resolution_session_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the conflict_resolution_session stream."
+    }
+  }
+}
