@@ -1,0 +1,862 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/trust/prompt_request.schema.json",
+  "title": "Aureline trust, policy, and permission prompt request contract",
+  "description": "Boundary schema for one trust_prompt_request_record frozen in docs/ux/trust_prompt_contract.md. The record is the cross-surface request shape for extension prompts, AI tool prompts, remote attach prompts, starter/setup prompts, package or script risk reviews, consent-renewal prompts, publish/promote/rollback reviews, policy/admin prompts, provider handoff prompts, and workspace trust elevation prompts. Every record answers what is requested, why it is needed, what changes if allowed, what still works if denied, which scope is requested, who owns the authority, what policy lock is active, what side-effect envelope will be admitted, how details open, and what can be copied or exported. Raw prompt bodies, raw policy payloads, raw URLs, raw file bodies, raw provider payloads, raw secret material, and raw credential/token material MUST NOT cross this boundary; records carry opaque refs, typed vocabulary, reviewable labels, and redaction-aware posture only. Adding a new prompt surface, purpose class, support class, policy lock state, capability group, risk group, side-effect class, denial/degrade class, copy/export class, action role, or resulting-state value is additive-minor and requires a prompt_request_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "prompt_request_schema_version",
+    "prompt_request_id",
+    "surface_class",
+    "prompt_purpose_class",
+    "requester",
+    "authority_owner",
+    "support_class",
+    "policy_lock",
+    "target_scope",
+    "capability_groups",
+    "risk_groups",
+    "prompt_questions",
+    "side_effect_envelope",
+    "consequence_blocks",
+    "decision_actions",
+    "denial_or_degrade",
+    "details_action",
+    "copy_export_posture",
+    "support_trace",
+    "cli_trace",
+    "policy_context",
+    "redaction_class",
+    "created_at"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "record_kind": { "const": "trust_prompt_request_record" },
+    "prompt_request_schema_version": { "$ref": "#/$defs/prompt_request_schema_version" },
+    "prompt_request_id": { "$ref": "#/$defs/opaque_id" },
+    "surface_class": { "$ref": "#/$defs/surface_class" },
+    "prompt_purpose_class": { "$ref": "#/$defs/prompt_purpose_class" },
+    "requester": { "$ref": "#/$defs/requester" },
+    "authority_owner": { "$ref": "#/$defs/authority_owner" },
+    "support_class": { "$ref": "#/$defs/support_class" },
+    "policy_lock": { "$ref": "#/$defs/policy_lock" },
+    "target_scope": { "$ref": "#/$defs/target_scope" },
+    "capability_groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/capability_group" }
+    },
+    "risk_groups": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/risk_group_class" }
+    },
+    "prompt_questions": { "$ref": "#/$defs/prompt_questions" },
+    "side_effect_envelope": { "$ref": "#/$defs/side_effect_envelope" },
+    "consequence_blocks": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/consequence_block" },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["block_class"],
+            "properties": { "block_class": { "const": "if_allowed" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["block_class"],
+            "properties": { "block_class": { "const": "if_denied" } }
+          }
+        }
+      ]
+    },
+    "decision_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/decision_action" }
+    },
+    "denial_or_degrade": { "$ref": "#/$defs/denial_or_degrade" },
+    "details_action": { "$ref": "#/$defs/details_action" },
+    "copy_export_posture": { "$ref": "#/$defs/copy_export_posture" },
+    "support_trace": { "$ref": "#/$defs/projection_trace" },
+    "cli_trace": { "$ref": "#/$defs/projection_trace" },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "created_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "policy_lock": {
+            "properties": {
+              "policy_lock_state": { "const": "policy_locked_no_override" }
+            },
+            "required": ["policy_lock_state"]
+          }
+        },
+        "required": ["policy_lock"]
+      },
+      "then": {
+        "properties": {
+          "decision_actions": {
+            "not": {
+              "contains": {
+                "type": "object",
+                "required": ["action_role"],
+                "properties": { "action_role": { "const": "primary_approve" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "side_effect_envelope": {
+            "properties": {
+              "consequence_class": {
+                "enum": ["external_shared", "irreversible_high_blast"]
+              }
+            },
+            "required": ["consequence_class"]
+          }
+        },
+        "required": ["side_effect_envelope"]
+      },
+      "then": {
+        "properties": {
+          "side_effect_envelope": {
+            "properties": {
+              "requires_preview": { "const": true }
+            },
+            "required": ["requires_preview"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "prompt_request_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this trust prompt vocabulary export. Additive vocabulary changes bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe for logs, traces, support bundles, CLI output, and evidence packets. Raw paths, raw URLs, raw prompt bodies, raw provider bodies, and raw secret material never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "Short reviewable sentence safe for UI, CLI, docs/help, support export, and audit evidence. Do not include raw secrets, raw URLs, raw policy payloads, raw file bodies, or raw provider payloads."
+    },
+    "specific_action_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "not": {
+        "enum": [
+          "Yes",
+          "No",
+          "OK",
+          "Ok",
+          "Continue",
+          "Apply",
+          "Accept",
+          "Submit",
+          "Allow",
+          "Deny",
+          "Cancel"
+        ]
+      },
+      "description": "Specific action label. Vague one-word labels are forbidden on product-owned consequential prompts."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "extension_prompt",
+        "ai_tool_prompt",
+        "remote_attach_prompt",
+        "starter_setup_prompt",
+        "package_script_risk_review",
+        "consent_renewal_prompt",
+        "publish_promote_rollback_review",
+        "policy_admin_prompt",
+        "provider_handoff_prompt",
+        "trust_elevation_prompt"
+      ]
+    },
+    "prompt_purpose_class": {
+      "type": "string",
+      "enum": [
+        "grant_new_capability",
+        "widen_existing_grant",
+        "renew_expired_or_drifted_grant",
+        "admit_high_risk_action",
+        "disclose_policy_lock",
+        "confirm_external_effect",
+        "choose_degraded_path",
+        "review_copy_export"
+      ]
+    },
+    "requester_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "extension",
+        "ai_tool",
+        "remote_connector",
+        "package_adapter",
+        "starter_or_template",
+        "provider_adapter",
+        "policy_service",
+        "supervisor"
+      ]
+    },
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "workspace_owner",
+        "extension_publisher",
+        "ai_tool_provider",
+        "package_manager_adapter",
+        "remote_host_owner",
+        "provider_installation",
+        "managed_admin",
+        "policy_bundle",
+        "supervisor",
+        "system"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "unsupported_here"
+      ]
+    },
+    "policy_lock_state": {
+      "type": "string",
+      "enum": [
+        "unlocked_user_editable",
+        "policy_ceiling_narrows",
+        "policy_locked_no_override",
+        "policy_injected_grant",
+        "policy_source_unavailable_fail_closed",
+        "policy_unknown_review_required"
+      ]
+    },
+    "user_override_posture": {
+      "type": "string",
+      "enum": [
+        "user_may_choose",
+        "user_may_choose_narrower_only",
+        "user_may_request_admin_review",
+        "user_override_forbidden",
+        "not_applicable"
+      ]
+    },
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ]
+    },
+    "permission_grant_scope": {
+      "type": "string",
+      "enum": ["once", "session", "workspace", "profile", "policy_managed"]
+    },
+    "capability_group_class": {
+      "type": "string",
+      "enum": [
+        "workspace_read",
+        "workspace_write",
+        "subprocess_or_terminal",
+        "network_egress",
+        "secret_or_identity",
+        "remote_attach",
+        "debug_or_privileged_inspection",
+        "ai_tool_mutation",
+        "extension_host_capability",
+        "package_or_script_execution",
+        "publish_promote_rollback",
+        "policy_or_admin_change",
+        "support_export",
+        "copy_or_export",
+        "starter_setup"
+      ]
+    },
+    "risk_group_class": {
+      "type": "string",
+      "enum": [
+        "first_run_trust",
+        "capability_widening",
+        "boundary_crossing",
+        "external_side_effect",
+        "destructive_local_action",
+        "credential_projection",
+        "raw_secret_exposure",
+        "unsandboxed_script",
+        "remote_execution",
+        "policy_locked",
+        "remembered_scope",
+        "high_blast_radius",
+        "suspicious_identity",
+        "support_export_sensitive"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ]
+    },
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "reversible_local",
+        "recoverable_durable",
+        "external_shared",
+        "irreversible_high_blast"
+      ]
+    },
+    "undo_or_recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_action",
+        "regenerate_from_source",
+        "restore_from_checkpoint",
+        "evidence_only_no_rerun",
+        "no_recovery_available"
+      ]
+    },
+    "authority_ticket_requirement": {
+      "type": "string",
+      "enum": [
+        "not_required_inspect_only",
+        "required_before_apply",
+        "required_before_spend",
+        "blocked_until_policy_change",
+        "issued_by_policy_service",
+        "issued_by_supervisor"
+      ]
+    },
+    "consequence_block_class": {
+      "type": "string",
+      "enum": [
+        "if_allowed",
+        "if_denied",
+        "if_policy_locked",
+        "if_grant_remembered",
+        "if_expired_or_revoked"
+      ]
+    },
+    "denial_state_class": {
+      "type": "string",
+      "enum": [
+        "not_denied",
+        "denied_by_user_continue_local",
+        "denied_by_user_read_only",
+        "denied_by_policy_no_override",
+        "denied_missing_scope",
+        "denied_expired_grant",
+        "denied_target_drift",
+        "cancelled_no_state_change"
+      ]
+    },
+    "degraded_capability_class": {
+      "type": "string",
+      "enum": [
+        "no_degrade_available",
+        "local_only_continues",
+        "read_only_inspection_continues",
+        "draft_saved_locally",
+        "preview_only_continues",
+        "metadata_only_export",
+        "open_in_browser_or_provider",
+        "request_admin_change",
+        "install_disabled_capability_removed"
+      ]
+    },
+    "details_surface_class": {
+      "type": "string",
+      "enum": [
+        "inline_expander",
+        "side_sheet",
+        "inspector_route",
+        "docs_anchor",
+        "cli_explain",
+        "support_export_entry"
+      ]
+    },
+    "copy_export_class": {
+      "type": "string",
+      "enum": [
+        "no_copy_export",
+        "metadata_only",
+        "sanitized_summary",
+        "structured_trace_refs_only",
+        "raw_allowed_with_label",
+        "blocked_by_policy"
+      ]
+    },
+    "representation_class": {
+      "type": "string",
+      "enum": [
+        "raw",
+        "rendered",
+        "escaped",
+        "sanitized",
+        "sandboxed",
+        "generated",
+        "blocked_metadata_only"
+      ]
+    },
+    "export_destination_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "local_log",
+        "support_bundle",
+        "evidence_packet",
+        "admin_export",
+        "cli_trace"
+      ]
+    },
+    "decision_action_role": {
+      "type": "string",
+      "enum": [
+        "primary_approve",
+        "secondary_deny",
+        "safer_alternative",
+        "open_details",
+        "revoke_later",
+        "request_admin_review"
+      ]
+    },
+    "resulting_state_class": {
+      "type": "string",
+      "enum": [
+        "granted_once",
+        "granted_session",
+        "granted_workspace",
+        "granted_profile",
+        "policy_managed_active",
+        "denied_continue_local",
+        "denied_read_only",
+        "blocked_by_policy",
+        "details_opened",
+        "cancelled_no_change",
+        "admin_review_requested",
+        "revoked",
+        "degraded_preview_only",
+        "local_draft_saved",
+        "metadata_exported"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "untrusted_unknown",
+        "restricted",
+        "trusted",
+        "trusted_time_bounded",
+        "trusted_policy_degraded",
+        "restricted_recovery_fallback",
+        "restricted_extension_quarantine",
+        "trust_revoked",
+        "trust_unavailable_identity_gate"
+      ]
+    },
+    "requester": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requester_ref",
+        "requester_class",
+        "requester_label",
+        "request_origin_ref"
+      ],
+      "properties": {
+        "requester_ref": { "$ref": "#/$defs/opaque_id" },
+        "requester_class": { "$ref": "#/$defs/requester_class" },
+        "requester_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "request_origin_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "authority_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_ref",
+        "owner_class",
+        "source_ref",
+        "source_label",
+        "issuer_class"
+      ],
+      "properties": {
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "issuer_class": {
+          "type": "string",
+          "enum": ["shell", "policy_service", "supervisor"]
+        }
+      }
+    },
+    "policy_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_lock_state",
+        "policy_owner_ref",
+        "policy_source_ref",
+        "user_override_posture",
+        "lock_explanation"
+      ],
+      "properties": {
+        "policy_lock_state": { "$ref": "#/$defs/policy_lock_state" },
+        "policy_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "user_override_posture": { "$ref": "#/$defs/user_override_posture" },
+        "lock_explanation": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_ref",
+        "target_label",
+        "scope_filter_class",
+        "grant_scope_requested",
+        "remembered_scope_consequence",
+        "revocation_route_label"
+      ],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "grant_scope_requested": { "$ref": "#/$defs/permission_grant_scope" },
+        "remembered_scope_consequence": { "$ref": "#/$defs/reviewable_sentence" },
+        "revocation_route_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "capability_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_group_class",
+        "requested_access_label",
+        "purpose_label",
+        "policy_posture"
+      ],
+      "properties": {
+        "capability_group_class": { "$ref": "#/$defs/capability_group_class" },
+        "requested_access_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "purpose_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_posture": { "$ref": "#/$defs/policy_lock_state" }
+      }
+    },
+    "prompt_questions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "what_is_requested",
+        "why_needed",
+        "changes_if_allowed",
+        "works_if_denied",
+        "grant_scope_statement",
+        "authority_owner_statement",
+        "revocation_route"
+      ],
+      "properties": {
+        "what_is_requested": { "$ref": "#/$defs/reviewable_sentence" },
+        "why_needed": { "$ref": "#/$defs/reviewable_sentence" },
+        "changes_if_allowed": { "$ref": "#/$defs/reviewable_sentence" },
+        "works_if_denied": { "$ref": "#/$defs/reviewable_sentence" },
+        "grant_scope_statement": { "$ref": "#/$defs/reviewable_sentence" },
+        "authority_owner_statement": { "$ref": "#/$defs/reviewable_sentence" },
+        "revocation_route": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "side_effect_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side_effect_class",
+        "consequence_class",
+        "effect_summary",
+        "target_effect_refs",
+        "external_effect_refs",
+        "undo_or_recovery_class",
+        "checkpoint_or_rollback_ref",
+        "authority_ticket_requirement",
+        "requires_preview",
+        "requires_step_up"
+      ],
+      "properties": {
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "effect_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "target_effect_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "external_effect_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "undo_or_recovery_class": { "$ref": "#/$defs/undo_or_recovery_class" },
+        "checkpoint_or_rollback_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "authority_ticket_requirement": { "$ref": "#/$defs/authority_ticket_requirement" },
+        "requires_preview": { "type": "boolean" },
+        "requires_step_up": { "type": "boolean" }
+      }
+    },
+    "consequence_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "block_class",
+        "outcome_label",
+        "description",
+        "capability_groups_affected"
+      ],
+      "properties": {
+        "block_class": { "$ref": "#/$defs/consequence_block_class" },
+        "outcome_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "description": { "$ref": "#/$defs/reviewable_sentence" },
+        "capability_groups_affected": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/capability_group_class" }
+        }
+      }
+    },
+    "decision_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_role",
+        "label",
+        "resulting_state_class",
+        "platform_mandated_host_flow"
+      ],
+      "properties": {
+        "action_role": { "$ref": "#/$defs/decision_action_role" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "resulting_state_class": { "$ref": "#/$defs/resulting_state_class" },
+        "platform_mandated_host_flow": { "type": "boolean" },
+        "product_explanatory_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/specific_action_label" }
+          ]
+        },
+        "host_flow_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "authority_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "platform_mandated_host_flow": { "const": false } },
+            "required": ["platform_mandated_host_flow"]
+          },
+          "then": {
+            "properties": {
+              "label": { "$ref": "#/$defs/specific_action_label" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "platform_mandated_host_flow": { "const": true } },
+            "required": ["platform_mandated_host_flow"]
+          },
+          "then": {
+            "required": ["product_explanatory_label", "host_flow_ref"],
+            "properties": {
+              "product_explanatory_label": { "$ref": "#/$defs/specific_action_label" },
+              "host_flow_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "denial_or_degrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "denial_state_class",
+        "degraded_capability_class",
+        "deny_path_behavior_label",
+        "preserved_work_refs",
+        "blocked_capability_groups",
+        "recovery_or_escalation_action"
+      ],
+      "properties": {
+        "denial_state_class": { "$ref": "#/$defs/denial_state_class" },
+        "degraded_capability_class": { "$ref": "#/$defs/degraded_capability_class" },
+        "deny_path_behavior_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "preserved_work_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "blocked_capability_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_group_class" },
+          "uniqueItems": true
+        },
+        "recovery_or_escalation_action": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "details_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "details_action_ref",
+        "label",
+        "details_surface_class",
+        "opens_target_ref"
+      ],
+      "properties": {
+        "details_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/specific_action_label" },
+        "details_surface_class": { "$ref": "#/$defs/details_surface_class" },
+        "opens_target_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "copy_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "copy_export_class",
+        "representation_class",
+        "export_destination_class",
+        "copy_label",
+        "export_label",
+        "redaction_class"
+      ],
+      "properties": {
+        "copy_export_class": { "$ref": "#/$defs/copy_export_class" },
+        "representation_class": { "$ref": "#/$defs/representation_class" },
+        "export_destination_class": { "$ref": "#/$defs/export_destination_class" },
+        "copy_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/specific_action_label" }
+          ]
+        },
+        "export_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/specific_action_label" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "projection_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trace_ref",
+        "target_scope_class",
+        "grant_scope_requested",
+        "policy_lock_state",
+        "denial_state_class",
+        "resulting_state_classes"
+      ],
+      "properties": {
+        "trace_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_scope_class": { "$ref": "#/$defs/scope_filter_class" },
+        "grant_scope_requested": { "$ref": "#/$defs/permission_grant_scope" },
+        "policy_lock_state": { "$ref": "#/$defs/policy_lock_state" },
+        "denial_state_class": { "$ref": "#/$defs/denial_state_class" },
+        "resulting_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/resulting_state_class" }
+        }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "active_policy_refs"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "active_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

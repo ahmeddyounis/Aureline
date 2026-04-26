@@ -1,0 +1,189 @@
+{
+  "$schema": "../../../schemas/trust/prompt_request.schema.json",
+  "record_kind": "trust_prompt_request_record",
+  "prompt_request_schema_version": 1,
+  "prompt_request_id": "trust_prompt.extension.policy_locked_network.001",
+  "surface_class": "extension_prompt",
+  "prompt_purpose_class": "disclose_policy_lock",
+  "requester": {
+    "requester_ref": "requester.extension.graph_sync",
+    "requester_class": "extension",
+    "requester_label": "Graph Sync extension requested network egress for workspace indexing.",
+    "request_origin_ref": "origin.extension.activation.graph_sync.001"
+  },
+  "authority_owner": {
+    "owner_ref": "owner.managed_admin.platform_policy",
+    "owner_class": "managed_admin",
+    "source_ref": "source.policy_bundle.extension_egress",
+    "source_label": "Managed extension-egress policy owns this decision and forbids local override.",
+    "issuer_class": "policy_service"
+  },
+  "support_class": "community",
+  "policy_lock": {
+    "policy_lock_state": "policy_locked_no_override",
+    "policy_owner_ref": "owner.managed_admin.platform_policy",
+    "policy_source_ref": "source.policy_bundle.extension_egress",
+    "user_override_posture": "user_override_forbidden",
+    "lock_explanation": "Organization policy blocks extension network egress for community extensions in this workspace."
+  },
+  "target_scope": {
+    "target_ref": "target.extension.graph_sync.network_egress",
+    "target_label": "Network egress capability for the Graph Sync extension in the current workspace.",
+    "scope_filter_class": "current_root",
+    "grant_scope_requested": "policy_managed",
+    "remembered_scope_consequence": "No user-remembered grant is allowed; policy remains the authority until changed by an admin.",
+    "revocation_route_label": "Settings > Policy > Extension egress shows the active lock and admin review path."
+  },
+  "capability_groups": [
+    {
+      "capability_group_class": "extension_host_capability",
+      "requested_access_label": "Activate an extension capability under workspace context.",
+      "purpose_label": "The extension wants to enrich workspace graph metadata.",
+      "policy_posture": "policy_locked_no_override"
+    },
+    {
+      "capability_group_class": "network_egress",
+      "requested_access_label": "Open network egress from the extension host.",
+      "purpose_label": "The extension wants to contact its declared indexing service.",
+      "policy_posture": "policy_locked_no_override"
+    }
+  ],
+  "risk_groups": [
+    "capability_widening",
+    "boundary_crossing",
+    "policy_locked"
+  ],
+  "prompt_questions": {
+    "what_is_requested": "The extension requested workspace-scoped network egress.",
+    "why_needed": "The extension says network access would enrich graph metadata, but the source is policy-blocked.",
+    "changes_if_allowed": "Network egress would leave the local workspace boundary from the extension host.",
+    "works_if_denied": "Local files, search, editor actions, and read-only extension metadata remain available.",
+    "grant_scope_statement": "Policy-managed scope is active; no user grant can widen it.",
+    "authority_owner_statement": "The managed policy owner, not the extension or local user, owns this decision.",
+    "revocation_route": "Review the lock in Settings > Policy > Extension egress or request admin review."
+  },
+  "side_effect_envelope": {
+    "side_effect_class": "capability_widening",
+    "consequence_class": "external_shared",
+    "effect_summary": "Would allow an extension-host capability to reach a declared external service.",
+    "target_effect_refs": [
+      "effect.extension.graph_sync.capability.network_egress"
+    ],
+    "external_effect_refs": [
+      "effect.external.egress.declared_indexing_service"
+    ],
+    "undo_or_recovery_class": "compensating_action",
+    "checkpoint_or_rollback_ref": null,
+    "authority_ticket_requirement": "blocked_until_policy_change",
+    "requires_preview": true,
+    "requires_step_up": false
+  },
+  "consequence_blocks": [
+    {
+      "block_class": "if_allowed",
+      "outcome_label": "Policy change would be required before egress",
+      "description": "Only an admin policy change can admit this egress capability.",
+      "capability_groups_affected": [
+        "extension_host_capability",
+        "network_egress"
+      ]
+    },
+    {
+      "block_class": "if_denied",
+      "outcome_label": "Extension egress stays blocked",
+      "description": "The extension remains restricted to local and metadata-only behavior.",
+      "capability_groups_affected": [
+        "extension_host_capability",
+        "network_egress"
+      ]
+    },
+    {
+      "block_class": "if_policy_locked",
+      "outcome_label": "Local override unavailable",
+      "description": "The policy source forbids user override and records a policy-blocked prompt trace.",
+      "capability_groups_affected": [
+        "network_egress"
+      ]
+    }
+  ],
+  "decision_actions": [
+    {
+      "action_role": "secondary_deny",
+      "label": "Keep extension egress blocked",
+      "resulting_state_class": "blocked_by_policy",
+      "platform_mandated_host_flow": false
+    },
+    {
+      "action_role": "open_details",
+      "label": "Open extension egress policy",
+      "resulting_state_class": "details_opened",
+      "platform_mandated_host_flow": false
+    },
+    {
+      "action_role": "request_admin_review",
+      "label": "Request managed policy review",
+      "resulting_state_class": "admin_review_requested",
+      "platform_mandated_host_flow": false
+    }
+  ],
+  "denial_or_degrade": {
+    "denial_state_class": "denied_by_policy_no_override",
+    "degraded_capability_class": "read_only_inspection_continues",
+    "deny_path_behavior_label": "Policy denial keeps local editing and read-only extension metadata available.",
+    "preserved_work_refs": [
+      "workspace.local_editing.current_root",
+      "extension.graph_sync.metadata_only_view"
+    ],
+    "blocked_capability_groups": [
+      "network_egress"
+    ],
+    "recovery_or_escalation_action": "Request managed policy review; local user override is forbidden."
+  },
+  "details_action": {
+    "details_action_ref": "details.extension.egress_policy.001",
+    "label": "Open extension egress policy",
+    "details_surface_class": "inspector_route",
+    "opens_target_ref": "inspector.policy.extension_egress"
+  },
+  "copy_export_posture": {
+    "copy_export_class": "metadata_only",
+    "representation_class": "blocked_metadata_only",
+    "export_destination_class": "admin_export",
+    "copy_label": "Copy policy-lock summary",
+    "export_label": "Export policy-lock metadata",
+    "redaction_class": "metadata_safe_default"
+  },
+  "support_trace": {
+    "trace_ref": "support.trace.trust_prompt.extension_policy_lock.001",
+    "target_scope_class": "current_root",
+    "grant_scope_requested": "policy_managed",
+    "policy_lock_state": "policy_locked_no_override",
+    "denial_state_class": "denied_by_policy_no_override",
+    "resulting_state_classes": [
+      "blocked_by_policy",
+      "details_opened",
+      "admin_review_requested"
+    ]
+  },
+  "cli_trace": {
+    "trace_ref": "cli.trace.trust_prompt.extension_policy_lock.001",
+    "target_scope_class": "current_root",
+    "grant_scope_requested": "policy_managed",
+    "policy_lock_state": "policy_locked_no_override",
+    "denial_state_class": "denied_by_policy_no_override",
+    "resulting_state_classes": [
+      "blocked_by_policy",
+      "details_opened",
+      "admin_review_requested"
+    ]
+  },
+  "policy_context": {
+    "policy_epoch": "policy_epoch.managed.2026-04-26.009",
+    "trust_state": "trusted_policy_degraded",
+    "active_policy_refs": [
+      "source.policy_bundle.extension_egress"
+    ]
+  },
+  "redaction_class": "metadata_safe_default",
+  "created_at": "2026-04-26T18:05:00Z"
+}
