@@ -45,6 +45,15 @@ Companion artifacts:
   disabled-state explainers, diagnostics, and machine-facing names
   attached to the canonical command id instead of reauthoring them per
   surface.
+- [`/docs/commands/palette_row_contract.md`](./palette_row_contract.md),
+  [`/schemas/commands/palette_result.schema.json`](../../schemas/commands/palette_result.schema.json),
+  [`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json),
+  and
+  [`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/)
+  — the governed command-palette row and action-footer projection
+  contract that renders command rows in palette, docs/help, settings,
+  keybinding help, migration guidance, automation explainers, and
+  support export from the same registry/shareability records.
 - [`/docs/commands/command_descriptor_contract.md`](./command_descriptor_contract.md)
   — the command object this seed projects from.
 - [`/docs/design/design_token_component_state_vocabulary.md`](../design/design_token_component_state_vocabulary.md)

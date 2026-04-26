@@ -25,6 +25,14 @@ explainers, diagnostics, and machine-facing names lives in
 [`/fixtures/commands/seed_commands/`](../../fixtures/commands/seed_commands/),
 and
 [`/artifacts/commands/command_registry_seed.yaml`](../../artifacts/commands/command_registry_seed.yaml).
+The governed palette projection for result rows, selected-row action
+footers, alternate invocation rows, and cross-surface row rendering now
+lives in
+[`/docs/commands/palette_row_contract.md`](./palette_row_contract.md),
+[`/schemas/commands/palette_result.schema.json`](../../schemas/commands/palette_result.schema.json),
+[`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json),
+and
+[`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/).
 
 The eventual command-registry / invocation-session crates' Rust
 types are the schema of record. This document and the JSON Schema
