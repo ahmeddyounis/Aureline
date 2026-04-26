@@ -1,0 +1,855 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/project_node.schema.json",
+  "title": "Aureline project-graph node, edge, completeness, and bridge contract",
+  "description": "Boundary schema for the project graph that feeds the semantic workspace graph, search planner, AI context assembly, review impact, build/test event envelopes, and Project Doctor. The project graph owns repository, module, package, target, environment, and framework identity before deeper semantic facts are available. Raw source bodies, raw provider URLs, raw command lines, raw environment bodies, and raw credentials never cross this boundary. Adding a new project node class, edge class, edge family, completeness label, bridge kind, completeness reason, next action class, or audit-event id is additive-minor and bumps project_graph_schema_version; repurposing an existing value is breaking and requires a decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/project_graph_snapshot_record" },
+    { "$ref": "#/$defs/project_node_record" },
+    { "$ref": "#/$defs/project_edge_record" },
+    { "$ref": "#/$defs/project_graph_bridge_record" },
+    { "$ref": "#/$defs/project_graph_audit_event_record" }
+  ],
+  "$defs": {
+    "project_graph_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this project-graph contract. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "project_graph_snapshot_record",
+        "project_node_record",
+        "project_edge_record",
+        "project_graph_bridge_record",
+        "project_graph_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, diff, and export."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Fixtures use mono: tokens; production readers treat the value as opaque."
+    },
+    "workspace_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/workspace_id"
+    },
+    "workset_scope_ref": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/workset_scope_ref"
+    },
+    "provenance_stamp": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/provenance_stamp"
+    },
+    "freshness_frame": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/freshness_frame"
+    },
+    "confidence_level": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/confidence_level"
+    },
+    "source_anchor": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/source_anchor"
+    },
+    "edge_evidence_state": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/edge_evidence_state"
+    },
+    "query_family_tag": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/query_family_tag"
+    },
+    "semantic_graph_node_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/node_id"
+    },
+    "semantic_graph_edge_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/edge_id"
+    },
+    "project_graph_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "project_node_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable project-graph node id. Search, review, AI, support, Project Doctor, and indexing rows cite this id rather than labels or paths."
+    },
+    "project_edge_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable project-graph edge id."
+    },
+    "project_graph_bridge_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable bridge id for downstream identity projections."
+    },
+    "project_node_class": {
+      "type": "string",
+      "enum": [
+        "repo_node",
+        "module_node",
+        "package_node",
+        "target_node",
+        "environment_node",
+        "framework_node"
+      ],
+      "description": "Closed project-node vocabulary. These nodes are the project-model substrate later semantic graph facts attach to."
+    },
+    "project_edge_class": {
+      "type": "string",
+      "enum": [
+        "contains",
+        "declares_module",
+        "declares_package",
+        "builds_target",
+        "tests_target",
+        "runs_in_environment",
+        "uses_environment",
+        "depends_on_package",
+        "depends_on_module",
+        "imports_framework",
+        "framework_owns_route",
+        "framework_generates_artifact",
+        "target_requires_package",
+        "target_emits_task_event",
+        "indexed_by_shard",
+        "scoped_by",
+        "omitted_from_scope",
+        "semantic_graph_projection",
+        "query_family_surface_projection"
+      ],
+      "description": "Closed project-edge vocabulary. Edges name project topology, target/environment relationships, framework projections, indexing materialization, and bridge projections."
+    },
+    "project_edge_family": {
+      "type": "string",
+      "enum": [
+        "containment_family",
+        "package_module_family",
+        "target_execution_family",
+        "dependency_family",
+        "framework_family",
+        "indexing_family",
+        "scoping_family",
+        "bridge_family"
+      ],
+      "description": "Family grouping for project edges. Consumers render family-level controls without inventing local synonyms."
+    },
+    "completeness_label": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "omitted",
+        "unfetched",
+        "uninitialized",
+        "partially_indexed",
+        "derived",
+        "stale"
+      ],
+      "description": "Closed completeness vocabulary shared by project graph and indexing records."
+    },
+    "completeness_reason": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "declared_scope_complete",
+        "scope_excluded",
+        "policy_hidden",
+        "remote_unreachable",
+        "managed_workspace_suspended",
+        "adapter_not_loaded",
+        "indexing_not_started",
+        "indexing_in_progress",
+        "source_generated",
+        "heuristic_inference",
+        "freshness_floor_unmet",
+        "producer_unavailable",
+        "user_narrowed_workset",
+        "source_pointer_only",
+        "upstream_import_not_fetched"
+      ],
+      "description": "Typed reason for a completeness label. Non-complete records must carry the reason downstream."
+    },
+    "next_action_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "widen_scope",
+        "fetch_remote_source",
+        "start_indexing",
+        "wait_for_warmup",
+        "refresh_stale_source",
+        "run_project_doctor",
+        "request_permission",
+        "install_or_enable_adapter",
+        "open_support_export"
+      ],
+      "description": "Bounded next action a surface can render when completeness is not complete."
+    },
+    "completeness_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "reason",
+        "scope_basis",
+        "next_action_class"
+      ],
+      "properties": {
+        "label": { "$ref": "#/$defs/completeness_label" },
+        "reason": { "$ref": "#/$defs/completeness_reason" },
+        "scope_basis": {
+          "type": "string",
+          "enum": [
+            "declared_scope",
+            "active_workset",
+            "current_root",
+            "full_workspace",
+            "review_workspace",
+            "policy_view",
+            "remote_slice",
+            "managed_row"
+          ]
+        },
+        "known_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "expected_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "hidden_or_omitted_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "next_action_class": { "$ref": "#/$defs/next_action_class" },
+        "reader_note": {
+          "type": ["string", "null"],
+          "maxLength": 240,
+          "description": "Redaction-aware note safe for support exports and Project Doctor. No raw paths, URLs, or bodies."
+        }
+      },
+      "description": "Machine-readable completeness state. This object travels through search, review, AI, support, and Project Doctor surfaces."
+    },
+    "node_identity_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_logical_key",
+        "producer_fingerprint"
+      ],
+      "properties": {
+        "stable_logical_key": { "$ref": "#/$defs/opaque_id" },
+        "root_identity_ref": {
+          "type": ["string", "null"]
+        },
+        "vcs_identity_ref": {
+          "type": ["string", "null"]
+        },
+        "target_ref": {
+          "type": ["string", "null"],
+          "description": "Canonical target id or build target id when this project node is a target."
+        },
+        "environment_ref": {
+          "type": ["string", "null"],
+          "description": "Canonical execution environment id when this project node is an environment."
+        },
+        "framework_pack_ref": {
+          "type": ["string", "null"]
+        },
+        "content_or_manifest_epoch_ref": {
+          "type": ["string", "null"]
+        },
+        "producer_fingerprint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque producer/version/input fingerprint used for invalidation."
+        }
+      },
+      "description": "Stable identity basis used to decide whether a project node is the same logical object across refreshes."
+    },
+    "repo_body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_kind", "root_refs"],
+      "properties": {
+        "repository_kind": {
+          "type": "string",
+          "enum": [
+            "local_git",
+            "local_folder",
+            "remote_git_mirror",
+            "imported_archive",
+            "managed_checkout"
+          ]
+        },
+        "root_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "vcs_identity_ref": {
+          "type": ["string", "null"]
+        },
+        "default_branch_ref": {
+          "type": ["string", "null"]
+        },
+        "remote_binding_ref": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "module_body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_kind",
+        "owning_repo_node_id",
+        "root_relative_path_ref"
+      ],
+      "properties": {
+        "module_kind": {
+          "type": "string",
+          "enum": [
+            "source_module",
+            "test_module",
+            "generated_module",
+            "docs_module",
+            "vendored_module",
+            "workspace_slice"
+          ]
+        },
+        "owning_repo_node_id": { "$ref": "#/$defs/project_node_id" },
+        "root_relative_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "language_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "package_body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ecosystem", "package_key", "manifest_refs"],
+      "properties": {
+        "ecosystem": {
+          "type": "string",
+          "enum": [
+            "cargo",
+            "npm",
+            "pnpm",
+            "yarn",
+            "python",
+            "go",
+            "maven",
+            "gradle",
+            "dotnet",
+            "bazel",
+            "unknown"
+          ]
+        },
+        "package_key": { "$ref": "#/$defs/opaque_id" },
+        "manifest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "lockfile_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "version_ref": {
+          "type": ["string", "null"]
+        },
+        "package_role": {
+          "type": ["string", "null"],
+          "enum": [
+            "workspace_member",
+            "root_package",
+            "third_party_dependency",
+            "generated_package",
+            "tooling_package",
+            null
+          ]
+        }
+      }
+    },
+    "target_body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "canonical_target_id",
+        "adapter_kind",
+        "supported_actions",
+        "health_state"
+      ],
+      "properties": {
+        "target_kind": {
+          "type": "string",
+          "enum": [
+            "build_target",
+            "test_target",
+            "run_target",
+            "debug_target",
+            "deploy_target",
+            "service_target",
+            "notebook_target"
+          ]
+        },
+        "canonical_target_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical id shared with task-event workspace_or_target_identity.target_ref."
+        },
+        "owning_package_node_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/project_node_id" }
+          ]
+        },
+        "execution_context_target_ref": {
+          "type": ["string", "null"]
+        },
+        "adapter_kind": {
+          "type": "string",
+          "enum": [
+            "native_adapter",
+            "bsp",
+            "bazel_bep",
+            "structured_importer",
+            "heuristic",
+            "provider_import"
+          ]
+        },
+        "supported_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["build", "test", "run", "debug", "deploy", "inspect", "profile"]
+          }
+        },
+        "health_state": {
+          "type": "string",
+          "enum": ["ready", "warming", "degraded", "unavailable", "policy_blocked"]
+        }
+      }
+    },
+    "environment_body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_kind",
+        "canonical_environment_id",
+        "reachability_state"
+      ],
+      "properties": {
+        "environment_kind": {
+          "type": "string",
+          "enum": [
+            "local_host",
+            "ssh_remote",
+            "container_local",
+            "devcontainer",
+            "remote_workspace_vm",
+            "prebuild_runtime",
+            "managed_workspace",
+            "notebook_kernel_local",
+            "notebook_kernel_remote",
+            "ai_sandbox"
+          ]
+        },
+        "canonical_environment_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_context_id_ref": {
+          "type": ["string", "null"]
+        },
+        "environment_capsule_ref": {
+          "type": ["string", "null"]
+        },
+        "capability_envelope_ref": {
+          "type": ["string", "null"]
+        },
+        "reachability_state": {
+          "type": "string",
+          "enum": ["reachable", "warming", "degraded", "unreachable", "policy_blocked"]
+        }
+      }
+    },
+    "framework_body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "framework_kind",
+        "framework_pack_ref",
+        "discovered_from"
+      ],
+      "properties": {
+        "framework_kind": {
+          "type": "string",
+          "enum": [
+            "web_framework",
+            "server_framework",
+            "mobile_framework",
+            "infrastructure_framework",
+            "db_migration_framework",
+            "test_framework",
+            "codegen_framework",
+            "unknown"
+          ]
+        },
+        "framework_pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "version_ref": {
+          "type": ["string", "null"]
+        },
+        "owning_package_node_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/project_node_id" }
+          ]
+        },
+        "discovered_from": {
+          "type": "string",
+          "enum": [
+            "manifest",
+            "lockfile",
+            "source_scan",
+            "build_adapter",
+            "framework_pack",
+            "imported_overlay",
+            "heuristic"
+          ]
+        }
+      }
+    },
+    "project_node_body": {
+      "oneOf": [
+        { "$ref": "#/$defs/repo_body" },
+        { "$ref": "#/$defs/module_body" },
+        { "$ref": "#/$defs/package_body" },
+        { "$ref": "#/$defs/target_body" },
+        { "$ref": "#/$defs/environment_body" },
+        { "$ref": "#/$defs/framework_body" }
+      ]
+    },
+    "bridge_kind": {
+      "type": "string",
+      "enum": [
+        "semantic_graph_identity",
+        "task_event_target_identity",
+        "execution_context_target_identity",
+        "query_family_scope",
+        "search_result_identity",
+        "review_impact_identity",
+        "ai_context_identity",
+        "support_export_identity",
+        "project_doctor_evidence"
+      ],
+      "description": "Downstream identity bridge family."
+    },
+    "bridge_rule": {
+      "type": "string",
+      "enum": [
+        "project_node_id_is_primary",
+        "semantic_graph_deepens_project_node",
+        "task_event_target_ref_matches_canonical_target_id",
+        "execution_context_ref_matches_environment",
+        "query_family_envelope_cites_project_identity",
+        "completeness_ceiling_preserved",
+        "derived_state_preserved",
+        "stale_state_preserved"
+      ]
+    },
+    "project_graph_bridge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "project_graph_schema_version",
+        "bridge_id",
+        "bridge_kind",
+        "workspace_id",
+        "project_node_ref",
+        "bridge_rule",
+        "consumer_schema_ref",
+        "consumer_identity_ref",
+        "provenance_stamp",
+        "freshness_frame",
+        "completeness"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "project_graph_bridge_record" },
+        "project_graph_schema_version": { "$ref": "#/$defs/project_graph_schema_version" },
+        "bridge_id": { "$ref": "#/$defs/project_graph_bridge_id" },
+        "bridge_kind": { "$ref": "#/$defs/bridge_kind" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "project_node_ref": { "$ref": "#/$defs/project_node_id" },
+        "project_edge_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/project_edge_id" }
+          ]
+        },
+        "bridge_rule": { "$ref": "#/$defs/bridge_rule" },
+        "consumer_schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Schema or boundary this bridge maps into."
+        },
+        "consumer_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque identity in the consuming schema, such as a graph node id, task target ref, query envelope ref, evidence ref, or Project Doctor finding evidence ref."
+        },
+        "consumer_field_path": {
+          "type": ["string", "null"],
+          "description": "Optional dotted field path in the consumer schema."
+        },
+        "query_family_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query_family_tag" }
+        },
+        "semantic_graph_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semantic_graph_node_id" }
+        },
+        "semantic_graph_edge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semantic_graph_edge_id" }
+        },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "completeness": { "$ref": "#/$defs/completeness_state" }
+      }
+    },
+    "project_node_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "project_graph_schema_version",
+        "project_node_id",
+        "project_node_class",
+        "workspace_id",
+        "identity_basis",
+        "node_body",
+        "display_label",
+        "provenance_stamp",
+        "freshness_frame",
+        "confidence_level",
+        "completeness",
+        "scope_refs",
+        "source_anchors"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "project_node_record" },
+        "project_graph_schema_version": { "$ref": "#/$defs/project_graph_schema_version" },
+        "project_node_id": { "$ref": "#/$defs/project_node_id" },
+        "project_node_class": { "$ref": "#/$defs/project_node_class" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "identity_basis": { "$ref": "#/$defs/node_identity_basis" },
+        "node_body": { "$ref": "#/$defs/project_node_body" },
+        "display_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "semantic_graph_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semantic_graph_node_id" }
+        },
+        "query_family_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query_family_tag" }
+        },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "completeness": { "$ref": "#/$defs/completeness_state" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "source_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        }
+      }
+    },
+    "project_edge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "project_graph_schema_version",
+        "project_edge_id",
+        "project_edge_class",
+        "project_edge_family",
+        "workspace_id",
+        "from_project_node_id",
+        "to_project_node_id",
+        "evidence_state",
+        "provenance_stamp",
+        "freshness_frame",
+        "confidence_level",
+        "completeness",
+        "scope_refs",
+        "source_anchors"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "project_edge_record" },
+        "project_graph_schema_version": { "$ref": "#/$defs/project_graph_schema_version" },
+        "project_edge_id": { "$ref": "#/$defs/project_edge_id" },
+        "project_edge_class": { "$ref": "#/$defs/project_edge_class" },
+        "project_edge_family": { "$ref": "#/$defs/project_edge_family" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "from_project_node_id": { "$ref": "#/$defs/project_node_id" },
+        "to_project_node_id": { "$ref": "#/$defs/project_node_id" },
+        "evidence_state": { "$ref": "#/$defs/edge_evidence_state" },
+        "semantic_graph_edge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semantic_graph_edge_id" }
+        },
+        "bridge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_graph_bridge_id" }
+        },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "completeness": { "$ref": "#/$defs/completeness_state" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "source_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        }
+      }
+    },
+    "project_graph_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "project_graph_schema_version",
+        "project_graph_id",
+        "workspace_id",
+        "graph_epoch_ref",
+        "recorded_at",
+        "scope_refs",
+        "completeness",
+        "nodes",
+        "edges",
+        "bridges"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "project_graph_snapshot_record" },
+        "project_graph_schema_version": { "$ref": "#/$defs/project_graph_schema_version" },
+        "project_graph_id": { "$ref": "#/$defs/project_graph_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "graph_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "branch_or_revision_ref": {
+          "type": ["string", "null"]
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "producer_ref": {
+          "type": ["string", "null"]
+        },
+        "producer_version": {
+          "type": ["string", "null"]
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "completeness": { "$ref": "#/$defs/completeness_state" },
+        "nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_record" }
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_edge_record" }
+        },
+        "bridges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_graph_bridge_record" }
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 480 }
+        }
+      }
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "project_graph_snapshot_emitted",
+        "project_node_added",
+        "project_node_updated",
+        "project_node_retired",
+        "project_edge_added",
+        "project_edge_updated",
+        "project_edge_retired",
+        "project_completeness_changed",
+        "project_bridge_emitted",
+        "project_bridge_refused",
+        "project_graph_epoch_advanced",
+        "project_graph_schema_version_bumped"
+      ]
+    },
+    "project_graph_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "project_graph_schema_version",
+        "audit_event_id",
+        "event_id",
+        "workspace_id",
+        "recorded_at",
+        "message"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "project_graph_audit_event_record" },
+        "project_graph_schema_version": { "$ref": "#/$defs/project_graph_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "project_edge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_edge_id" }
+        },
+        "bridge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_graph_bridge_id" }
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 320
+        }
+      }
+    }
+  }
+}
+

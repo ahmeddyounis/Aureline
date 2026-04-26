@@ -1,0 +1,715 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/index/index_work_item.schema.json",
+  "title": "Aureline index shard, hot-set plan, work item, invalidation, and readiness export contract",
+  "description": "Boundary schema for incremental indexing work. It freezes hot-set and cold-set planning, symbol extraction source families, shard identity, work-item identity, invalidation triggers, execution locus, readiness export, and completeness labels so local, remote, managed, imported, and support-replay rows share one logical contract. Raw source bodies, raw query text, raw environment bodies, raw provider URLs, raw command lines, and raw credentials never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/indexing_contract_bundle_record" },
+    { "$ref": "#/$defs/index_shard_record" },
+    { "$ref": "#/$defs/hot_set_plan_record" },
+    { "$ref": "#/$defs/index_work_item_record" },
+    { "$ref": "#/$defs/index_invalidation_record" },
+    { "$ref": "#/$defs/indexing_readiness_export_record" },
+    { "$ref": "#/$defs/index_audit_event_record" }
+  ],
+  "$defs": {
+    "index_work_item_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this incremental-indexing contract. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "indexing_contract_bundle_record",
+        "index_shard_record",
+        "hot_set_plan_record",
+        "index_work_item_record",
+        "index_invalidation_record",
+        "indexing_readiness_export_record",
+        "index_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspace_id": {
+      "$ref": "../graph/workspace_graph_seed.schema.json#/$defs/workspace_id"
+    },
+    "workset_scope_ref": {
+      "$ref": "../graph/workspace_graph_seed.schema.json#/$defs/workset_scope_ref"
+    },
+    "provenance_stamp": {
+      "$ref": "../graph/workspace_graph_seed.schema.json#/$defs/provenance_stamp"
+    },
+    "freshness_frame": {
+      "$ref": "../graph/workspace_graph_seed.schema.json#/$defs/freshness_frame"
+    },
+    "confidence_level": {
+      "$ref": "../graph/workspace_graph_seed.schema.json#/$defs/confidence_level"
+    },
+    "source_anchor": {
+      "$ref": "../graph/workspace_graph_seed.schema.json#/$defs/source_anchor"
+    },
+    "project_node_id": {
+      "$ref": "../graph/project_node.schema.json#/$defs/project_node_id"
+    },
+    "project_edge_id": {
+      "$ref": "../graph/project_node.schema.json#/$defs/project_edge_id"
+    },
+    "project_graph_bridge_id": {
+      "$ref": "../graph/project_node.schema.json#/$defs/project_graph_bridge_id"
+    },
+    "completeness_state": {
+      "$ref": "../graph/project_node.schema.json#/$defs/completeness_state"
+    },
+    "completeness_label": {
+      "$ref": "../graph/project_node.schema.json#/$defs/completeness_label"
+    },
+    "readiness_state": {
+      "$ref": "../search/search_result_truth.schema.json#/$defs/readiness_state"
+    },
+    "index_shard_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "index_work_item_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "hot_set_plan_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "index_invalidation_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "execution_locus": {
+      "type": "string",
+      "enum": [
+        "local",
+        "remote_agent",
+        "managed_workspace",
+        "imported_bundle",
+        "support_replay"
+      ],
+      "description": "Where the index work runs. Placement never changes the logical schema."
+    },
+    "index_lane": {
+      "type": "string",
+      "enum": [
+        "workspace_scanner",
+        "hot_set_planner",
+        "symbol_harvester",
+        "semantic_worker",
+        "search_indexer",
+        "cache_manager",
+        "framework_analyzer",
+        "target_discovery",
+        "docs_indexer",
+        "embedding_indexer"
+      ]
+    },
+    "set_temperature": {
+      "type": "string",
+      "enum": ["hot_set", "cold_set", "maintenance_set"]
+    },
+    "priority_class": {
+      "type": "string",
+      "enum": [
+        "foreground_interactive",
+        "hot_path",
+        "interactive_background",
+        "maintenance"
+      ]
+    },
+    "source_family": {
+      "type": "string",
+      "enum": [
+        "workspace_catalog",
+        "tree_sitter",
+        "lsp",
+        "language_server_index",
+        "build_adapter",
+        "framework_pack",
+        "docs_pack",
+        "dependency_manifest",
+        "generated_lineage",
+        "task_event_stream",
+        "provider_overlay",
+        "imported_precomputed",
+        "heuristic_scan"
+      ],
+      "description": "Source family used for extraction or materialization. Framework packs and target discovery extend through this enum rather than private source labels."
+    },
+    "index_shard_class": {
+      "type": "string",
+      "enum": [
+        "workspace_catalog",
+        "hot_set_lexical",
+        "per_root_lexical",
+        "structural_symbol",
+        "semantic_graph",
+        "project_graph",
+        "target_graph",
+        "docs_pack",
+        "framework_overlay",
+        "embedding",
+        "provider_overlay",
+        "support_projection"
+      ]
+    },
+    "work_item_kind": {
+      "type": "string",
+      "enum": [
+        "scan_root",
+        "classify_files",
+        "plan_hot_set",
+        "extract_symbols",
+        "ingest_semantic_edges",
+        "materialize_search_shard",
+        "refresh_project_graph",
+        "discover_targets",
+        "refresh_framework_overlay",
+        "compact_shard",
+        "invalidate_scope",
+        "export_readiness"
+      ]
+    },
+    "work_item_status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "blocked",
+        "paused",
+        "completed",
+        "completed_partial",
+        "failed",
+        "cancelled",
+        "coalesced"
+      ]
+    },
+    "pause_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        "battery_saver",
+        "thermal_pressure",
+        "bandwidth_limited",
+        "remote_unreachable",
+        "managed_suspended",
+        "policy_blocked",
+        "quota_exceeded",
+        "foreground_latency_protection",
+        "user_paused",
+        null
+      ]
+    },
+    "invalidation_trigger": {
+      "type": "string",
+      "enum": [
+        "file_content_changed",
+        "filesystem_identity_changed",
+        "root_added_or_removed",
+        "workset_scope_changed",
+        "dependency_manifest_changed",
+        "lockfile_changed",
+        "build_config_changed",
+        "target_graph_changed",
+        "environment_capsule_changed",
+        "framework_pack_changed",
+        "language_pack_changed",
+        "generator_version_changed",
+        "policy_epoch_changed",
+        "trust_state_changed",
+        "branch_or_revision_changed",
+        "remote_reconnect",
+        "managed_suspend_resume",
+        "cache_schema_changed",
+        "producer_version_changed",
+        "user_requested_rebuild"
+      ]
+    },
+    "hot_set_input_class": {
+      "type": "string",
+      "enum": [
+        "open_file",
+        "recent_edit",
+        "changed_file",
+        "active_target",
+        "nearby_test",
+        "import_neighborhood",
+        "dependency_neighborhood",
+        "diagnostic_neighborhood",
+        "user_pinned",
+        "restored_session"
+      ]
+    },
+    "expected_output_class": {
+      "type": "string",
+      "enum": [
+        "project_graph_nodes",
+        "semantic_graph_nodes",
+        "semantic_graph_edges",
+        "search_result_packets",
+        "symbol_rows",
+        "target_graph_rows",
+        "framework_overlay_rows",
+        "readiness_export",
+        "support_projection"
+      ]
+    },
+    "rebuild_policy": {
+      "type": "string",
+      "enum": [
+        "targeted_rebuild",
+        "coalesced_incremental",
+        "reuse_cached",
+        "refuse_until_repaired",
+        "full_rebuild_required"
+      ]
+    },
+    "cancellation_participation": {
+      "type": "string",
+      "enum": [
+        "cooperative_cancellation",
+        "checkpoint_then_cancel",
+        "not_cancellable_after_commit"
+      ]
+    },
+    "hot_set_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_class", "input_ref", "priority_reason"],
+      "properties": {
+        "input_class": { "$ref": "#/$defs/hot_set_input_class" },
+        "input_ref": { "$ref": "#/$defs/opaque_id" },
+        "project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "target_project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "priority_reason": {
+          "type": "string",
+          "maxLength": 240
+        }
+      }
+    },
+    "index_shard_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "index_work_item_schema_version",
+        "shard_id",
+        "shard_class",
+        "workspace_id",
+        "execution_locus",
+        "readiness_state",
+        "completeness",
+        "project_node_refs",
+        "source_families",
+        "scope_refs",
+        "provenance_stamp",
+        "freshness_frame",
+        "confidence_level",
+        "invalidation_triggers"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "index_shard_record" },
+        "index_work_item_schema_version": { "$ref": "#/$defs/index_work_item_schema_version" },
+        "shard_id": { "$ref": "#/$defs/index_shard_id" },
+        "shard_class": { "$ref": "#/$defs/index_shard_class" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "execution_locus": { "$ref": "#/$defs/execution_locus" },
+        "shard_epoch_ref": { "type": ["string", "null"] },
+        "cache_key_ref": { "type": ["string", "null"] },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "completeness": { "$ref": "#/$defs/completeness_state" },
+        "project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "target_project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "source_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_family" }
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "invalidation_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_trigger" }
+        }
+      }
+    },
+    "hot_set_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "index_work_item_schema_version",
+        "hot_set_plan_id",
+        "workspace_id",
+        "planner_version",
+        "execution_locus",
+        "scope_refs",
+        "hot_set_inputs",
+        "included_project_node_refs",
+        "deferred_cold_project_node_refs",
+        "completeness",
+        "provenance_stamp",
+        "freshness_frame"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "hot_set_plan_record" },
+        "index_work_item_schema_version": { "$ref": "#/$defs/index_work_item_schema_version" },
+        "hot_set_plan_id": { "$ref": "#/$defs/hot_set_plan_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "planner_version": { "type": "string", "minLength": 1 },
+        "execution_locus": { "$ref": "#/$defs/execution_locus" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "hot_set_inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hot_set_input" }
+        },
+        "included_project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "deferred_cold_project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "completeness": { "$ref": "#/$defs/completeness_state" },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" }
+      }
+    },
+    "index_work_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "index_work_item_schema_version",
+        "work_item_id",
+        "work_item_kind",
+        "lane",
+        "execution_locus",
+        "set_temperature",
+        "priority_class",
+        "status",
+        "workspace_id",
+        "idempotency_key",
+        "producer_ref",
+        "scope_refs",
+        "project_node_refs",
+        "shard_refs",
+        "source_families",
+        "expected_outputs",
+        "cancellation_participation",
+        "completeness",
+        "provenance_stamp",
+        "freshness_frame"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "index_work_item_record" },
+        "index_work_item_schema_version": { "$ref": "#/$defs/index_work_item_schema_version" },
+        "work_item_id": { "$ref": "#/$defs/index_work_item_id" },
+        "work_item_kind": { "$ref": "#/$defs/work_item_kind" },
+        "lane": { "$ref": "#/$defs/index_lane" },
+        "execution_locus": { "$ref": "#/$defs/execution_locus" },
+        "set_temperature": { "$ref": "#/$defs/set_temperature" },
+        "priority_class": { "$ref": "#/$defs/priority_class" },
+        "status": { "$ref": "#/$defs/work_item_status" },
+        "pause_reason": { "$ref": "#/$defs/pause_reason" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "idempotency_key": { "$ref": "#/$defs/opaque_id" },
+        "producer_ref": { "type": "string", "minLength": 1 },
+        "depends_on_work_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_work_item_id" }
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "target_project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "shard_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_shard_id" }
+        },
+        "source_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_family" }
+        },
+        "expected_outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expected_output_class" }
+        },
+        "cancellation_participation": { "$ref": "#/$defs/cancellation_participation" },
+        "invalidation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_invalidation_id" }
+        },
+        "completeness": { "$ref": "#/$defs/completeness_state" },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" }
+      }
+    },
+    "index_invalidation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "index_work_item_schema_version",
+        "invalidation_id",
+        "workspace_id",
+        "triggers",
+        "affected_project_node_refs",
+        "affected_shard_refs",
+        "rebuild_policy",
+        "graph_epoch_before_ref",
+        "graph_epoch_after_ref",
+        "provenance_stamp",
+        "freshness_frame",
+        "completeness"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "index_invalidation_record" },
+        "index_work_item_schema_version": { "$ref": "#/$defs/index_work_item_schema_version" },
+        "invalidation_id": { "$ref": "#/$defs/index_invalidation_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_trigger" }
+        },
+        "affected_project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        },
+        "affected_edge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_edge_id" }
+        },
+        "affected_shard_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_shard_id" }
+        },
+        "affected_work_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_work_item_id" }
+        },
+        "rebuild_policy": { "$ref": "#/$defs/rebuild_policy" },
+        "graph_epoch_before_ref": { "$ref": "#/$defs/opaque_id" },
+        "graph_epoch_after_ref": { "$ref": "#/$defs/opaque_id" },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "completeness": { "$ref": "#/$defs/completeness_state" }
+      }
+    },
+    "readiness_lane_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "execution_locus",
+        "readiness_state",
+        "completeness_label",
+        "shard_refs"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/index_lane" },
+        "execution_locus": { "$ref": "#/$defs/execution_locus" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "completeness_label": { "$ref": "#/$defs/completeness_label" },
+        "pause_reason": { "$ref": "#/$defs/pause_reason" },
+        "shard_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_shard_id" }
+        },
+        "project_node_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_node_id" }
+        }
+      }
+    },
+    "indexing_readiness_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "index_work_item_schema_version",
+        "readiness_export_id",
+        "workspace_id",
+        "emitted_at",
+        "scope_refs",
+        "lanes",
+        "support_export_safe",
+        "provenance_stamp",
+        "freshness_frame"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "indexing_readiness_export_record" },
+        "index_work_item_schema_version": { "$ref": "#/$defs/index_work_item_schema_version" },
+        "readiness_export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "lanes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/readiness_lane_row" }
+        },
+        "support_export_safe": { "type": "boolean" },
+        "project_graph_bridge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/project_graph_bridge_id" }
+        },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" }
+      }
+    },
+    "indexing_contract_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "index_work_item_schema_version",
+        "bundle_id",
+        "workspace_id",
+        "emitted_at",
+        "scope_refs",
+        "hot_set_plans",
+        "shards",
+        "work_items",
+        "invalidations",
+        "readiness_exports"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "indexing_contract_bundle_record" },
+        "index_work_item_schema_version": { "$ref": "#/$defs/index_work_item_schema_version" },
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "hot_set_plans": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hot_set_plan_record" }
+        },
+        "shards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_shard_record" }
+        },
+        "work_items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_work_item_record" }
+        },
+        "invalidations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_invalidation_record" }
+        },
+        "readiness_exports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/indexing_readiness_export_record" }
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 480 }
+        }
+      }
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "index_shard_emitted",
+        "hot_set_plan_emitted",
+        "index_work_item_queued",
+        "index_work_item_started",
+        "index_work_item_completed",
+        "index_work_item_paused",
+        "index_work_item_failed",
+        "index_invalidation_emitted",
+        "index_readiness_export_emitted",
+        "index_work_item_schema_version_bumped"
+      ]
+    },
+    "index_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "index_work_item_schema_version",
+        "audit_event_id",
+        "event_id",
+        "workspace_id",
+        "recorded_at",
+        "message"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "index_audit_event_record" },
+        "index_work_item_schema_version": { "$ref": "#/$defs/index_work_item_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "work_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_work_item_id" }
+        },
+        "shard_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index_shard_id" }
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 320
+        }
+      }
+    }
+  }
+}
+
