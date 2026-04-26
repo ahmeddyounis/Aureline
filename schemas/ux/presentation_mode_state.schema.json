@@ -1,0 +1,739 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/presentation_mode_state.schema.json",
+  "title": "Aureline presentation-mode and walkthrough-session state contract",
+  "description": "Boundary schema for the presentation-mode and walkthrough-session state frozen in docs/ux/learning_and_presentation_contract.md. Every presentation session resolves through one presentation_session_record naming the bound guided_tour_ref, the presenter actor, the audience visibility posture, the share state, the follow grant binding, the replay/retention class, the reduced-motion posture, the accessibility/keyboard route, the speaker-note locality, and the local/remote/shared boundary the session is admissible under. Every layout anchor (presenter bar, agenda or waypoint rail, spotlight frame, breakaway banner, speaker-note locality) resolves through one presentation_layout_anchor_record landing on a canonical workspace surface rather than on a private presentation shell. Every audience breakaway resolves through one breakaway_event_record with a recovery class. Every session aggregator resolves through one presentation_invariant_manifest_record declaring the const-true invariants. The contract mints no new follow_mode_class, presenter_role_class, focus_broadcast_posture_class, presenter_handoff_kind_class, deployment_profile_id, redaction_class, or freshness_class vocabulary; those re-export verbatim from schemas/collaboration/follow_and_presenter_state.schema.json, schemas/collaboration/control_grant.schema.json, schemas/ux/guided_surface_state.schema.json, schemas/ux/guided_tour.schema.json, and artifacts/governance/deployment_profiles.yaml. Presentation authority MUST NOT confer mutation; mutating control rides a control_grant_record on the collaboration schema and never this row. Adding a new share_state_class, replay_retention_class, reduced_motion_posture_class, accessibility_keyboard_class, presenter_bar_visibility_class, audience_visibility_class, speaker_note_locality_class, local_remote_shared_boundary_class, breakaway_recovery_class, layout_anchor_kind, evidence_hook_class, or denial_reason is additive-minor and bumps presentation_mode_state_schema_version; repurposing an existing value is breaking and requires a new decision row. Raw paths, raw URLs, raw prompt / completion text, raw audience identifiers, raw provider payloads, and raw credential material never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/presentation_session_record" },
+    { "$ref": "#/$defs/presentation_layout_anchor_record" },
+    { "$ref": "#/$defs/breakaway_event_record" },
+    { "$ref": "#/$defs/presentation_invariant_manifest_record" }
+  ],
+  "$defs": {
+    "presentation_mode_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this presentation-mode vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "presentation_session_record",
+        "presentation_layout_anchor_record",
+        "breakaway_event_record",
+        "presentation_invariant_manifest_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / portable profile packages / support bundles. Raw URLs, raw absolute paths, raw audience identifiers, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "share_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_share",
+        "shared_to_named_audience",
+        "shared_to_classroom_managed_pool",
+        "shared_to_facilitator_only",
+        "shared_blocked_by_policy",
+        "shared_unavailable_in_envelope"
+      ],
+      "description": "Closed share-state vocabulary the presentation session resolves under. local_only_no_share keeps the session machine-local; shared_blocked_by_policy and shared_unavailable_in_envelope force suppression of audience-visible surfaces."
+    },
+
+    "replay_retention_class": {
+      "type": "string",
+      "enum": [
+        "no_replay_retained",
+        "metadata_only_replay_local_redacted",
+        "metadata_only_replay_in_support_bundle_redacted",
+        "replay_blocked_by_policy",
+        "classroom_artifact_privacy_bounded"
+      ],
+      "description": "Closed replay/retention vocabulary. classroom_artifact_privacy_bounded reserves the privacy-bounded classroom-artifact evidence hook so a facilitator-led session can be reviewed without leaking audience identity."
+    },
+
+    "reduced_motion_posture_class": {
+      "type": "string",
+      "enum": [
+        "respects_user_reduced_motion_setting",
+        "forced_reduced_motion_classroom_default",
+        "forced_reduced_motion_policy_locked",
+        "motion_unavailable_local_view_only"
+      ],
+      "description": "Closed reduced-motion vocabulary. The presentation surface MUST honor the user's reduced-motion setting unless overridden by a classroom or policy posture, and an unavailable-projection row MUST disclose the local-view-only state."
+    },
+
+    "accessibility_keyboard_class": {
+      "type": "string",
+      "enum": [
+        "full_keyboard_route_required",
+        "screen_reader_announcements_required",
+        "high_contrast_focus_required",
+        "no_special_accessibility_route_admitted_facilitator_only"
+      ],
+      "description": "Closed accessibility keyboard / a11y-route vocabulary the audience-visible surfaces MUST honor. no_special_accessibility_route_admitted_facilitator_only is reserved for facilitator-only adjuncts that never render to the audience."
+    },
+
+    "presenter_bar_visibility_class": {
+      "type": "string",
+      "enum": [
+        "presenter_bar_visible_to_presenter_only",
+        "presenter_bar_visible_to_co_presenters",
+        "presenter_bar_hidden_audience_facing",
+        "presenter_bar_unavailable_degraded_projection"
+      ],
+      "description": "Closed presenter-bar visibility vocabulary. The presenter bar MUST NOT render to the audience; presenter_bar_hidden_audience_facing is the audience side state and presenter_bar_visible_to_presenter_only is the presenter side."
+    },
+
+    "audience_visibility_class": {
+      "type": "string",
+      "enum": [
+        "audience_sees_workspace_surfaces_only",
+        "audience_sees_workspace_plus_agenda_rail",
+        "audience_sees_workspace_plus_spotlight_frame",
+        "audience_sees_workspace_plus_breakaway_banner",
+        "audience_sees_nothing_local_view_only"
+      ],
+      "description": "Closed audience-visibility vocabulary. Speaker notes, presenter bar, and any facilitator-only adjunct are excluded from these classes; audience-visible surfaces are exactly the canonical workspace surfaces plus the named layer."
+    },
+
+    "speaker_note_locality_class": {
+      "type": "string",
+      "enum": [
+        "speaker_notes_facilitator_only_local",
+        "speaker_notes_co_presenter_visible",
+        "speaker_notes_hidden_no_facilitator_route",
+        "speaker_notes_blocked_by_policy"
+      ],
+      "description": "Closed speaker-note locality vocabulary. Speaker notes MUST NOT cross to the audience under any class; speaker_notes_hidden_no_facilitator_route forces no speaker-note adjunct."
+    },
+
+    "local_remote_shared_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_only_machine_bound",
+        "remote_relay_required",
+        "shared_audience_managed_pool",
+        "shared_audience_named_invitees",
+        "boundary_unavailable_in_envelope"
+      ],
+      "description": "Closed boundary-class vocabulary. Names whether a layout anchor is bound to the local machine, requires a remote relay, or is admissible only to a shared audience."
+    },
+
+    "breakaway_recovery_class": {
+      "type": "string",
+      "enum": [
+        "auto_rejoin_on_relay_recovery",
+        "manual_rejoin_invite_required",
+        "opt_out_until_session_end",
+        "presenter_revoked_no_rejoin",
+        "envelope_narrowed_no_rejoin"
+      ],
+      "description": "Closed breakaway-recovery vocabulary. Names how an audience member who broke away from the presenter view can rejoin (or not)."
+    },
+
+    "layout_anchor_kind": {
+      "type": "string",
+      "enum": [
+        "presenter_bar",
+        "agenda_or_waypoint_rail",
+        "spotlight_frame",
+        "breakaway_banner",
+        "speaker_note_locality"
+      ],
+      "description": "Closed layout-anchor vocabulary. Each anchor MUST land on a canonical workspace surface so presentation mode stays a thin layer over the canonical surfaces rather than a private shell."
+    },
+
+    "follow_mode_class": {
+      "type": "string",
+      "enum": [
+        "cursor_follow_exact",
+        "scroll_follow_viewport_only",
+        "focus_follow_attention_only",
+        "presenter_broadcast_follow",
+        "follow_paused_local_view_only",
+        "follow_unavailable_live_state_missing"
+      ],
+      "description": "Re-exported from schemas/collaboration/follow_and_presenter_state.schema.json without modification."
+    },
+
+    "presenter_role_class": {
+      "type": "string",
+      "enum": [
+        "presenter",
+        "co_presenter",
+        "observer",
+        "none_pre_session_or_post_handoff"
+      ],
+      "description": "Re-exported from schemas/collaboration/follow_and_presenter_state.schema.json without modification."
+    },
+
+    "focus_broadcast_posture_class": {
+      "type": "string",
+      "enum": [
+        "focus_broadcast_active",
+        "focus_broadcast_paused_temporary",
+        "focus_broadcast_disabled_local_view_only",
+        "focus_broadcast_unavailable_degraded_projection"
+      ],
+      "description": "Re-exported from schemas/collaboration/follow_and_presenter_state.schema.json without modification."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "evidence_hook_class": {
+      "type": "string",
+      "enum": [
+        "tour_citation_audit",
+        "cached_pack_continuity",
+        "presentation_role_review",
+        "layout_restore_proof",
+        "privacy_bounded_classroom_artifact"
+      ],
+      "description": "Reserved evidence-hook vocabulary so presentation-role review, layout-restore proof, and privacy-bounded classroom artifacts can be qualified later without redefining object shape."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "presentation_session_layout_anchor_not_canonical_surface",
+        "presentation_session_speaker_notes_visible_to_audience",
+        "presentation_session_share_state_envelope_mismatch",
+        "presentation_session_replay_retention_envelope_mismatch",
+        "presentation_session_follow_state_without_presenter_role",
+        "presentation_session_focus_broadcast_without_presenter_role",
+        "presentation_session_authority_inferred_for_mutation",
+        "presentation_session_audience_sees_presenter_bar",
+        "presentation_session_breakaway_recovery_inconsistent_with_envelope",
+        "presentation_session_reduced_motion_overridden_without_disclosure",
+        "presentation_session_schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary."
+    },
+
+    "invariant_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "asserted_true"],
+      "properties": {
+        "invariant_id": {
+          "type": "string",
+          "enum": [
+            "every_layout_anchor_lands_on_canonical_workspace_surface",
+            "speaker_notes_never_cross_to_audience",
+            "presenter_bar_never_renders_to_audience",
+            "presentation_authority_does_not_confer_mutation",
+            "follow_state_resolves_against_collaboration_follow_record",
+            "share_state_matches_deployment_envelope",
+            "replay_retention_matches_export_lane",
+            "reduced_motion_user_setting_respected_unless_disclosed",
+            "audience_visible_surfaces_are_only_canonical_workspace_surfaces",
+            "breakaway_recovery_is_explicit_and_envelope_bounded",
+            "speaker_note_adjunct_preserves_command_identity",
+            "evidence_hooks_reserved_for_presentation_role_review_and_classroom_artifact"
+          ]
+        },
+        "asserted_true": { "type": "boolean", "const": true },
+        "notes": { "$ref": "#/$defs/short_label_text" }
+      }
+    },
+
+    "presentation_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "presentation_mode_state_schema_version",
+        "session_id",
+        "presenter_actor_ref",
+        "presenter_role_class",
+        "guided_tour_ref",
+        "share_state_class",
+        "audience_visibility_class",
+        "presenter_bar_visibility_class",
+        "speaker_note_locality_class",
+        "follow_mode_class",
+        "focus_broadcast_posture_class",
+        "replay_retention_class",
+        "reduced_motion_posture_class",
+        "accessibility_keyboard_class",
+        "local_remote_shared_boundary_class",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "presentation_session_record" },
+        "presentation_mode_state_schema_version": { "$ref": "#/$defs/presentation_mode_state_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "presenter_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "co_presenter_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "presenter_role_class": { "$ref": "#/$defs/presenter_role_class" },
+        "guided_tour_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a guided_tour_record on schemas/ux/guided_tour.schema.json. The session's agenda or waypoint rail resolves through this tour."
+        },
+        "follow_target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the follow_target_record on schemas/collaboration/follow_and_presenter_state.schema.json that backs this session's audience follow relationship. Required when share_state_class is shared_*; forbidden when local_only_no_share."
+        },
+        "presenter_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the presenter_state_record that backs this session's presenter stance."
+        },
+        "share_state_class": { "$ref": "#/$defs/share_state_class" },
+        "audience_visibility_class": { "$ref": "#/$defs/audience_visibility_class" },
+        "presenter_bar_visibility_class": { "$ref": "#/$defs/presenter_bar_visibility_class" },
+        "speaker_note_locality_class": { "$ref": "#/$defs/speaker_note_locality_class" },
+        "follow_mode_class": { "$ref": "#/$defs/follow_mode_class" },
+        "focus_broadcast_posture_class": { "$ref": "#/$defs/focus_broadcast_posture_class" },
+        "replay_retention_class": { "$ref": "#/$defs/replay_retention_class" },
+        "reduced_motion_posture_class": { "$ref": "#/$defs/reduced_motion_posture_class" },
+        "accessibility_keyboard_class": { "$ref": "#/$defs/accessibility_keyboard_class" },
+        "local_remote_shared_boundary_class": { "$ref": "#/$defs/local_remote_shared_boundary_class" },
+        "layout_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque ids of presentation_layout_anchor_records this session binds (presenter bar, agenda rail, spotlight frame, breakaway banner, speaker-note locality)."
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Audience-facing surfaces never see the presenter bar.",
+          "if": {
+            "properties": {
+              "audience_visibility_class": {
+                "enum": [
+                  "audience_sees_workspace_surfaces_only",
+                  "audience_sees_workspace_plus_agenda_rail",
+                  "audience_sees_workspace_plus_spotlight_frame",
+                  "audience_sees_workspace_plus_breakaway_banner"
+                ]
+              }
+            },
+            "required": ["audience_visibility_class"]
+          },
+          "then": {
+            "properties": {
+              "presenter_bar_visibility_class": {
+                "enum": [
+                  "presenter_bar_visible_to_presenter_only",
+                  "presenter_bar_visible_to_co_presenters",
+                  "presenter_bar_hidden_audience_facing"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Speaker notes never reach the audience; co-presenter visibility is the only widening admitted.",
+          "if": {
+            "properties": {
+              "speaker_note_locality_class": {
+                "enum": [
+                  "speaker_notes_facilitator_only_local",
+                  "speaker_notes_co_presenter_visible",
+                  "speaker_notes_hidden_no_facilitator_route",
+                  "speaker_notes_blocked_by_policy"
+                ]
+              }
+            },
+            "required": ["speaker_note_locality_class"]
+          },
+          "then": {
+            "not": {
+              "properties": {
+                "audience_visibility_class": { "const": "audience_sees_nothing_local_view_only" },
+                "speaker_note_locality_class": { "const": "speaker_notes_co_presenter_visible" }
+              },
+              "required": ["audience_visibility_class", "speaker_note_locality_class"]
+            }
+          }
+        },
+        {
+          "description": "local_only_no_share share state forbids a follow target ref and forces machine-bound boundary class.",
+          "if": {
+            "properties": { "share_state_class": { "const": "local_only_no_share" } },
+            "required": ["share_state_class"]
+          },
+          "then": {
+            "not": { "required": ["follow_target_ref"] },
+            "properties": {
+              "local_remote_shared_boundary_class": {
+                "enum": ["local_only_machine_bound", "boundary_unavailable_in_envelope"]
+              }
+            }
+          }
+        },
+        {
+          "description": "shared_* share states require a follow_target_ref so the audience follow relationship rides the collaboration follow record.",
+          "if": {
+            "properties": {
+              "share_state_class": {
+                "enum": [
+                  "shared_to_named_audience",
+                  "shared_to_classroom_managed_pool",
+                  "shared_to_facilitator_only"
+                ]
+              }
+            },
+            "required": ["share_state_class"]
+          },
+          "then": {
+            "required": ["follow_target_ref"]
+          }
+        },
+        {
+          "description": "shared_blocked_by_policy and shared_unavailable_in_envelope forbid an active follow relationship.",
+          "if": {
+            "properties": {
+              "share_state_class": {
+                "enum": ["shared_blocked_by_policy", "shared_unavailable_in_envelope"]
+              }
+            },
+            "required": ["share_state_class"]
+          },
+          "then": {
+            "properties": {
+              "follow_mode_class": {
+                "enum": ["follow_paused_local_view_only", "follow_unavailable_live_state_missing"]
+              },
+              "focus_broadcast_posture_class": {
+                "enum": [
+                  "focus_broadcast_disabled_local_view_only",
+                  "focus_broadcast_unavailable_degraded_projection"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "focus_broadcast_active requires a presenter or co-presenter role on this session row.",
+          "if": {
+            "properties": { "focus_broadcast_posture_class": { "const": "focus_broadcast_active" } },
+            "required": ["focus_broadcast_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "presenter_role_class": {
+                "enum": ["presenter", "co_presenter"]
+              }
+            }
+          }
+        },
+        {
+          "description": "replay_blocked_by_policy and classroom_artifact_privacy_bounded require an evidence hook reserve so a later reviewer can locate the audit boundary.",
+          "if": {
+            "properties": {
+              "replay_retention_class": {
+                "enum": ["replay_blocked_by_policy", "classroom_artifact_privacy_bounded"]
+              }
+            },
+            "required": ["replay_retention_class"]
+          },
+          "then": {
+            "properties": {
+              "evidence_hooks_reserved": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["evidence_hooks_reserved"]
+          }
+        }
+      ],
+      "description": "One presentation-mode session row. See learning_and_presentation_contract.md §7."
+    },
+
+    "presentation_layout_anchor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "presentation_mode_state_schema_version",
+        "anchor_id",
+        "session_ref",
+        "layout_anchor_kind",
+        "layout_target_class",
+        "local_remote_shared_boundary_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "presentation_layout_anchor_record" },
+        "presentation_mode_state_schema_version": { "$ref": "#/$defs/presentation_mode_state_schema_version" },
+        "anchor_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "layout_anchor_kind": { "$ref": "#/$defs/layout_anchor_kind" },
+        "layout_target_class": {
+          "type": "string",
+          "enum": [
+            "start_center",
+            "command_palette",
+            "workspace_switcher",
+            "primary_editor",
+            "docs_pane",
+            "architecture_map_canvas",
+            "review_pane",
+            "activity_center",
+            "support_center",
+            "settings_pane",
+            "no_canvas_target_facilitator_only"
+          ],
+          "description": "Re-exported from schemas/ux/guided_tour.schema.json layout_target_class. The anchor MUST land on a canonical workspace surface from this set; minting a private presentation surface is non-conforming."
+        },
+        "waypoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "local_remote_shared_boundary_class": { "$ref": "#/$defs/local_remote_shared_boundary_class" },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Speaker-note locality anchors are facilitator-only and never land on a shared-audience target.",
+          "if": {
+            "properties": { "layout_anchor_kind": { "const": "speaker_note_locality" } },
+            "required": ["layout_anchor_kind"]
+          },
+          "then": {
+            "properties": {
+              "layout_target_class": {
+                "enum": ["no_canvas_target_facilitator_only", "settings_pane"]
+              },
+              "local_remote_shared_boundary_class": {
+                "enum": ["local_only_machine_bound", "remote_relay_required"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Presenter-bar layout anchors are facilitator-side and never land on the activity center, support center, or review pane.",
+          "if": {
+            "properties": { "layout_anchor_kind": { "const": "presenter_bar" } },
+            "required": ["layout_anchor_kind"]
+          },
+          "then": {
+            "properties": {
+              "layout_target_class": {
+                "enum": [
+                  "primary_editor",
+                  "command_palette",
+                  "settings_pane",
+                  "no_canvas_target_facilitator_only"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One presentation-layout anchor (presenter bar, agenda rail, spotlight frame, breakaway banner, speaker-note locality). Each anchor lands on a canonical workspace surface."
+    },
+
+    "breakaway_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "presentation_mode_state_schema_version",
+        "event_id",
+        "session_ref",
+        "audience_actor_ref",
+        "breakaway_recovery_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "breakaway_event_record" },
+        "presentation_mode_state_schema_version": { "$ref": "#/$defs/presentation_mode_state_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "audience_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "breakaway_recovery_class": { "$ref": "#/$defs/breakaway_recovery_class" },
+        "follow_target_ref_after_recovery": { "$ref": "#/$defs/opaque_id" },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "presenter_revoked_no_rejoin and envelope_narrowed_no_rejoin forbid a follow-target-after-recovery.",
+          "if": {
+            "properties": {
+              "breakaway_recovery_class": {
+                "enum": ["presenter_revoked_no_rejoin", "envelope_narrowed_no_rejoin"]
+              }
+            },
+            "required": ["breakaway_recovery_class"]
+          },
+          "then": {
+            "not": { "required": ["follow_target_ref_after_recovery"] }
+          }
+        }
+      ],
+      "description": "One audience breakaway event. See §7."
+    },
+
+    "presentation_invariant_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "presentation_mode_state_schema_version",
+        "manifest_id",
+        "session_refs",
+        "deployment_profile_refs",
+        "invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "presentation_invariant_manifest_record" },
+        "presentation_mode_state_schema_version": { "$ref": "#/$defs/presentation_mode_state_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "session_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "layout_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "breakaway_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 12,
+          "items": { "$ref": "#/$defs/invariant_assertion" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Top-level aggregator declaring const-true invariants for presentation-mode sessions, their layout anchors, and breakaway events."
+    }
+  }
+}

@@ -1,0 +1,579 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/learning_progress.schema.json",
+  "title": "Aureline learning-progress, dismissal, and don't-show-again portability contract",
+  "description": "Boundary schema for the portable learning-progress, dismissal, and don't-show-again state frozen in docs/ux/learning_and_presentation_contract.md. Every per-surface progress record (one row per (learning_profile_id, surface_id) tuple), every user-driven or policy-driven dismissal event, every progress-reset event, and every aggregator manifest resolves through one record kind on this schema. The contract mints no new dismissal_class, reset_class, progress_export_class, or denial_reason vocabulary; those re-export verbatim from schemas/ux/guided_surface_state.schema.json and schemas/ux/onboarding_portability_state.schema.json so a teaching surface, an onboarding row, and a portable-profile package read the same lanes. Adding a new completion_class, dismissal_origin_class, dont_show_again_scope_class, progress_reset_origin_class, evidence_hook_class, or invariant_id is additive-minor and bumps learning_progress_schema_version; repurposing an existing value is breaking and requires a new decision row. Raw paths, raw URLs, raw prompt / completion text, raw credential material, raw account identifiers, raw billing-account ids, and raw provider payloads never cross this boundary; the schema carries opaque ids, typed vocabulary, short privacy-safe labels, and typed policy / redaction metadata only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/learning_progress_record" },
+    { "$ref": "#/$defs/learning_dismissal_record" },
+    { "$ref": "#/$defs/learning_progress_reset_record" },
+    { "$ref": "#/$defs/learning_progress_manifest_record" }
+  ],
+  "$defs": {
+    "learning_progress_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this learning-progress vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "learning_progress_record",
+        "learning_dismissal_record",
+        "learning_progress_reset_record",
+        "learning_progress_manifest_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / portable profile packages / support bundles. Raw URLs, raw absolute paths, raw account identifiers, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short privacy-safe label text. MUST NOT embed raw paths, raw URLs, raw secret material, or raw AI prompt / completion text."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "completion_class": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed",
+        "skipped",
+        "dismissed",
+        "blocked_by_envelope"
+      ],
+      "description": "Closed completion-class vocabulary for a per-surface progress row. blocked_by_envelope captures the policy-disabled / locale-unavailable / docs-pack-missing case where progress cannot advance under the current envelope and is not user-correctable."
+    },
+
+    "dismissal_class": {
+      "type": "string",
+      "enum": [
+        "per_session_one_shot",
+        "per_profile_dismissable",
+        "per_device_dismissable",
+        "policy_locked",
+        "not_dismissable"
+      ],
+      "description": "Re-exported from schemas/ux/guided_surface_state.schema.json without modification."
+    },
+
+    "reset_class": {
+      "type": "string",
+      "enum": [
+        "resettable_per_profile",
+        "resettable_per_device",
+        "resettable_per_account",
+        "resettable_by_policy",
+        "not_resettable_locally"
+      ],
+      "description": "Re-exported from schemas/ux/onboarding_portability_state.schema.json without modification."
+    },
+
+    "progress_export_class": {
+      "type": "string",
+      "enum": [
+        "in_portable_profile_package",
+        "in_portable_profile_package_redacted",
+        "in_support_bundle_redacted",
+        "not_exported_machine_local",
+        "blocked_by_policy"
+      ],
+      "description": "Re-exported from schemas/ux/guided_surface_state.schema.json (omits in_handoff_packet which is not admissible for learning progress)."
+    },
+
+    "dismissal_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_dismissed_explicit",
+        "user_dont_show_again_checked",
+        "session_expired_no_user_action",
+        "envelope_narrowed_under_policy",
+        "imported_profile_package_carried_dismissal",
+        "facilitator_marked_complete"
+      ],
+      "description": "Closed dismissal-origin vocabulary. Names who or what produced the dismissal so a reviewer can tell a user-driven 'don't show again' apart from a policy-driven suppression or a facilitator-led classroom completion."
+    },
+
+    "dont_show_again_scope_class": {
+      "type": "string",
+      "enum": [
+        "no_dont_show_again",
+        "dont_show_again_per_session",
+        "dont_show_again_per_profile",
+        "dont_show_again_per_device",
+        "dont_show_again_locked_by_policy"
+      ],
+      "description": "Closed don't-show-again vocabulary. MUST agree with the dismissal_class on the underlying surface row: a per_profile_dismissable surface MUST NOT carry a dont_show_again_per_device scope, and so on."
+    },
+
+    "progress_reset_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_initiated_reset",
+        "policy_initiated_reset",
+        "imported_profile_package_carried_reset",
+        "device_clear_on_launch_reset",
+        "facilitator_session_end_reset"
+      ],
+      "description": "Closed reset-origin vocabulary."
+    },
+
+    "evidence_hook_class": {
+      "type": "string",
+      "enum": [
+        "tour_citation_audit",
+        "cached_pack_continuity",
+        "presentation_role_review",
+        "layout_restore_proof",
+        "privacy_bounded_classroom_artifact"
+      ],
+      "description": "Reserved evidence-hook vocabulary surfaces may attach without redefining object shape. See learning_and_presentation_contract.md §5."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ],
+      "description": "Re-exported from artifacts/governance/deployment_profiles.yaml without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy context this row was minted under. Re-exported from schemas/docs/citation_anchor.schema.json."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "learning_progress_dismissal_class_mismatch",
+        "learning_progress_export_class_mismatch",
+        "learning_progress_dont_show_again_scope_mismatch",
+        "learning_progress_blocked_by_envelope_carries_completion",
+        "learning_progress_imported_dismissal_lacks_origin",
+        "learning_progress_policy_locked_lacks_policy_context",
+        "learning_progress_schema_version_lagging"
+      ],
+      "description": "Closed denial-reason set publishers MUST emit when a row would otherwise carry inconsistent state."
+    },
+
+    "invariant_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "asserted_true"],
+      "properties": {
+        "invariant_id": {
+          "type": "string",
+          "enum": [
+            "every_progress_row_resolves_against_a_guided_surface_record",
+            "portable_progress_never_leaks_account_or_policy_state",
+            "dont_show_again_scope_matches_underlying_dismissal_class",
+            "blocked_by_envelope_never_marks_completed",
+            "policy_locked_progress_carries_policy_context",
+            "imported_dismissal_carries_origin_class",
+            "reset_lane_matches_dismissal_lane",
+            "machine_local_progress_never_exports_via_portable_lane"
+          ]
+        },
+        "asserted_true": { "type": "boolean", "const": true },
+        "notes": { "$ref": "#/$defs/short_label_text" }
+      }
+    },
+
+    "learning_progress_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_schema_version",
+        "progress_id",
+        "learning_profile_ref",
+        "guided_surface_ref",
+        "completion_class",
+        "dismissal_class",
+        "dont_show_again_scope_class",
+        "reset_class",
+        "progress_export_class",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_progress_record" },
+        "learning_progress_schema_version": { "$ref": "#/$defs/learning_progress_schema_version" },
+        "progress_id": { "$ref": "#/$defs/opaque_id" },
+        "learning_profile_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a learning_mode_profile_record on schemas/ux/guided_surface_state.schema.json."
+        },
+        "guided_surface_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the guided_surface_state_record this progress row tracks."
+        },
+        "tour_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a guided_tour_record on schemas/ux/guided_tour.schema.json. Optional; populated when the surface is part of a tour."
+        },
+        "waypoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a tour_waypoint_record on schemas/ux/guided_tour.schema.json. Optional; populated when the row tracks step-level progress."
+        },
+        "last_completed_position_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completion_class": { "$ref": "#/$defs/completion_class" },
+        "dismissal_class": { "$ref": "#/$defs/dismissal_class" },
+        "dont_show_again_scope_class": { "$ref": "#/$defs/dont_show_again_scope_class" },
+        "reset_class": { "$ref": "#/$defs/reset_class" },
+        "progress_export_class": { "$ref": "#/$defs/progress_export_class" },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "completion_class = blocked_by_envelope MUST NOT be paired with completed or skipped on the same row; it captures cases the user cannot advance through.",
+          "if": {
+            "properties": { "completion_class": { "const": "blocked_by_envelope" } },
+            "required": ["completion_class"]
+          },
+          "then": {
+            "properties": {
+              "dont_show_again_scope_class": {
+                "enum": ["no_dont_show_again", "dont_show_again_locked_by_policy"]
+              }
+            }
+          }
+        },
+        {
+          "description": "per_profile_dismissable progress MUST export through the portable profile lane.",
+          "if": {
+            "properties": { "dismissal_class": { "const": "per_profile_dismissable" } },
+            "required": ["dismissal_class"]
+          },
+          "then": {
+            "properties": {
+              "progress_export_class": {
+                "enum": ["in_portable_profile_package", "in_portable_profile_package_redacted"]
+              },
+              "dont_show_again_scope_class": {
+                "enum": ["no_dont_show_again", "dont_show_again_per_profile"]
+              }
+            }
+          }
+        },
+        {
+          "description": "per_device_dismissable progress is machine-local and forbids portable-profile export.",
+          "if": {
+            "properties": { "dismissal_class": { "const": "per_device_dismissable" } },
+            "required": ["dismissal_class"]
+          },
+          "then": {
+            "properties": {
+              "progress_export_class": {
+                "enum": ["not_exported_machine_local", "in_support_bundle_redacted"]
+              },
+              "dont_show_again_scope_class": {
+                "enum": ["no_dont_show_again", "dont_show_again_per_device"]
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_locked progress carries a policy context and exports only through redacted-support-bundle or blocked-by-policy lanes.",
+          "if": {
+            "properties": { "dismissal_class": { "const": "policy_locked" } },
+            "required": ["dismissal_class"]
+          },
+          "then": {
+            "properties": {
+              "progress_export_class": {
+                "enum": ["blocked_by_policy", "in_support_bundle_redacted"]
+              },
+              "dont_show_again_scope_class": {
+                "enum": ["no_dont_show_again", "dont_show_again_locked_by_policy"]
+              }
+            }
+          }
+        },
+        {
+          "description": "per_session_one_shot progress is ephemeral and never reaches a portable profile package.",
+          "if": {
+            "properties": { "dismissal_class": { "const": "per_session_one_shot" } },
+            "required": ["dismissal_class"]
+          },
+          "then": {
+            "properties": {
+              "progress_export_class": {
+                "enum": ["not_exported_machine_local", "in_support_bundle_redacted"]
+              },
+              "dont_show_again_scope_class": {
+                "enum": ["no_dont_show_again", "dont_show_again_per_session"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One per-surface progress row. See learning_and_presentation_contract.md §4."
+    },
+
+    "learning_dismissal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_schema_version",
+        "dismissal_id",
+        "progress_ref",
+        "dismissal_origin_class",
+        "dismissal_class",
+        "dont_show_again_scope_class",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_dismissal_record" },
+        "learning_progress_schema_version": { "$ref": "#/$defs/learning_progress_schema_version" },
+        "dismissal_id": { "$ref": "#/$defs/opaque_id" },
+        "progress_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the learning_progress_record this dismissal applies to."
+        },
+        "dismissal_origin_class": { "$ref": "#/$defs/dismissal_origin_class" },
+        "dismissal_class": { "$ref": "#/$defs/dismissal_class" },
+        "dont_show_again_scope_class": { "$ref": "#/$defs/dont_show_again_scope_class" },
+        "active_policy_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the active policy bundle. Required when dismissal_origin_class = envelope_narrowed_under_policy."
+        },
+        "imported_profile_package_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the imported profile package. Required when dismissal_origin_class = imported_profile_package_carried_dismissal."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "dismissal_origin_class": { "const": "envelope_narrowed_under_policy" } },
+            "required": ["dismissal_origin_class"]
+          },
+          "then": {
+            "required": ["active_policy_bundle_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "dismissal_origin_class": { "const": "imported_profile_package_carried_dismissal" } },
+            "required": ["dismissal_origin_class"]
+          },
+          "then": {
+            "required": ["imported_profile_package_ref"]
+          }
+        }
+      ],
+      "description": "One dismissal event. See learning_and_presentation_contract.md §4."
+    },
+
+    "learning_progress_reset_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_schema_version",
+        "reset_id",
+        "progress_ref",
+        "progress_reset_origin_class",
+        "reset_class",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_progress_reset_record" },
+        "learning_progress_schema_version": { "$ref": "#/$defs/learning_progress_schema_version" },
+        "reset_id": { "$ref": "#/$defs/opaque_id" },
+        "progress_ref": { "$ref": "#/$defs/opaque_id" },
+        "progress_reset_origin_class": { "$ref": "#/$defs/progress_reset_origin_class" },
+        "reset_class": { "$ref": "#/$defs/reset_class" },
+        "active_policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "imported_profile_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "progress_reset_origin_class": { "const": "policy_initiated_reset" } },
+            "required": ["progress_reset_origin_class"]
+          },
+          "then": { "required": ["active_policy_bundle_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "progress_reset_origin_class": { "const": "imported_profile_package_carried_reset" } },
+            "required": ["progress_reset_origin_class"]
+          },
+          "then": { "required": ["imported_profile_package_ref"] }
+        }
+      ],
+      "description": "One progress-reset event. See learning_and_presentation_contract.md §4."
+    },
+
+    "learning_progress_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_schema_version",
+        "manifest_id",
+        "learning_profile_ref",
+        "progress_refs",
+        "allowed_progress_export_classes",
+        "deployment_profile_refs",
+        "invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_progress_manifest_record" },
+        "learning_progress_schema_version": { "$ref": "#/$defs/learning_progress_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "learning_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "progress_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "dismissal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "reset_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "allowed_progress_export_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/progress_export_class" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/invariant_assertion" },
+          "uniqueItems": true,
+          "description": "Every manifest declares all eight const-true invariants. See §6."
+        },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Top-level aggregator binding all progress, dismissal, and reset rows for a learning profile. See §6."
+    }
+  }
+}
