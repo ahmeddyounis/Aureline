@@ -1,0 +1,819 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/terminal_export_review.schema.json",
+  "title": "Aureline terminal transcript / export review, restore-no-rerun attestation, clipboard-bridge, linkification, and transcript-action review record",
+  "description": "Boundary schema for the four review packets a terminal-touching surface emits when an action other than typing crosses the session: a transcript_export_review_record (raw-vs-rendered export options, scrollback bounds, redaction mode), a restore_no_rerun_attestation_record (the restored pane never silently regains write authority), a clipboard_bridge_review_record (host clipboard <-> remote / OSC-52 round trips), and a linkification_review_record (an OSC-8 hyperlink, a path token, or a URL token in the transcript may be opened, copied, or shared but never executed without a typed command-dispatch dispatch descriptor). Together they keep open / copy / share / rerun distinct actions on a transcript so that a restored or exported transcript never silently regains write authority. Vocabularies compose with - and never re-mint - the terminal-protocol seed (schemas/terminal/session_restore_metadata.schema.json) for restore_level / restore_decision / clipboard_write_class / clipboard_suppression_class / denial-reason / audit-event ids; schemas/execution/terminal_session.schema.json for host-scope badge, live-or-transcript state, transcript-capture posture, and capability-limit classes; the shell-interaction-safety contract for high-risk preview classes and representation classes; the secret-broker boundary for credential-handle classes; the workspace-trust state, the admin-policy epoch, the command-dispatch descriptor, and the redaction-class set. Raw PTY bytes, raw escape-sequence payloads, raw command lines, raw env bodies, raw clipboard bytes, raw secret values, raw URLs / hyperlink targets, and raw absolute paths MUST NOT appear in any record; records carry refs and counts only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a terminal_export_review_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/transcript_export_review_record" },
+    { "$ref": "#/$defs/restore_no_rerun_attestation_record" },
+    { "$ref": "#/$defs/clipboard_bridge_review_record" },
+    { "$ref": "#/$defs/linkification_review_record" }
+  ],
+  "$defs": {
+    "terminal_export_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "transcript_export_review_record",
+        "restore_no_rerun_attestation_record",
+        "clipboard_bridge_review_record",
+        "linkification_review_record"
+      ]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+
+    "transcript_action_class": {
+      "type": "string",
+      "enum": [
+        "open_action_inspect_only_no_run",
+        "copy_action_to_host_clipboard_with_representation_label",
+        "share_action_via_typed_export_route",
+        "rerun_action_through_command_dispatch_descriptor_only",
+        "transcript_action_class_unknown_requires_review"
+      ],
+      "description": "Closed vocabulary that keeps the four user-facing transcript actions distinct. open_action_inspect_only_no_run never invokes a command, never opens a network resource, and never widens authority. copy_action_to_host_clipboard_with_representation_label rides the representation-class label on the clipboard contract; raw-vs-rendered choice is explicit. share_action_via_typed_export_route routes through transcript_export_review. rerun_action_through_command_dispatch_descriptor_only forbids rerun authority from the transcript itself - the dispatch descriptor mints the run intent."
+    },
+
+    "export_representation_class": {
+      "type": "string",
+      "enum": [
+        "raw_bytes_with_ansi_escape_preserved_redaction_aware",
+        "rendered_text_no_ansi_escape_redaction_aware",
+        "rendered_text_with_redaction_markers_only",
+        "rendered_text_sanitized_no_high_risk_classes",
+        "structured_packet_metadata_and_hashes_only",
+        "export_representation_class_unknown_requires_review"
+      ],
+      "description": "Closed export-representation vocabulary the reviewer chooses between when a transcript is exported. raw_bytes_with_ansi_escape_preserved_redaction_aware preserves ANSI / VT-100 escape sequences but with secret-class redaction applied; rendered_text_* projects the visible text only; structured_packet_metadata_and_hashes_only carries no transcript bytes - only opaque ids, counts, and hashes. The exact bytes outside the chosen representation never project."
+    },
+
+    "scrollback_bound_class": {
+      "type": "string",
+      "enum": [
+        "scrollback_within_declared_bound",
+        "scrollback_truncated_to_declared_bound_review_required",
+        "scrollback_unbounded_capture_pending_admin_signed_opt_in_only",
+        "scrollback_bound_class_unknown_requires_review"
+      ],
+      "description": "Closed vocabulary describing how the export sits relative to the parent session's declared scrollback bound. scrollback_unbounded_capture_pending_admin_signed_opt_in_only is reserved and MUST cite an approval-ticket ref."
+    },
+
+    "transcript_export_review_decision_class": {
+      "type": "string",
+      "enum": [
+        "export_admitted_after_preview_within_redaction_class",
+        "export_admitted_after_preview_with_broadened_capture_approval_ticket",
+        "export_held_pending_high_risk_preview_review",
+        "export_held_pending_secret_class_review",
+        "export_held_pending_responsive_fallback_collapsed",
+        "export_denied_by_workspace_trust_restricted",
+        "export_denied_by_admin_policy_pack",
+        "export_denied_by_secret_class_intersection",
+        "export_denied_by_session_quarantine",
+        "export_denied_by_alt_screen_or_raw_mode_capture_paused",
+        "export_review_decision_unknown_requires_review"
+      ],
+      "description": "Closed export-review decision vocabulary. Every refusal fails closed and cites a denial-reason class on the record."
+    },
+
+    "restore_authority_state_class": {
+      "type": "string",
+      "enum": [
+        "restored_inspect_only_no_pty_no_input_admitted",
+        "restored_inspect_only_with_hints_no_pty_no_input_admitted",
+        "fresh_session_minted_with_explicit_user_initiation",
+        "restore_authority_state_unknown_requires_review"
+      ],
+      "description": "Closed restore-authority state. The first two values forbid rerun, forbid input, and forbid clipboard-bridge admission against the restored pane. fresh_session_minted_with_explicit_user_initiation is the only path that may regain write authority; it MUST cite a fresh terminal-session-record ref AND a fresh command-dispatch descriptor ref."
+    },
+
+    "clipboard_bridge_direction_class": {
+      "type": "string",
+      "enum": [
+        "host_to_remote_paste_via_bridge",
+        "remote_to_host_copy_via_bridge",
+        "host_to_local_shell_paste_via_osc52_round_trip",
+        "local_shell_to_host_copy_via_osc52_round_trip",
+        "host_to_remote_via_remote_clipboard_bridge_write",
+        "remote_to_host_via_remote_clipboard_bridge_read",
+        "clipboard_bridge_direction_class_unknown_requires_review"
+      ],
+      "description": "Closed clipboard-bridge-direction vocabulary. Every direction MUST cite a host_scope_badge_class compatible with the direction; the transcript review surface MUST render the boundary cue for the direction (host -> remote, remote -> host)."
+    },
+
+    "clipboard_bridge_decision_class": {
+      "type": "string",
+      "enum": [
+        "bridge_admitted_after_preview_with_target_identity_witness",
+        "bridge_held_pending_target_identity_witness_unverified",
+        "bridge_held_pending_high_risk_preview_review",
+        "bridge_denied_by_workspace_trust_restricted",
+        "bridge_denied_by_admin_policy_pack",
+        "bridge_denied_by_secret_class_intersection",
+        "bridge_denied_by_default_remote_clipboard_bridge_disabled",
+        "bridge_denied_on_restored_transcript_inspect_only",
+        "bridge_decision_class_unknown_requires_review"
+      ],
+      "description": "Closed clipboard-bridge-decision vocabulary. bridge_denied_on_restored_transcript_inspect_only fires whenever the parent terminal-session-record is in any transcript_* live_or_transcript_state_class - a restored transcript never silently regains clipboard-bridge authority."
+    },
+
+    "link_target_class": {
+      "type": "string",
+      "enum": [
+        "url_safe_scheme_https_or_mailto_or_steam_safe",
+        "url_unsafe_scheme_requires_review",
+        "path_token_canonical_workspace_path",
+        "path_token_outside_workspace_requires_review",
+        "osc_8_hyperlink_with_safe_target",
+        "osc_8_hyperlink_with_unverified_target_requires_review",
+        "link_target_class_unknown_requires_review"
+      ],
+      "description": "Closed link-target vocabulary. The exact URL / path bytes never project; only the typed class plus an opaque target-summary ref. Reviewers see a typed safety chip rather than guessing the link safety."
+    },
+
+    "linkification_decision_class": {
+      "type": "string",
+      "enum": [
+        "open_admitted_after_preview_typed_target_class",
+        "open_admitted_after_preview_with_workspace_trust_grant",
+        "copy_admitted_after_preview_with_representation_label",
+        "share_admitted_via_typed_export_route_no_run",
+        "open_held_pending_high_risk_preview_review",
+        "open_denied_by_workspace_trust_restricted",
+        "open_denied_by_admin_policy_pack",
+        "open_denied_by_unsafe_scheme_or_unverified_target",
+        "rerun_intent_forbidden_link_is_not_a_command",
+        "linkification_decision_class_unknown_requires_review"
+      ],
+      "description": "Closed linkification-decision vocabulary. rerun_intent_forbidden_link_is_not_a_command is a typed denial that fires whenever a transcript surface attempts to attribute rerun authority to a hyperlink or a path token; rerun authority lives only on a command-dispatch descriptor."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "transcript_export_review_must_cite_terminal_session_record_ref",
+        "transcript_export_review_must_cite_export_representation_class",
+        "transcript_export_review_must_narrow_scrollback_to_declared_bound",
+        "transcript_export_review_must_cite_approval_ticket_ref_when_broadened",
+        "transcript_export_review_must_cite_approval_ticket_ref_when_unbounded",
+        "transcript_export_review_must_cite_high_risk_preview_class_ref_when_applicable",
+        "transcript_export_review_must_cite_credential_handle_class_ref_when_applicable",
+        "transcript_export_review_must_forbid_admit_under_session_quarantine",
+        "restore_no_rerun_attestation_must_cite_prior_terminal_session_record_ref",
+        "restore_no_rerun_attestation_must_cite_prior_restore_metadata_ref",
+        "restore_no_rerun_attestation_must_forbid_silent_input_admission",
+        "restore_no_rerun_attestation_must_forbid_silent_clipboard_bridge_admission",
+        "restore_no_rerun_attestation_fresh_session_must_cite_fresh_session_record_ref",
+        "restore_no_rerun_attestation_fresh_session_must_cite_fresh_command_dispatch_descriptor_ref",
+        "clipboard_bridge_review_must_cite_terminal_session_record_ref",
+        "clipboard_bridge_review_must_cite_target_identity_witness_for_remote_or_osc52",
+        "clipboard_bridge_review_must_forbid_admit_on_restored_transcript",
+        "clipboard_bridge_review_must_forbid_admit_under_workspace_trust_restricted",
+        "clipboard_bridge_review_must_forbid_admit_under_admin_policy_deny",
+        "clipboard_bridge_review_must_cite_high_risk_preview_class_ref_when_applicable",
+        "clipboard_bridge_review_must_cite_credential_handle_class_ref_when_applicable",
+        "linkification_review_must_cite_terminal_session_record_ref",
+        "linkification_review_must_cite_link_target_class",
+        "linkification_review_must_forbid_rerun_intent_on_link",
+        "linkification_review_must_forbid_admit_on_unsafe_scheme",
+        "linkification_review_must_forbid_admit_on_unverified_osc_8_target",
+        "linkification_review_must_forbid_admit_under_workspace_trust_restricted",
+        "linkification_review_must_forbid_admit_under_admin_policy_deny",
+        "open_copy_share_rerun_actions_must_remain_distinct",
+        "denial_reason_class_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary for transcript-export-review, restore-no-rerun-attestation, clipboard-bridge-review, and linkification-review refusals. open_copy_share_rerun_actions_must_remain_distinct is the contract-level invariant that fails closed when any record attempts to collapse two of the four actions into one decision."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "transcript_export_review_admitted_after_preview",
+        "transcript_export_review_held_pending_review",
+        "transcript_export_review_denied_with_typed_reason",
+        "transcript_export_review_silent_admit_forbidden_denial",
+        "restore_no_rerun_attestation_published",
+        "restore_no_rerun_attestation_fresh_session_minted_under_user_initiation",
+        "restore_no_rerun_attestation_silent_input_admission_forbidden_denial",
+        "restore_no_rerun_attestation_silent_bridge_admission_forbidden_denial",
+        "clipboard_bridge_review_admitted_after_preview",
+        "clipboard_bridge_review_held_pending_review",
+        "clipboard_bridge_review_denied_with_typed_reason",
+        "clipboard_bridge_review_silent_admit_on_restored_transcript_forbidden_denial",
+        "linkification_review_open_admitted_after_preview",
+        "linkification_review_copy_admitted_after_preview",
+        "linkification_review_share_admitted_via_export_route",
+        "linkification_review_open_held_pending_review",
+        "linkification_review_denied_with_typed_reason",
+        "linkification_review_rerun_intent_on_link_forbidden_denial",
+        "open_copy_share_rerun_actions_collapsed_forbidden_denial",
+        "terminal_export_review_audit_denial_emitted"
+      ]
+    },
+
+    "transcript_export_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_export_review_schema_version",
+        "review_id",
+        "terminal_session_record_ref",
+        "transcript_action_class",
+        "export_representation_class",
+        "scrollback_bound_class",
+        "transcript_export_review_decision_class",
+        "redaction_class_at_export",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "transcript_export_review_record" },
+        "terminal_export_review_schema_version": { "$ref": "#/$defs/terminal_export_review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "terminal_session_record_ref": { "$ref": "#/$defs/opaque_ref" },
+        "transcript_action_class": { "$ref": "#/$defs/transcript_action_class" },
+        "export_representation_class": { "$ref": "#/$defs/export_representation_class" },
+        "scrollback_bound_class": { "$ref": "#/$defs/scrollback_bound_class" },
+        "scrollback_lines_exported_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Coarse line-count of the exported region. Null when redaction-class forbids surfacing a count or when scrollback_bound_class is scrollback_bound_class_unknown_requires_review."
+        },
+        "scrollback_bytes_exported_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Coarse byte-count of the exported region. Null when redaction-class forbids surfacing a count."
+        },
+        "high_risk_preview_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "credential_handle_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "trust_state_ref_at_capture": { "$ref": "#/$defs/opaque_ref" },
+        "policy_source_ref_at_capture": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Approval-ticket ref for broadened-capture / unbounded scrollback exports. Null otherwise."
+        },
+        "preview_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the preview_apply_revert_record that gated admission. Required when transcript_export_review_decision_class is one of the export_admitted_* values."
+        },
+        "transcript_export_review_decision_class": { "$ref": "#/$defs/transcript_export_review_decision_class" },
+        "redaction_class_at_export": { "$ref": "#/$defs/redaction_class" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "transcript_action_class on a transcript-export review MUST be share_action_via_typed_export_route - this record is the typed export route. Open / copy / rerun route through the matching action records.",
+          "properties": {
+            "transcript_action_class": { "const": "share_action_via_typed_export_route" }
+          }
+        },
+        {
+          "description": "Admitted exports MUST cite a preview record ref.",
+          "if": {
+            "properties": {
+              "transcript_export_review_decision_class": {
+                "enum": [
+                  "export_admitted_after_preview_within_redaction_class",
+                  "export_admitted_after_preview_with_broadened_capture_approval_ticket"
+                ]
+              }
+            },
+            "required": ["transcript_export_review_decision_class"]
+          },
+          "then": {
+            "required": ["preview_record_ref"],
+            "properties": {
+              "preview_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "broadened-capture and scrollback_unbounded exports MUST cite an approval-ticket ref.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "transcript_export_review_decision_class": {
+                    "const": "export_admitted_after_preview_with_broadened_capture_approval_ticket"
+                  }
+                },
+                "required": ["transcript_export_review_decision_class"]
+              },
+              {
+                "properties": {
+                  "scrollback_bound_class": { "const": "scrollback_unbounded_capture_pending_admin_signed_opt_in_only" }
+                },
+                "required": ["scrollback_bound_class"]
+              }
+            ]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Held / denied decisions MUST cite a typed denial-reason class.",
+          "if": {
+            "properties": {
+              "transcript_export_review_decision_class": {
+                "enum": [
+                  "export_denied_by_workspace_trust_restricted",
+                  "export_denied_by_admin_policy_pack",
+                  "export_denied_by_secret_class_intersection",
+                  "export_denied_by_session_quarantine",
+                  "export_denied_by_alt_screen_or_raw_mode_capture_paused",
+                  "export_review_decision_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["transcript_export_review_decision_class"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" }
+            }
+          }
+        },
+        {
+          "description": "Secret-class denials MUST cite at least one credential-handle class ref.",
+          "if": {
+            "properties": {
+              "transcript_export_review_decision_class": { "const": "export_denied_by_secret_class_intersection" }
+            },
+            "required": ["transcript_export_review_decision_class"]
+          },
+          "then": {
+            "properties": {
+              "credential_handle_class_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["credential_handle_class_refs"]
+          }
+        }
+      ]
+    },
+
+    "restore_no_rerun_attestation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_export_review_schema_version",
+        "attestation_id",
+        "prior_terminal_session_record_ref",
+        "prior_terminal_session_restore_metadata_ref",
+        "restore_authority_state_class",
+        "auto_rerun_forbidden",
+        "input_admission_forbidden_until_fresh_session",
+        "clipboard_bridge_admission_forbidden_until_fresh_session",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "restore_no_rerun_attestation_record" },
+        "terminal_export_review_schema_version": { "$ref": "#/$defs/terminal_export_review_schema_version" },
+        "attestation_id": { "$ref": "#/$defs/opaque_id" },
+        "prior_terminal_session_record_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the terminal_session_record this attestation rides under. The prior record's live_or_transcript_state_class MUST be one of the transcript_* values for the inspect-only attestation rows; the fresh-session row pairs with a fresh terminal_session_record_ref instead."
+        },
+        "prior_terminal_session_restore_metadata_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the terminal_session_restore_metadata_record on the protocol seed for the same prior session."
+        },
+        "restore_authority_state_class": { "$ref": "#/$defs/restore_authority_state_class" },
+        "fresh_terminal_session_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the freshly minted terminal_session_record. Required when restore_authority_state_class is fresh_session_minted_with_explicit_user_initiation; null on every inspect-only attestation."
+        },
+        "fresh_command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the command-dispatch descriptor that opened the fresh session. Required when restore_authority_state_class is fresh_session_minted_with_explicit_user_initiation."
+        },
+        "auto_rerun_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST always be true. A restore_no_rerun_attestation_record that sets this false is non-conforming regardless of any other field."
+        },
+        "input_admission_forbidden_until_fresh_session": {
+          "type": "boolean",
+          "description": "MUST be true on every inspect-only attestation row. May be false ONLY on the fresh_session_minted_with_explicit_user_initiation row."
+        },
+        "clipboard_bridge_admission_forbidden_until_fresh_session": {
+          "type": "boolean",
+          "description": "MUST be true on every inspect-only attestation row. May be false ONLY on the fresh_session_minted_with_explicit_user_initiation row, and even then only subject to the matching clipboard_bridge_review_record on the fresh session."
+        },
+        "user_impact_label_class": {
+          "type": "string",
+          "enum": [
+            "prior_work_preserved_but_not_rerun",
+            "prior_work_not_recoverable_by_automation",
+            "no_recovery_on_irreversible_path",
+            "work_continues_with_narrowed_capability",
+            "live_session_continued_with_explicit_user_initiation",
+            "user_impact_label_class_unknown_requires_review"
+          ],
+          "description": "Closed user-impact class. live_session_continued_with_explicit_user_initiation is admitted ONLY on the fresh-session row."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Fresh-session attestations MUST cite both the fresh terminal_session_record_ref and the fresh command-dispatch descriptor ref AND MAY relax the inspect-only forbids; inspect-only attestations MUST null the fresh refs and MUST keep the forbids true.",
+          "if": {
+            "properties": {
+              "restore_authority_state_class": { "const": "fresh_session_minted_with_explicit_user_initiation" }
+            },
+            "required": ["restore_authority_state_class"]
+          },
+          "then": {
+            "required": [
+              "fresh_terminal_session_record_ref",
+              "fresh_command_dispatch_descriptor_ref"
+            ],
+            "properties": {
+              "fresh_terminal_session_record_ref": { "$ref": "#/$defs/opaque_ref" },
+              "fresh_command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          },
+          "else": {
+            "properties": {
+              "fresh_terminal_session_record_ref": { "type": "null" },
+              "fresh_command_dispatch_descriptor_ref": { "type": "null" },
+              "input_admission_forbidden_until_fresh_session": { "const": true },
+              "clipboard_bridge_admission_forbidden_until_fresh_session": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "live_session_continued_with_explicit_user_initiation is reserved for the fresh-session row.",
+          "if": {
+            "properties": {
+              "user_impact_label_class": { "const": "live_session_continued_with_explicit_user_initiation" }
+            },
+            "required": ["user_impact_label_class"]
+          },
+          "then": {
+            "properties": {
+              "restore_authority_state_class": { "const": "fresh_session_minted_with_explicit_user_initiation" }
+            },
+            "required": ["restore_authority_state_class"]
+          }
+        }
+      ]
+    },
+
+    "clipboard_bridge_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_export_review_schema_version",
+        "bridge_review_id",
+        "terminal_session_record_ref",
+        "transcript_action_class",
+        "clipboard_bridge_direction_class",
+        "clipboard_bridge_decision_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "clipboard_bridge_review_record" },
+        "terminal_export_review_schema_version": { "$ref": "#/$defs/terminal_export_review_schema_version" },
+        "bridge_review_id": { "$ref": "#/$defs/opaque_id" },
+        "terminal_session_record_ref": { "$ref": "#/$defs/opaque_ref" },
+        "transcript_action_class": { "$ref": "#/$defs/transcript_action_class" },
+        "clipboard_bridge_direction_class": { "$ref": "#/$defs/clipboard_bridge_direction_class" },
+        "clipboard_bridge_decision_class": { "$ref": "#/$defs/clipboard_bridge_decision_class" },
+        "target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Remote-agent target-identity witness ref. Required when clipboard_bridge_direction_class is one of the *_remote_* / *_osc52_* / *_remote_clipboard_bridge_* directions."
+        },
+        "high_risk_preview_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "credential_handle_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "preview_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the preview_apply_revert_record that gated admission. Required when clipboard_bridge_decision_class is bridge_admitted_after_preview_with_target_identity_witness."
+        },
+        "trust_state_ref_at_capture": { "$ref": "#/$defs/opaque_ref" },
+        "policy_source_ref_at_capture": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "clipboard-bridge review carries copy_action_to_host_clipboard_with_representation_label or share_action_via_typed_export_route - never open or rerun. open / rerun on a clipboard payload is a paste packet on schemas/execution/command_boundary_marker.schema.json or a command-dispatch descriptor, never this record.",
+          "properties": {
+            "transcript_action_class": {
+              "enum": [
+                "copy_action_to_host_clipboard_with_representation_label",
+                "share_action_via_typed_export_route"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Remote / OSC-52 / remote-clipboard-bridge directions MUST cite a target-identity witness ref.",
+          "if": {
+            "properties": {
+              "clipboard_bridge_direction_class": {
+                "enum": [
+                  "host_to_remote_paste_via_bridge",
+                  "remote_to_host_copy_via_bridge",
+                  "host_to_local_shell_paste_via_osc52_round_trip",
+                  "local_shell_to_host_copy_via_osc52_round_trip",
+                  "host_to_remote_via_remote_clipboard_bridge_write",
+                  "remote_to_host_via_remote_clipboard_bridge_read"
+                ]
+              }
+            },
+            "required": ["clipboard_bridge_direction_class"]
+          },
+          "then": {
+            "required": ["target_identity_witness_ref"],
+            "properties": {
+              "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Admitted bridge decisions MUST cite a preview record ref.",
+          "if": {
+            "properties": {
+              "clipboard_bridge_decision_class": { "const": "bridge_admitted_after_preview_with_target_identity_witness" }
+            },
+            "required": ["clipboard_bridge_decision_class"]
+          },
+          "then": {
+            "required": ["preview_record_ref"],
+            "properties": {
+              "preview_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Held / denied decisions MUST cite a typed denial-reason class.",
+          "if": {
+            "properties": {
+              "clipboard_bridge_decision_class": {
+                "enum": [
+                  "bridge_denied_by_workspace_trust_restricted",
+                  "bridge_denied_by_admin_policy_pack",
+                  "bridge_denied_by_secret_class_intersection",
+                  "bridge_denied_by_default_remote_clipboard_bridge_disabled",
+                  "bridge_denied_on_restored_transcript_inspect_only",
+                  "bridge_decision_class_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["clipboard_bridge_decision_class"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" }
+            }
+          }
+        }
+      ]
+    },
+
+    "linkification_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_export_review_schema_version",
+        "linkification_review_id",
+        "terminal_session_record_ref",
+        "transcript_action_class",
+        "link_target_class",
+        "linkification_decision_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "linkification_review_record" },
+        "terminal_export_review_schema_version": { "$ref": "#/$defs/terminal_export_review_schema_version" },
+        "linkification_review_id": { "$ref": "#/$defs/opaque_id" },
+        "terminal_session_record_ref": { "$ref": "#/$defs/opaque_ref" },
+        "transcript_action_class": { "$ref": "#/$defs/transcript_action_class" },
+        "link_target_class": { "$ref": "#/$defs/link_target_class" },
+        "link_target_summary_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to a sanitised link-target summary record (canonical class label, redaction-aware short label). Raw URL bytes / raw absolute path bytes / raw OSC-8 hyperlink bytes MUST NOT cross this boundary."
+        },
+        "linkification_decision_class": { "$ref": "#/$defs/linkification_decision_class" },
+        "high_risk_preview_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "preview_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the preview_apply_revert_record that gated admission. Required when linkification_decision_class is one of the *_admitted_* values."
+        },
+        "trust_state_ref_at_capture": { "$ref": "#/$defs/opaque_ref" },
+        "policy_source_ref_at_capture": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "linkification review MUST resolve to open / copy / share - rerun_action_through_command_dispatch_descriptor_only is forbidden on this record. A transcript link is never a command; rerun authority lives on a command-dispatch descriptor only.",
+          "properties": {
+            "transcript_action_class": {
+              "enum": [
+                "open_action_inspect_only_no_run",
+                "copy_action_to_host_clipboard_with_representation_label",
+                "share_action_via_typed_export_route"
+              ]
+            }
+          }
+        },
+        {
+          "description": "rerun-intent-on-link denial MUST be the typed refusal when a link is treated as a command.",
+          "if": {
+            "properties": {
+              "linkification_decision_class": { "const": "rerun_intent_forbidden_link_is_not_a_command" }
+            },
+            "required": ["linkification_decision_class"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "const": "linkification_review_must_forbid_rerun_intent_on_link" }
+            }
+          }
+        },
+        {
+          "description": "Admitted decisions MUST cite a preview record ref.",
+          "if": {
+            "properties": {
+              "linkification_decision_class": {
+                "enum": [
+                  "open_admitted_after_preview_typed_target_class",
+                  "open_admitted_after_preview_with_workspace_trust_grant",
+                  "copy_admitted_after_preview_with_representation_label",
+                  "share_admitted_via_typed_export_route_no_run"
+                ]
+              }
+            },
+            "required": ["linkification_decision_class"]
+          },
+          "then": {
+            "required": ["preview_record_ref"],
+            "properties": {
+              "preview_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "unsafe-scheme / unverified-OSC-8 link targets MUST NOT admit; they MUST resolve to a held / denied decision.",
+          "if": {
+            "properties": {
+              "link_target_class": {
+                "enum": [
+                  "url_unsafe_scheme_requires_review",
+                  "osc_8_hyperlink_with_unverified_target_requires_review",
+                  "path_token_outside_workspace_requires_review",
+                  "link_target_class_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["link_target_class"]
+          },
+          "then": {
+            "properties": {
+              "linkification_decision_class": {
+                "enum": [
+                  "open_held_pending_high_risk_preview_review",
+                  "open_denied_by_workspace_trust_restricted",
+                  "open_denied_by_admin_policy_pack",
+                  "open_denied_by_unsafe_scheme_or_unverified_target",
+                  "rerun_intent_forbidden_link_is_not_a_command",
+                  "linkification_decision_class_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Held / denied decisions MUST cite a typed denial-reason class.",
+          "if": {
+            "properties": {
+              "linkification_decision_class": {
+                "enum": [
+                  "open_denied_by_workspace_trust_restricted",
+                  "open_denied_by_admin_policy_pack",
+                  "open_denied_by_unsafe_scheme_or_unverified_target",
+                  "rerun_intent_forbidden_link_is_not_a_command",
+                  "linkification_decision_class_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["linkification_decision_class"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,725 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/command_boundary_marker.schema.json",
+  "title": "Aureline command-boundary marker, input-request, and paste-safety packet record",
+  "description": "Boundary schema for the three live-session packet families that ride alongside a terminal_session_record from schemas/execution/terminal_session.schema.json: command-boundary markers (where one command begins and ends), input-requests (typed prompts for paste / secret-mode entry / interactive line-class entry under timeout), and paste-safety packets (typed review of host-initiated paste and OSC-52 round-trips before the bytes commit). The contract makes high-risk paste, remote clipboard bridging, secret-mode prompts, and command-boundary confidence reviewable rather than implicit. Vocabularies compose with - and never re-mint - the shell-integration signal kinds, the clipboard write / suppression vocabulary, and the denial-reason set frozen in schemas/terminal/session_restore_metadata.schema.json (the terminal-protocol seed). They also compose with the high-risk preview classes from the shell-interaction-safety contract, the secret-broker credential-handle vocabulary, the workspace-trust state, the admin-policy epoch, the command-dispatch descriptor, and the redaction class. Raw PTY bytes, raw escape-sequence payloads, raw paste-buffer bytes, raw clipboard bytes, raw secret values, raw command lines, and raw URLs MUST NOT appear in any record; records carry refs and counts only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a command_boundary_marker_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/command_boundary_marker_record" },
+    { "$ref": "#/$defs/input_request_record" },
+    { "$ref": "#/$defs/paste_safety_packet_record" }
+  ],
+  "$defs": {
+    "command_boundary_marker_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "command_boundary_marker_record",
+        "input_request_record",
+        "paste_safety_packet_record"
+      ]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support / evidence / replay exports."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (terminal session, shell-integration signal, command-dispatch descriptor, credential-handle class, high-risk preview class, target-identity witness, approval-ticket envelope, etc.)."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+
+    "boundary_confidence_class": {
+      "type": "string",
+      "enum": [
+        "boundary_confirmed_by_shell_integration_signal_pair",
+        "boundary_inferred_from_prompt_zone_only",
+        "boundary_inferred_from_carriage_return_only_low_confidence",
+        "boundary_inferred_from_command_dispatch_only_no_shell_signal",
+        "boundary_unconfirmed_no_shell_integration",
+        "boundary_confidence_unknown_requires_review"
+      ],
+      "description": "Confidence with which the host believes the marked region is one logical command. boundary_confirmed_by_shell_integration_signal_pair requires both command_begin and command_end signals from the shell-integration contract. The other classes are typed degraded postures; renderers MUST narrow command-boundary navigation, exit-status badges, and rerun affordances to the matching chip rather than implying confirmed boundaries."
+    },
+
+    "boundary_host_scope_class": {
+      "type": "string",
+      "enum": [
+        "command_executed_on_local_host_pty",
+        "command_executed_on_remote_pty_via_target_identity_witness",
+        "command_executed_in_container_or_devcontainer_pty",
+        "command_executed_on_managed_workspace_agent_pty",
+        "command_host_scope_unknown_requires_review"
+      ],
+      "description": "Host-scope projection of the host_scope_badge_class on the parent terminal-session record at the moment the boundary was marked. Renderers MUST use this row, not the live session badge, when attributing where a historical command actually executed."
+    },
+
+    "command_line_class": {
+      "type": "string",
+      "enum": [
+        "interactive_text_command_line",
+        "multiline_heredoc_or_script_pasted_command",
+        "background_or_pipeline_command",
+        "subshell_or_grouped_command",
+        "control_keystroke_only_no_command_line",
+        "command_line_class_unknown_requires_review"
+      ],
+      "description": "Coarse class of what was entered on the line. Closed vocabulary; the exact command bytes never project."
+    },
+
+    "exit_status_class": {
+      "type": "string",
+      "enum": [
+        "exited_zero_success",
+        "exited_nonzero_failure",
+        "killed_by_signal",
+        "in_flight_no_exit_yet",
+        "exit_status_unobserved_no_shell_integration",
+        "exit_status_class_unknown_requires_review"
+      ],
+      "description": "Closed exit-status confidence class. exit_status_unobserved_no_shell_integration is the honest answer when the shell did not emit a command_end signal."
+    },
+
+    "input_request_kind_class": {
+      "type": "string",
+      "enum": [
+        "interactive_line_input_request_visible_echo",
+        "interactive_secret_mode_no_echo_request",
+        "interactive_password_mode_managed_echo_mask",
+        "yes_no_confirmation_request",
+        "paste_intent_request",
+        "rerun_intent_request",
+        "input_request_kind_unknown_requires_review"
+      ],
+      "description": "Closed vocabulary of typed prompt kinds the host opens against the user on behalf of a running shell or command-dispatch action. interactive_secret_mode_no_echo_request and interactive_password_mode_managed_echo_mask MUST suppress local echo and MUST NOT include the entered bytes in any transcript or audit body."
+    },
+
+    "secret_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_secret_mode_visible_input",
+        "secret_mode_no_echo_no_transcript_capture",
+        "secret_mode_managed_echo_mask_no_transcript_capture",
+        "secret_mode_state_unknown_requires_review"
+      ],
+      "description": "Whether the input request is in secret mode. Any secret-mode value MUST forbid transcript capture of the entered bytes; the only artefacts that may project are the input_request_id, the secret_mode_class, and the typed result class."
+    },
+
+    "input_request_result_class": {
+      "type": "string",
+      "enum": [
+        "result_user_submitted_value_redacted_summary_only",
+        "result_user_submitted_secret_no_summary",
+        "result_user_dismissed_no_value_provided",
+        "result_timed_out_no_value_provided",
+        "result_cancelled_by_session_state_change",
+        "result_denied_by_policy_or_trust",
+        "result_pending_no_decision_yet",
+        "result_class_unknown_requires_review"
+      ],
+      "description": "Closed result vocabulary. result_user_submitted_secret_no_summary forbids summarising the entered bytes anywhere; only the input-request id and the typed result class project."
+    },
+
+    "paste_origin_class": {
+      "type": "string",
+      "enum": [
+        "host_initiated_paste_from_clipboard_history",
+        "host_initiated_paste_from_drag_drop_drop_zone",
+        "host_initiated_paste_from_command_palette",
+        "remote_originated_paste_via_clipboard_bridge",
+        "shell_originated_osc52_round_trip_paste",
+        "paste_origin_class_unknown_requires_review"
+      ],
+      "description": "Closed vocabulary of where the paste payload originated. remote_originated_paste_via_clipboard_bridge and shell_originated_osc52_round_trip_paste MUST cite a target-identity witness ref."
+    },
+
+    "paste_payload_line_class": {
+      "type": "string",
+      "enum": [
+        "single_line_no_newline",
+        "single_line_trailing_newline",
+        "multi_line_no_executable_intent",
+        "multi_line_with_executable_intent",
+        "very_large_payload_above_review_threshold",
+        "payload_intersects_high_risk_preview_class",
+        "payload_intersects_credential_handle_class",
+        "paste_payload_line_class_unknown_requires_review"
+      ],
+      "description": "Coarse line / payload class. Multi-line-with-executable-intent and payload_intersects_credential_handle_class trigger paste-then-run review and high-risk preview gating; the exact bytes never project."
+    },
+
+    "paste_safety_decision_class": {
+      "type": "string",
+      "enum": [
+        "paste_admitted_after_preview_no_run_until_user_confirms",
+        "paste_admitted_after_preview_run_intent_explicit",
+        "paste_held_pending_high_risk_preview_review",
+        "paste_held_pending_secret_class_review",
+        "paste_held_pending_remote_clipboard_bridge_review",
+        "paste_held_pending_responsive_fallback_collapsed",
+        "paste_denied_by_workspace_trust_restricted",
+        "paste_denied_by_admin_policy_pack",
+        "paste_denied_by_secret_class_intersection",
+        "paste_denied_by_session_quarantine",
+        "paste_denied_by_alt_screen_or_raw_mode_active",
+        "paste_safety_decision_unknown_requires_review"
+      ],
+      "description": "Closed vocabulary of paste-safety decisions. Every refusal fails closed and cites a denial-reason class on the record."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "command_boundary_marker_must_cite_terminal_session_record_ref",
+        "command_boundary_marker_must_cite_command_dispatch_descriptor_ref",
+        "command_boundary_marker_unconfirmed_must_not_claim_confirmed_boundary",
+        "command_boundary_marker_must_not_claim_exit_status_observed_without_shell_signal",
+        "input_request_must_cite_terminal_session_record_ref",
+        "input_request_must_forbid_transcript_capture_under_secret_mode",
+        "input_request_must_cite_typed_timeout_for_managed_prompt",
+        "input_request_must_not_summarise_secret_payload",
+        "paste_safety_packet_must_cite_terminal_session_record_ref",
+        "paste_safety_packet_must_cite_high_risk_preview_class_ref_when_applicable",
+        "paste_safety_packet_must_cite_credential_handle_class_ref_when_applicable",
+        "paste_safety_packet_must_cite_target_identity_witness_when_remote_or_osc52",
+        "paste_safety_packet_must_route_run_intent_through_command_dispatch_descriptor",
+        "paste_safety_packet_must_forbid_run_intent_on_held_or_denied_decision",
+        "paste_safety_packet_must_forbid_paste_under_workspace_trust_restricted_no_grant",
+        "paste_safety_packet_must_forbid_paste_under_session_quarantine",
+        "paste_safety_packet_must_forbid_silent_paste_when_alt_screen_or_raw_mode_active",
+        "denial_reason_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary for command-boundary, input-request, and paste-safety refusals."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "command_boundary_marker_published",
+        "command_boundary_marker_revoked",
+        "command_boundary_marker_confidence_narrowed",
+        "input_request_opened",
+        "input_request_closed_with_typed_result",
+        "input_request_timed_out_no_value",
+        "input_request_silent_secret_capture_forbidden_denial",
+        "paste_safety_packet_admitted_after_preview",
+        "paste_safety_packet_held_pending_review",
+        "paste_safety_packet_denied_with_typed_reason",
+        "paste_safety_packet_silent_admit_forbidden_denial",
+        "paste_safety_packet_silent_run_intent_forbidden_denial",
+        "command_boundary_or_input_or_paste_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary. Raw bodies, raw command lines, raw paste bytes, and raw URLs MUST NOT appear on any event."
+    },
+
+    "command_boundary_marker_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "command_boundary_marker_schema_version",
+        "marker_id",
+        "terminal_session_record_ref",
+        "boundary_confidence_class",
+        "boundary_host_scope_class",
+        "command_line_class",
+        "exit_status_class",
+        "marker_observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "command_boundary_marker_record" },
+        "command_boundary_marker_schema_version": { "$ref": "#/$defs/command_boundary_marker_schema_version" },
+        "marker_id": { "$ref": "#/$defs/opaque_id" },
+        "terminal_session_record_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the terminal_session_record this marker rides under."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the command-dispatch descriptor that admitted this command (when the host can attribute one). Required when boundary_confidence_class is boundary_inferred_from_command_dispatch_only_no_shell_signal."
+        },
+        "command_begin_signal_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to a shell_integration_signal_record with signal_kind = command_begin. Required when boundary_confidence_class is boundary_confirmed_by_shell_integration_signal_pair."
+        },
+        "command_end_signal_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to a shell_integration_signal_record with signal_kind = command_end. Required when boundary_confidence_class is boundary_confirmed_by_shell_integration_signal_pair."
+        },
+        "boundary_confidence_class": { "$ref": "#/$defs/boundary_confidence_class" },
+        "boundary_host_scope_class": { "$ref": "#/$defs/boundary_host_scope_class" },
+        "command_line_class": { "$ref": "#/$defs/command_line_class" },
+        "exit_status_class": { "$ref": "#/$defs/exit_status_class" },
+        "exit_status_value": {
+          "type": ["integer", "null"],
+          "description": "Exit status value when exit_status_class is exited_zero_success or exited_nonzero_failure or killed_by_signal. Null otherwise. The signal-name string for killed_by_signal MUST NOT project here; consumers resolve it through the command_end signal payload ref."
+        },
+        "duration_monotonic_ms": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Monotonic duration from command_begin to command_end in milliseconds. Null when boundary_confidence_class is anything other than boundary_confirmed_by_shell_integration_signal_pair."
+        },
+        "transcript_line_range_class": {
+          "type": "string",
+          "enum": [
+            "transcript_lines_within_scrollback_bound",
+            "transcript_lines_partially_truncated_by_scrollback_bound",
+            "transcript_lines_fully_truncated_pending_review",
+            "transcript_lines_paused_under_redaction_class",
+            "transcript_lines_unknown_requires_review"
+          ],
+          "description": "Honest report of how the marked transcript region sits relative to the parent session's scrollback bound. The exact line numbers never project."
+        },
+        "marker_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Confirmed shell-integration boundaries MUST cite both command_begin and command_end signal refs.",
+          "if": {
+            "properties": {
+              "boundary_confidence_class": { "const": "boundary_confirmed_by_shell_integration_signal_pair" }
+            },
+            "required": ["boundary_confidence_class"]
+          },
+          "then": {
+            "required": ["command_begin_signal_ref", "command_end_signal_ref"],
+            "properties": {
+              "command_begin_signal_ref": { "$ref": "#/$defs/opaque_ref" },
+              "command_end_signal_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "boundary_inferred_from_command_dispatch_only_no_shell_signal MUST cite a command-dispatch descriptor ref.",
+          "if": {
+            "properties": {
+              "boundary_confidence_class": { "const": "boundary_inferred_from_command_dispatch_only_no_shell_signal" }
+            },
+            "required": ["boundary_confidence_class"]
+          },
+          "then": {
+            "required": ["command_dispatch_descriptor_ref"],
+            "properties": {
+              "command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "exit_status_unobserved_no_shell_integration MUST null exit_status_value and duration_monotonic_ms.",
+          "if": {
+            "properties": {
+              "exit_status_class": { "const": "exit_status_unobserved_no_shell_integration" }
+            },
+            "required": ["exit_status_class"]
+          },
+          "then": {
+            "properties": {
+              "exit_status_value": { "type": "null" },
+              "duration_monotonic_ms": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "exited_zero_success / exited_nonzero_failure MUST cite a non-null exit_status_value.",
+          "if": {
+            "properties": {
+              "exit_status_class": {
+                "enum": ["exited_zero_success", "exited_nonzero_failure"]
+              }
+            },
+            "required": ["exit_status_class"]
+          },
+          "then": {
+            "required": ["exit_status_value"],
+            "properties": {
+              "exit_status_value": { "type": "integer" }
+            }
+          }
+        }
+      ]
+    },
+
+    "input_request_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "command_boundary_marker_schema_version",
+        "input_request_id",
+        "terminal_session_record_ref",
+        "input_request_kind_class",
+        "secret_mode_class",
+        "opened_at",
+        "expires_at",
+        "result_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "input_request_record" },
+        "command_boundary_marker_schema_version": { "$ref": "#/$defs/command_boundary_marker_schema_version" },
+        "input_request_id": { "$ref": "#/$defs/opaque_id" },
+        "terminal_session_record_ref": { "$ref": "#/$defs/opaque_ref" },
+        "command_boundary_marker_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the command-boundary marker the prompt is associated with, when the host can attribute one."
+        },
+        "input_request_kind_class": { "$ref": "#/$defs/input_request_kind_class" },
+        "secret_mode_class": { "$ref": "#/$defs/secret_mode_class" },
+        "trust_state_ref_at_open": { "$ref": "#/$defs/opaque_ref" },
+        "policy_source_ref_at_open": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "credential_handle_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to credential-handle classes from the secret-broker boundary that this prompt may write into. Non-empty when secret_mode_class is one of the secret_mode_* values."
+        },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp at which the prompt's authority expires. The host MUST close the prompt with result_timed_out_no_value_provided when this deadline passes; reopening requires a new input_request_record."
+        },
+        "result_class": { "$ref": "#/$defs/input_request_result_class" },
+        "result_summary_class": {
+          "type": "string",
+          "enum": [
+            "no_summary_secret_or_redacted",
+            "summary_yes",
+            "summary_no",
+            "summary_typed_short_label",
+            "summary_class_unknown_requires_review"
+          ],
+          "description": "Closed summary class. Secret-mode prompts MUST resolve to no_summary_secret_or_redacted; only opaque ids and the typed result class project."
+        },
+        "closed_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            { "type": "null" }
+          ],
+          "description": "Monotonic timestamp at which the prompt closed. Null when result_class is result_pending_no_decision_yet."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Secret-mode prompts MUST cite at least one credential-handle class ref and MUST resolve result_summary_class to no_summary_secret_or_redacted.",
+          "if": {
+            "properties": {
+              "secret_mode_class": {
+                "enum": [
+                  "secret_mode_no_echo_no_transcript_capture",
+                  "secret_mode_managed_echo_mask_no_transcript_capture"
+                ]
+              }
+            },
+            "required": ["secret_mode_class"]
+          },
+          "then": {
+            "required": ["credential_handle_class_refs", "result_summary_class"],
+            "properties": {
+              "credential_handle_class_refs": {
+                "type": "array",
+                "minItems": 1
+              },
+              "result_summary_class": { "const": "no_summary_secret_or_redacted" }
+            }
+          }
+        },
+        {
+          "description": "result_pending_no_decision_yet MUST null closed_at; every other result MUST cite a non-null closed_at.",
+          "if": {
+            "properties": {
+              "result_class": { "const": "result_pending_no_decision_yet" }
+            },
+            "required": ["result_class"]
+          },
+          "then": {
+            "properties": { "closed_at": { "type": "null" } }
+          },
+          "else": {
+            "required": ["closed_at"],
+            "properties": {
+              "closed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        }
+      ]
+    },
+
+    "paste_safety_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "command_boundary_marker_schema_version",
+        "paste_packet_id",
+        "terminal_session_record_ref",
+        "paste_origin_class",
+        "paste_payload_line_class",
+        "paste_safety_decision_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "paste_safety_packet_record" },
+        "command_boundary_marker_schema_version": { "$ref": "#/$defs/command_boundary_marker_schema_version" },
+        "paste_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "terminal_session_record_ref": { "$ref": "#/$defs/opaque_ref" },
+        "command_boundary_marker_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "paste_origin_class": { "$ref": "#/$defs/paste_origin_class" },
+        "paste_payload_line_class": { "$ref": "#/$defs/paste_payload_line_class" },
+        "paste_payload_line_count_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Coarse line-count estimate. Null when paste_payload_line_class is single_line_no_newline / single_line_trailing_newline / very_large_payload_above_review_threshold or when redaction-class forbids surfacing a count."
+        },
+        "paste_payload_bytes_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Coarse byte-count estimate. Null when redaction-class forbids surfacing a count."
+        },
+        "high_risk_preview_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to high-risk preview classes from the shell-interaction-safety contract that apply (multiline_terminal_paste, paste_then_run, remote_clipboard_bridge, secret_access, bidi_or_invisible_formatting_reveal, confusable_identifier_reveal, rich_active_content_render). Non-empty when paste_payload_line_class intersects an executable-intent or high-risk row."
+        },
+        "credential_handle_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to credential-handle classes intersected by the payload. Non-empty when paste_payload_line_class is payload_intersects_credential_handle_class."
+        },
+        "target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Remote-agent target-identity witness ref. Required when paste_origin_class is remote_originated_paste_via_clipboard_bridge or shell_originated_osc52_round_trip_paste."
+        },
+        "trust_state_ref_at_capture": { "$ref": "#/$defs/opaque_ref" },
+        "policy_source_ref_at_capture": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "preview_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the preview_apply_revert_record that gated the admission. Required when paste_safety_decision_class is paste_admitted_after_preview_no_run_until_user_confirms or paste_admitted_after_preview_run_intent_explicit."
+        },
+        "run_intent_command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the command-dispatch descriptor admitted to run the pasted bytes. Required ONLY when paste_safety_decision_class is paste_admitted_after_preview_run_intent_explicit; the descriptor binds the run intent through the command-dispatch boundary rather than letting a paste mint authority by itself."
+        },
+        "paste_safety_decision_class": { "$ref": "#/$defs/paste_safety_decision_class" },
+        "expires_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            { "type": "null" }
+          ],
+          "description": "Monotonic deadline by which a held packet MUST resolve to admitted or denied; null on already-resolved packets."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Remote / OSC-52 paste origins MUST cite a target-identity witness ref.",
+          "if": {
+            "properties": {
+              "paste_origin_class": {
+                "enum": [
+                  "remote_originated_paste_via_clipboard_bridge",
+                  "shell_originated_osc52_round_trip_paste"
+                ]
+              }
+            },
+            "required": ["paste_origin_class"]
+          },
+          "then": {
+            "required": ["target_identity_witness_ref"],
+            "properties": {
+              "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Admitted paste decisions MUST cite a preview record ref.",
+          "if": {
+            "properties": {
+              "paste_safety_decision_class": {
+                "enum": [
+                  "paste_admitted_after_preview_no_run_until_user_confirms",
+                  "paste_admitted_after_preview_run_intent_explicit"
+                ]
+              }
+            },
+            "required": ["paste_safety_decision_class"]
+          },
+          "then": {
+            "required": ["preview_record_ref"],
+            "properties": {
+              "preview_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Explicit run-intent decisions MUST cite a command-dispatch descriptor ref so the run is attributed through the command-dispatch boundary, not through the paste itself.",
+          "if": {
+            "properties": {
+              "paste_safety_decision_class": { "const": "paste_admitted_after_preview_run_intent_explicit" }
+            },
+            "required": ["paste_safety_decision_class"]
+          },
+          "then": {
+            "required": ["run_intent_command_dispatch_descriptor_ref"],
+            "properties": {
+              "run_intent_command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Held / denied packets MUST forbid run-intent attribution.",
+          "if": {
+            "properties": {
+              "paste_safety_decision_class": {
+                "enum": [
+                  "paste_held_pending_high_risk_preview_review",
+                  "paste_held_pending_secret_class_review",
+                  "paste_held_pending_remote_clipboard_bridge_review",
+                  "paste_held_pending_responsive_fallback_collapsed",
+                  "paste_denied_by_workspace_trust_restricted",
+                  "paste_denied_by_admin_policy_pack",
+                  "paste_denied_by_secret_class_intersection",
+                  "paste_denied_by_session_quarantine",
+                  "paste_denied_by_alt_screen_or_raw_mode_active",
+                  "paste_safety_decision_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["paste_safety_decision_class"]
+          },
+          "then": {
+            "properties": {
+              "run_intent_command_dispatch_descriptor_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Credential-class payloads MUST cite at least one credential-handle class ref and MUST NOT admit paste.",
+          "if": {
+            "properties": {
+              "paste_payload_line_class": { "const": "payload_intersects_credential_handle_class" }
+            },
+            "required": ["paste_payload_line_class"]
+          },
+          "then": {
+            "required": ["credential_handle_class_refs"],
+            "properties": {
+              "credential_handle_class_refs": {
+                "type": "array",
+                "minItems": 1
+              },
+              "paste_safety_decision_class": {
+                "enum": [
+                  "paste_held_pending_secret_class_review",
+                  "paste_denied_by_secret_class_intersection"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "High-risk preview-class payloads MUST cite at least one preview-class ref.",
+          "if": {
+            "properties": {
+              "paste_payload_line_class": { "const": "payload_intersects_high_risk_preview_class" }
+            },
+            "required": ["paste_payload_line_class"]
+          },
+          "then": {
+            "properties": {
+              "high_risk_preview_class_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["high_risk_preview_class_refs"]
+          }
+        },
+        {
+          "description": "Held / denied packets cite a typed denial-reason class.",
+          "if": {
+            "properties": {
+              "paste_safety_decision_class": {
+                "enum": [
+                  "paste_denied_by_workspace_trust_restricted",
+                  "paste_denied_by_admin_policy_pack",
+                  "paste_denied_by_secret_class_intersection",
+                  "paste_denied_by_session_quarantine",
+                  "paste_denied_by_alt_screen_or_raw_mode_active",
+                  "paste_safety_decision_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["paste_safety_decision_class"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

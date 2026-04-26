@@ -1,0 +1,620 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/terminal_session.schema.json",
+  "title": "Aureline terminal-session truth, host-boundary badge, shell-integration quality, transcript/live state, and capability-limit record",
+  "description": "Boundary schema for the terminal-session truth record every execution-surface consumer reads when it needs to answer 'is this a live shell, a basic PTY, a captured transcript, or a restored snapshot, and what authority does it carry?'. The terminal-session record composes with - and never re-mints - the PTY-owner-class, terminal-session lifecycle-state, protocol-conformance-level, and shell-integration vocabularies frozen in schemas/terminal/session_restore_metadata.schema.json (the terminal-protocol seed). It also composes with the execution-context root from schemas/runtime/execution_context.schema.json, the workspace-trust state from the trust-decision packet, the admin-policy epoch, the remote-agent target identity, the credential-handle classes from the secret-broker boundary, the command-dispatch descriptor, the shared-control / shared-terminal grant rows from the collaboration session-authority contract, and the entry-restore truth-audit user-impact label set. Raw PTY bytes, raw escape-sequence payloads, raw command lines, raw environment bytes, raw clipboard bytes, and raw shell prompts MUST NOT appear in any record; records carry refs only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a terminal_session_truth_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/terminal_session_record" }
+  ],
+  "$defs": {
+    "terminal_session_truth_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["terminal_session_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support / evidence / replay exports."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (terminal-protocol open record, execution-context root, trust-decision packet, admin-policy epoch, remote-agent target-identity witness, credential-handle class, command-dispatch descriptor, collaboration shared-terminal-control-metadata row, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction-class re-export of the terminal-protocol vocabulary. metadata_and_hashes_only is the default; broadened_capture requires an explicit approval-ticket ref."
+    },
+
+    "host_scope_badge_class": {
+      "type": "string",
+      "enum": [
+        "local_host_desktop_pty",
+        "ssh_remote_host_pty",
+        "remote_workspace_agent_pty",
+        "managed_workspace_agent_pty",
+        "container_local_pty",
+        "devcontainer_pty",
+        "provider_side_remote_agent_pty",
+        "compatibility_bridge_remote_pty",
+        "host_scope_unknown_requires_review"
+      ],
+      "description": "User-facing host-scope badge that the renderer MUST display verbatim. Distinct from the ADR-0021 pty_owner_class so the badge can be more specific than the owner class (for example container_local_pty vs local_host_desktop_pty both project pty_owner_class = host_desktop). Every non-local badge requires the local-vs-remote boundary cue. host_scope_unknown_requires_review fails closed and forbids any mutating live action."
+    },
+
+    "shell_integration_quality_class": {
+      "type": "string",
+      "enum": [
+        "no_shell_integration_baseline_only",
+        "osc_allowlist_only_no_signals",
+        "shell_integration_optional_partial_signals",
+        "shell_integration_optional_full_signals",
+        "shell_integration_unknown_pending_first_signal",
+        "shell_integration_quality_unknown_requires_review"
+      ],
+      "description": "Confidence label the host attaches to the session's shell-integration coverage. Projects the ADR-0021 protocol_conformance_level vocabulary plus an observed-signal confidence dimension. Every quality class outside the optional_full_signals row MUST degrade command-boundary navigation, prompt-zone focus return, and exit-status badges to a typed not_available_without_shell_integration chip rather than silently disappearing."
+    },
+
+    "cwd_resolution_class": {
+      "type": "string",
+      "enum": [
+        "live_cwd_token_observed",
+        "last_known_cwd_token_only",
+        "cwd_unknown_no_signals_yet",
+        "cwd_unresolvable_remote_target_unreachable",
+        "cwd_redacted_under_redaction_class",
+        "cwd_resolution_unknown_requires_review"
+      ],
+      "description": "Confidence label for the cwd field on the session record. live_cwd_token_observed is only valid under a session that has emitted at least one cwd_change signal under shell_integration_signal_record; last_known_cwd_token_only carries the most recent cwd token from a prior signal but the session is currently idle / suspended / lost-transport. cwd_unknown_no_signals_yet is the honest answer for a session whose shell has not advertised cwd. The session MUST NOT paint a stale cwd as live; renderers MUST narrow the cwd badge to the matching label."
+    },
+
+    "shared_control_state_class": {
+      "type": "string",
+      "enum": [
+        "shared_control_not_offered_solo_session",
+        "shared_view_only_no_input_admitted",
+        "shared_view_with_temporary_typing_grant_inbound",
+        "shared_view_with_temporary_typing_grant_outbound",
+        "shared_control_revoked_inspect_only_no_input",
+        "shared_control_state_unknown_requires_review"
+      ],
+      "description": "Shared-control posture re-projected from the collaboration session-authority contract's shared_terminal_control_metadata row. Solo sessions resolve to shared_control_not_offered_solo_session; shared sessions inherit the inbound or outbound view-only or temporary-typing-grant posture. Renderers MUST NOT infer shared control from presenter / follow state under the follow-and-presenter contract; control is an explicit grant."
+    },
+
+    "live_or_transcript_state_class": {
+      "type": "string",
+      "enum": [
+        "live_session_active_with_running_pty",
+        "live_session_idle_with_running_pty",
+        "live_session_suspended_pty_may_run",
+        "live_session_lost_transport_reconnect_pending",
+        "transcript_captured_inspect_only_no_pty",
+        "transcript_restored_evidence_only_no_rerun",
+        "transcript_restored_with_hints_evidence_only_no_rerun",
+        "transcript_imported_from_support_bundle_inspect_only",
+        "live_or_transcript_state_unknown_requires_review"
+      ],
+      "description": "Truth label for whether the surface is rendering a live shell, a paused live shell, a captured transcript snapshot, or a restored transcript that is explicitly not rerunable. Re-projects the ADR-0021 terminal_session_lifecycle_state plus the ADR-0021 terminal_restore_level row so the renderer never paints a transcript as live or admits silent rerun authority on a restored pane. transcript_* values MUST forbid every mutating live-session action; only an explicit user-initiated fresh session under the command-dispatch boundary may regain write authority."
+    },
+
+    "capability_limit_class": {
+      "type": "string",
+      "enum": [
+        "alt_screen_active_scrollback_paused",
+        "alt_screen_active_search_disabled_no_grid_capture",
+        "raw_mode_active_no_line_buffer_no_local_echo",
+        "bracketed_paste_disabled_paste_review_required",
+        "mouse_capture_active_host_chrome_input_pinned",
+        "ime_composition_in_progress_no_action_admit",
+        "output_buffer_capped_producer_paused",
+        "transcript_capture_paused_under_redaction_class",
+        "session_quarantined_no_input_inspect_only",
+        "capability_limit_unknown_requires_review"
+      ],
+      "description": "Closed vocabulary of capability-limit reasons the session may report at any moment. Renderers MUST narrow the affected affordance (scrollback navigation, find-in-scrollback, paste, host chrome accelerators, IME, output paging, transcript capture, mutating actions) to the matching typed chip rather than silently dropping the affordance. Multiple limits may be active concurrently; each is a separate row."
+    },
+
+    "session_user_impact_label_class": {
+      "type": "string",
+      "enum": [
+        "live_session_continued",
+        "live_session_continues_under_capability_limit",
+        "prior_work_preserved_but_not_rerun",
+        "prior_work_not_recoverable_by_automation",
+        "no_recovery_on_irreversible_path",
+        "work_continues_with_narrowed_capability",
+        "pending_user_review",
+        "session_user_impact_unknown_requires_review"
+      ],
+      "description": "User-impact class re-exported from the entry-restore truth audit. live_session_continued is admitted ONLY when live_or_transcript_state_class is one of the live_session_* values AND auto_rerun_admitted_on_this_record is false. transcript_* states forbid live_session_continued."
+    },
+
+    "alt_screen_state_class": {
+      "type": "string",
+      "enum": [
+        "alt_screen_inactive_main_buffer_visible",
+        "alt_screen_active_full_screen_program",
+        "alt_screen_active_paginator_or_man_page",
+        "alt_screen_active_state_unknown_requires_review"
+      ],
+      "description": "Whether the session is currently rendering on the alternate screen buffer. Alt-screen sessions MUST narrow scrollback navigation, find-in-scrollback, and copy-from-scrollback affordances to a typed chip; capturing the grid into a transcript while alt-screen is active requires a typed capability_limit_class entry."
+    },
+
+    "raw_mode_state_class": {
+      "type": "string",
+      "enum": [
+        "cooked_mode_line_buffered_local_echo_on",
+        "raw_mode_no_line_buffer_no_local_echo",
+        "cbreak_mode_per_keystroke_local_echo_on",
+        "raw_mode_state_unknown_requires_review"
+      ],
+      "description": "POSIX termios mode (or ConPTY equivalent) the session believes the shell is in. raw_mode_no_line_buffer_no_local_echo forbids host-side line-buffered input affordances and forbids paste-then-run shortcuts that depend on bracketed-paste round-trip."
+    },
+
+    "boundary_cue_visibility_class": {
+      "type": "string",
+      "enum": [
+        "boundary_cue_visible_local_session",
+        "boundary_cue_visible_remote_session",
+        "boundary_cue_visible_container_or_devcontainer_session",
+        "boundary_cue_visible_managed_session",
+        "boundary_cue_must_be_visible_but_responsive_fallback_collapsed",
+        "boundary_cue_visibility_unknown_requires_review"
+      ],
+      "description": "Whether the renderer is currently displaying the local-vs-remote / container / managed boundary cue. boundary_cue_must_be_visible_but_responsive_fallback_collapsed is a typed degraded posture - the renderer MUST surface the cue in the responsive-fallback header rather than silently dropping it. Sessions whose host_scope_badge_class is anything other than local_host_desktop_pty MUST resolve to one of the visible_* values."
+    },
+
+    "transcript_capture_posture_class": {
+      "type": "string",
+      "enum": [
+        "transcript_capture_disabled_no_record",
+        "transcript_capture_redacted_metadata_and_hashes_only",
+        "transcript_capture_redacted_support_bundle_scoped",
+        "transcript_capture_broadened_with_approval_ticket",
+        "transcript_capture_paused_alt_screen_or_raw_mode_active",
+        "transcript_capture_paused_secret_class_intersected",
+        "transcript_capture_unknown_requires_review"
+      ],
+      "description": "Whether the session is currently capturing a transcript and under what redaction posture. transcript_capture_broadened_with_approval_ticket MUST cite an approval-ticket ref. transcript_capture_paused_secret_class_intersected MUST cite at least one credential-handle class ref."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "terminal_session_record_must_not_paint_transcript_as_live",
+        "terminal_session_record_must_not_admit_live_session_continued_on_restored_transcript",
+        "terminal_session_record_must_not_admit_silent_auto_rerun",
+        "terminal_session_record_must_cite_execution_context_root",
+        "terminal_session_record_must_cite_terminal_protocol_session_open_ref",
+        "terminal_session_record_must_cite_remote_target_identity_witness_when_remote",
+        "terminal_session_record_must_render_local_vs_remote_boundary_cue_when_remote",
+        "terminal_session_record_must_narrow_cwd_badge_to_matching_resolution_class",
+        "terminal_session_record_must_narrow_shell_integration_quality_to_matching_class",
+        "terminal_session_record_must_cite_secret_class_ref_when_capture_paused_by_secret_class",
+        "terminal_session_record_must_cite_approval_ticket_ref_when_capture_broadened",
+        "terminal_session_record_must_cite_shared_terminal_control_metadata_ref_when_shared",
+        "terminal_session_record_must_forbid_mutating_action_on_quarantined_session",
+        "terminal_session_record_must_forbid_mutating_action_under_capability_limit_session_quarantined",
+        "terminal_session_record_must_forbid_mutating_action_under_workspace_trust_restricted_no_grant",
+        "terminal_session_record_redaction_class_unknown_requires_review",
+        "terminal_session_record_host_scope_unknown_requires_review",
+        "terminal_session_record_state_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary for terminal-session-record refusals. Every refusal fails closed and cites exactly one value."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "terminal_session_record_published",
+        "terminal_session_record_revoked",
+        "terminal_session_record_state_transitioned",
+        "terminal_session_record_capability_limit_entered",
+        "terminal_session_record_capability_limit_exited",
+        "terminal_session_record_transcript_capture_posture_narrowed",
+        "terminal_session_record_transcript_capture_posture_broadened_with_approval_ticket",
+        "terminal_session_record_silent_paint_transcript_as_live_forbidden_denial",
+        "terminal_session_record_silent_auto_rerun_forbidden_denial",
+        "terminal_session_record_silent_boundary_cue_collapse_forbidden_denial",
+        "terminal_session_record_silent_cwd_widening_forbidden_denial",
+        "terminal_session_record_silent_shell_integration_widening_forbidden_denial",
+        "terminal_session_record_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary for the terminal-session-record family. Raw PTY bytes, raw command lines, raw env bodies, raw prompts, and raw URLs MUST NOT appear on any event."
+    },
+
+    "terminal_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_session_truth_schema_version",
+        "session_record_id",
+        "terminal_protocol_session_open_ref",
+        "host_scope_badge_class",
+        "boundary_cue_visibility_class",
+        "execution_context_root_ref",
+        "trust_state_ref",
+        "identity_mode_ref",
+        "command_dispatch_descriptor_ref",
+        "shell_integration_quality_class",
+        "cwd_resolution_class",
+        "shared_control_state_class",
+        "live_or_transcript_state_class",
+        "session_user_impact_label_class",
+        "alt_screen_state_class",
+        "raw_mode_state_class",
+        "transcript_capture_posture_class",
+        "auto_rerun_admitted_on_this_record",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "terminal_session_record" },
+        "terminal_session_truth_schema_version": { "$ref": "#/$defs/terminal_session_truth_schema_version" },
+        "session_record_id": { "$ref": "#/$defs/opaque_id" },
+        "terminal_protocol_session_open_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the terminal_session_open_record from schemas/terminal/session_restore_metadata.schema.json that this truth record projects. The protocol seed is authoritative for pty_owner_class, advertised_protocol_level, shell_family_declared, and the OSC-allowlist binding; this record narrows them into a host-scope badge, a shell-integration-quality class, and a live-or-transcript class."
+        },
+        "host_scope_badge_class": { "$ref": "#/$defs/host_scope_badge_class" },
+        "remote_agent_target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Remote-agent target-identity witness ref (ADR-0020). MUST be non-null when host_scope_badge_class is one of ssh_remote_host_pty / remote_workspace_agent_pty / managed_workspace_agent_pty / provider_side_remote_agent_pty / compatibility_bridge_remote_pty. Null on local / container / devcontainer host scopes whose target identity is not a remote-agent witness."
+        },
+        "container_target_identity_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Container / devcontainer target-identity ref (the ADR-0006 / container-session record id). Non-null when host_scope_badge_class is container_local_pty or devcontainer_pty. Null otherwise."
+        },
+        "boundary_cue_visibility_class": { "$ref": "#/$defs/boundary_cue_visibility_class" },
+        "execution_context_root_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0009 execution-context root the session resolved through. Required regardless of host scope; a session that cannot resolve a root MUST refuse to open and emit a denial under terminal_execution_context_root_unresolved on the protocol seed rather than minting a record without this field."
+        },
+        "trust_state_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0018 trust-decision record governing this session at capture time."
+        },
+        "identity_mode_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0001 identity-mode envelope at capture time."
+        },
+        "admin_policy_epoch_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the admin-policy epoch in force at capture time. Null only in identity_mode = account_free_local with no policy pack bound."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0016 command-dispatch entry that opened this session. Renderers MUST use this ref - never the shell escape sequence stream - to attribute kill / restart / paste / rerun authority."
+        },
+        "shell_integration_quality_class": { "$ref": "#/$defs/shell_integration_quality_class" },
+        "shell_integration_signal_count_observed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of shell-integration signals observed since session_starting. Quality classes that claim signal evidence MUST report a count > 0."
+        },
+        "cwd_resolution_class": { "$ref": "#/$defs/cwd_resolution_class" },
+        "cwd_token_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Canonical cwd token (ADR-0006). Required when cwd_resolution_class is live_cwd_token_observed or last_known_cwd_token_only. Null when cwd is unknown / unresolvable / redacted."
+        },
+        "shared_control_state_class": { "$ref": "#/$defs/shared_control_state_class" },
+        "shared_terminal_control_metadata_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the collaboration session-authority contract's shared_terminal_control_metadata shared-object row. MUST be non-null when shared_control_state_class is anything other than shared_control_not_offered_solo_session or shared_control_state_unknown_requires_review."
+        },
+        "live_or_transcript_state_class": { "$ref": "#/$defs/live_or_transcript_state_class" },
+        "session_user_impact_label_class": { "$ref": "#/$defs/session_user_impact_label_class" },
+        "auto_rerun_admitted_on_this_record": {
+          "type": "boolean",
+          "description": "MUST be false on every record whose live_or_transcript_state_class is one of the transcript_* values. The truth contract forbids silent rerun on a restored pane regardless of any other field; an explicit user-initiated fresh session under the command-dispatch boundary mints its own terminal_session_record with its own session_record_id."
+        },
+        "alt_screen_state_class": { "$ref": "#/$defs/alt_screen_state_class" },
+        "raw_mode_state_class": { "$ref": "#/$defs/raw_mode_state_class" },
+        "active_capability_limits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_limit_class" },
+          "uniqueItems": true,
+          "description": "Set of capability-limit classes currently in effect. Renderers MUST narrow the matching affordance; an empty array means no limits are active."
+        },
+        "transcript_capture_posture_class": { "$ref": "#/$defs/transcript_capture_posture_class" },
+        "transcript_capture_redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "transcript_capture_approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Approval-ticket ref required when transcript_capture_posture_class is transcript_capture_broadened_with_approval_ticket. Null otherwise."
+        },
+        "transcript_capture_secret_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to credential-handle classes from the secret-broker boundary intersected by the transcript at the moment the capture pause was triggered. Non-empty ONLY when transcript_capture_posture_class is transcript_capture_paused_secret_class_intersected."
+        },
+        "scrollback_bound_lines_max": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Maximum number of lines retained in scrollback at capture time. Null when transcript_capture_disabled_no_record. Renderers MUST surface the bound on transcript-export review surfaces so the reviewer never sees a transcript that silently exceeds the declared bound."
+        },
+        "scrollback_bytes_estimate_max": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Aggregate byte estimate of the scrollback at capture time. Null when transcript_capture_disabled_no_record. The exact bytes never project; raw bytes MUST NOT cross this boundary."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to terminal_audit_event_record entries on the protocol seed plus this contract's audit-event ids. Raw bodies never appear."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Closed denial reason when the record is published as a typed refusal (for example a capability_limit_unknown_requires_review row that fails closed). Null on admitted records."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Non-local host scopes MUST cite the matching target-identity witness and MUST render the boundary cue.",
+          "if": {
+            "properties": {
+              "host_scope_badge_class": {
+                "enum": [
+                  "ssh_remote_host_pty",
+                  "remote_workspace_agent_pty",
+                  "managed_workspace_agent_pty",
+                  "provider_side_remote_agent_pty",
+                  "compatibility_bridge_remote_pty"
+                ]
+              }
+            },
+            "required": ["host_scope_badge_class"]
+          },
+          "then": {
+            "required": ["remote_agent_target_identity_witness_ref"],
+            "properties": {
+              "remote_agent_target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" },
+              "boundary_cue_visibility_class": {
+                "enum": [
+                  "boundary_cue_visible_remote_session",
+                  "boundary_cue_visible_managed_session",
+                  "boundary_cue_must_be_visible_but_responsive_fallback_collapsed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Container / devcontainer host scopes MUST cite the container target identity and surface the matching boundary cue.",
+          "if": {
+            "properties": {
+              "host_scope_badge_class": {
+                "enum": [
+                  "container_local_pty",
+                  "devcontainer_pty"
+                ]
+              }
+            },
+            "required": ["host_scope_badge_class"]
+          },
+          "then": {
+            "required": ["container_target_identity_ref"],
+            "properties": {
+              "container_target_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+              "boundary_cue_visibility_class": {
+                "enum": [
+                  "boundary_cue_visible_container_or_devcontainer_session",
+                  "boundary_cue_must_be_visible_but_responsive_fallback_collapsed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Restored / captured / imported transcripts MUST forbid auto-rerun and MUST NOT claim live_session_continued.",
+          "if": {
+            "properties": {
+              "live_or_transcript_state_class": {
+                "enum": [
+                  "transcript_captured_inspect_only_no_pty",
+                  "transcript_restored_evidence_only_no_rerun",
+                  "transcript_restored_with_hints_evidence_only_no_rerun",
+                  "transcript_imported_from_support_bundle_inspect_only"
+                ]
+              }
+            },
+            "required": ["live_or_transcript_state_class"]
+          },
+          "then": {
+            "properties": {
+              "auto_rerun_admitted_on_this_record": { "const": false },
+              "session_user_impact_label_class": {
+                "enum": [
+                  "prior_work_preserved_but_not_rerun",
+                  "prior_work_not_recoverable_by_automation",
+                  "no_recovery_on_irreversible_path",
+                  "work_continues_with_narrowed_capability",
+                  "pending_user_review",
+                  "session_user_impact_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "live_session_continued user-impact is admitted ONLY on a live state with auto_rerun_admitted_on_this_record = false.",
+          "if": {
+            "properties": {
+              "session_user_impact_label_class": { "const": "live_session_continued" }
+            },
+            "required": ["session_user_impact_label_class"]
+          },
+          "then": {
+            "properties": {
+              "live_or_transcript_state_class": {
+                "enum": [
+                  "live_session_active_with_running_pty",
+                  "live_session_idle_with_running_pty"
+                ]
+              },
+              "auto_rerun_admitted_on_this_record": { "const": false }
+            },
+            "required": ["live_or_transcript_state_class", "auto_rerun_admitted_on_this_record"]
+          }
+        },
+        {
+          "description": "Shared-control postures other than solo or unknown MUST cite the shared_terminal_control_metadata row.",
+          "if": {
+            "properties": {
+              "shared_control_state_class": {
+                "enum": [
+                  "shared_view_only_no_input_admitted",
+                  "shared_view_with_temporary_typing_grant_inbound",
+                  "shared_view_with_temporary_typing_grant_outbound",
+                  "shared_control_revoked_inspect_only_no_input"
+                ]
+              }
+            },
+            "required": ["shared_control_state_class"]
+          },
+          "then": {
+            "required": ["shared_terminal_control_metadata_ref"],
+            "properties": {
+              "shared_terminal_control_metadata_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "live_cwd_token_observed and last_known_cwd_token_only MUST cite a cwd token; the other resolution classes MUST null it.",
+          "if": {
+            "properties": {
+              "cwd_resolution_class": {
+                "enum": ["live_cwd_token_observed", "last_known_cwd_token_only"]
+              }
+            },
+            "required": ["cwd_resolution_class"]
+          },
+          "then": {
+            "required": ["cwd_token_ref"],
+            "properties": {
+              "cwd_token_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          },
+          "else": {
+            "properties": {
+              "cwd_token_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "transcript_capture_broadened_with_approval_ticket MUST cite an approval-ticket ref.",
+          "if": {
+            "properties": {
+              "transcript_capture_posture_class": { "const": "transcript_capture_broadened_with_approval_ticket" }
+            },
+            "required": ["transcript_capture_posture_class"]
+          },
+          "then": {
+            "required": ["transcript_capture_approval_ticket_ref"],
+            "properties": {
+              "transcript_capture_approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "transcript_capture_paused_secret_class_intersected MUST cite at least one credential-handle class ref.",
+          "if": {
+            "properties": {
+              "transcript_capture_posture_class": { "const": "transcript_capture_paused_secret_class_intersected" }
+            },
+            "required": ["transcript_capture_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "transcript_capture_secret_class_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["transcript_capture_secret_class_refs"]
+          }
+        },
+        {
+          "description": "transcript_capture_disabled_no_record MUST null scrollback bounds.",
+          "if": {
+            "properties": {
+              "transcript_capture_posture_class": { "const": "transcript_capture_disabled_no_record" }
+            },
+            "required": ["transcript_capture_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "scrollback_bound_lines_max": { "type": "null" },
+              "scrollback_bytes_estimate_max": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Quarantined sessions MUST surface the matching capability limit and forbid live mutating action.",
+          "if": {
+            "properties": {
+              "live_or_transcript_state_class": {
+                "const": "live_session_lost_transport_reconnect_pending"
+              }
+            },
+            "required": ["live_or_transcript_state_class"]
+          },
+          "then": {
+            "properties": {
+              "auto_rerun_admitted_on_this_record": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Unknown / pending-review state MUST forbid auto-rerun.",
+          "if": {
+            "properties": {
+              "live_or_transcript_state_class": {
+                "const": "live_or_transcript_state_unknown_requires_review"
+              }
+            },
+            "required": ["live_or_transcript_state_class"]
+          },
+          "then": {
+            "properties": {
+              "auto_rerun_admitted_on_this_record": { "const": false }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
