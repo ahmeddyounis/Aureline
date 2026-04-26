@@ -1,0 +1,1102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/sdk_release_bundle.schema.json",
+  "title": "Aureline extension SDK publication-row vocabulary (ADR seed)",
+  "description": "Boundary schema for the extension-SDK publication rows (WIT package release, generated binding, docs-pack export, tutorial / sample bundle, conformance-kit release) frozen in docs/extensions/sdk_publication_contract.md. Every row binds the SDK-line identity envelope (sdk_line_id, sdk_line_semver, wit_world_refs, permission_vocabulary_version_ref, host_abi_window_class) to a content-addressed build identity, a mirror-availability class, a support-window class, a compatibility-badge class, and (where applicable) sample-validation evidence so the SDK ecosystem releases as versioned artifacts instead of ad hoc collateral. Reuses ADR-0012 (publisher-continuity, signature, registry-source), ADR-0019 (capability-world identity), and the registry-manifest seed (content_address, offline_bundle_manifest_row) rather than minting parallel vocabularies. Adding a new enumerated member or an additive field is additive-minor with an sdk_release_bundle_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw bindgen tool input, raw docs export bytes, raw template / sample bytes, and raw conformance run outputs MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/wit_package_release_row" },
+    { "$ref": "#/$defs/generated_binding_row" },
+    { "$ref": "#/$defs/docs_pack_export_row" },
+    { "$ref": "#/$defs/tutorial_sample_bundle_row" },
+    { "$ref": "#/$defs/conformance_kit_release_row" }
+  ],
+  "$defs": {
+    "sdk_release_bundle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this SDK-release-bundle vocabulary export. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "wit_package_release_row",
+        "generated_binding_row",
+        "docs_pack_export_row",
+        "tutorial_sample_bundle_row",
+        "conformance_kit_release_row"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "release_artifact_class": {
+      "type": "string",
+      "enum": [
+        "wit_package_release",
+        "generated_binding",
+        "docs_pack_export",
+        "tutorial_sample_bundle",
+        "conformance_kit_release"
+      ],
+      "description": "Closed five-class artifact-set vocabulary. Every release row carries exactly one class; the class MUST agree with the record_kind discriminator."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / mirror bundles."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "sdk_line_id": {
+      "type": "string",
+      "pattern": "^aureline\\.sdk\\.[a-z][a-z0-9-]*[a-z0-9]$",
+      "description": "Stable kebab-case SDK-line identity under the reserved aureline.sdk.* namespace. Reuse after retirement is denied with sdk_line_id_reused_after_retirement."
+    },
+
+    "sdk_line_semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+      "description": "Semantic version of the SDK line. Two rows that share (sdk_line_id, sdk_line_semver) MUST share the same wit_world_refs envelope, permission_vocabulary_version_ref, and host_abi_window_class; cross-row divergence is denied with sdk_line_envelope_divergence."
+    },
+
+    "wit_world_ref": {
+      "type": "string",
+      "pattern": "^aureline:[a-z][a-z0-9-]*[a-z0-9]@[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Reserved ADR-0019 capability-world identity (aureline:<world-slug>@<MAJOR.MINOR.PATCH>)."
+    },
+
+    "host_abi_window_class": {
+      "type": "string",
+      "enum": [
+        "component_model_abi_window_alpha_0",
+        "component_model_abi_window_beta_1",
+        "component_model_abi_window_general_1",
+        "core_module_abi_window_alpha_0",
+        "core_module_abi_window_beta_1",
+        "compatibility_bridge_window_documented",
+        "external_host_process_window_documented"
+      ],
+      "description": "Frozen host-ABI-window vocabulary the SDK line is pinned against. Adding a member is additive-minor; repurposing is breaking and requires a new decision row."
+    },
+
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"],
+      "description": "Frozen digest-algorithm vocabulary. Re-digesting a release under a different algorithm during transport is denied with sdk_release_artifact_identity_mutated_on_repackage."
+    },
+
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32,
+          "description": "Lowercase hex digest of the artifact bytes. Mirror, offline-bundle, and air-gapped-bundle rows quote this pair verbatim; repackaging that would alter it is denied with sdk_release_artifact_identity_mutated_on_repackage."
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Optional size in bytes of the digested artifact."
+        }
+      },
+      "description": "Content-address pair binding an artifact to its bytes."
+    },
+
+    "build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_address",
+        "build_provenance_ref",
+        "build_invocation_id"
+      ],
+      "properties": {
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "build_provenance_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the build attestation / provenance row (e.g. SLSA-style build provenance). Raw build attestation bytes never carried."
+        },
+        "build_invocation_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque stable id of the build run that produced the artifact."
+        },
+        "build_input_lock_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to the input-lockfile snapshot the build resolved against. Two rows that share content_address SHOULD share this ref."
+        }
+      },
+      "description": "Content-addressed build-identity envelope."
+    },
+
+    "permission_vocabulary_version_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Ref to the ADR-0012 permission-vocabulary version row the SDK line is pinned against. Raw vocabulary bytes never carried."
+    },
+
+    "mirror_availability_class": {
+      "type": "string",
+      "enum": [
+        "public_registry_only",
+        "public_and_approved_mirror",
+        "offline_mirror_bundle_eligible",
+        "air_gapped_mirror_only"
+      ],
+      "description": "Frozen mirror-availability vocabulary. Rows in offline_mirror_bundle_eligible and air_gapped_mirror_only MUST cite a non-null offline_mirror_bundle_ref."
+    },
+
+    "support_window_class": {
+      "type": "string",
+      "enum": [
+        "preview_only_no_support",
+        "experimental_short_window",
+        "general_short_window",
+        "general_long_window",
+        "extended_long_window",
+        "retired"
+      ],
+      "description": "Frozen support-window vocabulary. Rows in general_short_window / general_long_window / extended_long_window MUST cite at least one passing conformance result whose emitted badge matches the row's compatibility_badge_class. Quantitative window lengths land in the successor ADR."
+    },
+
+    "compatibility_badge_class": {
+      "type": "string",
+      "enum": [
+        "compatible_on_declared_targets",
+        "compatible_on_subset_of_declared_targets",
+        "compatibility_bridge_required",
+        "partial_compatibility_documented",
+        "unsupported_pending_qualification",
+        "incompatible_blocked_on_policy"
+      ],
+      "description": "Frozen compatibility-badge vocabulary. A surface that mints a parallel 'verified' / 'stable' / 'GA' chip outside this set is denied with compatibility_badge_class_unknown."
+    },
+
+    "sample_validation_state": {
+      "type": "string",
+      "enum": [
+        "must_compile_in_ci",
+        "must_validate_in_ci",
+        "not_required_for_class"
+      ],
+      "description": "Sample-validation posture for tutorial / sample bundles. The not_required_for_class token is reserved for unofficial archives that the SDK lane does not publish under this contract; an official tutorial_sample_bundle_row that declares not_required_for_class is denied with tutorial_sample_unvalidated_in_ci."
+    },
+
+    "sdk_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "sdk_release_published",
+        "sdk_release_re_signed_denied",
+        "sdk_release_offline_bundle_exported",
+        "sdk_release_air_gapped_mirror_published",
+        "sdk_release_retired",
+        "sdk_release_envelope_divergence_detected",
+        "wit_package_release_indexed",
+        "generated_binding_indexed",
+        "docs_pack_export_indexed",
+        "tutorial_sample_bundle_indexed",
+        "tutorial_sample_validation_recorded",
+        "conformance_kit_release_indexed",
+        "conformance_result_recorded",
+        "conformance_result_invalidated",
+        "compatibility_badge_emitted",
+        "support_window_promoted",
+        "support_window_demoted"
+      ],
+      "description": "Frozen audit-event-id vocabulary on the extension_sdk_publication stream. Additive-minor."
+    },
+
+    "sdk_denial_reason": {
+      "type": "string",
+      "enum": [
+        "sdk_release_artifact_identity_mutated_on_repackage",
+        "sdk_line_id_reused_after_retirement",
+        "sdk_line_envelope_divergence",
+        "support_window_unbacked_by_conformance_result",
+        "retired_release_must_not_claim_compatible_badge",
+        "tutorial_sample_unvalidated_in_ci",
+        "tutorial_sample_targets_outside_sdk_line_world_set",
+        "conformance_kit_no_declared_matrix",
+        "conformance_result_badge_widens_coverage",
+        "conformance_result_failure_reason_required",
+        "conformance_result_subject_world_outside_release_set",
+        "docs_pack_export_drift_detected",
+        "air_gapped_mirror_missing_conformance_evidence",
+        "compatibility_badge_class_unknown",
+        "review_disclosure_incomplete"
+      ],
+      "description": "Frozen SDK-publication denial-reason vocabulary. Silent fallback to a generic 'release blocked' or 'unsupported' chip is forbidden; every denial emits the corresponding audit event with a typed reason and a repair-affordance label."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "profile_export",
+        "sync"
+      ],
+      "description": "Declared redaction class for the record when emitted to an observable sink. Raw build artifacts, raw bindgen inputs, raw docs export bytes, raw sample bytes, and raw conformance outputs MUST NOT appear on any sink regardless of redaction class."
+    },
+
+    "publication_envelope_fields": {
+      "type": "object",
+      "description": "Envelope fields shared across every release-row kind. Embedded into each row definition rather than referenced by composition so the per-kind schemas remain self-contained for review.",
+      "properties": {
+        "release_id": { "$ref": "#/$defs/opaque_id" },
+        "release_artifact_class": { "$ref": "#/$defs/release_artifact_class" },
+        "sdk_line_id": { "$ref": "#/$defs/sdk_line_id" },
+        "sdk_line_semver": { "$ref": "#/$defs/sdk_line_semver" },
+        "wit_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/wit_world_ref" }
+        },
+        "permission_vocabulary_version_ref": { "$ref": "#/$defs/permission_vocabulary_version_ref" },
+        "host_abi_window_class": { "$ref": "#/$defs/host_abi_window_class" },
+        "build_identity": { "$ref": "#/$defs/build_identity" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_availability_class": { "$ref": "#/$defs/mirror_availability_class" },
+        "offline_mirror_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "support_window_starts_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "support_window_ends_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "compatibility_badge_class": { "$ref": "#/$defs/compatibility_badge_class" },
+        "conformance_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "wit_package_release_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_release_bundle_schema_version",
+        "release_id",
+        "release_artifact_class",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "wit_world_refs",
+        "permission_vocabulary_version_ref",
+        "host_abi_window_class",
+        "build_identity",
+        "publisher_continuity_ref",
+        "signature_ref",
+        "mirror_availability_class",
+        "support_window_class",
+        "compatibility_badge_class",
+        "wit_package_id",
+        "wit_world_set",
+        "abi_compatibility_window_class",
+        "indexed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "wit_package_release_row" },
+        "sdk_release_bundle_schema_version": { "$ref": "#/$defs/sdk_release_bundle_schema_version" },
+        "release_id": { "$ref": "#/$defs/opaque_id" },
+        "release_artifact_class": { "const": "wit_package_release" },
+        "sdk_line_id": { "$ref": "#/$defs/sdk_line_id" },
+        "sdk_line_semver": { "$ref": "#/$defs/sdk_line_semver" },
+        "wit_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/wit_world_ref" },
+          "description": "Authoritative WIT world set for the (sdk_line_id, sdk_line_semver) pair. Every other row at the same line / semver MUST quote a subset."
+        },
+        "permission_vocabulary_version_ref": { "$ref": "#/$defs/permission_vocabulary_version_ref" },
+        "host_abi_window_class": { "$ref": "#/$defs/host_abi_window_class" },
+        "build_identity": { "$ref": "#/$defs/build_identity" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_availability_class": { "$ref": "#/$defs/mirror_availability_class" },
+        "offline_mirror_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the sealed offline_bundle_manifest_row that packages this release for offline / air-gapped restore. Required when mirror_availability_class is offline_mirror_bundle_eligible or air_gapped_mirror_only."
+        },
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "support_window_starts_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "support_window_ends_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "compatibility_badge_class": { "$ref": "#/$defs/compatibility_badge_class" },
+        "conformance_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to conformance_result_record rows backing the row's badge / support window. Required non-empty for general_* and extended_long_window support windows."
+        },
+        "wit_package_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the WIT package id (e.g. aureline:worlds@<semver>) packaged by this release."
+        },
+        "wit_world_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/wit_world_ref" },
+          "description": "WIT world set this release packages. MUST equal wit_world_refs verbatim for a wit_package_release_row."
+        },
+        "abi_compatibility_window_class": { "$ref": "#/$defs/host_abi_window_class" },
+        "successor_release_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the next-line release that supersedes this row when support_window_class is retired."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "release_artifact_class MUST equal wit_package_release on this record kind.",
+          "properties": { "release_artifact_class": { "const": "wit_package_release" } },
+          "required": ["release_artifact_class"]
+        },
+        {
+          "description": "wit_world_set MUST equal wit_world_refs on a wit_package_release_row (the package release is the authoritative world envelope).",
+          "if": { "required": ["wit_world_refs", "wit_world_set"] },
+          "then": {
+            "properties": {
+              "wit_world_set": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "Rows in offline_mirror_bundle_eligible or air_gapped_mirror_only MUST cite a non-null offline_mirror_bundle_ref.",
+          "if": {
+            "properties": {
+              "mirror_availability_class": {
+                "enum": ["offline_mirror_bundle_eligible", "air_gapped_mirror_only"]
+              }
+            },
+            "required": ["mirror_availability_class"]
+          },
+          "then": {
+            "required": ["offline_mirror_bundle_ref"],
+            "properties": {
+              "offline_mirror_bundle_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "general_* and extended_long_window rows MUST cite at least one conformance_result_ref.",
+          "if": {
+            "properties": {
+              "support_window_class": {
+                "enum": ["general_short_window", "general_long_window", "extended_long_window"]
+              }
+            },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "required": ["conformance_result_refs"],
+            "properties": {
+              "conformance_result_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "retired rows MUST set compatibility_badge_class to unsupported_pending_qualification or incompatible_blocked_on_policy.",
+          "if": {
+            "properties": { "support_window_class": { "const": "retired" } },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "properties": {
+              "compatibility_badge_class": {
+                "enum": [
+                  "unsupported_pending_qualification",
+                  "incompatible_blocked_on_policy"
+                ]
+              }
+            },
+            "required": ["compatibility_badge_class"]
+          }
+        }
+      ]
+    },
+
+    "generated_binding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_release_bundle_schema_version",
+        "release_id",
+        "release_artifact_class",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "wit_world_refs",
+        "permission_vocabulary_version_ref",
+        "host_abi_window_class",
+        "build_identity",
+        "publisher_continuity_ref",
+        "signature_ref",
+        "mirror_availability_class",
+        "support_window_class",
+        "compatibility_badge_class",
+        "target_language_class",
+        "binding_kind_class",
+        "bindgen_tool_id_ref",
+        "source_wit_release_ref",
+        "indexed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "generated_binding_row" },
+        "sdk_release_bundle_schema_version": { "$ref": "#/$defs/sdk_release_bundle_schema_version" },
+        "release_id": { "$ref": "#/$defs/opaque_id" },
+        "release_artifact_class": { "const": "generated_binding" },
+        "sdk_line_id": { "$ref": "#/$defs/sdk_line_id" },
+        "sdk_line_semver": { "$ref": "#/$defs/sdk_line_semver" },
+        "wit_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/wit_world_ref" },
+          "description": "WIT worlds this binding covers. MUST be a subset of the source_wit_release_ref row's wit_world_refs."
+        },
+        "permission_vocabulary_version_ref": { "$ref": "#/$defs/permission_vocabulary_version_ref" },
+        "host_abi_window_class": { "$ref": "#/$defs/host_abi_window_class" },
+        "build_identity": { "$ref": "#/$defs/build_identity" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_availability_class": { "$ref": "#/$defs/mirror_availability_class" },
+        "offline_mirror_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "support_window_starts_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "support_window_ends_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "compatibility_badge_class": { "$ref": "#/$defs/compatibility_badge_class" },
+        "conformance_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "target_language_class": {
+          "type": "string",
+          "enum": [
+            "rust",
+            "typescript",
+            "javascript_browser",
+            "python",
+            "go",
+            "dotnet",
+            "wasm_core_module_adapter"
+          ],
+          "description": "Frozen target-language vocabulary for generated bindings or helper libraries. Adding a target is additive-minor; repurposing is breaking."
+        },
+        "binding_kind_class": {
+          "type": "string",
+          "enum": ["typed_bindings_full", "helper_library", "adapter_shim"],
+          "description": "Kind of binding artifact. typed_bindings_full = full WIT-derived bindings; helper_library = ergonomic wrapper; adapter_shim = host-side adapter that projects WIT worlds onto a non-component-model runtime."
+        },
+        "bindgen_tool_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the bindgen tool / version row used to generate this binding."
+        },
+        "source_wit_release_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the wit_package_release_row this binding was generated from."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "release_artifact_class MUST equal generated_binding on this record kind.",
+          "properties": { "release_artifact_class": { "const": "generated_binding" } },
+          "required": ["release_artifact_class"]
+        },
+        {
+          "description": "Rows in offline_mirror_bundle_eligible or air_gapped_mirror_only MUST cite a non-null offline_mirror_bundle_ref.",
+          "if": {
+            "properties": {
+              "mirror_availability_class": {
+                "enum": ["offline_mirror_bundle_eligible", "air_gapped_mirror_only"]
+              }
+            },
+            "required": ["mirror_availability_class"]
+          },
+          "then": {
+            "required": ["offline_mirror_bundle_ref"],
+            "properties": {
+              "offline_mirror_bundle_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "general_* and extended_long_window rows MUST cite at least one conformance_result_ref.",
+          "if": {
+            "properties": {
+              "support_window_class": {
+                "enum": ["general_short_window", "general_long_window", "extended_long_window"]
+              }
+            },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "required": ["conformance_result_refs"],
+            "properties": {
+              "conformance_result_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "retired rows MUST set compatibility_badge_class to unsupported_pending_qualification or incompatible_blocked_on_policy.",
+          "if": {
+            "properties": { "support_window_class": { "const": "retired" } },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "properties": {
+              "compatibility_badge_class": {
+                "enum": [
+                  "unsupported_pending_qualification",
+                  "incompatible_blocked_on_policy"
+                ]
+              }
+            },
+            "required": ["compatibility_badge_class"]
+          }
+        }
+      ]
+    },
+
+    "docs_pack_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_release_bundle_schema_version",
+        "release_id",
+        "release_artifact_class",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "wit_world_refs",
+        "permission_vocabulary_version_ref",
+        "host_abi_window_class",
+        "build_identity",
+        "publisher_continuity_ref",
+        "signature_ref",
+        "mirror_availability_class",
+        "support_window_class",
+        "compatibility_badge_class",
+        "docs_pack_kind_class",
+        "docs_format_class",
+        "source_wit_release_refs",
+        "indexed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "docs_pack_export_row" },
+        "sdk_release_bundle_schema_version": { "$ref": "#/$defs/sdk_release_bundle_schema_version" },
+        "release_id": { "$ref": "#/$defs/opaque_id" },
+        "release_artifact_class": { "const": "docs_pack_export" },
+        "sdk_line_id": { "$ref": "#/$defs/sdk_line_id" },
+        "sdk_line_semver": { "$ref": "#/$defs/sdk_line_semver" },
+        "wit_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/wit_world_ref" }
+        },
+        "permission_vocabulary_version_ref": { "$ref": "#/$defs/permission_vocabulary_version_ref" },
+        "host_abi_window_class": { "$ref": "#/$defs/host_abi_window_class" },
+        "build_identity": { "$ref": "#/$defs/build_identity" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_availability_class": { "$ref": "#/$defs/mirror_availability_class" },
+        "offline_mirror_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "support_window_starts_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "support_window_ends_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "compatibility_badge_class": { "$ref": "#/$defs/compatibility_badge_class" },
+        "conformance_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "docs_pack_kind_class": {
+          "type": "string",
+          "enum": [
+            "api_reference_html",
+            "static_site_export",
+            "man_page_set",
+            "pdf_export"
+          ],
+          "description": "Frozen docs-pack-kind vocabulary."
+        },
+        "docs_format_class": {
+          "type": "string",
+          "enum": [
+            "html_static_site",
+            "markdown_export",
+            "manpage_groff",
+            "pdf_a_2_archival",
+            "epub_3"
+          ],
+          "description": "Frozen docs-format vocabulary."
+        },
+        "source_wit_release_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to wit_package_release_row rows the docs pack documents. Non-empty."
+        },
+        "source_binding_release_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to generated_binding_row rows the docs pack documents. May be empty when the pack documents only WIT worlds."
+        },
+        "static_docs_export_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the sealed static-docs export archive. Required when mirror_availability_class is offline_mirror_bundle_eligible or air_gapped_mirror_only."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "release_artifact_class MUST equal docs_pack_export on this record kind.",
+          "properties": { "release_artifact_class": { "const": "docs_pack_export" } },
+          "required": ["release_artifact_class"]
+        },
+        {
+          "description": "Rows in offline_mirror_bundle_eligible or air_gapped_mirror_only MUST cite a non-null offline_mirror_bundle_ref AND a non-null static_docs_export_ref.",
+          "if": {
+            "properties": {
+              "mirror_availability_class": {
+                "enum": ["offline_mirror_bundle_eligible", "air_gapped_mirror_only"]
+              }
+            },
+            "required": ["mirror_availability_class"]
+          },
+          "then": {
+            "required": ["offline_mirror_bundle_ref", "static_docs_export_ref"],
+            "properties": {
+              "offline_mirror_bundle_ref": { "not": { "type": "null" } },
+              "static_docs_export_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "general_* and extended_long_window rows MUST cite at least one conformance_result_ref.",
+          "if": {
+            "properties": {
+              "support_window_class": {
+                "enum": ["general_short_window", "general_long_window", "extended_long_window"]
+              }
+            },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "required": ["conformance_result_refs"],
+            "properties": {
+              "conformance_result_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "retired rows MUST set compatibility_badge_class to unsupported_pending_qualification or incompatible_blocked_on_policy.",
+          "if": {
+            "properties": { "support_window_class": { "const": "retired" } },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "properties": {
+              "compatibility_badge_class": {
+                "enum": [
+                  "unsupported_pending_qualification",
+                  "incompatible_blocked_on_policy"
+                ]
+              }
+            },
+            "required": ["compatibility_badge_class"]
+          }
+        }
+      ]
+    },
+
+    "tutorial_sample_bundle_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_release_bundle_schema_version",
+        "release_id",
+        "release_artifact_class",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "wit_world_refs",
+        "permission_vocabulary_version_ref",
+        "host_abi_window_class",
+        "build_identity",
+        "publisher_continuity_ref",
+        "signature_ref",
+        "mirror_availability_class",
+        "support_window_class",
+        "compatibility_badge_class",
+        "bundle_kind_class",
+        "sample_validation_state",
+        "declared_compatibility_targets",
+        "sample_validation_evidence_refs",
+        "indexed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "tutorial_sample_bundle_row" },
+        "sdk_release_bundle_schema_version": { "$ref": "#/$defs/sdk_release_bundle_schema_version" },
+        "release_id": { "$ref": "#/$defs/opaque_id" },
+        "release_artifact_class": { "const": "tutorial_sample_bundle" },
+        "sdk_line_id": { "$ref": "#/$defs/sdk_line_id" },
+        "sdk_line_semver": { "$ref": "#/$defs/sdk_line_semver" },
+        "wit_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/wit_world_ref" },
+          "description": "WIT worlds the tutorial / sample claims support for. MUST be a subset of the SDK-line WIT release row's wit_world_refs; widening is denied with tutorial_sample_targets_outside_sdk_line_world_set."
+        },
+        "permission_vocabulary_version_ref": { "$ref": "#/$defs/permission_vocabulary_version_ref" },
+        "host_abi_window_class": { "$ref": "#/$defs/host_abi_window_class" },
+        "build_identity": { "$ref": "#/$defs/build_identity" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_availability_class": { "$ref": "#/$defs/mirror_availability_class" },
+        "offline_mirror_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "support_window_starts_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "support_window_ends_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "compatibility_badge_class": { "$ref": "#/$defs/compatibility_badge_class" },
+        "conformance_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "bundle_kind_class": {
+          "type": "string",
+          "enum": [
+            "template_pack",
+            "sample_pack",
+            "tutorial_pack",
+            "starter_pack"
+          ],
+          "description": "Frozen tutorial / sample / template / starter pack vocabulary."
+        },
+        "sample_validation_state": {
+          "type": "string",
+          "enum": ["must_compile_in_ci", "must_validate_in_ci"],
+          "description": "Sample-validation posture. Official tutorial_sample_bundle_row rows MUST set must_compile_in_ci or must_validate_in_ci. The not_required_for_class token from sample_validation_state is reserved for unofficial archives and is denied here."
+        },
+        "declared_compatibility_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["host_contract_family_ref", "wit_world_ref"],
+            "properties": {
+              "host_contract_family_ref": {
+                "$ref": "#/$defs/opaque_id",
+                "description": "Ref to the ADR-0012 host_contract_family binding the bundle claims compatibility with."
+              },
+              "wit_world_ref": { "$ref": "#/$defs/wit_world_ref" }
+            }
+          },
+          "description": "Non-empty list of host-family / WIT-world pairs the bundle declares support for. Every wit_world_ref MUST appear in wit_world_refs."
+        },
+        "sample_validation_evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to conformance_result_record rows backing the sample's validation. MUST be non-empty; a row with no passing evidence is denied with tutorial_sample_unvalidated_in_ci."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "release_artifact_class MUST equal tutorial_sample_bundle on this record kind.",
+          "properties": { "release_artifact_class": { "const": "tutorial_sample_bundle" } },
+          "required": ["release_artifact_class"]
+        },
+        {
+          "description": "Rows in offline_mirror_bundle_eligible or air_gapped_mirror_only MUST cite a non-null offline_mirror_bundle_ref.",
+          "if": {
+            "properties": {
+              "mirror_availability_class": {
+                "enum": ["offline_mirror_bundle_eligible", "air_gapped_mirror_only"]
+              }
+            },
+            "required": ["mirror_availability_class"]
+          },
+          "then": {
+            "required": ["offline_mirror_bundle_ref"],
+            "properties": {
+              "offline_mirror_bundle_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "general_* and extended_long_window rows MUST cite at least one conformance_result_ref.",
+          "if": {
+            "properties": {
+              "support_window_class": {
+                "enum": ["general_short_window", "general_long_window", "extended_long_window"]
+              }
+            },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "required": ["conformance_result_refs"],
+            "properties": {
+              "conformance_result_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "retired rows MUST set compatibility_badge_class to unsupported_pending_qualification or incompatible_blocked_on_policy.",
+          "if": {
+            "properties": { "support_window_class": { "const": "retired" } },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "properties": {
+              "compatibility_badge_class": {
+                "enum": [
+                  "unsupported_pending_qualification",
+                  "incompatible_blocked_on_policy"
+                ]
+              }
+            },
+            "required": ["compatibility_badge_class"]
+          }
+        }
+      ]
+    },
+
+    "conformance_kit_release_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_release_bundle_schema_version",
+        "release_id",
+        "release_artifact_class",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "wit_world_refs",
+        "permission_vocabulary_version_ref",
+        "host_abi_window_class",
+        "build_identity",
+        "publisher_continuity_ref",
+        "signature_ref",
+        "mirror_availability_class",
+        "support_window_class",
+        "compatibility_badge_class",
+        "tooling_class",
+        "declared_test_matrix_refs",
+        "indexed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "conformance_kit_release_row" },
+        "sdk_release_bundle_schema_version": { "$ref": "#/$defs/sdk_release_bundle_schema_version" },
+        "release_id": { "$ref": "#/$defs/opaque_id" },
+        "release_artifact_class": { "const": "conformance_kit_release" },
+        "sdk_line_id": { "$ref": "#/$defs/sdk_line_id" },
+        "sdk_line_semver": { "$ref": "#/$defs/sdk_line_semver" },
+        "wit_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/wit_world_ref" }
+        },
+        "permission_vocabulary_version_ref": { "$ref": "#/$defs/permission_vocabulary_version_ref" },
+        "host_abi_window_class": { "$ref": "#/$defs/host_abi_window_class" },
+        "build_identity": { "$ref": "#/$defs/build_identity" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_availability_class": { "$ref": "#/$defs/mirror_availability_class" },
+        "offline_mirror_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "support_window_starts_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "support_window_ends_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "compatibility_badge_class": { "$ref": "#/$defs/compatibility_badge_class" },
+        "conformance_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "tooling_class": {
+          "type": "string",
+          "enum": [
+            "host_conformance_tester",
+            "guest_conformance_tester",
+            "sample_validator",
+            "compatibility_analyzer"
+          ],
+          "description": "Frozen conformance / compatibility-tooling vocabulary."
+        },
+        "declared_test_matrix_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to opaque test-matrix row(s) the kit advertises coverage for. A kit release with no declared matrix is denied with conformance_kit_no_declared_matrix."
+        },
+        "mirrored_static_docs_export_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional ref to a docs_pack_export_row that re-publishes the kit's matrix and result vocabulary."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "release_artifact_class MUST equal conformance_kit_release on this record kind.",
+          "properties": { "release_artifact_class": { "const": "conformance_kit_release" } },
+          "required": ["release_artifact_class"]
+        },
+        {
+          "description": "Rows in offline_mirror_bundle_eligible or air_gapped_mirror_only MUST cite a non-null offline_mirror_bundle_ref.",
+          "if": {
+            "properties": {
+              "mirror_availability_class": {
+                "enum": ["offline_mirror_bundle_eligible", "air_gapped_mirror_only"]
+              }
+            },
+            "required": ["mirror_availability_class"]
+          },
+          "then": {
+            "required": ["offline_mirror_bundle_ref"],
+            "properties": {
+              "offline_mirror_bundle_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "general_* and extended_long_window rows MUST cite at least one conformance_result_ref.",
+          "if": {
+            "properties": {
+              "support_window_class": {
+                "enum": ["general_short_window", "general_long_window", "extended_long_window"]
+              }
+            },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "required": ["conformance_result_refs"],
+            "properties": {
+              "conformance_result_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "retired rows MUST set compatibility_badge_class to unsupported_pending_qualification or incompatible_blocked_on_policy.",
+          "if": {
+            "properties": { "support_window_class": { "const": "retired" } },
+            "required": ["support_window_class"]
+          },
+          "then": {
+            "properties": {
+              "compatibility_badge_class": {
+                "enum": [
+                  "unsupported_pending_qualification",
+                  "incompatible_blocked_on_policy"
+                ]
+              }
+            },
+            "required": ["compatibility_badge_class"]
+          }
+        }
+      ]
+    }
+  }
+}
