@@ -34,10 +34,22 @@ The companion artifacts are:
   — boundary schema for the batch-review packet emitted before
   every destructive, provider-owned, remote, or export-bearing
   batch action.
+- [`/schemas/collections/selection_state.schema.json`](../../schemas/collections/selection_state.schema.json)
+  and
+  [`/docs/ux/selection_and_scope_contract.md`](./selection_and_scope_contract.md)
+  — live selection-state boundary and UX contract that distinguish
+  focus, current item, checked state, selection, activation,
+  range-anchor state, hidden-selected disclosure, and visible or
+  loaded to all-matching escalation before a batch-review packet is
+  minted.
 - [`/fixtures/collections/batch_review_examples/`](../../fixtures/collections/batch_review_examples/)
   — worked-example corpus covering visible-only batches, escalation
   to all-matching, provider-limited approximations, blocked /
   unavailable members, and stale-snapshot recovery.
+- [`/fixtures/collections/selection_cases/`](../../fixtures/collections/selection_cases/)
+  — worked-example corpus covering keyboard selection, hidden
+  selected disclosure, identity-stable range anchors, and
+  provider-backed escalation review or cancel flows.
 
 This contract **composes with and does not replace** vocabularies
 already frozen in:
@@ -76,6 +88,12 @@ already frozen in:
   blocked-versus-skipped separation for virtualised tables and
   lists. Every batch-review packet in this contract resolves a
   `selection_scope_class` from that manifest.
+- [`/docs/ux/selection_and_scope_contract.md`](./selection_and_scope_contract.md)
+  — live focus / selection / checked-state / activation contract
+  and selection-state schema. Batch-review packets cite the
+  reviewed population after this live state has either remained
+  visible / loaded / custom or broadened through explicit
+  all-matching review.
 - [`/docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`](../adr/0005-subscription-envelope-and-invalidation-semantics.md)
   — authority class, scope, freshness, completeness, and
   invalidation posture on the underlying subscription stream. Every
@@ -152,9 +170,10 @@ fallback rules instead of inventing per-surface equivalents.
 - **Surface authors** building dense tables, result grids, log
   viewers, package inventories, work-item lists, admin
   configuration grids, and review collections.
-- **Product writers** choosing copy for `Select all visible`,
-  `Select all matching`, count chips, blocked / unavailable banners,
-  stale-snapshot disclosures, and saved-view restore prompts.
+- **Product writers** choosing copy for visible-row selection
+  controls, `Select all matching`, count chips, blocked /
+  unavailable banners, stale-snapshot disclosures, and saved-view
+  restore prompts.
 - **Support and parity-audit tooling** that needs one machine-
   readable packet explaining what the user reviewed, what was
   excluded, and what the batch action ultimately targeted.
