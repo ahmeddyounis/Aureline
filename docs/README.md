@@ -508,6 +508,16 @@ code.
   [`/schemas/ux/live_set_state.schema.json`](../schemas/ux/live_set_state.schema.json);
   worked fixtures in
   [`/fixtures/ux/live_review_examples/`](../fixtures/ux/live_review_examples/).
+- [`ux/degraded_mode_pattern.md`](./ux/degraded_mode_pattern.md)
+  — degraded-mode template and lifecycle-status card family for
+  workspaces, extensions, remote sessions, collaboration sessions, AI
+  actions, and update or rollback flows. Freezes controlled labels,
+  preserved-vs-reduced capability slots, last-failure visibility,
+  keyboard-reachable inspect paths, and safe recovery actions that
+  preserve current work. Boundary schema in
+  [`/schemas/ux/lifecycle_status_card.schema.json`](../schemas/ux/lifecycle_status_card.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/degraded_examples/`](../fixtures/ux/degraded_examples/).
 - [`ux/component_contract_template.md`](./ux/component_contract_template.md)
   — reusable component-contract packet for anatomy, explicit
   state-machine rows, content rules, keyboard behavior, accessibility,

@@ -1,0 +1,163 @@
+{
+  "$schema": "../../../schemas/ux/lifecycle_status_card.schema.json",
+  "__fixture__": {
+    "name": "remote_reconnecting_local_continuation",
+    "scenario": "Remote SSH transport is reconnecting after a network interruption. Local buffers and local-only work continue; remote writes are paused until the target identity and authority are restored.",
+    "exercised_axes": {
+      "status_label_token": "reconnecting",
+      "status_label_slug": "reconnecting",
+      "lifecycle_object_class": "remote_session",
+      "local_editing_available": true
+    },
+    "linked_docs": [
+      "docs/ux/degraded_mode_pattern.md",
+      "docs/adr/0020-remote-agent-contract.md"
+    ]
+  },
+  "record_kind": "lifecycle_status_card_record",
+  "lifecycle_status_card_schema_version": 1,
+  "card_id": "lifecycle_card.remote.reconnecting.local_continuation",
+  "lifecycle_object_class": "remote_session",
+  "lifecycle_state": "remote.reconnecting",
+  "status_label": "Reconnecting",
+  "status_label_token": "reconnecting",
+  "failure_tier": "tier.contextual_degraded",
+  "delivery_surfaces": [
+    "contextual_banner",
+    "status_item",
+    "durable_job_row"
+  ],
+  "truth_classes": [
+    "runtime_observed_truth",
+    "workspace_vcs_truth"
+  ],
+  "degraded_state_tokens": [
+    "Offline",
+    "Cached"
+  ],
+  "what_still_works": {
+    "capabilities": [
+      "Local buffers and unsaved edits remain open and editable.",
+      "Cached remote metadata remains inspectable with its last-known-good freshness label."
+    ],
+    "local_work_preserved": true,
+    "authoritative_source_refs": [
+      "workspace.local_buffers.current",
+      "remote.target.cached_snapshot"
+    ],
+    "summary_sentence": "The remote lane is reconnecting while local work remains available."
+  },
+  "what_is_reduced_or_paused": {
+    "capabilities": [
+      "Remote task runs, forwarded endpoints, remote VCS refs, and authoritative remote writes are paused."
+    ],
+    "cause_classes": [
+      "transport_reconnect_in_progress",
+      "remote_transport_unreachable"
+    ],
+    "blocked_mutation_classes": [
+      "remote_authoritative_writes"
+    ],
+    "summary_sentence": "Remote writes are refused before commit until reconnect succeeds."
+  },
+  "data_or_certainty_effect": {
+    "data_affected": true,
+    "certainty_affected": true,
+    "effect_scope": "cached_data",
+    "disclosure_sentence": "Remote rows are from the last successful snapshot and are labelled cached."
+  },
+  "local_editing_contract": {
+    "local_editing_available": true,
+    "save_pipeline_available": true,
+    "survival_basis": "Local buffers and the recovery journal are owned by the local workspace, not by the remote transport.",
+    "blocked_local_editing_reason": null
+  },
+  "last_failure": {
+    "has_last_failure": true,
+    "reason_class": "remote_transport_unreachable",
+    "reason_code_ref": "failure.remote.transport.timeout",
+    "occurred_at_monotonic": "2026-04-26T12:05:00Z",
+    "occurred_at_wall_clock": "2026-04-26T12:05:00Z",
+    "visibility": "primary_and_detail_surface",
+    "summary_sentence": "The remote target did not answer the reconnect probe before the timeout.",
+    "recovery_history_refs": [
+      "recovery.remote.reconnect_attempt.1"
+    ]
+  },
+  "primary_recovery_action": {
+    "action_id": "action.remote.reconnect.reviewed",
+    "label_text": "Reconnect",
+    "action_kind": "reconnect",
+    "next_safe_action_hook": "reconnect_required",
+    "review_surface_class": "status_item_drawer",
+    "preserves_current_work": true,
+    "routes_through_safe_review": true,
+    "discards_session_state": false,
+    "summary_sentence": "Retries the transport probe while preserving local buffers and the cached remote snapshot."
+  },
+  "recovery_actions": [
+    {
+      "action_id": "action.remote.reconnect.reviewed",
+      "label_text": "Reconnect",
+      "action_kind": "reconnect",
+      "next_safe_action_hook": "reconnect_required",
+      "review_surface_class": "status_item_drawer",
+      "preserves_current_work": true,
+      "routes_through_safe_review": true,
+      "discards_session_state": false,
+      "summary_sentence": "Retries the transport probe while preserving local buffers and the cached remote snapshot."
+    },
+    {
+      "action_id": "action.remote.continue_locally",
+      "label_text": "Continue locally",
+      "action_kind": "continue_locally",
+      "next_safe_action_hook": "continue_in_restricted_mode",
+      "review_surface_class": "window_attached_sheet",
+      "preserves_current_work": true,
+      "routes_through_safe_review": true,
+      "discards_session_state": false,
+      "summary_sentence": "Switches to local-only continuation after reviewing which remote writes remain paused."
+    }
+  ],
+  "inspect_path": {
+    "surface_class": "status_item_drawer",
+    "activation_command_id": "cmd.lifecycle_status.inspect_remote_session",
+    "focus_target_id": "focus.remote.status.reconnecting",
+    "accessible_name": "Inspect remote reconnecting status",
+    "keyboard_shortcut_ref": "keybinding.status.inspect",
+    "opens_without_pointer": true,
+    "detail_surface_ref": "surface.remote.session_status_drawer"
+  },
+  "support_export": {
+    "export_field_refs": [
+      "support.lifecycle_status.status_token",
+      "support.remote.last_failure",
+      "support.remote.reconnect_history"
+    ],
+    "redaction_class": "metadata_safe_default",
+    "last_failure_preserved": true,
+    "raw_secret_material_excluded": true,
+    "status_token_preserved": true
+  },
+  "collapse_policy": {
+    "may_collapse_to_generic": false,
+    "collapse_denial_reasons": [
+      "label_semantics_differ",
+      "local_editing_contract_differs",
+      "write_safety_differs",
+      "last_failure_actionable"
+    ],
+    "allowed_collapse_contexts": [
+      "none"
+    ]
+  },
+  "accessibility": {
+    "status_announced": true,
+    "inspect_path_keyboard_reachable": true,
+    "focus_return_target_ref": "focus.workspace.editor"
+  },
+  "narrative_refs": [
+    "docs/ux/degraded_mode_pattern.md",
+    "docs/collaboration/session_authority_contract.md"
+  ]
+}
