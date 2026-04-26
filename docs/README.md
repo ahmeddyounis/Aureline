@@ -209,6 +209,15 @@ code.
   accessibility, and compatibility packets cite.
   Machine-readable companion in
   [`/artifacts/platform/claimed_desktop_profiles.yaml`](../artifacts/platform/claimed_desktop_profiles.yaml).
+- [`ux/desktop_affordance_contract.md`](./ux/desktop_affordance_contract.md)
+  — cross-surface OS affordance contract for file associations,
+  open-with, reveal-in-system-shell, dock / taskbar entries,
+  notification click-through, badges, system share, copied paths or
+  permalinks, native dialogs, default-browser returns, deep-link review,
+  and lifecycle recovery. Boundary schema in
+  [`/schemas/platform/deep_link_intent.schema.json`](../schemas/platform/deep_link_intent.schema.json);
+  worked fixtures in
+  [`/fixtures/platform/system_affordance_cases/`](../fixtures/platform/system_affordance_cases/).
 - [`qa/multi_window_verification.md`](./qa/multi_window_verification.md)
   — seeded verification matrix for multi-window, monitor-topology,
   mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen

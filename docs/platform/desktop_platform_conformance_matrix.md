@@ -23,6 +23,13 @@ Companion artifacts:
 - [`/artifacts/release/install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml)
   — install-profile card and updater/deployment vocabulary the platform
   rows compose over.
+- [`/docs/ux/desktop_affordance_contract.md`](../ux/desktop_affordance_contract.md)
+  and
+  [`/schemas/platform/deep_link_intent.schema.json`](../../schemas/platform/deep_link_intent.schema.json)
+  — cross-surface contract and boundary schema for system open, file
+  associations, deep-link intent review, notification click-through,
+  badge semantics, native dialogs, default-browser returns, share /
+  copy affordances, and lifecycle recovery.
 - [`/artifacts/compat/qualification_matrix_seed.yaml`](../../artifacts/compat/qualification_matrix_seed.yaml)
   and
   [`/artifacts/compat/version_skew_register.yaml`](../../artifacts/compat/version_skew_register.yaml)

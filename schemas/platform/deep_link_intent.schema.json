@@ -1,0 +1,829 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/deep_link_intent.schema.json",
+  "title": "Aureline desktop deep-link intent and system-affordance case contract",
+  "description": "Boundary schema for the deep_link_intent_record and system_affordance_case_record frozen in docs/ux/desktop_affordance_contract.md. A deep-link intent is an externally-originated request that must resolve through a canonical command id, target identity, trust / policy review, handler ownership check, replay posture, privacy posture, and degraded fallback before it can affect product state. A system-affordance case record is a worked fixture for OS-facing behavior such as file associations, open-with, reveal-in-system-shell, dock / taskbar entries, OS notification click-through, badge semantics, system share targets, copy path / permalink, native dialogs, default-browser return, drag-drop, open-from-terminal, wake / display reconnect, removable-volume return, expired sessions, blocked deep links, unavailable targets, and lock-screen privacy. Raw URLs, raw callback bodies, raw provider payloads, raw absolute paths, raw command lines, raw secret material, raw AI prompt / completion text, and raw customer-owned identifiers never cross this boundary; records carry opaque ids, typed vocabulary, redaction-aware labels, and review / recovery state only. The eventual platform-integration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new route class, source surface, origin class, action class, authority-delta class, review requirement, policy-resolution class, replay posture, fallback class, handler-ownership class, privacy payload class, case class, outcome class, audit-event id, or denial reason is additive-minor and bumps deep_link_intent_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/deep_link_intent_record" },
+    { "$ref": "#/$defs/system_affordance_case_record" }
+  ],
+  "$defs": {
+    "deep_link_intent_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this desktop integration vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "deep_link_intent_record",
+        "system_affordance_case_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, OS notification payloads, lock-screen summaries, and claim manifests. Raw URLs, raw callback bodies, raw provider payloads, raw absolute paths, raw command lines, raw secret material, raw AI prompt / completion text, and raw customer-owned identifiers never appear here."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short redaction-aware label text. The exporter applies redaction before the value crosses the boundary."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "source_surface_class": {
+      "type": "string",
+      "enum": [
+        "system_open",
+        "file_association",
+        "open_with",
+        "reveal_in_system_shell",
+        "native_open_dialog",
+        "native_save_dialog",
+        "dock_taskbar_recent",
+        "dock_taskbar_jump_action",
+        "os_notification_click",
+        "os_badge_activation",
+        "system_share_target",
+        "copy_path_or_permalink",
+        "drag_drop_open",
+        "open_from_terminal",
+        "default_browser_callback",
+        "protocol_handler",
+        "companion_handoff_return"
+      ],
+      "description": "Frozen OS-facing source-surface vocabulary. A surface that cannot resolve its source class MUST deny with source_surface_unresolved rather than defaulting to system_open."
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "os_shell",
+        "system_default_browser",
+        "first_party_web",
+        "trusted_companion",
+        "external_provider",
+        "collaboration_service",
+        "local_cli",
+        "installer_or_update_flow",
+        "unknown_untrusted"
+      ],
+      "description": "Origin class for the request. unknown_untrusted always requires review or denial before execution."
+    },
+
+    "route_class": {
+      "type": "string",
+      "enum": [
+        "local_file_open",
+        "workspace_open",
+        "review_or_work_item",
+        "auth_callback",
+        "collaboration_session_join",
+        "managed_workspace_resume",
+        "command_invocation",
+        "external_browser_return",
+        "settings_or_policy_review",
+        "support_or_incident",
+        "provider_console_handoff",
+        "unavailable_target_recovery"
+      ],
+      "description": "Frozen route-class vocabulary. The route class chooses the product resolver path; it does not grant authority by itself."
+    },
+
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "workspace_manifest",
+        "workspace_root",
+        "recent_work_entry",
+        "review_thread",
+        "work_item",
+        "incident",
+        "auth_session",
+        "collaboration_session",
+        "managed_workspace",
+        "command_target",
+        "route_object",
+        "notification_event",
+        "support_packet",
+        "settings_or_policy_surface",
+        "provider_console_target",
+        "unknown_target"
+      ],
+      "description": "Frozen target-kind vocabulary. unknown_target is repair-only and cannot execute without review."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported freshness vocabulary used across capability lifecycle and search / result truth rows."
+    },
+
+    "target_availability_class": {
+      "type": "string",
+      "enum": [
+        "exact_available",
+        "available_read_only",
+        "stale_available",
+        "moved_or_alias_changed",
+        "missing_or_unmounted",
+        "blocked_by_policy",
+        "auth_required",
+        "remote_unreachable",
+        "expired",
+        "ambiguous",
+        "unknown"
+      ],
+      "description": "Target availability at resolution time. Any value other than exact_available requires review, degraded fallback, or denial before execution."
+    },
+
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "reveal_only",
+        "open_existing_context",
+        "create_or_add_context",
+        "join_presence",
+        "resume_session",
+        "auth_return",
+        "retry_or_reconnect",
+        "acknowledge_notification",
+        "mutating_command_request",
+        "privileged_authority_widening"
+      ],
+      "description": "Requested action class after parsing. The class is used for review routing and does not replace command descriptor capability scope."
+    },
+
+    "authority_delta_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "trust_boundary_crossing",
+        "policy_boundary_crossing",
+        "auth_scope_widening",
+        "remote_authority_rebind",
+        "collaboration_presence_widening",
+        "external_visibility_widening",
+        "destructive_or_mutating",
+        "unknown_requires_review"
+      ],
+      "description": "How the intent would change authority compared with the current in-product state. Every non-none value requires review before execution."
+    },
+
+    "trust_review_requirement": {
+      "type": "string",
+      "enum": [
+        "no_review_required",
+        "review_required_before_open",
+        "review_required_before_command",
+        "policy_review_required",
+        "auth_step_up_required",
+        "tenant_scope_confirmation_required",
+        "blocked_requires_policy_change"
+      ],
+      "description": "Review requirement after command descriptor, trust state, policy epoch, target availability, and origin validation are evaluated."
+    },
+
+    "policy_resolution_class": {
+      "type": "string",
+      "enum": [
+        "allowed_current_policy",
+        "allowed_after_review",
+        "denied_policy",
+        "denied_workspace_trust",
+        "denied_scope_missing",
+        "denied_origin_untrusted",
+        "denied_replay",
+        "denied_target_unavailable",
+        "denied_handler_ownership",
+        "degraded_open_placeholder"
+      ],
+      "description": "Policy / admission result for the intent. denied_replay is required when replay_posture is a replay_denied_* value."
+    },
+
+    "replay_posture": {
+      "type": "string",
+      "enum": [
+        "single_use",
+        "bounded_reuse",
+        "read_only_resumable",
+        "replay_denied_consumed",
+        "replay_denied_expired",
+        "replay_denied_policy_epoch_changed",
+        "replay_denied_target_drifted",
+        "replay_denied_origin_mismatch"
+      ],
+      "description": "Replay posture for the intent. single_use is the default for external authority-bearing links; read_only_resumable is allowed only for inspect-only or reveal-only actions."
+    },
+
+    "fallback_class": {
+      "type": "string",
+      "enum": [
+        "open_intent_review_sheet",
+        "open_read_only_placeholder",
+        "open_cached_context",
+        "locate_missing_target",
+        "continue_local_only",
+        "open_activity_center",
+        "open_default_browser",
+        "deny_with_explanation",
+        "export_context",
+        "no_fallback_available"
+      ],
+      "description": "Fallback class used when exact execution is denied, degraded, unavailable, or privacy-narrowed."
+    },
+
+    "privacy_payload_class": {
+      "type": "string",
+      "enum": [
+        "in_product_only",
+        "metadata_safe_default",
+        "lock_screen_safe_generic",
+        "source_object_summary_allowed",
+        "no_lock_screen_delivery",
+        "support_export_metadata_only"
+      ],
+      "description": "Privacy payload class for OS notification, lock-screen, shell recent, badge, companion, support-export, and handoff surfaces."
+    },
+
+    "handler_ownership_class": {
+      "type": "string",
+      "enum": [
+        "machine_global_registered",
+        "current_user_registered",
+        "portable_local_only",
+        "managed_policy_owned",
+        "no_handler_ownership",
+        "conflict_unknown_owner"
+      ],
+      "description": "Handler ownership class for file associations, protocol handlers, shell recents, notifications, and badge / jump-list ownership."
+    },
+
+    "ownership_change_review_state": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "preview_required_before_change",
+        "blocked_by_policy",
+        "accepted_after_review",
+        "denied_conflict"
+      ],
+      "description": "Whether a handler or shell ownership change needs review."
+    },
+
+    "review_disclosure_field": {
+      "type": "string",
+      "enum": [
+        "origin",
+        "source_surface",
+        "route_class",
+        "target_identity",
+        "command_id",
+        "event_lineage",
+        "authority_delta",
+        "trust_state",
+        "policy_epoch",
+        "handler_owner",
+        "replay_posture",
+        "privacy_payload",
+        "fallback"
+      ],
+      "description": "Field that must be visible on the review or denial surface."
+    },
+
+    "degraded_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "missing_target",
+        "target_moved",
+        "target_ambiguous",
+        "target_policy_blocked",
+        "remote_unavailable",
+        "expired_session",
+        "display_or_lock_state_privacy",
+        "handler_conflict",
+        "replay_denied",
+        "origin_untrusted",
+        "command_unavailable",
+        "credential_or_store_locked"
+      ],
+      "description": "Reason exact execution degraded, denied, or narrowed."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "platform.deep_link_intent_received",
+        "platform.deep_link_intent_admitted",
+        "platform.deep_link_intent_review_required",
+        "platform.deep_link_intent_denied",
+        "platform.system_affordance_case_exercised",
+        "platform.handler_ownership_reviewed",
+        "platform.notification_clickthrough_resolved",
+        "platform.lifecycle_recovery_preserved_context"
+      ],
+      "description": "Closed audit-event id set for this schema family."
+    },
+
+    "case_class": {
+      "type": "string",
+      "enum": [
+        "file_association_open",
+        "open_with_reveal_in_system_shell",
+        "native_open_save_dialog",
+        "dock_taskbar_recent_jump",
+        "os_notification_clickthrough",
+        "badge_count_traceability",
+        "system_share_target",
+        "copy_path_or_permalink",
+        "open_from_terminal",
+        "default_browser_handoff_return",
+        "collaboration_presence_notification",
+        "lifecycle_wake_resume",
+        "lifecycle_display_topology_change",
+        "lifecycle_removable_volume_return",
+        "lifecycle_expired_session",
+        "blocked_deep_link",
+        "unavailable_target_recovery",
+        "lock_screen_privacy"
+      ],
+      "description": "Worked system-affordance case class."
+    },
+
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "admitted_exact",
+        "review_required_before_execution",
+        "denied_with_recovery",
+        "degraded_placeholder",
+        "privacy_narrowed_delivery",
+        "badge_resolved_to_durable_objects",
+        "context_preserved_revalidation_required"
+      ],
+      "description": "Expected outcome of a worked system-affordance case."
+    },
+
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "not_lifecycle_case",
+        "wake_from_sleep",
+        "display_reconnect",
+        "dpi_or_topology_change",
+        "removable_volume_return",
+        "expired_session",
+        "blocked_deep_link",
+        "unavailable_target",
+        "lock_screen_privacy"
+      ],
+      "description": "Lifecycle or privacy state exercised by a fixture."
+    },
+
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "object_identity_ref",
+        "availability_class",
+        "freshness_class"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "last_known_good_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "availability_class": { "$ref": "#/$defs/target_availability_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" }
+      },
+      "description": "Canonical target identity or unavailable-target placeholder. Raw paths and raw URLs never appear here."
+    },
+
+    "handler_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ownership_class",
+        "ownership_review_state",
+        "owning_channel_ref",
+        "owner_build_ref"
+      ],
+      "properties": {
+        "ownership_class": { "$ref": "#/$defs/handler_ownership_class" },
+        "ownership_review_state": { "$ref": "#/$defs/ownership_change_review_state" },
+        "owning_channel_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "owner_build_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Handler or shell ownership state visible during install, update, portable launch, and system handoff."
+    },
+
+    "fallback_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fallback_class",
+        "fallback_command_id_ref",
+        "fallback_target_identity_ref",
+        "preserves_user_intent"
+      ],
+      "properties": {
+        "fallback_class": { "$ref": "#/$defs/fallback_class" },
+        "fallback_command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "fallback_target_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preserves_user_intent": {
+          "type": "boolean",
+          "description": "True when the fallback carries the original source, route, and target identity into the recovery surface."
+        }
+      },
+      "description": "Recovery or denial route when exact execution is unavailable."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "tenant_or_workspace_scope_ref"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "pending_evaluation",
+            "unknown"
+          ]
+        },
+        "tenant_or_workspace_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Policy and trust context evaluated before execution."
+    },
+
+    "canonical_backing_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id_ref",
+        "object_identity_ref"
+      ],
+      "properties": {
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "event_lineage_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mutation_journal_entry_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Canonical command, event, handoff, and object refs backing a system-affordance fixture."
+    },
+
+    "expected_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome_class",
+        "trust_review_requirement",
+        "policy_resolution_class",
+        "replay_posture",
+        "safe_actions",
+        "no_silent_rerun",
+        "no_authority_widening"
+      ],
+      "properties": {
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "trust_review_requirement": { "$ref": "#/$defs/trust_review_requirement" },
+        "policy_resolution_class": { "$ref": "#/$defs/policy_resolution_class" },
+        "replay_posture": { "$ref": "#/$defs/replay_posture" },
+        "safe_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_label_text" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "no_silent_rerun": { "type": "boolean" },
+        "no_authority_widening": { "type": "boolean" }
+      },
+      "description": "Expected product behavior for a worked system-affordance case."
+    },
+
+    "privacy_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "in_product_payload_class",
+        "os_notification_payload_class",
+        "lock_screen_payload_class",
+        "support_export_payload_class"
+      ],
+      "properties": {
+        "in_product_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "os_notification_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "lock_screen_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "support_export_payload_class": { "$ref": "#/$defs/privacy_payload_class" }
+      },
+      "description": "Privacy projection across in-product, OS notification, lock-screen, and support-export surfaces."
+    },
+
+    "lifecycle_recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_state_class",
+        "preserves_context",
+        "revalidation_required",
+        "destructive_cleanup_forbidden",
+        "hidden_focus_steal_forbidden"
+      ],
+      "properties": {
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "preserves_context": { "type": "boolean" },
+        "revalidation_required": { "type": "boolean" },
+        "destructive_cleanup_forbidden": { "type": "boolean" },
+        "hidden_focus_steal_forbidden": { "type": "boolean" }
+      },
+      "description": "Lifecycle recovery assertions when a fixture exercises wake, display, removable volume, expiry, blocked link, unavailable target, or lock-screen privacy."
+    },
+
+    "deep_link_intent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deep_link_intent_schema_version",
+        "intent_id",
+        "source_surface_class",
+        "origin_class",
+        "origin_ref",
+        "route_class",
+        "target_identity",
+        "requested_action_class",
+        "authority_delta_class",
+        "command_id_ref",
+        "trust_review_requirement",
+        "policy_resolution_class",
+        "replay_posture",
+        "fallback",
+        "privacy_payload_class",
+        "handler_ownership",
+        "review_disclosure_fields",
+        "degraded_reasons",
+        "audit_event_id",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "deep_link_intent_record" },
+        "deep_link_intent_schema_version": { "$ref": "#/$defs/deep_link_intent_schema_version" },
+        "intent_id": { "$ref": "#/$defs/opaque_id" },
+        "source_surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "origin_ref": { "$ref": "#/$defs/opaque_id" },
+        "route_class": { "$ref": "#/$defs/route_class" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "requested_action_class": { "$ref": "#/$defs/requested_action_class" },
+        "authority_delta_class": { "$ref": "#/$defs/authority_delta_class" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "event_lineage_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "invocation_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "trust_review_requirement": { "$ref": "#/$defs/trust_review_requirement" },
+        "policy_resolution_class": { "$ref": "#/$defs/policy_resolution_class" },
+        "replay_posture": { "$ref": "#/$defs/replay_posture" },
+        "fallback": { "$ref": "#/$defs/fallback_resolution" },
+        "privacy_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "handler_ownership": { "$ref": "#/$defs/handler_ownership" },
+        "review_disclosure_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_disclosure_field" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "degraded_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_reason" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_safe_default",
+            "operator_only_restricted",
+            "internal_support_restricted",
+            "signing_evidence_only"
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "consumed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["authority_delta_class"],
+            "properties": {
+              "authority_delta_class": {
+                "enum": [
+                  "trust_boundary_crossing",
+                  "policy_boundary_crossing",
+                  "auth_scope_widening",
+                  "remote_authority_rebind",
+                  "collaboration_presence_widening",
+                  "external_visibility_widening",
+                  "destructive_or_mutating",
+                  "unknown_requires_review"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trust_review_requirement": {
+                "not": { "const": "no_review_required" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["replay_posture"],
+            "properties": {
+              "replay_posture": {
+                "enum": [
+                  "replay_denied_consumed",
+                  "replay_denied_expired",
+                  "replay_denied_policy_epoch_changed",
+                  "replay_denied_target_drifted",
+                  "replay_denied_origin_mismatch"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "policy_resolution_class": { "const": "denied_replay" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["requested_action_class"],
+            "properties": {
+              "requested_action_class": {
+                "enum": [
+                  "mutating_command_request",
+                  "privileged_authority_widening"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trust_review_requirement": {
+                "not": { "const": "no_review_required" }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "system_affordance_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deep_link_intent_schema_version",
+        "case_id",
+        "case_class",
+        "source_surface_class",
+        "route_class",
+        "scenario_summary",
+        "canonical_backing_refs",
+        "target_identity",
+        "handler_ownership",
+        "policy_context",
+        "expected_behavior",
+        "fallback",
+        "privacy_projection",
+        "lifecycle_recovery",
+        "must_not_happen",
+        "evidence_hooks",
+        "audit_event_id"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "system_affordance_case_record" },
+        "deep_link_intent_schema_version": { "$ref": "#/$defs/deep_link_intent_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "case_class": { "$ref": "#/$defs/case_class" },
+        "source_surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "route_class": { "$ref": "#/$defs/route_class" },
+        "scenario_summary": { "$ref": "#/$defs/short_label_text" },
+        "canonical_backing_refs": { "$ref": "#/$defs/canonical_backing_refs" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "handler_ownership": { "$ref": "#/$defs/handler_ownership" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "expected_behavior": { "$ref": "#/$defs/expected_behavior" },
+        "fallback": { "$ref": "#/$defs/fallback_resolution" },
+        "privacy_projection": { "$ref": "#/$defs/privacy_projection" },
+        "lifecycle_recovery": { "$ref": "#/$defs/lifecycle_recovery" },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_label_text" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "evidence_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "related_intent_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" }
+      }
+    }
+  }
+}
