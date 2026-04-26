@@ -645,6 +645,20 @@ code.
   resume managed workspace, start from prebuild, recent-work row
   with missing target) in
   [`/fixtures/workspace/entry_restore_examples/`](../fixtures/workspace/entry_restore_examples/).
+- [`ux/workspace_entry_route_matrix.md`](./ux/workspace_entry_route_matrix.md)
+  — workspace-entry route matrix and safe-open / restricted-open /
+  restore transition contract. Freezes route-level semantics for
+  Open folder, Open workspace, Clone repository, Import, Resume
+  snapshot, Restore last session, Deep link, Open in safe mode, and
+  Continue in restricted mode; requires previews for target identity,
+  trust/policy boundary changes, destinations, side effects, imported
+  artifact classes, restore classes, missing prerequisites, and
+  fallback actions before commit; and defines parity across Start
+  Center, main menu, command palette, deep-link resolver, and
+  workspace switcher. Boundary schema in
+  [`/schemas/workspace/entry_route.schema.json`](../schemas/workspace/entry_route.schema.json);
+  worked fixtures in
+  [`/fixtures/workspace/entry_route_cases/`](../fixtures/workspace/entry_route_cases/).
 - [`ux/archetype_detection_contract.md`](./ux/archetype_detection_contract.md)
   — post-entry workspace archetype detection, readiness-preflight,
   admission-checkpoint, first-useful-work routing, setup-later, and

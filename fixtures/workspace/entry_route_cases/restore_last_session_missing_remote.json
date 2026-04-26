@@ -1,0 +1,159 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/entry_route.schema.json",
+  "__fixture__": {
+    "name": "restore_last_session_missing_remote",
+    "scenario": "A last-session restore has local editors and dirty buffers but one remote session is unavailable.",
+    "contract_sections": ["Route Matrix", "Preview Contract", "Safe-Open, Restricted-Open, and Restore Transitions", "Cancellation, Rollback, and Previous Workspace"]
+  },
+  "record_kind": "workspace_entry_route_case_record",
+  "entry_route_schema_version": 1,
+  "route_case_id": "entry_route_case.restore_last_session_missing_remote",
+  "route_contract_ref": "route_contract.restore_last_session",
+  "workspace_entry_route_id": "workspace_entry.restore_last_session",
+  "measurement_entry_route_id": "er.restore_prompt",
+  "primary_command_id_ref": "command.workspace.restore_last_session",
+  "entry_record_projection": {
+    "entry_verb": "restore",
+    "target_kind": "recovery_checkpoint",
+    "resulting_mode": "restore_last_session",
+    "source_surface": "crash_recovery_screen",
+    "authority_reevaluation_required": true
+  },
+  "preview_contract": {
+    "preview_required": true,
+    "target_identity_preview": {
+      "target_kind": "recovery_checkpoint",
+      "object_identity_ref": "recovery_checkpoint.last_session.sample",
+      "target_revision_ref": "restore_manifest.last_session.current",
+      "availability_class": "stale_available",
+      "freshness_class": "warm_cached",
+      "identity_review_required": true,
+      "summary": "The restore checkpoint is available, but one remote target cannot be reached."
+    },
+    "trust_policy_preview": {
+      "current_trust_state": "restricted",
+      "resulting_trust_state": "restricted",
+      "authority_delta": "restore_execution_suspended",
+      "policy_epoch_ref": "policy_epoch.local.current",
+      "authority_reevaluation_required": true,
+      "required_reviews": ["restore_review_required", "prerequisite_review_required"],
+      "summary": "Restore can rehydrate local layout and dirty buffers; remote execution remains suspended."
+    },
+    "destination_preview": {
+      "destination_disposition": "no_write",
+      "collision_class": "no_collision",
+      "destination_ref": null,
+      "staging_required": false,
+      "durable_write_requires_checkpoint": false,
+      "summary": "Restore reads session state and does not write project files before user commit."
+    },
+    "side_effects": ["reads_local_metadata", "changes_layout", "suspends_restore", "narrows_capability", "emits_audit_event"],
+    "import_preview": {
+      "applies": false,
+      "imported_artifact_classes": ["none"],
+      "producer_ref": null,
+      "signature_state": "not_applicable",
+      "affected_item_classes": ["none"],
+      "blocked_item_classes": ["none"],
+      "rollback_recovery_class": "not_applicable",
+      "summary": "Restore does not import profile state."
+    },
+    "restore_preview": {
+      "applies": true,
+      "restore_prompt_ref": "restore_prompt.last_session.missing_remote",
+      "restore_level": "recovered_drafts",
+      "missing_target_states": ["missing_remote_target", "authority_expired_for_remote"],
+      "session_execution_postures": ["transcript_restored_not_rerun", "reconnect_available", "session_ended"],
+      "checkpoint_linked_recovery_class": "restore_from_recovery_journal",
+      "open_without_restore_available": true,
+      "summary": "Dirty buffers recover locally; remote terminals and tasks are transcript/evidence only until reconnect."
+    },
+    "missing_prerequisites": [
+      {
+        "prerequisite_ref": "prerequisite.restore.remote_target",
+        "prerequisite_class": "missing_remote_agent",
+        "blocking": false,
+        "recovery_actions": ["reconnect_required", "open_without_restore", "export_evidence"],
+        "summary": "Remote session reattach is unavailable; restore can proceed without rerunning remote work."
+      }
+    ],
+    "review_requirements": ["restore_review_required", "prerequisite_review_required"],
+    "fallback_actions": ["open_without_restore", "open_in_safe_mode", "continue_in_restricted_mode", "reopen_previous_workspace", "export_evidence"]
+  },
+  "surface_parity": [
+    {
+      "surface": "start_center",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.restore_last_session",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "restore_review_required",
+      "disabled_reason": "none",
+      "summary": "Start Center restore card shows the same restore level and missing remote."
+    },
+    {
+      "surface": "main_menu",
+      "reachability": "secondary",
+      "command_id_ref": "command.workspace.restore_last_session",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "restore_review_required",
+      "disabled_reason": "none",
+      "summary": "Menu restore route cannot collapse recovered drafts into generic reopen."
+    },
+    {
+      "surface": "command_palette",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.restore_last_session",
+      "semantic_equivalence": "same_preview_contract",
+      "review_behavior": "restore_review_required",
+      "disabled_reason": "none",
+      "summary": "Palette restore shows identical missing-target and no-rerun posture."
+    },
+    {
+      "surface": "deep_link",
+      "reachability": "resolver_only",
+      "command_id_ref": "command.workspace.restore_last_session",
+      "semantic_equivalence": "handoff_to_same_review",
+      "review_behavior": "deep_link_intent_review_required",
+      "disabled_reason": "none",
+      "summary": "A restore deep link requires intent review and cannot rerun sessions."
+    },
+    {
+      "surface": "workspace_switcher",
+      "reachability": "recovery_only",
+      "command_id_ref": "command.workspace.restore_last_session",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "restore_review_required",
+      "disabled_reason": "none",
+      "summary": "Switcher recovery entry keeps previous workspace reachable while restore is pending."
+    }
+  ],
+  "deep_link_constraints": {
+    "applies": false,
+    "origin_validation_required": false,
+    "handler_ownership_review_required": false,
+    "replay_review_required": false,
+    "authority_widening_forbidden_without_review": true,
+    "remote_managed_or_privileged_requires_review": true,
+    "fallback_actions": ["open_without_restore", "export_evidence"],
+    "summary": "External restore requests must go through intent review before this route."
+  },
+  "transition_contract": {
+    "trust_transition_id": "open_without_restore",
+    "restore_transition": true,
+    "safe_mode_transition": false,
+    "restricted_continuation": true,
+    "audit_event_required": true,
+    "recovery_action_ref": "recovery_action:open_without_restore.session_restore_declined",
+    "summary": "Restore can proceed with recovered drafts or explicitly switch to open-without-restore."
+  },
+  "failure_recovery": {
+    "previous_workspace_policy": "preserve_until_first_useful_surface",
+    "cancel_behavior": "cancel_no_change",
+    "failure_outcome_classes": ["restore_degraded_or_failed", "remote_attach_failed", "auth_or_reauth_required"],
+    "rollback_actions": ["open_without_restore", "open_in_safe_mode", "reopen_previous_workspace", "export_evidence"],
+    "reopen_previous_workspace_available": true,
+    "safe_open_available": true,
+    "restricted_continue_available": true,
+    "dead_end_prevention": "Restore failure keeps the checkpoint and recovery journal available, with open-without-restore, safe mode, or previous-workspace return."
+  }
+}

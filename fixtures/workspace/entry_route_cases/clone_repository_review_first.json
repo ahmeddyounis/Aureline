@@ -1,0 +1,159 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/entry_route.schema.json",
+  "__fixture__": {
+    "name": "clone_repository_review_first",
+    "scenario": "A remote repository clone previews host, auth, destination, collision, and post-clone review without granting workspace trust.",
+    "contract_sections": ["Route Matrix", "Preview Contract", "Surface Parity", "Cancellation, Rollback, and Previous Workspace"]
+  },
+  "record_kind": "workspace_entry_route_case_record",
+  "entry_route_schema_version": 1,
+  "route_case_id": "entry_route_case.clone_repository_review_first",
+  "route_contract_ref": "route_contract.clone_repository",
+  "workspace_entry_route_id": "workspace_entry.clone_repository",
+  "measurement_entry_route_id": "er.clone_or_import",
+  "primary_command_id_ref": "command.workspace.clone_repository",
+  "entry_record_projection": {
+    "entry_verb": "clone",
+    "target_kind": "remote_repository",
+    "resulting_mode": "clone_then_review",
+    "source_surface": "start_center",
+    "authority_reevaluation_required": true
+  },
+  "preview_contract": {
+    "preview_required": true,
+    "target_identity_preview": {
+      "target_kind": "remote_repository",
+      "object_identity_ref": "remote_repo.sample.review_first",
+      "target_revision_ref": "remote_ref.default_branch",
+      "availability_class": "exact_available",
+      "freshness_class": "authoritative_live",
+      "identity_review_required": true,
+      "summary": "The remote repository identity is available and will be materialized locally before trust review."
+    },
+    "trust_policy_preview": {
+      "current_trust_state": "pending_evaluation",
+      "resulting_trust_state": "pending_evaluation",
+      "authority_delta": "auth_scope_required",
+      "policy_epoch_ref": "policy_epoch.local.current",
+      "authority_reevaluation_required": true,
+      "required_reviews": ["target_review_required", "auth_step_up_required"],
+      "summary": "Clone may require an auth handle, but post-clone trust remains pending and setup actions do not run."
+    },
+    "destination_preview": {
+      "destination_disposition": "write_to_labelled_staging",
+      "collision_class": "clone_elsewhere",
+      "destination_ref": "clone_destination.staging.sample",
+      "staging_required": true,
+      "durable_write_requires_checkpoint": false,
+      "summary": "Repository bytes land in labelled staging until destination collision review is accepted."
+    },
+    "side_effects": ["writes_labelled_staging", "materializes_clone", "contacts_remote", "requests_auth", "emits_audit_event"],
+    "import_preview": {
+      "applies": false,
+      "imported_artifact_classes": ["none"],
+      "producer_ref": null,
+      "signature_state": "not_applicable",
+      "affected_item_classes": ["none"],
+      "blocked_item_classes": ["none"],
+      "rollback_recovery_class": "not_applicable",
+      "summary": "Clone does not import profile or workspace state."
+    },
+    "restore_preview": {
+      "applies": false,
+      "restore_prompt_ref": null,
+      "restore_level": "not_applicable",
+      "missing_target_states": ["not_applicable"],
+      "session_execution_postures": ["not_applicable"],
+      "checkpoint_linked_recovery_class": "not_applicable",
+      "open_without_restore_available": false,
+      "summary": "No prior session is restored by clone."
+    },
+    "missing_prerequisites": [
+      {
+        "prerequisite_ref": "prerequisite.clone.oauth_handle",
+        "prerequisite_class": "reauth_required",
+        "blocking": false,
+        "recovery_actions": ["reauth_required", "retry_later", "cancel_no_change"],
+        "summary": "Private repository access may need a fresh auth handle before network transfer."
+      }
+    ],
+    "review_requirements": ["target_review_required", "auth_step_up_required", "destination_collision_review_required"],
+    "fallback_actions": ["cancel_no_change", "rollback_labelled_staging", "return_to_start_center", "reopen_previous_workspace"]
+  },
+  "surface_parity": [
+    {
+      "surface": "start_center",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.clone_repository",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "target_review_required",
+      "disabled_reason": "none",
+      "summary": "Start Center clone is distinct from open and import."
+    },
+    {
+      "surface": "main_menu",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.clone_repository",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "target_review_required",
+      "disabled_reason": "none",
+      "summary": "Main menu clone uses the same destination and post-clone review."
+    },
+    {
+      "surface": "command_palette",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.clone_repository",
+      "semantic_equivalence": "same_preview_contract",
+      "review_behavior": "target_review_required",
+      "disabled_reason": "none",
+      "summary": "Palette clone cannot skip destination or auth disclosure."
+    },
+    {
+      "surface": "deep_link",
+      "reachability": "resolver_only",
+      "command_id_ref": "command.workspace.clone_repository",
+      "semantic_equivalence": "handoff_to_same_review",
+      "review_behavior": "deep_link_intent_review_required",
+      "disabled_reason": "none",
+      "summary": "A clone deep link enters intent review before materializing bytes."
+    },
+    {
+      "surface": "workspace_switcher",
+      "reachability": "secondary",
+      "command_id_ref": "command.workspace.clone_repository",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "target_review_required",
+      "disabled_reason": "none",
+      "summary": "Workspace switcher can clone into a new or added workspace through the same route."
+    }
+  ],
+  "deep_link_constraints": {
+    "applies": false,
+    "origin_validation_required": false,
+    "handler_ownership_review_required": false,
+    "replay_review_required": false,
+    "authority_widening_forbidden_without_review": true,
+    "remote_managed_or_privileged_requires_review": true,
+    "fallback_actions": ["cancel_no_change", "rollback_labelled_staging"],
+    "summary": "Deep-link constraints activate only for externally-originated clone requests."
+  },
+  "transition_contract": {
+    "trust_transition_id": "none",
+    "restore_transition": false,
+    "safe_mode_transition": false,
+    "restricted_continuation": false,
+    "audit_event_required": true,
+    "recovery_action_ref": null,
+    "summary": "Clone materializes source bytes but leaves workspace trust pending and setup review separate."
+  },
+  "failure_recovery": {
+    "previous_workspace_policy": "preserve_until_first_useful_surface",
+    "cancel_behavior": "cancel_no_change",
+    "failure_outcome_classes": ["destination_blocked", "auth_or_reauth_required", "target_unavailable"],
+    "rollback_actions": ["rollback_labelled_staging", "retry_later", "reopen_previous_workspace"],
+    "reopen_previous_workspace_available": true,
+    "safe_open_available": true,
+    "restricted_continue_available": true,
+    "dead_end_prevention": "Failed clone removes only labelled staging and returns to the previous workspace or Start Center."
+  }
+}

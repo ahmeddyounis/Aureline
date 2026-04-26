@@ -41,6 +41,10 @@ anatomy companion lives at:
 
 - [`/docs/ux/recent_work_and_restore_card_contract.md`](../ux/recent_work_and_restore_card_contract.md)
 
+The route-level parity and recovery-transition companion lives at:
+
+- [`/docs/ux/workspace_entry_route_matrix.md`](../ux/workspace_entry_route_matrix.md)
+
 This contract is normative. Where it disagrees with the PRD, TAD,
 TDD, or UI/UX spec quotations cited in §10, those documents win and
 this document MUST be updated in the same change. Where this

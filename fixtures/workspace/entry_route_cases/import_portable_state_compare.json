@@ -1,0 +1,151 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/entry_route.schema.json",
+  "__fixture__": {
+    "name": "import_portable_state_compare",
+    "scenario": "A portable state package import previews item classes, signature state, policy blocks, and rollback before applying anything.",
+    "contract_sections": ["Route Matrix", "Preview Contract", "Surface Parity", "Cancellation, Rollback, and Previous Workspace"]
+  },
+  "record_kind": "workspace_entry_route_case_record",
+  "entry_route_schema_version": 1,
+  "route_case_id": "entry_route_case.import_portable_state_compare",
+  "route_contract_ref": "route_contract.import",
+  "workspace_entry_route_id": "workspace_entry.import",
+  "measurement_entry_route_id": "er.clone_or_import",
+  "primary_command_id_ref": "command.workspace.import",
+  "entry_record_projection": {
+    "entry_verb": "import",
+    "target_kind": "portable_state_package",
+    "resulting_mode": "compare_before_restore",
+    "source_surface": "start_center",
+    "authority_reevaluation_required": true
+  },
+  "preview_contract": {
+    "preview_required": true,
+    "target_identity_preview": {
+      "target_kind": "portable_state_package",
+      "object_identity_ref": "artifact.portable_state_package.sample",
+      "target_revision_ref": "artifact_revision.portable_state_package.v1",
+      "availability_class": "exact_available",
+      "freshness_class": "imported_snapshot",
+      "identity_review_required": true,
+      "summary": "The portable package is available as an imported snapshot and must be compared before apply."
+    },
+    "trust_policy_preview": {
+      "current_trust_state": "restricted",
+      "resulting_trust_state": "restricted",
+      "authority_delta": "policy_boundary_review",
+      "policy_epoch_ref": "policy_epoch.local.current",
+      "authority_reevaluation_required": true,
+      "required_reviews": ["import_compare_required", "policy_review_required"],
+      "summary": "Imported settings can be compared in restricted mode; applying provider or task state requires policy review."
+    },
+    "destination_preview": {
+      "destination_disposition": "write_to_labelled_staging",
+      "collision_class": "reuse_existing",
+      "destination_ref": "import_destination.profile_staging",
+      "staging_required": true,
+      "durable_write_requires_checkpoint": true,
+      "summary": "Imported state is staged and cannot overwrite profile or workspace state without a checkpoint."
+    },
+    "side_effects": ["writes_labelled_staging", "imports_profile_state", "emits_audit_event"],
+    "import_preview": {
+      "applies": true,
+      "imported_artifact_classes": ["portable_state_package"],
+      "producer_ref": "producer.portable_profile.exporter",
+      "signature_state": "signed_verified",
+      "affected_item_classes": ["settings", "keybindings", "profiles", "workspace_layout"],
+      "blocked_item_classes": ["tasks_and_launch", "extensions_and_providers"],
+      "rollback_recovery_class": "restore_from_migration_checkpoint",
+      "summary": "Settings, keybindings, profile, and layout can be compared; task and provider state stay blocked until review."
+    },
+    "restore_preview": {
+      "applies": true,
+      "restore_prompt_ref": "restore_prompt.import_compare",
+      "restore_level": "layout_only",
+      "missing_target_states": ["schema_migrated"],
+      "session_execution_postures": ["transcript_restored_not_rerun"],
+      "checkpoint_linked_recovery_class": "restore_from_migration_checkpoint",
+      "open_without_restore_available": true,
+      "summary": "Imported layout is layout-only and execution surfaces are not rerun."
+    },
+    "missing_prerequisites": [],
+    "review_requirements": ["import_compare_required", "policy_review_required", "restore_review_required"],
+    "fallback_actions": ["cancel_no_change", "rollback_labelled_staging", "rollback_import_checkpoint", "reopen_previous_workspace"]
+  },
+  "surface_parity": [
+    {
+      "surface": "start_center",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.import",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "import_compare_required",
+      "disabled_reason": "none",
+      "summary": "Start Center import remains distinct from clone and restore."
+    },
+    {
+      "surface": "main_menu",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.import",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "import_compare_required",
+      "disabled_reason": "none",
+      "summary": "Main menu import must open the same compare-first sheet."
+    },
+    {
+      "surface": "command_palette",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.import",
+      "semantic_equivalence": "same_preview_contract",
+      "review_behavior": "import_compare_required",
+      "disabled_reason": "none",
+      "summary": "Palette import cannot apply a package without the staged comparison."
+    },
+    {
+      "surface": "deep_link",
+      "reachability": "resolver_only",
+      "command_id_ref": "command.workspace.import",
+      "semantic_equivalence": "handoff_to_same_review",
+      "review_behavior": "deep_link_intent_review_required",
+      "disabled_reason": "none",
+      "summary": "Imported handoff links go through deep-link intent review and then the same import compare."
+    },
+    {
+      "surface": "workspace_switcher",
+      "reachability": "secondary",
+      "command_id_ref": "command.workspace.import",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "import_compare_required",
+      "disabled_reason": "none",
+      "summary": "Workspace switcher can import into the active profile only through the same rollback-aware route."
+    }
+  ],
+  "deep_link_constraints": {
+    "applies": false,
+    "origin_validation_required": false,
+    "handler_ownership_review_required": false,
+    "replay_review_required": false,
+    "authority_widening_forbidden_without_review": true,
+    "remote_managed_or_privileged_requires_review": true,
+    "fallback_actions": ["cancel_no_change", "rollback_labelled_staging"],
+    "summary": "Deep-link constraints are dormant for a local package picker import."
+  },
+  "transition_contract": {
+    "trust_transition_id": "none",
+    "restore_transition": true,
+    "safe_mode_transition": false,
+    "restricted_continuation": false,
+    "audit_event_required": true,
+    "recovery_action_ref": null,
+    "summary": "Import creates a compare-and-rollback route, not an automatic restore or trust grant."
+  },
+  "failure_recovery": {
+    "previous_workspace_policy": "preserve_until_first_useful_surface",
+    "cancel_behavior": "cancel_no_change",
+    "failure_outcome_classes": ["import_blocked_or_partial", "policy_or_trust_block", "restore_degraded_or_failed"],
+    "rollback_actions": ["rollback_labelled_staging", "rollback_import_checkpoint", "reopen_previous_workspace", "export_evidence"],
+    "reopen_previous_workspace_available": true,
+    "safe_open_available": true,
+    "restricted_continue_available": true,
+    "dead_end_prevention": "If import compare or apply fails, the pre-import checkpoint remains available and the previous workspace can reopen."
+  }
+}

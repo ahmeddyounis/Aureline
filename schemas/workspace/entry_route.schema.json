@@ -1,0 +1,864 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/entry_route.schema.json",
+  "title": "Aureline workspace entry route matrix and recovery transition contract",
+  "description": "Boundary schema for workspace_entry_route_case_record fixtures that freeze route-level semantics for Open folder, Open workspace, Clone repository, Import, Resume snapshot, Restore last session, Deep link, Open in safe mode, and Continue in restricted mode. The schema composes with schemas/workspace/entry_and_restore_result.schema.json for entry verbs, target kinds, resulting modes, admission classes, restore levels, and migration recovery classes; docs/adr/0018-workspace-trust-and-restricted-mode.md for trust transitions; docs/support/recovery_ladder_packet.md for safe-mode recovery; and schemas/platform/deep_link_intent.schema.json for protocol-handler authority review. Raw paths, raw provider URLs, raw callback bodies, raw credentials, raw manifests, raw import payloads, raw policy bundles, and raw session bodies never cross this boundary. Adding a new workspace_entry_route_id, review_requirement, authority_delta_class, side_effect_class, surface_class, fallback_action, or failure_outcome_class is additive-minor and bumps entry_route_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workspace_entry_route_case_record" }
+  ],
+  "$defs": {
+    "entry_route_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this route matrix export. Current value is 1. Bumped only on breaking payload changes."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "workspace_entry_route_case_record",
+      "description": "Discriminator for route-matrix worked cases."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, persist, export, or reference from support bundles. Raw paths, raw URLs, raw credentials, raw policy payloads, raw import payloads, and raw session bodies never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewer-facing text already scrubbed by the producer. Do not place raw paths, raw URLs with credentials, command lines, secrets, or raw import/session payloads here."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "workspace_entry_route_id": {
+      "type": "string",
+      "enum": [
+        "workspace_entry.open_folder",
+        "workspace_entry.open_workspace",
+        "workspace_entry.clone_repository",
+        "workspace_entry.import",
+        "workspace_entry.resume_snapshot",
+        "workspace_entry.restore_last_session",
+        "workspace_entry.deep_link",
+        "workspace_entry.open_in_safe_mode",
+        "workspace_entry.continue_in_restricted_mode"
+      ],
+      "description": "Closed product route id. Distinct from entry_verb, source_surface, and measurement entry_route_id."
+    },
+    "measurement_entry_route_id": {
+      "type": "string",
+      "enum": [
+        "er.start_center",
+        "er.recent_work_reopen",
+        "er.restore_prompt",
+        "er.protocol_handler_reentry",
+        "er.clone_or_import",
+        "er.plain_open",
+        "er.workspace_switch",
+        "er.warm_start"
+      ],
+      "description": "Measurement route id from the onboarding measurement plan. This aggregation id never changes route semantics."
+    },
+    "entry_verb": {
+      "type": "string",
+      "enum": [
+        "open",
+        "clone",
+        "import",
+        "add_root",
+        "restore",
+        "resume",
+        "start_from_snapshot"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ]
+    },
+    "resulting_mode": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "folder",
+        "repo_root",
+        "workspace_candidate",
+        "workspace_with_roots",
+        "workset_slice",
+        "inspect_only",
+        "clone_then_review",
+        "clone_then_open",
+        "clone_then_add",
+        "clone_only",
+        "extract_then_review",
+        "compare_before_restore",
+        "apply_to_active_workspace",
+        "open_prebuild_with_setup_actions",
+        "open_prebuild_minimal",
+        "resume_live_session",
+        "restore_last_session",
+        "restore_from_checkpoint"
+      ]
+    },
+    "source_surface": {
+      "type": "string",
+      "enum": [
+        "start_center",
+        "command_palette",
+        "quick_open",
+        "os_file_association",
+        "drag_and_drop",
+        "deep_link",
+        "cli",
+        "headless_automation",
+        "workspace_switcher",
+        "recent_work_activation",
+        "template_or_prebuild_card",
+        "migration_center",
+        "crash_recovery_screen",
+        "companion_handoff_return"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "start_center",
+        "main_menu",
+        "command_palette",
+        "deep_link",
+        "workspace_switcher"
+      ],
+      "description": "Route parity surface family. Deep-link here means protocol/deep-link resolver reachability, not a trust grant."
+    },
+    "surface_reachability": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "secondary",
+        "recovery_only",
+        "resolver_only",
+        "disabled_with_reason",
+        "unavailable_in_envelope"
+      ]
+    },
+    "semantic_equivalence": {
+      "type": "string",
+      "enum": [
+        "same_route_contract",
+        "same_preview_contract",
+        "handoff_to_same_review",
+        "disabled_same_reason",
+        "not_applicable"
+      ],
+      "description": "How this surface preserves route semantics."
+    },
+    "disabled_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "no_pending_restore",
+        "no_active_workspace",
+        "requires_recovery_state",
+        "requires_protocol_intent",
+        "policy_blocks_surface",
+        "unsupported_client",
+        "privacy_reduced_hidden",
+        "missing_prerequisite"
+      ]
+    },
+    "review_requirement": {
+      "type": "string",
+      "enum": [
+        "no_review_required",
+        "target_review_required",
+        "trust_review_required",
+        "policy_review_required",
+        "auth_step_up_required",
+        "destination_collision_review_required",
+        "import_compare_required",
+        "restore_review_required",
+        "recovery_ladder_review_required",
+        "deep_link_intent_review_required",
+        "prerequisite_review_required"
+      ],
+      "description": "Review gate that must be shown before commit. Review requirements are sticky across surfaces."
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "pending_evaluation",
+        "untrusted_unknown",
+        "restricted",
+        "trusted",
+        "trusted_time_bounded",
+        "trusted_policy_degraded",
+        "restricted_recovery_fallback",
+        "restricted_extension_quarantine",
+        "trust_revoked",
+        "trust_unavailable_identity_gate",
+        "unknown"
+      ],
+      "description": "Route-level trust state preview. Includes the entry object-model subset and the richer workspace-trust ADR states."
+    },
+    "authority_delta_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "trust_boundary_review",
+        "trust_narrowing",
+        "trust_widening_requested",
+        "policy_boundary_review",
+        "auth_scope_required",
+        "remote_authority_rebind",
+        "privileged_context_requested",
+        "recovery_forced_restricted",
+        "restore_execution_suspended"
+      ],
+      "description": "How route commit changes or requests authority compared with the current state."
+    },
+    "target_availability_class": {
+      "type": "string",
+      "enum": [
+        "exact_available",
+        "available_read_only",
+        "stale_available",
+        "moved_or_alias_changed",
+        "missing_or_unmounted",
+        "blocked_by_policy",
+        "auth_required",
+        "remote_unreachable",
+        "expired",
+        "ambiguous",
+        "unknown"
+      ]
+    },
+    "target_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "imported_snapshot"
+      ]
+    },
+    "destination_disposition": {
+      "type": "string",
+      "enum": [
+        "no_write",
+        "write_to_labelled_staging",
+        "write_to_user_destination",
+        "write_to_durable_workspace",
+        "write_to_admin_owned_root"
+      ]
+    },
+    "collision_class": {
+      "type": "string",
+      "enum": [
+        "no_collision",
+        "reuse_existing",
+        "add_existing",
+        "clone_elsewhere",
+        "reveal_only",
+        "destination_blocked"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_side_effect",
+        "reads_local_metadata",
+        "reads_workspace_files",
+        "writes_labelled_staging",
+        "writes_user_destination",
+        "writes_durable_workspace",
+        "materializes_clone",
+        "contacts_remote",
+        "requests_auth",
+        "starts_container_or_devcontainer",
+        "attaches_remote_agent",
+        "imports_profile_state",
+        "applies_workspace_state",
+        "changes_layout",
+        "disables_extensions",
+        "suspends_restore",
+        "narrows_capability",
+        "emits_audit_event"
+      ],
+      "description": "Side effects disclosed before route commit."
+    },
+    "imported_artifact_class": {
+      "type": "string",
+      "enum": [
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "workflow_bundle_handoff",
+        "template_or_prebuild_snapshot",
+        "support_bundle_replay",
+        "none"
+      ]
+    },
+    "artifact_signature_state": {
+      "type": "string",
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned",
+        "signature_missing",
+        "signature_mismatch",
+        "not_applicable"
+      ]
+    },
+    "import_item_class": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "keybindings",
+        "profiles",
+        "snippets",
+        "themes",
+        "workspace_layout",
+        "tasks_and_launch",
+        "extensions_and_providers",
+        "docs_packs",
+        "none"
+      ]
+    },
+    "restore_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore",
+        "not_applicable"
+      ]
+    },
+    "missing_target_state": {
+      "type": "string",
+      "enum": [
+        "fully_present",
+        "missing_extension_host",
+        "quarantined_extension",
+        "missing_remote_target",
+        "authority_expired_for_remote",
+        "missing_toolchain",
+        "missing_profile",
+        "missing_devcontainer",
+        "missing_managed_workspace",
+        "topology_changed",
+        "schema_migrated",
+        "binary_or_extension_version_changed",
+        "corrupt_restorable_state",
+        "policy_blocked_restore",
+        "not_applicable"
+      ]
+    },
+    "session_execution_posture": {
+      "type": "string",
+      "enum": [
+        "transcript_restored_not_rerun",
+        "session_ended",
+        "reconnect_available",
+        "rerun_required",
+        "context_unavailable",
+        "live_session_continued",
+        "not_applicable"
+      ]
+    },
+    "checkpoint_linked_recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_rollback_from_checkpoint",
+        "compensating_rollback",
+        "regenerate_from_canonical_source",
+        "restore_from_session_checkpoint",
+        "restore_from_migration_checkpoint",
+        "restore_from_settings_backup",
+        "restore_from_recovery_journal",
+        "restore_from_local_history_snapshot",
+        "manual_recovery_required",
+        "not_applicable"
+      ]
+    },
+    "trust_transition_id": {
+      "type": "string",
+      "enum": [
+        "none",
+        "initial_open_untrusted",
+        "open_in_restricted_mode",
+        "continue_in_restricted_mode",
+        "open_without_restore",
+        "safe_mode_workspace_restricted",
+        "extension_quarantine_restricted",
+        "grant_trust_session",
+        "grant_trust_remembered",
+        "grant_trust_admin_prebinding",
+        "revoke_trust",
+        "policy_narrow_to_degraded",
+        "policy_restore_trusted",
+        "emergency_action_force_restricted",
+        "identity_gate_unavailable"
+      ]
+    },
+    "fallback_action": {
+      "type": "string",
+      "enum": [
+        "cancel_no_change",
+        "rollback_labelled_staging",
+        "rollback_import_checkpoint",
+        "reopen_previous_workspace",
+        "continue_previous_workspace",
+        "open_in_safe_mode",
+        "continue_in_restricted_mode",
+        "open_without_restore",
+        "inspect_only",
+        "locate_missing_target",
+        "reconnect_required",
+        "reauth_required",
+        "retry_later",
+        "export_evidence",
+        "return_to_start_center"
+      ],
+      "description": "Typed escape path shown on failure, cancellation, or unexpected narrowing."
+    },
+    "failure_outcome_class": {
+      "type": "string",
+      "enum": [
+        "no_failure_expected",
+        "target_unavailable",
+        "destination_blocked",
+        "auth_or_reauth_required",
+        "policy_or_trust_block",
+        "restore_degraded_or_failed",
+        "import_blocked_or_partial",
+        "remote_attach_failed",
+        "safe_mode_entry_failed",
+        "capability_narrowed_unexpectedly"
+      ]
+    },
+    "target_identity_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "object_identity_ref",
+        "availability_class",
+        "freshness_class",
+        "identity_review_required"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "availability_class": { "$ref": "#/$defs/target_availability_class" },
+        "freshness_class": { "$ref": "#/$defs/target_freshness_class" },
+        "identity_review_required": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Target identity and freshness disclosed before route commit."
+    },
+    "trust_policy_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_trust_state",
+        "resulting_trust_state",
+        "authority_delta",
+        "policy_epoch_ref",
+        "authority_reevaluation_required",
+        "required_reviews"
+      ],
+      "properties": {
+        "current_trust_state": { "$ref": "#/$defs/trust_state" },
+        "resulting_trust_state": { "$ref": "#/$defs/trust_state" },
+        "authority_delta": { "$ref": "#/$defs/authority_delta_class" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "authority_reevaluation_required": { "type": "boolean" },
+        "required_reviews": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_requirement" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Trust and policy state disclosed before route commit."
+    },
+    "destination_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination_disposition",
+        "collision_class",
+        "staging_required",
+        "durable_write_requires_checkpoint"
+      ],
+      "properties": {
+        "destination_disposition": { "$ref": "#/$defs/destination_disposition" },
+        "collision_class": { "$ref": "#/$defs/collision_class" },
+        "destination_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "staging_required": { "type": "boolean" },
+        "durable_write_requires_checkpoint": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Destination and collision disclosure for routes that may write bytes."
+    },
+    "import_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applies",
+        "imported_artifact_classes",
+        "signature_state",
+        "affected_item_classes",
+        "blocked_item_classes",
+        "rollback_recovery_class"
+      ],
+      "properties": {
+        "applies": { "type": "boolean" },
+        "imported_artifact_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/imported_artifact_class" },
+          "uniqueItems": true
+        },
+        "producer_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "signature_state": { "$ref": "#/$defs/artifact_signature_state" },
+        "affected_item_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/import_item_class" },
+          "uniqueItems": true
+        },
+        "blocked_item_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/import_item_class" },
+          "uniqueItems": true
+        },
+        "rollback_recovery_class": { "$ref": "#/$defs/checkpoint_linked_recovery_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Import or handoff artifact preview. Required on import routes and deep links that resolve to import."
+    },
+    "restore_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applies",
+        "restore_level",
+        "missing_target_states",
+        "session_execution_postures",
+        "checkpoint_linked_recovery_class",
+        "open_without_restore_available"
+      ],
+      "properties": {
+        "applies": { "type": "boolean" },
+        "restore_prompt_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "missing_target_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_target_state" },
+          "uniqueItems": true
+        },
+        "session_execution_postures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/session_execution_posture" },
+          "uniqueItems": true
+        },
+        "checkpoint_linked_recovery_class": { "$ref": "#/$defs/checkpoint_linked_recovery_class" },
+        "open_without_restore_available": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Restore disclosure for restore, resume, safe mode, and degraded route cases."
+    },
+    "missing_prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prerequisite_ref", "prerequisite_class", "blocking", "recovery_actions", "summary"],
+      "properties": {
+        "prerequisite_ref": { "$ref": "#/$defs/opaque_id" },
+        "prerequisite_class": {
+          "type": "string",
+          "enum": [
+            "none",
+            "missing_mount",
+            "missing_remote_agent",
+            "credential_store_locked",
+            "reauth_required",
+            "policy_source_unreachable",
+            "missing_devcontainer",
+            "missing_toolchain",
+            "missing_import_artifact",
+            "missing_restore_checkpoint",
+            "extension_host_quarantined"
+          ]
+        },
+        "blocking": { "type": "boolean" },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "preview_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_required",
+        "target_identity_preview",
+        "trust_policy_preview",
+        "destination_preview",
+        "side_effects",
+        "import_preview",
+        "restore_preview",
+        "missing_prerequisites",
+        "review_requirements",
+        "fallback_actions"
+      ],
+      "properties": {
+        "preview_required": { "type": "boolean", "const": true },
+        "target_identity_preview": { "$ref": "#/$defs/target_identity_preview" },
+        "trust_policy_preview": { "$ref": "#/$defs/trust_policy_preview" },
+        "destination_preview": { "$ref": "#/$defs/destination_preview" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "import_preview": { "$ref": "#/$defs/import_preview" },
+        "restore_preview": { "$ref": "#/$defs/restore_preview" },
+        "missing_prerequisites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_prerequisite" }
+        },
+        "review_requirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_requirement" },
+          "uniqueItems": true
+        },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Full route preview shown before execution."
+    },
+    "entry_record_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_verb",
+        "target_kind",
+        "resulting_mode",
+        "source_surface",
+        "authority_reevaluation_required"
+      ],
+      "properties": {
+        "entry_verb": { "$ref": "#/$defs/entry_verb" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "resulting_mode": { "$ref": "#/$defs/resulting_mode" },
+        "source_surface": { "$ref": "#/$defs/source_surface" },
+        "authority_reevaluation_required": { "type": "boolean" }
+      },
+      "description": "Projected project_entry_action_record fields emitted on commit."
+    },
+    "surface_parity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "reachability",
+        "command_id_ref",
+        "semantic_equivalence",
+        "review_behavior",
+        "disabled_reason"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface_class" },
+        "reachability": { "$ref": "#/$defs/surface_reachability" },
+        "command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "semantic_equivalence": { "$ref": "#/$defs/semantic_equivalence" },
+        "review_behavior": { "$ref": "#/$defs/review_requirement" },
+        "disabled_reason": { "$ref": "#/$defs/disabled_reason_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "How one surface reaches or faithfully disables the route."
+    },
+    "deep_link_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applies",
+        "origin_validation_required",
+        "handler_ownership_review_required",
+        "replay_review_required",
+        "authority_widening_forbidden_without_review",
+        "remote_managed_or_privileged_requires_review",
+        "fallback_actions"
+      ],
+      "properties": {
+        "applies": { "type": "boolean" },
+        "origin_validation_required": { "type": "boolean" },
+        "handler_ownership_review_required": { "type": "boolean" },
+        "replay_review_required": { "type": "boolean" },
+        "authority_widening_forbidden_without_review": { "type": "boolean", "const": true },
+        "remote_managed_or_privileged_requires_review": { "type": "boolean", "const": true },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Deep-link and protocol-handler authority constraints. Present on every fixture; applies=false when not a deep-link route."
+    },
+    "transition_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_transition_id",
+        "restore_transition",
+        "safe_mode_transition",
+        "restricted_continuation",
+        "audit_event_required",
+        "summary"
+      ],
+      "properties": {
+        "trust_transition_id": { "$ref": "#/$defs/trust_transition_id" },
+        "restore_transition": { "type": "boolean" },
+        "safe_mode_transition": { "type": "boolean" },
+        "restricted_continuation": { "type": "boolean" },
+        "audit_event_required": { "type": "boolean" },
+        "recovery_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Trust, restore, and recovery transition semantics for the route."
+    },
+    "failure_recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previous_workspace_policy",
+        "cancel_behavior",
+        "failure_outcome_classes",
+        "rollback_actions",
+        "reopen_previous_workspace_available",
+        "safe_open_available",
+        "restricted_continue_available",
+        "dead_end_prevention"
+      ],
+      "properties": {
+        "previous_workspace_policy": {
+          "type": "string",
+          "enum": [
+            "preserve_until_commit",
+            "preserve_until_first_useful_surface",
+            "not_applicable_no_previous_workspace"
+          ]
+        },
+        "cancel_behavior": { "$ref": "#/$defs/fallback_action" },
+        "failure_outcome_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/failure_outcome_class" },
+          "uniqueItems": true
+        },
+        "rollback_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_action" },
+          "uniqueItems": true
+        },
+        "reopen_previous_workspace_available": { "type": "boolean" },
+        "safe_open_available": { "type": "boolean" },
+        "restricted_continue_available": { "type": "boolean" },
+        "dead_end_prevention": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Cancellation, rollback, previous-workspace, safe-open, and restricted-continuation behavior."
+    },
+    "workspace_entry_route_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_route_schema_version",
+        "route_case_id",
+        "route_contract_ref",
+        "workspace_entry_route_id",
+        "measurement_entry_route_id",
+        "primary_command_id_ref",
+        "entry_record_projection",
+        "preview_contract",
+        "surface_parity",
+        "deep_link_constraints",
+        "transition_contract",
+        "failure_recovery"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "entry_route_schema_version": { "$ref": "#/$defs/entry_route_schema_version" },
+        "route_case_id": { "$ref": "#/$defs/opaque_id" },
+        "route_contract_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_entry_route_id": { "$ref": "#/$defs/workspace_entry_route_id" },
+        "measurement_entry_route_id": { "$ref": "#/$defs/measurement_entry_route_id" },
+        "primary_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "entry_record_projection": { "$ref": "#/$defs/entry_record_projection" },
+        "preview_contract": { "$ref": "#/$defs/preview_contract" },
+        "surface_parity": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/surface_parity_record" }
+        },
+        "deep_link_constraints": { "$ref": "#/$defs/deep_link_constraints" },
+        "transition_contract": { "$ref": "#/$defs/transition_contract" },
+        "failure_recovery": { "$ref": "#/$defs/failure_recovery" }
+      },
+      "description": "One worked route case tying entry projection, preview, parity, deep-link authority, transitions, and failure recovery together."
+    }
+  }
+}

@@ -45,6 +45,9 @@ frozen in
 the Start Center is one route, not the only route, and every
 primary action it offers remains reachable later from the command
 palette, main menu, `Open Recent`, and `Switch Project`.
+Route-level parity, safe-open, restricted-open, deep-link review, and
+previous-workspace fallback rules are frozen in
+[`/docs/ux/workspace_entry_route_matrix.md`](./workspace_entry_route_matrix.md).
 
 ## Who reads this contract
 

@@ -1,0 +1,159 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/entry_route.schema.json",
+  "__fixture__": {
+    "name": "resume_snapshot_reauth_required",
+    "scenario": "A managed workspace snapshot resume finds expired authority and keeps local continuity while reauth is reviewed.",
+    "contract_sections": ["Route Matrix", "Preview Contract", "Surface Parity", "Safe-Open, Restricted-Open, and Restore Transitions"]
+  },
+  "record_kind": "workspace_entry_route_case_record",
+  "entry_route_schema_version": 1,
+  "route_case_id": "entry_route_case.resume_snapshot_reauth_required",
+  "route_contract_ref": "route_contract.resume_snapshot",
+  "workspace_entry_route_id": "workspace_entry.resume_snapshot",
+  "measurement_entry_route_id": "er.recent_work_reopen",
+  "primary_command_id_ref": "command.workspace.resume_snapshot",
+  "entry_record_projection": {
+    "entry_verb": "resume",
+    "target_kind": "managed_cloud_workspace",
+    "resulting_mode": "resume_live_session",
+    "source_surface": "recent_work_activation",
+    "authority_reevaluation_required": true
+  },
+  "preview_contract": {
+    "preview_required": true,
+    "target_identity_preview": {
+      "target_kind": "managed_cloud_workspace",
+      "object_identity_ref": "managed_workspace.snapshot.sample",
+      "target_revision_ref": "managed_snapshot.recent",
+      "availability_class": "auth_required",
+      "freshness_class": "warm_cached",
+      "identity_review_required": true,
+      "summary": "The managed snapshot is known from cache, but live authority is expired."
+    },
+    "trust_policy_preview": {
+      "current_trust_state": "trust_unavailable_identity_gate",
+      "resulting_trust_state": "trust_unavailable_identity_gate",
+      "authority_delta": "remote_authority_rebind",
+      "policy_epoch_ref": "policy_epoch.managed.last_known",
+      "authority_reevaluation_required": true,
+      "required_reviews": ["auth_step_up_required", "policy_review_required"],
+      "summary": "Resume requires identity and policy revalidation; cached authority cannot silently reattach."
+    },
+    "destination_preview": {
+      "destination_disposition": "no_write",
+      "collision_class": "no_collision",
+      "destination_ref": null,
+      "staging_required": false,
+      "durable_write_requires_checkpoint": false,
+      "summary": "Resume does not write local project files before authority is re-established."
+    },
+    "side_effects": ["contacts_remote", "requests_auth", "attaches_remote_agent", "emits_audit_event"],
+    "import_preview": {
+      "applies": false,
+      "imported_artifact_classes": ["none"],
+      "producer_ref": null,
+      "signature_state": "not_applicable",
+      "affected_item_classes": ["none"],
+      "blocked_item_classes": ["none"],
+      "rollback_recovery_class": "not_applicable",
+      "summary": "Resume does not import state."
+    },
+    "restore_preview": {
+      "applies": true,
+      "restore_prompt_ref": "restore_prompt.managed_snapshot.cached",
+      "restore_level": "evidence_only",
+      "missing_target_states": ["authority_expired_for_remote"],
+      "session_execution_postures": ["reconnect_available"],
+      "checkpoint_linked_recovery_class": "restore_from_session_checkpoint",
+      "open_without_restore_available": true,
+      "summary": "Cached layout and evidence are visible, but live session resume waits for reauth."
+    },
+    "missing_prerequisites": [
+      {
+        "prerequisite_ref": "prerequisite.managed_snapshot.reauth",
+        "prerequisite_class": "reauth_required",
+        "blocking": true,
+        "recovery_actions": ["reauth_required", "inspect_only", "reopen_previous_workspace"],
+        "summary": "A fresh managed identity token is required before remote attach."
+      }
+    ],
+    "review_requirements": ["auth_step_up_required", "policy_review_required", "restore_review_required"],
+    "fallback_actions": ["inspect_only", "reauth_required", "continue_in_restricted_mode", "reopen_previous_workspace"]
+  },
+  "surface_parity": [
+    {
+      "surface": "start_center",
+      "reachability": "secondary",
+      "command_id_ref": "command.workspace.resume_snapshot",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "auth_step_up_required",
+      "disabled_reason": "none",
+      "summary": "Recent-work resume from Start Center uses the same authority review."
+    },
+    {
+      "surface": "main_menu",
+      "reachability": "secondary",
+      "command_id_ref": "command.workspace.resume_snapshot",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "auth_step_up_required",
+      "disabled_reason": "none",
+      "summary": "Open Recent resume keeps reauth and policy review visible."
+    },
+    {
+      "surface": "command_palette",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.resume_snapshot",
+      "semantic_equivalence": "same_preview_contract",
+      "review_behavior": "auth_step_up_required",
+      "disabled_reason": "none",
+      "summary": "Palette resume cannot rebind remote authority without review."
+    },
+    {
+      "surface": "deep_link",
+      "reachability": "resolver_only",
+      "command_id_ref": "command.workspace.resume_snapshot",
+      "semantic_equivalence": "handoff_to_same_review",
+      "review_behavior": "deep_link_intent_review_required",
+      "disabled_reason": "none",
+      "summary": "A managed resume link goes through intent review before this route runs."
+    },
+    {
+      "surface": "workspace_switcher",
+      "reachability": "primary",
+      "command_id_ref": "command.workspace.resume_snapshot",
+      "semantic_equivalence": "same_route_contract",
+      "review_behavior": "auth_step_up_required",
+      "disabled_reason": "none",
+      "summary": "Workspace switcher keeps local continuity if managed resume cannot attach."
+    }
+  ],
+  "deep_link_constraints": {
+    "applies": false,
+    "origin_validation_required": false,
+    "handler_ownership_review_required": false,
+    "replay_review_required": false,
+    "authority_widening_forbidden_without_review": true,
+    "remote_managed_or_privileged_requires_review": true,
+    "fallback_actions": ["inspect_only", "reopen_previous_workspace"],
+    "summary": "Deep-link constraints apply when the managed snapshot resume originates externally."
+  },
+  "transition_contract": {
+    "trust_transition_id": "identity_gate_unavailable",
+    "restore_transition": true,
+    "safe_mode_transition": false,
+    "restricted_continuation": true,
+    "audit_event_required": true,
+    "recovery_action_ref": null,
+    "summary": "Resume is blocked behind identity revalidation and can continue as evidence-only restricted context."
+  },
+  "failure_recovery": {
+    "previous_workspace_policy": "preserve_until_first_useful_surface",
+    "cancel_behavior": "cancel_no_change",
+    "failure_outcome_classes": ["auth_or_reauth_required", "remote_attach_failed", "policy_or_trust_block"],
+    "rollback_actions": ["inspect_only", "continue_in_restricted_mode", "reopen_previous_workspace", "export_evidence"],
+    "reopen_previous_workspace_available": true,
+    "safe_open_available": true,
+    "restricted_continue_available": true,
+    "dead_end_prevention": "Expired managed authority opens evidence-only context or returns to the previous workspace; it never silently resumes privileged state."
+  }
+}
