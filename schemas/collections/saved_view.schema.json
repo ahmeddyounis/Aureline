@@ -1,0 +1,623 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/saved_view.schema.json",
+  "title": "Aureline collection-view saved-view artifact boundary vocabulary",
+  "description": "Boundary schema for the durable saved-view artifact every dense collection surface (search, review, logs, packages, work items, admin grids) reads when restoring or sharing a captured column set, filter, sort order, group-by, or pinned count axis. Every saved view names exactly one owner class, one scope class (user / workspace / shared / policy_pinned / provider_owned), one privacy class, one schema version, and one fallback class so a restore that cannot bind exactly degrades visibly rather than wiping user state. The view pins its filter AST through schemas/collections/filter_ast.schema.json by opaque ref and never redeclares the AST shape. Raw column names, raw filter literal bytes, raw query bodies, raw URLs, and raw absolute paths MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / drift state only. Adding a new owner class, scope class, privacy class, fallback class, drift state, denial reason, or audit-event id is additive-minor and bumps saved_view_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/saved_view_record" },
+    { "$ref": "#/$defs/saved_view_audit_event_record" }
+  ],
+  "$defs": {
+    "saved_view_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the saved-view vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "saved_view_record",
+        "saved_view_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw column names, raw filter literal bytes, raw query bodies, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries presentation-only summary copy; never carries raw column names or raw filter literal bytes."
+    },
+
+    "running_build_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to the running build identity the artifact was minted under. Pinned so a re-resolution can compare current build vs captured build for drift labelling."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every restore; a stale policy epoch denies with policy_epoch_expired."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "search_collection",
+        "review_collection",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_collection",
+        "admin_or_settings_grid"
+      ],
+      "description": "Closed surface-family vocabulary. A saved view is always minted by exactly one surface class."
+    },
+
+    "saved_view_owner_class": {
+      "type": "string",
+      "enum": [
+        "user_owned_local",
+        "user_owned_portable_export",
+        "workspace_committed_shared",
+        "org_curated_admin_writable",
+        "org_published_admin_read_only",
+        "policy_pinned_admin_locked",
+        "provider_owned_read_only",
+        "support_export_captured"
+      ],
+      "description": "Frozen owner-class vocabulary. user_owned_local is local-by-default and never syncs without explicit user opt-in; workspace_committed_shared lives in a committed workspace artifact; org_curated_admin_writable is admin-curated and writable; org_published_admin_read_only is admin-curated and read-only on consumers; policy_pinned_admin_locked is owned by policy and read-only on every consumer; provider_owned_read_only is owned by the upstream provider; support_export_captured is a derived owner whose retention is governed by support."
+    },
+
+    "saved_view_scope_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "workspace",
+        "shared",
+        "policy_pinned",
+        "provider_owned"
+      ],
+      "description": "Frozen scope-class vocabulary. The five values match the deliverable list verbatim. They compose with saved_view_owner_class: a policy_pinned scope MUST resolve to either policy_pinned_admin_locked or provider_owned_read_only owner; a provider_owned scope MUST resolve to provider_owned_read_only owner."
+    },
+
+    "saved_view_privacy_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Frozen privacy-class vocabulary. Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011); the saved view inherits this class on copy / export / share."
+    },
+
+    "saved_view_fallback_class": {
+      "type": "string",
+      "enum": [
+        "degrade_to_local_subset_with_disclosure",
+        "pin_filter_subtree_disabled_with_disclosure",
+        "pin_column_unavailable_with_placeholder",
+        "pin_view_unresolvable_offer_recreate",
+        "pin_view_archived_offer_restore",
+        "pin_view_unavailable_provider_offline_disclosed",
+        "pin_view_unavailable_policy_narrowed_disclosed"
+      ],
+      "description": "Frozen fallback-class vocabulary. A saved view whose provider lane, filter operator, field, column, or policy narrowing became unavailable since capture MUST resolve to exactly one fallback class and disclose it on the restored surface; silently wiping user state or pretending the view restored is non-conforming."
+    },
+
+    "saved_view_drift_state": {
+      "type": "string",
+      "enum": [
+        "bound_current_state_matches_captured",
+        "provider_state_drifted_disclosed",
+        "column_set_drifted_disclosed",
+        "policy_narrowing_changed_disclosed",
+        "view_archived_offered_restore",
+        "view_unresolvable_offered_recreate",
+        "view_unavailable_provider_offline_disclosed"
+      ],
+      "description": "Frozen drift-state vocabulary. Every restore resolves exactly one state. A drifted view rendered as bound_current_state_matches_captured denies with saved_view_drift_state_required_action_mismatch."
+    },
+
+    "saved_view_pinned_count_axis": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "loaded",
+        "matching",
+        "selected",
+        "provider_side_query_scope"
+      ],
+      "description": "Frozen vocabulary for which count axes the view captures. visible and loaded survive on every restore; matching, selected, and provider_side_query_scope are admitted only when the captured basis still resolves under the current build."
+    },
+
+    "saved_view_column_class": {
+      "type": "string",
+      "enum": [
+        "surface_native_column",
+        "derived_column_local",
+        "derived_column_provider",
+        "provider_only_column",
+        "policy_redacted_column",
+        "ai_evidence_column"
+      ],
+      "description": "Closed saved-view column-class vocabulary. provider_only_column referenced under client_local_filter denies on restore; policy_redacted_column renders as a placeholder."
+    },
+
+    "saved_view_column_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column_opaque_ref", "column_class"],
+      "properties": {
+        "column_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "column_label": { "$ref": "#/$defs/reviewable_label" },
+        "column_class": { "$ref": "#/$defs/saved_view_column_class" }
+      },
+      "description": "One pinned column on the saved view. Raw column names never appear on this object."
+    },
+
+    "saved_view_sort_directive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_opaque_ref", "direction_class"],
+      "properties": {
+        "field_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "direction_class": {
+          "type": "string",
+          "enum": ["ascending", "descending", "provider_native"]
+        },
+        "field_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "One sort directive on the saved view."
+    },
+
+    "saved_view_group_by_directive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_opaque_ref"],
+      "properties": {
+        "field_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "field_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Optional group-by directive on the saved view."
+    },
+
+    "saved_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_view_schema_version",
+        "saved_view_id",
+        "surface_class",
+        "saved_view_owner_class",
+        "saved_view_scope_class",
+        "saved_view_privacy_class",
+        "saved_view_fallback_class",
+        "saved_view_drift_state",
+        "filter_ast_id_ref",
+        "column_pins",
+        "sort_directives",
+        "pinned_count_axes",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "created_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "saved_view_record" },
+        "saved_view_schema_version": { "$ref": "#/$defs/saved_view_schema_version" },
+        "saved_view_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "saved_view_owner_class": { "$ref": "#/$defs/saved_view_owner_class" },
+        "saved_view_scope_class": { "$ref": "#/$defs/saved_view_scope_class" },
+        "saved_view_privacy_class": { "$ref": "#/$defs/saved_view_privacy_class" },
+        "saved_view_fallback_class": { "$ref": "#/$defs/saved_view_fallback_class" },
+        "saved_view_drift_state": { "$ref": "#/$defs/saved_view_drift_state" },
+        "filter_ast_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the captured filter_ast_record. Resolved through schemas/collections/filter_ast.schema.json."
+        },
+        "saved_query_bundle_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a saved_query_bundle_record the view rolls up to. Null when the view is not attached to a saved-query bundle."
+        },
+        "column_pins": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/saved_view_column_pin" },
+          "description": "Captured column set. Order is significant: the first item is the leftmost column."
+        },
+        "sort_directives": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/saved_view_sort_directive" },
+          "description": "Captured sort directives, ordered most-significant first. May be empty for unsorted views."
+        },
+        "group_by_directive": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/saved_view_group_by_directive" }
+          ]
+        },
+        "pinned_count_axes": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/saved_view_pinned_count_axis" },
+          "description": "Subset of count axes the saved view pins. visible and loaded MUST be present (enforced via schema gate); other axes are admitted only when the captured basis still resolves."
+        },
+        "captured_provider_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the captured provider authority (provider id, index id, lane id). Null when the view is purely client-local."
+        },
+        "captured_policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Captured policy epoch. The reopen flow compares this to the current policy epoch to drive saved_view_drift_state classification."
+        },
+        "captured_running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Captured running-build identity. Compared to current running build at restore time."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "tombstoned_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "user_owned_local owner MUST resolve to scope user and privacy metadata_safe_default.",
+          "if": {
+            "properties": {
+              "saved_view_owner_class": { "const": "user_owned_local" }
+            },
+            "required": ["saved_view_owner_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_view_scope_class": { "const": "user" },
+              "saved_view_privacy_class": { "const": "metadata_safe_default" }
+            }
+          }
+        },
+        {
+          "description": "workspace_committed_shared owner MUST resolve to scope workspace or shared.",
+          "if": {
+            "properties": {
+              "saved_view_owner_class": { "const": "workspace_committed_shared" }
+            },
+            "required": ["saved_view_owner_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_view_scope_class": {
+                "enum": ["workspace", "shared"]
+              }
+            }
+          }
+        },
+        {
+          "description": "org_curated_admin_writable and org_published_admin_read_only owner MUST resolve to scope shared.",
+          "if": {
+            "properties": {
+              "saved_view_owner_class": {
+                "enum": [
+                  "org_curated_admin_writable",
+                  "org_published_admin_read_only"
+                ]
+              }
+            },
+            "required": ["saved_view_owner_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_view_scope_class": { "const": "shared" }
+            }
+          }
+        },
+        {
+          "description": "policy_pinned_admin_locked owner MUST resolve to scope policy_pinned.",
+          "if": {
+            "properties": {
+              "saved_view_owner_class": { "const": "policy_pinned_admin_locked" }
+            },
+            "required": ["saved_view_owner_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_view_scope_class": { "const": "policy_pinned" }
+            }
+          }
+        },
+        {
+          "description": "provider_owned_read_only owner MUST resolve to scope provider_owned.",
+          "if": {
+            "properties": {
+              "saved_view_owner_class": { "const": "provider_owned_read_only" }
+            },
+            "required": ["saved_view_owner_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_view_scope_class": { "const": "provider_owned" }
+            }
+          }
+        },
+        {
+          "description": "support_export_captured owner MUST resolve to privacy internal_support_restricted or signing_evidence_only.",
+          "if": {
+            "properties": {
+              "saved_view_owner_class": { "const": "support_export_captured" }
+            },
+            "required": ["saved_view_owner_class"]
+          },
+          "then": {
+            "properties": {
+              "saved_view_privacy_class": {
+                "enum": ["internal_support_restricted", "signing_evidence_only"]
+              }
+            }
+          }
+        },
+        {
+          "description": "pinned_count_axes MUST contain visible and loaded.",
+          "properties": {
+            "pinned_count_axes": {
+              "type": "array",
+              "allOf": [
+                { "contains": { "const": "visible" } },
+                { "contains": { "const": "loaded" } }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Drifted views MUST pair to a non-bound fallback class.",
+          "if": {
+            "properties": {
+              "saved_view_drift_state": {
+                "enum": [
+                  "provider_state_drifted_disclosed",
+                  "column_set_drifted_disclosed",
+                  "policy_narrowing_changed_disclosed",
+                  "view_archived_offered_restore",
+                  "view_unresolvable_offered_recreate",
+                  "view_unavailable_provider_offline_disclosed"
+                ]
+              }
+            },
+            "required": ["saved_view_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "saved_view_fallback_class": {
+                "not": { "const": "degrade_to_local_subset_with_disclosure" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Tombstoned views MUST also carry archived_at.",
+          "if": {
+            "properties": {
+              "tombstoned_at": { "type": "string" }
+            },
+            "required": ["tombstoned_at"]
+          },
+          "then": {
+            "required": ["archived_at"]
+          }
+        }
+      ],
+      "description": "Durable saved view. The eventual collection / shell crate's Rust types are the schema of record; this record is the cross-tool boundary every non-owning surface reads. Raw column names, raw filter literal bytes, raw query bodies, and raw URLs never appear on this record."
+    },
+
+    "saved_view_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "saved_view_created",
+        "saved_view_updated",
+        "saved_view_restored",
+        "saved_view_restore_drift_disclosed",
+        "saved_view_restore_refused",
+        "saved_view_archived",
+        "saved_view_tombstoned",
+        "saved_view_share_policy_changed",
+        "saved_view_audit_denial_emitted",
+        "saved_view_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary on the saved-view stream."
+    },
+
+    "saved_view_denial_reason": {
+      "type": "string",
+      "enum": [
+        "saved_view_unknown",
+        "saved_view_owner_scope_mismatch",
+        "saved_view_privacy_class_mismatch_for_owner",
+        "saved_view_drift_state_required_action_mismatch",
+        "saved_view_fallback_class_required_for_drift",
+        "saved_view_pinned_filter_resolution_required",
+        "saved_view_column_set_drift_undisclosed",
+        "saved_view_share_disabled_by_policy",
+        "raw_body_forbidden_on_boundary",
+        "saved_view_schema_version_lagging",
+        "policy_epoch_expired",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary on the saved-view stream. Denials fail closed; silent restore against drifted state is forbidden."
+    },
+
+    "saved_view_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_view_schema_version",
+        "audit_event_id",
+        "audit_event_class",
+        "saved_view_id_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "saved_view_audit_event_record" },
+        "saved_view_schema_version": { "$ref": "#/$defs/saved_view_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_class": { "$ref": "#/$defs/saved_view_audit_event_id" },
+        "saved_view_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "drift_state_observed": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/saved_view_drift_state" }
+          ]
+        },
+        "fallback_class_observed": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/saved_view_fallback_class" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/saved_view_denial_reason" }
+          ]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Saved-view audit event. Raw column names, raw filter literal bytes, and raw query bodies never appear on this record."
+    }
+  }
+}

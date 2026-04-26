@@ -1,0 +1,728 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/filter_ast.schema.json",
+  "title": "Aureline collection-view typed filter-AST boundary vocabulary",
+  "description": "Boundary schema for the typed, serialisable filter AST every dense collection surface (search, review, logs, packages, work items, admin grids) reads when it persists, exports, shares, or re-resolves a filter across providers, saved views, deep links, exports, and CLI output. The AST is a tree of typed nodes; every combinator names exactly one filter_operator_class from the closed combinator set, every leaf names exactly one operator class plus a typed field source class and a typed literal handling class, and every node carries a filter_compatibility_class plus an unknown-node isolation state so cross-build / cross-provider re-resolution can degrade visibly rather than silently dropping a constraint. Raw filter literal bytes, raw query bodies, raw absolute paths, raw symbol bodies, raw URLs, and raw row text MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / drift state only. The eventual collection / search crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new operator class, pattern dialect, source class, field source class, literal handling class, compatibility class, denial reason, or audit-event id is additive-minor and bumps filter_ast_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/filter_ast_record" },
+    { "$ref": "#/$defs/filter_ast_audit_event_record" }
+  ],
+  "$defs": {
+    "filter_ast_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the filter-AST vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "filter_ast_record",
+        "filter_ast_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw filter literal bytes, raw field names, raw query bodies, raw absolute paths, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries presentation-only summary copy; never carries raw filter literal bytes, raw field names, or raw row text."
+    },
+
+    "running_build_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to the running build identity the artifact was minted under. Pinned so a re-resolution can compare current build vs captured build for drift labelling."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every reopen / re-resolution; a stale policy epoch denies with policy_epoch_expired."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "search_collection",
+        "review_collection",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_collection",
+        "admin_or_settings_grid"
+      ],
+      "description": "Closed surface-family vocabulary for collection-bearing surfaces. A filter AST is always minted by exactly one surface class."
+    },
+
+    "filter_operator_class": {
+      "type": "string",
+      "enum": [
+        "combinator_all_of",
+        "combinator_any_of",
+        "combinator_none_of",
+        "combinator_not",
+        "equals",
+        "not_equals",
+        "in_set",
+        "not_in_set",
+        "contains_substring",
+        "does_not_contain_substring",
+        "matches_pattern",
+        "does_not_match_pattern",
+        "greater_than",
+        "greater_than_or_equal",
+        "less_than",
+        "less_than_or_equal",
+        "within_range",
+        "outside_range",
+        "before_time",
+        "after_time",
+        "within_time_window",
+        "is_null",
+        "is_not_null",
+        "tag_includes",
+        "tag_excludes"
+      ],
+      "description": "Frozen filter-operator vocabulary. Combinators (combinator_all_of, combinator_any_of, combinator_none_of, combinator_not) wrap zero or more child nodes (combinator_not wraps exactly one). Every other operator is a leaf operator and references a typed field source class and operator-appropriate operand."
+    },
+
+    "pattern_dialect_class": {
+      "type": "string",
+      "enum": [
+        "pattern_dialect_glob",
+        "pattern_dialect_extended_regex",
+        "pattern_dialect_literal_segment"
+      ],
+      "description": "Closed pattern-dialect vocabulary. A node whose operator is matches_pattern or does_not_match_pattern MUST name exactly one dialect; a missing dialect denies with filter_pattern_dialect_unspecified."
+    },
+
+    "filter_source_class": {
+      "type": "string",
+      "enum": [
+        "client_local_filter",
+        "provider_authoritative_filter",
+        "provider_translated_filter",
+        "policy_narrowed_filter",
+        "saved_view_pinned_filter",
+        "composed_local_over_provider"
+      ],
+      "description": "Closed filter-source vocabulary. The source class travels at the AST root and may also be set per node when a sub-tree is owned by a different source than its parent."
+    },
+
+    "filter_field_source_class": {
+      "type": "string",
+      "enum": [
+        "surface_native_field",
+        "derived_field_local",
+        "derived_field_provider",
+        "provider_only_field",
+        "policy_redacted_field"
+      ],
+      "description": "Closed field-source vocabulary. provider_only_field referenced under client_local_filter denies with filter_field_unresolvable_in_local_source."
+    },
+
+    "filter_literal_handling_class": {
+      "type": "string",
+      "enum": [
+        "literal_redacted_at_boundary_default",
+        "literal_hashed_with_local_salt",
+        "literal_kept_in_local_only_store",
+        "literal_kept_in_org_governed_vault",
+        "literal_disclosed_with_explicit_user_opt_in"
+      ],
+      "description": "Closed sensitive-literal handling vocabulary. literal_redacted_at_boundary_default is the default for every literal that crosses the schema boundary; the raw literal lives in the local store only and never leaves it. A literal-disclosing class without explicit user opt-in denies with filter_literal_export_requires_explicit_opt_in."
+    },
+
+    "filter_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible_current",
+        "forward_compatible_unknown_operator_isolated",
+        "incompatible_unknown_operator_blocking",
+        "incompatible_unknown_field_blocking"
+      ],
+      "description": "Closed AST-compatibility vocabulary. compatible_current is admissible only when every node, dialect, and field resolves under the current build; forward_compatible_unknown_operator_isolated permits an unknown operator within an isolatable subtree; the two incompatible classes refuse to resolve."
+    },
+
+    "unknown_node_isolation_state": {
+      "type": "string",
+      "enum": [
+        "isolated",
+        "not_isolatable"
+      ],
+      "description": "Whether an unknown operator / field at this node is isolated under a deny-closed combinator subtree (isolated) or escapes the subtree (not_isolatable)."
+    },
+
+    "literal_value_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["literal_value_opaque_ref", "literal_handling_class"],
+      "properties": {
+        "literal_value_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "literal_handling_class": { "$ref": "#/$defs/filter_literal_handling_class" }
+      },
+      "description": "Opaque reference to a literal value held in the local-only literal store. Raw literal bytes never live on this object."
+    },
+
+    "value_set_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_set_opaque_ref", "literal_handling_class"],
+      "properties": {
+        "value_set_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "literal_handling_class": { "$ref": "#/$defs/filter_literal_handling_class" }
+      },
+      "description": "Opaque reference to a literal value set held in the local-only literal store."
+    },
+
+    "range_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range_opaque_ref", "literal_handling_class"],
+      "properties": {
+        "range_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "literal_handling_class": { "$ref": "#/$defs/filter_literal_handling_class" }
+      },
+      "description": "Opaque reference to a numeric / ordinal range held in the local-only literal store."
+    },
+
+    "time_window_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["time_window_opaque_ref"],
+      "properties": {
+        "time_window_opaque_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Opaque reference to a time window expressed in the time-window registry."
+    },
+
+    "tag_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag_opaque_ref"],
+      "properties": {
+        "tag_opaque_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Opaque reference to a tag in the tag registry."
+    },
+
+    "filter_field_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_opaque_ref", "field_source_class"],
+      "properties": {
+        "field_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "field_label": { "$ref": "#/$defs/reviewable_label" },
+        "field_source_class": { "$ref": "#/$defs/filter_field_source_class" }
+      },
+      "description": "Opaque reference to the field on the surface's row schema. Raw field names never appear; the registry resolves the opaque ref to the typed field."
+    },
+
+    "filter_node_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable, opaque id for a node within the AST. Allows audit / drift tooling to reference a specific node without depending on traversal order."
+    },
+
+    "filter_node_compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compatibility_class", "isolation_state"],
+      "properties": {
+        "compatibility_class": { "$ref": "#/$defs/filter_compatibility_class" },
+        "isolation_state": { "$ref": "#/$defs/unknown_node_isolation_state" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Per-node compatibility result. A node whose compatibility class is incompatible_* and whose isolation_state is not_isolatable forces the AST root to one of the two incompatible_* classes."
+    },
+
+    "filter_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "operator_class",
+        "source_class",
+        "compatibility"
+      ],
+      "properties": {
+        "node_id": { "$ref": "#/$defs/filter_node_id" },
+        "operator_class": { "$ref": "#/$defs/filter_operator_class" },
+        "source_class": { "$ref": "#/$defs/filter_source_class" },
+        "compatibility": { "$ref": "#/$defs/filter_node_compatibility" },
+        "field_ref": { "$ref": "#/$defs/filter_field_ref" },
+        "literal_ref": { "$ref": "#/$defs/literal_value_ref" },
+        "value_set_ref": { "$ref": "#/$defs/value_set_ref" },
+        "range_ref": { "$ref": "#/$defs/range_ref" },
+        "time_window_ref": { "$ref": "#/$defs/time_window_ref" },
+        "tag_ref": { "$ref": "#/$defs/tag_ref" },
+        "pattern_dialect_class": { "$ref": "#/$defs/pattern_dialect_class" },
+        "child_node_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/filter_node_id" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "Combinator nodes (combinator_all_of, combinator_any_of, combinator_none_of) wrap a child list and MUST NOT name a field_ref or operand.",
+          "if": {
+            "properties": {
+              "operator_class": {
+                "enum": [
+                  "combinator_all_of",
+                  "combinator_any_of",
+                  "combinator_none_of"
+                ]
+              }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["child_node_ids"],
+            "not": {
+              "anyOf": [
+                { "required": ["field_ref"] },
+                { "required": ["literal_ref"] },
+                { "required": ["value_set_ref"] },
+                { "required": ["range_ref"] },
+                { "required": ["time_window_ref"] },
+                { "required": ["tag_ref"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "combinator_not MUST wrap exactly one child node and MUST NOT name a field_ref or operand.",
+          "if": {
+            "properties": {
+              "operator_class": { "const": "combinator_not" }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["child_node_ids"],
+            "properties": {
+              "child_node_ids": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1
+              }
+            },
+            "not": {
+              "anyOf": [
+                { "required": ["field_ref"] },
+                { "required": ["literal_ref"] },
+                { "required": ["value_set_ref"] },
+                { "required": ["range_ref"] },
+                { "required": ["time_window_ref"] },
+                { "required": ["tag_ref"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Pattern operators MUST name exactly one pattern_dialect_class.",
+          "if": {
+            "properties": {
+              "operator_class": {
+                "enum": ["matches_pattern", "does_not_match_pattern"]
+              }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["pattern_dialect_class", "field_ref", "literal_ref"]
+          }
+        },
+        {
+          "description": "Equality, substring, and ordinal-comparison leaf operators (other than within_range / outside_range / within_time_window / nullability / tag operators) MUST carry a field_ref and a single literal_ref.",
+          "if": {
+            "properties": {
+              "operator_class": {
+                "enum": [
+                  "equals",
+                  "not_equals",
+                  "contains_substring",
+                  "does_not_contain_substring",
+                  "greater_than",
+                  "greater_than_or_equal",
+                  "less_than",
+                  "less_than_or_equal",
+                  "before_time",
+                  "after_time"
+                ]
+              }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["field_ref", "literal_ref"]
+          }
+        },
+        {
+          "description": "Set-membership operators MUST carry a field_ref and a single value_set_ref.",
+          "if": {
+            "properties": {
+              "operator_class": {
+                "enum": ["in_set", "not_in_set"]
+              }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["field_ref", "value_set_ref"]
+          }
+        },
+        {
+          "description": "Range operators MUST carry a field_ref and a range_ref.",
+          "if": {
+            "properties": {
+              "operator_class": {
+                "enum": ["within_range", "outside_range"]
+              }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["field_ref", "range_ref"]
+          }
+        },
+        {
+          "description": "within_time_window MUST carry a field_ref and a time_window_ref.",
+          "if": {
+            "properties": {
+              "operator_class": { "const": "within_time_window" }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["field_ref", "time_window_ref"]
+          }
+        },
+        {
+          "description": "Nullability operators MUST carry a field_ref only.",
+          "if": {
+            "properties": {
+              "operator_class": {
+                "enum": ["is_null", "is_not_null"]
+              }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["field_ref"],
+            "not": {
+              "anyOf": [
+                { "required": ["literal_ref"] },
+                { "required": ["value_set_ref"] },
+                { "required": ["range_ref"] },
+                { "required": ["time_window_ref"] },
+                { "required": ["tag_ref"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Tag operators MUST carry a field_ref and a tag_ref.",
+          "if": {
+            "properties": {
+              "operator_class": {
+                "enum": ["tag_includes", "tag_excludes"]
+              }
+            },
+            "required": ["operator_class"]
+          },
+          "then": {
+            "required": ["field_ref", "tag_ref"]
+          }
+        }
+      ],
+      "description": "One node in the filter AST. The schema enforces operator / operand pairing; the AST owner enforces tree-shape, cycle detection, and root-resolves-to-one-source-class invariants."
+    },
+
+    "filter_ast_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "filter_ast_schema_version",
+        "filter_ast_id",
+        "surface_class",
+        "root_source_class",
+        "root_node_id",
+        "nodes",
+        "ast_compatibility_class",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "filter_ast_record" },
+        "filter_ast_schema_version": { "$ref": "#/$defs/filter_ast_schema_version" },
+        "filter_ast_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "root_source_class": { "$ref": "#/$defs/filter_source_class" },
+        "root_node_id": { "$ref": "#/$defs/filter_node_id" },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/filter_node" },
+          "description": "Flat list of every node in the AST, keyed by node_id and parent-keyed via child_node_ids. The root_node_id MUST appear exactly once in the list."
+        },
+        "ast_compatibility_class": { "$ref": "#/$defs/filter_compatibility_class" },
+        "translated_provider_filter_ast_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the provider-translated filter AST id when root_source_class is provider_translated_filter or composed_local_over_provider; null otherwise."
+        },
+        "policy_narrowed_subtree_node_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/filter_node_id" },
+          "description": "Subtree roots that are policy-narrowed pinned (read-only on the user surface). Empty when no policy narrowing applies."
+        },
+        "saved_view_pinned_subtree_node_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/filter_node_id" },
+          "description": "Subtree roots pinned by a saved view (read-only on consumer surfaces). Empty when no saved view pins a subtree."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "ast_compatibility_class compatible_current MUST imply every per-node compatibility class is compatible_current.",
+          "if": {
+            "properties": {
+              "ast_compatibility_class": { "const": "compatible_current" }
+            },
+            "required": ["ast_compatibility_class"]
+          },
+          "then": {
+            "properties": {
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "compatibility": {
+                      "type": "object",
+                      "properties": {
+                        "compatibility_class": { "const": "compatible_current" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Translated provider filter AST is required when root_source_class is provider_translated_filter.",
+          "if": {
+            "properties": {
+              "root_source_class": { "const": "provider_translated_filter" }
+            },
+            "required": ["root_source_class"]
+          },
+          "then": {
+            "required": ["translated_provider_filter_ast_id_ref"],
+            "properties": {
+              "translated_provider_filter_ast_id_ref": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ],
+      "description": "Durable filter AST. The eventual collection / search crate's Rust types are the schema of record; this record is the cross-tool boundary every non-owning surface reads. Raw filter literal bytes, raw query bodies, raw URLs, and raw absolute paths never appear on this record."
+    },
+
+    "filter_ast_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "filter_ast_minted",
+        "filter_ast_re_resolved",
+        "filter_ast_re_resolution_refused",
+        "filter_ast_node_compatibility_drifted",
+        "filter_ast_translated_to_provider",
+        "filter_ast_literal_export_requested",
+        "filter_ast_literal_export_denied",
+        "filter_ast_audit_denial_emitted",
+        "filter_ast_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary on the filter-AST stream."
+    },
+
+    "filter_ast_denial_reason": {
+      "type": "string",
+      "enum": [
+        "filter_ast_unknown",
+        "filter_ast_node_unknown",
+        "filter_pattern_dialect_unspecified",
+        "filter_field_unresolvable_in_local_source",
+        "filter_compatibility_class_required_action_mismatch",
+        "filter_literal_handling_class_required_action_mismatch",
+        "filter_literal_export_requires_explicit_opt_in",
+        "raw_body_forbidden_on_boundary",
+        "filter_ast_schema_version_lagging",
+        "policy_epoch_expired",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary on the filter-AST stream. Denials fail closed; silent compatibility downgrades are forbidden."
+    },
+
+    "filter_ast_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "filter_ast_schema_version",
+        "audit_event_id",
+        "filter_ast_id_ref",
+        "audit_event_class",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "filter_ast_audit_event_record" },
+        "filter_ast_schema_version": { "$ref": "#/$defs/filter_ast_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_class": { "$ref": "#/$defs/filter_ast_audit_event_id" },
+        "filter_ast_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "node_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/filter_node_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/filter_ast_denial_reason" }
+          ]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Filter-AST audit event. Raw filter literal bytes, raw field names, and raw query bodies never appear on this record."
+    }
+  }
+}

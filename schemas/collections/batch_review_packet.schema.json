@@ -1,0 +1,677 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/batch_review_packet.schema.json",
+  "title": "Aureline collection-view batch-review packet boundary vocabulary",
+  "description": "Boundary schema for the batch-review packet every dense collection surface (search, review, logs, packages, work items, admin grids) emits before a destructive, provider-owned, remote, or export-bearing batch action. Every packet pairs to exactly one interaction_safety_packet_record (schemas/ux/interaction_safety.schema.json) and carries the typed reviewed-population basis class, selection-scope class, batch-execution-origin class, batch-scope-truth class, item-identity class, included / excluded / blocked / unavailable item id refs, count truth across the frozen visible / loaded / matching / selected / included / excluded / blocked / unavailable / skipped / hidden_selected / not_loaded vocabulary with status (exact / approximate / provider_limited / stale / cached / partial / unknown), provider-side query scope when execution origin involves a provider, recovery-guidance class, and focus-target id ref. Raw row text, raw filter literal bytes, raw query bodies, raw URLs, raw absolute paths, and raw symbol bodies MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / freshness / drift state only. Adding a new reviewed-population basis class, selection scope class, execution origin class, scope-truth class, item-identity class, blocked reason, unavailable reason, recovery class, count term, count status, denial reason, or audit-event id is additive-minor and bumps batch_review_packet_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/batch_review_packet_record" },
+    { "$ref": "#/$defs/batch_review_packet_audit_event_record" }
+  ],
+  "$defs": {
+    "batch_review_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the batch-review packet vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "batch_review_packet_record",
+        "batch_review_packet_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw row text, raw filter literal bytes, raw query bodies, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries presentation-only summary copy; never carries raw row text or raw filter literal bytes."
+    },
+
+    "running_build_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to the running build identity the artifact was minted under. Pinned so an apply-time re-resolution can compare current build vs minted build for drift labelling."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every apply; a stale policy epoch denies with policy_epoch_expired."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "search_collection",
+        "review_collection",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_collection",
+        "admin_or_settings_grid"
+      ],
+      "description": "Closed surface-family vocabulary."
+    },
+
+    "reviewed_population_basis_class": {
+      "type": "string",
+      "enum": [
+        "current_visible_set",
+        "current_filter_sort",
+        "loaded_window",
+        "query_snapshot",
+        "time_window",
+        "provider_cursor_window",
+        "snapshot_basis",
+        "explicit_custom_set"
+      ],
+      "description": "Closed reviewed-population basis vocabulary. Names what defined the reviewed set at packet mint."
+    },
+
+    "selection_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_item_only",
+        "visible_range",
+        "loaded_set",
+        "all_matching_query",
+        "explicit_custom_set"
+      ],
+      "description": "Closed selection-scope vocabulary, re-exported verbatim from fixtures/ux/selection_and_virtualization_manifest.yaml."
+    },
+
+    "batch_execution_origin_class": {
+      "type": "string",
+      "enum": [
+        "client_local_execution",
+        "provider_authoritative_execution",
+        "mixed_client_then_provider"
+      ],
+      "description": "Closed execution-origin vocabulary. client_local_execution runs entirely on the client; provider_authoritative_execution runs on the provider; mixed_client_then_provider commits a local pass then delegates the remainder."
+    },
+
+    "batch_scope_truth_class": {
+      "type": "string",
+      "enum": [
+        "client_local_truth",
+        "provider_authoritative_truth",
+        "mixed_truth_resolved_by_provider"
+      ],
+      "description": "Closed scope-truth vocabulary. Names whether the reviewed population is owned by the client, the provider, or split."
+    },
+
+    "batch_item_identity_class": {
+      "type": "string",
+      "enum": [
+        "stable_item_identity",
+        "provider_owned_identity_pinned",
+        "local_alias_identity_disclosed"
+      ],
+      "description": "Closed item-identity vocabulary. The included id refs at packet mint MUST resolve to the same items at apply; sort, filter, and virtualisation MUST NOT silently widen the included set."
+    },
+
+    "collection_count_term": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "loaded",
+        "matching",
+        "selected",
+        "included",
+        "excluded",
+        "blocked",
+        "unavailable",
+        "skipped",
+        "hidden_selected",
+        "not_loaded"
+      ],
+      "description": "Closed count-term vocabulary. Every reviewed-population figure MUST resolve to exactly one term; collapsing two terms into one denies with batch_count_term_collapsed."
+    },
+
+    "collection_count_status": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "provider_limited",
+        "stale",
+        "cached",
+        "partial",
+        "unknown"
+      ],
+      "description": "Closed count-status vocabulary. Every count carries exactly one status; promoting approximate / provider_limited / stale / cached / partial / unknown to exact denies with batch_count_status_missing."
+    },
+
+    "collection_count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status", "value"],
+          "properties": {
+            "term": { "$ref": "#/$defs/collection_count_term" },
+            "status": {
+              "type": "string",
+              "enum": [
+                "exact",
+                "approximate",
+                "provider_limited",
+                "stale",
+                "cached",
+                "partial"
+              ]
+            },
+            "value": { "type": "integer", "minimum": 0 },
+            "tolerance_label": { "$ref": "#/$defs/reviewable_label" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status"],
+          "properties": {
+            "term": { "$ref": "#/$defs/collection_count_term" },
+            "status": { "const": "unknown" },
+            "value": { "type": "null" },
+            "tolerance_label": { "$ref": "#/$defs/reviewable_label" }
+          }
+        }
+      ],
+      "description": "One count value: a typed term, a typed status, and a non-negative integer value (or null when status is unknown). Approximate / provider_limited / stale / cached / partial values MAY carry a tolerance_label."
+    },
+
+    "batch_blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "blocked_by_policy",
+        "blocked_by_ownership",
+        "blocked_by_protected_path",
+        "blocked_by_provider_unsupported",
+        "blocked_by_freshness_required",
+        "blocked_by_grant_missing",
+        "blocked_by_concurrent_edit"
+      ],
+      "description": "Closed blocked-reason vocabulary. Blocked rows are refused before commit and remain reviewable; unavailable rows are absent from evaluation; skipped rows are post-commit no-ops."
+    },
+
+    "batch_unavailable_reason_class": {
+      "type": "string",
+      "enum": [
+        "unavailable_provider_offline",
+        "unavailable_filter_unsupported_by_provider",
+        "unavailable_column_redacted",
+        "unavailable_authority_class_lower_than_required"
+      ],
+      "description": "Closed unavailable-reason vocabulary."
+    },
+
+    "batch_recovery_guidance_class": {
+      "type": "string",
+      "enum": [
+        "inline_undo_revert_available",
+        "compensating_action_only",
+        "regenerate_from_source",
+        "evidence_only_no_rerun",
+        "restore_from_checkpoint",
+        "no_recovery_available"
+      ],
+      "description": "Closed recovery-guidance vocabulary. Re-exported from docs/ux/shell_interaction_safety_contract.md revert-class vocabulary."
+    },
+
+    "blocked_item_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class", "count"],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/batch_blocked_reason_class" },
+        "count": { "type": "integer", "minimum": 0 },
+        "count_status": { "$ref": "#/$defs/collection_count_status" },
+        "item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Per-reason blocked summary. count is mandatory; item_id_refs is optional when the surface narrows to count-only summaries (e.g. very large blocked sets)."
+    },
+
+    "unavailable_item_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class", "count"],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/batch_unavailable_reason_class" },
+        "count": { "type": "integer", "minimum": 0 },
+        "count_status": { "$ref": "#/$defs/collection_count_status" },
+        "item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Per-reason unavailable summary."
+    },
+
+    "provider_side_query_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_filter_ast_id_ref",
+        "provider_authoritative_basis_label",
+        "provider_matching_count"
+      ],
+      "properties": {
+        "provider_filter_ast_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the filter_ast_record the provider authoritatively resolved (resolved through schemas/collections/filter_ast.schema.json)."
+        },
+        "provider_authoritative_basis_label": { "$ref": "#/$defs/reviewable_label" },
+        "provider_matching_count": { "$ref": "#/$defs/collection_count_value" },
+        "provider_loaded_count": { "$ref": "#/$defs/collection_count_value" },
+        "provider_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "description": "Provider-side query-scope block. Required when batch_execution_origin_class is provider_authoritative_execution or mixed_client_then_provider. The provider_matching_count term MUST be matching."
+    },
+
+    "batch_review_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "batch_review_packet_schema_version",
+        "batch_review_packet_id",
+        "paired_interaction_safety_packet_id_ref",
+        "surface_class",
+        "reviewed_population_basis_class",
+        "selection_scope_class",
+        "batch_execution_origin_class",
+        "batch_scope_truth_class",
+        "batch_item_identity_class",
+        "filter_ast_id_ref",
+        "included_item_id_refs",
+        "count_truth",
+        "blocked_item_summary",
+        "unavailable_item_summary",
+        "recovery_guidance_class",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "batch_review_packet_record" },
+        "batch_review_packet_schema_version": { "$ref": "#/$defs/batch_review_packet_schema_version" },
+        "batch_review_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "paired_interaction_safety_packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "saved_view_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the saved_view_record the batch was reviewed against. Null when the batch was reviewed without a saved view."
+        },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "reviewed_population_basis_class": { "$ref": "#/$defs/reviewed_population_basis_class" },
+        "selection_scope_class": { "$ref": "#/$defs/selection_scope_class" },
+        "batch_execution_origin_class": { "$ref": "#/$defs/batch_execution_origin_class" },
+        "batch_scope_truth_class": { "$ref": "#/$defs/batch_scope_truth_class" },
+        "batch_item_identity_class": { "$ref": "#/$defs/batch_item_identity_class" },
+        "filter_ast_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the filter_ast_record the reviewed population was built against. Resolved through schemas/collections/filter_ast.schema.json."
+        },
+        "included_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Pinned, opaque, ordered-stable ids for the items the next batch action will attempt. Sort, filter, and virtualisation MUST NOT silently change this set between mint and apply."
+        },
+        "excluded_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Items the user excluded from the selection at commit time."
+        },
+        "count_truth": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/collection_count_value" },
+          "description": "Per-term count truth. MUST contain at minimum visible, loaded, selected, and included terms (enforced by the contract; surfaces SHOULD also emit matching when meaningful)."
+        },
+        "blocked_item_summary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_item_summary_entry" },
+          "description": "Per-reason blocked summary. Empty when no blocked rows exist."
+        },
+        "unavailable_item_summary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unavailable_item_summary_entry" },
+          "description": "Per-reason unavailable summary. Empty when no unavailable rows exist."
+        },
+        "skipped_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Items skipped post-commit because they were already compliant or no-op. Empty before apply; populated only when the packet is replayed against an apply outcome."
+        },
+        "hidden_selected_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Selected items currently outside the visible filter / window. Empty when the selection is fully visible."
+        },
+        "not_loaded_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Selected items whose body is not currently materialised on the client. Empty when every selected id is loaded."
+        },
+        "provider_side_query_scope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/provider_side_query_scope" }
+          ],
+          "description": "Provider-side query-scope block. Required when batch_execution_origin_class is provider_authoritative_execution or mixed_client_then_provider; null otherwise."
+        },
+        "recovery_guidance_class": { "$ref": "#/$defs/batch_recovery_guidance_class" },
+        "focus_target_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the surface row / control focus returns to on close. Null only when the batch action runs without a closing surface (e.g. CLI batch apply)."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "provider_authoritative_execution and mixed_client_then_provider MUST carry provider_side_query_scope.",
+          "if": {
+            "properties": {
+              "batch_execution_origin_class": {
+                "enum": [
+                  "provider_authoritative_execution",
+                  "mixed_client_then_provider"
+                ]
+              }
+            },
+            "required": ["batch_execution_origin_class"]
+          },
+          "then": {
+            "required": ["provider_side_query_scope"],
+            "properties": {
+              "provider_side_query_scope": { "type": "object" }
+            }
+          }
+        },
+        {
+          "description": "client_local_execution MUST NOT carry a provider_side_query_scope block.",
+          "if": {
+            "properties": {
+              "batch_execution_origin_class": { "const": "client_local_execution" }
+            },
+            "required": ["batch_execution_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_side_query_scope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "provider_authoritative_truth and mixed_truth_resolved_by_provider MUST NOT pair with client_local_execution.",
+          "if": {
+            "properties": {
+              "batch_scope_truth_class": {
+                "enum": [
+                  "provider_authoritative_truth",
+                  "mixed_truth_resolved_by_provider"
+                ]
+              }
+            },
+            "required": ["batch_scope_truth_class"]
+          },
+          "then": {
+            "properties": {
+              "batch_execution_origin_class": {
+                "not": { "const": "client_local_execution" }
+              }
+            }
+          }
+        },
+        {
+          "description": "no_recovery_available recovery class is admitted only when the surface explicitly accepts it via the paired interaction-safety packet (irreversible_high_blast). The schema cannot fully gate that pairing; surfaces that emit no_recovery_available outside irreversible_high_blast deny via the interaction-safety contract.",
+          "if": {
+            "properties": {
+              "recovery_guidance_class": { "const": "no_recovery_available" }
+            },
+            "required": ["recovery_guidance_class"]
+          },
+          "then": {
+            "required": ["paired_interaction_safety_packet_id_ref"]
+          }
+        },
+        {
+          "description": "selection_scope_class all_matching_query MUST emit a matching count term.",
+          "if": {
+            "properties": {
+              "selection_scope_class": { "const": "all_matching_query" }
+            },
+            "required": ["selection_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "count_truth": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "term": { "const": "matching" }
+                  },
+                  "required": ["term"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "count_truth MUST contain visible, loaded, selected, and included terms.",
+          "properties": {
+            "count_truth": {
+              "type": "array",
+              "allOf": [
+                { "contains": { "type": "object", "properties": { "term": { "const": "visible" } }, "required": ["term"] } },
+                { "contains": { "type": "object", "properties": { "term": { "const": "loaded" } }, "required": ["term"] } },
+                { "contains": { "type": "object", "properties": { "term": { "const": "selected" } }, "required": ["term"] } },
+                { "contains": { "type": "object", "properties": { "term": { "const": "included" } }, "required": ["term"] } }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Durable batch-review packet. The eventual collection / shell crate's Rust types are the schema of record; this record is the cross-tool boundary every non-owning surface reads. Raw row text, raw filter literal bytes, raw query bodies, raw URLs, and raw absolute paths never appear on this record."
+    },
+
+    "batch_review_packet_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "batch_review_packet_minted",
+        "batch_review_packet_apply_started",
+        "batch_review_packet_apply_committed",
+        "batch_review_packet_apply_basis_drifted",
+        "batch_review_packet_apply_partial_outcome",
+        "batch_review_packet_revert_requested",
+        "batch_review_packet_audit_denial_emitted",
+        "batch_review_packet_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary on the batch-review-packet stream."
+    },
+
+    "batch_review_packet_denial_reason": {
+      "type": "string",
+      "enum": [
+        "batch_review_packet_unknown",
+        "batch_population_basis_unknown",
+        "batch_scope_truth_class_unlabelled",
+        "batch_execution_origin_unlabelled",
+        "batch_count_status_missing",
+        "batch_count_term_collapsed",
+        "batch_blocked_reason_unlabelled",
+        "batch_unavailable_reason_unlabelled",
+        "batch_recovery_guidance_missing",
+        "batch_item_identity_class_unlabelled",
+        "batch_scope_widened_post_review",
+        "batch_provider_authoritative_count_missing_required",
+        "raw_body_forbidden_on_boundary",
+        "batch_review_packet_schema_version_lagging",
+        "policy_epoch_expired",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary on the batch-review-packet stream. Denials fail closed; silent widening between mint and apply is forbidden."
+    },
+
+    "batch_review_packet_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "batch_review_packet_schema_version",
+        "audit_event_id",
+        "audit_event_class",
+        "batch_review_packet_id_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "batch_review_packet_audit_event_record" },
+        "batch_review_packet_schema_version": { "$ref": "#/$defs/batch_review_packet_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_class": { "$ref": "#/$defs/batch_review_packet_audit_event_id" },
+        "batch_review_packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/batch_review_packet_denial_reason" }
+          ]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Batch-review-packet audit event. Raw row text, raw filter literal bytes, and raw query bodies never appear on this record."
+    }
+  }
+}
