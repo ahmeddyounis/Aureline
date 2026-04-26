@@ -1,0 +1,1053 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/effective_policy_card.schema.json",
+  "title": "Aureline admin policy explainability records",
+  "description": "Boundary schema for the admin and policy-center explainability records frozen in docs/admin/policy_explainability_contract.md. The schema covers effective-policy cards, endpoint-posture cards, policy-diff views, decision-history rows, why-is-this-locked explanations, and admin/support handoff exports so desktop UI, settings locks, command diagnostics, CLI JSON output, support packets, and audit readers reuse the same terminology. Records carry source bundle, owner class, scope, current/stale/offline state, locked targets, previous-vs-effective projections, endpoint posture, deep links, redaction summaries, and escalation actions. Raw policy rule bodies, raw bundle bytes, raw signatures, raw tenant data, raw user identities, raw hostnames, raw provider payloads, raw tokens, and raw secret material never cross this boundary; records carry opaque refs, typed vocabulary, and reviewable summaries only. Adding a new record_kind, owner_class, policy_effective_state_class, lock_target_kind, decision_class, action_class, deep_link_class, endpoint posture value, or export_format_class is additive-minor and bumps admin_policy_explainability_schema_version; repurposing an existing value is breaking and requires a governance decision.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/effective_policy_card_record" },
+    { "$ref": "#/$defs/endpoint_posture_card_record" },
+    { "$ref": "#/$defs/policy_diff_view_record" },
+    { "$ref": "#/$defs/policy_decision_history_row_record" },
+    { "$ref": "#/$defs/locked_state_explanation_record" },
+    { "$ref": "#/$defs/admin_policy_handoff_export_record" }
+  ],
+  "$defs": {
+    "admin_policy_explainability_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this admin policy explainability vocabulary."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, export, and deep-link. Raw tenant names, user identifiers, hostnames, policy rule bodies, signatures, paths, URLs, provider payloads, and tokens never appear here."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured from a monotonic or bounded-skew source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe for UI, CLI, admin export, and support packet surfaces. It must not contain raw secrets, raw policy bodies, raw tenant data, or raw private payloads."
+    },
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short label safe for product UI and exported summaries."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "policy_epoch_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^policy_epoch(\\.[a-z0-9_]+)+$"
+    },
+    "bundle_version_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*@[0-9]+(\\.[0-9]+){2}(-[a-z0-9_.]+)?$"
+    },
+    "policy_source_class": {
+      "type": "string",
+      "enum": [
+        "customer_self_hosted_origin",
+        "vendor_managed_origin",
+        "signed_mirror_origin",
+        "manual_file_import_origin",
+        "air_gapped_transfer_origin",
+        "runtime_preload_origin",
+        "local_derived_explanation"
+      ],
+      "description": "Policy source class. The first six values mirror schemas/identity/policy_bundle.schema.json; local_derived_explanation is used only when a lock explanation derives from already-resolved local state and cites the upstream source separately."
+    },
+    "distribution_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "mirrored_current",
+        "mirrored_stale_within_grace",
+        "mirrored_stale_past_grace",
+        "manual_snapshot_current",
+        "manual_snapshot_stale",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "unknown"
+      ]
+    },
+    "bundle_validation_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_but_stale_within_grace",
+        "verified_but_stale_past_grace",
+        "verification_failed",
+        "pending_review",
+        "cached_without_revalidation"
+      ]
+    },
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "end_user",
+        "workspace_owner",
+        "organization_admin",
+        "managed_admin",
+        "extension_publisher",
+        "release_channel_policy",
+        "security_emergency_policy",
+        "support_operator",
+        "system_resolver",
+        "unknown_owner_requires_review"
+      ],
+      "description": "Who controls the next state change or exception path for the effective policy or lock."
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "anonymous_local_user",
+        "authenticated_end_user",
+        "authenticated_local_admin",
+        "authenticated_org_admin",
+        "service_account_automation",
+        "vendor_managed_automation",
+        "signed_policy_bundle_source",
+        "signed_entitlement_source",
+        "system_scheduled_task",
+        "local_policy_resolver",
+        "support_operator"
+      ]
+    },
+    "policy_effective_state_class": {
+      "type": "string",
+      "enum": [
+        "current_authoritative",
+        "current_mirrored",
+        "stale_within_grace",
+        "stale_past_grace",
+        "offline_last_known_good",
+        "offline_unverified",
+        "partially_managed",
+        "revoked",
+        "verification_failed",
+        "unmanaged_local"
+      ],
+      "description": "User-facing state class every policy card, endpoint posture card, lock explanation, history row, support packet, and CLI output reuses."
+    },
+    "lock_target_kind": {
+      "type": "string",
+      "enum": [
+        "setting",
+        "command",
+        "action",
+        "feature_area",
+        "endpoint_capability",
+        "provider_route",
+        "retention_or_deletion",
+        "support_export",
+        "extension_install",
+        "update_channel"
+      ]
+    },
+    "lock_state": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "policy_locked",
+        "policy_constrained",
+        "capability_locked",
+        "read_only_surface",
+        "stale_policy_paused",
+        "offline_policy_paused",
+        "revoked_policy_blocked"
+      ]
+    },
+    "lock_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "policy_pins_value",
+        "policy_constrains_allowed_set",
+        "policy_forces_disabled",
+        "policy_requires_admin_action",
+        "capability_dependency_unmet",
+        "surface_cannot_write_this_scope",
+        "managed_mode_only",
+        "stale_bundle_past_grace",
+        "offline_no_freshening_path",
+        "revoked_source",
+        "verification_failed",
+        "retention_or_hold_blocks_action"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny",
+        "narrow",
+        "force_disable",
+        "quota_limit",
+        "defer_pending_refresh",
+        "defer_pending_admin",
+        "escalate",
+        "export_only",
+        "local_only_continue"
+      ]
+    },
+    "decision_outcome_class": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "denied",
+        "narrowed",
+        "disabled",
+        "paused_until_refresh",
+        "deferred_pending_reapproval",
+        "held_for_admin_confirmation",
+        "exported_summary_only",
+        "continued_local_only"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "open_effective_stack",
+        "open_policy_diff",
+        "open_audit_event",
+        "open_retention_deletion_matrix",
+        "copy_human_summary",
+        "export_machine_packet",
+        "open_admin_handoff",
+        "request_exception",
+        "contact_admin",
+        "retry_refresh",
+        "continue_local_only",
+        "open_cli_json",
+        "open_support_packet",
+        "open_docs"
+      ]
+    },
+    "deep_link_class": {
+      "type": "string",
+      "enum": [
+        "effective_policy_card",
+        "endpoint_posture_card",
+        "policy_diff_view",
+        "decision_history_row",
+        "locked_state_explanation",
+        "audit_event_explorer",
+        "retention_deletion_matrix",
+        "machine_readable_handoff_export",
+        "settings_detail",
+        "command_diagnostics",
+        "support_packet",
+        "cli_json_output",
+        "docs_anchor"
+      ]
+    },
+    "export_format_class": {
+      "type": "string",
+      "enum": [
+        "markdown_summary",
+        "json_packet",
+        "jsonl_history",
+        "clipboard_text",
+        "support_bundle_reference",
+        "cli_json_stdout"
+      ]
+    },
+    "value_projection_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "plain_summary",
+        "redacted_preserve_shape",
+        "redacted_to_class_label",
+        "omitted_irrelevant_scope",
+        "unchanged"
+      ]
+    },
+    "install_mode_class": {
+      "type": "string",
+      "enum": [
+        "user_install",
+        "machine_install",
+        "portable_install",
+        "managed_install",
+        "remote_agent_install",
+        "unknown_install_mode"
+      ]
+    },
+    "update_ring_class": {
+      "type": "string",
+      "enum": [
+        "nightly",
+        "preview",
+        "stable",
+        "lts",
+        "managed_pinned",
+        "security_hotfix",
+        "unknown_ring"
+      ]
+    },
+    "mirror_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror",
+        "customer_managed_mirror_current",
+        "customer_managed_mirror_stale",
+        "vendor_managed_mirror_current",
+        "offline_bundle_only",
+        "mirror_unreachable"
+      ]
+    },
+    "trust_root_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_rotating",
+        "stale_within_grace",
+        "stale_past_grace",
+        "verification_failed",
+        "unknown_offline"
+      ]
+    },
+    "identity_status_class": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org_current",
+        "managed_workspace_current",
+        "managed_workspace_stale",
+        "managed_workspace_offline",
+        "managed_sign_in_required",
+        "org_switch_degraded_to_local"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_mode",
+        "deployment_profile_class",
+        "trust_state",
+        "policy_epoch",
+        "execution_context_id"
+      ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "policy_scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_kind",
+        "scope_id",
+        "scope_label",
+        "inheritance_summary"
+      ],
+      "properties": {
+        "scope_kind": {
+          "type": "string",
+          "enum": [
+            "tenant_or_org",
+            "deployment_profile",
+            "install_profile",
+            "workspace",
+            "folder_or_module",
+            "user_global",
+            "session_or_command"
+          ]
+        },
+        "scope_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_label": { "$ref": "#/$defs/export_safe_label" },
+        "inheritance_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "policy_source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_bundle_ref",
+        "bundle_version",
+        "policy_epoch",
+        "policy_source_class",
+        "source_label",
+        "owner_class",
+        "scope",
+        "distribution_freshness_class",
+        "validation_state",
+        "last_refreshed_at",
+        "expires_at",
+        "stale_or_offline_note",
+        "linked_policy_bundle_record_ref"
+      ],
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_version": { "$ref": "#/$defs/bundle_version_ref" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "policy_source_class": { "$ref": "#/$defs/policy_source_class" },
+        "source_label": { "$ref": "#/$defs/export_safe_label" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "scope": { "$ref": "#/$defs/policy_scope_ref" },
+        "distribution_freshness_class": { "$ref": "#/$defs/distribution_freshness_class" },
+        "validation_state": { "$ref": "#/$defs/bundle_validation_state_class" },
+        "last_refreshed_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "stale_or_offline_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_policy_bundle_record_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "policy_target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "target_id",
+        "target_label",
+        "feature_area",
+        "scope"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/lock_target_kind" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/export_safe_label" },
+        "feature_area": { "$ref": "#/$defs/stable_dot_id" },
+        "scope": { "$ref": "#/$defs/policy_scope_ref" },
+        "record_class_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_dot_id" }
+          ]
+        }
+      }
+    },
+    "value_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection_class",
+        "value_summary",
+        "redaction_class",
+        "schema_ref"
+      ],
+      "properties": {
+        "projection_class": { "$ref": "#/$defs/value_projection_class" },
+        "value_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "schema_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "state_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_state",
+        "lock_state",
+        "owner_class",
+        "source_ref",
+        "value_projection",
+        "state_summary"
+      ],
+      "properties": {
+        "effective_state": { "$ref": "#/$defs/policy_effective_state_class" },
+        "lock_state": { "$ref": "#/$defs/lock_state" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "value_projection": { "$ref": "#/$defs/value_projection" },
+        "state_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "action_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "label",
+        "enabled",
+        "route_ref",
+        "command_id",
+        "reason"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "label": { "$ref": "#/$defs/export_safe_label" },
+        "enabled": { "type": "boolean" },
+        "route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_dot_id" }
+          ]
+        },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "deep_link_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_class",
+        "route_ref",
+        "target_record_ref",
+        "label"
+      ],
+      "properties": {
+        "link_class": { "$ref": "#/$defs/deep_link_class" },
+        "route_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/export_safe_label" }
+      }
+    },
+    "redaction_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "included_data_classes",
+        "omitted_data_classes",
+        "redaction_note"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "included_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "omitted_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "redaction_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "human_summary_ref",
+        "machine_packet_ref",
+        "machine_schema_ref",
+        "formats",
+        "redaction_summary",
+        "compatible_consumer_classes"
+      ],
+      "properties": {
+        "human_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "machine_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "machine_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "formats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_format_class" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "compatible_consumer_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "desktop_policy_center",
+              "cli_json_reader",
+              "support_bundle_exporter",
+              "admin_audit_reader",
+              "project_doctor",
+              "automated_policy_diff_tool"
+            ]
+          }
+        }
+      }
+    },
+    "endpoint_posture_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "install_mode_class",
+        "update_ring_class",
+        "mirror_posture_class",
+        "trust_root_state_class",
+        "identity_status_class",
+        "bundle_freshness_class",
+        "diagnostics_actions",
+        "posture_summary"
+      ],
+      "properties": {
+        "install_mode_class": { "$ref": "#/$defs/install_mode_class" },
+        "update_ring_class": { "$ref": "#/$defs/update_ring_class" },
+        "mirror_posture_class": { "$ref": "#/$defs/mirror_posture_class" },
+        "trust_root_state_class": { "$ref": "#/$defs/trust_root_state_class" },
+        "identity_status_class": { "$ref": "#/$defs/identity_status_class" },
+        "bundle_freshness_class": { "$ref": "#/$defs/distribution_freshness_class" },
+        "diagnostics_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_ref" }
+        },
+        "posture_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "locked_target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "lock_state",
+        "lock_reason",
+        "owner_class",
+        "why_locked_ref",
+        "user_visible_consequence",
+        "next_escalation_action"
+      ],
+      "properties": {
+        "target": { "$ref": "#/$defs/policy_target_ref" },
+        "lock_state": { "$ref": "#/$defs/lock_state" },
+        "lock_reason": { "$ref": "#/$defs/lock_reason" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "why_locked_ref": { "$ref": "#/$defs/opaque_id" },
+        "user_visible_consequence": { "$ref": "#/$defs/reviewable_sentence" },
+        "next_escalation_action": { "$ref": "#/$defs/action_ref" }
+      }
+    },
+    "policy_diff_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diff_row_id",
+        "affected_target",
+        "previous_state",
+        "effective_state",
+        "user_visible_consequence",
+        "redaction_summary",
+        "audit_event_refs",
+        "retention_matrix_refs"
+      ],
+      "properties": {
+        "diff_row_id": { "$ref": "#/$defs/opaque_id" },
+        "affected_target": { "$ref": "#/$defs/policy_target_ref" },
+        "previous_state": { "$ref": "#/$defs/state_projection" },
+        "effective_state": { "$ref": "#/$defs/state_projection" },
+        "user_visible_consequence": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "retention_matrix_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "provenance_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_class",
+        "actor_class",
+        "source_ref",
+        "event_ref",
+        "occurred_at",
+        "summary"
+      ],
+      "properties": {
+        "step_class": {
+          "type": "string",
+          "enum": [
+            "source_bundle_observed",
+            "mirror_sync_event",
+            "admin_action",
+            "policy_evaluation",
+            "client_limitation",
+            "provider_limitation",
+            "user_action",
+            "emergency_action",
+            "retention_lifecycle_event",
+            "effective_resolver_applied"
+          ]
+        },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "event_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "effective_policy_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "admin_policy_explainability_schema_version",
+        "card_id",
+        "title",
+        "policy_context",
+        "source",
+        "owner_class",
+        "effective_state",
+        "endpoint_posture",
+        "locked_targets",
+        "primary_actions",
+        "deep_links",
+        "export_pair",
+        "rendered_summary",
+        "redaction_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "effective_policy_card_record" },
+        "admin_policy_explainability_schema_version": { "$ref": "#/$defs/admin_policy_explainability_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/export_safe_label" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "source": { "$ref": "#/$defs/policy_source_ref" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "effective_state": { "$ref": "#/$defs/policy_effective_state_class" },
+        "endpoint_posture": { "$ref": "#/$defs/endpoint_posture_summary" },
+        "locked_targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/locked_target_ref" }
+        },
+        "primary_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_ref" }
+        },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "export_pair": { "$ref": "#/$defs/export_pair" },
+        "rendered_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" }
+      }
+    },
+    "endpoint_posture_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "admin_policy_explainability_schema_version",
+        "posture_id",
+        "title",
+        "policy_context",
+        "source",
+        "endpoint_posture",
+        "actions",
+        "deep_links",
+        "redaction_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "endpoint_posture_card_record" },
+        "admin_policy_explainability_schema_version": { "$ref": "#/$defs/admin_policy_explainability_schema_version" },
+        "posture_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/export_safe_label" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "source": { "$ref": "#/$defs/policy_source_ref" },
+        "endpoint_posture": { "$ref": "#/$defs/endpoint_posture_summary" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_ref" }
+        },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" }
+      }
+    },
+    "policy_diff_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "admin_policy_explainability_schema_version",
+        "diff_id",
+        "title",
+        "policy_context",
+        "baseline_source",
+        "effective_source",
+        "diff_rows",
+        "summary",
+        "export_pair",
+        "deep_links",
+        "redaction_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_diff_view_record" },
+        "admin_policy_explainability_schema_version": { "$ref": "#/$defs/admin_policy_explainability_schema_version" },
+        "diff_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/export_safe_label" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "baseline_source": { "$ref": "#/$defs/policy_source_ref" },
+        "effective_source": { "$ref": "#/$defs/policy_source_ref" },
+        "diff_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/policy_diff_row" }
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "export_pair": { "$ref": "#/$defs/export_pair" },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" }
+      }
+    },
+    "policy_decision_history_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "admin_policy_explainability_schema_version",
+        "decision_history_row_id",
+        "occurred_at",
+        "decision_code",
+        "decision_class",
+        "decision_outcome",
+        "actor_class",
+        "owner_class",
+        "affected_target",
+        "previous_state",
+        "effective_state",
+        "source",
+        "provenance_chain",
+        "explanation_ref",
+        "policy_diff_ref",
+        "audit_event_ref",
+        "retention_matrix_refs",
+        "handoff_export_refs",
+        "deep_links",
+        "redaction_summary",
+        "user_visible_consequence",
+        "next_escalation_action",
+        "policy_context"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_decision_history_row_record" },
+        "admin_policy_explainability_schema_version": { "$ref": "#/$defs/admin_policy_explainability_schema_version" },
+        "decision_history_row_id": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "decision_code": { "$ref": "#/$defs/stable_dot_id" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "decision_outcome": { "$ref": "#/$defs/decision_outcome_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "affected_target": { "$ref": "#/$defs/policy_target_ref" },
+        "previous_state": { "$ref": "#/$defs/state_projection" },
+        "effective_state": { "$ref": "#/$defs/state_projection" },
+        "source": { "$ref": "#/$defs/policy_source_ref" },
+        "provenance_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provenance_step" }
+        },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_diff_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "retention_matrix_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "handoff_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "user_visible_consequence": { "$ref": "#/$defs/reviewable_sentence" },
+        "next_escalation_action": { "$ref": "#/$defs/action_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      }
+    },
+    "locked_state_explanation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "admin_policy_explainability_schema_version",
+        "explanation_id",
+        "target",
+        "source",
+        "owner_class",
+        "current_scope",
+        "effective_state",
+        "lock_state",
+        "lock_reason",
+        "explanation_summary",
+        "stale_or_offline_note",
+        "next_escalation_action",
+        "related_command_ids",
+        "related_docs_refs",
+        "deep_links",
+        "redaction_summary",
+        "policy_context"
+      ],
+      "properties": {
+        "record_kind": { "const": "locked_state_explanation_record" },
+        "admin_policy_explainability_schema_version": { "$ref": "#/$defs/admin_policy_explainability_schema_version" },
+        "explanation_id": { "$ref": "#/$defs/opaque_id" },
+        "target": { "$ref": "#/$defs/policy_target_ref" },
+        "source": { "$ref": "#/$defs/policy_source_ref" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "current_scope": { "$ref": "#/$defs/policy_scope_ref" },
+        "effective_state": { "$ref": "#/$defs/policy_effective_state_class" },
+        "lock_state": { "$ref": "#/$defs/lock_state" },
+        "lock_reason": { "$ref": "#/$defs/lock_reason" },
+        "explanation_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "stale_or_offline_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "next_escalation_action": { "$ref": "#/$defs/action_ref" },
+        "related_command_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "related_docs_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      }
+    },
+    "admin_policy_handoff_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "admin_policy_explainability_schema_version",
+        "export_id",
+        "assembled_at",
+        "source",
+        "policy_context",
+        "human_readable_summary",
+        "machine_readable_packet",
+        "included_refs",
+        "omitted_refs",
+        "redaction_summary",
+        "deep_links",
+        "compatible_consumer_classes",
+        "export_actions"
+      ],
+      "properties": {
+        "record_kind": { "const": "admin_policy_handoff_export_record" },
+        "admin_policy_explainability_schema_version": { "$ref": "#/$defs/admin_policy_explainability_schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "assembled_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source": { "$ref": "#/$defs/policy_source_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "human_readable_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "machine_readable_packet": { "$ref": "#/$defs/export_pair" },
+        "included_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "omitted_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "compatible_consumer_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "desktop_policy_center",
+              "cli_json_reader",
+              "support_bundle_exporter",
+              "admin_audit_reader",
+              "project_doctor",
+              "automated_policy_diff_tool"
+            ]
+          }
+        },
+        "export_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_ref" }
+        }
+      }
+    }
+  }
+}
