@@ -1,0 +1,814 @@
+# Workspace-memory state-class, continuity-flow, and handoff matrix.
+#
+# Companion to docs/state/workspace_memory_contract.md and
+# schemas/state/state_class.schema.json. The matrix is intentionally
+# vocabulary-first: restore, export, support, companion, work-item, and
+# incident producers quote these rows instead of minting local state
+# classes.
+
+record_kind: workspace_memory_matrix_record
+schema_version: 1
+artifact_id: aureline.state.workspace_memory_matrix
+title: Workspace memory, continuity, and handoff artifact matrix
+
+contract_source: docs/state/workspace_memory_contract.md
+schema_ref: schemas/state/state_class.schema.json
+
+related_docs:
+  - docs/state/profile_and_state_map.md
+  - docs/state/migration_and_restore_playbook.md
+  - docs/state/state_object_inventory.md
+  - docs/ai/memory_and_reconciliation_contract.md
+  - docs/support/support_bundle_contract.md
+  - docs/support/object_handoff_packet.md
+  - docs/work_items/work_item_contract.md
+  - docs/ops/incident_workspace_contract.md
+  - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+  - docs/vcs/git_state_and_worktree_contract.md
+  - docs/runtime/execution_context_vocabulary.md
+
+# --------------------------------------------------------------------------
+# Closed vocabularies.
+# --------------------------------------------------------------------------
+
+state_class_vocabulary:
+  - restorable_local_state
+  - user_portable_state
+  - workspace_shared_state
+  - machine_local_ephemeral_state
+  - handoff_artifact_state
+
+default_portability_posture_vocabulary:
+  - portable_by_default
+  - portable_with_review
+  - workspace_shared_by_default
+  - local_restore_only
+  - machine_local_only
+  - explicit_handoff_only
+  - excluded_from_portable_and_handoff
+
+visible_state_label_vocabulary:
+  - local_only
+  - synced
+  - imported
+  - provider_linked
+  - stale
+  - machine_local
+
+continuity_flow_vocabulary:
+  - resume
+  - restore
+  - support_export
+  - browser_handoff
+  - mobile_handoff
+  - work_item_handoff
+  - incident_handoff
+
+handoff_delivery_state_vocabulary:
+  - not_a_handoff
+  - saved_local_only
+  - ready_for_browser_handoff
+  - captured_pending_drain
+  - attached_by_reference
+  - provider_accepted
+  - provider_rejected
+
+excluded_material_vocabulary:
+  - raw_secret_material
+  - live_token_or_cookie
+  - delegated_approval_or_unspent_ticket
+  - machine_unique_handle
+  - live_process_or_session_handle
+  - raw_provider_payload
+  - raw_url_path_command_or_log
+  - raw_source_or_user_content
+  - live_remote_or_kernel_binding
+
+allowed_substitute_vocabulary:
+  - opaque_ref
+  - redacted_summary
+  - hash_or_count
+  - time_window
+  - source_and_freshness_label
+  - managed_reference_by_policy
+  - safe_placeholder
+
+# --------------------------------------------------------------------------
+# State class rows.
+# --------------------------------------------------------------------------
+
+state_classes:
+  - record_kind: workspace_state_class_record
+    schema_version: 1
+    state_class_id: restorable_local_state
+    display_name: Restorable local state
+    definition: >
+      Durable local state held so the user can resume work on the same
+      installation without silent loss.
+    default_portability_posture: local_restore_only
+    default_visible_labels:
+      - local_only
+      - machine_local
+    examples:
+      - example_id: session_restore_manifest
+        summary: Session restore manifest, pane layout, focus chain, and recent editors.
+        companion_ref: schemas/workspace/entry_and_restore_result.schema.json
+      - example_id: dirty_buffer_recovery_refs
+        summary: Recovery journal refs for unsaved buffers and local history checkpoints.
+        companion_ref: docs/reliability/local_history_contract.md
+      - example_id: terminal_restore_metadata
+        summary: Redacted transcript metadata and terminal pane restore posture.
+        companion_ref: schemas/terminal/session_restore_metadata.schema.json
+    allowed_continuity_flows:
+      - resume
+      - restore
+      - support_export
+    must_not_carry:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+      - live_process_or_session_handle
+      - live_remote_or_kernel_binding
+    notes: >
+      Outside same-install resume, this class crosses boundaries only as
+      provenance, redacted metadata, or an explicitly governed support
+      or handoff artifact.
+
+  - record_kind: workspace_state_class_record
+    schema_version: 1
+    state_class_id: user_portable_state
+    display_name: User-portable state
+    definition: >
+      User-owned preferences or explicitly saved memory that may move
+      across machines through profile export, import, or opt-in sync.
+    default_portability_posture: portable_by_default
+    default_visible_labels:
+      - local_only
+      - synced
+      - imported
+      - stale
+    examples:
+      - example_id: portable_profile_settings
+        summary: Settings, keybindings, snippets, themes, and extension selections in a portable profile.
+        companion_ref: schemas/profile/portable_profile.schema.json
+      - example_id: explicit_saved_memory
+        summary: A user-pinned memory row whose export form is user-visible content or redacted metadata.
+        companion_ref: schemas/ai/memory_object.schema.json
+      - example_id: imported_profile_history
+        summary: Imported profile provenance and compatibility notes.
+        companion_ref: schemas/state/restore_provenance.schema.json
+    allowed_continuity_flows:
+      - restore
+      - support_export
+      - browser_handoff
+      - mobile_handoff
+    must_not_carry:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+      - live_process_or_session_handle
+    notes: >
+      Sync or import labels remain visible when the row came from a
+      managed lane, imported packet, or stale source.
+
+  - record_kind: workspace_state_class_record
+    schema_version: 1
+    state_class_id: workspace_shared_state
+    display_name: Workspace-shared state
+    definition: >
+      Workspace-authored or repository-owned durable state intended to
+      be reviewable with the project.
+    default_portability_posture: workspace_shared_by_default
+    default_visible_labels:
+      - local_only
+      - imported
+      - provider_linked
+      - stale
+    examples:
+      - example_id: workspace_manifest
+        summary: Workspace roots, worksets, trust metadata pointers, and shared restore declarations.
+        companion_ref: schemas/workspace/entry_and_restore_result.schema.json
+      - example_id: tasks_and_launch_configs
+        summary: Task and launch configuration that belongs to the workspace, not the user profile.
+        companion_ref: docs/runtime/execution_context_vocabulary.md
+      - example_id: workspace_ai_policy_refs
+        summary: Workspace AI policy references and context-assembly rules checked into the project.
+        companion_ref: docs/ai/context_assembly_contract.md
+    allowed_continuity_flows:
+      - resume
+      - restore
+      - support_export
+      - work_item_handoff
+      - incident_handoff
+    must_not_carry:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+    notes: >
+      Import or restore must stop at review when the target workspace
+      already has divergent shared truth.
+
+  - record_kind: workspace_state_class_record
+    schema_version: 1
+    state_class_id: machine_local_ephemeral_state
+    display_name: Machine-local ephemeral state
+    definition: >
+      Machine-bound, session-bound, or regenerable state that must not
+      be used as portable truth.
+    default_portability_posture: machine_local_only
+    default_visible_labels:
+      - local_only
+      - machine_local
+      - stale
+    examples:
+      - example_id: indexes_and_render_caches
+        summary: Search shards, graph projections, render atlases, and other regenerable caches.
+        companion_ref: artifacts/state/state_objects.yaml
+      - example_id: display_and_path_bindings
+        summary: Display topology hints, local absolute path hints, and machine-local trust-store pointers.
+        companion_ref: docs/state/profile_and_state_map.md
+      - example_id: live_runtime_handles
+        summary: PTY, process, debug-session, kernel, browser-runtime, or remote-session handles.
+        companion_ref: docs/runtime/browser_runtime_contract.md
+    allowed_continuity_flows:
+      - resume
+      - support_export
+    must_not_carry:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+      - live_process_or_session_handle
+      - live_remote_or_kernel_binding
+    notes: >
+      This class may be summarized for diagnostics, but exact
+      cross-machine restore is forbidden.
+
+  - record_kind: workspace_state_class_record
+    schema_version: 1
+    state_class_id: handoff_artifact_state
+    display_name: Handoff artifact state
+    definition: >
+      A deliberately assembled packet that transfers selected context
+      to a support, browser, mobile, work-item, incident, or external
+      provider flow.
+    default_portability_posture: explicit_handoff_only
+    default_visible_labels:
+      - local_only
+      - imported
+      - provider_linked
+      - stale
+    examples:
+      - example_id: support_bundle_artifact_manifest
+        summary: Support bundle artifact rows with storage mode, embedding state, and redaction posture.
+        companion_ref: schemas/support/support_bundle.schema.json
+      - example_id: browser_handoff_packet
+        summary: Typed browser handoff packet with destination class, reason, object identity, and return anchor.
+        companion_ref: schemas/integration/browser_handoff_packet.schema.json
+      - example_id: offline_work_item_handoff
+        summary: Offline work-item packet captured locally pending provider acceptance or rejection.
+        companion_ref: schemas/work_items/offline_handoff_packet.schema.json
+      - example_id: incident_evidence_handoff
+        summary: Incident or postmortem evidence handoff bundle with redacted refs.
+        companion_ref: schemas/ops/evidence_handoff_bundle.schema.json
+    allowed_continuity_flows:
+      - support_export
+      - browser_handoff
+      - mobile_handoff
+      - work_item_handoff
+      - incident_handoff
+    must_not_carry:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+      - live_process_or_session_handle
+      - raw_provider_payload
+      - raw_url_path_command_or_log
+      - raw_source_or_user_content
+      - live_remote_or_kernel_binding
+    notes: >
+      A handoff packet may carry opaque refs, redacted summaries,
+      hashes, counts, and source/freshness labels. It never carries
+      ungoverned live authority.
+
+# --------------------------------------------------------------------------
+# Continuity flow rows.
+# --------------------------------------------------------------------------
+
+continuity_flows:
+  - record_kind: continuity_flow_record
+    schema_version: 1
+    continuity_flow_id: resume
+    purpose: Reopen local work on the same installation without silently losing user-owned recovery state.
+    may_carry_state_classes:
+      - restorable_local_state
+      - workspace_shared_state
+      - machine_local_ephemeral_state
+    required_visible_labels:
+      - local_only
+      - machine_local
+      - provider_linked
+      - stale
+    default_delivery_state: not_a_handoff
+    required_disclosures:
+      - branch_worktree_context
+      - remote_local_boundary_context
+      - execution_profile_context
+      - pending_recovery_context
+      - missing_dependency_placeholder_context
+    local_only_or_placeholder_material:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - live_process_or_session_handle
+      - live_remote_or_kernel_binding
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - source_and_freshness_label
+      - safe_placeholder
+
+  - record_kind: continuity_flow_record
+    schema_version: 1
+    continuity_flow_id: restore
+    purpose: Apply or preview state from a previous artifact while preserving fidelity, exclusions, and review boundaries.
+    may_carry_state_classes:
+      - restorable_local_state
+      - user_portable_state
+      - workspace_shared_state
+      - handoff_artifact_state
+    required_visible_labels:
+      - local_only
+      - imported
+      - synced
+      - stale
+      - machine_local
+    default_delivery_state: not_a_handoff
+    required_disclosures:
+      - source_artifact
+      - fidelity_label
+      - excluded_state_classes
+      - preserved_prior_artifacts
+      - placeholder_dependencies
+    local_only_or_placeholder_material:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+      - live_process_or_session_handle
+      - live_remote_or_kernel_binding
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - source_and_freshness_label
+      - safe_placeholder
+
+  - record_kind: continuity_flow_record
+    schema_version: 1
+    continuity_flow_id: support_export
+    purpose: Assemble a locally previewable packet for diagnostics or support without turning local-only state into hidden upload content.
+    may_carry_state_classes:
+      - restorable_local_state
+      - user_portable_state
+      - workspace_shared_state
+      - machine_local_ephemeral_state
+      - handoff_artifact_state
+    required_visible_labels:
+      - local_only
+      - imported
+      - provider_linked
+      - stale
+      - machine_local
+    default_delivery_state: saved_local_only
+    required_disclosures:
+      - redaction_profile
+      - included_state_classes
+      - excluded_state_classes
+      - storage_mode
+      - destination_class
+    local_only_or_placeholder_material:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+      - live_process_or_session_handle
+      - raw_provider_payload
+      - raw_url_path_command_or_log
+      - raw_source_or_user_content
+      - live_remote_or_kernel_binding
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - hash_or_count
+      - time_window
+      - source_and_freshness_label
+      - managed_reference_by_policy
+
+  - record_kind: continuity_flow_record
+    schema_version: 1
+    continuity_flow_id: browser_handoff
+    purpose: Leave the product boundary through a typed packet that preserves destination, reason, object identity, and return path.
+    may_carry_state_classes:
+      - user_portable_state
+      - handoff_artifact_state
+    required_visible_labels:
+      - local_only
+      - imported
+      - provider_linked
+      - stale
+    default_delivery_state: ready_for_browser_handoff
+    required_disclosures:
+      - destination_class
+      - reason_code
+      - acting_actor_class
+      - object_identity
+      - return_anchor
+      - freshness
+    local_only_or_placeholder_material:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - raw_provider_payload
+      - raw_url_path_command_or_log
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - source_and_freshness_label
+      - safe_placeholder
+
+  - record_kind: continuity_flow_record
+    schema_version: 1
+    continuity_flow_id: mobile_handoff
+    purpose: Capture companion or mobile context for later desktop/provider drain without implying live provider acceptance.
+    may_carry_state_classes:
+      - user_portable_state
+      - handoff_artifact_state
+    required_visible_labels:
+      - local_only
+      - imported
+      - provider_linked
+      - stale
+    default_delivery_state: captured_pending_drain
+    required_disclosures:
+      - capture_time
+      - drain_state
+      - destination_class
+      - replay_posture
+      - redaction_class
+    local_only_or_placeholder_material:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - raw_provider_payload
+      - raw_url_path_command_or_log
+      - raw_source_or_user_content
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - source_and_freshness_label
+
+  - record_kind: continuity_flow_record
+    schema_version: 1
+    continuity_flow_id: work_item_handoff
+    purpose: Preserve a tracker update, local draft, linked branch or review summary, and validation evidence until the provider accepts or rejects it.
+    may_carry_state_classes:
+      - workspace_shared_state
+      - handoff_artifact_state
+    required_visible_labels:
+      - local_only
+      - imported
+      - provider_linked
+      - stale
+    default_delivery_state: saved_local_only
+    required_disclosures:
+      - provider_authority
+      - freshness
+      - requested_transition
+      - local_draft_or_queue_state
+      - export_route
+    local_only_or_placeholder_material:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - raw_provider_payload
+      - raw_url_path_command_or_log
+      - raw_source_or_user_content
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - hash_or_count
+      - source_and_freshness_label
+      - managed_reference_by_policy
+
+  - record_kind: continuity_flow_record
+    schema_version: 1
+    continuity_flow_id: incident_handoff
+    purpose: Preserve incident context, evidence refs, runbook/action lineage, and redaction posture for follow-up or postmortem.
+    may_carry_state_classes:
+      - workspace_shared_state
+      - handoff_artifact_state
+    required_visible_labels:
+      - local_only
+      - imported
+      - provider_linked
+      - stale
+      - machine_local
+    default_delivery_state: attached_by_reference
+    required_disclosures:
+      - incident_id
+      - actor_role
+      - destination_class
+      - mutating_step_authority
+      - redaction_profile
+      - retention_posture
+    local_only_or_placeholder_material:
+      - raw_secret_material
+      - live_token_or_cookie
+      - delegated_approval_or_unspent_ticket
+      - machine_unique_handle
+      - live_process_or_session_handle
+      - raw_provider_payload
+      - raw_url_path_command_or_log
+      - raw_source_or_user_content
+      - live_remote_or_kernel_binding
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - hash_or_count
+      - time_window
+      - source_and_freshness_label
+      - managed_reference_by_policy
+      - safe_placeholder
+
+# --------------------------------------------------------------------------
+# Resume context requirements.
+# --------------------------------------------------------------------------
+
+resume_context_requirements:
+  - record_kind: resume_context_requirement_record
+    schema_version: 1
+    resume_context_block_id: branch_worktree_context
+    required_when: Any resume, restore preview, work-item handoff, or incident handoff claims continuity for a repository-backed workspace.
+    required_fields:
+      - workspace_identity_ref
+      - root_identity_refs
+      - active_worktree_ref
+      - worktree_role
+      - branch_or_detached_state
+      - base_ref
+      - head_ref
+      - dirty_state_summary
+      - pending_operation_summary
+      - sparse_or_workset_scope
+      - provider_overlay_freshness
+    forbidden_shortcuts:
+      - Silently switching worktrees during resume.
+      - Inferring local branch truth from stale provider overlay state.
+      - Dropping pending Git/rebase/merge/bisect state from a restore card.
+    safe_placeholder_rule: >
+      If exact Git state cannot be resolved, preserve the workspace
+      identity and render branch/worktree state as unavailable or
+      stale with compare, continue local-only, or open externally
+      actions.
+
+  - record_kind: resume_context_requirement_record
+    schema_version: 1
+    resume_context_block_id: remote_local_boundary_context
+    required_when: Any resume or handoff crosses local, remote, managed, browser, companion, or provider authority boundaries.
+    required_fields:
+      - target_class
+      - route_class
+      - host_boundary_cue_stack
+      - reachability_state
+      - freshness_state
+      - remote_authority_posture
+      - managed_control_plane_posture
+      - local_fallback_path
+      - unavailable_reason
+    forbidden_shortcuts:
+      - Collapsing remote control-plane outage into local editing failure.
+      - Presenting stale remote state as live local truth.
+      - Reusing remote credentials or delegated authority after reachability changed.
+    safe_placeholder_rule: >
+      If a boundary cannot be reattached, keep local-safe surfaces
+      available and render reconnect, reauthenticate, open in provider,
+      export diagnostics, or continue local-only actions.
+
+  - record_kind: resume_context_requirement_record
+    schema_version: 1
+    resume_context_block_id: execution_profile_context
+    required_when: A resume card, task/debug/test restore, support export, or incident handoff references a runnable context.
+    required_fields:
+      - execution_profile_ref
+      - target_environment_ref
+      - toolchain_fingerprint_refs
+      - runtime_fingerprint_refs
+      - policy_epoch_ref
+      - workspace_trust_state
+      - env_var_posture
+      - credential_handle_posture
+      - last_successful_run_context_ref
+    forbidden_shortcuts:
+      - Rerunning commands or debug sessions automatically on resume.
+      - Treating last successful run metadata as live authority.
+      - Copying credential handles into portable or handoff packets.
+    safe_placeholder_rule: >
+      If a runnable dependency is missing, preserve the command or
+      task identity as evidence and offer repair, re-resolve,
+      reauthenticate, or run manually after review.
+
+  - record_kind: resume_context_requirement_record
+    schema_version: 1
+    resume_context_block_id: pending_recovery_context
+    required_when: Resume or restore may replay, recover, repair, or explain incomplete local work.
+    required_fields:
+      - dirty_buffer_journal_refs
+      - local_history_checkpoint_refs
+      - restore_provenance_refs
+      - deferred_intent_refs
+      - publish_later_refs
+      - offline_handoff_refs
+      - recovery_rung
+      - blocking_failure_states
+      - intentional_exclusions
+    forbidden_shortcuts:
+      - Claiming exact restore when recovery used placeholders or skipped live authority.
+      - Deleting local recovery refs through clear-cache flows.
+      - Hiding deferred provider or AI intents from support export.
+    safe_placeholder_rule: >
+      Recovery that cannot complete must remain inspectable with
+      manual-review, evidence-only, or layout-only posture plus
+      preserved checkpoint refs.
+
+  - record_kind: resume_context_requirement_record
+    schema_version: 1
+    resume_context_block_id: missing_dependency_placeholder_context
+    required_when: A surface, dependency, provider, runtime, or machine capability required for exact resume is unavailable.
+    required_fields:
+      - missing_dependency_class
+      - source_surface_ref
+      - affected_state_class
+      - placeholder_posture
+      - available_safe_actions
+      - local_only_alternative
+      - export_or_support_ref
+    forbidden_shortcuts:
+      - Dropping the missing pane, task, remote, kernel, or provider row without disclosure.
+      - Spending approval, opening a browser, or rerunning a command automatically.
+      - Labelling placeholder-only recovery as exact.
+    safe_placeholder_rule: >
+      Preserve surrounding layout or object identity, explain the
+      missing dependency, and offer close, install, reconnect,
+      reauthenticate, open in provider, export diagnostics, or
+      continue local-only actions.
+
+# --------------------------------------------------------------------------
+# Excluded live-authority rules.
+# --------------------------------------------------------------------------
+
+excluded_live_authority_rules:
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: raw_secret_material
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - portable_with_review
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+    separate_contract_required: true
+    rationale: Raw secrets stay behind the secret broker or OS/vault store.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: live_token_or_cookie
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - portable_with_review
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - source_and_freshness_label
+      - safe_placeholder
+    separate_contract_required: true
+    rationale: Live auth material cannot be made durable or portable by a state packet.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: delegated_approval_or_unspent_ticket
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - portable_with_review
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - safe_placeholder
+    separate_contract_required: true
+    rationale: Delegated approvals expire and must be revalidated at spend time.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: machine_unique_handle
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - safe_placeholder
+    separate_contract_required: true
+    rationale: Machine handles are meaningful only on the machine that minted them.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: live_process_or_session_handle
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - portable_with_review
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - safe_placeholder
+    separate_contract_required: true
+    rationale: Process, PTY, debug, browser-runtime, and kernel handles are never restored as live authority.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: raw_provider_payload
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - source_and_freshness_label
+      - managed_reference_by_policy
+    separate_contract_required: true
+    rationale: Provider payloads cross only through provider, support, or incident contracts that declare redaction and destination.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: raw_url_path_command_or_log
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - redacted_summary
+      - hash_or_count
+      - time_window
+      - source_and_freshness_label
+    separate_contract_required: true
+    rationale: Paths, commands, URLs, and logs may disclose code, tenants, hosts, and credentials.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: raw_source_or_user_content
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - redacted_summary
+      - hash_or_count
+      - managed_reference_by_policy
+    separate_contract_required: true
+    rationale: Raw source and user content require explicit high-trust export review.
+
+  - record_kind: excluded_live_authority_rule_record
+    schema_version: 1
+    excluded_material_class: live_remote_or_kernel_binding
+    default_portability_posture: excluded_from_portable_and_handoff
+    forbidden_destinations:
+      - portable_by_default
+      - portable_with_review
+      - workspace_shared_by_default
+      - explicit_handoff_only
+    allowed_substitutes:
+      - opaque_ref
+      - source_and_freshness_label
+      - safe_placeholder
+    separate_contract_required: true
+    rationale: Remote sessions and kernels must reconnect or reauthenticate instead of being replayed from state.
