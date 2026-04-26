@@ -1,0 +1,876 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/teaching_surface.schema.json",
+  "title": "Aureline contextual teaching surface contract",
+  "description": "Boundary schema for docs/ux/contextual_teaching_contract.md. Every contextual tip card, migration bridge card, why-unavailable explainer, and source-language fallback surface resolves through one teaching_surface_record and one teaching_surface_rule_record; fixture packs and release lanes may aggregate them with one teaching_surface_manifest_record. The schema carries only opaque ids, stable vocabulary, short privacy-safe labels, typed policy context, redaction class, and refs to command, docs, migration, locale, policy, file, symbol, and support truth. It does not carry raw source files, raw paths, raw URLs, raw docs bodies, raw prompt/completion text, or credential material. Adding a new surface kind, trigger kind, placement kind, boundary kind, source reference kind, imported behavior domain, imported behavior state, fallback reason, action kind, or denial reason is additive-minor and bumps teaching_surface_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/teaching_surface_record" },
+    { "$ref": "#/$defs/teaching_surface_rule_record" },
+    { "$ref": "#/$defs/teaching_surface_manifest_record" }
+  ],
+  "$defs": {
+    "teaching_surface_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this contextual teaching vocabulary export."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "teaching_surface_record",
+        "teaching_surface_rule_record",
+        "teaching_surface_manifest_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support export, portable profile state, and docs/help linkage."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 220,
+      "description": "Short privacy-safe label. Raw paths, raw URLs, raw secrets, raw prompt text, and raw completion text are forbidden at this boundary."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware explanatory text for fixtures and packets. Exporters apply redaction before crossing product boundaries."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "teaching_surface_kind": {
+      "type": "string",
+      "enum": [
+        "contextual_tip_card",
+        "migration_bridge_card",
+        "why_unavailable_explainer",
+        "source_language_fallback_surface"
+      ],
+      "description": "Closed surface-kind vocabulary for in-context teaching surfaces."
+    },
+    "trigger_kind": {
+      "type": "string",
+      "enum": [
+        "blocked_action",
+        "unfamiliar_action",
+        "import_completed",
+        "imported_behavior_used",
+        "command_disabled",
+        "policy_or_trust_boundary",
+        "docs_locale_missing",
+        "source_language_requested",
+        "manual_help_invoke",
+        "learning_digest_replay"
+      ]
+    },
+    "placement_kind": {
+      "type": "string",
+      "enum": [
+        "inline_near_anchor",
+        "row_adjacent",
+        "status_item_detail",
+        "inspector_adjacent",
+        "popover_attached",
+        "learning_digest_only"
+      ],
+      "description": "Allowed local placements. A full-screen teaching takeover is intentionally not a valid value."
+    },
+    "owning_boundary_kind": {
+      "type": "string",
+      "enum": [
+        "command_registry",
+        "workspace_trust",
+        "admin_policy",
+        "runtime_capability",
+        "execution_context",
+        "docs_locale_pack",
+        "migration_importer",
+        "keybinding_resolver",
+        "extension_bridge",
+        "write_scope_review",
+        "source_file_or_symbol",
+        "accessibility_or_input_mode"
+      ]
+    },
+    "source_reference_kind": {
+      "type": "string",
+      "enum": [
+        "command_id",
+        "docs_help_anchor",
+        "file_ref",
+        "symbol_ref",
+        "keybinding_resolver_ref",
+        "migration_session_ref",
+        "importer_outcome_ref",
+        "policy_ref",
+        "schema_ref",
+        "locale_pack_ref",
+        "extension_bridge_ref",
+        "source_language_message_id",
+        "support_packet_ref"
+      ],
+      "description": "Concrete source-reference classes a teaching surface may cite."
+    },
+    "source_reference_role": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "supporting",
+        "deeper_docs",
+        "reversal",
+        "unavailable_reason"
+      ]
+    },
+    "imported_behavior_domain": {
+      "type": "string",
+      "enum": [
+        "keymaps",
+        "settings",
+        "snippets",
+        "task_configs",
+        "extension_bridges"
+      ]
+    },
+    "imported_behavior_state": {
+      "type": "string",
+      "enum": [
+        "native",
+        "bridge",
+        "shimmed",
+        "partial",
+        "unsupported"
+      ],
+      "description": "Closed imported-behavior state vocabulary. unsupported is an end state, not a subtype of skipped."
+    },
+    "migration_mapping_basis": {
+      "type": "string",
+      "enum": [
+        "exact_native",
+        "compatibility_layer",
+        "emulated_subset",
+        "partial_mapping",
+        "no_truthful_mapping"
+      ]
+    },
+    "availability_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "degraded",
+        "unavailable",
+        "hidden_by_policy"
+      ]
+    },
+    "availability_reason_class": {
+      "type": "string",
+      "enum": [
+        "command_disabled",
+        "policy_blocked",
+        "trust_required",
+        "runtime_missing",
+        "context_not_supported",
+        "docs_or_locale_missing",
+        "extension_bridge_missing",
+        "write_scope_review_required",
+        "source_unavailable",
+        "not_supported"
+      ]
+    },
+    "fallback_reason_class": {
+      "type": "string",
+      "enum": [
+        "requested_locale_missing",
+        "requested_locale_partial",
+        "pack_signature_failed",
+        "pack_disabled_by_policy",
+        "source_language_requested",
+        "canonical_docs_anchor_only"
+      ]
+    },
+    "dismissal_class": {
+      "type": "string",
+      "enum": [
+        "per_session",
+        "per_profile",
+        "per_device",
+        "policy_locked",
+        "not_dismissible"
+      ]
+    },
+    "snooze_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "until_next_session",
+        "duration_bounded",
+        "until_context_changes",
+        "quiet_hours_digest_only",
+        "presentation_mode_digest_only"
+      ]
+    },
+    "quiet_hours_behavior": {
+      "type": "string",
+      "enum": [
+        "render_if_blocking",
+        "defer_to_learning_digest",
+        "suppress_noncritical",
+        "policy_locked"
+      ]
+    },
+    "presentation_mode_behavior": {
+      "type": "string",
+      "enum": [
+        "hide_noncritical",
+        "digest_only",
+        "render_if_presenter_anchor",
+        "render_if_blocking",
+        "policy_locked"
+      ]
+    },
+    "reversal_path_kind": {
+      "type": "string",
+      "enum": [
+        "help_learning_digest",
+        "command_palette_reset",
+        "settings_learning_state",
+        "migration_center_restore",
+        "source_language_toggle",
+        "policy_admin_only",
+        "none"
+      ]
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "explain",
+        "try",
+        "open_docs",
+        "open_source",
+        "prepare_preview",
+        "open_diff",
+        "start_sandbox",
+        "request_trust",
+        "open_policy",
+        "undo_import",
+        "snooze",
+        "dismiss",
+        "open_native_command",
+        "view_mapping_details",
+        "open_local_fallback",
+        "reset_dismissal"
+      ]
+    },
+    "action_review_posture": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "preview_before_write",
+        "trust_prompt_required",
+        "policy_review_required",
+        "write_scope_review_required",
+        "not_actionable"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative",
+        "cached_current",
+        "cached_mirror_only",
+        "stale_past_ttl",
+        "unverified_upstream"
+      ]
+    },
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "teaching_surface_without_concrete_source_ref",
+        "teaching_surface_without_deeper_doc_pivot",
+        "teaching_surface_not_near_trigger_anchor",
+        "teaching_surface_dismissal_without_reversal",
+        "teaching_surface_quiet_hours_bypass",
+        "teaching_surface_presentation_mode_bypass",
+        "teaching_surface_missing_migration_state",
+        "teaching_surface_unsupported_import_hidden",
+        "teaching_surface_source_language_identity_lost",
+        "teaching_surface_locale_fallback_not_disclosed",
+        "teaching_surface_trust_policy_or_write_scope_bypassed",
+        "teaching_surface_explain_and_do_collapsed",
+        "teaching_surface_schema_version_lagging"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger_kind", "anchor_surface_ref", "target_ref"],
+      "properties": {
+        "trigger_kind": { "$ref": "#/$defs/trigger_kind" },
+        "anchor_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "owning_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundary_kind", "boundary_ref", "owner_label"],
+      "properties": {
+        "boundary_kind": { "$ref": "#/$defs/owning_boundary_kind" },
+        "boundary_ref": { "$ref": "#/$defs/opaque_id" },
+        "owner_label": { "$ref": "#/$defs/short_label_text" }
+      }
+    },
+    "source_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_kind", "ref_id", "role"],
+      "properties": {
+        "ref_kind": { "$ref": "#/$defs/source_reference_kind" },
+        "ref_id": { "$ref": "#/$defs/opaque_id" },
+        "role": { "$ref": "#/$defs/source_reference_role" },
+        "label": { "$ref": "#/$defs/short_label_text" }
+      }
+    },
+    "action_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "action_kind", "review_posture"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_kind": { "$ref": "#/$defs/action_kind" },
+        "review_posture": { "$ref": "#/$defs/action_review_posture" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "docs_help_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "dismissal_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dismissal_class",
+        "snooze_class",
+        "quiet_hours_behavior",
+        "presentation_mode_behavior",
+        "reversal_path_kind",
+        "reversal_ref"
+      ],
+      "properties": {
+        "dismissal_class": { "$ref": "#/$defs/dismissal_class" },
+        "snooze_class": { "$ref": "#/$defs/snooze_class" },
+        "quiet_hours_behavior": { "$ref": "#/$defs/quiet_hours_behavior" },
+        "presentation_mode_behavior": { "$ref": "#/$defs/presentation_mode_behavior" },
+        "reversal_path_kind": { "$ref": "#/$defs/reversal_path_kind" },
+        "reversal_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "trust_policy_write_scope_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_trust_prompt",
+        "preserves_policy_review",
+        "preserves_permission_disclosure",
+        "preserves_write_scope_preview",
+        "explain_and_do_are_separate"
+      ],
+      "properties": {
+        "preserves_trust_prompt": { "const": true },
+        "preserves_policy_review": { "const": true },
+        "preserves_permission_disclosure": { "const": true },
+        "preserves_write_scope_preview": { "const": true },
+        "explain_and_do_are_separate": { "const": true }
+      },
+      "description": "Const-true guard proving the teaching surface did not create a private bypass around authority review."
+    },
+    "migration_bridge_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "behavior_domain",
+        "behavior_state",
+        "source_product_ref",
+        "source_behavior_ref",
+        "target_behavior_ref",
+        "mapping_basis",
+        "parity_note",
+        "unsupported_edge_refs",
+        "bridge_refs",
+        "rollback_checkpoint_ref"
+      ],
+      "properties": {
+        "behavior_domain": { "$ref": "#/$defs/imported_behavior_domain" },
+        "behavior_state": { "$ref": "#/$defs/imported_behavior_state" },
+        "source_product_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_behavior_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_behavior_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "mapping_basis": { "$ref": "#/$defs/migration_mapping_basis" },
+        "parity_note": { "$ref": "#/$defs/redaction_aware_text" },
+        "unsupported_edge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "bridge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "rollback_checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "why_unavailable_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocked_action_ref",
+        "availability_state",
+        "reason_class",
+        "owning_boundary_ref",
+        "next_safe_action_ref"
+      ],
+      "properties": {
+        "blocked_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "availability_state": { "$ref": "#/$defs/availability_state" },
+        "reason_class": { "$ref": "#/$defs/availability_reason_class" },
+        "owning_boundary_ref": { "$ref": "#/$defs/opaque_id" },
+        "next_safe_action_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "source_language_fallback_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_locale",
+        "effective_locale",
+        "source_locale",
+        "fallback_reason_class",
+        "canonical_message_id_ref",
+        "canonical_docs_anchor_ref",
+        "open_source_language_action_ref",
+        "stable_identity_preserved"
+      ],
+      "properties": {
+        "requested_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "effective_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "source_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "fallback_reason_class": { "$ref": "#/$defs/fallback_reason_class" },
+        "canonical_message_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_docs_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "open_source_language_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "stable_identity_preserved": { "const": true }
+      }
+    },
+    "teaching_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "teaching_surface_schema_version",
+        "surface_id",
+        "surface_kind",
+        "rule_ref",
+        "trigger",
+        "placement_kind",
+        "owning_boundary",
+        "source_refs",
+        "command_refs",
+        "deeper_doc_pivots",
+        "actions",
+        "dismissal_rules",
+        "trust_policy_write_scope_guard",
+        "freshness_class",
+        "version_match_state_at_mint",
+        "locale",
+        "locale_fallback_disclosed",
+        "target_build_identity_ref",
+        "active",
+        "migration_bridge",
+        "why_unavailable",
+        "source_language_fallback",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "presentation_label",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "teaching_surface_record" },
+        "teaching_surface_schema_version": { "$ref": "#/$defs/teaching_surface_schema_version" },
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_kind": { "$ref": "#/$defs/teaching_surface_kind" },
+        "rule_ref": { "$ref": "#/$defs/opaque_id" },
+        "trigger": { "$ref": "#/$defs/trigger" },
+        "placement_kind": { "$ref": "#/$defs/placement_kind" },
+        "owning_boundary": { "$ref": "#/$defs/owning_boundary" },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_reference" }
+        },
+        "command_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "deeper_doc_pivots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_reference" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_ref" }
+        },
+        "dismissal_rules": { "$ref": "#/$defs/dismissal_rules" },
+        "trust_policy_write_scope_guard": { "$ref": "#/$defs/trust_policy_write_scope_guard" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state_at_mint": { "$ref": "#/$defs/version_match_state" },
+        "locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "locale_fallback_disclosed": { "type": "boolean" },
+        "target_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "active": { "type": "boolean" },
+        "migration_bridge": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/migration_bridge_payload" }
+          ]
+        },
+        "why_unavailable": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/why_unavailable_payload" }
+          ]
+        },
+        "source_language_fallback": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/source_language_fallback_payload" }
+          ]
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "presentation_subtitle": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "migration_bridge_card" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "migration_bridge": { "$ref": "#/$defs/migration_bridge_payload" }
+            }
+          },
+          "else": {
+            "properties": {
+              "migration_bridge": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "why_unavailable_explainer" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "why_unavailable": { "$ref": "#/$defs/why_unavailable_payload" }
+            }
+          },
+          "else": {
+            "properties": {
+              "why_unavailable": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "source_language_fallback_surface" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "source_language_fallback": { "$ref": "#/$defs/source_language_fallback_payload" },
+              "locale_fallback_disclosed": { "const": true }
+            }
+          },
+          "else": {
+            "properties": {
+              "source_language_fallback": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "teaching_surface_rule_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "teaching_surface_schema_version",
+        "rule_id",
+        "surface_kind",
+        "allowed_trigger_kinds",
+        "allowed_placement_kinds",
+        "required_source_reference_kinds",
+        "required_deeper_doc_pivot",
+        "allowed_dismissal_classes",
+        "allowed_snooze_classes",
+        "default_quiet_hours_behavior",
+        "default_presentation_mode_behavior",
+        "requires_near_anchor",
+        "trust_policy_write_scope_guard_required",
+        "reserved_denial_reasons",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "teaching_surface_rule_record" },
+        "teaching_surface_schema_version": { "$ref": "#/$defs/teaching_surface_schema_version" },
+        "rule_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_kind": { "$ref": "#/$defs/teaching_surface_kind" },
+        "allowed_trigger_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/trigger_kind" },
+          "uniqueItems": true
+        },
+        "allowed_placement_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/placement_kind" },
+          "uniqueItems": true
+        },
+        "required_source_reference_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_reference_kind" },
+          "uniqueItems": true
+        },
+        "required_deeper_doc_pivot": { "const": true },
+        "allowed_dismissal_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dismissal_class" },
+          "uniqueItems": true
+        },
+        "allowed_snooze_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/snooze_class" },
+          "uniqueItems": true
+        },
+        "default_quiet_hours_behavior": { "$ref": "#/$defs/quiet_hours_behavior" },
+        "default_presentation_mode_behavior": { "$ref": "#/$defs/presentation_mode_behavior" },
+        "requires_near_anchor": { "const": true },
+        "trust_policy_write_scope_guard_required": { "const": true },
+        "reserved_denial_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/denial_reason" },
+          "uniqueItems": true
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "teaching_surface_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "teaching_surface_schema_version",
+        "manifest_id",
+        "surface_record_refs",
+        "rule_refs",
+        "invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "teaching_surface_manifest_record" },
+        "teaching_surface_schema_version": { "$ref": "#/$defs/teaching_surface_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_record_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "rule_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "invariants": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "every_surface_has_concrete_source_ref",
+            "help_stays_near_blocked_or_unfamiliar_action",
+            "dismiss_or_snooze_reversal_is_declared",
+            "quiet_hours_and_presentation_mode_are_respected",
+            "migration_bridge_states_are_typed",
+            "source_language_fallback_preserves_stable_ids",
+            "teaching_surfaces_do_not_bypass_trust_policy_or_write_scope_review",
+            "explain_and_do_controls_stay_separate",
+            "unsupported_imported_behavior_is_not_hidden",
+            "deeper_docs_pivots_are_present"
+          ],
+          "properties": {
+            "every_surface_has_concrete_source_ref": { "const": true },
+            "help_stays_near_blocked_or_unfamiliar_action": { "const": true },
+            "dismiss_or_snooze_reversal_is_declared": { "const": true },
+            "quiet_hours_and_presentation_mode_are_respected": { "const": true },
+            "migration_bridge_states_are_typed": { "const": true },
+            "source_language_fallback_preserves_stable_ids": { "const": true },
+            "teaching_surfaces_do_not_bypass_trust_policy_or_write_scope_review": { "const": true },
+            "explain_and_do_controls_stay_separate": { "const": true },
+            "unsupported_imported_behavior_is_not_hidden": { "const": true },
+            "deeper_docs_pivots_are_present": { "const": true }
+          }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

@@ -84,6 +84,15 @@ upstream; it consumes it by reference:
   tooltip, hovercard, popover, or peek composes by reference with the
   transient-preview record for its pointer / keyboard / touch route;
   this contract binds only the teaching payload.
+- [`/docs/ux/contextual_teaching_contract.md`](./contextual_teaching_contract.md)
+  and
+  [`/schemas/ux/teaching_surface.schema.json`](../../schemas/ux/teaching_surface.schema.json)
+  — contextual tip, migration bridge, why-unavailable, and
+  source-language fallback card payloads. These records specialize
+  the teaching payload with trigger, owning boundary, concrete command
+  / docs / source refs, dismissal / snooze reversal, imported-behavior
+  state, quiet-hours / presentation-mode posture, and trust / policy /
+  write-scope review preservation.
 - [`/artifacts/governance/deployment_profiles.yaml`](../../artifacts/governance/deployment_profiles.yaml)
   — `deployment_profile_id` vocabulary guided surfaces resolve against
   so air-gapped, managed-cloud, and restricted envelopes inherit
@@ -582,10 +591,10 @@ cover:
 
 ## 12. Out of scope at this revision
 
-- Shipping a complete learning mode in M0. This contract freezes
+- Shipping a complete learning mode in this revision. This contract freezes
   the boundary; the actual tour content, glossary, architecture
   map, presentation mode, and learning-mode switching UI land in
-  later milestones and ride this contract.
+  later product work and ride this contract.
 - Final visuals (card padding, tour-step illustration, presentation
   layout). The design-system style guide and the presentation-mode
   contract own those.
