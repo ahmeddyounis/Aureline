@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/connectivity_state.schema.json",
+  "title": "Aureline per-service-family connectivity-state and snapshot record",
+  "description": "Boundary schema for the per-service-family connectivity_state_record and the multi-family connectivity_state_snapshot_record every Aureline status surface, environment status strip, repair-action card, queue-review surface, support export, and admin reconciliation console reads. Connectivity is per-service-family: a single global online/offline toggle is non-conforming. See docs/runtime/connectivity_and_reconciliation_contract.md. Service-family, state, freshness, transport-posture, and continuity vocabularies are re-exported from the upstream contracts named in that document; this schema does not mint parallel names. The eventual outbox / reconciler crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new service_family_class, connectivity_state_class, or reauth_step_up_class is additive-minor and MUST bump connectivity_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/connectivity_state_record" },
+    { "$ref": "#/$defs/connectivity_state_snapshot_record" }
+  ],
+  "$defs": {
+    "connectivity_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs and raw token bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing posture or rationale. Raw secret material and raw payload bytes MUST NOT appear."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "connectivity_state_record",
+        "connectivity_state_snapshot_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "local_core",
+        "cached_reads",
+        "managed_writes",
+        "provider_publish",
+        "collaboration_control",
+        "remote_execution",
+        "paid_model_dispatch",
+        "background_refresh",
+        "upload_replication",
+        "auth_identity_policy"
+      ],
+      "description": "Frozen service-family vocabulary. Connectivity is computed per family; a surface MAY NOT invent a family outside this set."
+    },
+    "connectivity_state_class": {
+      "type": "string",
+      "enum": [
+        "connected",
+        "constrained",
+        "offline_local_safe",
+        "reauth_required",
+        "reconciliation_pending",
+        "service_unavailable",
+        "not_applicable"
+      ],
+      "description": "Frozen per-family connectivity-state vocabulary. Surfaces that cannot place a family in this matrix MUST use service_unavailable; not_applicable is reserved for families the deployment profile does not claim."
+    },
+    "reauth_step_up_class": {
+      "type": "string",
+      "enum": [
+        "no_step_up_required",
+        "local_confirmation",
+        "step_up_authenticator",
+        "approval_ticket",
+        "admin_co_sign"
+      ],
+      "description": "Step-up class required to clear reauth_required. Required on the reauth_required state."
+    },
+    "connectivity_state_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "connectivity_state_schema_version",
+        "state_id",
+        "family",
+        "state",
+        "since_at",
+        "freshness_floor_ref",
+        "transport_posture_ref",
+        "local_core_continuity_packet_ref",
+        "reauth_step_up_class",
+        "posture_note",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "connectivity_state_record" },
+        "connectivity_state_schema_version": {
+          "$ref": "#/$defs/connectivity_state_schema_version"
+        },
+        "state_id": { "$ref": "#/$defs/opaque_id" },
+        "family": { "$ref": "#/$defs/service_family_class" },
+        "state": { "$ref": "#/$defs/connectivity_state_class" },
+        "since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the current state was entered. Null is admissible only when state is connected or not_applicable."
+        },
+        "freshness_floor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the freshness floor the state was computed under. Required on constrained, reconciliation_pending, and service_unavailable."
+        },
+        "transport_posture_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the transport_posture_record the state was derived from. Required on every state other than not_applicable."
+        },
+        "local_core_continuity_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the local_core_continuity_packet_record this state composes with. Required when state is offline_local_safe, service_unavailable, or constrained for the local_core / cached_reads families."
+        },
+        "reauth_step_up_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reauth_step_up_class" }
+          ],
+          "description": "Required when state is reauth_required; null otherwise."
+        },
+        "posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "since_at: null is admissible only on connected or not_applicable states.",
+          "if": {
+            "properties": {
+              "state": {
+                "not": {
+                  "enum": ["connected", "not_applicable"]
+                }
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "since_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["since_at"]
+          }
+        },
+        {
+          "description": "freshness_floor_ref MUST be non-null on constrained, reconciliation_pending, and service_unavailable.",
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "constrained",
+                  "reconciliation_pending",
+                  "service_unavailable"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "freshness_floor_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["freshness_floor_ref"]
+          }
+        },
+        {
+          "description": "transport_posture_ref MUST be non-null on every state other than not_applicable.",
+          "if": {
+            "properties": {
+              "state": {
+                "not": { "const": "not_applicable" }
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "transport_posture_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["transport_posture_ref"]
+          }
+        },
+        {
+          "description": "reauth_step_up_class MUST be set when state is reauth_required.",
+          "if": {
+            "properties": {
+              "state": { "const": "reauth_required" }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "reauth_step_up_class": { "$ref": "#/$defs/reauth_step_up_class" }
+            },
+            "required": ["reauth_step_up_class"]
+          }
+        },
+        {
+          "description": "local_core_continuity_packet_ref MUST be non-null when state is offline_local_safe or service_unavailable on any family, or when the family is local_core / cached_reads on a constrained state.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "state": {
+                    "enum": ["offline_local_safe", "service_unavailable"]
+                  }
+                },
+                "required": ["state"]
+              },
+              {
+                "properties": {
+                  "state": { "const": "constrained" },
+                  "family": {
+                    "enum": ["local_core", "cached_reads"]
+                  }
+                },
+                "required": ["state", "family"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "local_core_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["local_core_continuity_packet_ref"]
+          }
+        }
+      ]
+    },
+    "connectivity_state_snapshot_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "connectivity_state_schema_version",
+        "snapshot_id",
+        "family_states",
+        "captured_at",
+        "snapshot_note"
+      ],
+      "properties": {
+        "record_kind": { "const": "connectivity_state_snapshot_record" },
+        "connectivity_state_schema_version": {
+          "$ref": "#/$defs/connectivity_state_schema_version"
+        },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "family_states": {
+          "type": "array",
+          "minItems": 1,
+          "description": "One inner connectivity_state_record per applicable service family. Tooling MUST reject duplicate family entries; the JSON Schema boundary here only pins row shape.",
+          "items": { "$ref": "#/$defs/connectivity_state_record" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "snapshot_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}

@@ -1,0 +1,134 @@
+# yaml-language-server: $schema=../../../schemas/runtime/connectivity_state.schema.json
+__fixture__:
+  name: reauth_required_reconnect
+  scenario: >
+    A managed_workspace session reconnects after a long sleep
+    and the auth_identity_policy family transitions to
+    reauth_required: the bound identity is past its step-up
+    expiry. The connectivity_state_record carries
+    reauth_step_up_class = step_up_authenticator and a
+    posture_note that names the step-up scope. Until the user
+    completes step-up, the dependent families (managed_writes,
+    provider_publish, remote_execution, paid_model_dispatch)
+    are visibly blocked from new live action and from new outbox
+    admissions; cached_reads and local_core stay available.
+    Attempted auth_identity_policy_refresh resolves to
+    requires_live_connectivity and is refused with
+    refused_reauth_required.
+  exercised_contract_sections:
+    - "Connectivity states — reauth_required"
+    - "State transitions — connected -> reauth_required"
+    - "Acceptance: reviewers can tell why an action requires fresh live connectivity"
+  exercised_classes_summary:
+    service_family_class_primary: auth_identity_policy
+    connectivity_state_class: reauth_required
+    reauth_step_up_class: step_up_authenticator
+    refused_action_class: auth_identity_policy_refresh
+    decision_outcome_class: refused_reauth_required
+    next_safe_action_class: reauthenticate_then_retry
+
+records:
+  - record_kind: connectivity_state_snapshot_record
+    connectivity_state_schema_version: 1
+    snapshot_id: "conn_snap:20260426T110500Z:0001"
+    captured_at: "2026-04-26T11:05:00Z"
+    snapshot_note: >
+      Auth step-up has expired since the last session; managed
+      writes, provider publish, remote execution, and paid model
+      dispatch are blocked until step-up clears. Local-core and
+      cached reads remain available.
+    family_states:
+      - record_kind: connectivity_state_record
+        connectivity_state_schema_version: 1
+        state_id: "conn:auth:20260426T110500Z:0001"
+        family: auth_identity_policy
+        state: reauth_required
+        since_at: "2026-04-26T11:04:48Z"
+        freshness_floor_ref: null
+        transport_posture_ref: "transport_posture:host_a:0004"
+        local_core_continuity_packet_ref: null
+        reauth_step_up_class: step_up_authenticator
+        posture_note: >
+          Bound identity is past step-up expiry; user must
+          reauthenticate at the step-up authenticator level.
+        captured_at: "2026-04-26T11:05:00Z"
+      - record_kind: connectivity_state_record
+        connectivity_state_schema_version: 1
+        state_id: "conn:managed_writes:20260426T110500Z:0001"
+        family: managed_writes
+        state: reauth_required
+        since_at: "2026-04-26T11:04:48Z"
+        freshness_floor_ref: null
+        transport_posture_ref: "transport_posture:host_a:0004"
+        local_core_continuity_packet_ref: null
+        reauth_step_up_class: step_up_authenticator
+        posture_note: >
+          Managed writes are blocked until step-up clears on the
+          auth_identity_policy family.
+        captured_at: "2026-04-26T11:05:00Z"
+      - record_kind: connectivity_state_record
+        connectivity_state_schema_version: 1
+        state_id: "conn:local_core:20260426T110500Z:0001"
+        family: local_core
+        state: connected
+        since_at: null
+        freshness_floor_ref: null
+        transport_posture_ref: "transport_posture:host_a:0004"
+        local_core_continuity_packet_ref: null
+        reauth_step_up_class: null
+        posture_note: >
+          Local-core editing, save, undo, and on-device tools
+          remain available regardless of step-up state.
+        captured_at: "2026-04-26T11:05:00Z"
+      - record_kind: connectivity_state_record
+        connectivity_state_schema_version: 1
+        state_id: "conn:cached_reads:20260426T110500Z:0001"
+        family: cached_reads
+        state: connected
+        since_at: null
+        freshness_floor_ref: null
+        transport_posture_ref: "transport_posture:host_a:0004"
+        local_core_continuity_packet_ref: null
+        reauth_step_up_class: null
+        posture_note: >
+          Last-known-good imported snapshots remain readable with
+          their existing freshness labels.
+        captured_at: "2026-04-26T11:05:00Z"
+
+  - record_kind: queueability_decision_record
+    deferred_intent_schema_version: 1
+    decision_id: "qdec:20260426T110512Z:0001"
+    command_id: "cmd:identity_refresh:20260426T110512Z:0001"
+    command_kind: auth.identity_refresh
+    action_class: auth_identity_policy_refresh
+    service_family: auth_identity_policy
+    proposed_queue_admission_class: requires_live_connectivity
+    decision_outcome_class: refused_reauth_required
+    connectivity_state_ref: "conn:auth:20260426T110500Z:0001"
+    next_safe_action_class: reauthenticate_then_retry
+    rationale_summary: >
+      auth_identity_policy_refresh requires live connectivity at
+      the step-up authenticator level; outbox is structurally
+      forbidden. The user MUST reauthenticate.
+    decided_at: "2026-04-26T11:05:12Z"
+    minted_intent_ref: null
+
+conformance_tests:
+  - id: reauth_required_carries_step_up_class
+    description: >
+      A connectivity_state_record with state = reauth_required
+      MUST carry a non-null reauth_step_up_class so the surface
+      can render the required step-up level.
+  - id: reauth_blocks_dependent_families
+    description: >
+      A snapshot whose auth_identity_policy family is in
+      reauth_required MAY mark dependent families
+      (managed_writes, provider_publish, remote_execution,
+      paid_model_dispatch) reauth_required as well; admissions
+      against those families MUST refuse with
+      refused_reauth_required.
+  - id: reauth_does_not_block_local_core
+    description: >
+      Local-core and cached-reads families MUST remain
+      reachable; reauth_required on auth_identity_policy MAY
+      NOT silently block local editing, save, or cached reads.

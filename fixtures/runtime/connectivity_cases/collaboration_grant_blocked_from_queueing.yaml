@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=../../../schemas/runtime/deferred_intent.schema.json
+__fixture__:
+  name: collaboration_grant_blocked_from_queueing
+  scenario: >
+    The session owner attempts to mint a terminal control grant
+    while the collaboration_control family is in
+    offline_local_safe (the relay is unreachable). The action
+    class collaboration_role_grant resolves to never_queueable;
+    granting authority while the relay is offline would leave the
+    grant dangling without a way to revoke. The surface MUST
+    refuse the action and emit a queueability_decision_record
+    with decision_outcome_class = refused_never_queueable. No
+    deferred_intent_record is minted; the structural enforcement
+    in the schema would reject any attempt to mint one for this
+    action class.
+  exercised_contract_sections:
+    - "Connectivity states — offline_local_safe"
+    - "Queueability matrix — never_queueable"
+    - "Acceptance: silent queueing of authority-changing actions structurally impossible"
+  exercised_classes_summary:
+    service_family_class: collaboration_control
+    connectivity_state_class: offline_local_safe
+    action_class: collaboration_role_grant
+    proposed_queue_admission_class: never_queueable
+    decision_outcome_class: refused_never_queueable
+    next_safe_action_class: revoke_intent
+
+records:
+  - record_kind: connectivity_state_record
+    connectivity_state_schema_version: 1
+    state_id: "conn:collaboration_control:20260426T103000Z:0001"
+    family: collaboration_control
+    state: offline_local_safe
+    since_at: "2026-04-26T10:25:42Z"
+    freshness_floor_ref: null
+    transport_posture_ref: "transport_posture:host_a:0003"
+    local_core_continuity_packet_ref: "lccp:host_a:collab:0001"
+    reauth_step_up_class: null
+    posture_note: >
+      Collaboration relay is unreachable; collaboration role
+      changes are blocked. Local-core editing continues solo.
+    captured_at: "2026-04-26T10:30:00Z"
+
+  - record_kind: queueability_decision_record
+    deferred_intent_schema_version: 1
+    decision_id: "qdec:20260426T103000Z:0001"
+    command_id: "cmd:terminal_grant_mint:20260426T103000Z:0001"
+    command_kind: collaboration.terminal_grant_mint
+    action_class: collaboration_role_grant
+    service_family: collaboration_control
+    proposed_queue_admission_class: never_queueable
+    decision_outcome_class: refused_never_queueable
+    connectivity_state_ref: "conn:collaboration_control:20260426T103000Z:0001"
+    next_safe_action_class: revoke_intent
+    rationale_summary: >
+      collaboration_role_grant is authority-changing and is never
+      queueable. Granting while the relay is offline would leave
+      the grant dangling with no replay or revoke path; the
+      surface MUST refuse rather than outbox.
+    decided_at: "2026-04-26T10:30:00Z"
+    minted_intent_ref: null
+
+conformance_tests:
+  - id: collaboration_grant_never_queueable
+    description: >
+      A collaboration_role_grant action MUST resolve to
+      decision_outcome_class = refused_never_queueable; the
+      schema rejects any deferred_intent_record carrying this
+      action_class.
+  - id: collaboration_revoke_never_queueable
+    description: >
+      A collaboration_role_revoke action MUST resolve identically
+      to refused_never_queueable; silent queueing of revoke would
+      leave authority alive past the user's intent.
+  - id: refusal_offers_truthful_next_safe_action
+    description: >
+      The queueability_decision_record MUST name a
+      next_safe_action_class so the surface can route the user
+      to revoke_intent or to await connectivity rather than to a
+      dead-end error state.

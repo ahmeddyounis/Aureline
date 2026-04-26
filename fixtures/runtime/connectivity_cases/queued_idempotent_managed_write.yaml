@@ -1,0 +1,130 @@
+# yaml-language-server: $schema=../../../schemas/runtime/deferred_intent.schema.json
+__fixture__:
+  name: queued_idempotent_managed_write
+  scenario: >
+    The user adds the label "needs-triage" to an issue while the
+    managed_writes family is in offline_local_safe (the issue
+    provider is unreachable, but local-core editing continues).
+    The action class idempotent_managed_label_change resolves to
+    queueable_idempotent_only. A deferred_intent_record is minted
+    with a non-empty idempotency_key (provider_id + label_id +
+    operation), an expires_at within 24 hours, a previewed effect
+    summary, predicted_side_effect_class =
+    external_reversible_comment, sensitive payload handling
+    inline_metadata_safe (no payload bytes), and reopen semantics
+    on_connectivity_restored + on_freshness_refresh. A companion
+    queueability_decision_record records the admission.
+  exercised_contract_sections:
+    - "Connectivity states — offline_local_safe"
+    - "Queueability matrix — queueable_idempotent_only"
+    - "Deferred-intent outbox packet — required fields"
+    - "Sensitive-payload handling rules"
+    - "Acceptance: silent queueing forbidden for non-idempotent actions"
+  exercised_classes_summary:
+    service_family_class: managed_writes
+    connectivity_state_class: offline_local_safe
+    action_class: idempotent_managed_label_change
+    queue_admission_class: queueable_idempotent_only
+    sensitive_payload_handling_class: inline_metadata_safe
+    predicted_side_effect_class: external_reversible_comment
+    decision_outcome_class: admitted_to_outbox
+
+records:
+  - record_kind: connectivity_state_record
+    connectivity_state_schema_version: 1
+    state_id: "conn:managed_writes:20260426T101512Z:0001"
+    family: managed_writes
+    state: offline_local_safe
+    since_at: "2026-04-26T10:11:08Z"
+    freshness_floor_ref: null
+    transport_posture_ref: "transport_posture:host_a:0002"
+    local_core_continuity_packet_ref: "lccp:host_a:managed_writes:0001"
+    reauth_step_up_class: null
+    posture_note: >
+      Issue provider is unreachable; local-core continues. Managed
+      writes are admissible only when idempotent.
+    captured_at: "2026-04-26T10:15:12Z"
+
+  - record_kind: deferred_intent_record
+    deferred_intent_schema_version: 1
+    intent_id: "intent:20260426T101512Z:0001"
+    command_id: "cmd:issue_label_add:20260426T101512Z:0001"
+    command_kind: issues.label_add
+    action_class: idempotent_managed_label_change
+    service_family: managed_writes
+    queue_admission_class: queueable_idempotent_only
+    target_identity:
+      object_class: issue
+      provider_side_id: "provider_obj:issue:42"
+      provider_host: "provider_host:tracker.example"
+      tenant_or_org_scope: "tenant:org_a"
+    policy_epoch_ref: "policy_epoch:20260426T000000Z"
+    auth_scope:
+      actor_subject_ref: "actor:user_a"
+      actor_class: human_account
+      scope_refs:
+        - "scope:issues.write"
+      step_up_satisfied_at: "2026-04-26T09:30:00Z"
+    context_hash: "sha256:f7a3c28de61b4c93a5f02dd7c3a4e8b6f1c9d20a54e7b9d80123f6c5a8b4e2f9"
+    idempotency_key: "tracker.example:issue:42:label:needs-triage:add:idem-001"
+    expires_at: "2026-04-27T10:15:12Z"
+    previewed_effect_summary: >
+      Add the label "needs-triage" to issue #42. Reversible by
+      removing the label.
+    predicted_side_effect_class: external_reversible_comment
+    sensitive_payload_handling_class: inline_metadata_safe
+    payload_ref: ""
+    companion_publish_later_ref: ""
+    companion_background_job_ref: ""
+    replay_posture: single_use
+    conflict_policy_class: refuse_on_remote_change
+    reopen_semantics:
+      - on_connectivity_restored
+      - on_freshness_refresh
+    origin_disclosure:
+      host_id_ref: "host:device_a"
+      workspace_id: "wks:aureline"
+      actor_subject_ref: "actor:user_a"
+      execution_context_id_ref: "exec_ctx:20260426T101512Z:0001"
+      policy_epoch_ref: "policy_epoch:20260426T000000Z"
+    redaction_class: metadata_safe_default
+    queued_at: "2026-04-26T10:15:12Z"
+    note: >
+      User added a label while the issue provider was unreachable;
+      the intent is idempotent and will drain when the family
+      reaches reconciliation_pending.
+
+  - record_kind: queueability_decision_record
+    deferred_intent_schema_version: 1
+    decision_id: "qdec:20260426T101512Z:0001"
+    command_id: "cmd:issue_label_add:20260426T101512Z:0001"
+    command_kind: issues.label_add
+    action_class: idempotent_managed_label_change
+    service_family: managed_writes
+    proposed_queue_admission_class: queueable_idempotent_only
+    decision_outcome_class: admitted_to_outbox
+    connectivity_state_ref: "conn:managed_writes:20260426T101512Z:0001"
+    next_safe_action_class: proceed_when_connectivity_returns
+    rationale_summary: >
+      Idempotent managed write admitted with a freshness floor and
+      a stable idempotency key; awaits reconciliation.
+    decided_at: "2026-04-26T10:15:12Z"
+    minted_intent_ref: "intent:20260426T101512Z:0001"
+
+conformance_tests:
+  - id: idempotent_managed_write_requires_idempotency_key
+    description: >
+      A queueable_idempotent_only deferred_intent_record MUST
+      carry a non-empty idempotency_key, an expires_at, and a
+      non-empty previewed_effect_summary.
+  - id: managed_write_offline_admits_via_outbox
+    description: >
+      An idempotent_managed_label_change action with the
+      managed_writes family in offline_local_safe MUST be
+      admissible to the outbox and MUST carry reopen semantics
+      including on_connectivity_restored.
+  - id: managed_write_irreversible_side_effect_forbidden
+    description: >
+      An idempotent_managed_label_change MUST NOT carry a
+      predicted_side_effect_class wider than
+      external_reversible_comment.

@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=../../../schemas/runtime/reconciliation_result.schema.json
+__fixture__:
+  name: reconciliation_conflict_target_drift
+  scenario: >
+    A previously queued idempotent_managed_field_set deferred
+    intent ("set due_date on issue #57 to 2026-05-10") drains
+    when the managed_writes family transitions from
+    offline_local_safe through reconciliation_pending. At drain
+    time the reconciler observes that issue #57 has been merged
+    into issue #84 by another author; the captured
+    target_identity no longer resolves to a live object.
+    The conflict_policy_class on the intent was
+    refuse_on_remote_change, so the reconciler returns
+    reconciliation_outcome_class = conflict_target_drift with
+    conflict_class = target_drift. requires_user_action is true
+    and reapproval_class = user_reconfirm; the queue-review
+    surface offers next_safe_action_class =
+    reissue_with_fresh_freshness, pointing the user at the
+    refreshed target if they still want to make the change.
+  exercised_contract_sections:
+    - "Reconciliation rules — drain revalidation"
+    - "Reconciliation outcomes — conflict_target_drift"
+    - "Acceptance: reviewers can tell why an item conflicted"
+  exercised_classes_summary:
+    service_family_class: managed_writes
+    reconciliation_outcome_class: conflict_target_drift
+    conflict_class: target_drift
+    reapproval_class: user_reconfirm
+    next_safe_action_class: reissue_with_fresh_freshness
+    requires_user_action: true
+
+records:
+  - record_kind: reconciliation_result_record
+    reconciliation_result_schema_version: 1
+    reconciliation_id: "recon:20260426T120000Z:0001"
+    intent_ref: "intent:20260425T184500Z:0042"
+    service_family: managed_writes
+    reconciliation_outcome_class: conflict_target_drift
+    conflict_class: target_drift
+    outcome_rationale: >
+      Issue #57 was merged into issue #84 by another author after
+      the intent was queued; the captured target_identity no
+      longer resolves to a live object. conflict_policy_class on
+      the intent was refuse_on_remote_change; drain refused.
+    requires_user_action: true
+    reapproval_class: user_reconfirm
+    next_safe_action_class: reissue_with_fresh_freshness
+    audit_event_refs:
+      - "audit:provider_action_denied:20260426T120000Z:0001"
+      - "audit:deferred_publish_queue_rejected:20260426T120000Z:0001"
+    post_drain_target_identity_ref: "provider_obj:issue:84"
+    redaction_class: metadata_safe_default
+    reconciled_at: "2026-04-26T12:00:00Z"
+
+conformance_tests:
+  - id: target_drift_outcome_pairs_with_target_drift_conflict
+    description: >
+      A reconciliation_outcome_class = conflict_target_drift MUST
+      carry conflict_class = target_drift; the schema enforces
+      the pairing.
+  - id: conflict_outcome_requires_user_action
+    description: >
+      A conflict_target_drift outcome MUST set
+      requires_user_action = true and MUST carry a reapproval_class
+      other than no_reapproval_required so the user is offered a
+      truthful next step.
+  - id: conflict_emits_provider_handoff_audit
+    description: >
+      A drain failure MUST cite at least one
+      provider_handoff audit event (provider_action_denied,
+      deferred_publish_queue_rejected, or
+      policy_epoch_rolled_invalidations) so the conflict is
+      auditable from the support export.
+  - id: conflict_carries_post_drain_target_observation
+    description: >
+      When the reconciler observes a moved or merged target, the
+      record MAY populate post_drain_target_identity_ref so a
+      reviewer can see what the target became.

@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../../../schemas/runtime/connectivity_state.schema.json
+__fixture__:
+  name: cached_read_with_stale_label
+  scenario: >
+    The cached_reads service family is constrained: the device is
+    online but the docs portal is mirror-only and the imported
+    issue snapshot was last refreshed inside a bounded freshness
+    window. A surface that displays the issue MUST render the
+    cached snapshot wrapped in an imported_provider_snapshot_record
+    with the stale label visible. The action class
+    cached_read_provider_snapshot resolves to
+    serves_from_cache_with_label and never enters the outbox; the
+    queueability decision records why it is not eligible for any
+    outbox admission. No deferred_intent_record is minted.
+  exercised_contract_sections:
+    - "Service families (frozen)"
+    - "Connectivity states (frozen, per-family)"
+    - "Queueability matrix — serves_from_cache_with_label"
+    - "Acceptance: reviewers can tell which actions can outbox safely"
+  exercised_classes_summary:
+    service_family_class: cached_reads
+    connectivity_state_class: constrained
+    proposed_queue_admission_class: serves_from_cache_with_label
+    decision_outcome_class: refused_payload_handling_violation
+    next_safe_action_class: view_only
+
+records:
+  - record_kind: connectivity_state_record
+    connectivity_state_schema_version: 1
+    state_id: "conn:cached_reads:20260426T100000Z:0001"
+    family: cached_reads
+    state: constrained
+    since_at: "2026-04-26T09:55:12Z"
+    freshness_floor_ref: "freshness_floor:cached_reads:bounded:0001"
+    transport_posture_ref: "transport_posture:host_a:0001"
+    local_core_continuity_packet_ref: "lccp:host_a:cached_reads:0001"
+    reauth_step_up_class: null
+    posture_note: >
+      Docs portal is mirror-only; imported issue snapshot is
+      bounded-stale within the configured freshness floor.
+    captured_at: "2026-04-26T10:00:00Z"
+
+  - record_kind: queueability_decision_record
+    deferred_intent_schema_version: 1
+    decision_id: "qdec:20260426T100012Z:0001"
+    command_id: "cmd:issue_view:20260426T100012Z:0001"
+    command_kind: issues.view_imported_snapshot
+    action_class: cached_read_provider_snapshot
+    service_family: cached_reads
+    proposed_queue_admission_class: serves_from_cache_with_label
+    decision_outcome_class: refused_payload_handling_violation
+    connectivity_state_ref: "conn:cached_reads:20260426T100000Z:0001"
+    next_safe_action_class: view_only
+    rationale_summary: >
+      cached_read_provider_snapshot resolves to
+      serves_from_cache_with_label; the outbox is not eligible. The
+      surface MUST render the imported snapshot with the stale
+      label visible.
+    decided_at: "2026-04-26T10:00:12Z"
+    minted_intent_ref: null
+
+conformance_tests:
+  - id: cached_read_never_enters_outbox
+    description: >
+      A cached_read_provider_snapshot action MUST resolve to a
+      queueability_decision_record and MUST NOT mint a
+      deferred_intent_record under any connectivity state.
+  - id: cached_read_carries_stale_label
+    description: >
+      The cached_reads family in a constrained state MUST carry a
+      non-null freshness_floor_ref so the imported snapshot's
+      stale label has a freshness anchor to render against.

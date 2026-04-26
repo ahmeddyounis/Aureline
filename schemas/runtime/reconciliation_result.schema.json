@@ -1,0 +1,334 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/reconciliation_result.schema.json",
+  "title": "Aureline reconciliation-result record",
+  "description": "Boundary schema for the reconciliation_result_record every Aureline outbox drain, replay, expiry, conflict, or manual-re-approval outcome is reported through. The record explains why an item replayed, expired, conflicted, or required manual re-approval using one frozen vocabulary; surfaces, queue-review consumers, support exports, and admin reconciliation consoles read these fields rather than per-engine status copy. See docs/runtime/connectivity_and_reconciliation_contract.md. The record cites ADR-0010 audit-event ids by ref; no new audit-event id is introduced. The eventual reconciler crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new reconciliation_outcome_class, conflict_class, reapproval_class, or next_safe_action_class is additive-minor and MUST bump reconciliation_result_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/reconciliation_result_record",
+  "$defs": {
+    "reconciliation_result_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and export. Raw URLs, raw token bodies, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence in product terms. Raw secret material, raw provider bodies, raw URLs, and raw token bodies MUST NOT appear."
+    },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "local_core",
+        "cached_reads",
+        "managed_writes",
+        "provider_publish",
+        "collaboration_control",
+        "remote_execution",
+        "paid_model_dispatch",
+        "background_refresh",
+        "upload_replication",
+        "auth_identity_policy"
+      ],
+      "description": "Frozen service-family vocabulary, mirrored from connectivity_state.schema.json."
+    },
+    "reconciliation_outcome_class": {
+      "type": "string",
+      "enum": [
+        "replayed_successfully",
+        "replayed_with_drift_acknowledged",
+        "expired_before_drain",
+        "conflict_target_drift",
+        "conflict_policy_epoch_changed",
+        "conflict_actor_scope_changed",
+        "conflict_freshness_floor_violated",
+        "conflict_idempotency_key_collision",
+        "denied_authority_revoked",
+        "denied_payload_unresolvable",
+        "manual_reapproval_required",
+        "dropped_user_revoked",
+        "dropped_superseded_by_local_action"
+      ],
+      "description": "Frozen reconciliation-outcome vocabulary."
+    },
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "target_drift",
+        "policy_drift",
+        "authority_drift",
+        "freshness_drift",
+        "actor_drift",
+        "idempotency_drift",
+        "payload_drift",
+        "none"
+      ],
+      "description": "Frozen conflict-class vocabulary. Pairs with reconciliation_outcome_class via the schema's allOf guard."
+    },
+    "reapproval_class": {
+      "type": "string",
+      "enum": [
+        "no_reapproval_required",
+        "user_reconfirm",
+        "step_up_authenticator",
+        "approval_ticket",
+        "admin_co_sign"
+      ],
+      "description": "Frozen reapproval-class vocabulary. Required when requires_user_action is true."
+    },
+    "next_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "view_only",
+        "reissue_with_fresh_freshness",
+        "reissue_after_account_reselect",
+        "open_in_provider",
+        "promote_to_local_draft",
+        "escalate_for_admin_review",
+        "abandon"
+      ],
+      "description": "Frozen next-safe-action vocabulary surfaces, queue reviews, and admin reconciliation consoles render verbatim."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Reuses the ADR-0010 redaction-class vocabulary."
+    },
+    "reconciliation_result_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "reconciliation_result_schema_version",
+        "reconciliation_id",
+        "intent_ref",
+        "service_family",
+        "reconciliation_outcome_class",
+        "conflict_class",
+        "outcome_rationale",
+        "requires_user_action",
+        "reapproval_class",
+        "next_safe_action_class",
+        "audit_event_refs",
+        "redaction_class",
+        "reconciled_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "reconciliation_result_record" },
+        "reconciliation_result_schema_version": {
+          "$ref": "#/$defs/reconciliation_result_schema_version"
+        },
+        "reconciliation_id": { "$ref": "#/$defs/opaque_id" },
+        "intent_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the deferred_intent_record being drained."
+        },
+        "service_family": { "$ref": "#/$defs/service_family_class" },
+        "reconciliation_outcome_class": {
+          "$ref": "#/$defs/reconciliation_outcome_class"
+        },
+        "conflict_class": { "$ref": "#/$defs/conflict_class" },
+        "outcome_rationale": { "$ref": "#/$defs/reviewable_sentence" },
+        "requires_user_action": {
+          "type": "boolean",
+          "description": "True when the outcome cannot resolve without a user reopening, reauthenticating, or re-approving."
+        },
+        "reapproval_class": { "$ref": "#/$defs/reapproval_class" },
+        "next_safe_action_class": { "$ref": "#/$defs/next_safe_action_class" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to ADR-0010 provider_handoff audit events emitted with this reconciliation_id as metadata. Empty only when no audit event was required (e.g. dropped_user_revoked before any provider contact)."
+        },
+        "post_drain_target_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the provider-side object identity observed at drain. Null when the drain made no provider contact."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "reconciled_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Successful or drift-acknowledged replays MUST carry conflict_class = none.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": {
+                "enum": [
+                  "replayed_successfully",
+                  "replayed_with_drift_acknowledged"
+                ]
+              }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "none" }
+            }
+          }
+        },
+        {
+          "description": "conflict_target_drift requires conflict_class = target_drift.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "conflict_target_drift" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "target_drift" }
+            }
+          }
+        },
+        {
+          "description": "conflict_policy_epoch_changed requires conflict_class = policy_drift.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "conflict_policy_epoch_changed" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "policy_drift" }
+            }
+          }
+        },
+        {
+          "description": "conflict_actor_scope_changed requires conflict_class = actor_drift.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "conflict_actor_scope_changed" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "actor_drift" }
+            }
+          }
+        },
+        {
+          "description": "conflict_freshness_floor_violated requires conflict_class = freshness_drift.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "conflict_freshness_floor_violated" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "freshness_drift" }
+            }
+          }
+        },
+        {
+          "description": "conflict_idempotency_key_collision requires conflict_class = idempotency_drift.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "conflict_idempotency_key_collision" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "idempotency_drift" }
+            }
+          }
+        },
+        {
+          "description": "denied_authority_revoked requires conflict_class = authority_drift.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "denied_authority_revoked" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "authority_drift" }
+            }
+          }
+        },
+        {
+          "description": "denied_payload_unresolvable requires conflict_class = payload_drift.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "denied_payload_unresolvable" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_class": { "const": "payload_drift" }
+            }
+          }
+        },
+        {
+          "description": "Outcomes that require user action MUST carry a reapproval_class other than no_reapproval_required.",
+          "if": {
+            "properties": {
+              "requires_user_action": { "const": true }
+            },
+            "required": ["requires_user_action"]
+          },
+          "then": {
+            "properties": {
+              "reapproval_class": {
+                "not": { "const": "no_reapproval_required" }
+              }
+            }
+          }
+        },
+        {
+          "description": "manual_reapproval_required outcomes MUST set requires_user_action = true.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "manual_reapproval_required" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "requires_user_action": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Successful replays MUST set requires_user_action = false and reapproval_class = no_reapproval_required.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "replayed_successfully" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "requires_user_action": { "const": false },
+              "reapproval_class": { "const": "no_reapproval_required" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

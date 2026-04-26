@@ -1,0 +1,627 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/deferred_intent.schema.json",
+  "title": "Aureline deferred-intent (outbox) and queueability-decision record",
+  "description": "Boundary schema for the deferred_intent_record (outbox packet) and the queueability_decision_record every Aureline outbox engine, queue-review surface, status item, support export, and admin reconciliation console reads. Silent queueing of destructive, non-idempotent, or authority-changing actions is structurally impossible: the schema admits queue_admission_class only as queueable_idempotent_only, queueable_via_publish_later, or queueable_background_only; surfaces that mint other classes or non-conforming pairings are rejected at the boundary. Action-class, queueability, sensitive-payload, replay, conflict, and side-effect vocabularies are re-exported from docs/runtime/connectivity_and_reconciliation_contract.md and ADR-0010; this schema does not mint parallel names. The eventual outbox crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new action_class, sensitive_payload_handling_class, decision_outcome_class, or next_safe_action_class is additive-minor and MUST bump deferred_intent_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/deferred_intent_record" },
+    { "$ref": "#/$defs/queueability_decision_record" }
+  ],
+  "$defs": {
+    "deferred_intent_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and export. Raw URLs, raw token bodies, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence in product terms. Raw secret material, raw provider bodies, raw URLs, and raw token bodies MUST NOT appear."
+    },
+    "dotted_lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted lower-snake id used for command_kind and action-class ids."
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$",
+      "description": "Opaque content hash safe to log and export. Raw payload bytes never appear here."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "deferred_intent_record",
+        "queueability_decision_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "local_core",
+        "cached_reads",
+        "managed_writes",
+        "provider_publish",
+        "collaboration_control",
+        "remote_execution",
+        "paid_model_dispatch",
+        "background_refresh",
+        "upload_replication",
+        "auth_identity_policy"
+      ],
+      "description": "Frozen service-family vocabulary, mirrored from connectivity_state.schema.json."
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "local_edit_save_undo",
+        "local_search_index_query",
+        "local_git_commit_branch",
+        "local_build_test_debug",
+        "cached_read_provider_snapshot",
+        "cached_read_docs_pack",
+        "idempotent_managed_label_change",
+        "idempotent_managed_field_set",
+        "provider_publish_local_draft",
+        "provider_publish_immediate",
+        "provider_publish_irreversible_release",
+        "provider_destructive_delete_or_force",
+        "collaboration_role_grant",
+        "collaboration_role_revoke",
+        "remote_execution_dispatch",
+        "remote_execution_attach_resume",
+        "paid_model_dispatch_invocation",
+        "background_provider_overlay_refresh",
+        "background_index_or_warmup",
+        "upload_telemetry_or_crash_or_support",
+        "sync_publish_settings_or_state",
+        "auth_identity_policy_refresh",
+        "auth_step_up_authenticate"
+      ],
+      "description": "Frozen action-class vocabulary. Pairs with service_family_class and queueability per the contract; the schema rejects non-conforming pairings."
+    },
+    "queue_admission_class": {
+      "type": "string",
+      "enum": [
+        "queueable_idempotent_only",
+        "queueable_via_publish_later",
+        "queueable_background_only"
+      ],
+      "description": "Closed admission set permitted on a deferred_intent_record. The other queueability classes (runs_locally_no_outbox, serves_from_cache_with_label, requires_live_connectivity, never_queueable) are forbidden on this boundary by construction; surfaces that propose them mint a queueability_decision_record with the matching refused_* outcome instead."
+    },
+    "predicted_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ],
+      "description": "Reuses the ADR-0010 side-effect vocabulary."
+    },
+    "sensitive_payload_handling_class": {
+      "type": "string",
+      "enum": [
+        "no_payload_persisted",
+        "redacted_summary_only",
+        "opaque_ref_only",
+        "inline_metadata_safe",
+        "raw_payload_forbidden"
+      ],
+      "description": "Frozen sensitive-payload handling vocabulary. Raw provider tokens, raw delegated credentials, raw OAuth bearer tokens, raw cookies, raw webhook bodies, and raw secret material MUST NOT appear in any field of the outbox packet under any value."
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "single_use",
+        "bounded_reuse",
+        "read_only_resumable"
+      ],
+      "description": "Reuses the ADR-0010 replay-posture vocabulary."
+    },
+    "conflict_policy_class": {
+      "type": "string",
+      "enum": [
+        "refuse_on_remote_change",
+        "merge_if_auto_resolvable",
+        "user_decides_on_drain",
+        "force_overwrite_with_preview"
+      ],
+      "description": "Reuses the provider-mode conflict-policy vocabulary."
+    },
+    "reopen_semantic_class": {
+      "type": "string",
+      "enum": [
+        "on_connectivity_restored",
+        "on_account_reselected",
+        "on_freshness_refresh",
+        "on_policy_epoch_stable",
+        "on_browser_available",
+        "on_user_reconfirm",
+        "on_reconciliation_complete"
+      ],
+      "description": "Frozen reopen-semantics vocabulary."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Reuses the ADR-0010 redaction-class vocabulary."
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Reuses the ADR-0010 provider-actor-class vocabulary."
+    },
+    "object_identity": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "object_class",
+            "provider_side_id",
+            "provider_host",
+            "tenant_or_org_scope"
+          ],
+          "properties": {
+            "object_class": { "$ref": "#/$defs/dotted_lower_snake_id" },
+            "provider_side_id": { "$ref": "#/$defs/opaque_id" },
+            "provider_host": { "$ref": "#/$defs/opaque_id" },
+            "tenant_or_org_scope": { "$ref": "#/$defs/opaque_id" }
+          },
+          "description": "Reuses the ADR-0010 object-identity shape. Required for managed_writes, provider_publish, remote_execution, and paid_model_dispatch families; null is admissible for local_core, upload_replication, and background_refresh."
+        }
+      ]
+    },
+    "auth_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_subject_ref",
+        "actor_class",
+        "scope_refs",
+        "step_up_satisfied_at"
+      ],
+      "properties": {
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to scope grants in force at intent time. Raw scope strings do not appear here."
+        },
+        "step_up_satisfied_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the step-up authenticator was last satisfied. Null is admissible only when the action class does not require step-up."
+        }
+      }
+    },
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_id_ref",
+        "workspace_id",
+        "actor_subject_ref",
+        "execution_context_id_ref",
+        "policy_epoch_ref"
+      ],
+      "properties": {
+        "host_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "execution_context_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "deferred_intent_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_intent_schema_version",
+        "intent_id",
+        "command_id",
+        "command_kind",
+        "action_class",
+        "service_family",
+        "queue_admission_class",
+        "target_identity",
+        "policy_epoch_ref",
+        "auth_scope",
+        "context_hash",
+        "idempotency_key",
+        "expires_at",
+        "previewed_effect_summary",
+        "predicted_side_effect_class",
+        "sensitive_payload_handling_class",
+        "payload_ref",
+        "companion_publish_later_ref",
+        "companion_background_job_ref",
+        "replay_posture",
+        "conflict_policy_class",
+        "reopen_semantics",
+        "origin_disclosure",
+        "redaction_class",
+        "queued_at",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_intent_record" },
+        "deferred_intent_schema_version": {
+          "$ref": "#/$defs/deferred_intent_schema_version"
+        },
+        "intent_id": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_kind": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "service_family": { "$ref": "#/$defs/service_family_class" },
+        "queue_admission_class": { "$ref": "#/$defs/queue_admission_class" },
+        "target_identity": { "$ref": "#/$defs/object_identity" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "auth_scope": { "$ref": "#/$defs/auth_scope" },
+        "context_hash": { "$ref": "#/$defs/content_hash" },
+        "idempotency_key": {
+          "type": "string",
+          "description": "Provider idempotency key. Required (non-empty) when queue_admission_class is queueable_idempotent_only; MAY be empty string for queueable_via_publish_later (the publish-later queue item carries the canonical key) and queueable_background_only."
+        },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "previewed_effect_summary": {
+          "type": "string",
+          "description": "Short reviewable sentence in product terms. Required (non-empty) for queueable_idempotent_only and queueable_via_publish_later; MAY be empty for queueable_background_only."
+        },
+        "predicted_side_effect_class": { "$ref": "#/$defs/predicted_side_effect_class" },
+        "sensitive_payload_handling_class": { "$ref": "#/$defs/sensitive_payload_handling_class" },
+        "payload_ref": {
+          "type": "string",
+          "description": "Opaque ref to externally-stored payload bytes. Required (non-empty) when sensitive_payload_handling_class = opaque_ref_only; empty string otherwise."
+        },
+        "companion_publish_later_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish_later_queue_item_record. Required (non-empty) when queue_admission_class = queueable_via_publish_later; empty string otherwise."
+        },
+        "companion_background_job_ref": {
+          "type": "string",
+          "description": "Opaque ref to the background_job_record. Required (non-empty) when queue_admission_class = queueable_background_only; empty string otherwise."
+        },
+        "replay_posture": { "$ref": "#/$defs/replay_posture_class" },
+        "conflict_policy_class": { "$ref": "#/$defs/conflict_policy_class" },
+        "reopen_semantics": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reopen_semantic_class" },
+          "description": "At least one reopen semantic. Multiple are admissible for compound prerequisites."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "queued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Action classes that are never_queueable, requires_live_connectivity, runs_locally_no_outbox, or serves_from_cache_with_label MUST NOT appear in a deferred_intent_record. The outbox is structurally closed to these classes; refusal mints a queueability_decision_record instead.",
+          "properties": {
+            "action_class": {
+              "not": {
+                "enum": [
+                  "local_edit_save_undo",
+                  "local_search_index_query",
+                  "local_git_commit_branch",
+                  "local_build_test_debug",
+                  "cached_read_provider_snapshot",
+                  "cached_read_docs_pack",
+                  "provider_publish_immediate",
+                  "provider_publish_irreversible_release",
+                  "provider_destructive_delete_or_force",
+                  "collaboration_role_grant",
+                  "collaboration_role_revoke",
+                  "remote_execution_dispatch",
+                  "remote_execution_attach_resume",
+                  "paid_model_dispatch_invocation",
+                  "auth_identity_policy_refresh",
+                  "auth_step_up_authenticate"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "queueable_idempotent_only requires non-empty idempotency_key and previewed_effect_summary.",
+          "if": {
+            "properties": {
+              "queue_admission_class": { "const": "queueable_idempotent_only" }
+            },
+            "required": ["queue_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "idempotency_key": { "type": "string", "minLength": 1 },
+              "previewed_effect_summary": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "queueable_via_publish_later requires a non-empty companion_publish_later_ref and a non-empty previewed_effect_summary.",
+          "if": {
+            "properties": {
+              "queue_admission_class": { "const": "queueable_via_publish_later" }
+            },
+            "required": ["queue_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "companion_publish_later_ref": { "type": "string", "minLength": 1 },
+              "previewed_effect_summary": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "queueable_background_only requires a non-empty companion_background_job_ref.",
+          "if": {
+            "properties": {
+              "queue_admission_class": { "const": "queueable_background_only" }
+            },
+            "required": ["queue_admission_class"]
+          },
+          "then": {
+            "properties": {
+              "companion_background_job_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "sensitive_payload_handling_class = opaque_ref_only requires a non-empty payload_ref.",
+          "if": {
+            "properties": {
+              "sensitive_payload_handling_class": { "const": "opaque_ref_only" }
+            },
+            "required": ["sensitive_payload_handling_class"]
+          },
+          "then": {
+            "properties": {
+              "payload_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "Idempotent managed-write action classes are restricted to the managed_writes service family and queueable_idempotent_only admission. Their predicted_side_effect_class MAY NOT widen past external_reversible_comment.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "idempotent_managed_label_change",
+                  "idempotent_managed_field_set"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "service_family": { "const": "managed_writes" },
+              "queue_admission_class": { "const": "queueable_idempotent_only" },
+              "predicted_side_effect_class": {
+                "enum": [
+                  "inspect_only",
+                  "local_reversible_edit",
+                  "external_reversible_comment"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "provider_publish_local_draft action class is restricted to the provider_publish family and queueable_via_publish_later admission.",
+          "if": {
+            "properties": {
+              "action_class": { "const": "provider_publish_local_draft" }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "service_family": { "const": "provider_publish" },
+              "queue_admission_class": { "const": "queueable_via_publish_later" }
+            }
+          }
+        },
+        {
+          "description": "Background-only action classes are restricted to queueable_background_only admission and to the background_refresh / upload_replication families.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "background_provider_overlay_refresh",
+                  "background_index_or_warmup",
+                  "upload_telemetry_or_crash_or_support",
+                  "sync_publish_settings_or_state"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "queue_admission_class": { "const": "queueable_background_only" },
+              "service_family": {
+                "enum": ["background_refresh", "upload_replication"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "decision_outcome_class": {
+      "type": "string",
+      "enum": [
+        "admitted_to_outbox",
+        "admitted_to_publish_later",
+        "admitted_to_background_lane",
+        "refused_requires_live_connectivity",
+        "refused_never_queueable",
+        "refused_reauth_required",
+        "refused_reconciliation_pending",
+        "refused_freshness_floor_violated",
+        "refused_policy_or_trust_block",
+        "refused_payload_handling_violation"
+      ],
+      "description": "Frozen queueability-decision outcome vocabulary."
+    },
+    "next_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "proceed_when_connectivity_returns",
+        "reauthenticate_then_retry",
+        "await_reconciliation",
+        "route_through_publish_later",
+        "open_in_provider",
+        "keep_local_draft",
+        "revoke_intent",
+        "view_only",
+        "render_cached_with_stale_label"
+      ],
+      "description": "Frozen next-safe-action vocabulary surfaces and queue reviews render verbatim. view_only and render_cached_with_stale_label cover the cached-read and inspect-only cases where the safe action is to render existing local truth without minting an intent."
+    },
+    "proposed_queue_admission_class": {
+      "type": "string",
+      "enum": [
+        "runs_locally_no_outbox",
+        "serves_from_cache_with_label",
+        "queueable_idempotent_only",
+        "queueable_via_publish_later",
+        "queueable_background_only",
+        "requires_live_connectivity",
+        "never_queueable"
+      ],
+      "description": "Full queueability vocabulary the surface proposed before the decision was made; includes the classes a deferred_intent_record cannot legally carry."
+    },
+    "queueability_decision_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_intent_schema_version",
+        "decision_id",
+        "command_id",
+        "command_kind",
+        "action_class",
+        "service_family",
+        "proposed_queue_admission_class",
+        "decision_outcome_class",
+        "connectivity_state_ref",
+        "next_safe_action_class",
+        "rationale_summary",
+        "decided_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "queueability_decision_record" },
+        "deferred_intent_schema_version": {
+          "$ref": "#/$defs/deferred_intent_schema_version"
+        },
+        "decision_id": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_kind": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "service_family": { "$ref": "#/$defs/service_family_class" },
+        "proposed_queue_admission_class": {
+          "$ref": "#/$defs/proposed_queue_admission_class"
+        },
+        "decision_outcome_class": { "$ref": "#/$defs/decision_outcome_class" },
+        "connectivity_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "next_safe_action_class": { "$ref": "#/$defs/next_safe_action_class" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "decided_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "minted_intent_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the deferred_intent_record that was minted, if any. Null when the decision was a refusal."
+        }
+      },
+      "allOf": [
+        {
+          "description": "An admitted_to_outbox decision MUST point at the minted intent.",
+          "if": {
+            "properties": {
+              "decision_outcome_class": {
+                "enum": [
+                  "admitted_to_outbox",
+                  "admitted_to_publish_later",
+                  "admitted_to_background_lane"
+                ]
+              }
+            },
+            "required": ["decision_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "minted_intent_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["minted_intent_ref"]
+          }
+        },
+        {
+          "description": "A never_queueable action_class MUST resolve to refused_never_queueable.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "provider_publish_irreversible_release",
+                  "provider_destructive_delete_or_force",
+                  "collaboration_role_grant",
+                  "collaboration_role_revoke"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "decision_outcome_class": { "const": "refused_never_queueable" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
