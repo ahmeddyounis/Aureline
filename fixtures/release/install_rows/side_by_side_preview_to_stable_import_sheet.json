@@ -1,0 +1,126 @@
+{
+  "$schema": "../../../schemas/release/install_row.schema.json",
+  "schema_version": 1,
+  "record_kind": "side_by_side_import_sheet_record",
+  "import_sheet_id": "import_sheet:preview_to_stable_first_run",
+  "source_install_ref": "card.windows.x86_64.side_by_side_preview.preview",
+  "target_install_ref": "card.windows.x86_64.per_user_installed.stable",
+  "source_channel_class": "preview",
+  "target_channel_class": "stable",
+  "import_reason_class": "first_run_migration",
+  "compare_semantics": {
+    "comparison_scope": ["profile", "settings", "keybindings", "recent_work", "extensions", "layout"],
+    "diff_materialization_ref": "diff:preview_to_stable_first_run",
+    "collision_scan_ref": "collision_scan:preview_to_stable_first_run",
+    "can_compare_before_apply": true
+  },
+  "domain_rows": [
+    {
+      "domain": "profile",
+      "action": "import_selected",
+      "source_state_root_ref": "state.per_user_configuration_root.preview",
+      "target_state_root_ref": "state.per_user_configuration_root.stable",
+      "collision_risk_class": "disclosed_shared_state",
+      "expected_outcome": "Selected profile values are copied into the stable configuration root; preview remains unchanged."
+    },
+    {
+      "domain": "recent_work",
+      "action": "keep_separate",
+      "source_state_root_ref": "recent_items_preview",
+      "target_state_root_ref": "recent_items_stable",
+      "collision_risk_class": "none",
+      "expected_outcome": "Recent-work lists remain channel separated."
+    },
+    {
+      "domain": "credentials_metadata",
+      "action": "manual_review",
+      "source_state_root_ref": "state.per_user_keychain_or_secret_store.preview",
+      "target_state_root_ref": "state.per_user_keychain_or_secret_store.stable",
+      "collision_risk_class": "disclosed_shared_state",
+      "expected_outcome": "Credential handles are not copied automatically; the sheet opens a repair or sign-in path."
+    },
+    {
+      "domain": "extensions",
+      "action": "skip",
+      "source_state_root_ref": "state.per_user_configuration_root.preview",
+      "target_state_root_ref": "state.per_user_configuration_root.stable",
+      "collision_risk_class": "none",
+      "expected_outcome": "Stable extension selection remains unchanged."
+    }
+  ],
+  "skip_semantics": {
+    "skip_preserves_source": true,
+    "skip_writes_target": false,
+    "skip_summary": "Skipping a domain reads no preview state into stable and leaves the source install untouched."
+  },
+  "checkpoint": {
+    "availability_state": "required_created",
+    "checkpoint_ref": "checkpoint:stable_profile_before_preview_import",
+    "created_before_apply": true,
+    "rollback_expectation_class": "exact_checkpoint_restore",
+    "rollback_summary": "Stable profile state can be restored to the pre-import checkpoint; preview state is not mutated."
+  },
+  "shared_state_collision_disclosures": [
+    {
+      "collision_class": "state_root_collision",
+      "source_ref": "state.per_user_configuration_root.preview",
+      "target_ref": "state.per_user_configuration_root.stable",
+      "disclosure_required": true,
+      "resolution_required": "import_as_copy",
+      "notes": "The roots are separate; selected domains copy values rather than sharing live state."
+    },
+    {
+      "collision_class": "file_association_collision",
+      "source_ref": "aureline-preview-handler",
+      "target_ref": "aureline-stable-handler",
+      "disclosure_required": true,
+      "resolution_required": "user_or_admin_selects_owner",
+      "notes": "Default file handling remains user or admin selected and never last-writer-wins."
+    },
+    {
+      "collision_class": "hidden_shared_state_assumption",
+      "source_ref": "preview_import_source",
+      "target_ref": "stable_import_target",
+      "disclosure_required": true,
+      "resolution_required": "keep_separate",
+      "notes": "The import sheet states that preview and stable update markers, recent items, and recovery roots stay separate."
+    }
+  ],
+  "surface_projection": [
+    {
+      "surface": "import_sheet",
+      "required_field_refs": [
+        "channel_class",
+        "durable_state_roots",
+        "side_by_side_relation_class",
+        "rollback_target_class",
+        "diagnostics_export_actions",
+        "file_association_ownership"
+      ],
+      "wording_source_ref": "docs/release/install_profile_card_contract.md#side-by-side-import-sheets",
+      "exportable": true
+    },
+    {
+      "surface": "rollback_panel",
+      "required_field_refs": [
+        "channel_class",
+        "rollback_target_class",
+        "durable_state_roots"
+      ],
+      "wording_source_ref": "docs/release/install_profile_card_contract.md#side-by-side-import-sheets",
+      "exportable": true
+    }
+  ],
+  "human_readable_summary_requirement": {
+    "copyable_install_id": true,
+    "timestamps": true,
+    "state_root_information": true,
+    "human_summary": true
+  },
+  "support_refs": [
+    "docs/release/install_profile_card_contract.md#side-by-side-import-sheets",
+    "artifacts/release/state_root_map.yaml#per_channel_separation_rules",
+    "fixtures/release/channel_cases/compatible_side_by_side_stable_preview.json"
+  ],
+  "notes": "Side-by-side import fixture makes compare, skip, checkpoint, rollback, handler ownership, and hidden shared-state assumptions explicit."
+}

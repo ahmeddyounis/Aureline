@@ -9,6 +9,14 @@ lane once code lands.
 
 Companion artifacts:
 
+- [`/docs/release/install_profile_card_contract.md`](./install_profile_card_contract.md),
+  [`/schemas/release/install_row.schema.json`](../../schemas/release/install_row.schema.json),
+  and
+  [`/fixtures/release/rollout_ring_rows/`](../../fixtures/release/rollout_ring_rows)
+  — public row contract, boundary schema, and worked fixtures for the
+  install-profile card, side-by-side import sheet, and rollout-row
+  projections that About, update, diagnostics, installer, and fleet
+  surfaces consume.
 - [`/artifacts/release/install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml)
   — machine-readable matrix binding one `install_profile_card_record`
   per `(install_mode_class, channel_class, platform_class,

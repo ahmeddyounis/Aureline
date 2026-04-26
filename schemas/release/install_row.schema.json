@@ -1,0 +1,874 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/install_row.schema.json",
+  "title": "Aureline install-profile card, side-by-side import sheet, and rollout row contract",
+  "description": "Boundary schema for install_profile_card_record, side_by_side_import_sheet_record, and rollout_ring_row_record. The records keep install mode, channel, updater ownership, state-root boundaries, portable-mode restrictions, side-by-side import decisions, and rollout evidence aligned across launcher, About, update, import, rollback, diagnostics, installer, and fleet surfaces. See docs/release/install_profile_card_contract.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/install_profile_card_record" },
+    { "$ref": "#/$defs/side_by_side_import_sheet_record" },
+    { "$ref": "#/$defs/rollout_ring_row_record" }
+  ],
+  "$defs": {
+    "install_row_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "owner_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "platform_class": {
+      "type": "string",
+      "enum": ["windows", "macos", "linux", "air_gap_bundle_target"]
+    },
+    "architecture_class": {
+      "type": "string",
+      "enum": ["x86_64", "aarch64", "universal_binary", "platform_native_any"]
+    },
+    "install_mode_class": {
+      "type": "string",
+      "enum": [
+        "per_user_installed",
+        "per_machine_installed",
+        "portable",
+        "offline_bundle",
+        "managed_deployed",
+        "side_by_side_preview"
+      ]
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix",
+        "portable_stable",
+        "portable_preview"
+      ]
+    },
+    "updater_owner_class": {
+      "type": "string",
+      "enum": ["user", "admin", "external_package_manager", "managed_fleet", "none"]
+    },
+    "binary_root_class": {
+      "type": "string",
+      "enum": [
+        "per_user_profile_program_area",
+        "per_machine_program_area",
+        "portable_directory",
+        "offline_bundle_extracted_program_area",
+        "admin_pinned_program_area",
+        "external_package_manager_owned_area"
+      ]
+    },
+    "durable_state_root_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_workspace_files_outside_install_tree",
+        "per_user_configuration_root",
+        "per_user_recovery_root",
+        "per_user_derived_cache_root",
+        "per_user_keychain_or_secret_store",
+        "per_machine_admin_policy_root",
+        "per_machine_shared_data_root",
+        "portable_colocated_root",
+        "offline_bundle_mirror_metadata_root",
+        "shared_platform_os_root_read_only"
+      ]
+    },
+    "state_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache",
+        "platform_shared_read_only"
+      ]
+    },
+    "diagnostics_visibility_class": {
+      "type": "string",
+      "enum": [
+        "exposed_in_about",
+        "exposed_in_support_bundle",
+        "exposed_in_admin_console_only",
+        "not_exposed"
+      ]
+    },
+    "side_by_side_relation_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "stable_and_preview",
+        "stable_and_beta",
+        "stable_and_lts",
+        "preview_and_beta",
+        "installed_and_portable",
+        "three_channel_matrix",
+        "managed_and_portable"
+      ]
+    },
+    "rollback_target_class": {
+      "type": "string",
+      "enum": [
+        "previous_build_same_channel",
+        "last_broad_cut_same_channel",
+        "channel_lts_floor",
+        "admin_pinned_target",
+        "out_of_ring",
+        "unsupported"
+      ]
+    },
+    "diagnostics_export_class": {
+      "type": "string",
+      "enum": [
+        "install_topology_record_available",
+        "exact_build_manifest_available",
+        "state_root_audit_available",
+        "artifact_graph_pack_available",
+        "support_bundle_available",
+        "rollback_evidence_available"
+      ]
+    },
+    "file_association_registration_class": {
+      "type": "string",
+      "enum": [
+        "user_or_admin_selectable_candidate_handler",
+        "admin_only_default_handler",
+        "not_registered"
+      ]
+    },
+    "protocol_handler_ownership_class": {
+      "type": "string",
+      "enum": [
+        "per_channel_suffixed_scheme",
+        "shared_scheme_with_user_or_admin_default",
+        "not_registered"
+      ]
+    },
+    "portable_integration_posture": {
+      "type": "string",
+      "enum": ["suppressed", "labeled_user_opt_in", "not_applicable"]
+    },
+    "install_surface": {
+      "type": "string",
+      "enum": [
+        "launcher",
+        "about",
+        "update_center",
+        "diagnostics_center",
+        "import_sheet",
+        "rollback_panel",
+        "fleet_console",
+        "installer_summary",
+        "silent_deployment_summary",
+        "support_bundle"
+      ]
+    },
+    "required_install_field": {
+      "type": "string",
+      "enum": [
+        "platform_class",
+        "architecture_class",
+        "install_mode_class",
+        "channel_class",
+        "updater_owner_class",
+        "binary_root_class",
+        "durable_state_roots",
+        "side_by_side_relation_class",
+        "rollback_target_class",
+        "uninstall_or_disable_path",
+        "diagnostics_export_actions",
+        "file_association_ownership",
+        "protocol_handler_ownership",
+        "portable_mode_restrictions",
+        "rollout_lane",
+        "owner",
+        "promotion_state"
+      ]
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "required_field_refs",
+        "wording_source_ref",
+        "exportable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/install_surface" },
+        "required_field_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/required_install_field" },
+          "uniqueItems": true
+        },
+        "wording_source_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable ref to the field or row that owns rendered wording for this surface."
+        },
+        "exportable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "durable_state_root_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_root_ref",
+        "durable_state_root_class",
+        "authority_class",
+        "owning_channel_classes",
+        "diagnostics_visibility_class",
+        "shared_across_channels",
+        "collision_policy"
+      ],
+      "properties": {
+        "state_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "durable_state_root_class": { "$ref": "#/$defs/durable_state_root_class" },
+        "authority_class": { "$ref": "#/$defs/state_authority_class" },
+        "owning_channel_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/channel_class" },
+          "uniqueItems": true
+        },
+        "diagnostics_visibility_class": { "$ref": "#/$defs/diagnostics_visibility_class" },
+        "shared_across_channels": { "type": "boolean" },
+        "shared_reason": { "$ref": "#/$defs/nullable_string" },
+        "collision_policy": {
+          "type": "string",
+          "enum": [
+            "no_shared_durable_state_across_channels",
+            "shared_across_channels_read_only_platform_resource"
+          ]
+        },
+        "path_class_placeholder": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "uninstall_or_disable_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_class", "owner_class", "action_ref", "human_readable_summary_required"],
+      "properties": {
+        "path_class": {
+          "type": "string",
+          "enum": [
+            "user_uninstall",
+            "admin_uninstall",
+            "managed_deprovision",
+            "external_package_manager_remove",
+            "portable_directory_removal",
+            "disable_only"
+          ]
+        },
+        "owner_class": { "$ref": "#/$defs/updater_owner_class" },
+        "action_ref": { "$ref": "#/$defs/non_empty_string" },
+        "human_readable_summary_required": { "type": "boolean" }
+      }
+    },
+    "diagnostics_export_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "action_ref", "available_in_surfaces"],
+      "properties": {
+        "action_class": {
+          "type": "string",
+          "enum": [
+            "open_diagnostics",
+            "export_support_bundle",
+            "copy_install_summary",
+            "open_state_root_audit",
+            "open_rollback_evidence"
+          ]
+        },
+        "action_ref": { "$ref": "#/$defs/non_empty_string" },
+        "available_in_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/install_surface" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "file_association_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registration_class",
+        "default_handler_selection_rule",
+        "owner_channel_class",
+        "collision_disclosure"
+      ],
+      "properties": {
+        "registration_class": { "$ref": "#/$defs/file_association_registration_class" },
+        "default_handler_selection_rule": {
+          "type": "string",
+          "enum": ["user_or_admin_selectable_never_last_writer_wins", "admin_only", "not_applicable"]
+        },
+        "owner_channel_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/channel_class" },
+            { "type": "null" }
+          ]
+        },
+        "collision_disclosure": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "protocol_handler_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ownership_class",
+        "scheme_placeholder",
+        "shared_scheme_resolution_rule"
+      ],
+      "properties": {
+        "ownership_class": { "$ref": "#/$defs/protocol_handler_ownership_class" },
+        "scheme_placeholder": { "$ref": "#/$defs/non_empty_string" },
+        "shared_scheme_resolution_rule": {
+          "type": "string",
+          "enum": ["user_or_admin_selected_default", "not_applicable"]
+        }
+      }
+    },
+    "portable_mode_restrictions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "durable_roots_colocated",
+        "file_associations",
+        "protocol_handlers",
+        "services",
+        "shell_hooks",
+        "credential_store_state",
+        "state_root_collision_disclosure"
+      ],
+      "properties": {
+        "active": { "type": "boolean" },
+        "durable_roots_colocated": { "type": "boolean" },
+        "file_associations": { "$ref": "#/$defs/portable_integration_posture" },
+        "protocol_handlers": { "$ref": "#/$defs/portable_integration_posture" },
+        "services": { "$ref": "#/$defs/portable_integration_posture" },
+        "shell_hooks": { "$ref": "#/$defs/portable_integration_posture" },
+        "credential_store_state": { "$ref": "#/$defs/portable_integration_posture" },
+        "state_root_collision_disclosure": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "human_readable_summary_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "copyable_install_id",
+        "timestamps",
+        "state_root_information",
+        "human_summary"
+      ],
+      "properties": {
+        "copyable_install_id": { "type": "boolean" },
+        "timestamps": { "type": "boolean" },
+        "state_root_information": { "type": "boolean" },
+        "human_summary": { "type": "boolean" }
+      }
+    },
+    "install_profile_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "install_profile_card_id",
+        "install_id_ref",
+        "display_label",
+        "platform_class",
+        "architecture_class",
+        "install_mode_class",
+        "channel_class",
+        "updater_owner_class",
+        "binary_root_class",
+        "binary_root_ref",
+        "durable_state_roots",
+        "side_by_side_relation_class",
+        "rollback_target_class",
+        "uninstall_or_disable_path",
+        "diagnostics_export_actions",
+        "file_association_ownership",
+        "protocol_handler_ownership",
+        "portable_mode",
+        "surface_projection",
+        "human_readable_summary_requirement",
+        "source_refs",
+        "notes"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "schema_version": { "$ref": "#/$defs/install_row_schema_version" },
+        "record_kind": { "type": "string", "const": "install_profile_card_record" },
+        "install_profile_card_id": {
+          "type": "string",
+          "pattern": "^card\\.[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "install_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "platform_class": { "$ref": "#/$defs/platform_class" },
+        "architecture_class": { "$ref": "#/$defs/architecture_class" },
+        "install_mode_class": { "$ref": "#/$defs/install_mode_class" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "updater_owner_class": { "$ref": "#/$defs/updater_owner_class" },
+        "binary_root_class": { "$ref": "#/$defs/binary_root_class" },
+        "binary_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "durable_state_roots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/durable_state_root_row" }
+        },
+        "side_by_side_relation_class": { "$ref": "#/$defs/side_by_side_relation_class" },
+        "rollback_target_class": { "$ref": "#/$defs/rollback_target_class" },
+        "rollback_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "uninstall_or_disable_path": { "$ref": "#/$defs/uninstall_or_disable_path" },
+        "diagnostics_export_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/diagnostics_export_action" }
+        },
+        "file_association_ownership": { "$ref": "#/$defs/file_association_ownership" },
+        "protocol_handler_ownership": { "$ref": "#/$defs/protocol_handler_ownership" },
+        "portable_mode": { "$ref": "#/$defs/portable_mode_restrictions" },
+        "surface_projection": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "human_readable_summary_requirement": {
+          "$ref": "#/$defs/human_readable_summary_requirement"
+        },
+        "source_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "install_mode_class": { "const": "portable" } },
+            "required": ["install_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "portable_mode": {
+                "properties": {
+                  "active": { "const": true },
+                  "durable_roots_colocated": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "import_domain": {
+      "type": "string",
+      "enum": [
+        "profile",
+        "settings",
+        "keybindings",
+        "snippets",
+        "recent_work",
+        "extensions",
+        "layout",
+        "tasks_and_launch_configs",
+        "credentials_metadata",
+        "docs_and_tours",
+        "workspace_metadata"
+      ]
+    },
+    "import_domain_action": {
+      "type": "string",
+      "enum": ["import_selected", "keep_separate", "skip", "manual_review", "block"]
+    },
+    "collision_risk_class": {
+      "type": "string",
+      "enum": ["none", "disclosed_shared_state", "disclosed_collision", "blocked_collision"]
+    },
+    "import_domain_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "action",
+        "source_state_root_ref",
+        "target_state_root_ref",
+        "collision_risk_class",
+        "expected_outcome"
+      ],
+      "properties": {
+        "domain": { "$ref": "#/$defs/import_domain" },
+        "action": { "$ref": "#/$defs/import_domain_action" },
+        "source_state_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_state_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "collision_risk_class": { "$ref": "#/$defs/collision_risk_class" },
+        "expected_outcome": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "collision_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "collision_class",
+        "source_ref",
+        "target_ref",
+        "disclosure_required",
+        "resolution_required"
+      ],
+      "properties": {
+        "collision_class": {
+          "type": "string",
+          "enum": [
+            "state_root_collision",
+            "file_association_collision",
+            "protocol_handler_collision",
+            "recent_items_collision",
+            "keychain_or_secret_store_overlap",
+            "update_marker_collision",
+            "hidden_shared_state_assumption"
+          ]
+        },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "disclosure_required": { "type": "boolean" },
+        "resolution_required": {
+          "type": "string",
+          "enum": [
+            "block",
+            "import_as_copy",
+            "keep_separate",
+            "user_or_admin_selects_owner",
+            "not_applicable"
+          ]
+        },
+        "notes": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "checkpoint_expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "availability_state",
+        "checkpoint_ref",
+        "created_before_apply",
+        "rollback_expectation_class",
+        "rollback_summary"
+      ],
+      "properties": {
+        "availability_state": {
+          "type": "string",
+          "enum": ["required_created", "required_pending", "not_applicable_blocked"]
+        },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_string" },
+        "created_before_apply": { "type": "boolean" },
+        "rollback_expectation_class": {
+          "type": "string",
+          "enum": [
+            "exact_checkpoint_restore",
+            "compensating_restore",
+            "unsupported_blocked",
+            "portable_delete_restore"
+          ]
+        },
+        "rollback_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "side_by_side_import_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "import_sheet_id",
+        "source_install_ref",
+        "target_install_ref",
+        "source_channel_class",
+        "target_channel_class",
+        "import_reason_class",
+        "compare_semantics",
+        "domain_rows",
+        "skip_semantics",
+        "checkpoint",
+        "shared_state_collision_disclosures",
+        "surface_projection",
+        "human_readable_summary_requirement",
+        "support_refs",
+        "notes"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "schema_version": { "$ref": "#/$defs/install_row_schema_version" },
+        "record_kind": { "type": "string", "const": "side_by_side_import_sheet_record" },
+        "import_sheet_id": {
+          "type": "string",
+          "pattern": "^import_sheet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "source_install_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_install_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_channel_class": { "$ref": "#/$defs/channel_class" },
+        "target_channel_class": { "$ref": "#/$defs/channel_class" },
+        "import_reason_class": {
+          "type": "string",
+          "enum": [
+            "first_run_migration",
+            "channel_switch",
+            "side_by_side_copy",
+            "rollback_recovery"
+          ]
+        },
+        "compare_semantics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "comparison_scope",
+            "diff_materialization_ref",
+            "collision_scan_ref",
+            "can_compare_before_apply"
+          ],
+          "properties": {
+            "comparison_scope": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/import_domain" },
+              "uniqueItems": true
+            },
+            "diff_materialization_ref": { "$ref": "#/$defs/non_empty_string" },
+            "collision_scan_ref": { "$ref": "#/$defs/non_empty_string" },
+            "can_compare_before_apply": { "type": "boolean" }
+          }
+        },
+        "domain_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/import_domain_row" }
+        },
+        "skip_semantics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skip_preserves_source", "skip_writes_target", "skip_summary"],
+          "properties": {
+            "skip_preserves_source": { "type": "boolean" },
+            "skip_writes_target": { "type": "boolean" },
+            "skip_summary": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "checkpoint": { "$ref": "#/$defs/checkpoint_expectation" },
+        "shared_state_collision_disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/collision_disclosure" }
+        },
+        "surface_projection": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "human_readable_summary_requirement": {
+          "$ref": "#/$defs/human_readable_summary_requirement"
+        },
+        "support_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rollout_lane_class": {
+      "type": "string",
+      "enum": ["canary", "pilot", "broad", "stable", "preview", "beta", "lts"]
+    },
+    "lane_scope_class": {
+      "type": "string",
+      "enum": [
+        "deployment_exposure",
+        "release_channel_population",
+        "long_term_support_population"
+      ]
+    },
+    "promotion_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "candidate_build_ref",
+        "current_ring_ref",
+        "promotion_decision_ref",
+        "promoted_from_lane_refs",
+        "promoted_to_lane_refs",
+        "required_evidence_refs",
+        "preserved_evidence_refs",
+        "updated_at"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "seeded",
+            "not_started",
+            "candidate_ready",
+            "in_progress",
+            "paused",
+            "promoted",
+            "held",
+            "blocked",
+            "rolled_back"
+          ]
+        },
+        "candidate_build_ref": { "$ref": "#/$defs/non_empty_string" },
+        "current_ring_ref": { "$ref": "#/$defs/non_empty_string" },
+        "promotion_decision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "promoted_from_lane_refs": { "$ref": "#/$defs/ref_array" },
+        "promoted_to_lane_refs": { "$ref": "#/$defs/ref_array" },
+        "required_evidence_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "preserved_evidence_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "rollback_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "rollback_target_class",
+        "rollback_target_ref",
+        "rollback_stop_condition_refs",
+        "last_rollback_ref",
+        "preserved_evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "seeded",
+            "not_applicable",
+            "rollback_ready",
+            "rollback_required",
+            "rollback_in_progress",
+            "rolled_back",
+            "blocked"
+          ]
+        },
+        "rollback_target_class": { "$ref": "#/$defs/rollback_target_class" },
+        "rollback_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_stop_condition_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "last_rollback_ref": { "$ref": "#/$defs/nullable_string" },
+        "preserved_evidence_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["link_ref", "evidence_type", "freshness_state", "preserved"],
+      "properties": {
+        "link_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_type": {
+          "type": "string",
+          "enum": [
+            "release_evidence_packet",
+            "ring_history_packet",
+            "install_topology_card",
+            "state_root_map_row",
+            "support_bundle",
+            "deployment_drill",
+            "silent_deployment_summary",
+            "compatibility_row",
+            "rollout_decision"
+          ]
+        },
+        "freshness_state": {
+          "type": "string",
+          "enum": ["current", "reserved", "stale", "seeded"]
+        },
+        "preserved": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "rollout_ring_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "rollout_lane_id",
+        "display_name",
+        "lane_class",
+        "lane_scope_class",
+        "admitted_channel_classes",
+        "owner",
+        "promotion_state",
+        "rollback_state",
+        "preserved_evidence_links",
+        "install_profile_card_refs",
+        "surface_projection",
+        "human_readable_summary_requirement",
+        "notes"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "schema_version": { "$ref": "#/$defs/install_row_schema_version" },
+        "record_kind": { "type": "string", "const": "rollout_ring_row_record" },
+        "rollout_lane_id": {
+          "type": "string",
+          "pattern": "^rollout_lane:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "lane_class": { "$ref": "#/$defs/rollout_lane_class" },
+        "lane_scope_class": { "$ref": "#/$defs/lane_scope_class" },
+        "admitted_channel_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/channel_class" },
+          "uniqueItems": true
+        },
+        "owner": { "$ref": "#/$defs/owner_ref" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "rollback_state": { "$ref": "#/$defs/rollback_state" },
+        "preserved_evidence_links": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_link" }
+        },
+        "install_profile_card_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "surface_projection": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "human_readable_summary_requirement": {
+          "$ref": "#/$defs/human_readable_summary_requirement"
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
