@@ -1,0 +1,435 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/component_state_machine.schema.json",
+  "title": "Aureline shared component state machine",
+  "description": "Boundary schema for reusable component state-machine packets that consume docs/design/component_state_taxonomy.md. The schema keeps locked, degraded, pending, read-only, disabled, selected, and current states distinct, and gives component contracts typed evidence hooks for screenshots, keyboard journeys, assistive-technology checks, token drift, docs-link verification, extension parity, and state-machine validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "component_state_machine_schema_version",
+    "record_kind",
+    "component_id",
+    "component_surface_class",
+    "taxonomy_ref",
+    "default_state_ref",
+    "state_nodes",
+    "transitions",
+    "state_distinction_assertions",
+    "evidence_hooks"
+  ],
+  "properties": {
+    "component_state_machine_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for shared component state-machine records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "component_state_machine_record"
+    },
+    "component_id": {
+      "$ref": "#/$defs/stable_id",
+      "description": "Stable component id matching the owning component contract when one exists."
+    },
+    "component_surface_class": {
+      "$ref": "#/$defs/component_surface_class"
+    },
+    "taxonomy_ref": {
+      "$ref": "#/$defs/ref",
+      "description": "Canonical taxonomy doc ref. Expected value is docs/design/component_state_taxonomy.md."
+    },
+    "default_state_ref": {
+      "$ref": "#/$defs/state_ref"
+    },
+    "state_nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/state_node_record" }
+    },
+    "transitions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transition_record" }
+    },
+    "state_distinction_assertions": {
+      "$ref": "#/$defs/state_distinction_assertions"
+    },
+    "evidence_hooks": {
+      "$ref": "#/$defs/evidence_hooks_block"
+    }
+  },
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$",
+      "description": "Stable dot-delimited identifier."
+    },
+    "state_ref": {
+      "$ref": "#/$defs/stable_id"
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable ref, repo-relative path, or anchor ref."
+    },
+    "nonempty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nonempty_ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ref" },
+      "uniqueItems": true
+    },
+    "component_surface_class": {
+      "type": "string",
+      "enum": [
+        "badge_or_pill",
+        "banner",
+        "status_item",
+        "dialog_action",
+        "settings_row",
+        "button",
+        "text_input",
+        "tree_row",
+        "list_or_result_row",
+        "tab_or_editor_tab",
+        "other"
+      ],
+      "description": "Reusable component class. The five launch-critical mapping classes are badge_or_pill, banner, status_item, dialog_action, and settings_row."
+    },
+    "component_taxonomy_state_class": {
+      "type": "string",
+      "enum": [
+        "default",
+        "hover",
+        "focus_visible",
+        "pressed_active",
+        "selected",
+        "current",
+        "disabled",
+        "read_only",
+        "loading",
+        "pending",
+        "warning_error",
+        "locked",
+        "degraded"
+      ],
+      "description": "Closed shared component-state taxonomy. Component-local lifecycle labels may exist only when each state node maps back to one or more values from this enum."
+    },
+    "non_color_cue_class": {
+      "type": "string",
+      "enum": [
+        "label_text",
+        "icon",
+        "border",
+        "shape",
+        "position",
+        "progress_indicator",
+        "lock_or_shield_glyph",
+        "check_or_selection_marker"
+      ],
+      "description": "Non-color cue preserving state meaning across themes, high contrast, and forced-colors modes."
+    },
+    "state_node_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_ref",
+        "display_label",
+        "taxonomy_state_refs",
+        "user_visible_summary",
+        "blocks_primary_action",
+        "inspectable_content_available",
+        "requires_persistent_disclosure",
+        "source_or_lock_explanation",
+        "lock_source_ref",
+        "read_only_scope_ref",
+        "pending_user_action_ref",
+        "loading_work_ref",
+        "current_context_ref",
+        "degraded_capability_ref",
+        "semantic_token_refs",
+        "non_color_cues",
+        "screen_reader_state_label"
+      ],
+      "properties": {
+        "state_ref": { "$ref": "#/$defs/state_ref" },
+        "display_label": { "$ref": "#/$defs/nonempty_string" },
+        "taxonomy_state_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/component_taxonomy_state_class" },
+          "uniqueItems": true
+        },
+        "user_visible_summary": {
+          "$ref": "#/$defs/nonempty_string",
+          "description": "What the user should understand when the component enters this state."
+        },
+        "blocks_primary_action": {
+          "type": "boolean",
+          "description": "Whether the component's primary action is unavailable in this state."
+        },
+        "inspectable_content_available": {
+          "type": "boolean",
+          "description": "Whether the user can still inspect, copy, navigate, or export meaningful content in this state."
+        },
+        "requires_persistent_disclosure": {
+          "type": "boolean",
+          "description": "Whether the state must remain visible without hover or tooltip-only disclosure."
+        },
+        "source_or_lock_explanation": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/nonempty_string" }],
+          "description": "Plain-language source, policy, trust, owner, or capability explanation when the state requires one."
+        },
+        "lock_source_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }],
+          "description": "Policy, trust, permission, ownership, source, or capability ref for locked states."
+        },
+        "read_only_scope_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }],
+          "description": "Scope ref naming what remains inspectable for read_only states."
+        },
+        "pending_user_action_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }],
+          "description": "Submitted, staged, queued, or awaiting-commit action for pending states."
+        },
+        "loading_work_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }],
+          "description": "Fetch, warm-up, preparation, or background work ref for loading states."
+        },
+        "current_context_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }],
+          "description": "Route, detail owner, live context, or current item ref for current states."
+        },
+        "degraded_capability_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }],
+          "description": "Reduced capability, freshness, certainty, or subsystem-quality ref for degraded states."
+        },
+        "semantic_token_refs": {
+          "$ref": "#/$defs/nonempty_ref_array"
+        },
+        "non_color_cues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_color_cue_class" },
+          "uniqueItems": true
+        },
+        "screen_reader_state_label": {
+          "$ref": "#/$defs/nonempty_string",
+          "description": "Stable label or message fragment exposed to assistive technology."
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "properties": {
+              "taxonomy_state_refs": {
+                "allOf": [
+                  { "contains": { "const": "disabled" } },
+                  { "contains": { "const": "locked" } }
+                ]
+              }
+            },
+            "required": ["taxonomy_state_refs"]
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "taxonomy_state_refs": {
+                "allOf": [
+                  { "contains": { "const": "disabled" } },
+                  { "contains": { "const": "read_only" } }
+                ]
+              }
+            },
+            "required": ["taxonomy_state_refs"]
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "taxonomy_state_refs": {
+                "allOf": [
+                  { "contains": { "const": "pending" } },
+                  { "contains": { "const": "loading" } }
+                ]
+              }
+            },
+            "required": ["taxonomy_state_refs"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy_state_refs": { "contains": { "const": "locked" } }
+            },
+            "required": ["taxonomy_state_refs"]
+          },
+          "then": {
+            "properties": {
+              "lock_source_ref": { "not": { "type": "null" } },
+              "source_or_lock_explanation": { "not": { "type": "null" } },
+              "requires_persistent_disclosure": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy_state_refs": { "contains": { "const": "read_only" } }
+            },
+            "required": ["taxonomy_state_refs"]
+          },
+          "then": {
+            "properties": {
+              "read_only_scope_ref": { "not": { "type": "null" } },
+              "inspectable_content_available": { "const": true },
+              "requires_persistent_disclosure": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy_state_refs": { "contains": { "const": "pending" } }
+            },
+            "required": ["taxonomy_state_refs"]
+          },
+          "then": {
+            "properties": {
+              "pending_user_action_ref": { "not": { "type": "null" } },
+              "requires_persistent_disclosure": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy_state_refs": { "contains": { "const": "loading" } }
+            },
+            "required": ["taxonomy_state_refs"]
+          },
+          "then": {
+            "properties": {
+              "loading_work_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy_state_refs": { "contains": { "const": "current" } }
+            },
+            "required": ["taxonomy_state_refs"]
+          },
+          "then": {
+            "properties": {
+              "current_context_ref": { "not": { "type": "null" } },
+              "requires_persistent_disclosure": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy_state_refs": { "contains": { "const": "degraded" } }
+            },
+            "required": ["taxonomy_state_refs"]
+          },
+          "then": {
+            "properties": {
+              "degraded_capability_ref": { "not": { "type": "null" } },
+              "requires_persistent_disclosure": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy_state_refs": { "contains": { "const": "disabled" } }
+            },
+            "required": ["taxonomy_state_refs"]
+          },
+          "then": {
+            "properties": {
+              "lock_source_ref": { "type": "null" },
+              "read_only_scope_ref": { "type": "null" },
+              "pending_user_action_ref": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from_state_ref",
+        "event_ref",
+        "to_state_ref",
+        "user_visible_effect",
+        "announcement_ref",
+        "recovery_action_ref"
+      ],
+      "properties": {
+        "from_state_ref": { "$ref": "#/$defs/state_ref" },
+        "event_ref": { "$ref": "#/$defs/nonempty_string" },
+        "to_state_ref": { "$ref": "#/$defs/state_ref" },
+        "user_visible_effect": { "$ref": "#/$defs/nonempty_string" },
+        "announcement_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }]
+        },
+        "recovery_action_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref" }]
+        }
+      }
+    },
+    "state_distinction_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locked_vs_disabled_distinct",
+        "read_only_vs_disabled_distinct",
+        "pending_vs_loading_distinct",
+        "selected_vs_current_distinct",
+        "degraded_preserves_capability_explanation"
+      ],
+      "properties": {
+        "locked_vs_disabled_distinct": { "type": "boolean", "const": true },
+        "read_only_vs_disabled_distinct": { "type": "boolean", "const": true },
+        "pending_vs_loading_distinct": { "type": "boolean", "const": true },
+        "selected_vs_current_distinct": { "type": "boolean", "const": true },
+        "degraded_preserves_capability_explanation": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "description": "Explicit assertions reviewers and validators read before accepting a component state machine."
+    },
+    "evidence_hooks_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screenshot_baseline_refs",
+        "keyboard_journey_refs",
+        "assistive_technology_refs",
+        "token_drift_check_refs",
+        "docs_link_verification_refs",
+        "extension_parity_fixture_refs",
+        "state_machine_validation_refs"
+      ],
+      "properties": {
+        "screenshot_baseline_refs": { "$ref": "#/$defs/nonempty_ref_array" },
+        "keyboard_journey_refs": { "$ref": "#/$defs/nonempty_ref_array" },
+        "assistive_technology_refs": { "$ref": "#/$defs/nonempty_ref_array" },
+        "token_drift_check_refs": { "$ref": "#/$defs/nonempty_ref_array" },
+        "docs_link_verification_refs": { "$ref": "#/$defs/nonempty_ref_array" },
+        "extension_parity_fixture_refs": { "$ref": "#/$defs/nonempty_ref_array" },
+        "state_machine_validation_refs": { "$ref": "#/$defs/nonempty_ref_array" }
+      },
+      "description": "Typed evidence hook refs consumed by design review, QA, docs-link verification, telemetry, and extension parity checks."
+    }
+  }
+}

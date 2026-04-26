@@ -15,6 +15,14 @@ Companion artifacts:
   — canonical token-family, component-state, theme, density, motion,
   icon-treatment, semantic-status, trust-visual, layer, and scrim
   vocabulary.
+- [`/docs/design/component_state_taxonomy.md`](../design/component_state_taxonomy.md),
+  [`/schemas/design/component_state_machine.schema.json`](../../schemas/design/component_state_machine.schema.json),
+  and
+  [`/artifacts/design/component_review_checklist.md`](../../artifacts/design/component_review_checklist.md)
+  — shared component state taxonomy, reusable state-machine schema,
+  and review checklist. Component packets cite this taxonomy so
+  locked, disabled, read-only, pending, loading, selected, current,
+  and degraded states do not drift into local synonyms.
 - [`/artifacts/design/theme_support_rows.yaml`](../../artifacts/design/theme_support_rows.yaml)
   — frozen theme rows and accessibility-posture rows components cite by
   id.
@@ -70,9 +78,20 @@ publishes one packet with:
   aliases are non-conforming.
 - A component contract MUST publish a state machine. Happy-path
   screenshots alone are insufficient.
+- A component contract SHOULD map every state node to
+  `taxonomy_state_refs` from
+  [`component_state_taxonomy.md`](../design/component_state_taxonomy.md).
+  Local labels such as `queued`, `managed`, or `policy_denied` are
+  allowed only when the shared taxonomy refs preserve their
+  user-visible meaning.
 - A component contract MUST keep degraded, stale, restricted, and
   policy-blocked behavior explicit where those states apply; they may
   not collapse into one generic unavailable posture.
+- A component contract MUST keep locked, disabled, read-only, pending,
+  loading, selected, and current behavior explicit where those states
+  apply. Locked source explanations, read-only scope, pending user
+  action, loading work, current context, and degraded capability should
+  be addressable by ref.
 - A component contract MUST name keyboard and assistive-technology proof
   through typed evidence-hook fields rather than a free-form QA note.
 - Theme-package, icon-slot, illustration, and motion-preset assumptions
@@ -176,6 +195,8 @@ Every slot names:
 ### 4. State machine
 
 - `default_state_ref`
+- `state_taxonomy_ref`
+- `state_machine_schema_ref`
 - `state_nodes[]`
 - `transitions[]`
 - `composite_state_rules[]`
@@ -185,6 +206,8 @@ Rules:
 - local state names such as `queued`, `awaiting_input`, or
   `review_required` are allowed, but each state node MUST map back to
   one or more canonical component-state classes;
+- new reusable components should also populate `taxonomy_state_refs`
+  from the shared component state taxonomy;
 - transitions MUST name the triggering event and the user-visible
   effect;
 - composite-state rules MUST say which disclosure slots and non-color
@@ -317,6 +340,8 @@ burying them in a local implementation note.
 - `assistive_technology_refs[]`
 - `token_drift_check_refs[]`
 - `screenshot_baseline_refs[]`
+- `docs_link_verification_refs[]`
+- `extension_parity_fixture_refs[]`
 - `localization_or_pseudoloc_refs[]`
 - `state_machine_validation_refs[]`
 
@@ -324,6 +349,11 @@ Rules:
 
 - keyboard, assistive-technology, token-drift, and screenshot hooks are
   mandatory;
+- docs-link verification hooks are mandatory when the component
+  exposes source, policy, lock, docs, or help explanations;
+- extension parity hooks are mandatory when an extension, embedded
+  surface, companion surface, or handoff path can render or approximate
+  the component;
 - hooks may point at current artifacts, seeded stable ids, or future
   evidence slots, but they MUST be stable refs rather than free-form
   prose;

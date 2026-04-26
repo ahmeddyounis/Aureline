@@ -1,0 +1,821 @@
+{
+  "component_contract_schema_version": 1,
+  "record_kind": "component_contract_record",
+  "component_id": "settings.policy_locked_row",
+  "component_title": "Policy-Locked Settings Row",
+  "summary": "Reusable settings row for editable, read-only, locked, pending, disabled, and degraded setting values. The row keeps the setting label, current value, source, lock explanation, and next safe action visible without collapsing policy state into ordinary disabled styling.",
+  "component_family_class": "settings_row",
+  "stability_label": "seed",
+  "source_anchor_refs": [
+    "docs/design/component_state_taxonomy.md",
+    "artifacts/design/component_review_checklist.md",
+    "docs/ux/component_contract_template.md",
+    ".t2/docs/Aureline_UX_Design_System_Style_Guide.md#15.4-shared-component-state-taxonomy",
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#23.2-component-review-checklist"
+  ],
+  "theme_package_hooks": {
+    "default_theme_support_row_ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+    "supported_theme_classes": [
+      "dark_reference",
+      "light_parity",
+      "high_contrast_dark",
+      "high_contrast_light"
+    ],
+    "hook_records": [
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+        "required": true,
+        "notes": "Reference theme row for settings review."
+      },
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:high_contrast_light",
+        "required": true,
+        "notes": "High-contrast review keeps locked, read-only, pending, and disabled states distinct without hue-only reliance."
+      },
+      {
+        "hook_class": "appearance_session_contract",
+        "ref": ".t2/docs/Aureline_Technical_Design_Document.md#8.55-theme-appearance-contrast-and-token-import-ux",
+        "required": true,
+        "notes": "Settings rows inherit live appearance, density, contrast, and forced-colors changes."
+      }
+    ]
+  },
+  "anatomy": {
+    "slots": [
+      {
+        "slot_id": "row_surface",
+        "role_class": "surface",
+        "required": true,
+        "focusable": true,
+        "localized": false,
+        "description": "Focus-owning settings row container."
+      },
+      {
+        "slot_id": "setting_label",
+        "role_class": "primary_label",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Human-readable setting name."
+      },
+      {
+        "slot_id": "value_summary",
+        "role_class": "secondary_label",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Current effective value or read-only snapshot summary."
+      },
+      {
+        "slot_id": "state_badge",
+        "role_class": "status_badge",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Locked, read-only, pending, degraded, disabled, or invalid state badge."
+      },
+      {
+        "slot_id": "source_explanation",
+        "role_class": "reason_text",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Policy, trust, source, read-only scope, degraded capability, or disabled reason."
+      },
+      {
+        "slot_id": "edit_control",
+        "role_class": "action",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Inline control or route that edits the setting when the state allows it."
+      },
+      {
+        "slot_id": "reset_action",
+        "role_class": "action",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Reset or revert action when a local override exists and policy allows it."
+      },
+      {
+        "slot_id": "help_link",
+        "role_class": "help_link",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Route to effective setting, policy, source, or schema documentation."
+      }
+    ],
+    "focus_order": [
+      "row_surface",
+      "edit_control",
+      "reset_action",
+      "help_link"
+    ],
+    "responsive_reflow_notes": [
+      "Setting label and value summary remain visible before optional actions.",
+      "Source explanation may wrap under the value summary but never moves to hover-only disclosure.",
+      "State badge stays adjacent to the value summary in compact and standard density so locked and read-only states remain scannable."
+    ]
+  },
+  "state_machine": {
+    "state_taxonomy_ref": "docs/design/component_state_taxonomy.md",
+    "state_machine_schema_ref": "schemas/design/component_state_machine.schema.json",
+    "default_state_ref": "default",
+    "state_nodes": [
+      {
+        "state_ref": "default",
+        "display_label": "Default",
+        "component_state_classes": [
+          "idle"
+        ],
+        "taxonomy_state_refs": [
+          "default"
+        ],
+        "user_visible_summary": "The setting row is readable and can enter edit mode when the inline control is present.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": false
+      },
+      {
+        "state_ref": "hover",
+        "display_label": "Hover",
+        "component_state_classes": [
+          "hover"
+        ],
+        "taxonomy_state_refs": [
+          "hover"
+        ],
+        "user_visible_summary": "Pointer hover adds emphasis without revealing unique setting state or source information.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": false
+      },
+      {
+        "state_ref": "focused_current",
+        "display_label": "Focused current row",
+        "component_state_classes": [
+          "focus_visible",
+          "current"
+        ],
+        "taxonomy_state_refs": [
+          "focus_visible",
+          "current"
+        ],
+        "user_visible_summary": "Keyboard focus and current detail-owner state are active on this row.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "read_only_snapshot",
+        "display_label": "Read-only",
+        "component_state_classes": [
+          "read_only"
+        ],
+        "taxonomy_state_refs": [
+          "read_only"
+        ],
+        "user_visible_summary": "The setting can be inspected and copied but not edited in the current scope.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "policy_locked",
+        "display_label": "Locked",
+        "component_state_classes": [
+          "locked",
+          "policy_blocked"
+        ],
+        "taxonomy_state_refs": [
+          "locked"
+        ],
+        "user_visible_summary": "An organization policy enforces the value and blocks local edits or reset.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "pending_apply",
+        "display_label": "Pending",
+        "component_state_classes": [
+          "pending"
+        ],
+        "taxonomy_state_refs": [
+          "pending"
+        ],
+        "user_visible_summary": "The user changed the setting and the value is staged until apply, sync, or restart completes.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "degraded_source",
+        "display_label": "Degraded",
+        "component_state_classes": [
+          "degraded"
+        ],
+        "taxonomy_state_refs": [
+          "degraded"
+        ],
+        "user_visible_summary": "The row shows the last truthful value while policy or sync source freshness is reduced.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "invalid_value",
+        "display_label": "Warning",
+        "component_state_classes": [
+          "warning"
+        ],
+        "taxonomy_state_refs": [
+          "warning_error"
+        ],
+        "user_visible_summary": "The current or staged value is invalid and needs review before it can apply.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "disabled_unavailable",
+        "display_label": "Disabled",
+        "component_state_classes": [
+          "disabled"
+        ],
+        "taxonomy_state_refs": [
+          "disabled"
+        ],
+        "user_visible_summary": "The edit control is unavailable because the setting has no applicable action in this context.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      }
+    ],
+    "transitions": [
+      {
+        "from_state_ref": "default",
+        "event_ref": "row_focus_entered",
+        "to_state_ref": "focused_current",
+        "user_visible_effect": "Focus ring moves to the row and the row becomes the current detail owner.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "focused_current",
+        "event_ref": "user_staged_value_change",
+        "to_state_ref": "pending_apply",
+        "user_visible_effect": "Pending badge and source explanation name the staged value and apply condition.",
+        "recovery_action_ref": "cmd:settings.review_pending_change"
+      },
+      {
+        "from_state_ref": "pending_apply",
+        "event_ref": "apply_completed",
+        "to_state_ref": "focused_current",
+        "user_visible_effect": "Pending state clears and the row keeps focus and current context.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "focused_current",
+        "event_ref": "policy_enforced_value_detected",
+        "to_state_ref": "policy_locked",
+        "user_visible_effect": "Lock badge and policy source replace edit affordances without hiding the effective value.",
+        "recovery_action_ref": "cmd:settings.open_effective_policy"
+      },
+      {
+        "from_state_ref": "policy_locked",
+        "event_ref": "policy_recomputed_user_editable",
+        "to_state_ref": "focused_current",
+        "user_visible_effect": "Lock explanation clears and edit controls return without moving focus.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "focused_current",
+        "event_ref": "settings_source_freshness_downgraded",
+        "to_state_ref": "degraded_source",
+        "user_visible_effect": "The row names the last truthful value and the reduced freshness source.",
+        "recovery_action_ref": "cmd:settings.refresh_effective_stack"
+      },
+      {
+        "from_state_ref": "focused_current",
+        "event_ref": "scope_is_view_only",
+        "to_state_ref": "read_only_snapshot",
+        "user_visible_effect": "The row preserves value contrast and names the read-only scope.",
+        "recovery_action_ref": "cmd:settings.open_writable_scope"
+      },
+      {
+        "from_state_ref": "focused_current",
+        "event_ref": "no_setting_action_available",
+        "to_state_ref": "disabled_unavailable",
+        "user_visible_effect": "The edit control is unavailable with a direct reason rather than a policy or read-only explanation.",
+        "recovery_action_ref": null
+      }
+    ],
+    "composite_state_rules": [
+      {
+        "when_all_of_component_state_classes": [
+          "focus_visible",
+          "current"
+        ],
+        "presentation_priority": 80,
+        "required_disclosure_slot_ids": [
+          "setting_label",
+          "value_summary"
+        ],
+        "non_color_cues": [
+          "border",
+          "position"
+        ]
+      },
+      {
+        "when_all_of_component_state_classes": [
+          "locked",
+          "policy_blocked"
+        ],
+        "presentation_priority": 100,
+        "required_disclosure_slot_ids": [
+          "state_badge",
+          "source_explanation",
+          "help_link"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ]
+      }
+    ]
+  },
+  "content_contract": {
+    "slot_content_rules": [
+      {
+        "slot_id": "setting_label",
+        "content_kind_class": "primary_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "The setting name remains visible before badges or actions."
+      },
+      {
+        "slot_id": "value_summary",
+        "content_kind_class": "supporting_text",
+        "max_lines": 2,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "localized_wrapper_only",
+        "notes": "The effective value remains readable in default, read-only, locked, and degraded states."
+      },
+      {
+        "slot_id": "state_badge",
+        "content_kind_class": "badge_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Badges use taxonomy labels such as Locked, Read-only, Pending, Degraded, Warning, or Disabled."
+      },
+      {
+        "slot_id": "source_explanation",
+        "content_kind_class": "reason_text",
+        "max_lines": 3,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "localized_wrapper_only",
+        "notes": "Policy, source, read-only scope, disabled reason, or degraded freshness explanation stays inline."
+      },
+      {
+        "slot_id": "edit_control",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Edit action names the exact setting mutation or opens a fuller editor."
+      },
+      {
+        "slot_id": "reset_action",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "hide_when_unavailable",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Reset hides only when no local override or writable route exists."
+      },
+      {
+        "slot_id": "help_link",
+        "content_kind_class": "help_link",
+        "max_lines": 1,
+        "overflow_behavior_class": "hide_when_unavailable",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Help link routes to policy, source stack, or setting schema details."
+      }
+    ],
+    "blocked_and_degraded_copy_rule": "Locked copy names policy or authority source; read-only copy names inspectable scope; disabled copy names ordinary context unavailability; degraded copy names the last truthful value, what is reduced, and how to refresh.",
+    "empty_or_missing_data_rule": "If source or value data is missing, the row says which source could not be resolved and keeps any known effective value separate from the missing detail."
+  },
+  "interaction_contract": {
+    "keyboard_model_ref": "settings.row_with_inline_control_and_help",
+    "entry_command_refs": [
+      "cmd:settings.open",
+      "cmd:settings.open_effective_policy"
+    ],
+    "primary_navigation_keys": [
+      {
+        "key": "ArrowDown",
+        "effect": "Move focus to the next settings row.",
+        "when": "While focus remains in the settings list."
+      },
+      {
+        "key": "ArrowUp",
+        "effect": "Move focus to the previous settings row.",
+        "when": "While focus remains in the settings list."
+      },
+      {
+        "key": "Tab",
+        "effect": "Move from the row to edit, reset, and help affordances in stable order.",
+        "when": "Only after the row itself owns focus."
+      }
+    ],
+    "activation_keys": [
+      {
+        "key": "Enter",
+        "effect": "Open the setting detail or edit route when the row is not locked, disabled, or read-only.",
+        "when": "When row_surface owns focus."
+      },
+      {
+        "key": "Space",
+        "effect": "Activate the focused inline control or open the current row detail.",
+        "when": "When an inline control owns focus or the row advertises a default detail route."
+      }
+    ],
+    "dismissal_keys": [],
+    "focus_return_rule": "Closing a setting detail, source explanation, or policy sheet returns focus to the originating row unless the setting was removed, in which case focus moves to the nearest surviving row.",
+    "pointer_behavior_note": "Hover may increase emphasis but must not reveal the only policy source, read-only scope, pending condition, or degraded explanation."
+  },
+  "accessibility_contract": {
+    "role_description": "Settings row with optional inline controls.",
+    "accessible_name_rule": "Accessible name starts with the setting label and appends the current value and state badge when the badge materially changes actionability.",
+    "accessible_description_rule": "Accessible description appends source explanation, read-only scope, policy source, pending condition, or degraded freshness in stable order.",
+    "announcement_rules": [
+      {
+        "trigger_ref": "state_changed_to_policy_locked",
+        "announcement_channel_class": "description_change",
+        "message_rule": "Locked state appends the policy source and available help route without moving focus."
+      },
+      {
+        "trigger_ref": "pending_apply_entered",
+        "announcement_channel_class": "polite_live_region",
+        "message_rule": "Pending state announces the staged change and apply condition once."
+      },
+      {
+        "trigger_ref": "source_freshness_degraded",
+        "announcement_channel_class": "status_region",
+        "message_rule": "Degraded source state announces that the row is using the last truthful value and names the refresh route."
+      }
+    ],
+    "high_contrast_behavior": "Locked, read-only, pending, disabled, and degraded states use text, icon, and border changes so high-contrast themes do not rely on hue.",
+    "forced_colors_behavior": "Forced-colors mode preserves focus, current row, lock cue, and read-only cue through system color borders and text labels.",
+    "blocked_and_degraded_behavior": "Locked, read-only, disabled, and degraded rows remain focusable and explain why editing is blocked or narrowed in the accessibility tree."
+  },
+  "token_binding_rules": {
+    "design_token_manifest_ref": "docs/design/design_token_component_state_vocabulary.md",
+    "semantic_token_bindings": [
+      {
+        "slot_id": "row_surface",
+        "token_role_refs": [
+          "al.color.bg.surface",
+          "al.color.border.default",
+          "al.color.text.primary"
+        ],
+        "when_component_state_classes": [
+          "idle"
+        ],
+        "notes": "Base settings row treatment."
+      },
+      {
+        "slot_id": "row_surface",
+        "token_role_refs": [
+          "al.color.focus.ring",
+          "al.color.bg.active"
+        ],
+        "when_component_state_classes": [
+          "focus_visible",
+          "current"
+        ],
+        "notes": "Current focused row stays distinct from selected batch membership."
+      },
+      {
+        "slot_id": "state_badge",
+        "token_role_refs": [
+          "status.warning",
+          "trust.policy_locked",
+          "al.color.border.strong"
+        ],
+        "when_component_state_classes": [
+          "locked",
+          "policy_blocked"
+        ],
+        "notes": "Policy lock uses trust and warning semantics, not disabled opacity."
+      },
+      {
+        "slot_id": "source_explanation",
+        "token_role_refs": [
+          "al.color.text.secondary",
+          "al.color.border.default"
+        ],
+        "when_component_state_classes": [
+          "read_only",
+          "disabled",
+          "degraded"
+        ],
+        "notes": "Read-only, disabled, and degraded explanations remain legible and distinct."
+      },
+      {
+        "slot_id": "state_badge",
+        "token_role_refs": [
+          "status.info",
+          "al.color.bg.raised"
+        ],
+        "when_component_state_classes": [
+          "pending"
+        ],
+        "notes": "Pending uses submitted-action feedback rather than initial loading treatment."
+      }
+    ],
+    "density_variant_bindings": [
+      {
+        "density_class": "compact",
+        "slot_ids": [
+          "row_surface",
+          "setting_label",
+          "value_summary",
+          "state_badge"
+        ],
+        "measurement_token_refs": [
+          "density.compact",
+          "space.2",
+          "size.row.compact"
+        ],
+        "layout_effect": "Compact layout keeps label, value, and badge on the first line when possible; source explanation wraps beneath."
+      },
+      {
+        "density_class": "standard",
+        "slot_ids": [
+          "row_surface",
+          "setting_label",
+          "value_summary",
+          "state_badge",
+          "source_explanation",
+          "edit_control"
+        ],
+        "measurement_token_refs": [
+          "density.standard",
+          "space.3",
+          "size.row.standard"
+        ],
+        "layout_effect": "Reference layout for settings-row review."
+      },
+      {
+        "density_class": "comfortable",
+        "slot_ids": [
+          "row_surface",
+          "value_summary",
+          "source_explanation",
+          "edit_control",
+          "reset_action",
+          "help_link"
+        ],
+        "measurement_token_refs": [
+          "density.comfortable",
+          "space.4",
+          "size.row.comfortable"
+        ],
+        "layout_effect": "Comfortable layout allows longer source and policy explanations without changing focus order."
+      }
+    ],
+    "motion_bindings": [
+      {
+        "motion_preset_ref": "motion-preset:settings.policy_locked_row.state_change",
+        "slot_ids": [
+          "row_surface",
+          "state_badge",
+          "source_explanation"
+        ],
+        "default_duration_token_refs": [
+          "motion.fast"
+        ],
+        "default_easing_token_refs": [
+          "ease.standard"
+        ],
+        "reduced_motion_posture_refs": [
+          "motion_reduced",
+          "motion_low_motion",
+          "motion_power_saver",
+          "motion_critical_hot_path"
+        ],
+        "reduced_motion_behavior": "State badge and explanation changes become instant; no shimmer or animated lock transition survives reduced-motion postures."
+      }
+    ],
+    "state_visualization_bindings": [
+      {
+        "state_ref": "focused_current",
+        "semantic_status_class": "info",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "setting_label",
+          "value_summary"
+        ],
+        "non_color_cues": [
+          "border",
+          "position"
+        ],
+        "notes": "Current row remains distinct from selected batch state."
+      },
+      {
+        "state_ref": "read_only_snapshot",
+        "semantic_status_class": "info",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "state_badge",
+          "source_explanation"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ],
+        "notes": "Read-only preserves inspectability and names scope."
+      },
+      {
+        "state_ref": "policy_locked",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": "policy_locked",
+        "required_disclosure_slot_ids": [
+          "state_badge",
+          "source_explanation",
+          "help_link"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ],
+        "notes": "Locked is source-explained and not treated as ordinary disabled."
+      },
+      {
+        "state_ref": "pending_apply",
+        "semantic_status_class": "info",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "state_badge",
+          "source_explanation"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "progress_indicator"
+        ],
+        "notes": "Pending names the staged user action and apply condition."
+      },
+      {
+        "state_ref": "degraded_source",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "state_badge",
+          "source_explanation",
+          "help_link"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ],
+        "notes": "Degraded names the last truthful value and source-freshness impact."
+      },
+      {
+        "state_ref": "disabled_unavailable",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "state_badge",
+          "source_explanation"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ],
+        "notes": "Disabled names ordinary unavailable context and does not carry a lock source."
+      }
+    ]
+  },
+  "visual_asset_hooks": {
+    "asset_slots": [
+      {
+        "slot_id": "state_badge",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:settings.state.semantic",
+        "icon_treatment_class": "status_semantic",
+        "rtl_behavior_class": "not_applicable",
+        "notes": "State badge uses semantic status icons including lock or read-only glyphs where relevant."
+      },
+      {
+        "slot_id": "edit_control",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:settings.edit",
+        "icon_treatment_class": "shell_stroke_standard",
+        "rtl_behavior_class": "literal_no_mirror",
+        "notes": "Edit control may use a standard shell edit icon with accessible text."
+      },
+      {
+        "slot_id": "help_link",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:help.context",
+        "icon_treatment_class": "shell_stroke_standard",
+        "rtl_behavior_class": "mirror_directional",
+        "notes": "Help link icon may mirror only when directionally meaningful."
+      }
+    ]
+  },
+  "localization_contract": {
+    "translation_required_slot_ids": [
+      "setting_label",
+      "value_summary",
+      "state_badge",
+      "source_explanation",
+      "edit_control",
+      "reset_action",
+      "help_link"
+    ],
+    "raw_identifier_slot_ids": [],
+    "text_expansion_strategy": "Label and badge stay visible first; value and source explanation wrap before actions collapse into an overflow route.",
+    "bidi_behavior": "Setting keys or policy identifiers inside explanatory copy are isolated while surrounding text follows the active locale direction.",
+    "formatting_behavior": "Effective dates, source epochs, restart conditions, and policy bundle names use locale-aware formatting where they are not raw identifiers.",
+    "source_language_fallback_behavior": "If a policy source label is available only in the source language, the row preserves it and adds translated framing instead of inventing a local substitute.",
+    "notes": "Pseudoloc expansion must not hide source or lock explanations."
+  },
+  "extension_guidance": {
+    "parity_posture_class": "may_narrow_with_disclosure",
+    "required_inheritance_axes": [
+      "semantic_tokens",
+      "density",
+      "contrast",
+      "focus",
+      "reduced_motion",
+      "state_machine",
+      "keyboard_model",
+      "command_routing"
+    ],
+    "allowed_extension_variations": [
+      "An extension settings surface may omit reset_action when the host declares no reset route.",
+      "An extension settings surface may add one provider badge when it preserves the shared taxonomy state badge."
+    ],
+    "required_gap_disclosure": "If an extension cannot distinguish locked, read-only, pending, degraded, disabled, and current states, it must disclose the gap and hand off to the host settings row."
+  },
+  "substitution_and_deprecation": {
+    "deprecated_refs": [
+      "settings-row-state:legacy.policy_disabled",
+      "token-substitution:settings.row.disabled_as_policy_lock"
+    ],
+    "replacement_refs": [
+      "docs/design/component_state_taxonomy.md#state-classes",
+      "schemas/design/component_state_machine.schema.json",
+      "trust.policy_locked"
+    ],
+    "visibility_required": true,
+    "visibility_surface_refs": [
+      "settings:effective-source-detail",
+      "appearance-debug:token-substitutions",
+      "docs:settings-state-taxonomy"
+    ],
+    "unsupported_package_behavior": "If a theme or extension package cannot express locked, read-only, pending, degraded, and disabled as distinct states, the host row falls back to first-party state treatment and exposes the mismatch in settings diagnostics."
+  },
+  "evidence_hooks": {
+    "keyboard_journey_refs": [
+      "keyboard-journey:settings.policy_locked_row.focus_edit_help",
+      "keyboard-journey:settings.policy_locked_row.locked_readonly_disabled_paths"
+    ],
+    "assistive_technology_refs": [
+      "at_matrix.macos.settings",
+      "at_matrix.windows.settings",
+      "tree_coverage.settings.policy_locked_row"
+    ],
+    "token_drift_check_refs": [
+      "token-drift:settings.policy_locked_row.locked_readonly_pending_disabled_degraded"
+    ],
+    "screenshot_baseline_refs": [
+      "design-screenshot:settings.policy_locked_row.dark_light_hc_density_state_matrix"
+    ],
+    "docs_link_verification_refs": [
+      "docs-link:settings.policy_locked_row.state_taxonomy",
+      "docs-link:settings.policy_locked_row.effective_policy_source",
+      "docs-link:settings.policy_locked_row.read_only_scope"
+    ],
+    "extension_parity_fixture_refs": [
+      "extension-parity:settings.policy_locked_row.narrowed_extension_settings",
+      "handoff-fixture:settings.policy_locked_row.host_owned_fallback"
+    ],
+    "localization_or_pseudoloc_refs": [
+      "locale.shared.source_and_pseudoloc_shell",
+      "fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml"
+    ],
+    "state_machine_validation_refs": [
+      "state-machine-probe:settings.policy_locked_row.locked_readonly_pending_disabled_degraded",
+      "schemas/design/component_state_machine.schema.json"
+    ]
+  }
+}

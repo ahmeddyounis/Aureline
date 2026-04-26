@@ -24,6 +24,14 @@ The companion artifacts are:
   the `component_state_record`, the `theme_support_row_record`,
   the `accessibility_posture_record`, the `layer_order_record`,
   the `scrim_token_record`, and the `token_export_audit_event_record`.
+- [`/docs/design/component_state_taxonomy.md`](./component_state_taxonomy.md),
+  [`/schemas/design/component_state_machine.schema.json`](../../schemas/design/component_state_machine.schema.json),
+  and
+  [`/artifacts/design/component_review_checklist.md`](../../artifacts/design/component_review_checklist.md)
+  — shared user-visible component state taxonomy, state-machine
+  schema, and component review checklist that distinguish locked,
+  disabled, read-only, pending, loading, current, selected, and
+  degraded states.
 - [`/docs/ux/component_contract_template.md`](../ux/component_contract_template.md),
   [`/schemas/design/component_contract.schema.json`](../../schemas/design/component_contract.schema.json),
   and
@@ -73,7 +81,7 @@ surface must honour:
 | Slice                            | Frozen vocabulary                                                                                                                                                                                                                         |
 |----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Token families**               | `color_brand`, `color_functional_accent`, `color_neutral`, `color_state`, `color_semantic_theme`, `color_syntax`, `color_diff`, `color_chart`, `typography_role`, `typography_scale`, `text_rule`, `spacing`, `sizing`, `radius`, `border_stroke`, `elevation`, `opacity_scrim`, `layer_portal_order`, `motion_duration`, `motion_easing`, `motion_restriction`, `density`, `icon_treatment`, `semantic_status`, `trust_visual_state`. |
-| **Component states**             | `idle`, `hover`, `focus`, `focus_visible`, `pressed`, `selected`, `disabled`, `loading`, `pending`, `degraded`, `stale`, `restricted`, `policy_blocked`, `warning`, `destructive`, `reconnecting`, `completed`, `restored`, `quiet_hours_held`. |
+| **Component states**             | `idle`, `hover`, `focus`, `focus_visible`, `pressed`, `selected`, `current`, `disabled`, `read_only`, `loading`, `pending`, `degraded`, `stale`, `restricted`, `policy_blocked`, `locked`, `warning`, `destructive`, `reconnecting`, `completed`, `restored`, `quiet_hours_held`. |
 | **Themes**                       | `dark_reference`, `light_parity`, `high_contrast_dark`, `high_contrast_light`.                                                                                                                                                            |
 | **Accessibility postures**       | `motion_standard`, `motion_reduced`, `motion_low_motion`, `motion_power_saver`, `motion_critical_hot_path`.                                                                                                                               |
 | **Layer / portal order**         | `z_base`, `z_sticky`, `z_floating`, `z_menu`, `z_dialog`, `z_toast`, `z_critical`.                                                                                                                                                        |
@@ -152,8 +160,14 @@ the closed component-state set. Surfaces MAY combine states
 - `pressed` — pointer press or keyboard activation in flight.
 - `selected` — durable selection across focus changes. Selection
   and focus are visually distinct.
+- `current` — current location, route, live context, or row
+  driving detail panes. `current` is distinct from `selected`.
 - `disabled` — control is not actionable. Pair with text, icon,
-  or state copy; reduced opacity alone is non-conforming.
+  or state copy; reduced opacity alone is non-conforming. Do not
+  use for policy, trust, permission, or source constraints.
+- `read_only` — content remains inspectable, copyable, navigable,
+  or exportable but cannot be edited or written. Preserve content
+  contrast and name the read-only scope.
 - `loading` — background work in progress for this surface.
 - `pending` — user action staged but not yet committed (AI draft,
   review proposal).
@@ -168,6 +182,11 @@ the closed component-state set. Surfaces MAY combine states
   `trust_visual_state.policy_locked`. `restricted` and
   `policy_blocked` are **separate** axes; collapsing them is
   non-conforming.
+- `locked` — cross-source lock posture for policy, trust,
+  permission, ownership, source authority, or missing capability.
+  The underlying axis may still be `restricted` or
+  `policy_blocked`; the user-facing component treatment exposes
+  source and reason instead of appearing merely disabled.
 - `warning` — cautious / reduced-capability posture worth
   surfacing.
 - `destructive` — the action, if committed, destroys work or
@@ -184,17 +203,23 @@ the closed component-state set. Surfaces MAY combine states
 
 Rules (frozen):
 
-1. **Separate axes stay separate.** `restricted` vs
-   `policy_blocked`, `degraded` vs `stale` vs `reconnecting`,
-   `completed` vs `restored` are frozen as separate states for
-   review, export, support, and AI-evidence handoff. A surface
-   that collapses them into one generic posture is non-conforming.
+1. **Separate axes stay separate.** `selected` vs `current`,
+   `disabled` vs `read_only` vs `locked`, `pending` vs
+   `loading`, `restricted` vs `policy_blocked`, `degraded` vs
+   `stale` vs `reconnecting`, and `completed` vs `restored` are
+   frozen as separate states for review, export, support, and
+   AI-evidence handoff. A surface that collapses them into one
+   generic posture is non-conforming.
 2. **Every state conveys meaning beyond colour.** Shape, border,
    icon, or text carries the state; colour alone does not.
 3. **Disabled is explicit.** A surface that signals disabled only
    through reduced opacity is non-conforming; pair with text,
    icon, or state copy.
-4. **quiet_hours_held is still addressable.** The row exists
+4. **Locked and read-only are not disabled synonyms.** A locked
+   state must show source and reason. A read-only state must
+   preserve inspectable content and name the scope that cannot be
+   edited or written.
+5. **quiet_hours_held is still addressable.** The row exists
    for parity audits and support exports even while suppressed
    from the user's active attention.
 

@@ -29,6 +29,10 @@ sections:
 - [`durable_job_row.json`](./durable_job_row.json)
   — durable job-row packet for long-running or throttled work that must
   not degrade into toast-only delivery.
+- [`policy_locked_settings_row.json`](./policy_locked_settings_row.json)
+  — settings-row packet demonstrating shared taxonomy refs for locked,
+  read-only, pending, degraded, current, and disabled states plus the
+  expanded evidence hooks.
 
 ## Intended usage
 
