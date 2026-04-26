@@ -1,0 +1,687 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/message_catalog_entry.schema.json",
+  "title": "Aureline message catalog entry record",
+  "description": "Boundary schema for the message_catalog_entry_record frozen in docs/ux/localization_and_locale_pack_contract.md. Every translatable string the shell, command palette, settings, help, error pane, docs pack, tour, auth flow, extension overlay, CLI surface, exporter, screenshot/demo caption pipeline, glossary surface, or trust/legal/recovery banner reads resolves through one record of this shape. The contract mints no new command_id, command_revision, docs_citation_anchor, glossary_term_anchor, deployment_profile_id, redaction_class, freshness_class, version_match_state, or BCP-47 vocabulary; those are re-exported by reference from schemas/commands/command_registry_entry.schema.json, schemas/commands/command_descriptor.schema.json, schemas/docs/citation_anchor.schema.json, artifacts/governance/deployment_profiles.yaml, and schemas/governance/capability_lifecycle.schema.json. Adding a new message_surface_family, message_id_class, placeholder_kind, translator_note_class, machine_output_locale_class, string_freeze_state, source_language_escape_hatch_class, or denial_reason is additive-minor and bumps message_catalog_schema_version; repurposing an existing value is breaking and requires a new decision row. Raw page bodies, raw URLs, raw absolute paths, raw credential material, raw prompt / completion text, and raw user identifiers never cross this boundary; this schema carries opaque ids, typed vocabulary, short privacy-safe labels, and typed policy / redaction metadata only.",
+  "type": "object",
+  "$ref": "#/$defs/message_catalog_entry_record",
+  "$defs": {
+    "message_catalog_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this localization / message-catalog vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version. The same version integer gates schemas/ux/locale_pack_manifest.schema.json and schemas/ux/locale_fallback_state.schema.json so the three schemas evolve lock-step."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "message_catalog_entry_record",
+      "description": "Discriminator for the concrete payload shape. Every record carries this kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / support bundles / portable profile packages. Raw URLs, raw absolute paths, raw page bodies, raw credential material, and raw prompt text never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short privacy-safe label text. MUST NOT embed raw paths, raw URLs, raw secret material, or raw AI prompt / completion text."
+    },
+
+    "source_language_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Source-language wording for translator review and pseudoloc seed. NOT a runtime rendering source; the runtime resolves a translation by message_id, not by matching this text. MUST NOT embed raw paths, raw URLs, raw secret material, or raw AI prompt / completion text. Long-form prose (multi-paragraph docs body, full policy disclosure) is owned by the docs / policy pack body and is not carried inline here."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 language tag re-exported from schemas/docs/citation_anchor.schema.json without modification."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "message_surface_family": {
+      "type": "string",
+      "enum": [
+        "shell_chrome",
+        "command_label",
+        "settings_help_or_error",
+        "docs_tour_or_auth_text",
+        "extension_contributed_ui",
+        "cli_help_text",
+        "export_or_report_heading",
+        "screenshot_or_demo_caption",
+        "glossary_or_terminology_term",
+        "policy_legal_or_recovery_text",
+        "pseudoloc_only_test_string"
+      ],
+      "description": "Closed surface-family vocabulary. See docs/ux/localization_and_locale_pack_contract.md §2."
+    },
+
+    "message_id_class": {
+      "type": "string",
+      "enum": [
+        "stable_canonical",
+        "extension_overlay",
+        "derived_with_upstream_id",
+        "pseudoloc_test_only"
+      ],
+      "description": "Closed message-id class vocabulary. See §3.1."
+    },
+
+    "placeholder_kind": {
+      "type": "string",
+      "enum": [
+        "count",
+        "command_id_token",
+        "file_path_token",
+        "host_or_url_token",
+        "tenant_or_account_token",
+        "flag_or_argument_token",
+        "policy_owner_token",
+        "version_or_build_token",
+        "locale_tag_token",
+        "enumerated_state_token",
+        "freeform_string"
+      ],
+      "description": "Closed placeholder-kind vocabulary. See §3.2. Translators MAY reorder placeholders to honour locale syntax; they MUST NOT paraphrase or silently normalize a placeholder whose kind is anything other than freeform_string."
+    },
+
+    "translator_note_class": {
+      "type": "string",
+      "enum": [
+        "placeholder_semantics",
+        "glossary_term_ref",
+        "string_freeze_late_copy_review",
+        "source_language_escape_hatch",
+        "pseudoloc_truncation_review",
+        "screenshot_or_demo_caption_governance",
+        "policy_or_legal_review_required"
+      ],
+      "description": "Closed translator-note class vocabulary. See §6."
+    },
+
+    "machine_output_locale_class": {
+      "type": "string",
+      "enum": [
+        "locale_neutral_canonical",
+        "locale_neutral_with_translated_human_field",
+        "locale_native_human_only",
+        "forbidden_for_machine_output"
+      ],
+      "description": "Closed machine-output locale class vocabulary. See §4. locale_neutral_canonical values MUST NOT be translated in machine output."
+    },
+
+    "string_freeze_state": {
+      "type": "string",
+      "enum": [
+        "pre_freeze",
+        "frozen",
+        "late_copy_controlled_delta",
+        "frozen_after_review"
+      ],
+      "description": "Closed string-freeze state vocabulary. See §6."
+    },
+
+    "source_language_escape_hatch_class": {
+      "type": "string",
+      "enum": [
+        "inline_source_language_toggle",
+        "command_open_in_source_language",
+        "docs_pane_source_language_route",
+        "cli_locale_neutral_output_flag",
+        "export_in_source_language_for_review"
+      ],
+      "description": "Closed source-language escape-hatch class vocabulary. See §7."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "localization_message_id_collision",
+        "localization_command_id_inferred_from_translated_label",
+        "localization_locale_pack_signature_failed",
+        "localization_locale_pack_compatibility_drift",
+        "localization_translation_in_locale_neutral_output",
+        "localization_fallback_chain_not_disclosed",
+        "localization_source_language_escape_hatch_missing",
+        "localization_screenshot_caption_lacks_governance",
+        "localization_glossary_term_paraphrased_without_ref",
+        "localization_policy_or_legal_text_translated_without_review",
+        "localization_late_copy_change_after_string_freeze_unreviewed",
+        "localization_extension_overlay_overrides_canonical_command_label",
+        "localization_pseudoloc_string_rendered_in_production",
+        "localization_placeholder_semantics_violated",
+        "localization_message_catalog_schema_version_lagging"
+      ],
+      "description": "Closed denial-reason set publishers MUST emit on non-conformance. See §9."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Re-exported from artifacts/governance/deployment_profiles.yaml deployment_profile_vocabulary without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy context this catalog entry was minted under. Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "placeholder_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["placeholder_id", "placeholder_kind"],
+      "properties": {
+        "placeholder_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Stable placeholder id (lowercase, snake_case). The id, not the source-language order, is what translators reorder around."
+        },
+        "placeholder_kind": { "$ref": "#/$defs/placeholder_kind" },
+        "translator_note_text": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "Optional translator-facing note explaining the placeholder's literal-spelling requirement, plural-rule resolution, or controlled-vocabulary source."
+        },
+        "glossary_term_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque pin to a glossary_term_anchor record on schemas/docs/citation_anchor.schema.json that translators MUST consult. Required when placeholder_kind = enumerated_state_token AND the controlled vocabulary is owned by the docs glossary."
+        },
+        "plural_rule_resolution_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the plural-rule resolution row this count placeholder uses. Required when placeholder_kind = count."
+        }
+      },
+      "allOf": [
+        {
+          "description": "count placeholders MUST declare a plural-rule resolution.",
+          "if": {
+            "properties": { "placeholder_kind": { "const": "count" } },
+            "required": ["placeholder_kind"]
+          },
+          "then": {
+            "required": ["plural_rule_resolution_ref"],
+            "properties": {
+              "plural_rule_resolution_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "translator_note_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_class", "note_text"],
+      "properties": {
+        "note_class": { "$ref": "#/$defs/translator_note_class" },
+        "note_text": { "$ref": "#/$defs/short_label_text" },
+        "decision_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque pin to the decision row that authorised the note (controlled-delta review row, screenshot governance row, late-copy review row). Required when note_class = string_freeze_late_copy_review or screenshot_or_demo_caption_governance."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Late-copy and screenshot/demo governance notes MUST cite a decision row.",
+          "if": {
+            "properties": {
+              "note_class": {
+                "enum": [
+                  "string_freeze_late_copy_review",
+                  "screenshot_or_demo_caption_governance"
+                ]
+              }
+            },
+            "required": ["note_class"]
+          },
+          "then": {
+            "required": ["decision_row_ref"],
+            "properties": {
+              "decision_row_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "message_catalog_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "message_catalog_schema_version",
+        "message_id",
+        "message_id_class",
+        "surface_family",
+        "source_language_locale",
+        "source_text",
+        "placeholders",
+        "translator_notes",
+        "glossary_term_refs",
+        "machine_output_locale_class",
+        "string_freeze_state",
+        "source_language_escape_hatches",
+        "pseudoloc_required",
+        "truncation_review_required",
+        "policy_or_legal_review_required",
+        "screenshot_or_demo_caption_governance_required",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "target_build_identity_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "message_catalog_entry_record" },
+        "message_catalog_schema_version": { "$ref": "#/$defs/message_catalog_schema_version" },
+        "message_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable message id (e.g. msg.shell.start_center.open_folder.label). Frozen on first publication; rename = breaking."
+        },
+        "message_id_class": { "$ref": "#/$defs/message_id_class" },
+        "surface_family": { "$ref": "#/$defs/message_surface_family" },
+        "source_language_locale": {
+          "$ref": "#/$defs/bcp47_locale_tag",
+          "description": "BCP-47 tag for the source language this entry was authored in (typically en or en-US for the project)."
+        },
+        "source_text": {
+          "$ref": "#/$defs/source_language_text",
+          "description": "Source-language wording for translator review. The runtime resolves a translation by message_id, not by matching this string."
+        },
+        "placeholders": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/placeholder_descriptor" },
+          "uniqueItems": true,
+          "description": "Typed placeholders the translator may reorder. Empty for messages with no substitutions."
+        },
+        "translator_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/translator_note_descriptor" },
+          "uniqueItems": true
+        },
+        "glossary_term_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque ids resolving to glossary_term_anchor records on schemas/docs/citation_anchor.schema.json. Required (minItems 1) when surface_family = glossary_or_terminology_term."
+        },
+        "machine_output_locale_class": { "$ref": "#/$defs/machine_output_locale_class" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a canonical command_id on schemas/commands/command_registry_entry.schema.json. Required (non-null) when surface_family = command_label."
+        },
+        "extension_namespace_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the extension namespace this overlay belongs to. Required when surface_family = extension_contributed_ui or message_id_class = extension_overlay."
+        },
+        "string_freeze_state": { "$ref": "#/$defs/string_freeze_state" },
+        "source_language_escape_hatches": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_language_escape_hatch_class" },
+          "uniqueItems": true,
+          "description": "Admissible escape-hatch routes this surface offers. Required (minItems 1) for surface families {docs_tour_or_auth_text, policy_legal_or_recovery_text, cli_help_text, export_or_report_heading, glossary_or_terminology_term}."
+        },
+        "pseudoloc_required": { "type": "boolean" },
+        "truncation_review_required": { "type": "boolean" },
+        "policy_or_legal_review_required": { "type": "boolean" },
+        "screenshot_or_demo_caption_governance_required": { "type": "boolean" },
+        "upstream_message_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Upstream message ids this entry derives from. Required (minItems 1) for message_id_class = derived_with_upstream_id; forbidden (maxItems 0) otherwise."
+        },
+        "deprecation_alias_for_message_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the prior message_id this entry replaces during a controlled rename rollout. Catalogs MAY emit both ids during the deprecation window."
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Reserved for catalog rows minted to record a denial event (e.g. a colliding id detected during ingest). Null on conformant rows."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "target_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "command_label rows MUST carry a non-null command_id_ref.",
+          "if": {
+            "properties": { "surface_family": { "const": "command_label" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["command_id_ref"],
+            "properties": {
+              "command_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "extension_contributed_ui rows MUST carry a non-null extension_namespace_ref.",
+          "if": {
+            "properties": { "surface_family": { "const": "extension_contributed_ui" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["extension_namespace_ref"],
+            "properties": {
+              "extension_namespace_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "extension_overlay message_id_class MUST carry a non-null extension_namespace_ref.",
+          "if": {
+            "properties": { "message_id_class": { "const": "extension_overlay" } },
+            "required": ["message_id_class"]
+          },
+          "then": {
+            "required": ["extension_namespace_ref"],
+            "properties": {
+              "extension_namespace_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "glossary_or_terminology_term rows MUST carry at least one glossary_term_ref.",
+          "if": {
+            "properties": { "surface_family": { "const": "glossary_or_terminology_term" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "glossary_term_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_legal_or_recovery_text rows MUST carry policy_or_legal_review_required = true and a frozen state.",
+          "if": {
+            "properties": { "surface_family": { "const": "policy_legal_or_recovery_text" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "policy_or_legal_review_required": { "const": true },
+              "string_freeze_state": {
+                "enum": [
+                  "frozen",
+                  "late_copy_controlled_delta",
+                  "frozen_after_review"
+                ]
+              },
+              "source_language_escape_hatches": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "enum": [
+                    "inline_source_language_toggle",
+                    "command_open_in_source_language",
+                    "docs_pane_source_language_route"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "docs_tour_or_auth_text rows MUST list at least one in-product or pane-route escape hatch.",
+          "if": {
+            "properties": { "surface_family": { "const": "docs_tour_or_auth_text" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "source_language_escape_hatches": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "enum": [
+                    "inline_source_language_toggle",
+                    "command_open_in_source_language",
+                    "docs_pane_source_language_route"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "cli_help_text rows MUST list cli_locale_neutral_output_flag among their escape hatches.",
+          "if": {
+            "properties": { "surface_family": { "const": "cli_help_text" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "source_language_escape_hatches": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "cli_locale_neutral_output_flag" }
+              }
+            }
+          }
+        },
+        {
+          "description": "export_or_report_heading rows MUST list export_in_source_language_for_review among their escape hatches.",
+          "if": {
+            "properties": { "surface_family": { "const": "export_or_report_heading" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "source_language_escape_hatches": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "export_in_source_language_for_review" }
+              }
+            }
+          }
+        },
+        {
+          "description": "screenshot_or_demo_caption rows MUST set screenshot_or_demo_caption_governance_required = true.",
+          "if": {
+            "properties": { "surface_family": { "const": "screenshot_or_demo_caption" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "screenshot_or_demo_caption_governance_required": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "pseudoloc_only_test_string rows MUST be class pseudoloc_test_only and pseudoloc_required = true.",
+          "if": {
+            "properties": { "surface_family": { "const": "pseudoloc_only_test_string" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "message_id_class": { "const": "pseudoloc_test_only" },
+              "pseudoloc_required": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "pseudoloc_test_only message_id_class is admissible only on the pseudoloc_only_test_string surface family.",
+          "if": {
+            "properties": { "message_id_class": { "const": "pseudoloc_test_only" } },
+            "required": ["message_id_class"]
+          },
+          "then": {
+            "properties": {
+              "surface_family": { "const": "pseudoloc_only_test_string" }
+            }
+          }
+        },
+        {
+          "description": "derived_with_upstream_id rows MUST carry a non-empty upstream_message_id_refs; all other classes require it empty.",
+          "if": {
+            "properties": { "message_id_class": { "const": "derived_with_upstream_id" } },
+            "required": ["message_id_class"]
+          },
+          "then": {
+            "required": ["upstream_message_id_refs"],
+            "properties": {
+              "upstream_message_id_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "upstream_message_id_refs": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "late_copy_controlled_delta MUST carry at least one string_freeze_late_copy_review translator note.",
+          "if": {
+            "properties": { "string_freeze_state": { "const": "late_copy_controlled_delta" } },
+            "required": ["string_freeze_state"]
+          },
+          "then": {
+            "properties": {
+              "translator_notes": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "note_class": { "const": "string_freeze_late_copy_review" }
+                  },
+                  "required": ["note_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Forbidden machine-output values forbid placeholders typed as locale-neutral tokens from being marked as freeform_string. (Schema-level guard against silently flattening canonical tokens; consumer-side checks finish the validation.)",
+          "if": {
+            "properties": { "machine_output_locale_class": { "const": "locale_neutral_canonical" } },
+            "required": ["machine_output_locale_class"]
+          },
+          "then": {
+            "properties": {
+              "surface_family": {
+                "enum": [
+                  "shell_chrome",
+                  "command_label",
+                  "settings_help_or_error",
+                  "extension_contributed_ui",
+                  "cli_help_text",
+                  "export_or_report_heading",
+                  "policy_legal_or_recovery_text",
+                  "glossary_or_terminology_term"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One translatable-message catalog entry. See docs/ux/localization_and_locale_pack_contract.md §1.1."
+    }
+  }
+}
