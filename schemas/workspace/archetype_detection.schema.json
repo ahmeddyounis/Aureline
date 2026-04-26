@@ -1,0 +1,923 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/archetype_detection.schema.json",
+  "title": "Aureline workspace archetype detection, readiness preflight, admission checkpoint, and first-useful-work route record",
+  "description": "Boundary schema for post-entry workspace archetype detection and first-useful-work routing. The record separates detected facts, recommendations, policy, and user choice so certified/probable/generic/mixed/restricted/missing-prerequisite states remain inspectable across UI, CLI/headless, support exports, and docs. The schema composes with schemas/workspace/entry_and_restore_result.schema.json for entry verbs, target kinds, resulting modes, and admission classes; schemas/workspace/bootstrap_queue_item.schema.json for setup queue items; and docs/ux/archetype_detection_contract.md for route and setup-later rules. Raw absolute paths, raw URLs with credentials, raw manifest bodies, raw command lines, raw package lock contents, and raw secret material never cross this boundary. Adding a new detection_outcome, detection_signal_source_class, readiness_task_class, readiness_bucket, first_useful_entry_source, or landing_surface is additive-minor and bumps archetype_detection_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workspace_archetype_admission_record" }
+  ],
+  "$defs": {
+    "archetype_detection_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this boundary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "workspace_archetype_admission_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, export, or persist. Raw absolute paths, raw credentials, raw URLs, raw manifest bodies, and raw package-lock contents never appear here."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewer-facing text already scrubbed by the producer. Raw paths, URLs, secrets, command lines, and manifest bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "certified_current",
+        "certified_retest_pending",
+        "supported_scoped",
+        "community_or_extension_path",
+        "experimental_preview",
+        "generic_no_claim",
+        "claim_blocked_by_policy",
+        "claim_unavailable_missing_prerequisite"
+      ],
+      "description": "Scoped support-language class. Stable surfaces may only use claim-bearing wording when the class and evidence allow it."
+    },
+    "detection_outcome": {
+      "type": "string",
+      "enum": [
+        "certified_archetype_match",
+        "probable_archetype",
+        "mixed_or_ambiguous_workspace",
+        "unknown_or_generic_workspace",
+        "restricted_or_policy_blocked",
+        "missing_prerequisite"
+      ],
+      "description": "Closed detection outcome set surfaced after entry."
+    },
+    "detection_confidence_class": {
+      "type": "string",
+      "enum": [
+        "certified_exact",
+        "high_probable",
+        "medium_probable",
+        "mixed_conflicting",
+        "generic_unknown",
+        "restricted_by_policy",
+        "prerequisite_missing"
+      ],
+      "description": "Closed confidence class. Confidence never widens support claims beyond support_claim_class."
+    },
+    "detector_state": {
+      "type": "string",
+      "enum": [
+        "detecting",
+        "ready_enough",
+        "partial",
+        "stale",
+        "retest_needed",
+        "blocked",
+        "unknown"
+      ],
+      "description": "Freshness / completion state for the detector itself. Surfaces MUST NOT render partial/stale/blocked as configured."
+    },
+    "signal_material_effect": {
+      "type": "string",
+      "enum": [
+        "trust",
+        "support_claim",
+        "recommendation",
+        "route_selection",
+        "policy",
+        "readiness",
+        "diagnostic_only"
+      ],
+      "description": "Why a detection signal is material enough to render or export."
+    },
+    "detection_signal_source_class": {
+      "type": "string",
+      "enum": [
+        "manifest",
+        "bundle_marker",
+        "workspace_file",
+        "import_packet",
+        "admin_policy",
+        "extension_contribution",
+        "previous_user_choice",
+        "filesystem_layout",
+        "lockfile",
+        "runtime_probe",
+        "vcs_metadata"
+      ],
+      "description": "Source-labeled detection signal. The first seven values are required whenever they materially affect trust, support language, setup recommendation, policy, or route selection."
+    },
+    "signal_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh_current",
+        "cached_current_enough",
+        "stale_retest_needed",
+        "imported_snapshot",
+        "policy_epoch_current",
+        "policy_epoch_unknown",
+        "unknown_freshness"
+      ],
+      "description": "Freshness of a signal used for support or route language."
+    },
+    "detection_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_ref",
+        "source_class",
+        "material_effects",
+        "freshness_class",
+        "summary"
+      ],
+      "properties": {
+        "signal_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/detection_signal_source_class" },
+        "material_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/signal_material_effect" },
+          "uniqueItems": true
+        },
+        "freshness_class": { "$ref": "#/$defs/signal_freshness_class" },
+        "producer_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One source-labeled signal. The summary is redacted and does not contain raw manifests or paths."
+    },
+    "detected_fact_class": {
+      "type": "string",
+      "enum": [
+        "manifest_present",
+        "workspace_file_present",
+        "bundle_marker_present",
+        "admin_policy_applies",
+        "extension_contribution_present",
+        "previous_choice_present",
+        "nested_root_present",
+        "lockfile_present",
+        "toolchain_declared",
+        "runtime_missing",
+        "remote_agent_missing",
+        "mixed_stack_signal",
+        "generic_files_only",
+        "import_packet_present",
+        "review_or_incident_object_present"
+      ],
+      "description": "Closed detected-fact class. Facts are observations, not recommendations or policy decisions."
+    },
+    "detected_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_ref",
+        "fact_class",
+        "source_signal_refs",
+        "summary"
+      ],
+      "properties": {
+        "fact_ref": { "$ref": "#/$defs/opaque_id" },
+        "fact_class": { "$ref": "#/$defs/detected_fact_class" },
+        "source_signal_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One detected fact with signal attribution."
+    },
+    "recommendation_class": {
+      "type": "string",
+      "enum": [
+        "apply_workflow_bundle",
+        "compare_workflow_bundle",
+        "choose_workspace_boundary",
+        "review_trust",
+        "run_dependency_restore",
+        "install_or_enable_extension",
+        "select_toolchain",
+        "attach_remote_or_container",
+        "open_generic_diagnostics",
+        "compare_imported_state",
+        "restore_review",
+        "dismiss_recommendation"
+      ],
+      "description": "Recommendation class. Recommendations are derived proposals and never substitute for detected facts or policy."
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recommendation_ref",
+        "recommendation_class",
+        "basis_signal_refs",
+        "support_claim_class",
+        "same_weight_bypass_actions",
+        "auto_apply_allowed",
+        "summary"
+      ],
+      "properties": {
+        "recommendation_ref": { "$ref": "#/$defs/opaque_id" },
+        "recommendation_class": { "$ref": "#/$defs/recommendation_class" },
+        "basis_signal_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "bundle_or_archetype_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "same_weight_bypass_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bypass_action" },
+          "uniqueItems": true
+        },
+        "auto_apply_allowed": {
+          "type": "boolean",
+          "const": false,
+          "description": "Recommendations from detection are review-first. Auto-apply is forbidden at this boundary."
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One recommendation kept separate from detected facts, policy, and user choice."
+    },
+    "policy_state": {
+      "type": "string",
+      "enum": [
+        "no_policy_constraints",
+        "policy_review_required",
+        "policy_blocks_setup",
+        "policy_blocks_trust_widening",
+        "policy_requires_managed_path",
+        "policy_source_unreachable"
+      ],
+      "description": "Effective policy state for this admission checkpoint."
+    },
+    "blocked_action_class": {
+      "type": "string",
+      "enum": [
+        "trust_workspace",
+        "run_dependency_restore",
+        "install_package",
+        "install_or_enable_extension",
+        "attach_remote_agent",
+        "start_container_or_devcontainer",
+        "contact_public_registry",
+        "restore_live_authority",
+        "apply_imported_state",
+        "none"
+      ],
+      "description": "Action class narrowed or blocked by policy/trust."
+    },
+    "policy_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_block_ref",
+        "blocked_action_class",
+        "policy_source_refs",
+        "summary"
+      ],
+      "properties": {
+        "policy_block_ref": { "$ref": "#/$defs/opaque_id" },
+        "blocked_action_class": { "$ref": "#/$defs/blocked_action_class" },
+        "policy_source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One policy or trust block, cited independently from optional guidance."
+    },
+    "policy_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_state",
+        "policy_source_refs",
+        "policy_blocks",
+        "narrowed_capabilities"
+      ],
+      "properties": {
+        "policy_state": { "$ref": "#/$defs/policy_state" },
+        "policy_source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/policy_block" }
+        },
+        "narrowed_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_action_class" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Policy section kept separate from detection and user choice."
+    },
+    "remembered_choice_state": {
+      "type": "string",
+      "enum": [
+        "no_previous_choice",
+        "previous_choice_available",
+        "previous_choice_expired_requires_review",
+        "previous_choice_conflicts_with_policy",
+        "previous_choice_applied_as_narrowing_only"
+      ],
+      "description": "State of remembered setup or route preferences."
+    },
+    "bypass_action": {
+      "type": "string",
+      "enum": [
+        "set_up_later",
+        "open_minimal",
+        "dismiss_recommendation",
+        "open_plain_explorer",
+        "continue_in_restricted_mode",
+        "compare_before_restore",
+        "inspect_only"
+      ],
+      "description": "Safe bypass or defer action. These actions do not widen trust or run setup."
+    },
+    "setup_later_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deferred_task_refs",
+        "reminder_surface",
+        "export_checklist_available",
+        "does_not_widen_trust",
+        "does_not_install_packages",
+        "does_not_suppress_required_review"
+      ],
+      "properties": {
+        "deferred_task_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "reminder_surface": {
+          "type": "string",
+          "enum": [
+            "project_doctor",
+            "attention_inbox",
+            "command_palette",
+            "help",
+            "none"
+          ]
+        },
+        "export_checklist_available": { "type": "boolean" },
+        "does_not_widen_trust": { "type": "boolean", "const": true },
+        "does_not_install_packages": { "type": "boolean", "const": true },
+        "does_not_suppress_required_review": { "type": "boolean", "const": true }
+      },
+      "description": "Set-up-later invariant. Deferral never widens authority, installs packages, or suppresses required review."
+    },
+    "remembered_routing_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remembered_route_ref",
+        "applied_as_narrowing_only",
+        "invalidates_on_trust_or_policy_change",
+        "invalidates_on_target_identity_change",
+        "does_not_widen_trust",
+        "does_not_install_packages",
+        "does_not_suppress_required_review"
+      ],
+      "properties": {
+        "remembered_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "applied_as_narrowing_only": { "type": "boolean", "const": true },
+        "invalidates_on_trust_or_policy_change": { "type": "boolean", "const": true },
+        "invalidates_on_target_identity_change": { "type": "boolean", "const": true },
+        "does_not_widen_trust": { "type": "boolean", "const": true },
+        "does_not_install_packages": { "type": "boolean", "const": true },
+        "does_not_suppress_required_review": { "type": "boolean", "const": true }
+      },
+      "description": "Remembered routing invariant. The remembered route is a narrowing hint only."
+    },
+    "user_choice_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remembered_choice_state",
+        "current_choice_refs",
+        "setup_later",
+        "remembered_routing"
+      ],
+      "properties": {
+        "remembered_choice_state": { "$ref": "#/$defs/remembered_choice_state" },
+        "current_choice_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "setup_later": { "$ref": "#/$defs/setup_later_contract" },
+        "remembered_routing": { "$ref": "#/$defs/remembered_routing_contract" }
+      },
+      "description": "User-choice section kept separate from detection, recommendation, and policy."
+    },
+    "readiness_bucket": {
+      "type": "string",
+      "enum": [
+        "blocking_now",
+        "recommended_soon",
+        "optional_later"
+      ],
+      "description": "Readiness bucket. Blocking setup and optional guidance are separate arrays in readiness_buckets."
+    },
+    "readiness_task_class": {
+      "type": "string",
+      "enum": [
+        "trust_review",
+        "policy_review",
+        "toolchain_detect",
+        "toolchain_install",
+        "dependency_restore",
+        "extension_recommendation",
+        "extension_install",
+        "runtime_attach",
+        "remote_agent_reconnect",
+        "devcontainer_build",
+        "package_manager_select",
+        "index_warmup",
+        "docs_import",
+        "test_discovery",
+        "user_boundary_choice",
+        "imported_state_compare",
+        "restore_review",
+        "deep_link_clone_required"
+      ],
+      "description": "Closed readiness task class."
+    },
+    "readiness_task_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "pending",
+        "blocked_by_policy",
+        "blocked_by_trust",
+        "missing_prerequisite",
+        "deferred_by_user",
+        "optional",
+        "unavailable"
+      ],
+      "description": "Current state of a readiness task."
+    },
+    "execution_boundary": {
+      "type": "string",
+      "enum": [
+        "local_machine",
+        "container",
+        "remote_agent",
+        "managed_workspace",
+        "browser_handoff",
+        "no_execution"
+      ],
+      "description": "Where the readiness task executes or why it does not execute."
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "reads_workspace",
+        "writes_workspace_files",
+        "installs_packages",
+        "downloads_dependencies",
+        "widens_trust",
+        "widens_network",
+        "contacts_remote",
+        "starts_process",
+        "attaches_runtime",
+        "changes_layout",
+        "no_side_effect"
+      ],
+      "description": "Side-effect class disclosed before setup runs."
+    },
+    "readiness_task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_ref",
+        "task_class",
+        "bucket",
+        "state",
+        "execution_boundary",
+        "side_effects",
+        "source_signal_refs",
+        "summary"
+      ],
+      "properties": {
+        "task_ref": { "$ref": "#/$defs/opaque_id" },
+        "task_class": { "$ref": "#/$defs/readiness_task_class" },
+        "bucket": { "$ref": "#/$defs/readiness_bucket" },
+        "state": { "$ref": "#/$defs/readiness_task_state" },
+        "execution_boundary": { "$ref": "#/$defs/execution_boundary" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "source_signal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_block_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "recommendation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One readiness task. It is grouped by bucket and discloses boundary plus side effects."
+    },
+    "readiness_buckets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocking_now",
+        "recommended_soon",
+        "optional_later"
+      ],
+      "properties": {
+        "blocking_now": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/readiness_task" }
+        },
+        "recommended_soon": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/readiness_task" }
+        },
+        "optional_later": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/readiness_task" }
+        }
+      },
+      "description": "Three-bucket readiness grouping. Surfaces must not flatten these arrays into one setup list."
+    },
+    "readiness_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinary_editing_available",
+        "blocked_setup_distinct_from_optional",
+        "readiness_buckets",
+        "summary"
+      ],
+      "properties": {
+        "ordinary_editing_available": { "type": "boolean" },
+        "blocked_setup_distinct_from_optional": { "type": "boolean", "const": true },
+        "readiness_buckets": { "$ref": "#/$defs/readiness_buckets" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Readiness section. It explicitly records whether ordinary editing remains available and asserts blocked-vs-optional separation."
+    },
+    "first_useful_entry_source": {
+      "type": "string",
+      "enum": [
+        "single_file_open",
+        "folder_or_repo_open",
+        "repository_clone",
+        "review_or_incident_deep_link",
+        "restore_last_session",
+        "imported_state_or_handoff_packet"
+      ],
+      "description": "Entry source for first-useful-work routing."
+    },
+    "landing_surface": {
+      "type": "string",
+      "enum": [
+        "file_editor_with_root_cues",
+        "explorer_plus_readme_or_changed_files",
+        "post_clone_handoff",
+        "linked_review_incident_or_work_item",
+        "restored_layout_with_placeholders",
+        "import_compare_or_restore_sheet",
+        "generic_shell_with_diagnostics",
+        "nested_root_choice_sheet"
+      ],
+      "description": "Preferred first useful surface. It must match entry source and route reason."
+    },
+    "route_reason_class": {
+      "type": "string",
+      "enum": [
+        "standalone_file",
+        "repo_evidence",
+        "clone_materialized_no_setup_run",
+        "linked_object_arrival",
+        "restore_provenance",
+        "imported_packet_review",
+        "policy_or_trust_narrowing",
+        "mixed_workspace_boundary_choice",
+        "unknown_generic_safe_default",
+        "missing_prerequisite_limited_ready"
+      ],
+      "description": "Why the landing surface was selected."
+    },
+    "route_switch_option": {
+      "type": "string",
+      "enum": [
+        "open_plain_explorer",
+        "open_last_file",
+        "open_readme",
+        "open_changed_files",
+        "review_trust",
+        "choose_root_or_workset",
+        "compare_import",
+        "open_minimal",
+        "set_up_later",
+        "open_clone_or_local_checkout",
+        "open_project_doctor"
+      ],
+      "description": "Reversible switch option exposed near the first landing surface."
+    },
+    "first_useful_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_source",
+        "landing_surface",
+        "route_reason_class",
+        "plain_open_available",
+        "switch_options",
+        "rememberable",
+        "remembered_routing_effect",
+        "summary"
+      ],
+      "properties": {
+        "entry_source": { "$ref": "#/$defs/first_useful_entry_source" },
+        "landing_surface": { "$ref": "#/$defs/landing_surface" },
+        "route_reason_class": { "$ref": "#/$defs/route_reason_class" },
+        "plain_open_available": { "type": "boolean" },
+        "switch_options": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/route_switch_option" },
+          "uniqueItems": true
+        },
+        "rememberable": { "type": "boolean" },
+        "remembered_routing_effect": {
+          "type": "string",
+          "enum": [
+            "not_remembered",
+            "narrowing_hint_only",
+            "expired_requires_review",
+            "blocked_by_policy"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "First-useful-work route record for the current entry."
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ],
+      "description": "Re-export of target_kind from entry_and_restore_result.schema.json."
+    },
+    "resulting_mode": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "folder",
+        "repo_root",
+        "workspace_candidate",
+        "workspace_with_roots",
+        "workset_slice",
+        "inspect_only",
+        "clone_then_review",
+        "clone_then_open",
+        "clone_then_add",
+        "clone_only",
+        "extract_then_review",
+        "compare_before_restore",
+        "apply_to_active_workspace",
+        "open_prebuild_with_setup_actions",
+        "open_prebuild_minimal",
+        "resume_live_session",
+        "restore_last_session",
+        "restore_from_checkpoint"
+      ],
+      "description": "Re-export of resulting_mode from entry_and_restore_result.schema.json."
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted",
+        "pending_evaluation"
+      ],
+      "description": "Re-export of trust_state from the entry / restore object model."
+    },
+    "admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "trust_review_required",
+        "policy_blocked",
+        "needs_repair",
+        "needs_reconnect",
+        "needs_reauth"
+      ],
+      "description": "Re-export of admission_class from the entry / restore object model."
+    },
+    "admission_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admission_checkpoint_id",
+        "entry_action_ref",
+        "entry_source",
+        "target_kind",
+        "resulting_mode",
+        "root_identity_ref",
+        "workspace_scope_ref",
+        "trust_state",
+        "admission_class",
+        "detected_fact_refs",
+        "recommendation_refs",
+        "policy_block_refs",
+        "blocked_setup_refs",
+        "optional_guidance_refs",
+        "continue_without_action",
+        "plain_open_available"
+      ],
+      "properties": {
+        "admission_checkpoint_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "entry_source": { "$ref": "#/$defs/first_useful_entry_source" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "resulting_mode": { "$ref": "#/$defs/resulting_mode" },
+        "root_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "admission_class": { "$ref": "#/$defs/admission_class" },
+        "detected_fact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "recommendation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_block_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "blocked_setup_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "optional_guidance_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "continue_without_action": { "$ref": "#/$defs/bypass_action" },
+        "plain_open_available": { "type": "boolean" }
+      },
+      "description": "Post-entry checkpoint tying facts, recommendations, policy, user choice, readiness, and route together."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "scenario",
+        "contract_sections"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "detection_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "confidence_class",
+        "support_claim_class",
+        "detector_state",
+        "signals",
+        "detected_facts",
+        "unknowns"
+      ],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/detection_outcome" },
+        "confidence_class": { "$ref": "#/$defs/detection_confidence_class" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "detector_state": { "$ref": "#/$defs/detector_state" },
+        "archetype_ref": { "$ref": "#/$defs/opaque_id" },
+        "compatible_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "signals": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/detection_signal" }
+        },
+        "detected_facts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/detected_fact" }
+        },
+        "unknowns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Detected facts and signals only; recommendations, policy, and user choice live in sibling sections."
+    },
+    "workspace_archetype_admission_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "archetype_detection_schema_version",
+        "admission_record_id",
+        "emitted_at",
+        "detection",
+        "recommendations",
+        "policy",
+        "user_choice",
+        "readiness",
+        "admission_checkpoint",
+        "first_useful_route"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "const": "https://aureline.dev/schemas/workspace/archetype_detection.schema.json"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "archetype_detection_schema_version": { "$ref": "#/$defs/archetype_detection_schema_version" },
+        "admission_record_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "detection": { "$ref": "#/$defs/detection_section" },
+        "recommendations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recommendation" }
+        },
+        "policy": { "$ref": "#/$defs/policy_section" },
+        "user_choice": { "$ref": "#/$defs/user_choice_section" },
+        "readiness": { "$ref": "#/$defs/readiness_section" },
+        "admission_checkpoint": { "$ref": "#/$defs/admission_checkpoint" },
+        "first_useful_route": { "$ref": "#/$defs/first_useful_route" }
+      },
+      "description": "One post-entry archetype-detection and first-useful-work routing record."
+    }
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/archetype_detection.schema.json",
+  "__fixture__": {
+    "name": "imported_handoff_compare_first",
+    "scenario": "An imported handoff packet carries probable workspace state and route hints. Aureline compares before restore and keeps setup deferrable.",
+    "contract_sections": ["Detection signals", "Readiness buckets", "First-useful-work route matrix", "Set up later and remembered routing"]
+  },
+  "record_kind": "workspace_archetype_admission_record",
+  "archetype_detection_schema_version": 1,
+  "admission_record_id": "admission.imported_handoff",
+  "emitted_at": "ts.monotonic.imported_handoff",
+  "detection": {
+    "outcome": "probable_archetype",
+    "confidence_class": "medium_probable",
+    "support_claim_class": "supported_scoped",
+    "detector_state": "partial",
+    "archetype_ref": "archetype.imported_service.probable",
+    "compatible_bundle_refs": ["bundle.service.import.review"],
+    "signals": [
+      {
+        "signal_ref": "signal.import.packet",
+        "source_class": "import_packet",
+        "material_effects": ["route_selection", "recommendation", "readiness"],
+        "freshness_class": "imported_snapshot",
+        "producer_ref": "detector.import_packet_reader",
+        "summary": "Imported packet contains workspace, layout, and setup-state hints."
+      },
+      {
+        "signal_ref": "signal.import.extension_contribution",
+        "source_class": "extension_contribution",
+        "material_effects": ["recommendation"],
+        "freshness_class": "cached_current_enough",
+        "producer_ref": "detector.extension_bridge",
+        "summary": "An extension bridge supplied a scoped importer recommendation."
+      }
+    ],
+    "detected_facts": [
+      {
+        "fact_ref": "fact.import.packet_present",
+        "fact_class": "import_packet_present",
+        "source_signal_refs": ["signal.import.packet"],
+        "summary": "An import packet is present."
+      },
+      {
+        "fact_ref": "fact.import.extension_contribution",
+        "fact_class": "extension_contribution_present",
+        "source_signal_refs": ["signal.import.extension_contribution"],
+        "summary": "A bridge extension contributed a recommendation."
+      }
+    ],
+    "unknowns": ["Imported route hints need compare before they can affect the active workspace."]
+  },
+  "recommendations": [
+    {
+      "recommendation_ref": "rec.import.compare_state",
+      "recommendation_class": "compare_imported_state",
+      "basis_signal_refs": ["signal.import.packet", "signal.import.extension_contribution"],
+      "bundle_or_archetype_ref": "bundle.service.import.review",
+      "support_claim_class": "supported_scoped",
+      "same_weight_bypass_actions": ["compare_before_restore", "inspect_only", "set_up_later"],
+      "auto_apply_allowed": false,
+      "summary": "Compare imported state before applying layout, bundle, or setup hints."
+    }
+  ],
+  "policy": {
+    "policy_state": "policy_review_required",
+    "policy_source_refs": ["signal.import.packet"],
+    "policy_blocks": [],
+    "narrowed_capabilities": []
+  },
+  "user_choice": {
+    "remembered_choice_state": "previous_choice_expired_requires_review",
+    "current_choice_refs": ["choice.import.compare_first"],
+    "setup_later": {
+      "deferred_task_refs": ["task.import.setup_review"],
+      "reminder_surface": "attention_inbox",
+      "export_checklist_available": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    },
+    "remembered_routing": {
+      "remembered_route_ref": "route.memory.imported_packet_stale",
+      "applied_as_narrowing_only": true,
+      "invalidates_on_trust_or_policy_change": true,
+      "invalidates_on_target_identity_change": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    }
+  },
+  "readiness": {
+    "ordinary_editing_available": false,
+    "blocked_setup_distinct_from_optional": true,
+    "summary": "The packet can be inspected now; applying imported workspace state requires compare first.",
+    "readiness_buckets": {
+      "blocking_now": [
+        {
+          "task_ref": "task.import.compare",
+          "task_class": "imported_state_compare",
+          "bucket": "blocking_now",
+          "state": "pending",
+          "execution_boundary": "no_execution",
+          "side_effects": ["no_side_effect"],
+          "source_signal_refs": ["signal.import.packet"],
+          "recommendation_refs": ["rec.import.compare_state"],
+          "summary": "Compare imported state before restore or setup adoption."
+        }
+      ],
+      "recommended_soon": [
+        {
+          "task_ref": "task.import.policy_review",
+          "task_class": "policy_review",
+          "bucket": "recommended_soon",
+          "state": "pending",
+          "execution_boundary": "no_execution",
+          "side_effects": ["no_side_effect"],
+          "source_signal_refs": ["signal.import.packet"],
+          "recommendation_refs": ["rec.import.compare_state"],
+          "summary": "Review policy implications of imported setup hints."
+        }
+      ],
+      "optional_later": [
+        {
+          "task_ref": "task.import.setup_review",
+          "task_class": "extension_recommendation",
+          "bucket": "optional_later",
+          "state": "deferred_by_user",
+          "execution_boundary": "no_execution",
+          "side_effects": ["no_side_effect"],
+          "source_signal_refs": ["signal.import.extension_contribution"],
+          "recommendation_refs": ["rec.import.compare_state"],
+          "summary": "Review extension bridge recommendations after compare."
+        }
+      ]
+    }
+  },
+  "admission_checkpoint": {
+    "admission_checkpoint_id": "checkpoint.imported_handoff",
+    "entry_action_ref": "entry.import.handoff_packet",
+    "entry_source": "imported_state_or_handoff_packet",
+    "target_kind": "handoff_packet",
+    "resulting_mode": "compare_before_restore",
+    "root_identity_ref": "root.imported_unknown",
+    "workspace_scope_ref": "scope.import_compare",
+    "trust_state": "pending_evaluation",
+    "admission_class": "trust_review_required",
+    "detected_fact_refs": ["fact.import.packet_present", "fact.import.extension_contribution"],
+    "recommendation_refs": ["rec.import.compare_state"],
+    "policy_block_refs": [],
+    "blocked_setup_refs": ["task.import.compare"],
+    "optional_guidance_refs": ["task.import.setup_review"],
+    "continue_without_action": "inspect_only",
+    "plain_open_available": true
+  },
+  "first_useful_route": {
+    "entry_source": "imported_state_or_handoff_packet",
+    "landing_surface": "import_compare_or_restore_sheet",
+    "route_reason_class": "imported_packet_review",
+    "plain_open_available": true,
+    "switch_options": ["compare_import", "open_minimal", "set_up_later"],
+    "rememberable": true,
+    "remembered_routing_effect": "expired_requires_review",
+    "summary": "Compare the imported packet first; remembered route hints are stale and require review."
+  }
+}

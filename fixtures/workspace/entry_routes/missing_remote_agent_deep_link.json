@@ -1,0 +1,154 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/archetype_detection.schema.json",
+  "__fixture__": {
+    "name": "missing_remote_agent_deep_link",
+    "scenario": "A review or incident deep link can open the linked object, but full workspace interaction requires a remote agent that is currently unavailable.",
+    "contract_sections": ["Detection outcomes", "Admission checkpoint", "First-useful-work route matrix"]
+  },
+  "record_kind": "workspace_archetype_admission_record",
+  "archetype_detection_schema_version": 1,
+  "admission_record_id": "admission.missing_remote_agent",
+  "emitted_at": "ts.monotonic.missing_remote_agent",
+  "detection": {
+    "outcome": "missing_prerequisite",
+    "confidence_class": "prerequisite_missing",
+    "support_claim_class": "claim_unavailable_missing_prerequisite",
+    "detector_state": "partial",
+    "archetype_ref": "archetype.review_context.remote_required",
+    "compatible_bundle_refs": [],
+    "signals": [
+      {
+        "signal_ref": "signal.deep_link.import_packet",
+        "source_class": "import_packet",
+        "material_effects": ["route_selection", "readiness"],
+        "freshness_class": "imported_snapshot",
+        "producer_ref": "detector.handoff_packet_reader",
+        "summary": "The handoff packet contains a review or incident object reference."
+      },
+      {
+        "signal_ref": "signal.deep_link.runtime_probe",
+        "source_class": "runtime_probe",
+        "material_effects": ["readiness", "route_selection"],
+        "freshness_class": "unknown_freshness",
+        "producer_ref": "detector.remote_agent_probe",
+        "summary": "Remote agent reachability could not be confirmed."
+      }
+    ],
+    "detected_facts": [
+      {
+        "fact_ref": "fact.deep_link.object_present",
+        "fact_class": "review_or_incident_object_present",
+        "source_signal_refs": ["signal.deep_link.import_packet"],
+        "summary": "A linked review or incident object is present."
+      },
+      {
+        "fact_ref": "fact.deep_link.remote_agent_missing",
+        "fact_class": "remote_agent_missing",
+        "source_signal_refs": ["signal.deep_link.runtime_probe"],
+        "summary": "The remote agent needed for full workspace interaction is unavailable."
+      }
+    ],
+    "unknowns": ["Live workspace authority cannot be evaluated until the remote agent reconnects."]
+  },
+  "recommendations": [
+    {
+      "recommendation_ref": "rec.deep_link.open_clone",
+      "recommendation_class": "attach_remote_or_container",
+      "basis_signal_refs": ["signal.deep_link.import_packet", "signal.deep_link.runtime_probe"],
+      "bundle_or_archetype_ref": "archetype.review_context.remote_required",
+      "support_claim_class": "claim_unavailable_missing_prerequisite",
+      "same_weight_bypass_actions": ["inspect_only", "set_up_later", "open_minimal"],
+      "auto_apply_allowed": false,
+      "summary": "Reconnect the remote agent or open a local checkout for full interaction."
+    }
+  ],
+  "policy": {
+    "policy_state": "no_policy_constraints",
+    "policy_source_refs": [],
+    "policy_blocks": [],
+    "narrowed_capabilities": []
+  },
+  "user_choice": {
+    "remembered_choice_state": "no_previous_choice",
+    "current_choice_refs": [],
+    "setup_later": {
+      "deferred_task_refs": ["task.deep_link.remote_agent_reconnect"],
+      "reminder_surface": "attention_inbox",
+      "export_checklist_available": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    },
+    "remembered_routing": {
+      "remembered_route_ref": "route.memory.none",
+      "applied_as_narrowing_only": true,
+      "invalidates_on_trust_or_policy_change": true,
+      "invalidates_on_target_identity_change": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    }
+  },
+  "readiness": {
+    "ordinary_editing_available": false,
+    "blocked_setup_distinct_from_optional": true,
+    "summary": "The linked object is readable now; full workspace editing waits for remote reconnect or a local checkout.",
+    "readiness_buckets": {
+      "blocking_now": [
+        {
+          "task_ref": "task.deep_link.remote_agent_reconnect",
+          "task_class": "remote_agent_reconnect",
+          "bucket": "blocking_now",
+          "state": "missing_prerequisite",
+          "execution_boundary": "remote_agent",
+          "side_effects": ["attaches_runtime", "contacts_remote"],
+          "source_signal_refs": ["signal.deep_link.runtime_probe"],
+          "recommendation_refs": ["rec.deep_link.open_clone"],
+          "summary": "Remote agent reconnect is required before full workspace interaction."
+        }
+      ],
+      "recommended_soon": [
+        {
+          "task_ref": "task.deep_link.local_checkout",
+          "task_class": "deep_link_clone_required",
+          "bucket": "recommended_soon",
+          "state": "pending",
+          "execution_boundary": "local_machine",
+          "side_effects": ["writes_workspace_files", "contacts_remote"],
+          "source_signal_refs": ["signal.deep_link.import_packet"],
+          "recommendation_refs": ["rec.deep_link.open_clone"],
+          "summary": "Open or clone a local checkout if remote reconnect is not available."
+        }
+      ],
+      "optional_later": []
+    }
+  },
+  "admission_checkpoint": {
+    "admission_checkpoint_id": "checkpoint.missing_remote_agent",
+    "entry_action_ref": "entry.deep_link.review_object",
+    "entry_source": "review_or_incident_deep_link",
+    "target_kind": "review_or_work_item_deep_link",
+    "resulting_mode": "inspect_only",
+    "root_identity_ref": "root.remote_unknown",
+    "workspace_scope_ref": "scope.linked_object_only",
+    "trust_state": "pending_evaluation",
+    "admission_class": "needs_reconnect",
+    "detected_fact_refs": ["fact.deep_link.object_present", "fact.deep_link.remote_agent_missing"],
+    "recommendation_refs": ["rec.deep_link.open_clone"],
+    "policy_block_refs": [],
+    "blocked_setup_refs": ["task.deep_link.remote_agent_reconnect"],
+    "optional_guidance_refs": ["task.deep_link.local_checkout"],
+    "continue_without_action": "inspect_only",
+    "plain_open_available": true
+  },
+  "first_useful_route": {
+    "entry_source": "review_or_incident_deep_link",
+    "landing_surface": "linked_review_incident_or_work_item",
+    "route_reason_class": "missing_prerequisite_limited_ready",
+    "plain_open_available": true,
+    "switch_options": ["open_clone_or_local_checkout", "set_up_later", "open_project_doctor"],
+    "rememberable": false,
+    "remembered_routing_effect": "not_remembered",
+    "summary": "Anchor the linked object first and make the missing remote prerequisite explicit."
+  }
+}

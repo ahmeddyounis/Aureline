@@ -1,0 +1,180 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/archetype_detection.schema.json",
+  "__fixture__": {
+    "name": "restricted_clone_policy_blocked_setup",
+    "scenario": "A repository clone completes, but policy blocks dependency restore and public-registry contact. The post-clone handoff separates blocked setup from optional guidance and preserves restricted-mode continuation.",
+    "contract_sections": ["Detection outcomes", "Readiness buckets", "Admission checkpoint", "Set up later and remembered routing"]
+  },
+  "record_kind": "workspace_archetype_admission_record",
+  "archetype_detection_schema_version": 1,
+  "admission_record_id": "admission.restricted_clone",
+  "emitted_at": "ts.monotonic.restricted_clone",
+  "detection": {
+    "outcome": "restricted_or_policy_blocked",
+    "confidence_class": "restricted_by_policy",
+    "support_claim_class": "claim_blocked_by_policy",
+    "detector_state": "blocked",
+    "archetype_ref": "archetype.web.policy_narrowed",
+    "compatible_bundle_refs": ["bundle.web.fullstack.current"],
+    "signals": [
+      {
+        "signal_ref": "signal.restricted.manifest",
+        "source_class": "manifest",
+        "material_effects": ["recommendation", "readiness"],
+        "freshness_class": "fresh_current",
+        "producer_ref": "detector.manifest_reader",
+        "summary": "Project manifest suggests a web bundle."
+      },
+      {
+        "signal_ref": "signal.restricted.admin_policy",
+        "source_class": "admin_policy",
+        "material_effects": ["policy", "trust", "readiness"],
+        "freshness_class": "policy_epoch_current",
+        "producer_ref": "detector.policy_engine",
+        "summary": "Managed policy blocks local package installation and public registry contact."
+      }
+    ],
+    "detected_facts": [
+      {
+        "fact_ref": "fact.restricted.manifest_present",
+        "fact_class": "manifest_present",
+        "source_signal_refs": ["signal.restricted.manifest"],
+        "summary": "A package manifest is present."
+      },
+      {
+        "fact_ref": "fact.restricted.policy_applies",
+        "fact_class": "admin_policy_applies",
+        "source_signal_refs": ["signal.restricted.admin_policy"],
+        "summary": "Admin policy applies to setup actions."
+      }
+    ],
+    "unknowns": []
+  },
+  "recommendations": [
+    {
+      "recommendation_ref": "rec.restricted.review_bundle",
+      "recommendation_class": "compare_workflow_bundle",
+      "basis_signal_refs": ["signal.restricted.manifest"],
+      "bundle_or_archetype_ref": "bundle.web.fullstack.current",
+      "support_claim_class": "claim_blocked_by_policy",
+      "same_weight_bypass_actions": ["continue_in_restricted_mode", "set_up_later", "open_minimal"],
+      "auto_apply_allowed": false,
+      "summary": "Review the bundle, but setup cannot run until policy allows the required actions."
+    }
+  ],
+  "policy": {
+    "policy_state": "policy_blocks_setup",
+    "policy_source_refs": ["signal.restricted.admin_policy"],
+    "policy_blocks": [
+      {
+        "policy_block_ref": "policyblock.restricted.package_install",
+        "blocked_action_class": "install_package",
+        "policy_source_refs": ["signal.restricted.admin_policy"],
+        "summary": "Local package installation is blocked by managed policy."
+      },
+      {
+        "policy_block_ref": "policyblock.restricted.public_registry",
+        "blocked_action_class": "contact_public_registry",
+        "policy_source_refs": ["signal.restricted.admin_policy"],
+        "summary": "Public registry contact is blocked by managed policy."
+      }
+    ],
+    "narrowed_capabilities": ["install_package", "contact_public_registry"]
+  },
+  "user_choice": {
+    "remembered_choice_state": "no_previous_choice",
+    "current_choice_refs": [],
+    "setup_later": {
+      "deferred_task_refs": ["task.restricted.dependency_restore"],
+      "reminder_surface": "project_doctor",
+      "export_checklist_available": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    },
+    "remembered_routing": {
+      "remembered_route_ref": "route.memory.none",
+      "applied_as_narrowing_only": true,
+      "invalidates_on_trust_or_policy_change": true,
+      "invalidates_on_target_identity_change": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    }
+  },
+  "readiness": {
+    "ordinary_editing_available": true,
+    "blocked_setup_distinct_from_optional": true,
+    "summary": "Clone materialized the repo. Package restore is policy-blocked, while file browsing, editing, and index warmup remain available.",
+    "readiness_buckets": {
+      "blocking_now": [
+        {
+          "task_ref": "task.restricted.dependency_restore",
+          "task_class": "dependency_restore",
+          "bucket": "blocking_now",
+          "state": "blocked_by_policy",
+          "execution_boundary": "local_machine",
+          "side_effects": ["installs_packages", "downloads_dependencies", "contacts_remote"],
+          "source_signal_refs": ["signal.restricted.manifest", "signal.restricted.admin_policy"],
+          "policy_block_refs": ["policyblock.restricted.package_install", "policyblock.restricted.public_registry"],
+          "recommendation_refs": ["rec.restricted.review_bundle"],
+          "summary": "Dependency restore cannot run under current policy."
+        }
+      ],
+      "recommended_soon": [
+        {
+          "task_ref": "task.restricted.trust_review",
+          "task_class": "trust_review",
+          "bucket": "recommended_soon",
+          "state": "pending",
+          "execution_boundary": "no_execution",
+          "side_effects": ["no_side_effect"],
+          "source_signal_refs": ["signal.restricted.manifest"],
+          "recommendation_refs": ["rec.restricted.review_bundle"],
+          "summary": "Review workspace trust before enabling repo-owned actions."
+        }
+      ],
+      "optional_later": [
+        {
+          "task_ref": "task.restricted.index_warmup",
+          "task_class": "index_warmup",
+          "bucket": "optional_later",
+          "state": "optional",
+          "execution_boundary": "local_machine",
+          "side_effects": ["reads_workspace"],
+          "source_signal_refs": ["signal.restricted.manifest"],
+          "recommendation_refs": ["rec.restricted.review_bundle"],
+          "summary": "Index warmup can run without package install."
+        }
+      ]
+    }
+  },
+  "admission_checkpoint": {
+    "admission_checkpoint_id": "checkpoint.restricted_clone",
+    "entry_action_ref": "entry.clone.remote_repo",
+    "entry_source": "repository_clone",
+    "target_kind": "remote_repository",
+    "resulting_mode": "clone_then_review",
+    "root_identity_ref": "root.cloned_repo",
+    "workspace_scope_ref": "scope.cloned_repo",
+    "trust_state": "restricted",
+    "admission_class": "policy_blocked",
+    "detected_fact_refs": ["fact.restricted.manifest_present", "fact.restricted.policy_applies"],
+    "recommendation_refs": ["rec.restricted.review_bundle"],
+    "policy_block_refs": ["policyblock.restricted.package_install", "policyblock.restricted.public_registry"],
+    "blocked_setup_refs": ["task.restricted.dependency_restore"],
+    "optional_guidance_refs": ["task.restricted.index_warmup"],
+    "continue_without_action": "continue_in_restricted_mode",
+    "plain_open_available": true
+  },
+  "first_useful_route": {
+    "entry_source": "repository_clone",
+    "landing_surface": "post_clone_handoff",
+    "route_reason_class": "clone_materialized_no_setup_run",
+    "plain_open_available": true,
+    "switch_options": ["review_trust", "open_plain_explorer", "set_up_later", "open_project_doctor"],
+    "rememberable": false,
+    "remembered_routing_effect": "not_remembered",
+    "summary": "Show what clone materialized, what did not run, and which setup is blocked by policy."
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "$schema": "https://aureline.dev/schemas/workspace/archetype_detection.schema.json",
+  "__fixture__": {
+    "name": "mixed_workspace_boundary_choice",
+    "scenario": "A repo open contains multiple competing roots and stack signals. Aureline routes to a boundary choice instead of forcing one framework view.",
+    "contract_sections": ["Detection outcomes", "Readiness buckets", "Admission checkpoint", "First-useful-work route matrix"]
+  },
+  "record_kind": "workspace_archetype_admission_record",
+  "archetype_detection_schema_version": 1,
+  "admission_record_id": "admission.mixed_workspace",
+  "emitted_at": "ts.monotonic.mixed_workspace",
+  "detection": {
+    "outcome": "mixed_or_ambiguous_workspace",
+    "confidence_class": "mixed_conflicting",
+    "support_claim_class": "generic_no_claim",
+    "detector_state": "ready_enough",
+    "archetype_ref": "archetype.mixed.none_selected",
+    "compatible_bundle_refs": [],
+    "signals": [
+      {
+        "signal_ref": "signal.mixed.workspace_file",
+        "source_class": "workspace_file",
+        "material_effects": ["route_selection", "readiness"],
+        "freshness_class": "fresh_current",
+        "producer_ref": "detector.workspace_file_reader",
+        "summary": "Workspace file declares more than one root."
+      },
+      {
+        "signal_ref": "signal.mixed.lockfile",
+        "source_class": "lockfile",
+        "material_effects": ["route_selection", "recommendation"],
+        "freshness_class": "fresh_current",
+        "producer_ref": "detector.lockfile_reader",
+        "summary": "Multiple package and service lockfiles point at separate project slices."
+      }
+    ],
+    "detected_facts": [
+      {
+        "fact_ref": "fact.mixed.workspace_file_present",
+        "fact_class": "workspace_file_present",
+        "source_signal_refs": ["signal.mixed.workspace_file"],
+        "summary": "A workspace file is present."
+      },
+      {
+        "fact_ref": "fact.mixed.nested_root_present",
+        "fact_class": "nested_root_present",
+        "source_signal_refs": ["signal.mixed.workspace_file", "signal.mixed.lockfile"],
+        "summary": "Nested or sibling project roots are present."
+      },
+      {
+        "fact_ref": "fact.mixed.stack_signal",
+        "fact_class": "mixed_stack_signal",
+        "source_signal_refs": ["signal.mixed.lockfile"],
+        "summary": "Signals point to more than one stack."
+      }
+    ],
+    "unknowns": ["No single archetype can be claimed for the whole repo yet."]
+  },
+  "recommendations": [
+    {
+      "recommendation_ref": "rec.choose_boundary",
+      "recommendation_class": "choose_workspace_boundary",
+      "basis_signal_refs": ["signal.mixed.workspace_file", "signal.mixed.lockfile"],
+      "bundle_or_archetype_ref": "archetype.mixed.none_selected",
+      "support_claim_class": "generic_no_claim",
+      "same_weight_bypass_actions": ["open_minimal", "set_up_later", "dismiss_recommendation"],
+      "auto_apply_allowed": false,
+      "summary": "Choose whole repo, probable project, current folder only, or create a workset."
+    }
+  ],
+  "policy": {
+    "policy_state": "no_policy_constraints",
+    "policy_source_refs": [],
+    "policy_blocks": [],
+    "narrowed_capabilities": []
+  },
+  "user_choice": {
+    "remembered_choice_state": "no_previous_choice",
+    "current_choice_refs": [],
+    "setup_later": {
+      "deferred_task_refs": ["task.mixed.index_warmup"],
+      "reminder_surface": "project_doctor",
+      "export_checklist_available": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    },
+    "remembered_routing": {
+      "remembered_route_ref": "route.memory.none",
+      "applied_as_narrowing_only": true,
+      "invalidates_on_trust_or_policy_change": true,
+      "invalidates_on_target_identity_change": true,
+      "does_not_widen_trust": true,
+      "does_not_install_packages": true,
+      "does_not_suppress_required_review": true
+    }
+  },
+  "readiness": {
+    "ordinary_editing_available": true,
+    "blocked_setup_distinct_from_optional": true,
+    "summary": "Opening and editing are available; route choice determines which root gets richer setup guidance.",
+    "readiness_buckets": {
+      "blocking_now": [
+        {
+          "task_ref": "task.mixed.boundary_choice",
+          "task_class": "user_boundary_choice",
+          "bucket": "blocking_now",
+          "state": "pending",
+          "execution_boundary": "no_execution",
+          "side_effects": ["no_side_effect"],
+          "source_signal_refs": ["signal.mixed.workspace_file", "signal.mixed.lockfile"],
+          "recommendation_refs": ["rec.choose_boundary"],
+          "summary": "Choose the workspace boundary before framework-specific setup is offered."
+        }
+      ],
+      "recommended_soon": [],
+      "optional_later": [
+        {
+          "task_ref": "task.mixed.index_warmup",
+          "task_class": "index_warmup",
+          "bucket": "optional_later",
+          "state": "optional",
+          "execution_boundary": "local_machine",
+          "side_effects": ["reads_workspace"],
+          "source_signal_refs": ["signal.mixed.workspace_file"],
+          "recommendation_refs": ["rec.choose_boundary"],
+          "summary": "Warm the index after a boundary is selected."
+        }
+      ]
+    }
+  },
+  "admission_checkpoint": {
+    "admission_checkpoint_id": "checkpoint.mixed_workspace",
+    "entry_action_ref": "entry.open.mixed_repo",
+    "entry_source": "folder_or_repo_open",
+    "target_kind": "local_repo_root",
+    "resulting_mode": "workspace_candidate",
+    "root_identity_ref": "root.mixed_repo",
+    "workspace_scope_ref": "scope.mixed_unselected",
+    "trust_state": "pending_evaluation",
+    "admission_class": "admitted",
+    "detected_fact_refs": ["fact.mixed.workspace_file_present", "fact.mixed.nested_root_present", "fact.mixed.stack_signal"],
+    "recommendation_refs": ["rec.choose_boundary"],
+    "policy_block_refs": [],
+    "blocked_setup_refs": ["task.mixed.boundary_choice"],
+    "optional_guidance_refs": ["task.mixed.index_warmup"],
+    "continue_without_action": "open_minimal",
+    "plain_open_available": true
+  },
+  "first_useful_route": {
+    "entry_source": "folder_or_repo_open",
+    "landing_surface": "nested_root_choice_sheet",
+    "route_reason_class": "mixed_workspace_boundary_choice",
+    "plain_open_available": true,
+    "switch_options": ["choose_root_or_workset", "open_plain_explorer", "open_minimal", "set_up_later"],
+    "rememberable": true,
+    "remembered_routing_effect": "narrowing_hint_only",
+    "summary": "Show the boundary choice first because whole-repo claims would overstate support."
+  }
+}

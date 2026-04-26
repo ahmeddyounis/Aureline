@@ -610,6 +610,21 @@ code.
   resume managed workspace, start from prebuild, recent-work row
   with missing target) in
   [`/fixtures/workspace/entry_restore_examples/`](../fixtures/workspace/entry_restore_examples/).
+- [`ux/archetype_detection_contract.md`](./ux/archetype_detection_contract.md)
+  — post-entry workspace archetype detection, readiness-preflight,
+  admission-checkpoint, first-useful-work routing, setup-later, and
+  remembered-routing contract. Freezes the six detection outcomes
+  (`certified_archetype_match`, `probable_archetype`,
+  `mixed_or_ambiguous_workspace`, `unknown_or_generic_workspace`,
+  `restricted_or_policy_blocked`, `missing_prerequisite`), material
+  source-labeled detection signals, the three readiness buckets
+  (`blocking_now`, `recommended_soon`, `optional_later`), and route
+  expectations for single-file open, folder/repo open, clone,
+  review/incident deep link, restore last session, and imported
+  state/handoff packet entry. Boundary schema in
+  [`/schemas/workspace/archetype_detection.schema.json`](../schemas/workspace/archetype_detection.schema.json);
+  worked fixtures in
+  [`/fixtures/workspace/entry_routes/`](../fixtures/workspace/entry_routes/).
 - [`ux/recent_work_and_restore_card_contract.md`](./ux/recent_work_and_restore_card_contract.md)
   — concrete recent-work row, restore-card summary, and workspace-
   switcher row anatomy for startup and switching surfaces. Freezes
