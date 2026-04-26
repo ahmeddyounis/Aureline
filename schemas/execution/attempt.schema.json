@@ -1,0 +1,821 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/attempt.schema.json",
+  "title": "Aureline attempt and attempt-input-request record",
+  "description": "Boundary schema for the per-execution attempt record and the typed attempt-input-request packet that rides alongside it. An attempt is one execution of a run (schemas/execution/run.schema.json) - the run is the stable identity for the request, and the attempt is one instance of trying to fulfil it. Every attempt carries its own context snapshot, its own host boundary, its own queue admission posture, its own input-request packets, its own outcome events, and its own artifact-event refs; the attempt history is append-only and MUST NOT be collapsed into a misleading single 'last result'. The attempt-input-request packet is distinct from the terminal-session input_request_record in schemas/execution/command_boundary_marker.schema.json: terminal input requests serve a running shell; attempt input requests serve an attempt that needs a typed value (a paste-and-confirm intent, an API key, a yes / no rerun confirmation, a manual checkpoint resume, a credential-handle selection, an explicit irreversible-action confirmation) before it can advance to the next lifecycle state. Vocabularies compose with - and never re-mint - the lifecycle / queue admission / host boundary / rerun-kind / side-effect / failure / denial / audit vocabularies frozen in run.schema.json, the queue lane / work class / budget domain set in schemas/runtime/background_job.schema.json, the context-snapshot model in schemas/execution/context_snapshot.schema.json, the credential-handle classes in the secret-broker boundary, and the command-dispatch descriptor (ADR-0016). Raw command lines, raw stdout / stderr byte streams, raw env bodies, raw API bodies, raw secret values, and raw absolute paths MUST NOT appear in any record. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with an attempt_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/attempt_record" },
+    { "$ref": "#/$defs/attempt_input_request_record" }
+  ],
+  "$defs": {
+    "attempt_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "attempt_record",
+        "attempt_input_request_record"
+      ]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "waiting_input",
+        "partially_complete",
+        "passed",
+        "failed",
+        "cancelled",
+        "stale_output",
+        "lifecycle_state_unknown_requires_review"
+      ],
+      "description": "Re-export of the lifecycle vocabulary from schemas/execution/run.schema.json. Attempts use exactly the same vocabulary as runs so a reviewer can read run roll-up and per-attempt state with the same eyes."
+    },
+
+    "host_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_host_runtime",
+        "ssh_remote_runtime",
+        "remote_workspace_agent_runtime",
+        "managed_workspace_agent_runtime",
+        "container_local_runtime",
+        "devcontainer_runtime",
+        "provider_remote_agent_runtime",
+        "compatibility_bridge_remote_runtime",
+        "ai_sandbox_runtime",
+        "host_boundary_unknown_requires_review"
+      ],
+      "description": "Re-export of host_boundary_class from schemas/execution/run.schema.json. The attempt MAY differ from its run's host boundary - for example a current-context-replay attempt may run against a refreshed managed worker even though the original run pinned a different remote agent - and the attempt's host boundary is what governs its mutating actions."
+    },
+
+    "queue_admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted_into_lane",
+        "queued_pending_capacity",
+        "queued_pending_dependency",
+        "queued_pending_user_confirmation",
+        "queued_pending_input_request",
+        "admission_deferred_by_quiet_hours",
+        "admission_held_pending_high_risk_review",
+        "admission_denied_by_workspace_trust_restricted",
+        "admission_denied_by_admin_policy_pack",
+        "admission_denied_by_session_quarantine",
+        "admission_denied_by_secret_class_intersection",
+        "admission_denied_by_irreversible_action_without_explicit_confirmation",
+        "queue_admission_class_unknown_requires_review"
+      ]
+    },
+
+    "queue_lane_id": {
+      "type": "string",
+      "enum": [
+        "foreground",
+        "interactive_background",
+        "maintenance",
+        "provider_overlay",
+        "upload_replication"
+      ]
+    },
+
+    "work_class_id": {
+      "type": "string",
+      "enum": [
+        "core_interaction",
+        "core_navigation",
+        "short_foreground_task",
+        "background_knowledge_work",
+        "optional_assistance",
+        "upload_and_replication"
+      ]
+    },
+
+    "budget_domain_id": {
+      "type": "string",
+      "enum": [
+        "hot_path_interactive_budget",
+        "foreground_task_budget",
+        "knowledge_refresh_budget",
+        "maintenance_budget",
+        "provider_overlay_budget",
+        "replication_budget"
+      ]
+    },
+
+    "attempt_kind_class": {
+      "type": "string",
+      "enum": [
+        "initial_attempt",
+        "exact_replay_attempt",
+        "current_context_replay_attempt",
+        "failed_step_retry_attempt",
+        "automated_retry_after_transient_failure_attempt",
+        "manual_retry_user_initiated_attempt",
+        "attempt_kind_unknown_requires_review"
+      ],
+      "description": "Closed attempt-kind vocabulary. Mirrors the rerun_kind_class on schemas/execution/run.schema.json: a run-level rerun mints a new run with rerun_kind_class set; per-attempt retries within one run mint additional attempts with attempt_kind_class set. A failed-step retry is admitted only when the parent run already carries at least one outcome event with outcome_failed or outcome_partially_complete and a checkpoint is available."
+    },
+
+    "cancellation_authority_class": {
+      "type": "string",
+      "enum": [
+        "not_cancelled",
+        "cancellation_by_user_via_command_dispatch",
+        "cancellation_by_supervisor_under_collapse_supersede",
+        "cancellation_by_admin_policy_pack",
+        "cancellation_by_session_quarantine",
+        "cancellation_by_workspace_trust_revocation",
+        "cancellation_by_timeout",
+        "cancellation_by_remote_disconnect_no_reconnect",
+        "cancellation_by_irreversible_side_effect_block",
+        "cancellation_authority_unknown_requires_review"
+      ],
+      "description": "Closed cancellation-authority vocabulary. Re-projects the cancellation-contract row from schemas/runtime/background_job.schema.json - cancellation_by_user_via_command_dispatch is the typed user-initiated cancellation that MUST cite a command-dispatch descriptor; cancellation_by_supervisor_under_collapse_supersede is the typed supervisor-initiated cancellation that rides a collapse_event_record. not_cancelled is the honest answer for an attempt that has not been cancelled."
+    },
+
+    "input_request_kind_class": {
+      "type": "string",
+      "enum": [
+        "rerun_intent_confirmation",
+        "irreversible_action_confirmation",
+        "credential_handle_selection",
+        "input_value_visible_echo",
+        "input_value_secret_no_echo",
+        "input_value_password_managed_echo_mask",
+        "yes_no_continuation",
+        "checkpoint_resume_or_restart",
+        "broadened_capture_opt_in_confirmation",
+        "input_request_kind_unknown_requires_review"
+      ],
+      "description": "Closed attempt-input-request kind vocabulary. Rerun-intent and irreversible-action confirmations are required when the attempt would commit a side effect that the prior run already published. credential_handle_selection lets the attempt cite a credential-handle class without ever surfacing raw secret material."
+    },
+
+    "input_request_result_class": {
+      "type": "string",
+      "enum": [
+        "result_user_confirmed_proceed",
+        "result_user_confirmed_proceed_with_broadened_capture_approval_ticket",
+        "result_user_declined_no_run",
+        "result_user_submitted_value_summary_safe",
+        "result_user_submitted_secret_no_summary",
+        "result_timed_out_no_value_provided",
+        "result_cancelled_by_supervisor",
+        "result_cancelled_by_policy",
+        "result_pending_no_typed_result_yet",
+        "result_class_unknown_requires_review"
+      ],
+      "description": "Closed input-request result vocabulary. Secret-mode prompts MUST resolve to result_user_submitted_secret_no_summary; the entered bytes never project. The result_pending_no_typed_result_yet value is the honest answer for an open input request whose deadline has not passed."
+    },
+
+    "input_request_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_summary_secret_or_redacted",
+        "summary_safe_class_label_only",
+        "summary_safe_short_sentence",
+        "summary_class_unknown_requires_review"
+      ],
+      "description": "Closed input-request summary vocabulary. Secret-mode prompts and credential-handle prompts MUST resolve to no_summary_secret_or_redacted regardless of the result class; only the input-request id and the typed result class project."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "attempt_record_must_cite_parent_run_ref",
+        "attempt_record_must_cite_context_snapshot_ref_at_attempt",
+        "attempt_record_must_cite_host_boundary_class",
+        "attempt_record_must_cite_target_identity_witness_when_remote",
+        "attempt_record_must_cite_command_dispatch_descriptor_ref",
+        "attempt_record_must_not_overwrite_prior_attempt_in_place",
+        "attempt_record_must_cite_cancellation_authority_when_cancelled",
+        "attempt_record_must_resolve_input_request_with_typed_result",
+        "attempt_record_must_carry_outcome_event_when_completed",
+        "attempt_record_must_not_admit_silent_collapse_with_other_attempt",
+        "attempt_record_must_carry_failed_step_checkpoint_when_step_retry",
+        "attempt_record_must_forbid_mutating_action_under_workspace_trust_restricted",
+        "attempt_record_must_forbid_mutating_action_on_quarantined_lane",
+        "attempt_record_lifecycle_state_unknown_requires_review",
+        "attempt_record_attempt_kind_unknown_requires_review",
+        "attempt_record_host_boundary_unknown_requires_review",
+        "attempt_record_queue_admission_unknown_requires_review",
+        "attempt_input_request_record_must_cite_parent_attempt_ref",
+        "attempt_input_request_record_must_carry_typed_result_class",
+        "attempt_input_request_record_must_resolve_secret_summary_to_no_summary",
+        "attempt_input_request_record_must_cite_credential_handle_class_ref_when_secret",
+        "attempt_input_request_record_must_cite_approval_ticket_ref_when_broadened_capture",
+        "attempt_input_request_record_must_cite_irreversible_action_summary_when_irreversible",
+        "attempt_input_request_record_must_close_with_typed_result_after_deadline",
+        "attempt_input_request_record_kind_unknown_requires_review"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "attempt_record_published",
+        "attempt_record_lifecycle_transitioned",
+        "attempt_record_input_request_opened",
+        "attempt_record_input_request_closed_with_typed_result",
+        "attempt_record_artifact_event_attached",
+        "attempt_record_outcome_event_attached",
+        "attempt_record_cancellation_admitted",
+        "attempt_record_cancellation_denied",
+        "attempt_record_silent_overwrite_of_attempt_history_forbidden_denial",
+        "attempt_record_silent_collapse_with_other_attempt_forbidden_denial",
+        "attempt_record_silent_admit_under_quarantine_forbidden_denial",
+        "attempt_record_audit_denial_emitted",
+        "attempt_input_request_record_opened",
+        "attempt_input_request_record_closed_with_typed_result",
+        "attempt_input_request_record_timed_out",
+        "attempt_input_request_record_silent_secret_capture_forbidden_denial",
+        "attempt_input_request_record_silent_irreversible_admit_forbidden_denial",
+        "attempt_input_request_record_audit_denial_emitted"
+      ]
+    },
+
+    "queue_admission_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admission_class",
+        "queue_lane",
+        "work_class",
+        "budget_domain"
+      ],
+      "properties": {
+        "admission_class": { "$ref": "#/$defs/queue_admission_class" },
+        "queue_lane": { "$ref": "#/$defs/queue_lane_id" },
+        "work_class": { "$ref": "#/$defs/work_class_id" },
+        "budget_domain": { "$ref": "#/$defs/budget_domain_id" },
+        "background_job_record_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "collapse_key_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+
+    "attempt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "attempt_schema_version",
+        "attempt_record_id",
+        "parent_run_ref",
+        "attempt_index",
+        "attempt_kind_class",
+        "host_boundary_class",
+        "command_dispatch_descriptor_ref",
+        "execution_context_id_at_attempt",
+        "context_snapshot_ref_at_attempt",
+        "queue_admission_summary",
+        "lifecycle_state_class",
+        "cancellation_authority_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "attempt_record" },
+        "attempt_schema_version": { "$ref": "#/$defs/attempt_schema_version" },
+        "attempt_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_run_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the parent run_record. Required."
+        },
+        "attempt_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based attempt index within the parent run. The first attempt is index 0; per-step retries inside the same run mint subsequent indices. Reruns of the run as a whole mint a new run_record_id with its own attempt_index = 0."
+        },
+        "attempt_kind_class": { "$ref": "#/$defs/attempt_kind_class" },
+        "predecessor_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the prior attempt this attempt builds on. Required for failed_step_retry_attempt, automated_retry_after_transient_failure_attempt, and manual_retry_user_initiated_attempt; null for initial_attempt."
+        },
+        "host_boundary_class": { "$ref": "#/$defs/host_boundary_class" },
+        "remote_target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when host_boundary_class is one of the remote / managed / provider / sandbox / bridge values."
+        },
+        "container_target_identity_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when host_boundary_class is container_local_runtime or devcontainer_runtime."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0016 command-dispatch entry that opened this attempt. Reruns and per-step retries each mint a fresh descriptor; the descriptor is never inherited across attempts."
+        },
+        "execution_context_id_at_attempt": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Execution-context id resolved at the moment this attempt opened. Equals the parent run's execution_context_id for an exact_replay_attempt; differs for a current_context_replay_attempt - that is the canonical reason a rerun produces a different result."
+        },
+        "context_snapshot_ref_at_attempt": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Snapshot id resolving to schemas/execution/context_snapshot.schema.json captured at attempt open. Comparing two attempts' snapshots is the typed evidence path for the rerun_comparison_record."
+        },
+        "queue_admission_summary": { "$ref": "#/$defs/queue_admission_summary" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "input_request_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to attempt_input_request_record entries. An attempt in lifecycle_state = waiting_input MUST carry at least one open input request whose result_class is result_pending_no_typed_result_yet."
+        },
+        "outcome_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to outcome_event_record entries on schemas/execution/run.schema.json. Every completed attempt MUST carry at least one outcome event; consumers MUST NOT collapse the outcome events of one attempt with the outcome events of another."
+        },
+        "artifact_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to artifact_event_record entries on schemas/execution/artifact_event.schema.json. The artifact rail is per-attempt; reruns produce their own artifact-event refs."
+        },
+        "task_event_envelope_trace_id": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional trace_id resolving to schemas/tooling/task_event_envelope.schema.json. Stable consumers (support exports, replay harnesses, benchmark harnesses) cite the trace id so per-attempt task events are not flattened across attempts."
+        },
+        "started_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp when the attempt entered lifecycle_state = preparing or running. Null while still queued."
+        },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp when the attempt entered a terminal lifecycle state (passed / failed / cancelled / stale_output / partially_complete). Null while still in progress."
+        },
+        "duration_monotonic_ms": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional duration in monotonic milliseconds between started_at and completed_at. Null when either bound is null."
+        },
+        "cancellation_authority_class": { "$ref": "#/$defs/cancellation_authority_class" },
+        "cancellation_actor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the actor that initiated the cancellation (a command-dispatch descriptor for cancellation_by_user_via_command_dispatch, a supervisor row for cancellation_by_supervisor_under_collapse_supersede, an admin-policy epoch for cancellation_by_admin_policy_pack, etc.). Required when cancellation_authority_class is anything other than not_cancelled or cancellation_authority_unknown_requires_review."
+        },
+        "failed_step_checkpoint_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the checkpoint this attempt resumed from. Required for failed_step_retry_attempt; null otherwise."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Non-local host boundaries MUST cite the matching target-identity witness.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": [
+                  "ssh_remote_runtime",
+                  "remote_workspace_agent_runtime",
+                  "managed_workspace_agent_runtime",
+                  "provider_remote_agent_runtime",
+                  "compatibility_bridge_remote_runtime",
+                  "ai_sandbox_runtime"
+                ]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["remote_target_identity_witness_ref"],
+            "properties": {
+              "remote_target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Container / devcontainer host boundaries MUST cite the container target identity.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": ["container_local_runtime", "devcontainer_runtime"]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["container_target_identity_ref"],
+            "properties": {
+              "container_target_identity_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "initial_attempt MUST NOT carry a predecessor attempt; retry kinds MUST.",
+          "if": {
+            "properties": {
+              "attempt_kind_class": { "const": "initial_attempt" }
+            },
+            "required": ["attempt_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "predecessor_attempt_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "attempt_kind_class": {
+                "not": { "const": "attempt_kind_unknown_requires_review" }
+              }
+            }
+          }
+        },
+        {
+          "description": "failed_step_retry_attempt MUST cite a checkpoint and a predecessor attempt.",
+          "if": {
+            "properties": {
+              "attempt_kind_class": { "const": "failed_step_retry_attempt" }
+            },
+            "required": ["attempt_kind_class"]
+          },
+          "then": {
+            "required": ["failed_step_checkpoint_ref", "predecessor_attempt_ref"],
+            "properties": {
+              "failed_step_checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+              "predecessor_attempt_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "cancellation_authority_class outside not_cancelled / unknown MUST cite an actor and pin lifecycle to cancelled.",
+          "if": {
+            "properties": {
+              "cancellation_authority_class": {
+                "not": {
+                  "enum": [
+                    "not_cancelled",
+                    "cancellation_authority_unknown_requires_review"
+                  ]
+                }
+              }
+            },
+            "required": ["cancellation_authority_class"]
+          },
+          "then": {
+            "required": ["cancellation_actor_ref"],
+            "properties": {
+              "cancellation_actor_ref": { "$ref": "#/$defs/opaque_ref" },
+              "lifecycle_state_class": { "const": "cancelled" }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state = cancelled MUST resolve cancellation_authority_class outside not_cancelled.",
+          "if": {
+            "properties": {
+              "lifecycle_state_class": { "const": "cancelled" }
+            },
+            "required": ["lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "cancellation_authority_class": {
+                "not": { "const": "not_cancelled" }
+              }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state = waiting_input MUST carry at least one input_request_ref.",
+          "if": {
+            "properties": {
+              "lifecycle_state_class": { "const": "waiting_input" }
+            },
+            "required": ["lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "input_request_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["input_request_refs"]
+          }
+        },
+        {
+          "description": "Terminal lifecycle states MUST carry at least one outcome_event_ref.",
+          "if": {
+            "properties": {
+              "lifecycle_state_class": {
+                "enum": ["passed", "failed", "cancelled", "stale_output", "partially_complete"]
+              }
+            },
+            "required": ["lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_event_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["outcome_event_refs"]
+          }
+        },
+        {
+          "description": "broadened_capture redaction MUST carry an approval-ticket ref.",
+          "if": {
+            "properties": { "redaction_class": { "const": "broadened_capture" } },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One attempt record. Per-execution truth for one attempt of one run. Append-only: a new attempt mints a new attempt_record with its own attempt_record_id; the prior attempt is never overwritten."
+    },
+
+    "attempt_input_request_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "attempt_schema_version",
+        "input_request_record_id",
+        "parent_attempt_ref",
+        "parent_run_ref",
+        "input_request_kind_class",
+        "result_class",
+        "result_summary_class",
+        "opened_at",
+        "expires_at",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "attempt_input_request_record" },
+        "attempt_schema_version": { "$ref": "#/$defs/attempt_schema_version" },
+        "input_request_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "input_request_kind_class": { "$ref": "#/$defs/input_request_kind_class" },
+        "credential_handle_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to credential-handle classes from the secret-broker boundary. Required (non-empty) for input_value_secret_no_echo, input_value_password_managed_echo_mask, and credential_handle_selection kinds."
+        },
+        "irreversible_action_summary_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "irreversible_publish_to_managed_artifact_store",
+            "irreversible_send_external_message",
+            "irreversible_deploy_to_remote_target",
+            "irreversible_modify_external_resource",
+            "irreversible_overwrite_history_row",
+            "irreversible_action_summary_class_unknown_requires_review",
+            null
+          ],
+          "description": "Required when input_request_kind_class is irreversible_action_confirmation. Names the typed irreversible-action class without leaking raw target paths or raw API bodies."
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when input_request_kind_class is broadened_capture_opt_in_confirmation, or when result_class is result_user_confirmed_proceed_with_broadened_capture_approval_ticket."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional command-dispatch descriptor ref when the input request was opened by a typed user action. Required for rerun_intent_confirmation and irreversible_action_confirmation kinds."
+        },
+        "result_class": { "$ref": "#/$defs/input_request_result_class" },
+        "result_summary_class": { "$ref": "#/$defs/input_request_summary_class" },
+        "result_summary_text": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional short reviewer-facing summary of the user's typed value. MUST be null when result_summary_class is no_summary_secret_or_redacted; consumers MUST NOT render any summary text in that case."
+        },
+        "opened_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp when the input request opened."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic deadline. Past the deadline, an open prompt MUST close with result_class = result_timed_out_no_value_provided; reopening requires a new attempt_input_request_record (no implicit authority extension)."
+        },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp when the input request closed with a typed result. Null while still pending."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Secret-mode kinds MUST cite at least one credential-handle class ref and resolve summary to no_summary_secret_or_redacted.",
+          "if": {
+            "properties": {
+              "input_request_kind_class": {
+                "enum": [
+                  "input_value_secret_no_echo",
+                  "input_value_password_managed_echo_mask",
+                  "credential_handle_selection"
+                ]
+              }
+            },
+            "required": ["input_request_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "credential_handle_class_refs": {
+                "type": "array",
+                "minItems": 1
+              },
+              "result_summary_class": { "const": "no_summary_secret_or_redacted" },
+              "result_summary_text": { "type": "null" }
+            },
+            "required": ["credential_handle_class_refs"]
+          }
+        },
+        {
+          "description": "Irreversible-action confirmation MUST cite the irreversible-action summary class and a command-dispatch descriptor.",
+          "if": {
+            "properties": {
+              "input_request_kind_class": { "const": "irreversible_action_confirmation" }
+            },
+            "required": ["input_request_kind_class"]
+          },
+          "then": {
+            "required": [
+              "irreversible_action_summary_class",
+              "command_dispatch_descriptor_ref"
+            ],
+            "properties": {
+              "irreversible_action_summary_class": {
+                "type": "string",
+                "enum": [
+                  "irreversible_publish_to_managed_artifact_store",
+                  "irreversible_send_external_message",
+                  "irreversible_deploy_to_remote_target",
+                  "irreversible_modify_external_resource",
+                  "irreversible_overwrite_history_row",
+                  "irreversible_action_summary_class_unknown_requires_review"
+                ]
+              },
+              "command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Rerun-intent confirmation MUST cite a command-dispatch descriptor.",
+          "if": {
+            "properties": {
+              "input_request_kind_class": { "const": "rerun_intent_confirmation" }
+            },
+            "required": ["input_request_kind_class"]
+          },
+          "then": {
+            "required": ["command_dispatch_descriptor_ref"],
+            "properties": {
+              "command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "broadened_capture_opt_in_confirmation MUST cite an approval-ticket ref.",
+          "if": {
+            "properties": {
+              "input_request_kind_class": { "const": "broadened_capture_opt_in_confirmation" }
+            },
+            "required": ["input_request_kind_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "result_class result_user_confirmed_proceed_with_broadened_capture_approval_ticket MUST cite the approval ticket.",
+          "if": {
+            "properties": {
+              "result_class": { "const": "result_user_confirmed_proceed_with_broadened_capture_approval_ticket" }
+            },
+            "required": ["result_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "result_class = result_pending_no_typed_result_yet MUST leave closed_at null.",
+          "if": {
+            "properties": {
+              "result_class": { "const": "result_pending_no_typed_result_yet" }
+            },
+            "required": ["result_class"]
+          },
+          "then": {
+            "properties": {
+              "closed_at": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "closed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["closed_at"]
+          }
+        }
+      ],
+      "description": "One attempt-input-request record. Append-only typed prompt against the user when an attempt needs a value, a confirmation, a credential-handle selection, or a broadened-capture opt-in. Distinct from the terminal-session input_request_record in schemas/execution/command_boundary_marker.schema.json."
+    }
+  }
+}

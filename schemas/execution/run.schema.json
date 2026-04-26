@@ -1,0 +1,1042 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/run.schema.json",
+  "title": "Aureline run, outcome-event, and rerun-comparison record",
+  "description": "Boundary schema for the user-visible run object every execution-shaped surface (task launch, test run, build target run, API call send, notebook action, provider job, debug session, AI tool call, automation workflow, format/lint run, support export, replay probe) reads when it needs to answer 'what was asked, where did it run, what did it produce, what queue and admission rules applied, and how does this attempt differ from the prior one?'. The run record is the stable identity for the request; per-execution detail lives on attempt records (schemas/execution/attempt.schema.json) and the artifact rail lives on artifact-event records (schemas/execution/artifact_event.schema.json). Outcome-event records ride alongside attempts and project the typed pass / fail / partially-complete / cancelled / stale-output result with a side-effect summary; rerun-comparison records project the typed exact-replay vs current-context-replay vs failed-step-retry distinction with per-layer drift classes. Vocabularies compose with - and never re-mint - the execution-context root and target identity from schemas/runtime/execution_context.schema.json, the snapshot model from schemas/execution/context_snapshot.schema.json, the queue lane / work class / budget domain / collapse-key vocabularies from schemas/runtime/background_job.schema.json, the task-event envelope from schemas/tooling/task_event_envelope.schema.json, the command-dispatch descriptor (ADR-0016), the trust-decision packet (ADR-0018), the identity-mode envelope (ADR-0001), the admin-policy epoch, the secret-broker credential-handle classes (ADR-0007), and the activity / event-lineage shapes from schemas/ux/activity_event_envelope.schema.json and schemas/ux/event_lineage.schema.json. Raw command lines, raw stdout / stderr byte streams, raw env bodies, raw secret values, raw absolute paths, raw API request / response bodies, and raw provider responses MUST NOT appear in any record; records carry refs, hashes, counts, and class labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a run_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/run_record" },
+    { "$ref": "#/$defs/outcome_event_record" },
+    { "$ref": "#/$defs/rerun_comparison_record" }
+  ],
+  "$defs": {
+    "run_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "run_record",
+        "outcome_event_record",
+        "rerun_comparison_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journals, support bundles, and admin exports. Raw secrets, raw absolute paths, raw URLs, raw stdout / stderr bytes, and raw API bodies never appear here."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (execution-context root, context-snapshot record, command-dispatch descriptor, trust-decision packet, admin-policy epoch, target-identity witness, credential-handle class, queue-lane id, attempt record, artifact-event record, outcome-event record, audit-event id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in preview, history, and export-review surfaces. Raw command lines, raw env bodies, raw secret values, raw API bodies, and raw stack traces MUST NOT appear here."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for the record. metadata_and_hashes_only is the default; broadened_capture requires an explicit approval-ticket ref."
+    },
+
+    "run_kind_class": {
+      "type": "string",
+      "enum": [
+        "task_run",
+        "test_run",
+        "build_target_run",
+        "format_or_lint_run",
+        "debug_session_run",
+        "notebook_action_run",
+        "api_call_send_run",
+        "provider_job_run",
+        "ai_tool_call_run",
+        "automation_workflow_run",
+        "support_export_run",
+        "replay_probe_run",
+        "import_probe_run",
+        "run_kind_unknown_requires_review"
+      ],
+      "description": "Closed run-kind vocabulary. Names the user-visible request shape, not the producer adapter that emits its events. A single run MAY span multiple build targets, multiple test cases, or multiple provider sub-jobs; those finer-grained events ride task_event_envelope_record (schemas/tooling/task_event_envelope.schema.json) and cite this run through a parent_run_ref. run_kind_unknown_requires_review fails closed and forbids any mutating attempt."
+    },
+
+    "host_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_host_runtime",
+        "ssh_remote_runtime",
+        "remote_workspace_agent_runtime",
+        "managed_workspace_agent_runtime",
+        "container_local_runtime",
+        "devcontainer_runtime",
+        "provider_remote_agent_runtime",
+        "compatibility_bridge_remote_runtime",
+        "ai_sandbox_runtime",
+        "host_boundary_unknown_requires_review"
+      ],
+      "description": "Closed host-boundary vocabulary for the run. Composes with - and is more specific than - the host_scope_badge_class on schemas/execution/terminal_session.schema.json: a run rides a host runtime that may be a terminal session, a managed worker, a notebook kernel, or a provider job. Every non-local boundary MUST cite a remote target-identity witness ref. host_boundary_unknown_requires_review fails closed."
+    },
+
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "waiting_input",
+        "partially_complete",
+        "passed",
+        "failed",
+        "cancelled",
+        "stale_output",
+        "lifecycle_state_unknown_requires_review"
+      ],
+      "description": "Closed lifecycle-state vocabulary. Re-used by the run record (rolled up from attempts), the attempt record (per-execution truth), and any consumer that wants a single shared label. partially_complete is an honest mid-state: at least one outcome subset is decided, at least one is still pending or undetermined. stale_output is the honest answer when an attempt produced an output but the inputs / target / runtime / profile have since drifted such that the output no longer maps to the current context; consumers MUST narrow the rerun affordance accordingly. lifecycle_state_unknown_requires_review fails closed and forbids silent transitions to passed / failed."
+    },
+
+    "queue_admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted_into_lane",
+        "queued_pending_capacity",
+        "queued_pending_dependency",
+        "queued_pending_user_confirmation",
+        "queued_pending_input_request",
+        "admission_deferred_by_quiet_hours",
+        "admission_held_pending_high_risk_review",
+        "admission_denied_by_workspace_trust_restricted",
+        "admission_denied_by_admin_policy_pack",
+        "admission_denied_by_session_quarantine",
+        "admission_denied_by_secret_class_intersection",
+        "admission_denied_by_irreversible_action_without_explicit_confirmation",
+        "queue_admission_class_unknown_requires_review"
+      ],
+      "description": "Closed queue/admission vocabulary. Names the relationship between the run and the lane it asked for. Composes with - and never re-mints - the queue_lane_id, work_class_id, budget_domain_id, and workload_lane_id sets in schemas/runtime/background_job.schema.json. Held / denied values fail closed; admission_denied_* MUST cite a denial-reason class on the record."
+    },
+
+    "queue_lane_id": {
+      "type": "string",
+      "enum": [
+        "foreground",
+        "interactive_background",
+        "maintenance",
+        "provider_overlay",
+        "upload_replication"
+      ],
+      "description": "Re-export of schemas/runtime/background_job.schema.json#queue_lane_id. Runs do not mint parallel lane vocabularies."
+    },
+
+    "work_class_id": {
+      "type": "string",
+      "enum": [
+        "core_interaction",
+        "core_navigation",
+        "short_foreground_task",
+        "background_knowledge_work",
+        "optional_assistance",
+        "upload_and_replication"
+      ],
+      "description": "Re-export of schemas/runtime/background_job.schema.json#work_class_id."
+    },
+
+    "budget_domain_id": {
+      "type": "string",
+      "enum": [
+        "hot_path_interactive_budget",
+        "foreground_task_budget",
+        "knowledge_refresh_budget",
+        "maintenance_budget",
+        "provider_overlay_budget",
+        "replication_budget"
+      ],
+      "description": "Re-export of schemas/runtime/background_job.schema.json#budget_domain_id."
+    },
+
+    "rerun_kind_class": {
+      "type": "string",
+      "enum": [
+        "not_a_rerun_initial_attempt",
+        "exact_replay_same_inputs_same_target_same_runtime",
+        "current_context_replay_resolved_at_rerun_time",
+        "failed_step_retry_only_resume_from_last_checkpoint",
+        "automated_retry_after_transient_failure_under_policy",
+        "manual_retry_user_initiated_no_policy_grant",
+        "rerun_kind_unknown_requires_review"
+      ],
+      "description": "Closed rerun-kind vocabulary. Differentiates the four typed rerun shapes the contract supports: exact replay (the prior run's frozen inputs, target, and runtime are reused as-is), current-context replay (the inputs are resolved at rerun time against the current context — the canonical reason a rerun produces a different result), failed-step retry (only the failed step is retried, not the whole run), and automated / manual retry. not_a_rerun_initial_attempt is the honest answer for the first attempt of a run. rerun_kind_unknown_requires_review fails closed."
+    },
+
+    "side_effect_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_observed_side_effects",
+        "side_effects_local_workspace_writes_only",
+        "side_effects_external_network_reads_only",
+        "side_effects_external_network_writes",
+        "side_effects_remote_target_writes",
+        "side_effects_managed_artifact_store_writes",
+        "side_effects_credential_or_secret_use",
+        "side_effects_irreversible_action_published",
+        "side_effects_summary_pending_post_run_audit",
+        "side_effects_summary_unknown_requires_review"
+      ],
+      "description": "Closed side-effect summary vocabulary. Every outcome event and every rerun comparison cites one of these to keep the reviewer honest about what a run actually changed. side_effects_irreversible_action_published is the typed honest label for actions that cannot be undone by a later rerun (a deploy, a published artifact, a sent message); consumers MUST narrow the rerun affordance to a typed denial when this label is present. side_effects_summary_unknown_requires_review fails closed."
+    },
+
+    "rerun_drift_layer_class": {
+      "type": "string",
+      "enum": [
+        "inputs_layer",
+        "target_identity_layer",
+        "runtime_identity_layer",
+        "profile_layer",
+        "environment_capsule_layer",
+        "secret_posture_layer",
+        "policy_epoch_layer",
+        "trust_state_layer",
+        "queue_admission_layer",
+        "host_boundary_layer",
+        "side_effect_layer"
+      ],
+      "description": "Closed list of layers a rerun-comparison record may diff. Each layer maps to one frozen surface (the inputs delta, the execution-context snapshot, the queue-admission decision, the side-effect summary)."
+    },
+
+    "rerun_drift_status_class": {
+      "type": "string",
+      "enum": [
+        "preserved_no_drift",
+        "drift_detected_minor",
+        "drift_detected_major",
+        "drift_detected_irreversible_side_effect",
+        "drift_status_redaction_limited",
+        "drift_status_unknown_requires_review"
+      ],
+      "description": "Closed per-layer drift status. drift_status_redaction_limited records that broader capture would be needed to explain the drift; it MUST NOT be used to hide a visible token / hash / count change."
+    },
+
+    "outcome_event_kind_class": {
+      "type": "string",
+      "enum": [
+        "outcome_passed",
+        "outcome_failed",
+        "outcome_partially_complete",
+        "outcome_cancelled",
+        "outcome_stale_output",
+        "outcome_event_kind_unknown_requires_review"
+      ],
+      "description": "Closed outcome-event-kind vocabulary. Mirrors the lifecycle terminal states with one extra honest label (outcome_partially_complete) so a reviewer can distinguish a clean pass / fail from a mid-result that still has pending subsets. Collapsing outcome_partially_complete into outcome_passed is a typed denial under outcome_event_record_must_not_collapse_partially_complete_into_passed."
+    },
+
+    "failure_class": {
+      "type": "string",
+      "enum": [
+        "tool_exit_nonzero",
+        "tool_crash",
+        "timeout",
+        "cancelled_by_user",
+        "cancelled_by_supervisor",
+        "cancelled_by_policy",
+        "cancelled_by_quarantine",
+        "precondition_failed",
+        "input_request_timed_out",
+        "environment_drift",
+        "host_boundary_unreachable",
+        "queue_admission_denied",
+        "side_effect_irreversible_block",
+        "policy_denied",
+        "adapter_error",
+        "failure_class_unknown_requires_review"
+      ],
+      "description": "Closed failure-class vocabulary for outcome_failed and outcome_cancelled events. Re-export of the task_event_envelope failure_reason_class set, narrowed for the run/attempt layer."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "run_record_must_cite_execution_context_id",
+        "run_record_must_cite_command_dispatch_descriptor_ref",
+        "run_record_must_cite_target_identity_witness_when_remote",
+        "run_record_must_cite_original_run_ref_when_rerun",
+        "run_record_must_not_collapse_attempts_into_single_last_result",
+        "run_record_must_not_admit_silent_overwrite_of_attempt_history",
+        "run_record_must_not_admit_silent_collapse_of_outcome_events",
+        "run_record_must_forbid_mutating_action_on_quarantined_lane",
+        "run_record_must_forbid_mutating_action_under_workspace_trust_restricted",
+        "run_record_must_narrow_rerun_when_irreversible_side_effect_published",
+        "run_record_lifecycle_state_unknown_requires_review",
+        "run_record_host_boundary_unknown_requires_review",
+        "run_record_queue_admission_unknown_requires_review",
+        "outcome_event_record_must_cite_parent_run_ref",
+        "outcome_event_record_must_cite_parent_attempt_ref",
+        "outcome_event_record_must_cite_side_effect_summary",
+        "outcome_event_record_must_carry_failure_class_when_failed_or_cancelled",
+        "outcome_event_record_must_not_collapse_partially_complete_into_passed",
+        "outcome_event_record_must_cite_stale_output_drift_layer_when_stale",
+        "outcome_event_record_kind_unknown_requires_review",
+        "rerun_comparison_record_must_cite_both_runs",
+        "rerun_comparison_record_must_cite_both_attempts",
+        "rerun_comparison_record_must_name_typed_replay_kind",
+        "rerun_comparison_record_must_name_drift_status_per_layer",
+        "rerun_comparison_record_must_carry_side_effect_summary",
+        "rerun_comparison_record_must_not_collapse_layers_into_single_last_result",
+        "rerun_comparison_record_replay_kind_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary for run / outcome-event / rerun-comparison refusals. Every refusal fails closed and cites exactly one value."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "run_record_published",
+        "run_record_revoked",
+        "run_record_attempt_added",
+        "run_record_lifecycle_transitioned",
+        "run_record_queue_admission_decided",
+        "run_record_cancellation_admitted",
+        "run_record_cancellation_denied",
+        "run_record_silent_collapse_of_attempts_forbidden_denial",
+        "run_record_silent_overwrite_of_attempt_history_forbidden_denial",
+        "run_record_silent_rerun_after_irreversible_side_effect_forbidden_denial",
+        "run_record_audit_denial_emitted",
+        "outcome_event_record_published",
+        "outcome_event_record_silent_collapse_of_partially_complete_into_passed_forbidden_denial",
+        "outcome_event_record_silent_collapse_of_outcome_history_forbidden_denial",
+        "outcome_event_record_audit_denial_emitted",
+        "rerun_comparison_record_published",
+        "rerun_comparison_record_silent_collapse_of_layers_forbidden_denial",
+        "rerun_comparison_record_silent_omission_of_side_effect_layer_forbidden_denial",
+        "rerun_comparison_record_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary across run / outcome-event / rerun-comparison records. Raw bodies, raw command lines, raw env bodies, raw API bodies, and raw secret values MUST NOT appear on any audit event."
+    },
+
+    "context_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_id",
+        "context_snapshot_ref",
+        "target_class",
+        "canonical_target_id",
+        "toolchain_class",
+        "toolchain_id",
+        "scope_class",
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "secret_class_count"
+      ],
+      "properties": {
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Execution-context id resolving to schemas/runtime/execution_context.schema.json. Every run shares one execution-context id with all of its attempts; per-surface ids are forbidden."
+        },
+        "context_snapshot_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Snapshot id resolving to schemas/execution/context_snapshot.schema.json. The run cites the snapshot the user-facing surface saw at run launch; per-attempt snapshots ride the attempt record's context_snapshot_ref_at_attempt."
+        },
+        "target_class": {
+          "type": "string",
+          "enum": [
+            "local_host",
+            "ssh_remote",
+            "container_local",
+            "devcontainer",
+            "remote_workspace_vm",
+            "prebuild_runtime",
+            "managed_workspace",
+            "notebook_kernel_local",
+            "notebook_kernel_remote",
+            "ai_sandbox"
+          ],
+          "description": "Re-export of the target_class vocabulary from schemas/runtime/execution_context.schema.json (via context_snapshot)."
+        },
+        "canonical_target_id": { "$ref": "#/$defs/opaque_id" },
+        "toolchain_class": {
+          "type": "string",
+          "enum": [
+            "interpreter",
+            "compiler_toolchain",
+            "package_manager_runner",
+            "containerised_runtime",
+            "notebook_kernel_runtime",
+            "language_server_process",
+            "debug_adapter_runtime",
+            "test_runner_runtime",
+            "build_driver_runtime",
+            "ai_tool_runtime"
+          ]
+        },
+        "toolchain_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": {
+          "type": "string",
+          "enum": [
+            "current_root",
+            "named_workset",
+            "sparse_slice",
+            "full_workspace",
+            "policy_limited_view",
+            "review_workspace",
+            "companion_surface"
+          ]
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["restricted", "trusted"]
+        },
+        "identity_mode": {
+          "type": "string",
+          "enum": ["account_free_local", "self_hosted_org", "managed_convenience"]
+        },
+        "policy_epoch": { "type": "integer", "minimum": 0 },
+        "secret_class_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of credential-handle classes intersected by this run. Class labels themselves project on the secret-posture summary; raw secret values never project."
+        }
+      },
+      "description": "Compact context summary the run carries so a reviewer can answer 'where did it run, what toolchain, what scope, what trust posture' without resolving the full execution-context record. Composes with - and never re-mints - the snapshot record's snapshot_summary."
+    },
+
+    "queue_admission_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admission_class",
+        "queue_lane",
+        "work_class",
+        "budget_domain"
+      ],
+      "properties": {
+        "admission_class": { "$ref": "#/$defs/queue_admission_class" },
+        "queue_lane": { "$ref": "#/$defs/queue_lane_id" },
+        "work_class": { "$ref": "#/$defs/work_class_id" },
+        "budget_domain": { "$ref": "#/$defs/budget_domain_id" },
+        "background_job_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the background_job_record powering this run when the run is admitted onto a background lane. Null for foreground runs that do not mint a background-job row."
+        },
+        "collapse_key_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional opaque ref to the collapse_key the queue used to deduplicate this run. Null when no collapse key was minted."
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when admission_class is admission_held_pending_high_risk_review or when the run admits broadened_capture redaction. Null otherwise."
+        }
+      },
+      "description": "Compact queue-admission summary for the run. Composes with - and never re-mints - the lane / work-class / budget-domain vocabulary frozen in schemas/runtime/background_job.schema.json."
+    },
+
+    "run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_schema_version",
+        "run_record_id",
+        "run_kind_class",
+        "host_boundary_class",
+        "command_dispatch_descriptor_ref",
+        "context_summary",
+        "queue_admission_summary",
+        "lifecycle_state_class",
+        "rerun_kind_class",
+        "attempt_count",
+        "attempt_refs",
+        "captured_at",
+        "redaction_class",
+        "auto_rerun_admitted_on_this_record"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_record" },
+        "run_schema_version": { "$ref": "#/$defs/run_schema_version" },
+        "run_record_id": { "$ref": "#/$defs/opaque_id" },
+        "run_kind_class": { "$ref": "#/$defs/run_kind_class" },
+        "host_boundary_class": { "$ref": "#/$defs/host_boundary_class" },
+        "remote_target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Remote target-identity witness ref (ADR-0020). MUST be non-null when host_boundary_class is one of ssh_remote_runtime / remote_workspace_agent_runtime / managed_workspace_agent_runtime / provider_remote_agent_runtime / compatibility_bridge_remote_runtime / ai_sandbox_runtime."
+        },
+        "container_target_identity_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Container / devcontainer target-identity ref. Non-null when host_boundary_class is container_local_runtime or devcontainer_runtime."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0016 command-dispatch entry that opened this run. Renderers MUST use this ref - never the source surface or the artifact rail - to attribute cancel / rerun authority."
+        },
+        "trust_state_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0018 trust-decision record governing this run at launch time."
+        },
+        "identity_mode_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0001 identity-mode envelope at launch time."
+        },
+        "admin_policy_epoch_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the admin-policy epoch in force at launch time. Null only in identity_mode = account_free_local with no policy pack bound."
+        },
+        "context_summary": { "$ref": "#/$defs/context_summary" },
+        "queue_admission_summary": { "$ref": "#/$defs/queue_admission_summary" },
+        "lifecycle_state_class": {
+          "$ref": "#/$defs/lifecycle_state_class",
+          "description": "Roll-up lifecycle state for the run, derived from the latest attempt's state and the outcome-event log. The roll-up MUST NOT collapse partially_complete or stale_output into passed; doing so is a typed denial."
+        },
+        "rerun_kind_class": { "$ref": "#/$defs/rerun_kind_class" },
+        "original_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the original run this run reruns. Required when rerun_kind_class is anything other than not_a_rerun_initial_attempt or rerun_kind_unknown_requires_review. The original run's run_record_id stays stable; reruns mint a new run_record_id and cite the original here."
+        },
+        "rerun_chain_origin_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the first run in the rerun chain (the original_run_ref of the original_run_ref, transitively). Lets a reviewer follow a rerun chain back to its origin without walking each link."
+        },
+        "attempt_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of attempt_refs the run carries at capture time. Reruns of a run as a whole mint a new run_record; per-step retries inside one run mint additional attempts on the same run."
+        },
+        "attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to attempt_record entries in schemas/execution/attempt.schema.json. The run MUST NOT collapse attempts into a misleading single 'last result'; every attempt keeps its own context, logs, artifacts, and outcome events."
+        },
+        "latest_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the most recent attempt. Null only when attempt_count is 0 (run queued but no attempt minted yet)."
+        },
+        "outcome_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to outcome_event_record entries on this schema. Every outcome event keeps its parent attempt; the run roll-up never overwrites the per-attempt history."
+        },
+        "artifact_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to artifact_event_record entries in schemas/execution/artifact_event.schema.json. The artifact rail spans all attempts of this run; per-attempt scoping rides the artifact-event record's parent_attempt_ref."
+        },
+        "rerun_comparison_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Optional refs to rerun_comparison_record entries on this schema, one per pair-wise rerun comparison surfaced for reviewers. Empty for initial runs and for runs whose comparison has not been computed yet."
+        },
+        "history_row_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the durable history row in schemas/ux/history_row.schema.json. UI / CLI / support exports cite the history row to surface the run in the activity center."
+        },
+        "event_lineage_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the event-lineage record in schemas/ux/event_lineage.schema.json. Notification routing and digest delivery cite this ref so durable history and transient deliveries share one lineage."
+        },
+        "auto_rerun_admitted_on_this_record": {
+          "type": "boolean",
+          "description": "MUST be false on every run whose latest outcome event carries side_effect_summary_class = side_effects_irreversible_action_published. The contract forbids silent rerun on a run that has already published an irreversible side effect; an explicit user-initiated fresh run under a fresh command-dispatch descriptor is the only path back to a new attempt."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to audit-event ids drawn from this schema's audit_event_id vocabulary plus the activity / event-lineage and background-job audit vocabularies. Raw bodies never appear."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Closed denial reason when the record is published as a typed refusal. Null on admitted records."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when redaction_class is broadened_capture or when queue_admission_summary.admission_class is admission_held_pending_high_risk_review. Null otherwise."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Non-local host boundaries MUST cite the matching target-identity witness.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": [
+                  "ssh_remote_runtime",
+                  "remote_workspace_agent_runtime",
+                  "managed_workspace_agent_runtime",
+                  "provider_remote_agent_runtime",
+                  "compatibility_bridge_remote_runtime",
+                  "ai_sandbox_runtime"
+                ]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["remote_target_identity_witness_ref"],
+            "properties": {
+              "remote_target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Container / devcontainer host boundaries MUST cite the container target identity.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": ["container_local_runtime", "devcontainer_runtime"]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["container_target_identity_ref"],
+            "properties": {
+              "container_target_identity_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Reruns MUST cite the original run.",
+          "if": {
+            "properties": {
+              "rerun_kind_class": {
+                "enum": [
+                  "exact_replay_same_inputs_same_target_same_runtime",
+                  "current_context_replay_resolved_at_rerun_time",
+                  "failed_step_retry_only_resume_from_last_checkpoint",
+                  "automated_retry_after_transient_failure_under_policy",
+                  "manual_retry_user_initiated_no_policy_grant"
+                ]
+              }
+            },
+            "required": ["rerun_kind_class"]
+          },
+          "then": {
+            "required": ["original_run_ref"],
+            "properties": {
+              "original_run_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "attempt_count MUST agree with attempt_refs length presence; latest_attempt_ref is null exactly when attempt_count is 0.",
+          "if": {
+            "properties": { "attempt_count": { "const": 0 } },
+            "required": ["attempt_count"]
+          },
+          "then": {
+            "properties": {
+              "latest_attempt_ref": { "type": "null" },
+              "attempt_refs": { "type": "array", "maxItems": 0 }
+            }
+          },
+          "else": {
+            "required": ["latest_attempt_ref"],
+            "properties": {
+              "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "broadened_capture redaction MUST carry an approval-ticket ref.",
+          "if": {
+            "properties": { "redaction_class": { "const": "broadened_capture" } },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Unknown lifecycle / host boundary / queue admission states forbid auto-rerun.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "lifecycle_state_class": { "const": "lifecycle_state_unknown_requires_review" }
+                },
+                "required": ["lifecycle_state_class"]
+              },
+              {
+                "properties": {
+                  "host_boundary_class": { "const": "host_boundary_unknown_requires_review" }
+                },
+                "required": ["host_boundary_class"]
+              },
+              {
+                "properties": {
+                  "queue_admission_summary": {
+                    "properties": {
+                      "admission_class": { "const": "queue_admission_class_unknown_requires_review" }
+                    },
+                    "required": ["admission_class"]
+                  }
+                },
+                "required": ["queue_admission_summary"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "auto_rerun_admitted_on_this_record": { "const": false }
+            }
+          }
+        }
+      ],
+      "description": "One run record. Stable identity for the user-visible request. Per-execution detail rides attempt records; the artifact rail rides artifact-event records; the rerun comparison rides rerun-comparison records. The run never collapses attempts, outcomes, or artifacts into a misleading single 'last result'."
+    },
+
+    "outcome_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_schema_version",
+        "outcome_event_record_id",
+        "parent_run_ref",
+        "parent_attempt_ref",
+        "outcome_event_kind_class",
+        "lifecycle_state_class",
+        "side_effect_summary_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "outcome_event_record" },
+        "run_schema_version": { "$ref": "#/$defs/run_schema_version" },
+        "outcome_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "outcome_event_kind_class": { "$ref": "#/$defs/outcome_event_kind_class" },
+        "lifecycle_state_class": {
+          "$ref": "#/$defs/lifecycle_state_class",
+          "description": "Lifecycle state at the moment the outcome event was published. MUST agree with outcome_event_kind_class: outcome_passed -> passed, outcome_failed -> failed, outcome_partially_complete -> partially_complete, outcome_cancelled -> cancelled, outcome_stale_output -> stale_output, outcome_event_kind_unknown_requires_review -> lifecycle_state_unknown_requires_review."
+        },
+        "failure_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/failure_class" }
+          ],
+          "description": "Required when outcome_event_kind_class is outcome_failed or outcome_cancelled. Null otherwise."
+        },
+        "failure_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional reviewer-facing failure summary safe for export. Raw stack traces, raw command lines, and raw env bodies MUST NOT appear here."
+        },
+        "side_effect_summary_class": { "$ref": "#/$defs/side_effect_summary_class" },
+        "side_effect_summary_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional sentence amplifying the side-effect summary class. Raw paths, raw URLs, and raw secret material MUST NOT appear here."
+        },
+        "stale_output_drift_layer": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/rerun_drift_layer_class" }
+          ],
+          "description": "Required when outcome_event_kind_class is outcome_stale_output. Names the drift layer (inputs / target / runtime / profile / capsule / secret / policy / trust / queue / host / side-effect) that the prior output no longer maps to."
+        },
+        "subset_pass_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "For partially_complete outcomes: count of subsets that passed. Null otherwise."
+        },
+        "subset_fail_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "For partially_complete outcomes: count of subsets that failed. Null otherwise."
+        },
+        "subset_pending_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "For partially_complete outcomes: count of subsets still pending. Null otherwise."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "outcome_failed and outcome_cancelled MUST cite a failure_class.",
+          "if": {
+            "properties": {
+              "outcome_event_kind_class": {
+                "enum": ["outcome_failed", "outcome_cancelled"]
+              }
+            },
+            "required": ["outcome_event_kind_class"]
+          },
+          "then": {
+            "required": ["failure_class"],
+            "properties": {
+              "failure_class": { "$ref": "#/$defs/failure_class" }
+            }
+          }
+        },
+        {
+          "description": "outcome_partially_complete MUST carry the subset counts.",
+          "if": {
+            "properties": {
+              "outcome_event_kind_class": { "const": "outcome_partially_complete" }
+            },
+            "required": ["outcome_event_kind_class"]
+          },
+          "then": {
+            "required": ["subset_pass_count", "subset_fail_count", "subset_pending_count"],
+            "properties": {
+              "subset_pass_count": { "type": "integer", "minimum": 0 },
+              "subset_fail_count": { "type": "integer", "minimum": 0 },
+              "subset_pending_count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        {
+          "description": "outcome_stale_output MUST cite the drift layer that invalidated the prior output.",
+          "if": {
+            "properties": {
+              "outcome_event_kind_class": { "const": "outcome_stale_output" }
+            },
+            "required": ["outcome_event_kind_class"]
+          },
+          "then": {
+            "required": ["stale_output_drift_layer"],
+            "properties": {
+              "stale_output_drift_layer": { "$ref": "#/$defs/rerun_drift_layer_class" }
+            }
+          }
+        },
+        {
+          "description": "outcome_passed MUST NOT carry partially_complete subset counts and MUST resolve lifecycle to passed.",
+          "if": {
+            "properties": {
+              "outcome_event_kind_class": { "const": "outcome_passed" }
+            },
+            "required": ["outcome_event_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "lifecycle_state_class": { "const": "passed" },
+              "subset_pass_count": { "type": "null" },
+              "subset_fail_count": { "type": "null" },
+              "subset_pending_count": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "One outcome event for one attempt of one run. Outcome events are append-only; later attempts mint additional outcome events rather than overwriting prior ones."
+    },
+
+    "rerun_comparison_layer_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "status"],
+      "properties": {
+        "layer": { "$ref": "#/$defs/rerun_drift_layer_class" },
+        "status": { "$ref": "#/$defs/rerun_drift_status_class" },
+        "a_value_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Class label, frozen token, opaque id, hash, or count drawn from run A. Raw command lines, raw env bodies, raw API bodies, and raw secret values MUST NOT appear."
+        },
+        "b_value_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Same as a_value_summary, drawn from run B."
+        },
+        "drift_reason_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "redaction_limited_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "raw_inputs_not_captured",
+            "raw_env_body_not_captured",
+            "raw_api_body_not_captured",
+            "raw_secret_value_not_captured",
+            "broadened_capture_required",
+            null
+          ]
+        }
+      }
+    },
+
+    "rerun_comparison_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_schema_version",
+        "rerun_comparison_record_id",
+        "run_a_ref",
+        "run_b_ref",
+        "attempt_a_ref",
+        "attempt_b_ref",
+        "rerun_kind_class",
+        "layer_entries",
+        "side_effect_summary_class_a",
+        "side_effect_summary_class_b",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "rerun_comparison_record" },
+        "run_schema_version": { "$ref": "#/$defs/run_schema_version" },
+        "rerun_comparison_record_id": { "$ref": "#/$defs/opaque_id" },
+        "run_a_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the prior run (the one being reproduced or compared against). Required."
+        },
+        "run_b_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the rerun (the one being inspected). Required."
+        },
+        "attempt_a_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the specific attempt on run A. The contract requires comparison at the attempt level so per-attempt context, logs, and artifacts cannot be flattened across an attempt boundary."
+        },
+        "attempt_b_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the specific attempt on run B."
+        },
+        "rerun_kind_class": {
+          "$ref": "#/$defs/rerun_kind_class",
+          "description": "MUST NOT be not_a_rerun_initial_attempt or rerun_kind_unknown_requires_review on a comparison record."
+        },
+        "layer_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rerun_comparison_layer_entry" },
+          "description": "Per-layer drift entries. The contract requires at least one entry covering side_effect_layer; admission and host-boundary layers are also required when the comparison crosses lanes or hosts."
+        },
+        "preserved_layer_count": { "type": "integer", "minimum": 0 },
+        "drift_layer_count": { "type": "integer", "minimum": 0 },
+        "redaction_limited_layer_count": { "type": "integer", "minimum": 0 },
+        "side_effect_summary_class_a": { "$ref": "#/$defs/side_effect_summary_class" },
+        "side_effect_summary_class_b": { "$ref": "#/$defs/side_effect_summary_class" },
+        "summary_headline": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Comparison record MUST include the side-effect layer.",
+          "properties": {
+            "layer_entries": {
+              "type": "array",
+              "contains": {
+                "properties": { "layer": { "const": "side_effect_layer" } },
+                "required": ["layer"]
+              }
+            }
+          }
+        },
+        {
+          "description": "rerun_kind_class on a comparison record MUST NOT be not_a_rerun_initial_attempt or rerun_kind_unknown_requires_review.",
+          "properties": {
+            "rerun_kind_class": {
+              "not": {
+                "enum": [
+                  "not_a_rerun_initial_attempt",
+                  "rerun_kind_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One rerun-comparison record between two attempts of two runs. Names the typed rerun kind, the per-layer drift status, and the side-effect summaries on both sides so a reviewer can tell why a rerun produced a different result without opening raw logs."
+    }
+  }
+}

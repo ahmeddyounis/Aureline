@@ -1,0 +1,482 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/artifact_event.schema.json",
+  "title": "Aureline run / attempt artifact-event record",
+  "description": "Boundary schema for the artifact-event record every execution-shaped surface emits when a run or attempt produces, replaces, withdraws, or finalizes an artifact - whether that artifact is a streaming log chunk, a structured test report, a build binary, an AI response chunk, a network response body, a notebook cell output, a provider-job artifact, or a support-bundle segment. The artifact rail is the durable history of what an attempt produced; UI / CLI / support-export / evidence-packet consumers all read the same record family rather than inventing per-surface artifact vocabularies. Every artifact event cites a parent_attempt_ref and a parent_run_ref so per-attempt artifacts cannot be flattened across attempts; finalization is explicit (artifact_finalized_published is the typed event), withdrawal cites the typed reason, and a finalized artifact MUST NOT be silently overwritten - a replacement mints a new artifact_event_record with artifact_event_kind_class = artifact_withdrawn_replaced_by_newer on the prior artifact and artifact_finalized_published on the replacement. Vocabularies compose with - and never re-mint - the lifecycle / queue admission / host boundary / redaction / failure / denial / audit vocabularies frozen in schemas/execution/run.schema.json and schemas/execution/attempt.schema.json, the task-event envelope artifact_publication_payload in schemas/tooling/task_event_envelope.schema.json, the credential-handle classes in the secret-broker boundary, and the record-class registry in artifacts/governance/record_class_registry.yaml. Raw artifact bytes, raw stdout / stderr byte streams, raw env bodies, raw API bodies, raw absolute paths, raw URLs, and raw secret values MUST NOT appear in any record; the artifact body itself rides out-of-band retention and the record carries only opaque ids, hashes, counts, and class labels. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with an artifact_event_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/artifact_event_record" }
+  ],
+  "$defs": {
+    "artifact_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["artifact_event_record"]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-f]+$",
+      "description": "Hash-algorithm-prefixed digest (for example 'sha256:7b9f0b2d...') of the raw artifact body. The raw bytes themselves never cross this boundary."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture",
+        "structured_fields_with_path_redaction"
+      ]
+    },
+
+    "artifact_event_kind_class": {
+      "type": "string",
+      "enum": [
+        "artifact_emitted_streaming_chunk",
+        "artifact_emitted_complete_one_shot",
+        "artifact_finalized_published",
+        "artifact_withdrawn_replaced_by_newer",
+        "artifact_withdrawn_by_user",
+        "artifact_withdrawn_by_policy",
+        "artifact_withdrawn_by_quarantine",
+        "artifact_failed_to_publish",
+        "artifact_retained_under_redaction_only",
+        "artifact_pending_finalization",
+        "artifact_event_kind_unknown_requires_review"
+      ],
+      "description": "Closed artifact-event-kind vocabulary. Streaming and one-shot emissions are distinct; finalization is explicit. Withdrawal cites the typed authority (replaced_by_newer / by_user / by_policy / by_quarantine). artifact_failed_to_publish is the typed honest answer for an emission that never reached its retention surface; artifact_retained_under_redaction_only is the typed honest answer when only metadata and hashes survived the redaction-class boundary. artifact_pending_finalization is the honest mid-state for a streaming artifact that has not received its finalize event yet."
+    },
+
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "log_stream_chunk",
+        "console_output_chunk",
+        "structured_test_report",
+        "structured_diagnostic_set",
+        "coverage_report",
+        "build_artifact_binary",
+        "build_artifact_archive",
+        "doc_bundle_segment",
+        "ai_response_message_chunk",
+        "ai_tool_invocation_record",
+        "network_request_summary",
+        "network_response_body_summary",
+        "notebook_cell_output",
+        "provider_job_artifact",
+        "support_bundle_segment",
+        "transcript_export_segment",
+        "exact_build_identity_attestation",
+        "side_effect_audit_record",
+        "artifact_class_unknown_requires_review"
+      ],
+      "description": "Closed artifact-class vocabulary. Names what kind of artifact the event refers to without mandating any content shape. Streaming chunk classes (log_stream_chunk, console_output_chunk, ai_response_message_chunk) are emitted with artifact_emitted_streaming_chunk; one-shot classes (test report, build binary, coverage report, etc.) are emitted with artifact_emitted_complete_one_shot. artifact_class_unknown_requires_review fails closed."
+    },
+
+    "finalization_class": {
+      "type": "string",
+      "enum": [
+        "finalization_pending_streaming_in_progress",
+        "finalization_pending_post_run_audit",
+        "finalization_published_immutable",
+        "finalization_published_replaced_by_newer",
+        "finalization_withdrawn_no_artifact_remains",
+        "finalization_failed_no_artifact_published",
+        "finalization_class_unknown_requires_review"
+      ],
+      "description": "Closed finalization-class vocabulary. The contract guarantee is that a finalized artifact (finalization_published_immutable) MUST NOT be silently overwritten; replacement requires a typed withdraw event on the prior artifact and a new finalize event on the replacement."
+    },
+
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "not_retained_ephemeral",
+        "retained_local_support_bundle_only",
+        "retained_local_with_replay_opt_in",
+        "retained_managed_with_redaction",
+        "retained_managed_with_broadened_capture",
+        "retention_class_unknown_requires_review"
+      ],
+      "description": "Re-export of the raw_payload_retention_class vocabulary from schemas/tooling/task_event_envelope.schema.json. retained_managed_with_broadened_capture requires an approval-ticket ref."
+    },
+
+    "media_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "utf8_text_plain",
+        "utf8_text_jsonl",
+        "utf8_text_json_document",
+        "utf8_text_xml_document",
+        "utf8_text_tap_stream",
+        "utf8_text_sarif_document",
+        "utf8_text_cargo_json_message_stream",
+        "utf8_text_build_event_stream_jsonl",
+        "utf8_text_bsp_json_rpc_stream",
+        "utf8_text_ansi_colored_stream",
+        "binary_executable_image",
+        "binary_archive_zip_or_tar",
+        "binary_object_or_library",
+        "binary_image_oci_or_docker",
+        "binary_opaque_blob",
+        "structured_packet_metadata_and_hashes_only",
+        "media_class_unknown_requires_review"
+      ],
+      "description": "Closed media-class vocabulary for the artifact body. Re-export of the raw_payload_media_class set from schemas/tooling/task_event_envelope.schema.json with binary classes added for build / coverage / image artifacts."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "artifact_event_record_must_cite_parent_run_ref",
+        "artifact_event_record_must_cite_parent_attempt_ref",
+        "artifact_event_record_must_cite_artifact_ref",
+        "artifact_event_record_must_cite_redaction_class",
+        "artifact_event_record_must_cite_credential_handle_class_ref_when_secret_intersection",
+        "artifact_event_record_must_cite_approval_ticket_ref_when_broadened_capture",
+        "artifact_event_record_must_not_silently_overwrite_finalized_artifact",
+        "artifact_event_record_must_carry_finalization_class",
+        "artifact_event_record_must_resolve_replaced_by_newer_to_typed_replacement_ref",
+        "artifact_event_record_must_resolve_withdrawn_by_authority_with_typed_actor_ref",
+        "artifact_event_record_artifact_class_unknown_requires_review",
+        "artifact_event_record_kind_unknown_requires_review",
+        "artifact_event_record_finalization_class_unknown_requires_review"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "artifact_event_record_published",
+        "artifact_event_record_streaming_chunk_attached",
+        "artifact_event_record_finalized",
+        "artifact_event_record_withdrawn",
+        "artifact_event_record_retention_posture_narrowed",
+        "artifact_event_record_retention_posture_broadened_with_approval_ticket",
+        "artifact_event_record_silent_overwrite_of_finalized_artifact_forbidden_denial",
+        "artifact_event_record_silent_admit_under_secret_intersection_forbidden_denial",
+        "artifact_event_record_silent_admit_under_broadened_capture_forbidden_denial",
+        "artifact_event_record_audit_denial_emitted"
+      ]
+    },
+
+    "side_effect_attribution_class": {
+      "type": "string",
+      "enum": [
+        "no_observed_side_effects_attributable_to_artifact",
+        "side_effect_local_workspace_write_attributable_to_artifact",
+        "side_effect_external_network_write_attributable_to_artifact",
+        "side_effect_remote_target_write_attributable_to_artifact",
+        "side_effect_managed_artifact_store_write_attributable_to_artifact",
+        "side_effect_irreversible_action_published_attributable_to_artifact",
+        "side_effect_attribution_unknown_requires_review"
+      ],
+      "description": "Closed side-effect attribution vocabulary for an artifact event. Composes with the run-level side_effect_summary_class on schemas/execution/run.schema.json: a run's outcome rolls up the per-artifact attributions. side_effect_irreversible_action_published_attributable_to_artifact MUST narrow the run record's auto_rerun_admitted_on_this_record to false."
+    },
+
+    "artifact_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "artifact_event_schema_version",
+        "artifact_event_record_id",
+        "parent_run_ref",
+        "parent_attempt_ref",
+        "artifact_event_kind_class",
+        "artifact_class",
+        "artifact_ref",
+        "finalization_class",
+        "retention_class",
+        "redaction_class",
+        "media_class",
+        "side_effect_attribution_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "artifact_event_record" },
+        "artifact_event_schema_version": { "$ref": "#/$defs/artifact_event_schema_version" },
+        "artifact_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "artifact_event_kind_class": { "$ref": "#/$defs/artifact_event_kind_class" },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque artifact id. Stable across streaming chunks for the same artifact - one logical artifact may receive many artifact_emitted_streaming_chunk events under the same artifact_ref before its artifact_finalized_published event."
+        },
+        "chunk_index": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Zero-based index for streaming chunks. Required when artifact_event_kind_class is artifact_emitted_streaming_chunk; null otherwise."
+        },
+        "is_final_chunk": {
+          "type": ["boolean", "null"],
+          "description": "True when this streaming chunk is the last chunk of the artifact. Null for non-streaming events. A streaming artifact does not become finalized until a separate artifact_finalized_published event is emitted."
+        },
+        "replacement_artifact_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when artifact_event_kind_class is artifact_withdrawn_replaced_by_newer. Null otherwise."
+        },
+        "withdrawal_actor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when artifact_event_kind_class is artifact_withdrawn_by_user (cite the command-dispatch descriptor), artifact_withdrawn_by_policy (cite the admin-policy epoch), or artifact_withdrawn_by_quarantine (cite the quarantine row). Null otherwise."
+        },
+        "finalization_class": { "$ref": "#/$defs/finalization_class" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "raw_artifact_body_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Opaque retention id pointing at the raw artifact body. Required when retention_class is one of the retained_* values. MUST be null when retention_class is not_retained_ephemeral."
+        },
+        "raw_artifact_bytes_reported": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Raw artifact size in bytes. Null for streaming chunks before the size is known."
+        },
+        "raw_artifact_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hex_hash" }
+          ],
+          "description": "Digest of the raw artifact body. Required for finalization_published_immutable and finalization_published_replaced_by_newer when raw_artifact_bytes_reported is non-null and non-zero."
+        },
+        "media_class": { "$ref": "#/$defs/media_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "credential_handle_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to credential-handle classes intersected by the artifact body. Required (non-empty) when redaction_class is broadened_capture and the artifact intersects credential-handle classes; the artifact MUST NOT publish raw secret values regardless of this list."
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when retention_class is retained_managed_with_broadened_capture, when redaction_class is broadened_capture, or when artifact_class is exact_build_identity_attestation."
+        },
+        "side_effect_attribution_class": { "$ref": "#/$defs/side_effect_attribution_class" },
+        "side_effect_attribution_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional sentence amplifying the side-effect attribution. Raw URLs, raw paths, raw API bodies, and raw secret values MUST NOT appear here."
+        },
+        "task_event_envelope_event_id": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the task_event_envelope_record event_id that emitted the matching artifact_publication payload. Lets a stable consumer correlate the run-level artifact rail with the lower-level task-event stream without flattening either model."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional reviewer-facing summary safe for export. Raw artifact bytes, raw paths, raw URLs, raw API bodies, and raw secret material MUST NOT appear here."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Streaming chunk events MUST carry chunk_index and is_final_chunk; non-streaming events MUST null both.",
+          "if": {
+            "properties": {
+              "artifact_event_kind_class": { "const": "artifact_emitted_streaming_chunk" }
+            },
+            "required": ["artifact_event_kind_class"]
+          },
+          "then": {
+            "required": ["chunk_index", "is_final_chunk"],
+            "properties": {
+              "chunk_index": { "type": "integer", "minimum": 0 },
+              "is_final_chunk": { "type": "boolean" }
+            }
+          },
+          "else": {
+            "properties": {
+              "chunk_index": { "type": "null" },
+              "is_final_chunk": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "artifact_withdrawn_replaced_by_newer MUST cite the replacement artifact ref.",
+          "if": {
+            "properties": {
+              "artifact_event_kind_class": { "const": "artifact_withdrawn_replaced_by_newer" }
+            },
+            "required": ["artifact_event_kind_class"]
+          },
+          "then": {
+            "required": ["replacement_artifact_ref"],
+            "properties": {
+              "replacement_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+              "finalization_class": { "const": "finalization_withdrawn_no_artifact_remains" }
+            }
+          }
+        },
+        {
+          "description": "artifact_withdrawn_by_user / by_policy / by_quarantine MUST cite a withdrawal actor and resolve finalization to withdrawn.",
+          "if": {
+            "properties": {
+              "artifact_event_kind_class": {
+                "enum": [
+                  "artifact_withdrawn_by_user",
+                  "artifact_withdrawn_by_policy",
+                  "artifact_withdrawn_by_quarantine"
+                ]
+              }
+            },
+            "required": ["artifact_event_kind_class"]
+          },
+          "then": {
+            "required": ["withdrawal_actor_ref"],
+            "properties": {
+              "withdrawal_actor_ref": { "$ref": "#/$defs/opaque_ref" },
+              "finalization_class": { "const": "finalization_withdrawn_no_artifact_remains" }
+            }
+          }
+        },
+        {
+          "description": "artifact_finalized_published MUST resolve finalization to published_immutable and is non-streaming.",
+          "if": {
+            "properties": {
+              "artifact_event_kind_class": { "const": "artifact_finalized_published" }
+            },
+            "required": ["artifact_event_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "finalization_class": {
+                "enum": [
+                  "finalization_published_immutable",
+                  "finalization_published_replaced_by_newer"
+                ]
+              },
+              "chunk_index": { "type": "null" },
+              "is_final_chunk": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Retained-* retention classes MUST cite a non-null raw_artifact_body_ref; not_retained_ephemeral MUST null it.",
+          "if": {
+            "properties": {
+              "retention_class": {
+                "enum": [
+                  "retained_local_support_bundle_only",
+                  "retained_local_with_replay_opt_in",
+                  "retained_managed_with_redaction",
+                  "retained_managed_with_broadened_capture"
+                ]
+              }
+            },
+            "required": ["retention_class"]
+          },
+          "then": {
+            "required": ["raw_artifact_body_ref"],
+            "properties": {
+              "raw_artifact_body_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          },
+          "else": {
+            "if": {
+              "properties": { "retention_class": { "const": "not_retained_ephemeral" } },
+              "required": ["retention_class"]
+            },
+            "then": {
+              "properties": {
+                "raw_artifact_body_ref": { "type": "null" },
+                "raw_artifact_hash": { "type": "null" }
+              }
+            }
+          }
+        },
+        {
+          "description": "retained_managed_with_broadened_capture MUST cite an approval-ticket ref.",
+          "if": {
+            "properties": {
+              "retention_class": { "const": "retained_managed_with_broadened_capture" }
+            },
+            "required": ["retention_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "broadened_capture redaction MUST cite an approval-ticket ref.",
+          "if": {
+            "properties": { "redaction_class": { "const": "broadened_capture" } },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "exact_build_identity_attestation MUST cite an approval-ticket ref to keep the attestation rail attestable.",
+          "if": {
+            "properties": {
+              "artifact_class": { "const": "exact_build_identity_attestation" }
+            },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One artifact event. Append-only entry on the per-attempt artifact rail. A streaming artifact accumulates chunks under one artifact_ref and is finalized only when an explicit artifact_finalized_published event is emitted; finalized artifacts MUST NOT be silently overwritten."
+    }
+  }
+}
