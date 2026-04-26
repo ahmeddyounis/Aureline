@@ -1,0 +1,760 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/provider_capability.schema.json",
+  "title": "Aureline language protocol-router provider capability descriptor",
+  "description": "Boundary schema for provider_capability_record, the typed descriptor every LSP, DAP, formatter, linter, test, build, framework, native analyzer, project graph, generated-source bridge, syntax, and assist provider advertises before the language protocol router may select it. The descriptor captures provider family, protocol family, source provenance, placement, health score, restart/quarantine posture, capability support, precedence, fallback, coexistence, local-vs-remote placement, scope, and coordinate-translation requirements. Raw source text, raw logs, raw command lines, raw hostnames, raw URLs, raw process arguments, raw stack traces, raw provider payloads, and raw secrets never cross this boundary; records carry opaque ids, typed vocabulary, counts, timestamps, and export-safe summaries only. Adding a new provider_kind, protocol_family, capability_class, support_class, precedence_band, coexistence_mode, fallback_class, health_state, freshness_class, scope_claim_class, locality_class, coordinate profile, coordinate requirement, provenance source, or unsupported reason is additive-minor and requires a provider_capability_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/provider_capability_record"
+    }
+  ],
+  "$defs": {
+    "provider_capability_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for provider capability descriptors. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "provider_capability_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, diff, and export."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewer-facing text safe for UI, CLI, and support export. Raw provider payloads, raw paths, raw URLs, raw command lines, raw logs, and raw secrets never appear here."
+    },
+    "provider_kind": {
+      "type": "string",
+      "enum": [
+        "syntax_parser",
+        "language_server",
+        "debug_adapter",
+        "formatter_adapter",
+        "linter_adapter",
+        "test_adapter",
+        "build_adapter",
+        "framework_pack",
+        "native_analyzer",
+        "project_graph",
+        "generated_source_bridge",
+        "ai_assist"
+      ],
+      "description": "Router-level provider family. This is broader than the editor-only language provider family because it includes execution and toolchain adapters."
+    },
+    "protocol_family": {
+      "type": "string",
+      "enum": [
+        "tree_sitter",
+        "lsp",
+        "dap",
+        "formatter_cli",
+        "linter_cli",
+        "test_protocol",
+        "build_protocol",
+        "bsp",
+        "bazel_bep",
+        "framework_pack_api",
+        "native_analyzer_api",
+        "project_graph_api",
+        "generated_mapping_api",
+        "ai_provider_api",
+        "heuristic_parser",
+        "none"
+      ],
+      "description": "Transport or adapter protocol family used by the provider. The router still treats product truth as typed capability rows rather than trusting protocol output directly."
+    },
+    "capability_class": {
+      "type": "string",
+      "enum": [
+        "diagnostics",
+        "completion",
+        "hover",
+        "formatting",
+        "code_action",
+        "test_discovery",
+        "test_run",
+        "debug_launch",
+        "debug_attach",
+        "debug_session_control",
+        "build_target_discovery",
+        "build_diagnostics",
+        "framework_navigation",
+        "framework_run_scaffold",
+        "coordinate_translation",
+        "provenance_explanation"
+      ],
+      "description": "Capability the router may arbitrate."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "advisory",
+        "fallback_only",
+        "inspect_only",
+        "unsupported"
+      ],
+      "description": "How this provider may be used for the capability in the declared scope."
+    },
+    "precedence_band": {
+      "type": "string",
+      "enum": [
+        "first_party_native",
+        "framework_overlay",
+        "project_graph_authority",
+        "protocol_compatibility",
+        "structured_tool_adapter",
+        "imported_snapshot",
+        "heuristic_fallback",
+        "assist_only"
+      ],
+      "description": "Default precedence band before health, policy, scope, placement, and coordinate checks narrow the provider."
+    },
+    "coexistence_mode": {
+      "type": "string",
+      "enum": [
+        "exclusive_winner",
+        "merge_with_peer",
+        "overlay_on_winner",
+        "fallback_after_failure",
+        "inspect_side_channel",
+        "assist_only"
+      ],
+      "description": "How this provider may coexist with other providers for the same capability."
+    },
+    "fallback_class": {
+      "type": "string",
+      "enum": [
+        "no_fallback",
+        "semantic_to_protocol",
+        "protocol_to_native",
+        "protocol_to_text",
+        "structured_to_heuristic",
+        "live_to_cached",
+        "local_to_remote",
+        "remote_to_local_cached",
+        "unsupported_no_fallback"
+      ],
+      "description": "Fallback path the router may use when this provider cannot satisfy the requested floor."
+    },
+    "health_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "degraded",
+        "cached_only",
+        "policy_blocked",
+        "capability_missing",
+        "crash_loop_quarantined",
+        "unavailable"
+      ],
+      "description": "Coarse visible provider health state."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness posture for this provider descriptor."
+    },
+    "scope_claim_class": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "notebook_cell",
+        "loaded_slice",
+        "active_workset",
+        "whole_workspace",
+        "target_graph",
+        "test_tree",
+        "debug_session",
+        "unavailable"
+      ],
+      "description": "Largest scope the provider claims for this capability."
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot"
+      ],
+      "description": "Where the provider ran or where the advertised truth came from."
+    },
+    "coordinate_profile_class": {
+      "type": "string",
+      "enum": [
+        "aureline_text_snapshot_utf8_grapheme",
+        "lsp_utf16_position",
+        "dap_source_line_column",
+        "formatter_text_span",
+        "test_output_location",
+        "build_log_location",
+        "source_map_generated_original",
+        "native_analyzer_span",
+        "not_applicable"
+      ],
+      "description": "Coordinate profile accepted or emitted by this provider."
+    },
+    "coordinate_translation_requirement_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_before_request",
+        "required_before_result",
+        "required_for_mutation",
+        "blocked_until_mapping_available"
+      ],
+      "description": "When coordinate translation must be available for this provider/capability row."
+    },
+    "descriptor_source_class": {
+      "type": "string",
+      "enum": [
+        "bundled_first_party",
+        "extension_manifest",
+        "workspace_config",
+        "toolchain_discovery",
+        "remote_agent_advertisement",
+        "managed_service_descriptor",
+        "imported_snapshot",
+        "policy_injected"
+      ],
+      "description": "Where this provider descriptor came from."
+    },
+    "unsupported_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_implemented_by_provider",
+        "not_supported_for_language",
+        "not_supported_for_scope",
+        "not_supported_on_host",
+        "missing_toolchain",
+        "missing_coordinate_mapping",
+        "blocked_by_policy",
+        "blocked_by_trust",
+        "quarantined_after_crash_loop",
+        "unknown_requires_review"
+      ],
+      "description": "Typed reason a capability is unsupported or currently unusable."
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "source_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descriptor_source_class",
+        "provider_version_ref",
+        "adapter_version_ref",
+        "registration_epoch_ref",
+        "discovered_at",
+        "summary"
+      ],
+      "properties": {
+        "descriptor_source_class": {
+          "$ref": "#/$defs/descriptor_source_class"
+        },
+        "provider_version_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "adapter_version_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "registration_epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "source_artifact_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "discovered_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locality_class",
+        "host_identity_ref",
+        "execution_context_id",
+        "placement_summary"
+      ],
+      "properties": {
+        "locality_class": {
+          "$ref": "#/$defs/locality_class"
+        },
+        "host_identity_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "remote_target_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "placement_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "health_state",
+        "health_score",
+        "freshness_class",
+        "restart_strike_count",
+        "restart_budget_ref",
+        "last_success_at",
+        "quarantine_ref",
+        "health_summary"
+      ],
+      "properties": {
+        "health_state": {
+          "$ref": "#/$defs/health_state"
+        },
+        "health_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Router-local health score exported for support. It is not displayed as the user's only truth label."
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "restart_strike_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "restart_budget_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "last_success_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quarantine_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "health_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "health_state": {
+                "const": "crash_loop_quarantined"
+              }
+            },
+            "required": [
+              "health_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "health_score": {
+                "maximum": 20
+              },
+              "quarantine_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            },
+            "required": [
+              "quarantine_ref"
+            ]
+          }
+        }
+      ]
+    },
+    "coordinate_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_coordinate_profile_class",
+        "output_coordinate_profile_class",
+        "translation_requirement_class",
+        "coordinate_mapping_schema_ref",
+        "summary"
+      ],
+      "properties": {
+        "input_coordinate_profile_class": {
+          "$ref": "#/$defs/coordinate_profile_class"
+        },
+        "output_coordinate_profile_class": {
+          "$ref": "#/$defs/coordinate_profile_class"
+        },
+        "translation_requirement_class": {
+          "$ref": "#/$defs/coordinate_translation_requirement_class"
+        },
+        "coordinate_mapping_schema_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "translation_requirement_class": {
+                "not": {
+                  "const": "not_required"
+                }
+              }
+            },
+            "required": [
+              "translation_requirement_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "coordinate_mapping_schema_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            },
+            "required": [
+              "coordinate_mapping_schema_ref"
+            ]
+          }
+        }
+      ]
+    },
+    "capability_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class",
+        "support_class",
+        "precedence_band",
+        "coexistence_mode",
+        "fallback_class",
+        "scope_claim_class",
+        "coordinate_contract",
+        "capability_summary"
+      ],
+      "properties": {
+        "capability_class": {
+          "$ref": "#/$defs/capability_class"
+        },
+        "support_class": {
+          "$ref": "#/$defs/support_class"
+        },
+        "precedence_band": {
+          "$ref": "#/$defs/precedence_band"
+        },
+        "coexistence_mode": {
+          "$ref": "#/$defs/coexistence_mode"
+        },
+        "fallback_class": {
+          "$ref": "#/$defs/fallback_class"
+        },
+        "scope_claim_class": {
+          "$ref": "#/$defs/scope_claim_class"
+        },
+        "unsupported_reason_class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/unsupported_reason_class"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "coordinate_contract": {
+          "$ref": "#/$defs/coordinate_contract"
+        },
+        "capability_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "support_class": {
+                "const": "unsupported"
+              }
+            },
+            "required": [
+              "support_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "unsupported_reason_class": {
+                "$ref": "#/$defs/unsupported_reason_class"
+              },
+              "fallback_class": {
+                "const": "unsupported_no_fallback"
+              }
+            },
+            "required": [
+              "unsupported_reason_class"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "support_class": {
+                "enum": [
+                  "authoritative",
+                  "advisory",
+                  "fallback_only",
+                  "inspect_only"
+                ]
+              }
+            },
+            "required": [
+              "support_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "unsupported_reason_class": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "effective_scope_ref"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "effective_scope_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+    "provider_capability_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_capability_schema_version",
+        "provider_capability_id",
+        "provider_id",
+        "provider_display_label",
+        "provider_kind",
+        "protocol_family",
+        "source_provenance",
+        "placement",
+        "health",
+        "capabilities",
+        "policy_context",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "provider_capability_schema_version": {
+          "$ref": "#/$defs/provider_capability_schema_version"
+        },
+        "provider_capability_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_display_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "provider_kind": {
+          "$ref": "#/$defs/provider_kind"
+        },
+        "protocol_family": {
+          "$ref": "#/$defs/protocol_family"
+        },
+        "source_provenance": {
+          "$ref": "#/$defs/source_provenance"
+        },
+        "placement": {
+          "$ref": "#/$defs/placement"
+        },
+        "health": {
+          "$ref": "#/$defs/health"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability_row"
+          },
+          "minItems": 1
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "provider_kind": {
+                "const": "debug_adapter"
+              }
+            },
+            "required": [
+              "provider_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "protocol_family": {
+                "const": "dap"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provider_kind": {
+                "const": "language_server"
+              }
+            },
+            "required": [
+              "provider_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "protocol_family": {
+                "const": "lsp"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provider_kind": {
+                "const": "ai_assist"
+              }
+            },
+            "required": [
+              "provider_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "protocol_family": {
+                "const": "ai_provider_api"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

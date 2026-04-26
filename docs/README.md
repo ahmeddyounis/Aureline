@@ -414,6 +414,19 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`architecture/language_protocol_router_adr.md`](./architecture/language_protocol_router_adr.md)
+  — typed language protocol-router ADR seed for LSP, DAP, formatter,
+  linter, test, build, framework, native analyzer, project graph,
+  generated-source bridge, syntax, and assist providers. Freezes
+  provider capability descriptors, resolution records, precedence,
+  fallback, coexistence, health scoring, crash-loop quarantine,
+  placement, and coordinate-translation requirements. Boundary schemas
+  in
+  [`/schemas/language/provider_capability.schema.json`](../schemas/language/provider_capability.schema.json)
+  and
+  [`/schemas/language/provider_resolution.schema.json`](../schemas/language/provider_resolution.schema.json);
+  worked fixtures in
+  [`/fixtures/language/router_cases/`](../fixtures/language/router_cases/).
 - [`language/provider_graph_and_arbitration_contract.md`](./language/provider_graph_and_arbitration_contract.md)
   — shared language-provider attribution, capability-negotiation,
   arbitration, and result-provenance contract for definition,

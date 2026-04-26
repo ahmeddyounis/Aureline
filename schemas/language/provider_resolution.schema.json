@@ -1,0 +1,931 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/provider_resolution.schema.json",
+  "title": "Aureline language protocol-router provider resolution record",
+  "description": "Boundary schema for provider_resolution_record, the typed result emitted when a protected surface asks the language protocol router to select, merge, overlay, fall back, or reject providers for one capability. The record captures request context, candidate capability snapshots, precedence and health decisions, unavailable/quarantined/unsupported providers, degraded states, coordinate-translation status, conflict disclosure, local-vs-remote placement, and an export-safe surface report. Raw source text, raw logs, raw command lines, raw hostnames, raw URLs, raw process arguments, raw stack traces, raw provider payloads, raw test names, raw debug values, and raw secrets never cross this boundary; records carry opaque ids, typed vocabulary, counts, refs, and reviewable summaries only. Adding a new surface_class, capability_class, resolution_mode, selection_reason, exclusion_reason, degraded_state, conflict_class, fallback_class, candidate_decision, coordinate mapping class, result origin, or unsupported reason is additive-minor and requires a provider_resolution_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/provider_resolution_record"
+    }
+  ],
+  "$defs": {
+    "provider_resolution_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for router resolution records. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "provider_resolution_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, diff, and export."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewer-facing text safe for UI, CLI, AI evidence, and support export. Raw payloads, raw paths, raw URLs, raw commands, raw logs, and raw secrets never appear here."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "diagnostic",
+        "completion",
+        "hover",
+        "formatting",
+        "code_action",
+        "test_discovery",
+        "test_run",
+        "debug_launch",
+        "debug_attach",
+        "debug_session_control",
+        "build_target_discovery",
+        "build_diagnostics",
+        "framework_navigation",
+        "framework_run_scaffold"
+      ]
+    },
+    "capability_class": {
+      "type": "string",
+      "enum": [
+        "diagnostics",
+        "completion",
+        "hover",
+        "formatting",
+        "code_action",
+        "test_discovery",
+        "test_run",
+        "debug_launch",
+        "debug_attach",
+        "debug_session_control",
+        "build_target_discovery",
+        "build_diagnostics",
+        "framework_navigation",
+        "framework_run_scaffold",
+        "coordinate_translation",
+        "provenance_explanation"
+      ]
+    },
+    "requested_authority_floor_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_required",
+        "authoritative_preferred",
+        "advisory_allowed",
+        "inspect_only_allowed"
+      ]
+    },
+    "scope_claim_class": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "notebook_cell",
+        "loaded_slice",
+        "active_workset",
+        "whole_workspace",
+        "target_graph",
+        "test_tree",
+        "debug_session",
+        "unavailable"
+      ]
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot"
+      ]
+    },
+    "placement_preference_class": {
+      "type": "string",
+      "enum": [
+        "prefer_local",
+        "prefer_workspace_remote",
+        "prefer_managed_service",
+        "match_subject_location",
+        "no_preference"
+      ]
+    },
+    "provider_kind": {
+      "type": "string",
+      "enum": [
+        "syntax_parser",
+        "language_server",
+        "debug_adapter",
+        "formatter_adapter",
+        "linter_adapter",
+        "test_adapter",
+        "build_adapter",
+        "framework_pack",
+        "native_analyzer",
+        "project_graph",
+        "generated_source_bridge",
+        "ai_assist"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "advisory",
+        "fallback_only",
+        "inspect_only",
+        "unsupported"
+      ]
+    },
+    "precedence_band": {
+      "type": "string",
+      "enum": [
+        "first_party_native",
+        "framework_overlay",
+        "project_graph_authority",
+        "protocol_compatibility",
+        "structured_tool_adapter",
+        "imported_snapshot",
+        "heuristic_fallback",
+        "assist_only"
+      ]
+    },
+    "health_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "degraded",
+        "cached_only",
+        "policy_blocked",
+        "capability_missing",
+        "crash_loop_quarantined",
+        "unavailable"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "fallback_class": {
+      "type": "string",
+      "enum": [
+        "no_fallback",
+        "semantic_to_protocol",
+        "protocol_to_native",
+        "protocol_to_text",
+        "structured_to_heuristic",
+        "live_to_cached",
+        "local_to_remote",
+        "remote_to_local_cached",
+        "unsupported_no_fallback"
+      ]
+    },
+    "resolution_mode": {
+      "type": "string",
+      "enum": [
+        "single_winner",
+        "ordered_fallback",
+        "merged_coexistence",
+        "overlay",
+        "inspect_only_no_winner",
+        "unsupported"
+      ]
+    },
+    "candidate_decision_class": {
+      "type": "string",
+      "enum": [
+        "selected_primary",
+        "selected_contributor",
+        "eligible_alternate",
+        "excluded",
+        "unavailable",
+        "unsupported"
+      ]
+    },
+    "selection_reason_class": {
+      "type": "string",
+      "enum": [
+        "highest_precedence",
+        "healthiest_authoritative",
+        "framework_specificity",
+        "native_adapter_preferred",
+        "user_or_policy_preferred",
+        "cached_fallback",
+        "only_admissible_provider",
+        "merge_required",
+        "quarantine_excluded_preferred",
+        "unsupported_no_provider"
+      ]
+    },
+    "exclusion_reason_class": {
+      "type": "string",
+      "enum": [
+        "lower_precedence",
+        "lower_health_score",
+        "capability_unsupported",
+        "policy_blocked",
+        "crash_loop_quarantined",
+        "unavailable",
+        "stale_below_floor",
+        "coordinate_mapping_missing",
+        "wrong_placement",
+        "lower_confidence",
+        "merged_not_primary"
+      ]
+    },
+    "degraded_state_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "degraded_provider_unavailable",
+        "degraded_crash_loop_quarantine",
+        "degraded_cached_fallback",
+        "degraded_heuristic_fallback",
+        "degraded_scope_narrowed",
+        "degraded_remote_unreachable",
+        "degraded_coordinate_mapping_missing",
+        "degraded_policy_narrowed"
+      ]
+    },
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "provider_origin_disagreement",
+        "diagnostic_source_disagreement",
+        "formatting_edit_conflict",
+        "test_target_disagreement",
+        "debug_artifact_disagreement",
+        "framework_language_disagreement",
+        "coordinate_mapping_conflict",
+        "freshness_or_epoch_disagreement"
+      ]
+    },
+    "coordinate_profile_class": {
+      "type": "string",
+      "enum": [
+        "aureline_text_snapshot_utf8_grapheme",
+        "lsp_utf16_position",
+        "dap_source_line_column",
+        "formatter_text_span",
+        "test_output_location",
+        "build_log_location",
+        "source_map_generated_original",
+        "native_analyzer_span",
+        "not_applicable"
+      ]
+    },
+    "coordinate_mapping_quality_class": {
+      "type": "string",
+      "enum": [
+        "exact_mapping",
+        "remapped_current",
+        "approximate_inspect_only",
+        "missing_required_mapping",
+        "not_applicable"
+      ]
+    },
+    "coordinate_translation_requirement_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_before_request",
+        "required_before_result",
+        "required_for_mutation",
+        "blocked_until_mapping_available"
+      ]
+    },
+    "result_origin_class": {
+      "type": "string",
+      "enum": [
+        "provider_answer",
+        "merged_provider_set",
+        "overlay_provider_answer",
+        "cached_fallback_answer",
+        "heuristic_fallback_answer",
+        "inspect_only_explanation",
+        "unsupported_capability"
+      ]
+    },
+    "unsupported_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_implemented_by_provider",
+        "not_supported_for_language",
+        "not_supported_for_scope",
+        "not_supported_on_host",
+        "missing_toolchain",
+        "missing_coordinate_mapping",
+        "blocked_by_policy",
+        "blocked_by_trust",
+        "quarantined_after_crash_loop",
+        "unknown_requires_review"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "request_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_surface_class",
+        "requested_capability_class",
+        "requested_authority_floor_class",
+        "requested_scope_claim_class",
+        "requested_subject_ref",
+        "placement_preference_class",
+        "coordinate_translation_requirement_class",
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "requested_surface_class": {
+          "$ref": "#/$defs/surface_class"
+        },
+        "requested_capability_class": {
+          "$ref": "#/$defs/capability_class"
+        },
+        "requested_authority_floor_class": {
+          "$ref": "#/$defs/requested_authority_floor_class"
+        },
+        "requested_scope_claim_class": {
+          "$ref": "#/$defs/scope_claim_class"
+        },
+        "requested_subject_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "placement_preference_class": {
+          "$ref": "#/$defs/placement_preference_class"
+        },
+        "coordinate_translation_requirement_class": {
+          "$ref": "#/$defs/coordinate_translation_requirement_class"
+        },
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+    "candidate_provider_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_capability_ref",
+        "provider_id",
+        "provider_display_label",
+        "provider_kind",
+        "capability_class",
+        "support_class",
+        "precedence_band",
+        "health_state",
+        "health_score",
+        "freshness_class",
+        "scope_claim_class",
+        "locality_class",
+        "candidate_decision_class",
+        "fallback_class",
+        "decision_summary"
+      ],
+      "properties": {
+        "provider_capability_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_display_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "provider_kind": {
+          "$ref": "#/$defs/provider_kind"
+        },
+        "capability_class": {
+          "$ref": "#/$defs/capability_class"
+        },
+        "support_class": {
+          "$ref": "#/$defs/support_class"
+        },
+        "precedence_band": {
+          "$ref": "#/$defs/precedence_band"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state"
+        },
+        "health_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "scope_claim_class": {
+          "$ref": "#/$defs/scope_claim_class"
+        },
+        "locality_class": {
+          "$ref": "#/$defs/locality_class"
+        },
+        "candidate_decision_class": {
+          "$ref": "#/$defs/candidate_decision_class"
+        },
+        "fallback_class": {
+          "$ref": "#/$defs/fallback_class"
+        },
+        "exclusion_reason_class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/exclusion_reason_class"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "unsupported_reason_class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/unsupported_reason_class"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "quarantine_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "decision_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "candidate_decision_class": {
+                "enum": [
+                  "excluded",
+                  "unavailable"
+                ]
+              }
+            },
+            "required": [
+              "candidate_decision_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "exclusion_reason_class": {
+                "$ref": "#/$defs/exclusion_reason_class"
+              }
+            },
+            "required": [
+              "exclusion_reason_class"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "candidate_decision_class": {
+                "const": "unsupported"
+              }
+            },
+            "required": [
+              "candidate_decision_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "unsupported_reason_class": {
+                "$ref": "#/$defs/unsupported_reason_class"
+              }
+            },
+            "required": [
+              "unsupported_reason_class"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "health_state": {
+                "const": "crash_loop_quarantined"
+              }
+            },
+            "required": [
+              "health_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "candidate_decision_class": {
+                "enum": [
+                  "excluded",
+                  "unavailable"
+                ]
+              },
+              "exclusion_reason_class": {
+                "const": "crash_loop_quarantined"
+              },
+              "quarantine_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            },
+            "required": [
+              "quarantine_ref"
+            ]
+          }
+        }
+      ]
+    },
+    "selected_provider_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "provider_capability_ref",
+        "provider_kind",
+        "selection_reason_class",
+        "result_origin_class",
+        "summary"
+      ],
+      "properties": {
+        "provider_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_capability_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_kind": {
+          "$ref": "#/$defs/provider_kind"
+        },
+        "selection_reason_class": {
+          "$ref": "#/$defs/selection_reason_class"
+        },
+        "result_origin_class": {
+          "$ref": "#/$defs/result_origin_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+    "coordinate_translation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_coordinate_profile_class",
+        "output_coordinate_profile_class",
+        "mapping_quality_class",
+        "coordinate_mapping_record_ref",
+        "summary"
+      ],
+      "properties": {
+        "input_coordinate_profile_class": {
+          "$ref": "#/$defs/coordinate_profile_class"
+        },
+        "output_coordinate_profile_class": {
+          "$ref": "#/$defs/coordinate_profile_class"
+        },
+        "mapping_quality_class": {
+          "$ref": "#/$defs/coordinate_mapping_quality_class"
+        },
+        "coordinate_mapping_record_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mapping_quality_class": {
+                "enum": [
+                  "exact_mapping",
+                  "remapped_current",
+                  "approximate_inspect_only"
+                ]
+              }
+            },
+            "required": [
+              "mapping_quality_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "coordinate_mapping_record_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            },
+            "required": [
+              "coordinate_mapping_record_ref"
+            ]
+          }
+        }
+      ]
+    },
+    "resolution_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolution_mode",
+        "selection_reason_class",
+        "degraded_state_class",
+        "conflict_class",
+        "fallback_class",
+        "selected_provider_rows",
+        "contributing_provider_rows",
+        "excluded_provider_rows",
+        "unavailable_provider_rows",
+        "coordinate_translation_result",
+        "export_safe_decision_summary"
+      ],
+      "properties": {
+        "resolution_mode": {
+          "$ref": "#/$defs/resolution_mode"
+        },
+        "selection_reason_class": {
+          "$ref": "#/$defs/selection_reason_class"
+        },
+        "degraded_state_class": {
+          "$ref": "#/$defs/degraded_state_class"
+        },
+        "conflict_class": {
+          "$ref": "#/$defs/conflict_class"
+        },
+        "fallback_class": {
+          "$ref": "#/$defs/fallback_class"
+        },
+        "selected_provider_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/selected_provider_row"
+          }
+        },
+        "contributing_provider_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/selected_provider_row"
+          }
+        },
+        "excluded_provider_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/candidate_provider_row"
+          }
+        },
+        "unavailable_provider_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/candidate_provider_row"
+          }
+        },
+        "coordinate_translation_result": {
+          "$ref": "#/$defs/coordinate_translation_result"
+        },
+        "export_safe_decision_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resolution_mode": {
+                "enum": [
+                  "single_winner",
+                  "ordered_fallback",
+                  "overlay"
+                ]
+              }
+            },
+            "required": [
+              "resolution_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "selected_provider_rows": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "resolution_mode": {
+                "const": "merged_coexistence"
+              }
+            },
+            "required": [
+              "resolution_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "selected_provider_rows": {
+                "minItems": 1
+              },
+              "contributing_provider_rows": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "resolution_mode": {
+                "enum": [
+                  "inspect_only_no_winner",
+                  "unsupported"
+                ]
+              }
+            },
+            "required": [
+              "resolution_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "selected_provider_rows": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "conflict_class": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            },
+            "required": [
+              "conflict_class"
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "contributing_provider_rows": {
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "excluded_provider_rows": {
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "surface_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_label",
+        "degraded_state_class",
+        "unsupported_capability_classes",
+        "user_visible_summary",
+        "export_safe_explanation"
+      ],
+      "properties": {
+        "origin_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "degraded_state_class": {
+          "$ref": "#/$defs/degraded_state_class"
+        },
+        "unsupported_capability_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability_class"
+          },
+          "uniqueItems": true
+        },
+        "user_visible_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "export_safe_explanation": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+    "provider_resolution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_resolution_schema_version",
+        "provider_resolution_id",
+        "request_context",
+        "candidate_provider_rows",
+        "resolution_outcome",
+        "surface_report",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "provider_resolution_schema_version": {
+          "$ref": "#/$defs/provider_resolution_schema_version"
+        },
+        "provider_resolution_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "request_context": {
+          "$ref": "#/$defs/request_context"
+        },
+        "candidate_provider_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/candidate_provider_row"
+          },
+          "minItems": 1
+        },
+        "resolution_outcome": {
+          "$ref": "#/$defs/resolution_outcome"
+        },
+        "surface_report": {
+          "$ref": "#/$defs/surface_report"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    }
+  }
+}
