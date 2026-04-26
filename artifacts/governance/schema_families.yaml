@@ -2024,6 +2024,9 @@ rows:
       - schemas/vcs/conflict_class.schema.json
       - schemas/vcs/conflict_resolution_session.schema.json
       - schemas/vcs/merge_validation_hint.schema.json
+      - schemas/vcs/recovery_object.schema.json
+      - schemas/vcs/sequence_step.schema.json
+      - schemas/vcs/history_edit_review.schema.json
     notes: >
       Review-workspace, comment-anchor, and merge-queue boundary
       (see docs/vcs/review_workspace_contract.md), the review-pack
@@ -2355,6 +2358,129 @@ rows:
       or audit-event id is additive-minor and bumps the per-record
       schema_version const; repurposing an existing value is
       breaking and requires a new decision row.
+      recovery_object.schema.json, sequence_step.schema.json, and
+      history_edit_review.schema.json freeze the dedicated history-
+      edit recovery contract (see docs/vcs/history_edit_and_
+      recovery_contract.md). recovery_object.schema.json freezes the
+      recovery_object_record (six-value recovery_object_payload_
+      class: local_history_checkpoint, backup_branch_or_tag_ref,
+      reflog_anchor, export_patch_bundle, safe_worktree_clone,
+      combined_recovery_packet; six-value recovery_object_topology_
+      change_class: topology_change_history_rewrite, topology_
+      change_revert_commit_append, topology_change_replay_onto_new_
+      target, topology_change_patch_series_restack, topology_change_
+      orphan_worktree_export, topology_change_branch_label_move;
+      four-value recovery_object_lifecycle_state: recovery_object_
+      minted_pre_mutation_pinned, recovery_object_consumed_rolled_
+      back, recovery_object_superseded_by_newer_recovery_object,
+      recovery_object_archived_tombstone) under allOf gates that
+      pair every payload class with the matching upstream recovery_
+      object_class re-exported from schemas/vcs/change_object.schema.
+      json and the matching non-null payload ref (denies with
+      recovery_object_payload_class_must_match_recovery_object_
+      class), force combined_recovery_packet to cite at least two
+      combined_recovery_packet_member_refs, force consumed_rolled_
+      back to cite a non-null consumed_at, force superseded_by_
+      newer_recovery_object to cite a non-null superseded_by_
+      recovery_object_id_ref, and force archived_tombstone to cite
+      a non-null archived_at. sequence_step.schema.json freezes the
+      sequence_step_record (eleven-value sequence_step_kind_class
+      re-exported from schemas/vcs/patch_stack.schema.json sequence_
+      editor_operation_class; nine-value sequence_step_status_
+      class: step_drafted_pending_review, step_admitted_pending_run,
+      step_in_progress_running, step_paused_pending_conflict, step_
+      paused_pending_protected_path_review, step_paused_pending_
+      signoff, step_paused_pending_base_or_head_identity_changed,
+      step_completed, step_aborted_rolled_back; five-value auto_
+      continue_state_class: auto_continue_admissible, auto_continue_
+      blocked_pending_conflict, auto_continue_blocked_protected_
+      path_modification, auto_continue_blocked_pending_signoff,
+      auto_continue_blocked_base_or_head_identity_changed; four-
+      value object_model_change_class: object_model_pick_in_place_
+      no_change, object_model_rewrite_history, object_model_append_
+      new_revert_commit, object_model_replay_onto_new_target; four-
+      value protected_path_blocker_class; four-value signoff_
+      blocker_class; four-value base_or_head_identity_drift_class)
+      under allOf gates that pair every step_paused_* status with
+      the matching auto_continue_blocked_* state, force auto_
+      continue_admissible to require every blocker class at its
+      default and conflict_handoff_class to be no_conflict_path_
+      required or one of the *_admitted_user_resolved values, force
+      object_model_replay_onto_new_target to cite a non-null replay_
+      target_base_identity_ref, force object_model_rewrite_history
+      to a kind in {reword, edit, squash, fixup, drop, merge_
+      replay}, force object_model_pick_in_place_no_change to
+      sequence_op_pick, force every non-pick / non-label kind past
+      step_drafted_pending_review to cite a non-null recovery_
+      object_record_id_ref (denies with sequence_step_recovery_
+      object_required_before_non_pick_admission), force pick /
+      reword / edit / squash / fixup / drop / merge_replay to cite
+      a non-null target_change_object_id_ref, force exec / break /
+      label / reset to cite null target / output refs, force drop
+      to cite null output, and force step_completed reword / edit
+      / squash / fixup / merge_replay to cite a non-null output_
+      change_object_id_ref. history_edit_review.schema.json freezes
+      the history_edit_review_record (five-value history_edit_
+      review_class: interactive_rebase_sequence_review, cherry_
+      pick_onto_alternate_target_review, revert_commit_preview_
+      review, patch_series_restack_review, single_branch_history_
+      edit_review; ten-value history_edit_review_lifecycle_state:
+      review_drafted_pending_confirm, review_admitted_pending_run,
+      review_in_progress_running, review_paused_pending_conflict,
+      review_paused_pending_protected_path_review, review_paused_
+      pending_signoff, review_paused_pending_base_or_head_identity_
+      changed, review_completed_recovery_object_minted, review_
+      aborted_rolled_back_to_recovery_object, review_archived_
+      tombstone; five-value publish_impact_class; four-value merge_
+      queue_impact_class; four-value review_id_impact_class) under
+      allOf gates that pair every history_edit_review_class with
+      its required object_model_change_class (rewrite-history for
+      interactive-rebase / single-branch, replay-onto-new-target
+      for cherry-pick / patch-series-restack, append-new-revert-
+      commit for revert-commit-preview), force every lifecycle past
+      review_drafted_pending_confirm to cite a non-null recovery_
+      object_record_id_ref and approval_ticket_ref (denies with
+      history_edit_review_recovery_object_required_before_admission
+      and history_edit_review_attribution_missing), force every
+      review_paused_* lifecycle to pair with the matching auto_
+      continue_blocked_* aggregate, force review_admitted_pending_
+      run / review_in_progress_running to pair with auto_continue_
+      admissible, force publish_impact_blocked_by_protected_branch_
+      policy and merge_queue_impact_review_open_blocked_by_queue_
+      freeze to forbid review_admitted_pending_run / review_in_
+      progress_running (denies with history_edit_review_publish_
+      impact_blocked_by_protected_branch_policy and history_edit_
+      review_merge_queue_impact_blocked_by_queue_freeze), force
+      cherry_pick_onto_alternate_target_review and patch_series_
+      restack_review to cite a non-null replay_target_base_
+      identity_ref, force interactive_rebase_sequence_review to
+      cite a non-null target_sequence_editor_plan_id_ref, force
+      review_completed_recovery_object_minted to cite a non-null
+      completed_at, force review_aborted_rolled_back_to_recovery_
+      object to cite a non-null aborted_at and recovery_object_
+      record_id_ref (denies with history_edit_review_abort_
+      recovery_object_required), and force review_archived_
+      tombstone to cite a non-null archived_at. The history_edit_
+      review and recovery_object record families are the dedicated
+      downstream consumers of the history_edit_recovery_record_id_
+      ref forward-dependency slots reserved on schemas/vcs/branch_
+      row.schema.json, schemas/vcs/worktree_row.schema.json,
+      schemas/vcs/history_operation_state.schema.json, schemas/vcs/
+      change_object.schema.json, and schemas/vcs/patch_stack.schema.
+      json (those slots remain nullable until rows that admitted a
+      history-edit recovery escalation begin citing the recovery-
+      object id). Adding a new record_kind, recovery_object_
+      payload_class, recovery_object_lifecycle_state, recovery_
+      object_topology_change_class, sequence_step_kind_class,
+      sequence_step_status_class, auto_continue_state_class,
+      object_model_change_class, protected_path_blocker_class,
+      signoff_blocker_class, base_or_head_identity_drift_class,
+      history_edit_review_class, history_edit_review_lifecycle_
+      state, publish_impact_class, merge_queue_impact_class,
+      review_id_impact_class, denial reason, or audit-event id is
+      additive-minor and bumps the per-record schema_version const;
+      repurposing an existing value is breaking and requires a new
+      decision row.
 
   - family_id: work_items
     schema_home: schemas/work_items/

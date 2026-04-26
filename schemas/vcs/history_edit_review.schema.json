@@ -1,0 +1,710 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/history_edit_review.schema.json",
+  "title": "Aureline history-edit review vocabulary",
+  "description": "Boundary schema for the history_edit_review_record family frozen in docs/vcs/history_edit_and_recovery_contract.md. One history_edit_review_record pins one high-trust history-edit review surface (history_edit_review_class drawn from the closed five-value vocabulary covering interactive_rebase_sequence_review, cherry_pick_onto_alternate_target_review, revert_commit_preview_review, patch_series_restack_review, and single_branch_history_edit_review) plus the per-review object-model change class (object_model_change_class drawn from the closed four-value vocabulary covering rewrite-history, append-new-revert-commit, replay-onto-new-target, and pick-in-place-no-change), the publish / merge-queue / review-id impact summary fields, the auto-continue gating state, the conflict / resume state explicit, the cited recovery_object_record_id_ref before any non-pick admission, and the parent ordered_sequence_step_id_refs chain into schemas/vcs/sequence_step.schema.json. One history_edit_review_audit_event_record carries the closed denial-reason and event-id vocabularies. The record is the boundary every reviewer reads to tell what object-model change a history-edit operation will produce, what publish / merge-queue / review-id impact it carries, and what recovery object exists before confirm; auto-continue is structurally blocked while conflicts, protected-path blockers, missing signoff, or changed base / head identity remain unresolved. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw run-log bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / lifecycle state only. The eventual git-service crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, history_edit_review_class, history_edit_review_lifecycle_state, object_model_change_class, publish_impact_class, merge_queue_impact_class, review_id_impact_class, auto_continue_state_class, denial reason, or audit-event id is additive-minor and bumps history_edit_review_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/history_edit_review_record" },
+    { "$ref": "#/$defs/history_edit_review_audit_event_record" }
+  ],
+  "$defs": {
+    "history_edit_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the history-edit-review vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "history_edit_review_record",
+        "history_edit_review_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "conflict_handoff_class": {
+      "type": "string",
+      "enum": [
+        "no_conflict_path_required",
+        "conflict_resolution_packet_required_pending_decision",
+        "conflict_resolution_packet_admitted_user_resolved",
+        "history_edit_recovery_packet_required_pending_decision",
+        "history_edit_recovery_packet_admitted_user_resolved"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/change_object.schema.json."
+    },
+
+    "object_model_change_class": {
+      "type": "string",
+      "enum": [
+        "object_model_pick_in_place_no_change",
+        "object_model_rewrite_history",
+        "object_model_append_new_revert_commit",
+        "object_model_replay_onto_new_target"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/sequence_step.schema.json. The review row pins the dominant change class for the whole review (a multi-step rewrite-history review pins object_model_rewrite_history even when individual steps are pick-in-place); the per-step row pins the change class for that step alone."
+    },
+
+    "auto_continue_state_class": {
+      "type": "string",
+      "enum": [
+        "auto_continue_admissible",
+        "auto_continue_blocked_pending_conflict",
+        "auto_continue_blocked_protected_path_modification",
+        "auto_continue_blocked_pending_signoff",
+        "auto_continue_blocked_base_or_head_identity_changed"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/sequence_step.schema.json. The review row pins the aggregate auto-continue state across every step; the per-step row pins the step-local state. The schema's allOf gates pair the lifecycle states with the matching aggregate auto-continue state so a reviewer can read the gate from the review row alone."
+    },
+
+    "history_edit_review_class": {
+      "type": "string",
+      "enum": [
+        "interactive_rebase_sequence_review",
+        "cherry_pick_onto_alternate_target_review",
+        "revert_commit_preview_review",
+        "patch_series_restack_review",
+        "single_branch_history_edit_review"
+      ],
+      "description": "Frozen history-edit review vocabulary. interactive_rebase_sequence_review covers a full sequence-editor plan (pick / reword / edit / squash / fixup / drop / exec / break / label / reset / merge_replay) authored against a target branch or worktree. cherry_pick_onto_alternate_target_review covers cherry-pick of one or more commits onto an alternate target / base. revert_commit_preview_review covers a non-rewriting revert that appends a new commit. patch_series_restack_review covers stack-wide restack of a patch_stack onto a new base. single_branch_history_edit_review covers an ad-hoc single-step history edit (e.g. a one-shot reword) that does not bind to a multi-step plan."
+    },
+
+    "history_edit_review_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "review_drafted_pending_confirm",
+        "review_admitted_pending_run",
+        "review_in_progress_running",
+        "review_paused_pending_conflict",
+        "review_paused_pending_protected_path_review",
+        "review_paused_pending_signoff",
+        "review_paused_pending_base_or_head_identity_changed",
+        "review_completed_recovery_object_minted",
+        "review_aborted_rolled_back_to_recovery_object",
+        "review_archived_tombstone"
+      ],
+      "description": "Frozen review lifecycle vocabulary. review_drafted_pending_confirm is the row at mint before the user has confirmed; recovery_object_record_id_ref MAY be null only at this state. review_admitted_pending_run is the row after confirm; recovery_object_record_id_ref MUST be non-null. The four review_paused_* states pair through allOf with the matching auto_continue_blocked_* state and forbid auto-continue. review_completed_recovery_object_minted and review_aborted_rolled_back_to_recovery_object are terminal. review_archived_tombstone is the long-tail tombstone state."
+    },
+
+    "publish_impact_class": {
+      "type": "string",
+      "enum": [
+        "publish_impact_local_only_no_remote_publish",
+        "publish_impact_force_push_required_to_existing_remote",
+        "publish_impact_new_branch_publish_only",
+        "publish_impact_remote_unaffected_revert_only",
+        "publish_impact_blocked_by_protected_branch_policy"
+      ],
+      "description": "Frozen publish-impact vocabulary describing what the review's confirm will change at the remote authority. publish_impact_local_only_no_remote_publish is the default for local-only history edits. publish_impact_force_push_required_to_existing_remote names the case where the rewrite will require a force push (the most common rewrite-history case against an already-pushed branch); the review row MUST cite the protected-path / signoff blockers explicitly when the remote is protected. publish_impact_new_branch_publish_only covers a cherry-pick or restack onto a brand new remote branch. publish_impact_remote_unaffected_revert_only covers an append-new-revert-commit review. publish_impact_blocked_by_protected_branch_policy denies admission to confirm at the schema level until the protected_path_blocker_class on the parent steps clears."
+    },
+
+    "merge_queue_impact_class": {
+      "type": "string",
+      "enum": [
+        "merge_queue_impact_no_review_open",
+        "merge_queue_impact_review_open_will_invalidate_pipeline",
+        "merge_queue_impact_review_open_will_drift_base_only",
+        "merge_queue_impact_review_open_blocked_by_queue_freeze"
+      ],
+      "description": "Frozen merge-queue impact vocabulary describing what the review's confirm will do to an in-flight merge-queue pipeline. merge_queue_impact_no_review_open is the default. merge_queue_impact_review_open_will_invalidate_pipeline names the case where the pipeline must restart (the rewrite changes the head). merge_queue_impact_review_open_will_drift_base_only names the case where only the base advanced (a cherry-pick / restack that does not touch the head). merge_queue_impact_review_open_blocked_by_queue_freeze denies admission at the schema level until the queue freeze clears."
+    },
+
+    "review_id_impact_class": {
+      "type": "string",
+      "enum": [
+        "review_id_impact_no_review_open",
+        "review_id_impact_will_preserve_review_id",
+        "review_id_impact_will_invalidate_review_id_new_id_required",
+        "review_id_impact_will_orphan_existing_review_thread"
+      ],
+      "description": "Frozen review-id impact vocabulary describing what the review's confirm will do to an open provider review (PR / MR / change-list). review_id_impact_no_review_open is the default. review_id_impact_will_preserve_review_id covers an append-revert that the provider treats as new commits on the same review. review_id_impact_will_invalidate_review_id_new_id_required covers a rewrite-history review against a provider that recreates the review on force-push. review_id_impact_will_orphan_existing_review_thread covers a replay-onto-new-target review that abandons the existing review thread."
+    },
+
+    "history_edit_review_denial_reason": {
+      "type": "string",
+      "enum": [
+        "history_edit_review_recovery_object_required_before_admission",
+        "history_edit_review_attribution_missing",
+        "history_edit_review_class_must_match_object_model_change_class",
+        "history_edit_review_auto_continue_state_must_match_lifecycle",
+        "history_edit_review_publish_impact_blocked_by_protected_branch_policy",
+        "history_edit_review_merge_queue_impact_blocked_by_queue_freeze",
+        "history_edit_review_replay_target_base_identity_required_for_replay_class",
+        "history_edit_review_revert_commit_must_pair_with_append_new_revert_commit",
+        "history_edit_review_pause_resolution_required_before_resume",
+        "history_edit_review_abort_recovery_object_required",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "history_edit_review_record_required_field_missing",
+        "history_edit_review_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the history_edit_review audit stream."
+    },
+
+    "history_edit_review_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "history_edit_review_drafted",
+        "history_edit_review_admitted",
+        "history_edit_review_started",
+        "history_edit_review_paused",
+        "history_edit_review_resumed",
+        "history_edit_review_completed",
+        "history_edit_review_aborted_rolled_back",
+        "history_edit_review_recovery_object_pinned",
+        "history_edit_review_archived",
+        "history_edit_review_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the history_edit_review stream. history_edit_review_audit_denial_emitted MUST cite a history_edit_review_denial_reason."
+    },
+
+    "history_edit_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "history_edit_review_schema_version",
+        "history_edit_review_id",
+        "target_workspace_id_ref",
+        "target_branch_or_worktree_ref",
+        "target_base_identity_ref",
+        "replay_target_base_identity_ref",
+        "target_change_object_id_refs",
+        "target_patch_stack_id_ref",
+        "target_sequence_editor_plan_id_ref",
+        "history_edit_review_class",
+        "object_model_change_class",
+        "history_edit_review_lifecycle_state",
+        "auto_continue_state_class",
+        "publish_impact_class",
+        "merge_queue_impact_class",
+        "review_id_impact_class",
+        "conflict_handoff_class",
+        "ordered_sequence_step_id_refs",
+        "recovery_object_record_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "command_id_ref",
+        "approval_ticket_ref",
+        "created_at",
+        "updated_at",
+        "completed_at",
+        "aborted_at",
+        "archived_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "history_edit_review_record" },
+        "history_edit_review_schema_version": { "$ref": "#/$defs/history_edit_review_schema_version" },
+        "history_edit_review_id": { "$ref": "#/$defs/opaque_id" },
+        "target_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_branch_or_worktree_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_base_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the base identity the review is rooted on at admission. Always non-null."
+        },
+        "replay_target_base_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the alternate target base identity the review replays onto. Required (non-null) when history_edit_review_class is cherry_pick_onto_alternate_target_review or patch_series_restack_review (denies with history_edit_review_replay_target_base_identity_required_for_replay_class); null otherwise."
+        },
+        "target_change_object_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the change_object_record rows the review targets. Non-empty for cherry-pick / revert / single-branch reviews; may be empty for an interactive_rebase_sequence_review whose targets are tracked through the sequence-editor operation rows instead."
+        },
+        "target_patch_stack_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the patch_stack_record (schemas/vcs/patch_stack.schema.json) the review operates on. Required (non-null) when history_edit_review_class is patch_series_restack_review; null on other classes unless the review happens to operate on a known stack."
+        },
+        "target_sequence_editor_plan_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the sequence_editor_plan_record (schemas/vcs/patch_stack.schema.json) backing this review. Required (non-null) when history_edit_review_class is interactive_rebase_sequence_review; null otherwise."
+        },
+        "history_edit_review_class": { "$ref": "#/$defs/history_edit_review_class" },
+        "object_model_change_class": { "$ref": "#/$defs/object_model_change_class" },
+        "history_edit_review_lifecycle_state": { "$ref": "#/$defs/history_edit_review_lifecycle_state" },
+        "auto_continue_state_class": { "$ref": "#/$defs/auto_continue_state_class" },
+        "publish_impact_class": { "$ref": "#/$defs/publish_impact_class" },
+        "merge_queue_impact_class": { "$ref": "#/$defs/merge_queue_impact_class" },
+        "review_id_impact_class": { "$ref": "#/$defs/review_id_impact_class" },
+        "conflict_handoff_class": { "$ref": "#/$defs/conflict_handoff_class" },
+        "ordered_sequence_step_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to sequence_step_record rows (schemas/vcs/sequence_step.schema.json) in the order they will execute. Non-empty for interactive_rebase_sequence_review and patch_series_restack_review; may be a single-element list on cherry_pick / revert / single-branch reviews."
+        },
+        "recovery_object_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the recovery_object_record (schemas/vcs/recovery_object.schema.json) pinned at review admission. Required (non-null) when history_edit_review_lifecycle_state is anything other than review_drafted_pending_confirm (denies with history_edit_review_recovery_object_required_before_admission)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row admitting the review. Required (non-null) when history_edit_review_lifecycle_state is anything other than review_drafted_pending_confirm (denies with history_edit_review_attribution_missing)."
+        },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when history_edit_review_lifecycle_state is review_completed_recovery_object_minted. Null otherwise."
+        },
+        "aborted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when history_edit_review_lifecycle_state is review_aborted_rolled_back_to_recovery_object. Null otherwise."
+        },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when history_edit_review_lifecycle_state is review_archived_tombstone. Null otherwise."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every lifecycle past review_drafted_pending_confirm MUST cite a non-null recovery_object_record_id_ref and a non-null approval_ticket_ref (denies with history_edit_review_recovery_object_required_before_admission and history_edit_review_attribution_missing).",
+          "if": {
+            "properties": {
+              "history_edit_review_lifecycle_state": {
+                "not": { "const": "review_drafted_pending_confirm" }
+              }
+            },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "recovery_object_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["recovery_object_record_id_ref", "approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "interactive_rebase_sequence_review and single_branch_history_edit_review MUST pair object_model_change_class with object_model_rewrite_history.",
+          "if": {
+            "properties": {
+              "history_edit_review_class": {
+                "enum": [
+                  "interactive_rebase_sequence_review",
+                  "single_branch_history_edit_review"
+                ]
+              }
+            },
+            "required": ["history_edit_review_class"]
+          },
+          "then": {
+            "properties": {
+              "object_model_change_class": { "const": "object_model_rewrite_history" }
+            }
+          }
+        },
+        {
+          "description": "cherry_pick_onto_alternate_target_review MUST pair object_model_change_class with object_model_replay_onto_new_target and cite a non-null replay_target_base_identity_ref.",
+          "if": {
+            "properties": { "history_edit_review_class": { "const": "cherry_pick_onto_alternate_target_review" } },
+            "required": ["history_edit_review_class"]
+          },
+          "then": {
+            "properties": {
+              "object_model_change_class": { "const": "object_model_replay_onto_new_target" },
+              "replay_target_base_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["replay_target_base_identity_ref"]
+          }
+        },
+        {
+          "description": "revert_commit_preview_review MUST pair object_model_change_class with object_model_append_new_revert_commit (denies with history_edit_review_revert_commit_must_pair_with_append_new_revert_commit).",
+          "if": {
+            "properties": { "history_edit_review_class": { "const": "revert_commit_preview_review" } },
+            "required": ["history_edit_review_class"]
+          },
+          "then": {
+            "properties": {
+              "object_model_change_class": { "const": "object_model_append_new_revert_commit" }
+            }
+          }
+        },
+        {
+          "description": "patch_series_restack_review MUST pair object_model_change_class with object_model_replay_onto_new_target, cite a non-null target_patch_stack_id_ref, and cite a non-null replay_target_base_identity_ref.",
+          "if": {
+            "properties": { "history_edit_review_class": { "const": "patch_series_restack_review" } },
+            "required": ["history_edit_review_class"]
+          },
+          "then": {
+            "properties": {
+              "object_model_change_class": { "const": "object_model_replay_onto_new_target" },
+              "target_patch_stack_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "replay_target_base_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["target_patch_stack_id_ref", "replay_target_base_identity_ref"]
+          }
+        },
+        {
+          "description": "interactive_rebase_sequence_review MUST cite a non-null target_sequence_editor_plan_id_ref.",
+          "if": {
+            "properties": { "history_edit_review_class": { "const": "interactive_rebase_sequence_review" } },
+            "required": ["history_edit_review_class"]
+          },
+          "then": {
+            "properties": {
+              "target_sequence_editor_plan_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["target_sequence_editor_plan_id_ref"]
+          }
+        },
+        {
+          "description": "review_paused_pending_conflict MUST pair with auto_continue_blocked_pending_conflict and conflict_resolution_packet_required_pending_decision.",
+          "if": {
+            "properties": { "history_edit_review_lifecycle_state": { "const": "review_paused_pending_conflict" } },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "auto_continue_state_class": { "const": "auto_continue_blocked_pending_conflict" },
+              "conflict_handoff_class": { "const": "conflict_resolution_packet_required_pending_decision" }
+            }
+          }
+        },
+        {
+          "description": "review_paused_pending_protected_path_review MUST pair with auto_continue_blocked_protected_path_modification.",
+          "if": {
+            "properties": { "history_edit_review_lifecycle_state": { "const": "review_paused_pending_protected_path_review" } },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "auto_continue_state_class": { "const": "auto_continue_blocked_protected_path_modification" }
+            }
+          }
+        },
+        {
+          "description": "review_paused_pending_signoff MUST pair with auto_continue_blocked_pending_signoff.",
+          "if": {
+            "properties": { "history_edit_review_lifecycle_state": { "const": "review_paused_pending_signoff" } },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "auto_continue_state_class": { "const": "auto_continue_blocked_pending_signoff" }
+            }
+          }
+        },
+        {
+          "description": "review_paused_pending_base_or_head_identity_changed MUST pair with auto_continue_blocked_base_or_head_identity_changed.",
+          "if": {
+            "properties": { "history_edit_review_lifecycle_state": { "const": "review_paused_pending_base_or_head_identity_changed" } },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "auto_continue_state_class": { "const": "auto_continue_blocked_base_or_head_identity_changed" }
+            }
+          }
+        },
+        {
+          "description": "review_in_progress_running and review_admitted_pending_run MUST pair with auto_continue_admissible.",
+          "if": {
+            "properties": {
+              "history_edit_review_lifecycle_state": {
+                "enum": ["review_admitted_pending_run", "review_in_progress_running"]
+              }
+            },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "auto_continue_state_class": { "const": "auto_continue_admissible" }
+            }
+          }
+        },
+        {
+          "description": "publish_impact_blocked_by_protected_branch_policy MUST pair with a paused or aborted lifecycle (denies with history_edit_review_publish_impact_blocked_by_protected_branch_policy on review_admitted_pending_run / review_in_progress_running).",
+          "if": {
+            "properties": { "publish_impact_class": { "const": "publish_impact_blocked_by_protected_branch_policy" } },
+            "required": ["publish_impact_class"]
+          },
+          "then": {
+            "properties": {
+              "history_edit_review_lifecycle_state": {
+                "not": {
+                  "enum": ["review_admitted_pending_run", "review_in_progress_running"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "merge_queue_impact_review_open_blocked_by_queue_freeze MUST pair with a paused or aborted lifecycle (denies with history_edit_review_merge_queue_impact_blocked_by_queue_freeze on review_admitted_pending_run / review_in_progress_running).",
+          "if": {
+            "properties": { "merge_queue_impact_class": { "const": "merge_queue_impact_review_open_blocked_by_queue_freeze" } },
+            "required": ["merge_queue_impact_class"]
+          },
+          "then": {
+            "properties": {
+              "history_edit_review_lifecycle_state": {
+                "not": {
+                  "enum": ["review_admitted_pending_run", "review_in_progress_running"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "review_completed_recovery_object_minted MUST cite a non-null completed_at and a non-null recovery_object_record_id_ref.",
+          "if": {
+            "properties": { "history_edit_review_lifecycle_state": { "const": "review_completed_recovery_object_minted" } },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "completed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "recovery_object_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["completed_at", "recovery_object_record_id_ref"]
+          }
+        },
+        {
+          "description": "review_aborted_rolled_back_to_recovery_object MUST cite a non-null aborted_at and a non-null recovery_object_record_id_ref (denies with history_edit_review_abort_recovery_object_required).",
+          "if": {
+            "properties": { "history_edit_review_lifecycle_state": { "const": "review_aborted_rolled_back_to_recovery_object" } },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "aborted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "recovery_object_record_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["aborted_at", "recovery_object_record_id_ref"]
+          }
+        },
+        {
+          "description": "review_archived_tombstone MUST cite a non-null archived_at.",
+          "if": {
+            "properties": { "history_edit_review_lifecycle_state": { "const": "review_archived_tombstone" } },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          }
+        },
+        {
+          "description": "Non-terminal lifecycles MUST cite null completed_at, null aborted_at, and null archived_at.",
+          "if": {
+            "properties": {
+              "history_edit_review_lifecycle_state": {
+                "not": {
+                  "enum": [
+                    "review_completed_recovery_object_minted",
+                    "review_aborted_rolled_back_to_recovery_object",
+                    "review_archived_tombstone"
+                  ]
+                }
+              }
+            },
+            "required": ["history_edit_review_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "completed_at": { "type": "null" },
+              "aborted_at": { "type": "null" },
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the history-edit review surface, the cherry-pick / revert review surface, the patch-series restack panel, the change-stack panel, the source-control panel, the AI branch-agent panel, the support / export bundle, and the audit lane. Exactly one row per history-edit review identity."
+    },
+
+    "history_edit_review_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "history_edit_review_schema_version",
+        "history_edit_review_audit_event_id_value",
+        "audit_event_record_id",
+        "history_edit_review_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "history_edit_review_audit_event_record" },
+        "history_edit_review_schema_version": { "$ref": "#/$defs/history_edit_review_schema_version" },
+        "history_edit_review_audit_event_id_value": { "$ref": "#/$defs/history_edit_review_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "history_edit_review_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/history_edit_review_denial_reason" }
+          ],
+          "description": "Required (non-null) when history_edit_review_audit_event_id_value is history_edit_review_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is history_edit_review_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "history_edit_review_audit_event_id_value": { "const": "history_edit_review_audit_denial_emitted" } },
+            "required": ["history_edit_review_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/history_edit_review_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the history_edit_review stream."
+    }
+  }
+}

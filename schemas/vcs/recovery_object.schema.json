@@ -1,0 +1,571 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/recovery_object.schema.json",
+  "title": "Aureline history-edit recovery-object vocabulary",
+  "description": "Boundary schema for the recovery_object_record family frozen in docs/vcs/history_edit_and_recovery_contract.md. One recovery_object_record pins one pre-mutation recovery payload (recovery_object_payload_class drawn from the closed six-value vocabulary covering local-history checkpoint, backup branch / tag ref, reflog anchor, export patch packet, safe worktree clone, and combined recovery packet) plus the upstream recovery_object_class re-exported from schemas/vcs/change_object.schema.json so every change-object / patch-stack / sequence-editor row that cites a recovery_object_ref resolves through one row from this family. One recovery_object_audit_event_record carries the closed denial-reason and event-id vocabularies. The record is the upstream every change-object, patch-stack, sequence-editor, history-edit-review, and sequence-step row reads through history_edit_recovery_record_id_ref before any topology-changing mutation is admitted; auto-continue is structurally blocked while the recovery object's lifecycle is anything other than recovery_object_minted_pre_mutation_pinned. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw run-log bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema; the record carries opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and policy / lifecycle state only. The eventual git-service crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, recovery_object_payload_class, recovery_object_lifecycle_state, recovery_object_topology_change_class, denial reason, or audit-event id is additive-minor and bumps recovery_object_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recovery_object_record" },
+    { "$ref": "#/$defs/recovery_object_audit_event_record" }
+  ],
+  "$defs": {
+    "recovery_object_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the recovery-object vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "recovery_object_record",
+        "recovery_object_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw run-log bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 / ADR-0018 trust state are re-validated on every restore and topology-changing mutation."
+    },
+
+    "recovery_object_class": {
+      "type": "string",
+      "enum": [
+        "pre_mutation_reflog_anchor_minted",
+        "pre_mutation_local_history_checkpoint_minted",
+        "pre_mutation_patch_stack_snapshot_minted",
+        "pre_mutation_branch_label_anchor_minted",
+        "pre_mutation_combined_recovery_packet_minted"
+      ],
+      "description": "Re-exported verbatim from schemas/vcs/change_object.schema.json. Names which upstream class of recovery object the change-object / patch-stack / sequence-editor row cites; the per-row payload class on this schema (recovery_object_payload_class) is the concrete payload pinned to the row, and the schema's allOf gates pair the two so a row cannot claim a class it cannot back."
+    },
+
+    "recovery_object_payload_class": {
+      "type": "string",
+      "enum": [
+        "local_history_checkpoint",
+        "backup_branch_or_tag_ref",
+        "reflog_anchor",
+        "export_patch_bundle",
+        "safe_worktree_clone",
+        "combined_recovery_packet"
+      ],
+      "description": "Frozen recovery-object payload vocabulary. local_history_checkpoint pins a local-history entry (schemas/recovery/local_history_entry.schema.json). backup_branch_or_tag_ref pins a named backup branch or tag ref the user can switch back to. reflog_anchor pins a reflog-style anchor at the pre-mutation HEAD / branch tip. export_patch_bundle pins an exported patch bundle the user can re-import. safe_worktree_clone pins a fresh worktree clone the user can fall back to. combined_recovery_packet cites two or more of the above through combined_recovery_packet_member_refs; used when a topology change spans multiple recovery surfaces (e.g. a sequence-editor plan that rewrites a patch stack pins both a reflog anchor and a patch-stack snapshot)."
+    },
+
+    "recovery_object_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "recovery_object_minted_pre_mutation_pinned",
+        "recovery_object_consumed_rolled_back",
+        "recovery_object_superseded_by_newer_recovery_object",
+        "recovery_object_archived_tombstone"
+      ],
+      "description": "Frozen recovery-object lifecycle vocabulary. recovery_object_minted_pre_mutation_pinned is the state every topology-changing flow cites before mutation; auto-continue is admissible only when at least one cited recovery object is in this state. recovery_object_consumed_rolled_back is set after the user invoked rollback_to_pre_mutation_recovery_object; the row remains as a tombstone for audit. recovery_object_superseded_by_newer_recovery_object is set when a successor recovery object is minted (e.g. a multi-step sequence-editor plan refreshes the recovery object between steps); the predecessor cites the successor through superseded_by_recovery_object_id_ref. recovery_object_archived_tombstone is set when the row is archived after retention expiry."
+    },
+
+    "recovery_object_topology_change_class": {
+      "type": "string",
+      "enum": [
+        "topology_change_history_rewrite",
+        "topology_change_revert_commit_append",
+        "topology_change_replay_onto_new_target",
+        "topology_change_patch_series_restack",
+        "topology_change_orphan_worktree_export",
+        "topology_change_branch_label_move"
+      ],
+      "description": "Frozen vocabulary describing which class of topology-changing operation pinned this recovery object. topology_change_history_rewrite covers interactive rebase / reword / squash / fixup / drop / edit. topology_change_revert_commit_append covers a non-rewriting revert that appends a new commit. topology_change_replay_onto_new_target covers cherry-pick / replay onto an alternate target. topology_change_patch_series_restack covers stack-wide restack onto a new base. topology_change_orphan_worktree_export covers an export-before-archive on an orphan worktree. topology_change_branch_label_move covers explicit branch-label moves the user requested with an anchor."
+    },
+
+    "recovery_object_denial_reason": {
+      "type": "string",
+      "enum": [
+        "recovery_object_payload_class_must_match_recovery_object_class",
+        "combined_recovery_packet_member_refs_required_non_empty",
+        "combined_recovery_packet_member_refs_forbidden_for_non_combined_class",
+        "consumed_rolled_back_requires_consumed_at_and_rollback_event_ref",
+        "superseded_requires_superseded_by_recovery_object_id_ref",
+        "archived_tombstone_requires_archived_at",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "recovery_object_record_required_field_missing",
+        "recovery_object_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the recovery_object audit stream."
+    },
+
+    "recovery_object_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "recovery_object_minted",
+        "recovery_object_pinned_to_topology_change",
+        "recovery_object_rollback_invoked",
+        "recovery_object_consumed",
+        "recovery_object_superseded",
+        "recovery_object_archived",
+        "recovery_object_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the recovery_object stream. recovery_object_audit_denial_emitted MUST cite a recovery_object_denial_reason."
+    },
+
+    "recovery_object_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recovery_object_schema_version",
+        "recovery_object_id",
+        "workspace_id_ref",
+        "target_branch_or_worktree_ref",
+        "pre_mutation_revision_id_ref",
+        "recovery_object_class",
+        "recovery_object_payload_class",
+        "recovery_object_topology_change_class",
+        "recovery_object_lifecycle_state",
+        "local_history_entry_ref",
+        "backup_branch_or_tag_ref",
+        "reflog_anchor_ref",
+        "export_patch_bundle_ref",
+        "safe_worktree_clone_ref",
+        "combined_recovery_packet_member_refs",
+        "superseded_by_recovery_object_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "actor_ref",
+        "command_id_ref",
+        "approval_ticket_ref",
+        "created_at",
+        "updated_at",
+        "consumed_at",
+        "archived_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recovery_object_record" },
+        "recovery_object_schema_version": { "$ref": "#/$defs/recovery_object_schema_version" },
+        "recovery_object_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id naming this recovery-object row across change-object / patch-stack / sequence-editor / history-edit-review / sequence-step / support-export / audit lanes. Cited through history_edit_recovery_record_id_ref on every record family that reserved the slot."
+        },
+        "workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the workspace row in schemas/workspace/* the recovery object was minted in."
+        },
+        "target_branch_or_worktree_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the branch or worktree the recovery object pins. A combined_recovery_packet that spans several worktrees pins the primary worktree here and cites the others through combined_recovery_packet_member_refs."
+        },
+        "pre_mutation_revision_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the pre-mutation revision the recovery object anchors. Always non-null; the anchor is the row a rollback resolves to."
+        },
+        "recovery_object_class": { "$ref": "#/$defs/recovery_object_class" },
+        "recovery_object_payload_class": { "$ref": "#/$defs/recovery_object_payload_class" },
+        "recovery_object_topology_change_class": { "$ref": "#/$defs/recovery_object_topology_change_class" },
+        "recovery_object_lifecycle_state": { "$ref": "#/$defs/recovery_object_lifecycle_state" },
+        "local_history_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/recovery/local_history_entry.schema.json. Required (non-null) when recovery_object_payload_class is local_history_checkpoint; null otherwise."
+        },
+        "backup_branch_or_tag_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a named backup branch / tag the user can switch back to. Required (non-null) when recovery_object_payload_class is backup_branch_or_tag_ref; null otherwise."
+        },
+        "reflog_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a reflog-style anchor pinning the pre-mutation HEAD / branch tip. Required (non-null) when recovery_object_payload_class is reflog_anchor; null otherwise."
+        },
+        "export_patch_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the exported patch bundle the user can re-import. Required (non-null) when recovery_object_payload_class is export_patch_bundle; null otherwise."
+        },
+        "safe_worktree_clone_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the safe worktree clone the user can fall back to. Required (non-null) when recovery_object_payload_class is safe_worktree_clone; null otherwise."
+        },
+        "combined_recovery_packet_member_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to two or more sibling recovery_object_record rows that this combined packet cites. Required (length >= 2) when recovery_object_payload_class is combined_recovery_packet; empty otherwise (denies with combined_recovery_packet_member_refs_forbidden_for_non_combined_class on a non-empty list when the payload class is not combined_recovery_packet)."
+        },
+        "superseded_by_recovery_object_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the successor recovery_object_record row that supersedes this one. Required (non-null) when recovery_object_lifecycle_state is recovery_object_superseded_by_newer_recovery_object; null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the command-dispatch id under which the recovery object was minted. Nullable on system-driven mints (e.g. an automatic checkpoint pre-rebase); required (non-null) on user-driven mints."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval-ticket row admitting the topology-changing mutation this recovery object pins. Nullable until the mutation is admitted; required (non-null) once the recovery object has been pinned to a confirmed topology-changing operation."
+        },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "consumed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when recovery_object_lifecycle_state is recovery_object_consumed_rolled_back. Null otherwise."
+        },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when recovery_object_lifecycle_state is recovery_object_archived_tombstone. Null otherwise."
+        }
+      },
+      "allOf": [
+        {
+          "description": "local_history_checkpoint payload MUST cite a non-null local_history_entry_ref and pair with pre_mutation_local_history_checkpoint_minted recovery_object_class.",
+          "if": {
+            "properties": { "recovery_object_payload_class": { "const": "local_history_checkpoint" } },
+            "required": ["recovery_object_payload_class"]
+          },
+          "then": {
+            "properties": {
+              "local_history_entry_ref": { "$ref": "#/$defs/opaque_id" },
+              "recovery_object_class": { "const": "pre_mutation_local_history_checkpoint_minted" }
+            },
+            "required": ["local_history_entry_ref"]
+          }
+        },
+        {
+          "description": "backup_branch_or_tag_ref payload MUST cite a non-null backup_branch_or_tag_ref and pair with pre_mutation_branch_label_anchor_minted recovery_object_class.",
+          "if": {
+            "properties": { "recovery_object_payload_class": { "const": "backup_branch_or_tag_ref" } },
+            "required": ["recovery_object_payload_class"]
+          },
+          "then": {
+            "properties": {
+              "backup_branch_or_tag_ref": { "$ref": "#/$defs/opaque_id" },
+              "recovery_object_class": { "const": "pre_mutation_branch_label_anchor_minted" }
+            },
+            "required": ["backup_branch_or_tag_ref"]
+          }
+        },
+        {
+          "description": "reflog_anchor payload MUST cite a non-null reflog_anchor_ref and pair with pre_mutation_reflog_anchor_minted recovery_object_class.",
+          "if": {
+            "properties": { "recovery_object_payload_class": { "const": "reflog_anchor" } },
+            "required": ["recovery_object_payload_class"]
+          },
+          "then": {
+            "properties": {
+              "reflog_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+              "recovery_object_class": { "const": "pre_mutation_reflog_anchor_minted" }
+            },
+            "required": ["reflog_anchor_ref"]
+          }
+        },
+        {
+          "description": "export_patch_bundle payload MUST cite a non-null export_patch_bundle_ref and pair with pre_mutation_patch_stack_snapshot_minted recovery_object_class.",
+          "if": {
+            "properties": { "recovery_object_payload_class": { "const": "export_patch_bundle" } },
+            "required": ["recovery_object_payload_class"]
+          },
+          "then": {
+            "properties": {
+              "export_patch_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+              "recovery_object_class": { "const": "pre_mutation_patch_stack_snapshot_minted" }
+            },
+            "required": ["export_patch_bundle_ref"]
+          }
+        },
+        {
+          "description": "safe_worktree_clone payload MUST cite a non-null safe_worktree_clone_ref and pair with pre_mutation_combined_recovery_packet_minted recovery_object_class so the worktree clone is admitted only as part of a combined recovery surface (the worktree alone is admissible upstream when combined_recovery_packet_member_refs cite this row).",
+          "if": {
+            "properties": { "recovery_object_payload_class": { "const": "safe_worktree_clone" } },
+            "required": ["recovery_object_payload_class"]
+          },
+          "then": {
+            "properties": {
+              "safe_worktree_clone_ref": { "$ref": "#/$defs/opaque_id" },
+              "recovery_object_class": { "const": "pre_mutation_combined_recovery_packet_minted" }
+            },
+            "required": ["safe_worktree_clone_ref"]
+          }
+        },
+        {
+          "description": "combined_recovery_packet payload MUST cite at least two combined_recovery_packet_member_refs and pair with pre_mutation_combined_recovery_packet_minted recovery_object_class.",
+          "if": {
+            "properties": { "recovery_object_payload_class": { "const": "combined_recovery_packet" } },
+            "required": ["recovery_object_payload_class"]
+          },
+          "then": {
+            "properties": {
+              "combined_recovery_packet_member_refs": {
+                "type": "array",
+                "minItems": 2,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              },
+              "recovery_object_class": { "const": "pre_mutation_combined_recovery_packet_minted" }
+            },
+            "required": ["combined_recovery_packet_member_refs"]
+          }
+        },
+        {
+          "description": "Non-combined payload classes MUST cite an empty combined_recovery_packet_member_refs list (denies with combined_recovery_packet_member_refs_forbidden_for_non_combined_class on a non-empty list).",
+          "if": {
+            "properties": {
+              "recovery_object_payload_class": {
+                "not": { "const": "combined_recovery_packet" }
+              }
+            },
+            "required": ["recovery_object_payload_class"]
+          },
+          "then": {
+            "properties": {
+              "combined_recovery_packet_member_refs": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "recovery_object_consumed_rolled_back MUST cite a non-null consumed_at.",
+          "if": {
+            "properties": { "recovery_object_lifecycle_state": { "const": "recovery_object_consumed_rolled_back" } },
+            "required": ["recovery_object_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "consumed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["consumed_at"]
+          },
+          "else": {
+            "properties": {
+              "consumed_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "recovery_object_superseded_by_newer_recovery_object MUST cite a non-null superseded_by_recovery_object_id_ref.",
+          "if": {
+            "properties": { "recovery_object_lifecycle_state": { "const": "recovery_object_superseded_by_newer_recovery_object" } },
+            "required": ["recovery_object_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_recovery_object_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["superseded_by_recovery_object_id_ref"]
+          },
+          "else": {
+            "properties": {
+              "superseded_by_recovery_object_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "recovery_object_archived_tombstone MUST cite a non-null archived_at.",
+          "if": {
+            "properties": { "recovery_object_lifecycle_state": { "const": "recovery_object_archived_tombstone" } },
+            "required": ["recovery_object_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the change-stack panel, the source-control panel, the patch-stack panel, the sequence-editor plan view, the history-edit review surface, the per-step sequence-step row, the support / export bundle, and the audit lane. Exactly one row per recovery-object identity; the row is the upstream every history_edit_recovery_record_id_ref slot resolves through."
+    },
+
+    "recovery_object_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recovery_object_schema_version",
+        "recovery_object_audit_event_id_value",
+        "audit_event_record_id",
+        "recovery_object_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "recovery_object_audit_event_record" },
+        "recovery_object_schema_version": { "$ref": "#/$defs/recovery_object_schema_version" },
+        "recovery_object_audit_event_id_value": { "$ref": "#/$defs/recovery_object_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "recovery_object_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/recovery_object_denial_reason" }
+          ],
+          "description": "Required (non-null) when recovery_object_audit_event_id_value is recovery_object_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is recovery_object_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "recovery_object_audit_event_id_value": { "const": "recovery_object_audit_denial_emitted" } },
+            "required": ["recovery_object_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/recovery_object_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the recovery_object stream."
+    }
+  }
+}

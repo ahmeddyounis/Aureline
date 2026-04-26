@@ -10778,6 +10778,254 @@ artifacts:
       bodies, no raw notebook output bytes, no raw generator
       argv, no raw secrets, and no raw lockfile / SBOM bodies).
 
+  - id: history_edit_and_recovery_contract
+    title: History-edit, sequence-editor, cherry-pick / revert, and recovery-path contract
+    canonical_location: docs/vcs/history_edit_and_recovery_contract.md
+    overview_page: docs/vcs/history_edit_and_recovery_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative cross-tool contract binding every history-edit
+      surface (interactive rebase sequence review, cherry-pick
+      onto alternate target review, revert commit preview, patch-
+      series restack panel, single-branch history-edit review,
+      change-stack panel, AI branch-agent panel, support / export
+      bundle's git section, audit lane) to one history_edit_review_
+      record (with ordered sequence_step_record rows) and one
+      recovery_object_record. The recovery-object record is the
+      dedicated downstream consumer of the history_edit_recovery_
+      record_id_ref forward-dependency slots reserved on the
+      change-object / patch-stack / sequence-editor contract
+      (docs/vcs/change_stack_contract.md) and the branch / worktree
+      / history / stash contract (docs/vcs/git_state_and_worktree_
+      contract.md). Reviewers can tell what object-model change a
+      history-edit operation will produce (rewrite-history vs.
+      append-new-revert-commit vs. replay-onto-new-target vs.
+      pick-in-place-no-change), what recovery object exists before
+      confirm, and what publish / merge-queue / review-id impact
+      the confirm carries. Auto-continue is structurally blocked
+      while conflicts, protected-path blockers, missing signoff,
+      or changed base/head identity remain unresolved. Abort
+      always rolls back to the recovery object the review pinned
+      at admission.
+
+  - id: recovery_object_schema
+    title: History-edit recovery-object boundary schema
+    canonical_location: schemas/vcs/recovery_object.schema.json
+    overview_page: docs/vcs/history_edit_and_recovery_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the recovery_object_record and
+      recovery_object_audit_event_record shapes frozen in docs/vcs/
+      history_edit_and_recovery_contract.md. additionalProperties
+      false everywhere. allOf gates pair every recovery_object_
+      payload_class (local_history_checkpoint, backup_branch_or_
+      tag_ref, reflog_anchor, export_patch_bundle, safe_worktree_
+      clone, combined_recovery_packet) with the matching upstream
+      recovery_object_class re-exported verbatim from schemas/vcs/
+      change_object.schema.json and the matching non-null payload
+      ref slot (denies with recovery_object_payload_class_must_
+      match_recovery_object_class); force combined_recovery_packet
+      to cite at least two combined_recovery_packet_member_refs
+      (denies with combined_recovery_packet_member_refs_required_
+      non_empty); force non-combined classes to cite an empty
+      member-refs list (denies with combined_recovery_packet_
+      member_refs_forbidden_for_non_combined_class); force
+      recovery_object_consumed_rolled_back to cite a non-null
+      consumed_at (denies with consumed_rolled_back_requires_
+      consumed_at_and_rollback_event_ref); force recovery_object_
+      superseded_by_newer_recovery_object to cite a non-null
+      superseded_by_recovery_object_id_ref (denies with superseded_
+      requires_superseded_by_recovery_object_id_ref); and force
+      recovery_object_archived_tombstone to cite a non-null
+      archived_at (denies with archived_tombstone_requires_archived
+      _at). Re-exports freshness_class / client_scope / redaction_
+      class from schemas/governance/capability_lifecycle.schema.
+      json without redefinition. Adding a new record_kind, recovery
+      _object_payload_class, recovery_object_lifecycle_state,
+      recovery_object_topology_change_class, denial reason, or
+      audit-event id is additive-minor and bumps recovery_object_
+      schema_version; repurposing an existing value is breaking
+      and requires a new decision row.
+
+  - id: sequence_step_schema
+    title: History-edit sequence-step boundary schema
+    canonical_location: schemas/vcs/sequence_step.schema.json
+    overview_page: docs/vcs/history_edit_and_recovery_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the sequence_step_record and
+      sequence_step_audit_event_record shapes frozen in docs/vcs/
+      history_edit_and_recovery_contract.md. additionalProperties
+      false everywhere. Re-exports the eleven-value sequence_
+      editor_operation_class verbatim from schemas/vcs/patch_stack.
+      schema.json as sequence_step_kind_class so the per-step
+      review row reads the kind without re-resolving the upstream
+      sequence_editor_operation_record. allOf gates pair every
+      step_paused_* status (step_paused_pending_conflict, step_
+      paused_pending_protected_path_review, step_paused_pending_
+      signoff, step_paused_pending_base_or_head_identity_changed)
+      with the matching auto_continue_blocked_* state and a non-
+      default per-blocker class (protected_path_blocker_class,
+      signoff_blocker_class, base_or_head_identity_drift_class);
+      force auto_continue_admissible to require every blocker
+      class at its default value and conflict_handoff_class to be
+      no_conflict_path_required or one of the *_admitted_user_
+      resolved values (denies with sequence_step_auto_continue_
+      blocked_resolution_required); force object_model_replay_
+      onto_new_target to cite a non-null replay_target_base_
+      identity_ref and a kind in {sequence_op_pick, sequence_op_
+      merge_replay}; force object_model_rewrite_history to a kind
+      in {reword, edit, squash, fixup, drop, merge_replay}
+      (denies with sequence_step_object_model_change_class_must_
+      match_kind); force object_model_pick_in_place_no_change to
+      sequence_op_pick; force every non-pick / non-label kind
+      past step_drafted_pending_review to cite a non-null recovery
+      _object_record_id_ref (denies with sequence_step_recovery_
+      object_required_before_non_pick_admission); force pick /
+      reword / edit / squash / fixup / drop / merge_replay to
+      cite a non-null target_change_object_id_ref; force exec /
+      break / label / reset to cite null target / output refs;
+      force drop to cite null output_change_object_id_ref; force
+      step_completed reword / edit / squash / fixup / merge_
+      replay to cite a non-null output_change_object_id_ref;
+      force step_completed to cite a non-null completed_at; and
+      force step_aborted_rolled_back to cite a non-null aborted_at.
+      Adding a new record_kind, sequence_step_kind_class, sequence
+      _step_status_class, auto_continue_state_class, object_model_
+      change_class, protected_path_blocker_class, signoff_blocker_
+      class, base_or_head_identity_drift_class, denial reason, or
+      audit-event id is additive-minor and bumps sequence_step_
+      schema_version; repurposing an existing value is breaking
+      and requires a new decision row.
+
+  - id: history_edit_review_schema
+    title: History-edit review boundary schema
+    canonical_location: schemas/vcs/history_edit_review.schema.json
+    overview_page: docs/vcs/history_edit_and_recovery_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the history_edit_review_
+      record and history_edit_review_audit_event_record shapes
+      frozen in docs/vcs/history_edit_and_recovery_contract.md.
+      additionalProperties false everywhere. allOf gates pair
+      every history_edit_review_class (interactive_rebase_
+      sequence_review, cherry_pick_onto_alternate_target_review,
+      revert_commit_preview_review, patch_series_restack_review,
+      single_branch_history_edit_review) with its required object
+      _model_change_class (rewrite-history for interactive-rebase
+      / single-branch, replay-onto-new-target for cherry-pick /
+      patch-series-restack, append-new-revert-commit for revert-
+      commit-preview) so the review row mechanically separates
+      rewrite-history, new-revert-commit, and replay-onto-new-
+      target actions (denies with history_edit_review_class_must_
+      match_object_model_change_class and history_edit_review_
+      revert_commit_must_pair_with_append_new_revert_commit);
+      force every history_edit_review_lifecycle_state past
+      review_drafted_pending_confirm to cite a non-null recovery_
+      object_record_id_ref and a non-null approval_ticket_ref
+      (denies with history_edit_review_recovery_object_required_
+      before_admission and history_edit_review_attribution_
+      missing); force every review_paused_* lifecycle to pair
+      with the matching auto_continue_blocked_* aggregate state
+      and force review_admitted_pending_run / review_in_progress_
+      running to pair with auto_continue_admissible (denies with
+      history_edit_review_auto_continue_state_must_match_
+      lifecycle); force publish_impact_blocked_by_protected_
+      branch_policy and merge_queue_impact_review_open_blocked_
+      by_queue_freeze to forbid the review_admitted_pending_run /
+      review_in_progress_running lifecycles (denies with history_
+      edit_review_publish_impact_blocked_by_protected_branch_
+      policy and history_edit_review_merge_queue_impact_blocked_
+      by_queue_freeze); force cherry_pick_onto_alternate_target_
+      review and patch_series_restack_review to cite a non-null
+      replay_target_base_identity_ref (denies with history_edit_
+      review_replay_target_base_identity_required_for_replay_
+      class); force interactive_rebase_sequence_review to cite
+      a non-null target_sequence_editor_plan_id_ref; force patch_
+      series_restack_review to cite a non-null target_patch_stack
+      _id_ref; force review_completed_recovery_object_minted to
+      cite a non-null completed_at; force review_aborted_rolled_
+      back_to_recovery_object to cite a non-null aborted_at and
+      recovery_object_record_id_ref (denies with history_edit_
+      review_abort_recovery_object_required); and force review_
+      archived_tombstone to cite a non-null archived_at. Re-
+      exports the conflict_handoff_class vocabulary from schemas/
+      vcs/change_object.schema.json and the auto_continue_state_
+      class and object_model_change_class vocabularies from
+      schemas/vcs/sequence_step.schema.json verbatim. Adding a
+      new record_kind, history_edit_review_class, history_edit_
+      review_lifecycle_state, publish_impact_class, merge_queue_
+      impact_class, review_id_impact_class, denial reason, or
+      audit-event id is additive-minor and bumps history_edit_
+      review_schema_version; repurposing an existing value is
+      breaking and requires a new decision row.
+
+  - id: history_edit_cases_fixtures
+    title: History-edit, sequence-step, cherry-pick / revert, and recovery-object worked fixtures
+    canonical_location: fixtures/vcs/history_edit_cases/
+    overview_page: docs/vcs/history_edit_and_recovery_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example YAML fixtures for the recovery-object,
+      sequence-step, and history-edit-review contract and
+      schemas. Covers one combined-payload recovery_object_record
+      citing a reflog anchor, a patch-stack snapshot, and a
+      local-history checkpoint (acceptance bullet 1); one
+      interactive_rebase_sequence_review admitted with a non-null
+      recovery_object_record_id_ref + approval_ticket_ref and
+      publish / merge-queue / review-id impact classes pinned
+      explicitly (acceptance bullet 1 + bullet 3); one cherry_
+      pick_onto_alternate_target_review pinning the alternate
+      target base identity (acceptance bullet 3); one revert_
+      commit_preview_review separating append-new-revert-commit
+      from rewrite-history (acceptance bullet 1 + bullet 3); one
+      patch_series_restack_review carrying force-push / pipeline-
+      invalidate / replace-review-id impact classes (acceptance
+      bullet 3); one conflict-resume case with the review paused
+      pending conflict, auto_continue_blocked_pending_conflict,
+      and the recovery card citing the combined recovery packet
+      (acceptance bullet 2 + bullet 3); one sequence_step_record
+      paused pending an owner-signoff blocker (acceptance bullet
+      2); and one history_edit_review_audit_event_record carrying
+      the history_edit_review_recovery_object_required_before_
+      admission denial (acceptance bullet 1 + bullet 2). Each
+      fixture cites the contract sections it exercises in the
+      directory README and carries only opaque workspace /
+      branch / worktree / revision / change-object / patch-stack
+      / sequence-editor / recovery-object / approval-ticket /
+      command / actor / policy-epoch handles plus monotonic
+      placeholder timestamps and redaction-aware labels (no raw
+      absolute paths, no raw branch / commit / remote URLs, no
+      raw author identity strings, no raw commit message bodies,
+      no raw patch bodies, no raw run-log bodies, no raw approval-
+      ticket bodies, no raw notebook cell text, no raw terminal
+      bytes, and no raw URLs).
+
   - id: review_pack_contract
     title: Review-pack, ownership-policy, and local / CI / provider / AI parity contract
     canonical_location: docs/vcs/review_pack_contract.md
