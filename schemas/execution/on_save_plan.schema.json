@@ -1,0 +1,594 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/on_save_plan.schema.json",
+  "title": "Aureline on-save orchestration and additional-edit contract",
+  "description": "Boundary schema for the on-save plan record family frozen in docs/execution/quality_profile_and_on_save_contract.md. The record family lets the editor, CLI, local CI, managed CI parity runs, support exports, and review surfaces describe staged-buffer save participants, formatter and linter mutations, scanner read-only passes, organize-imports/source actions, provider-dependent additional edits, preview thresholds, external-change rebase or abort decisions, and checkpoint or rollback hooks. Hidden multi-file writes, generated/protected mutations, provider-dependent edits, or high-impact actions must be represented as reviewable plan rows rather than implicit side effects. Raw patches, raw source text, raw tool arguments, raw stdout/stderr, raw environment variables, and raw secrets never cross this boundary; records carry refs, counts, digests, typed posture, and reviewable summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/on_save_plan_record" },
+    { "$ref": "#/$defs/on_save_participant_result_record" },
+    { "$ref": "#/$defs/additional_edit_review_record" },
+    { "$ref": "#/$defs/on_save_execution_event_record" }
+  ],
+  "$defs": {
+    "on_save_plan_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewable sentence. Raw code, raw paths, raw tool arguments, raw logs, and raw secrets are forbidden."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "explicit_save",
+        "autosave",
+        "format_document_command",
+        "format_range_command",
+        "organize_imports_command",
+        "source_action_command",
+        "fix_all_command",
+        "cli_headless_save",
+        "trigger_unknown_requires_review"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_selection",
+        "current_notebook_cell",
+        "current_structured_node",
+        "current_root",
+        "selected_workset",
+        "workspace",
+        "review_diff",
+        "target_scope_unknown_requires_review"
+      ]
+    },
+    "participant_class": {
+      "type": "string",
+      "enum": [
+        "formatter",
+        "organize_imports",
+        "linter_autofix",
+        "scanner_read_only",
+        "code_action",
+        "generated_sync",
+        "notebook_or_structured_formatter",
+        "ai_apply",
+        "extension_additional_edit",
+        "validation_after_apply",
+        "participant_unknown_requires_review"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "format_range",
+        "format_document",
+        "organize_imports",
+        "quick_fix_single",
+        "fix_all_rule",
+        "lint_autofix_batch",
+        "scanner_read_only",
+        "generated_source_sync",
+        "notebook_or_structured_format",
+        "ai_apply",
+        "validation_only_recheck",
+        "additional_edit_provider_dependent",
+        "action_unknown_requires_review"
+      ]
+    },
+    "safety_class": {
+      "type": "string",
+      "enum": [
+        "trivia_safe",
+        "local_syntax_safe",
+        "semantic_local",
+        "cross_file_semantic",
+        "generated_or_protected",
+        "unknown_or_unstable"
+      ]
+    },
+    "mutation_scope_class": {
+      "type": "string",
+      "enum": [
+        "no_mutation_read_only",
+        "single_anchor",
+        "single_file_localized",
+        "single_file_whole_document",
+        "multi_file_same_module",
+        "multi_file_workspace",
+        "generated_family",
+        "protected_or_policy_scoped",
+        "scope_unknown_requires_review"
+      ]
+    },
+    "preview_requirement_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "inline_summary",
+        "structured_diff",
+        "batch_scope_preview",
+        "generated_or_protected_preview_required",
+        "policy_or_repo_mutation_preview_required",
+        "issue_link_or_typed_review_required",
+        "preview_requirement_unknown_requires_review"
+      ]
+    },
+    "on_save_apply_posture_class": {
+      "type": "string",
+      "enum": [
+        "auto_apply_allowed",
+        "auto_apply_with_inline_summary",
+        "preview_before_apply",
+        "blocked_pending_user_review",
+        "blocked_pending_policy_or_trust",
+        "blocked_pending_issue_linkage",
+        "manual_command_only",
+        "read_only_participant",
+        "apply_posture_unknown_requires_review"
+      ]
+    },
+    "additional_edit_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "no_additional_edits",
+        "single_file_declared",
+        "multi_file_declared",
+        "creates_or_deletes_files_declared",
+        "generated_or_protected_declared",
+        "provider_dependent_requires_review",
+        "unknown_requires_review"
+      ],
+      "description": "How additional edits are disclosed before the participant can mutate staged content."
+    },
+    "provider_dependency_class": {
+      "type": "string",
+      "enum": [
+        "deterministic_local_tool",
+        "deterministic_remote_tool",
+        "provider_semantic_state_dependent",
+        "managed_provider_authoritative",
+        "imported_snapshot_read_only",
+        "provider_unknown_requires_review"
+      ]
+    },
+    "timeout_policy_class": {
+      "type": "string",
+      "enum": [
+        "skip_and_save",
+        "skip_and_mark_degraded",
+        "hold_save_for_review",
+        "abort_save",
+        "timeout_policy_unknown_requires_review"
+      ]
+    },
+    "rebase_policy_class": {
+      "type": "string",
+      "enum": [
+        "compare_before_write_required",
+        "rebase_staged_edits_then_continue",
+        "abort_on_external_change",
+        "manual_merge_required",
+        "not_applicable_read_only",
+        "rebase_policy_unknown_requires_review"
+      ]
+    },
+    "checkpoint_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_checkpoint_required",
+        "recovery_journal_only",
+        "local_history_checkpoint_before_apply",
+        "local_history_checkpoint_before_and_after_apply",
+        "workspace_mutation_checkpoint_group_required",
+        "policy_blocks_body_capture_metadata_only",
+        "checkpoint_policy_unknown_requires_review"
+      ]
+    },
+    "validation_after_apply_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "syntax_parse",
+        "formatter_idempotence",
+        "linter_recheck",
+        "scanner_recheck",
+        "targeted_tests",
+        "declared_validation_bundle",
+        "validation_unknown_requires_review"
+      ]
+    },
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "applied",
+        "preview_required",
+        "skipped",
+        "timed_out",
+        "rebase_required",
+        "blocked_by_policy",
+        "blocked_pending_issue_linkage",
+        "failed",
+        "reverted",
+        "outcome_unknown_requires_review"
+      ]
+    },
+    "review_gate_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "typed_review_required",
+        "issue_link_required",
+        "policy_review_required",
+        "trust_review_required",
+        "unsupported_blocked"
+      ]
+    },
+    "save_target_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_document_ref",
+        "presentation_path_ref",
+        "canonical_write_target_ref",
+        "staged_buffer_ref",
+        "compare_before_write_token_ref",
+        "base_revision_ref"
+      ],
+      "properties": {
+        "logical_document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "presentation_path_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_write_target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "staged_buffer_ref": { "$ref": "#/$defs/opaque_ref" },
+        "compare_before_write_token_ref": { "$ref": "#/$defs/opaque_ref" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_ref" }
+      },
+      "description": "Identity summary proving the plan is bound to a staged buffer and canonical write target."
+    },
+    "preview_thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_files_without_preview",
+        "max_created_files_without_preview",
+        "max_deleted_files_without_preview",
+        "max_changed_bytes_without_preview",
+        "whole_document_rewrite_requires_preview",
+        "generated_or_protected_requires_preview",
+        "provider_dependent_requires_review"
+      ],
+      "properties": {
+        "max_files_without_preview": { "$ref": "#/$defs/non_negative_integer" },
+        "max_created_files_without_preview": { "$ref": "#/$defs/non_negative_integer" },
+        "max_deleted_files_without_preview": { "$ref": "#/$defs/non_negative_integer" },
+        "max_changed_bytes_without_preview": { "$ref": "#/$defs/non_negative_integer" },
+        "whole_document_rewrite_requires_preview": { "type": "boolean" },
+        "generated_or_protected_requires_preview": { "type": "boolean" },
+        "provider_dependent_requires_review": { "type": "boolean" }
+      }
+    },
+    "file_effect_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_files_touched",
+        "declared_files_created",
+        "declared_files_deleted",
+        "declared_changed_bytes",
+        "may_touch_generated",
+        "may_touch_protected",
+        "may_touch_outside_visible_file",
+        "additional_edit_disclosure_class"
+      ],
+      "properties": {
+        "declared_files_touched": { "$ref": "#/$defs/non_negative_integer" },
+        "declared_files_created": { "$ref": "#/$defs/non_negative_integer" },
+        "declared_files_deleted": { "$ref": "#/$defs/non_negative_integer" },
+        "declared_changed_bytes": { "$ref": "#/$defs/non_negative_integer" },
+        "may_touch_generated": { "type": "boolean" },
+        "may_touch_protected": { "type": "boolean" },
+        "may_touch_outside_visible_file": { "type": "boolean" },
+        "additional_edit_disclosure_class": { "$ref": "#/$defs/additional_edit_disclosure_class" }
+      }
+    },
+    "issue_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_gate_class",
+        "issue_ref",
+        "diagnostic_cluster_refs",
+        "rule_refs",
+        "review_ticket_ref",
+        "summary"
+      ],
+      "properties": {
+        "review_gate_class": { "$ref": "#/$defs/review_gate_class" },
+        "issue_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "diagnostic_cluster_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "rule_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "review_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "Typed review or issue linkage required when a participant is high-impact, provider-dependent, multi-file, generated/protected, or policy-scoped."
+    },
+    "checkpoint_hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_policy_class",
+        "pre_apply_checkpoint_ref",
+        "post_apply_checkpoint_ref",
+        "rollback_plan_ref",
+        "mutation_group_ref",
+        "local_history_group_ref"
+      ],
+      "properties": {
+        "checkpoint_policy_class": { "$ref": "#/$defs/checkpoint_policy_class" },
+        "pre_apply_checkpoint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "post_apply_checkpoint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "rollback_plan_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "mutation_group_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_history_group_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "participant_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "order_index",
+        "participant_class",
+        "action_class",
+        "provider_tool_ref",
+        "effective_quality_profile_ref",
+        "provider_dependency_class",
+        "safety_class",
+        "mutation_scope_class",
+        "preview_requirement_class",
+        "on_save_apply_posture_class",
+        "timeout_ms",
+        "timeout_policy_class",
+        "rebase_policy_class",
+        "validation_after_apply_class",
+        "file_effect_summary",
+        "issue_linkage",
+        "checkpoint_hooks",
+        "summary"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "order_index": { "$ref": "#/$defs/non_negative_integer" },
+        "participant_class": { "$ref": "#/$defs/participant_class" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "provider_tool_ref": { "$ref": "#/$defs/opaque_ref" },
+        "effective_quality_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "provider_dependency_class": { "$ref": "#/$defs/provider_dependency_class" },
+        "safety_class": { "$ref": "#/$defs/safety_class" },
+        "mutation_scope_class": { "$ref": "#/$defs/mutation_scope_class" },
+        "preview_requirement_class": { "$ref": "#/$defs/preview_requirement_class" },
+        "on_save_apply_posture_class": { "$ref": "#/$defs/on_save_apply_posture_class" },
+        "timeout_ms": { "$ref": "#/$defs/non_negative_integer" },
+        "timeout_policy_class": { "$ref": "#/$defs/timeout_policy_class" },
+        "rebase_policy_class": { "$ref": "#/$defs/rebase_policy_class" },
+        "validation_after_apply_class": { "$ref": "#/$defs/validation_after_apply_class" },
+        "file_effect_summary": { "$ref": "#/$defs/file_effect_summary" },
+        "issue_linkage": { "$ref": "#/$defs/issue_linkage" },
+        "checkpoint_hooks": { "$ref": "#/$defs/checkpoint_hooks" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "orchestration_guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deterministic_order_declared",
+        "external_change_policy_class",
+        "multi_file_writes_hidden_forbidden",
+        "provider_dependent_edits_require_review",
+        "scanner_participants_may_mutate",
+        "rollback_available_before_apply",
+        "summary"
+      ],
+      "properties": {
+        "deterministic_order_declared": { "type": "boolean" },
+        "external_change_policy_class": { "$ref": "#/$defs/rebase_policy_class" },
+        "multi_file_writes_hidden_forbidden": { "type": "boolean" },
+        "provider_dependent_edits_require_review": { "type": "boolean" },
+        "scanner_participants_may_mutate": { "type": "boolean" },
+        "rollback_available_before_apply": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "on_save_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "on_save_plan_schema_version",
+        "on_save_plan_id",
+        "workspace_ref",
+        "trigger_class",
+        "target_scope_class",
+        "save_target_summary",
+        "effective_quality_profile_ref",
+        "execution_context_snapshot_ref",
+        "command_dispatch_descriptor_ref",
+        "preview_thresholds",
+        "participant_order",
+        "orchestration_guards",
+        "opened_at",
+        "plan_outcome_class",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "on_save_plan_record" },
+        "on_save_plan_schema_version": { "$ref": "#/$defs/on_save_plan_schema_version" },
+        "on_save_plan_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trigger_class": { "$ref": "#/$defs/trigger_class" },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "save_target_summary": { "$ref": "#/$defs/save_target_summary" },
+        "effective_quality_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "execution_context_snapshot_ref": { "$ref": "#/$defs/opaque_ref" },
+        "command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "preview_thresholds": { "$ref": "#/$defs/preview_thresholds" },
+        "participant_order": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/participant_step" }
+        },
+        "orchestration_guards": { "$ref": "#/$defs/orchestration_guards" },
+        "opened_at": { "$ref": "#/$defs/timestamp" },
+        "plan_outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "on_save_participant_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "on_save_plan_schema_version",
+        "participant_result_id",
+        "on_save_plan_ref",
+        "step_id",
+        "outcome_class",
+        "actual_file_effect_summary",
+        "checkpoint_hooks",
+        "started_at",
+        "completed_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "on_save_participant_result_record" },
+        "on_save_plan_schema_version": { "$ref": "#/$defs/on_save_plan_schema_version" },
+        "participant_result_id": { "$ref": "#/$defs/opaque_id" },
+        "on_save_plan_ref": { "$ref": "#/$defs/opaque_ref" },
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "actual_file_effect_summary": { "$ref": "#/$defs/file_effect_summary" },
+        "checkpoint_hooks": { "$ref": "#/$defs/checkpoint_hooks" },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "completed_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "additional_edit_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "on_save_plan_schema_version",
+        "additional_edit_review_id",
+        "on_save_plan_ref",
+        "step_id",
+        "review_gate_class",
+        "provider_dependency_class",
+        "preview_requirement_class",
+        "file_effect_summary",
+        "issue_linkage",
+        "checkpoint_hooks",
+        "opened_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "additional_edit_review_record" },
+        "on_save_plan_schema_version": { "$ref": "#/$defs/on_save_plan_schema_version" },
+        "additional_edit_review_id": { "$ref": "#/$defs/opaque_id" },
+        "on_save_plan_ref": { "$ref": "#/$defs/opaque_ref" },
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "review_gate_class": { "$ref": "#/$defs/review_gate_class" },
+        "provider_dependency_class": { "$ref": "#/$defs/provider_dependency_class" },
+        "preview_requirement_class": { "$ref": "#/$defs/preview_requirement_class" },
+        "file_effect_summary": { "$ref": "#/$defs/file_effect_summary" },
+        "issue_linkage": { "$ref": "#/$defs/issue_linkage" },
+        "checkpoint_hooks": { "$ref": "#/$defs/checkpoint_hooks" },
+        "opened_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "on_save_execution_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "on_save_plan_schema_version",
+        "on_save_execution_event_id",
+        "event_class",
+        "on_save_plan_ref",
+        "step_id",
+        "outcome_class",
+        "emitted_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "on_save_execution_event_record" },
+        "on_save_plan_schema_version": { "$ref": "#/$defs/on_save_plan_schema_version" },
+        "on_save_execution_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": {
+          "type": "string",
+          "enum": [
+            "plan_opened",
+            "participant_started",
+            "participant_completed",
+            "preview_required",
+            "external_change_detected",
+            "rebase_required",
+            "checkpoint_created",
+            "rollback_completed",
+            "plan_committed",
+            "plan_aborted",
+            "event_unknown_requires_review"
+          ]
+        },
+        "on_save_plan_ref": { "$ref": "#/$defs/opaque_ref" },
+        "step_id": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}

@@ -1,0 +1,813 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/quality_profile.schema.json",
+  "title": "Aureline quality-profile, scanner-import, and finding-delta contract",
+  "description": "Boundary schema for the quality-profile record family frozen in docs/execution/quality_profile_and_on_save_contract.md. The record family lets desktop, CLI, local CI, managed CI, review, release, and support surfaces explain which formatter, linter, scanner, rule pack, baseline, suppression, and imported configuration won; which sources were shadowed, locked, downgraded, or unavailable; and how local results compare to imported SARIF-like scans or provider-authoritative results. Raw tool arguments, raw source text, raw scanner payloads, raw environment variables, raw secrets, and raw absolute paths never cross this boundary; records carry opaque refs, digests, class labels, counts, and reviewable summaries only. Adding a new optional field or enum member is additive-minor. Repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/quality_profile_source_record" },
+    { "$ref": "#/$defs/effective_quality_profile_record" },
+    { "$ref": "#/$defs/quality_profile_resolution_event_record" },
+    { "$ref": "#/$defs/scanner_import_session_record" },
+    { "$ref": "#/$defs/quality_result_delta_record" }
+  ],
+  "$defs": {
+    "quality_profile_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this quality-profile record family."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "quality_profile_source_record",
+        "effective_quality_profile_record",
+        "quality_profile_resolution_event_record",
+        "scanner_import_session_record",
+        "quality_result_delta_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, journals, support bundles, and release packets."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record owned by its registry."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewable sentence. Raw code, raw paths, raw secrets, raw tool arguments, and raw scanner payloads are forbidden."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Digest or stable fingerprint. The algorithm is declared by the owning artifact registry."
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_root",
+        "selected_workset",
+        "workspace",
+        "changed_files",
+        "review_diff",
+        "baseline_family",
+        "release_candidate",
+        "support_export",
+        "target_scope_unknown_requires_review"
+      ],
+      "description": "Scope the profile or delta was resolved for."
+    },
+    "quality_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop_on_type",
+        "desktop_on_save",
+        "desktop_manual_command",
+        "cli_headless",
+        "local_ci",
+        "managed_ci",
+        "review_packet",
+        "release_packet",
+        "support_export",
+        "scanner_import",
+        "surface_unknown_requires_review"
+      ],
+      "description": "Surface requesting, emitting, or comparing the profile."
+    },
+    "source_profile_class": {
+      "type": "string",
+      "enum": [
+        "local_profile",
+        "imported_profile",
+        "effective_profile",
+        "remote_provider_authoritative_profile",
+        "fallback_default_profile",
+        "profile_class_unknown_requires_review"
+      ],
+      "description": "Which profile identity family this record is naming."
+    },
+    "precedence_layer_class": {
+      "type": "string",
+      "enum": [
+        "policy_lock_or_managed_profile",
+        "action_local_override",
+        "repository_quality_config",
+        "workspace_quality_settings",
+        "workspace_profile_override",
+        "remote_or_container_default",
+        "user_or_profile_default",
+        "imported_tool_config",
+        "imported_profile_default",
+        "environment_condition",
+        "fallback_default",
+        "system_auto_detection"
+      ],
+      "description": "Ordered source layer used by the resolver. Lower precedence_rank values win."
+    },
+    "source_state_class": {
+      "type": "string",
+      "enum": [
+        "selected_winner",
+        "shadowed_by_higher_precedence",
+        "policy_overridden",
+        "downgraded_incompatible",
+        "unavailable_in_environment",
+        "rejected_invalid",
+        "imported_read_only",
+        "detected_default",
+        "source_state_unknown_requires_review"
+      ],
+      "description": "How this source participated in resolution."
+    },
+    "lock_state_class": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "policy_locked",
+        "policy_constrained",
+        "provider_authoritative",
+        "read_only_imported",
+        "capability_locked",
+        "lock_state_unknown_requires_review"
+      ]
+    },
+    "lock_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "admin_policy_pins_tool",
+        "admin_policy_pins_rule_pack",
+        "admin_policy_disables_mutation",
+        "regulated_profile_requires_scanner",
+        "workspace_trust_restricted",
+        "remote_authority_owns_result",
+        "imported_evidence_read_only",
+        "tool_missing_or_version_mismatch",
+        "unsupported_host_or_target",
+        "lock_reason_unknown_requires_review"
+      ],
+      "description": "Why a source or effective profile is locked, constrained, or read-only. none pairs with unlocked."
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "tool_unavailable",
+        "tool_version_out_of_range",
+        "rule_pack_unavailable",
+        "imported_config_partial_mapping",
+        "workspace_trust_restricted",
+        "policy_narrowed_mutation",
+        "remote_target_lacks_capability",
+        "scanner_payload_schema_drift",
+        "baseline_family_incompatible",
+        "environment_condition_unmet",
+        "downgrade_reason_unknown_requires_review"
+      ]
+    },
+    "environment_condition_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "host_os",
+        "host_arch",
+        "workspace_trust",
+        "identity_mode",
+        "remote_target",
+        "container_image",
+        "deployment_profile",
+        "network_or_mirror",
+        "power_or_thermal_state",
+        "language_or_file_kind",
+        "environment_condition_unknown_requires_review"
+      ]
+    },
+    "environment_condition_state_class": {
+      "type": "string",
+      "enum": [
+        "satisfied",
+        "not_satisfied",
+        "degraded",
+        "not_evaluated",
+        "state_unknown_requires_review"
+      ]
+    },
+    "quality_tool_family_class": {
+      "type": "string",
+      "enum": [
+        "formatter",
+        "linter",
+        "organize_imports",
+        "style_checker",
+        "type_checker",
+        "security_scanner",
+        "secret_scanner",
+        "dependency_scanner",
+        "license_scanner",
+        "policy_checker",
+        "mixed_quality_pack",
+        "tool_family_unknown_requires_review"
+      ]
+    },
+    "provider_kind_class": {
+      "type": "string",
+      "enum": [
+        "first_party_adapter",
+        "language_server",
+        "extension_host",
+        "external_cli_tool",
+        "managed_provider",
+        "local_ci_adapter",
+        "scanner_importer",
+        "provider_kind_unknown_requires_review"
+      ]
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "container_or_devcontainer",
+        "managed_service",
+        "imported_snapshot",
+        "locality_unknown_requires_review"
+      ]
+    },
+    "provider_authority_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "remote_target_authoritative",
+        "managed_ci_authoritative",
+        "provider_import_authoritative",
+        "imported_snapshot_read_only",
+        "inferred_best_effort",
+        "provider_authority_unknown_requires_review"
+      ],
+      "description": "Whether results from this provider can be treated as authoritative for the target, or are read-only/imported/degraded evidence."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "first_party_supported",
+        "first_party_best_effort",
+        "external_tooling",
+        "policy_governed",
+        "unsupported_requires_review"
+      ]
+    },
+    "import_format_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "editorconfig",
+        "formatter_native_config",
+        "linter_native_config",
+        "scanner_native_config",
+        "sarif_2_1_0",
+        "structured_scanner_json",
+        "portable_profile",
+        "support_bundle_replay",
+        "format_unknown_requires_review"
+      ]
+    },
+    "import_mapping_state_class": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "exact",
+        "normalized",
+        "partial",
+        "unsupported_extension",
+        "schema_drift",
+        "mapping_state_unknown_requires_review"
+      ]
+    },
+    "baseline_family_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "compatible",
+        "compatible_with_local_confirmation",
+        "stale_but_comparable",
+        "incompatible_rule_pack",
+        "incompatible_profile",
+        "incompatible_mapping_family",
+        "compatibility_unknown_requires_review"
+      ]
+    },
+    "scanner_result_state_class": {
+      "type": "string",
+      "enum": [
+        "imported_only",
+        "locally_confirmed",
+        "baseline_matched",
+        "delta_new",
+        "delta_resolved",
+        "delta_persisting",
+        "suppressed",
+        "waived",
+        "unmapped",
+        "compatibility_blocked",
+        "scanner_result_state_unknown_requires_review"
+      ]
+    },
+    "comparison_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible_exact",
+        "compatible_with_profile_drift",
+        "compatible_with_mapping_drift",
+        "compatible_with_environment_drift",
+        "blocked_profile_or_tool_mismatch",
+        "blocked_rule_pack_mismatch",
+        "blocked_anchor_mapping_uncertain",
+        "not_comparable_unknown_requires_review"
+      ]
+    },
+    "profile_drift_class": {
+      "type": "string",
+      "enum": [
+        "not_compared",
+        "exact_match",
+        "local_profile_differs",
+        "imported_profile_differs",
+        "effective_profile_differs",
+        "remote_provider_profile_differs",
+        "tool_version_drift",
+        "rule_pack_drift",
+        "config_mapping_drift",
+        "environment_drift",
+        "provider_authority_drift",
+        "compatibility_blocked",
+        "drift_unknown_requires_review"
+      ]
+    },
+    "profile_ref_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_profile_ref",
+        "imported_profile_ref",
+        "effective_profile_ref",
+        "remote_provider_profile_ref"
+      ],
+      "properties": {
+        "local_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "imported_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "effective_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "remote_provider_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      },
+      "description": "Stable refs for the profile identities compared by drift labels. Null means the identity family was absent, not silently ignored."
+    },
+    "profile_drift_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_refs",
+        "profile_drift_class",
+        "profile_fingerprint",
+        "drift_reason_classes",
+        "comparison_ref",
+        "summary"
+      ],
+      "properties": {
+        "profile_refs": { "$ref": "#/$defs/profile_ref_set" },
+        "profile_drift_class": { "$ref": "#/$defs/profile_drift_class" },
+        "profile_fingerprint": { "$ref": "#/$defs/digest" },
+        "drift_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_class" },
+          "uniqueItems": true
+        },
+        "comparison_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "environment_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition_class", "state_class", "condition_ref", "summary"],
+      "properties": {
+        "condition_class": { "$ref": "#/$defs/environment_condition_class" },
+        "state_class": { "$ref": "#/$defs/environment_condition_state_class" },
+        "condition_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "provider_tool_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_family_class",
+        "provider_kind_class",
+        "locality_class",
+        "provider_authority_class",
+        "support_class",
+        "tool_id",
+        "tool_version",
+        "adapter_id",
+        "adapter_version",
+        "toolchain_digest",
+        "rule_pack_ref",
+        "config_digest",
+        "invocation_digest"
+      ],
+      "properties": {
+        "tool_family_class": { "$ref": "#/$defs/quality_tool_family_class" },
+        "provider_kind_class": { "$ref": "#/$defs/provider_kind_class" },
+        "locality_class": { "$ref": "#/$defs/locality_class" },
+        "provider_authority_class": { "$ref": "#/$defs/provider_authority_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "tool_id": { "$ref": "#/$defs/opaque_id" },
+        "tool_version": { "type": "string", "minLength": 1 },
+        "adapter_id": { "$ref": "#/$defs/opaque_id" },
+        "adapter_version": { "type": "string", "minLength": 1 },
+        "toolchain_digest": { "$ref": "#/$defs/digest" },
+        "rule_pack_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "config_digest": { "$ref": "#/$defs/digest" },
+        "invocation_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "imported_settings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "import_format_class",
+        "import_mapping_state_class",
+        "source_artifact_ref",
+        "preserved_raw_payload_ref",
+        "unmapped_key_count",
+        "policy_overridden_key_count",
+        "summary"
+      ],
+      "properties": {
+        "import_format_class": { "$ref": "#/$defs/import_format_class" },
+        "import_mapping_state_class": { "$ref": "#/$defs/import_mapping_state_class" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "preserved_raw_payload_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "unmapped_key_count": { "$ref": "#/$defs/non_negative_integer" },
+        "policy_overridden_key_count": { "$ref": "#/$defs/non_negative_integer" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "source_layer_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "precedence_rank",
+        "precedence_layer_class",
+        "source_state_class",
+        "source_profile_class",
+        "source_ref",
+        "candidate_profile_ref",
+        "lock_state_class",
+        "lock_reason_class",
+        "downgrade_reason_class",
+        "imported_settings",
+        "environment_conditions",
+        "provider_tool_identity_refs",
+        "summary"
+      ],
+      "properties": {
+        "precedence_rank": { "$ref": "#/$defs/non_negative_integer" },
+        "precedence_layer_class": { "$ref": "#/$defs/precedence_layer_class" },
+        "source_state_class": { "$ref": "#/$defs/source_state_class" },
+        "source_profile_class": { "$ref": "#/$defs/source_profile_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "candidate_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "lock_state_class": { "$ref": "#/$defs/lock_state_class" },
+        "lock_reason_class": { "$ref": "#/$defs/lock_reason_class" },
+        "downgrade_reason_class": { "$ref": "#/$defs/downgrade_reason_class" },
+        "imported_settings": { "$ref": "#/$defs/imported_settings_summary" },
+        "environment_conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment_condition" }
+        },
+        "provider_tool_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "effective_tool_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "provider_tool_identity",
+        "effective_state_class",
+        "lock_state_class",
+        "lock_reason_class",
+        "downgrade_reason_class",
+        "baseline_family_ref",
+        "suppression_policy_refs",
+        "summary"
+      ],
+      "properties": {
+        "binding_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_tool_identity": { "$ref": "#/$defs/provider_tool_identity" },
+        "effective_state_class": { "$ref": "#/$defs/source_state_class" },
+        "lock_state_class": { "$ref": "#/$defs/lock_state_class" },
+        "lock_reason_class": { "$ref": "#/$defs/lock_reason_class" },
+        "downgrade_reason_class": { "$ref": "#/$defs/downgrade_reason_class" },
+        "baseline_family_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "suppression_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "delta_link_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scanner_import_session_refs",
+        "baseline_snapshot_refs",
+        "local_confirmation_refs",
+        "quality_result_delta_refs",
+        "support_export_refs",
+        "release_packet_refs"
+      ],
+      "properties": {
+        "scanner_import_session_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "baseline_snapshot_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "local_confirmation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "quality_result_delta_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "release_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Reserved links that let local runs, scanner imports, managed CI, release packets, and support exports compare result drift mechanically."
+    },
+    "delta_count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new_count",
+        "resolved_count",
+        "persisting_count",
+        "suppressed_count",
+        "waived_count",
+        "unmapped_count",
+        "compatibility_blocked_count"
+      ],
+      "properties": {
+        "new_count": { "$ref": "#/$defs/non_negative_integer" },
+        "resolved_count": { "$ref": "#/$defs/non_negative_integer" },
+        "persisting_count": { "$ref": "#/$defs/non_negative_integer" },
+        "suppressed_count": { "$ref": "#/$defs/non_negative_integer" },
+        "waived_count": { "$ref": "#/$defs/non_negative_integer" },
+        "unmapped_count": { "$ref": "#/$defs/non_negative_integer" },
+        "compatibility_blocked_count": { "$ref": "#/$defs/non_negative_integer" }
+      }
+    },
+    "quality_profile_source_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quality_profile_schema_version",
+        "quality_profile_source_id",
+        "workspace_ref",
+        "target_scope_class",
+        "surface_class",
+        "source_layer",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "quality_profile_source_record" },
+        "quality_profile_schema_version": { "$ref": "#/$defs/quality_profile_schema_version" },
+        "quality_profile_source_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "surface_class": { "$ref": "#/$defs/quality_surface_class" },
+        "source_layer": { "$ref": "#/$defs/source_layer_entry" },
+        "observed_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "effective_quality_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quality_profile_schema_version",
+        "effective_quality_profile_id",
+        "workspace_ref",
+        "target_scope_class",
+        "surface_class",
+        "resolved_at",
+        "resolution_summary",
+        "precedence_stack",
+        "effective_tool_bindings",
+        "profile_drift",
+        "delta_links",
+        "environment_conditions",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "effective_quality_profile_record" },
+        "quality_profile_schema_version": { "$ref": "#/$defs/quality_profile_schema_version" },
+        "effective_quality_profile_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "surface_class": { "$ref": "#/$defs/quality_surface_class" },
+        "resolved_at": { "$ref": "#/$defs/timestamp" },
+        "resolution_summary": { "$ref": "#/$defs/short_sentence" },
+        "precedence_stack": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_layer_entry" }
+        },
+        "effective_tool_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/effective_tool_binding" }
+        },
+        "profile_drift": { "$ref": "#/$defs/profile_drift_summary" },
+        "delta_links": { "$ref": "#/$defs/delta_link_set" },
+        "environment_conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment_condition" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "quality_profile_resolution_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quality_profile_schema_version",
+        "quality_profile_resolution_event_id",
+        "event_class",
+        "effective_quality_profile_ref",
+        "source_refs",
+        "profile_drift",
+        "emitted_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "quality_profile_resolution_event_record" },
+        "quality_profile_schema_version": { "$ref": "#/$defs/quality_profile_schema_version" },
+        "quality_profile_resolution_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": {
+          "type": "string",
+          "enum": [
+            "profile_resolved",
+            "policy_lock_applied",
+            "downgrade_applied",
+            "imported_config_read",
+            "scanner_import_attached",
+            "profile_drift_detected",
+            "parity_comparison_created",
+            "support_export_created",
+            "event_class_unknown_requires_review"
+          ]
+        },
+        "effective_quality_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "profile_drift": { "$ref": "#/$defs/profile_drift_summary" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "scanner_import_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quality_profile_schema_version",
+        "scanner_import_session_id",
+        "workspace_ref",
+        "surface_class",
+        "import_format_class",
+        "source_tool_identity",
+        "effective_quality_profile_ref",
+        "scan_started_at",
+        "imported_at",
+        "baseline_family_ref",
+        "baseline_family_state_class",
+        "raw_payload_ref",
+        "mapping_state_class",
+        "result_state_class",
+        "profile_drift",
+        "delta_links",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "scanner_import_session_record" },
+        "quality_profile_schema_version": { "$ref": "#/$defs/quality_profile_schema_version" },
+        "scanner_import_session_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "surface_class": { "$ref": "#/$defs/quality_surface_class" },
+        "import_format_class": { "$ref": "#/$defs/import_format_class" },
+        "source_tool_identity": { "$ref": "#/$defs/provider_tool_identity" },
+        "effective_quality_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "scan_started_at": { "$ref": "#/$defs/timestamp" },
+        "imported_at": { "$ref": "#/$defs/timestamp" },
+        "baseline_family_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "baseline_family_state_class": { "$ref": "#/$defs/baseline_family_state_class" },
+        "raw_payload_ref": { "$ref": "#/$defs/opaque_ref" },
+        "mapping_state_class": { "$ref": "#/$defs/import_mapping_state_class" },
+        "result_state_class": { "$ref": "#/$defs/scanner_result_state_class" },
+        "profile_drift": { "$ref": "#/$defs/profile_drift_summary" },
+        "delta_links": { "$ref": "#/$defs/delta_link_set" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "quality_result_delta_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quality_profile_schema_version",
+        "quality_result_delta_id",
+        "workspace_ref",
+        "target_scope_class",
+        "baseline_result_ref",
+        "candidate_result_ref",
+        "effective_quality_profile_ref",
+        "comparison_compatibility_class",
+        "profile_drift",
+        "delta_counts",
+        "delta_packet_ref",
+        "computed_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "quality_result_delta_record" },
+        "quality_profile_schema_version": { "$ref": "#/$defs/quality_profile_schema_version" },
+        "quality_result_delta_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "baseline_result_ref": { "$ref": "#/$defs/opaque_ref" },
+        "candidate_result_ref": { "$ref": "#/$defs/opaque_ref" },
+        "effective_quality_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "comparison_compatibility_class": { "$ref": "#/$defs/comparison_compatibility_class" },
+        "profile_drift": { "$ref": "#/$defs/profile_drift_summary" },
+        "delta_counts": { "$ref": "#/$defs/delta_count_summary" },
+        "delta_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "computed_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}

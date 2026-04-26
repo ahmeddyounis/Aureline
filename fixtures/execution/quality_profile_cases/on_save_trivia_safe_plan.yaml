@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../../../schemas/execution/on_save_plan.schema.json
+__fixture__:
+  name: on_save_trivia_safe_plan
+  scenario: >
+    A normal explicit save opens a staged-buffer plan. The formatter is
+    trivia-safe and touches one file, then a scanner participant runs in
+    read-only mode. The plan declares deterministic order, preview
+    thresholds, compare-before-write, and recovery-journal hooks.
+  exercised_classes_summary:
+    record_kind: on_save_plan_record
+    trigger_class: explicit_save
+    formatter_posture: auto_apply_allowed
+    scanner_posture: read_only_participant
+
+record_kind: on_save_plan_record
+on_save_plan_schema_version: 1
+on_save_plan_id: on_save.plan.lib_rs.trivia_safe.0001
+workspace_ref: workspace.repo.aureline
+trigger_class: explicit_save
+target_scope_class: current_file
+
+save_target_summary:
+  logical_document_ref: logical_document.lib_rs
+  presentation_path_ref: path.presentation.src_lib_rs
+  canonical_write_target_ref: save_target.canonical.src_lib_rs
+  staged_buffer_ref: staged_buffer.lib_rs.save.0001
+  compare_before_write_token_ref: save_token.src_lib_rs.0001
+  base_revision_ref: file_revision.src_lib_rs.before_save
+
+effective_quality_profile_ref: quality.profile.effective.rust.policy_locked.0001
+execution_context_snapshot_ref: execution.context_snapshot.local_desktop.rust.0001
+command_dispatch_descriptor_ref: command.editor.save
+
+preview_thresholds:
+  max_files_without_preview: 1
+  max_created_files_without_preview: 0
+  max_deleted_files_without_preview: 0
+  max_changed_bytes_without_preview: 4096
+  whole_document_rewrite_requires_preview: true
+  generated_or_protected_requires_preview: true
+  provider_dependent_requires_review: true
+
+participant_order:
+  - step_id: on_save.step.formatter.rustfmt.0001
+    order_index: 0
+    participant_class: formatter
+    action_class: format_document
+    provider_tool_ref: quality.binding.formatter.rustfmt.policy
+    effective_quality_profile_ref: quality.profile.effective.rust.policy_locked.0001
+    provider_dependency_class: deterministic_local_tool
+    safety_class: trivia_safe
+    mutation_scope_class: single_file_localized
+    preview_requirement_class: inline_summary
+    on_save_apply_posture_class: auto_apply_with_inline_summary
+    timeout_ms: 750
+    timeout_policy_class: skip_and_mark_degraded
+    rebase_policy_class: abort_on_external_change
+    validation_after_apply_class: formatter_idempotence
+    file_effect_summary:
+      declared_files_touched: 1
+      declared_files_created: 0
+      declared_files_deleted: 0
+      declared_changed_bytes: 96
+      may_touch_generated: false
+      may_touch_protected: false
+      may_touch_outside_visible_file: false
+      additional_edit_disclosure_class: no_additional_edits
+    issue_linkage:
+      review_gate_class: not_required
+      issue_ref: null
+      diagnostic_cluster_refs: []
+      rule_refs: []
+      review_ticket_ref: null
+      summary: Trivia-safe formatter does not require issue linkage.
+    checkpoint_hooks:
+      checkpoint_policy_class: recovery_journal_only
+      pre_apply_checkpoint_ref: recovery_journal.lib_rs.before_format
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: rollback.plan.lib_rs.recovery_journal
+      mutation_group_ref: mutation_group.format_on_save.lib_rs.0001
+      local_history_group_ref: null
+    summary: Formatter may apply one localized whitespace rewrite before save.
+  - step_id: on_save.step.scanner.read_only.0001
+    order_index: 1
+    participant_class: scanner_read_only
+    action_class: scanner_read_only
+    provider_tool_ref: quality.binding.scanner.secret.policy
+    effective_quality_profile_ref: quality.profile.effective.rust.policy_locked.0001
+    provider_dependency_class: managed_provider_authoritative
+    safety_class: trivia_safe
+    mutation_scope_class: no_mutation_read_only
+    preview_requirement_class: not_required
+    on_save_apply_posture_class: read_only_participant
+    timeout_ms: 500
+    timeout_policy_class: skip_and_mark_degraded
+    rebase_policy_class: not_applicable_read_only
+    validation_after_apply_class: not_required
+    file_effect_summary:
+      declared_files_touched: 0
+      declared_files_created: 0
+      declared_files_deleted: 0
+      declared_changed_bytes: 0
+      may_touch_generated: false
+      may_touch_protected: false
+      may_touch_outside_visible_file: false
+      additional_edit_disclosure_class: no_additional_edits
+    issue_linkage:
+      review_gate_class: not_required
+      issue_ref: null
+      diagnostic_cluster_refs: []
+      rule_refs: []
+      review_ticket_ref: null
+      summary: Read-only scanner may emit findings but cannot mutate during save.
+    checkpoint_hooks:
+      checkpoint_policy_class: no_checkpoint_required
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    summary: Scanner runs as read-only validation after formatting.
+
+orchestration_guards:
+  deterministic_order_declared: true
+  external_change_policy_class: compare_before_write_required
+  multi_file_writes_hidden_forbidden: true
+  provider_dependent_edits_require_review: true
+  scanner_participants_may_mutate: false
+  rollback_available_before_apply: true
+  summary: Save plan admits only the declared formatter mutation and keeps scanner output read-only.
+
+opened_at: "2026-04-26T18:43:00Z"
+plan_outcome_class: planned
+audit_event_refs:
+  - audit.on_save.plan_opened
+  - audit.on_save.participant_order_resolved
