@@ -54,6 +54,13 @@ Companion artifacts:
   contract that renders command rows in palette, docs/help, settings,
   keybinding help, migration guidance, automation explainers, and
   support export from the same registry/shareability records.
+- [`/docs/commands/sequence_and_modal_discoverability_contract.md`](./sequence_and_modal_discoverability_contract.md),
+  [`/schemas/commands/leader_overlay.schema.json`](../../schemas/commands/leader_overlay.schema.json),
+  and
+  [`/fixtures/commands/sequence_help_examples/`](../../fixtures/commands/sequence_help_examples/)
+  — the governed modal / sequence discoverability projection for mode
+  strips, leader overlays, sequence-help rows, shortcut teaching, and
+  colon-style command parity over the same command graph.
 - [`/docs/commands/command_descriptor_contract.md`](./command_descriptor_contract.md)
   — the command object this seed projects from.
 - [`/docs/design/design_token_component_state_vocabulary.md`](../design/design_token_component_state_vocabulary.md)

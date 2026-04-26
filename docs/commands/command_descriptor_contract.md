@@ -33,6 +33,13 @@ lives in
 [`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json),
 and
 [`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/).
+The governed modal / sequence discoverability projection for mode
+strips, leader overlays, sequence-help rows, shortcut-teaching rows, and
+colon-style command parity lives in
+[`/docs/commands/sequence_and_modal_discoverability_contract.md`](./sequence_and_modal_discoverability_contract.md),
+[`/schemas/commands/leader_overlay.schema.json`](../../schemas/commands/leader_overlay.schema.json),
+and
+[`/fixtures/commands/sequence_help_examples/`](../../fixtures/commands/sequence_help_examples/).
 
 The eventual command-registry / invocation-session crates' Rust
 types are the schema of record. This document and the JSON Schema

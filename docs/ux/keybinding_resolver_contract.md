@@ -292,6 +292,10 @@ shortcuts?" answer.
   owns command semantics.
 - [`/docs/commands/command_graph_and_ui_slots_seed.md`](../commands/command_graph_and_ui_slots_seed.md)
   owns discoverability-slot translation.
+- [`/docs/commands/sequence_and_modal_discoverability_contract.md`](../commands/sequence_and_modal_discoverability_contract.md)
+  owns modal-state cues, leader overlays, sequence-help rows,
+  shortcut-teaching rows, and colon-style command parity over the same
+  resolver and command-graph records.
 - [`/docs/migration/migration_center_object_model.md`](../migration/migration_center_object_model.md)
   owns durable migration-session linkage.
 - [`/docs/ux/shell_interaction_safety_contract.md`](./shell_interaction_safety_contract.md)

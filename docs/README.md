@@ -253,6 +253,13 @@ code.
 - [`commands/command_graph_and_ui_slots_seed.md`](./commands/command_graph_and_ui_slots_seed.md)
   — slot-taxonomy and projection rules that translate descriptor
   discoverability into concrete shell slots and help surfaces.
+- [`commands/sequence_and_modal_discoverability_contract.md`](./commands/sequence_and_modal_discoverability_contract.md)
+  — modal-state cues, leader overlays, sequence-help rows,
+  shortcut-teaching rows, and colon-style command parity as governed
+  projections over the canonical command graph. Boundary schema in
+  [`/schemas/commands/leader_overlay.schema.json`](../schemas/commands/leader_overlay.schema.json);
+  worked fixtures in
+  [`/fixtures/commands/sequence_help_examples/`](../fixtures/commands/sequence_help_examples/).
 - [`ux/keybinding_resolver_contract.md`](./ux/keybinding_resolver_contract.md)
   — deterministic keybinding precedence, conflict-review,
   disabled-command explanation, import-bridge fidelity, leader
@@ -779,6 +786,16 @@ code.
   [`/artifacts/commands/command_parity_seed.yaml`](../artifacts/commands/command_parity_seed.yaml);
   generator in
   [`/tools/commands/parity_diff_seed.py`](../tools/commands/parity_diff_seed.py).
+- [`commands/sequence_and_modal_discoverability_contract.md`](./commands/sequence_and_modal_discoverability_contract.md)
+  — modal and sequence discoverability contract for current-mode,
+  pending-operator, count, macro-recording, register-boundary, and
+  leader-sequence cues; partial / ambiguous sequence help; shortcut
+  teaching; imported-keymap conflict review; and parity between
+  palette, leader overlays, modal sequences, colon-style command entry,
+  docs, settings, and automation. Boundary schema in
+  [`/schemas/commands/leader_overlay.schema.json`](../schemas/commands/leader_overlay.schema.json);
+  worked examples in
+  [`/fixtures/commands/sequence_help_examples/`](../fixtures/commands/sequence_help_examples/).
 - [`design/design_token_component_state_vocabulary.md`](./design/design_token_component_state_vocabulary.md)
   — design-token, component-state, theme-support, accessibility-
   posture, and layer / scrim vocabulary every shell, docs / help,
