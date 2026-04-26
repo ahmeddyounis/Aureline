@@ -1,0 +1,821 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/parse_session.schema.json",
+  "title": "Aureline parse-session, syntax-tree identity, and parser-degradation contract",
+  "description": "Boundary schema for the parse_session_record frozen in docs/architecture/parser_substrate_adr.md. The record captures one parser request, grammar provenance, host placement, lifecycle state, incremental budget, cache posture, syntax-tree identity, parse freshness, failure or degradation state, and parse-derived cue posture. Raw source text, raw notebook payloads, raw grammar binaries, raw parser logs, raw extension process arguments, raw absolute paths, raw URLs, hostnames, and secret material never cross this boundary; the record carries opaque ids, hashes, typed vocabulary, epoch refs, and export-safe summaries only. Adding a parser substrate, grammar source, host class, request class, lifecycle state, quality class, freshness class, cache status, failure reason, budget policy, cue class, cue posture, or export policy is additive-minor and requires a parse_session_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/parse_session_record"
+    }
+  ],
+  "$defs": {
+    "parse_session_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "parse_session_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720
+    },
+
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "positive_integer": {
+      "type": "integer",
+      "minimum": 1
+    },
+
+    "parser_substrate_class": {
+      "type": "string",
+      "enum": [
+        "tree_sitter",
+        "tree_sitter_compatible",
+        "lightweight_bracket_scanner",
+        "plain_text_lexical",
+        "external_projection_import",
+        "not_available"
+      ],
+      "description": "Parser substrate used or the explicit lack of one."
+    },
+
+    "grammar_source_class": {
+      "type": "string",
+      "enum": [
+        "bundled_curated_upstream",
+        "bundled_first_party",
+        "extension_pack",
+        "workspace_pinned",
+        "remote_agent_mirror",
+        "not_applicable"
+      ],
+      "description": "Where the grammar package came from."
+    },
+
+    "grammar_resolution_state_class": {
+      "type": "string",
+      "enum": [
+        "resolved_current",
+        "resolved_with_workspace_override",
+        "resolved_remote_mirror",
+        "missing_for_language",
+        "abi_mismatch",
+        "signature_unverified",
+        "blocked_by_trust_or_policy",
+        "not_applicable_plain_text"
+      ],
+      "description": "Outcome of grammar resolution before parsing."
+    },
+
+    "parser_host_class": {
+      "type": "string",
+      "enum": [
+        "editor_process_foreground_worker",
+        "local_sidecar_worker",
+        "workspace_remote_agent",
+        "imported_snapshot",
+        "not_scheduled"
+      ],
+      "description": "Where parsing was scheduled or why it was not scheduled."
+    },
+
+    "parse_request_class": {
+      "type": "string",
+      "enum": [
+        "open_buffer_initial",
+        "visible_edit_incremental",
+        "save_snapshot_refresh",
+        "background_index_refresh",
+        "language_switch_reparse",
+        "grammar_update_reparse",
+        "support_export_replay"
+      ]
+    },
+
+    "parse_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "yielded_budget_exhausted",
+        "completed",
+        "failed",
+        "degraded_no_grammar",
+        "degraded_decode_recovery",
+        "stale_awaiting_reparse",
+        "cancelled_superseded"
+      ]
+    },
+
+    "parse_quality_class": {
+      "type": "string",
+      "enum": [
+        "full_tree",
+        "partial_tree_with_errors",
+        "lexical_structure_only",
+        "plain_text_only",
+        "unavailable"
+      ]
+    },
+
+    "parse_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current_buffer_version",
+        "warm_cached",
+        "stale_buffer_version",
+        "stale_grammar_version",
+        "unverified_imported"
+      ]
+    },
+
+    "cache_status_class": {
+      "type": "string",
+      "enum": [
+        "cache_hit_current",
+        "cache_hit_stale",
+        "cache_miss",
+        "invalidated_by_edit",
+        "invalidated_by_grammar_update",
+        "invalidated_by_query_pack_update",
+        "invalidated_by_encoding_change",
+        "invalidated_by_trust_or_policy",
+        "invalidated_by_cache_corruption",
+        "not_cacheable"
+      ]
+    },
+
+    "failure_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "grammar_missing",
+        "grammar_abi_mismatch",
+        "grammar_signature_unverified",
+        "grammar_load_denied",
+        "parse_timeout_budget_exhausted",
+        "parser_error_nodes_present",
+        "parse_runtime_error",
+        "decode_recovery_pending",
+        "mixed_encoding_unresolved",
+        "file_too_large_for_full_parse",
+        "policy_blocked",
+        "extension_untrusted",
+        "cache_corrupt",
+        "host_unavailable",
+        "superseded_by_newer_buffer_version"
+      ]
+    },
+
+    "budget_policy_class": {
+      "type": "string",
+      "enum": [
+        "visible_edit_interactive",
+        "foreground_visible_file",
+        "background_workspace",
+        "large_file_reduced",
+        "export_replay_bounded"
+      ]
+    },
+
+    "derived_cue_class": {
+      "type": "string",
+      "enum": [
+        "syntax_highlighting",
+        "folds",
+        "indent_guides",
+        "structural_selection",
+        "breadcrumbs",
+        "outline",
+        "local_symbols",
+        "bracket_matching",
+        "minimap_markers",
+        "diagnostics",
+        "refactor_preview",
+        "semantic_graph_ingest",
+        "support_export"
+      ]
+    },
+
+    "derived_cue_posture_class": {
+      "type": "string",
+      "enum": [
+        "available_exact",
+        "available_partial",
+        "cached_only",
+        "fallback_heuristic",
+        "suppressed_due_to_degradation",
+        "blocked"
+      ]
+    },
+
+    "export_policy_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "range_refs_only",
+        "support_export_safe",
+        "blocked_raw_source_excluded",
+        "not_exportable"
+      ]
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "buffer_snapshot",
+        "syntax_tree",
+        "grammar_package",
+        "query_pack",
+        "coordinate_profile",
+        "trust_policy",
+        "remote_workspace"
+      ]
+    },
+
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_role_class",
+        "epoch_ref"
+      ],
+      "properties": {
+        "epoch_role_class": {
+          "$ref": "#/$defs/epoch_role_class"
+        },
+        "epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "buffer_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buffer_id",
+        "buffer_version",
+        "buffer_content_hash_ref",
+        "decoded_text_hash_ref",
+        "encoding_state_ref",
+        "decode_recovery_state"
+      ],
+      "properties": {
+        "buffer_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "buffer_version": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "buffer_content_hash_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "decoded_text_hash_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "encoding_state_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "decode_recovery_state": {
+          "type": "string",
+          "enum": [
+            "clean_decode",
+            "replacement_char_inserted",
+            "invalid_byte_sequence_detected",
+            "unknown_encoding_fallback",
+            "explicit_user_override",
+            "binary_like_blocked",
+            "lossy_reencode_warning"
+          ]
+        }
+      }
+    },
+
+    "grammar_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grammar_id",
+        "language_id",
+        "grammar_source_class",
+        "grammar_resolution_state_class",
+        "grammar_version_ref",
+        "grammar_abi_ref",
+        "query_pack_ref",
+        "artifact_hash_ref",
+        "signature_ref",
+        "upstream_ref",
+        "local_patch_ref",
+        "scope_ref",
+        "summary"
+      ],
+      "properties": {
+        "grammar_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "language_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "grammar_source_class": {
+          "$ref": "#/$defs/grammar_source_class"
+        },
+        "grammar_resolution_state_class": {
+          "$ref": "#/$defs/grammar_resolution_state_class"
+        },
+        "grammar_version_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "grammar_abi_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "query_pack_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "artifact_hash_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "signature_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "upstream_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "local_patch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "scope_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "parser_host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parser_host_class",
+        "host_identity_ref",
+        "locality_class",
+        "trust_state",
+        "summary"
+      ],
+      "properties": {
+        "parser_host_class": {
+          "$ref": "#/$defs/parser_host_class"
+        },
+        "host_identity_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "locality_class": {
+          "type": "string",
+          "enum": [
+            "local_in_process",
+            "local_sidecar",
+            "workspace_remote_agent",
+            "imported_snapshot",
+            "not_applicable"
+          ]
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "incremental_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "budget_policy_class",
+        "slice_budget_ms",
+        "burst_ceiling_ms",
+        "byte_budget",
+        "node_budget",
+        "yield_after_slice",
+        "cancellation_token_ref",
+        "summary"
+      ],
+      "properties": {
+        "budget_policy_class": {
+          "$ref": "#/$defs/budget_policy_class"
+        },
+        "slice_budget_ms": {
+          "$ref": "#/$defs/positive_integer"
+        },
+        "burst_ceiling_ms": {
+          "$ref": "#/$defs/positive_integer"
+        },
+        "byte_budget": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "node_budget": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "yield_after_slice": {
+          "type": "boolean"
+        },
+        "cancellation_token_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "parse_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parse_lifecycle_state_class",
+        "parse_quality_class",
+        "parse_freshness_class",
+        "failure_reason_classes",
+        "parser_error_node_count",
+        "unresolved_byte_range_count",
+        "degraded_surface_classes",
+        "summary"
+      ],
+      "properties": {
+        "parse_lifecycle_state_class": {
+          "$ref": "#/$defs/parse_lifecycle_state_class"
+        },
+        "parse_quality_class": {
+          "$ref": "#/$defs/parse_quality_class"
+        },
+        "parse_freshness_class": {
+          "$ref": "#/$defs/parse_freshness_class"
+        },
+        "failure_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/failure_reason_class"
+          }
+        },
+        "parser_error_node_count": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "unresolved_byte_range_count": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "degraded_surface_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/derived_cue_class"
+          },
+          "uniqueItems": true
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "syntax_tree_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "syntax_tree_id",
+        "tree_epoch_ref",
+        "document_ref",
+        "buffer_id",
+        "parser_substrate_class",
+        "grammar_id",
+        "language_id",
+        "grammar_version_ref",
+        "grammar_abi_ref",
+        "query_pack_ref",
+        "parser_host_class",
+        "buffer_version",
+        "buffer_content_hash_ref",
+        "decoded_text_hash_ref",
+        "parse_session_id",
+        "parse_started_at",
+        "parse_completed_at",
+        "parse_quality_class",
+        "parse_freshness_class"
+      ],
+      "properties": {
+        "syntax_tree_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "tree_epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "document_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "buffer_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "parser_substrate_class": {
+          "$ref": "#/$defs/parser_substrate_class"
+        },
+        "grammar_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "language_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "grammar_version_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "grammar_abi_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "query_pack_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "parser_host_class": {
+          "$ref": "#/$defs/parser_host_class"
+        },
+        "buffer_version": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "buffer_content_hash_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "decoded_text_hash_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "parse_session_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "parse_started_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "parse_completed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "parse_quality_class": {
+          "$ref": "#/$defs/parse_quality_class"
+        },
+        "parse_freshness_class": {
+          "$ref": "#/$defs/parse_freshness_class"
+        }
+      }
+    },
+
+    "cache_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cache_status_class",
+        "cache_key_ref",
+        "previous_tree_ref",
+        "invalidation_reason_classes",
+        "summary"
+      ],
+      "properties": {
+        "cache_status_class": {
+          "$ref": "#/$defs/cache_status_class"
+        },
+        "cache_key_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "previous_tree_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "invalidation_reason_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cache_status_class"
+          },
+          "uniqueItems": true
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "derived_cue_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "derived_cue_class",
+        "derived_cue_posture_class",
+        "parse_freshness_class",
+        "producer_parse_session_id",
+        "syntax_tree_id",
+        "coordinate_mapping_id",
+        "blocked_or_degraded_reason_classes",
+        "export_policy_class",
+        "summary"
+      ],
+      "properties": {
+        "derived_cue_class": {
+          "$ref": "#/$defs/derived_cue_class"
+        },
+        "derived_cue_posture_class": {
+          "$ref": "#/$defs/derived_cue_posture_class"
+        },
+        "parse_freshness_class": {
+          "$ref": "#/$defs/parse_freshness_class"
+        },
+        "producer_parse_session_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "syntax_tree_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "coordinate_mapping_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "blocked_or_degraded_reason_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/failure_reason_class"
+          },
+          "uniqueItems": true
+        },
+        "export_policy_class": {
+          "$ref": "#/$defs/export_policy_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "export_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_policy_class",
+        "redaction_class",
+        "raw_source_excluded",
+        "raw_parser_logs_excluded",
+        "range_export_requires_coordinate_mapping",
+        "summary"
+      ],
+      "properties": {
+        "export_policy_class": {
+          "$ref": "#/$defs/export_policy_class"
+        },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_safe_default",
+            "support_safe_redacted",
+            "blocked_sensitive_payload"
+          ]
+        },
+        "raw_source_excluded": {
+          "type": "boolean"
+        },
+        "raw_parser_logs_excluded": {
+          "type": "boolean"
+        },
+        "range_export_requires_coordinate_mapping": {
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "parse_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "parse_session_schema_version",
+        "parse_session_id",
+        "document_ref",
+        "buffer_ref",
+        "parse_request_class",
+        "requested_derived_cue_classes",
+        "grammar_resolution",
+        "parser_host",
+        "coordinate_profile_ref",
+        "incremental_budget",
+        "parse_state",
+        "syntax_tree_identity",
+        "cache_record",
+        "derived_cues",
+        "current_epoch_bindings",
+        "export_policy",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "parse_session_schema_version": {
+          "$ref": "#/$defs/parse_session_schema_version"
+        },
+        "parse_session_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "document_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "buffer_ref": {
+          "$ref": "#/$defs/buffer_ref"
+        },
+        "parse_request_class": {
+          "$ref": "#/$defs/parse_request_class"
+        },
+        "requested_derived_cue_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/derived_cue_class"
+          },
+          "uniqueItems": true
+        },
+        "grammar_resolution": {
+          "$ref": "#/$defs/grammar_resolution"
+        },
+        "parser_host": {
+          "$ref": "#/$defs/parser_host"
+        },
+        "coordinate_profile_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "incremental_budget": {
+          "$ref": "#/$defs/incremental_budget"
+        },
+        "parse_state": {
+          "$ref": "#/$defs/parse_state"
+        },
+        "syntax_tree_identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/syntax_tree_identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cache_record": {
+          "$ref": "#/$defs/cache_record"
+        },
+        "derived_cues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/derived_cue_record"
+          }
+        },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epoch_binding"
+          },
+          "uniqueItems": true
+        },
+        "export_policy": {
+          "$ref": "#/$defs/export_policy"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    }
+  }
+}

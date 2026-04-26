@@ -1,0 +1,553 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/coordinate_mapping.schema.json",
+  "title": "Aureline coordinate-normalization and boundary projection contract",
+  "description": "Boundary schema for the coordinate_mapping_record frozen in docs/architecture/parser_substrate_adr.md. The record is the governed translation envelope used when internal UTF-8 byte offsets, code-point offsets, grapheme positions, UTF-16 protocol offsets, Tree-sitter points, visual columns, editor-native positions, notebook coordinates, diagnostics, refactors, search, clipboard, or support/export spans cross a boundary. Raw source text, raw notebook payloads, raw parser logs, raw protocol payloads, raw absolute paths, raw URLs, hostnames, and secret material never cross this boundary; the record carries typed coordinate spaces, units, ranges, confidence, blocked-boundary reasons, epoch refs, and export-safe summaries only. Adding a coordinate space, coordinate unit, adapter class, translation confidence, boundary violation, normalization rule, mapping state, or export policy is additive-minor and requires a coordinate_mapping_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/coordinate_mapping_record"
+    }
+  ],
+  "$defs": {
+    "coordinate_mapping_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "coordinate_mapping_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720
+    },
+
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "coordinate_space_class": {
+      "type": "string",
+      "enum": [
+        "internal_buffer",
+        "syntax_tree",
+        "protocol_lsp",
+        "protocol_dap",
+        "notebook_projection",
+        "editor_view",
+        "diagnostic_anchor",
+        "refactor_preview",
+        "search_result",
+        "clipboard_exchange",
+        "support_export"
+      ],
+      "description": "The boundary or consumer coordinate space."
+    },
+
+    "coordinate_unit_class": {
+      "type": "string",
+      "enum": [
+        "utf8_byte_offset",
+        "utf16_code_unit",
+        "utf32_code_point",
+        "code_point_index",
+        "grapheme_index",
+        "visual_column",
+        "tree_sitter_point",
+        "editor_native_position",
+        "notebook_cell_position"
+      ],
+      "description": "The unit used by a coordinate range."
+    },
+
+    "coordinate_adapter_class": {
+      "type": "string",
+      "enum": [
+        "parser_adapter",
+        "lsp_adapter",
+        "dap_adapter",
+        "notebook_adapter",
+        "editor_view_model",
+        "diagnostic_anchor",
+        "refactor_preview",
+        "search_result_adapter",
+        "clipboard_exchange",
+        "support_export"
+      ],
+      "description": "Why the projection is being performed."
+    },
+
+    "translation_confidence_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "exact_for_bmp_only",
+        "blocked_grapheme_split",
+        "blocked_surrogate_split",
+        "approximate_visual_column",
+        "unavailable_decode_recovery",
+        "unavailable_binary_or_large_file",
+        "stale_source_epoch"
+      ]
+    },
+
+    "boundary_violation_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "surrogate_pair_split",
+        "grapheme_cluster_split",
+        "combining_sequence_split",
+        "zwj_sequence_split",
+        "regional_indicator_pair_split",
+        "bidi_control_hidden",
+        "decode_recovery_region",
+        "line_ending_ambiguous",
+        "visual_column_tab_ambiguous"
+      ]
+    },
+
+    "normalization_rule_class": {
+      "type": "string",
+      "enum": [
+        "internal_bytes_authoritative",
+        "line_indices_zero_based",
+        "ranges_half_open",
+        "external_projection_on_demand",
+        "protocol_utf16_negotiated",
+        "editor_positions_grapheme_aligned",
+        "tree_sitter_points_byte_columns",
+        "visual_columns_view_local",
+        "decode_recovery_blocks_lossy_projection"
+      ]
+    },
+
+    "mapping_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "partial",
+        "blocked",
+        "stale"
+      ]
+    },
+
+    "range_inclusion_class": {
+      "type": "string",
+      "enum": [
+        "half_open_start_inclusive_end_exclusive",
+        "point_position"
+      ]
+    },
+
+    "encoding_state_class": {
+      "type": "string",
+      "enum": [
+        "utf8",
+        "utf8_bom",
+        "utf16le_bom",
+        "utf16be_bom",
+        "utf32le_bom",
+        "utf32be_bom",
+        "declared_override",
+        "legacy_8bit_fallback",
+        "unknown_binary_like",
+        "decode_recovery_pending"
+      ]
+    },
+
+    "export_policy_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "range_refs_only",
+        "support_export_safe",
+        "blocked_raw_source_excluded",
+        "not_exportable"
+      ]
+    },
+
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "buffer_snapshot",
+        "syntax_tree",
+        "coordinate_profile",
+        "protocol_session",
+        "notebook_projection",
+        "view_layout",
+        "support_export"
+      ]
+    },
+
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_role_class",
+        "epoch_ref"
+      ],
+      "properties": {
+        "epoch_role_class": {
+          "$ref": "#/$defs/epoch_role_class"
+        },
+        "epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "buffer_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buffer_id",
+        "buffer_version",
+        "buffer_content_hash_ref",
+        "encoding_state_class",
+        "internal_unit",
+        "line_index_ref",
+        "grapheme_index_ref"
+      ],
+      "properties": {
+        "buffer_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "buffer_version": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "buffer_content_hash_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "encoding_state_class": {
+          "$ref": "#/$defs/encoding_state_class"
+        },
+        "internal_unit": {
+          "type": "string",
+          "const": "utf8_byte_offset"
+        },
+        "line_index_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "grapheme_index_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "coordinate_endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line_index": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "byte_offset": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "code_point_offset": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "grapheme_index": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "utf16_code_unit": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "visual_column": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "tree_sitter_row": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "tree_sitter_column_byte": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "editor_column_grapheme": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "notebook_cell_index": {
+          "$ref": "#/$defs/non_negative_integer"
+        }
+      }
+    },
+
+    "coordinate_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "range_id",
+        "coordinate_space_class",
+        "coordinate_unit_class",
+        "range_inclusion_class",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "range_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "coordinate_space_class": {
+          "$ref": "#/$defs/coordinate_space_class"
+        },
+        "coordinate_unit_class": {
+          "$ref": "#/$defs/coordinate_unit_class"
+        },
+        "range_inclusion_class": {
+          "$ref": "#/$defs/range_inclusion_class"
+        },
+        "start": {
+          "$ref": "#/$defs/coordinate_endpoint"
+        },
+        "end": {
+          "$ref": "#/$defs/coordinate_endpoint"
+        }
+      }
+    },
+
+    "projection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_space_class",
+        "target_unit_class",
+        "target_range",
+        "translation_confidence_class",
+        "boundary_violation_classes",
+        "normalization_rule_classes",
+        "summary"
+      ],
+      "properties": {
+        "target_space_class": {
+          "$ref": "#/$defs/coordinate_space_class"
+        },
+        "target_unit_class": {
+          "$ref": "#/$defs/coordinate_unit_class"
+        },
+        "target_range": {
+          "$ref": "#/$defs/coordinate_range"
+        },
+        "translation_confidence_class": {
+          "$ref": "#/$defs/translation_confidence_class"
+        },
+        "boundary_violation_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/boundary_violation_class"
+          },
+          "uniqueItems": true
+        },
+        "normalization_rule_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/normalization_rule_class"
+          },
+          "uniqueItems": true
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "mapping_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coordinate_adapter_class",
+        "source_space_class",
+        "source_unit_class",
+        "requested_target_space_classes",
+        "requested_target_unit_classes",
+        "summary"
+      ],
+      "properties": {
+        "coordinate_adapter_class": {
+          "$ref": "#/$defs/coordinate_adapter_class"
+        },
+        "source_space_class": {
+          "$ref": "#/$defs/coordinate_space_class"
+        },
+        "source_unit_class": {
+          "$ref": "#/$defs/coordinate_unit_class"
+        },
+        "requested_target_space_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/coordinate_space_class"
+          },
+          "uniqueItems": true
+        },
+        "requested_target_unit_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/coordinate_unit_class"
+          },
+          "uniqueItems": true
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "boundary_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_violation_class",
+        "translation_confidence_class",
+        "affected_range_ref",
+        "summary"
+      ],
+      "properties": {
+        "boundary_violation_class": {
+          "$ref": "#/$defs/boundary_violation_class"
+        },
+        "translation_confidence_class": {
+          "$ref": "#/$defs/translation_confidence_class"
+        },
+        "affected_range_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "export_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_policy_class",
+        "raw_source_excluded",
+        "raw_protocol_payload_excluded",
+        "raw_parser_payload_excluded",
+        "summary"
+      ],
+      "properties": {
+        "export_policy_class": {
+          "$ref": "#/$defs/export_policy_class"
+        },
+        "raw_source_excluded": {
+          "type": "boolean"
+        },
+        "raw_protocol_payload_excluded": {
+          "type": "boolean"
+        },
+        "raw_parser_payload_excluded": {
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "coordinate_mapping_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "coordinate_mapping_schema_version",
+        "coordinate_mapping_id",
+        "document_ref",
+        "buffer_ref",
+        "mapping_context",
+        "source_range",
+        "projections",
+        "normalization_rule_classes",
+        "mapping_state_class",
+        "boundary_checks",
+        "current_epoch_bindings",
+        "export_policy",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "coordinate_mapping_schema_version": {
+          "$ref": "#/$defs/coordinate_mapping_schema_version"
+        },
+        "coordinate_mapping_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "document_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "buffer_ref": {
+          "$ref": "#/$defs/buffer_ref"
+        },
+        "mapping_context": {
+          "$ref": "#/$defs/mapping_context"
+        },
+        "source_range": {
+          "$ref": "#/$defs/coordinate_range"
+        },
+        "projections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/projection_record"
+          }
+        },
+        "normalization_rule_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/normalization_rule_class"
+          },
+          "uniqueItems": true
+        },
+        "mapping_state_class": {
+          "$ref": "#/$defs/mapping_state_class"
+        },
+        "boundary_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boundary_check"
+          }
+        },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epoch_binding"
+          },
+          "uniqueItems": true
+        },
+        "export_policy": {
+          "$ref": "#/$defs/export_policy"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    }
+  }
+}
