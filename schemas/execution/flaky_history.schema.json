@@ -1,0 +1,635 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/flaky_history.schema.json",
+  "title": "Aureline flaky-history and quarantine record",
+  "description": "Boundary schema for the per-test-item flake-aggregation and quarantine record family every test surface (test runner UI, test tree panel, AI tool-call mediator, support exporter, replay / import probe, history row) reads when it needs to answer 'is this test currently flaky, what is its recent pass / fail history, is it currently quarantined, who quarantined it, why, and when does the quarantine expire'. Flaky history aggregates outcomes across attempts of the same canonical test item; quarantine is the typed authority record that pins a test under flake / known-failing / environment-dependent / under-investigation policy. The two records share one schema so a UI / CLI / support reviewer reads the same vocabulary across both. The schema cites - and never re-mints - the canonical test item id from schemas/execution/test_discovery_state.schema.json#test_item_record, the per-attempt outcome events from schemas/execution/run.schema.json, the command-dispatch descriptor (ADR-0016), the admin-policy epoch (workspace policy pack), and the cancellation-authority vocabulary on schemas/execution/attempt.schema.json. Raw command lines, raw stdout / stderr byte streams, raw env bodies, raw API request / response bodies, raw absolute paths, raw URLs, raw secret values, raw test names, raw assertion bodies, and raw stack traces MUST NOT cross any of these boundaries; records carry refs, hashes, counts, and class labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a flaky_history_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/flaky_history_record" },
+    { "$ref": "#/$defs/quarantine_record" }
+  ],
+  "$defs": {
+    "flaky_history_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "flaky_history_record",
+        "quarantine_record"
+      ]
+    },
+
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+
+    "flaky_classification_class": {
+      "type": "string",
+      "enum": [
+        "not_flaky_stable_history",
+        "suspected_flaky_recent_intermittent",
+        "confirmed_flaky_threshold_met",
+        "quarantined_flaky_under_active_quarantine",
+        "cleared_after_stable_run_streak",
+        "history_insufficient_to_classify",
+        "flaky_classification_unknown_requires_review"
+      ],
+      "description": "Closed flaky-classification vocabulary. not_flaky_stable_history is the typed value for a test whose recent history shows no intermittency above the threshold; suspected_flaky_recent_intermittent is the typed honest mid-state when a small sample has shown intermittency but the threshold is not met; confirmed_flaky_threshold_met is the typed value when the policy threshold has been crossed; quarantined_flaky_under_active_quarantine pairs with a non-null quarantine_record_ref; cleared_after_stable_run_streak is the typed honest answer when a previously flaky test has accumulated a stable streak; history_insufficient_to_classify is the typed honest answer for too-few samples. flaky_classification_unknown_requires_review fails closed."
+    },
+
+    "flaky_signal_class": {
+      "type": "string",
+      "enum": [
+        "intermittent_pass_then_fail_then_pass",
+        "fail_then_pass_under_retry_only",
+        "order_dependent_pass_only_in_isolation",
+        "time_or_clock_dependent",
+        "concurrency_or_thread_dependent",
+        "external_dependency_unstable",
+        "host_or_environment_dependent",
+        "resource_pressure_dependent",
+        "network_or_io_dependent",
+        "ai_inferred_signal_provisional",
+        "flaky_signal_class_unknown_requires_review"
+      ],
+      "description": "Closed flaky-signal vocabulary. Names the typed reason a test was classified as flaky. ai_inferred_signal_provisional MUST cite an authoritative anchor ref under the truth-class rules (the typed flaky classification rides at least one observed signal in addition to the AI inference). flaky_signal_class_unknown_requires_review fails closed."
+    },
+
+    "history_window_class": {
+      "type": "string",
+      "enum": [
+        "last_n_attempts",
+        "last_n_days",
+        "last_main_branch_only",
+        "last_session_only",
+        "policy_defined_rolling_window",
+        "history_window_unknown_requires_review"
+      ],
+      "description": "Closed history-window vocabulary. Names the typed sample window the flaky classification was computed over. last_n_attempts and last_n_days are the canonical fixed-size windows; last_main_branch_only narrows the sample to attempts on the main branch; last_session_only narrows to the current session (no cross-session aggregation); policy_defined_rolling_window cites an admin policy rule. history_window_unknown_requires_review fails closed."
+    },
+
+    "quarantine_authority_class": {
+      "type": "string",
+      "enum": [
+        "not_quarantined",
+        "quarantine_by_user_via_command_dispatch",
+        "quarantine_by_admin_policy_pack",
+        "quarantine_by_supervisor_under_collapse_supersede",
+        "quarantine_by_automated_flake_threshold_policy",
+        "quarantine_by_session_quarantine_inheritance",
+        "quarantine_authority_unknown_requires_review"
+      ],
+      "description": "Closed quarantine-authority vocabulary. Mirrors the cancellation_authority_class on schemas/execution/attempt.schema.json so a reviewer reads quarantine and cancellation authority with the same eyes. Every value outside not_quarantined and quarantine_authority_unknown_requires_review MUST cite a typed actor ref on the quarantine record."
+    },
+
+    "quarantine_reason_class": {
+      "type": "string",
+      "enum": [
+        "flaky_threshold_exceeded",
+        "known_failing_pinned_under_investigation",
+        "environment_dependent_only_runs_on_specific_host",
+        "external_dependency_unstable_pending_fix",
+        "hardware_dependent_pending_capability",
+        "policy_required_under_admin_pack",
+        "broadened_capture_required_not_granted",
+        "ai_assist_recommendation_pending_human_review",
+        "quarantine_reason_unknown_requires_review"
+      ],
+      "description": "Closed quarantine-reason vocabulary. Names the typed reason a test was quarantined. ai_assist_recommendation_pending_human_review is the typed honest answer for an AI-suggested quarantine that has not yet been confirmed by a human; the reason MUST NOT silently graduate to flaky_threshold_exceeded without a human review. quarantine_reason_unknown_requires_review fails closed."
+    },
+
+    "quarantine_state_class": {
+      "type": "string",
+      "enum": [
+        "active_quarantine",
+        "expired_pending_re_evaluation",
+        "lifted_after_stable_streak",
+        "lifted_by_user_via_command_dispatch",
+        "lifted_by_policy_change",
+        "superseded_by_newer_quarantine",
+        "quarantine_state_unknown_requires_review"
+      ],
+      "description": "Closed quarantine-state vocabulary. active_quarantine is the typed value for a quarantine in force; expired_pending_re_evaluation is the typed honest mid-state when the typed expires_at has passed but no re-evaluation has run; lifted_* values name the typed lift path; superseded_by_newer_quarantine is the typed value when a newer quarantine record has replaced this one. quarantine_state_unknown_requires_review fails closed."
+    },
+
+    "outcome_tally": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed_count",
+        "failed_count",
+        "errored_count",
+        "timed_out_count",
+        "skipped_count",
+        "cancelled_count",
+        "stale_or_partial_count",
+        "total_attempt_count"
+      ],
+      "properties": {
+        "passed_count": { "type": "integer", "minimum": 0 },
+        "failed_count": { "type": "integer", "minimum": 0 },
+        "errored_count": { "type": "integer", "minimum": 0, "description": "Count of attempts in errored_outside_assertion (fixture / setup error)." },
+        "timed_out_count": { "type": "integer", "minimum": 0 },
+        "skipped_count": { "type": "integer", "minimum": 0 },
+        "cancelled_count": { "type": "integer", "minimum": 0 },
+        "stale_or_partial_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of attempts whose outcome event was outcome_stale_output or outcome_partially_complete on the parent run (the test item's contribution to the partially-complete outcome)."
+        },
+        "total_attempt_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total attempts the tally aggregates over. MUST equal the sum of passed_count + failed_count + errored_count + timed_out_count + skipped_count + cancelled_count + stale_or_partial_count."
+        }
+      },
+      "description": "Compact projection of per-state attempt counts for the flaky-history record. Counts mirror the outcome-event vocabulary on schemas/execution/run.schema.json so a reviewer reads the tally and the underlying outcome events with the same eyes."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "flaky_history_record_must_cite_canonical_test_item_id",
+        "flaky_history_record_must_cite_history_window_class",
+        "flaky_history_record_must_carry_typed_classification_class",
+        "flaky_history_record_must_cite_observed_signals_when_classified_flaky",
+        "flaky_history_record_must_cite_quarantine_record_ref_when_quarantined",
+        "flaky_history_record_must_not_admit_silent_graduation_from_ai_inference_to_confirmed_flake",
+        "flaky_history_record_classification_unknown_requires_review",
+        "flaky_history_record_signal_unknown_requires_review",
+        "flaky_history_record_history_window_unknown_requires_review",
+        "quarantine_record_must_cite_canonical_test_item_id",
+        "quarantine_record_must_cite_quarantine_authority_class",
+        "quarantine_record_must_cite_quarantine_actor_ref_when_authority_set",
+        "quarantine_record_must_cite_quarantine_reason_class",
+        "quarantine_record_must_cite_quarantine_state_class",
+        "quarantine_record_must_cite_command_dispatch_descriptor_ref_when_user_initiated",
+        "quarantine_record_must_cite_admin_policy_epoch_ref_when_policy_initiated",
+        "quarantine_record_must_cite_predecessor_quarantine_ref_when_superseded",
+        "quarantine_record_must_carry_typed_expires_at_when_active",
+        "quarantine_record_must_not_admit_silent_lift_after_expiry",
+        "quarantine_record_authority_unknown_requires_review",
+        "quarantine_record_reason_unknown_requires_review",
+        "quarantine_record_state_unknown_requires_review"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "flaky_history_record_published",
+        "flaky_history_record_revoked",
+        "flaky_history_record_classification_updated",
+        "flaky_history_record_signal_attached",
+        "flaky_history_record_quarantine_attached",
+        "flaky_history_record_quarantine_lifted",
+        "flaky_history_record_silent_graduation_from_ai_inference_to_confirmed_flake_forbidden_denial",
+        "flaky_history_record_audit_denial_emitted",
+        "quarantine_record_published",
+        "quarantine_record_revoked",
+        "quarantine_record_state_transitioned",
+        "quarantine_record_extended",
+        "quarantine_record_lifted",
+        "quarantine_record_superseded",
+        "quarantine_record_silent_lift_after_expiry_forbidden_denial",
+        "quarantine_record_audit_denial_emitted"
+      ]
+    },
+
+    "flaky_history_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "flaky_history_schema_version",
+        "flaky_history_record_id",
+        "canonical_test_item_id",
+        "history_window_class",
+        "flaky_classification_class",
+        "outcome_tally",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "flaky_history_record" },
+        "flaky_history_schema_version": { "$ref": "#/$defs/flaky_history_schema_version" },
+        "flaky_history_record_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_test_item_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable canonical id resolving to test_item_record.canonical_test_item_id on schemas/execution/test_discovery_state.schema.json. The history record cross-links by canonical id rather than by test_item_record_id so flake history persists across discovery refreshes."
+        },
+        "history_window_class": { "$ref": "#/$defs/history_window_class" },
+        "history_window_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Sample size for the window (e.g. 50 for last_50_attempts, 14 for last_14_days, etc.). Pinned so a reviewer can reproduce the threshold computation."
+        },
+        "flaky_classification_class": { "$ref": "#/$defs/flaky_classification_class" },
+        "observed_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flaky_signal_class" },
+          "description": "Ordered set of typed signals observed in the window. Required to be non-empty when flaky_classification_class is one of suspected_flaky_recent_intermittent, confirmed_flaky_threshold_met, or quarantined_flaky_under_active_quarantine. Empty for not_flaky_stable_history, cleared_after_stable_run_streak, history_insufficient_to_classify."
+        },
+        "outcome_tally": { "$ref": "#/$defs/outcome_tally" },
+        "first_observed_intermittency_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional timestamp of the first observed intermittency in the window. Null for not_flaky_stable_history and history_insufficient_to_classify."
+        },
+        "last_observed_intermittency_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional timestamp of the most recent intermittency in the window. Null for not_flaky_stable_history and history_insufficient_to_classify."
+        },
+        "stable_streak_length": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional count of consecutive stable (non-intermittent) attempts at the head of the window. Required when flaky_classification_class = cleared_after_stable_run_streak."
+        },
+        "ai_inference_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Required when observed_signals contains ai_inferred_signal_provisional and at least one observed (non-AI) signal. The contract forbids a confirmed flake classification that rides only on AI inference."
+        },
+        "quarantine_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when flaky_classification_class = quarantined_flaky_under_active_quarantine. Cites the quarantine_record on this schema."
+        },
+        "outcome_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Optional ordered refs to the outcome_event_record entries (on schemas/execution/run.schema.json) included in the window. Empty when the history is reprojected from a tally without resolving each outcome."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Suspected / confirmed / quarantined classifications MUST cite at least one observed signal.",
+          "if": {
+            "properties": {
+              "flaky_classification_class": {
+                "enum": [
+                  "suspected_flaky_recent_intermittent",
+                  "confirmed_flaky_threshold_met",
+                  "quarantined_flaky_under_active_quarantine"
+                ]
+              }
+            },
+            "required": ["flaky_classification_class"]
+          },
+          "then": {
+            "required": ["observed_signals"],
+            "properties": {
+              "observed_signals": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/flaky_signal_class" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Quarantined-flaky classification MUST cite a quarantine_record_ref.",
+          "if": {
+            "properties": {
+              "flaky_classification_class": { "const": "quarantined_flaky_under_active_quarantine" }
+            },
+            "required": ["flaky_classification_class"]
+          },
+          "then": {
+            "required": ["quarantine_record_ref"],
+            "properties": {
+              "quarantine_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "AI-inferred signals MUST be paired with an authoritative anchor ref or with at least one non-AI observed signal.",
+          "if": {
+            "properties": {
+              "observed_signals": {
+                "type": "array",
+                "contains": { "const": "ai_inferred_signal_provisional" }
+              }
+            },
+            "required": ["observed_signals"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": ["ai_inference_anchor_refs"],
+                "properties": {
+                  "ai_inference_anchor_refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/opaque_ref" }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "observed_signals": {
+                    "type": "array",
+                    "contains": {
+                      "not": { "const": "ai_inferred_signal_provisional" }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "description": "Cleared-after-stable-streak classification MUST cite the streak length.",
+          "if": {
+            "properties": {
+              "flaky_classification_class": { "const": "cleared_after_stable_run_streak" }
+            },
+            "required": ["flaky_classification_class"]
+          },
+          "then": {
+            "required": ["stable_streak_length"],
+            "properties": {
+              "stable_streak_length": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      ],
+      "description": "One flaky-history record. Aggregates per-test-item attempt outcomes across a typed history window so a reviewer can answer 'is this test currently flaky, what signals justify the classification, what is the recent tally, and is it currently quarantined' without resolving every individual outcome event."
+    },
+
+    "quarantine_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "flaky_history_schema_version",
+        "quarantine_record_id",
+        "canonical_test_item_id",
+        "quarantine_authority_class",
+        "quarantine_reason_class",
+        "quarantine_state_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "quarantine_record" },
+        "flaky_history_schema_version": { "$ref": "#/$defs/flaky_history_schema_version" },
+        "quarantine_record_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_test_item_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable canonical id resolving to test_item_record.canonical_test_item_id on schemas/execution/test_discovery_state.schema.json. Quarantine records cross-link by canonical id rather than by test_item_record_id so quarantine state persists across discovery refreshes."
+        },
+        "flaky_history_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the flaky_history_record on this schema. Required when quarantine_reason_class = flaky_threshold_exceeded; null when the quarantine is not flake-driven (known-failing, environment-dependent, hardware-dependent, etc.)."
+        },
+        "quarantine_authority_class": { "$ref": "#/$defs/quarantine_authority_class" },
+        "quarantine_actor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when quarantine_authority_class is anything other than not_quarantined or quarantine_authority_unknown_requires_review. Resolves to the typed actor (user identity for command-dispatch, admin policy epoch for policy pack, supervisor for collapse, threshold rule id for automated flake policy, session quarantine row for inheritance)."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when quarantine_authority_class = quarantine_by_user_via_command_dispatch. Null otherwise."
+        },
+        "admin_policy_epoch_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when quarantine_authority_class = quarantine_by_admin_policy_pack. Null otherwise."
+        },
+        "automated_threshold_rule_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when quarantine_authority_class = quarantine_by_automated_flake_threshold_policy. Null otherwise."
+        },
+        "predecessor_quarantine_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when quarantine_state_class = superseded_by_newer_quarantine. Cites the quarantine record this one supersedes."
+        },
+        "quarantine_reason_class": { "$ref": "#/$defs/quarantine_reason_class" },
+        "quarantine_state_class": { "$ref": "#/$defs/quarantine_state_class" },
+        "quarantine_opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional typed expiry deadline. Required when quarantine_state_class = active_quarantine; null after the quarantine has lifted, expired, or been superseded. Past the deadline, the typed state MUST narrow to expired_pending_re_evaluation rather than silently lifting."
+        },
+        "lifted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional timestamp of the lift event. Required when quarantine_state_class is one of lifted_after_stable_streak, lifted_by_user_via_command_dispatch, or lifted_by_policy_change."
+        },
+        "lift_command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when quarantine_state_class = lifted_by_user_via_command_dispatch."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Authority outside not_quarantined / unknown MUST cite a quarantine_actor_ref.",
+          "if": {
+            "properties": {
+              "quarantine_authority_class": {
+                "not": {
+                  "enum": [
+                    "not_quarantined",
+                    "quarantine_authority_unknown_requires_review"
+                  ]
+                }
+              }
+            },
+            "required": ["quarantine_authority_class"]
+          },
+          "then": {
+            "required": ["quarantine_actor_ref"],
+            "properties": {
+              "quarantine_actor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "User-initiated quarantine MUST cite a command_dispatch_descriptor_ref.",
+          "if": {
+            "properties": {
+              "quarantine_authority_class": { "const": "quarantine_by_user_via_command_dispatch" }
+            },
+            "required": ["quarantine_authority_class"]
+          },
+          "then": {
+            "required": ["command_dispatch_descriptor_ref"],
+            "properties": {
+              "command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Policy-initiated quarantine MUST cite an admin_policy_epoch_ref.",
+          "if": {
+            "properties": {
+              "quarantine_authority_class": { "const": "quarantine_by_admin_policy_pack" }
+            },
+            "required": ["quarantine_authority_class"]
+          },
+          "then": {
+            "required": ["admin_policy_epoch_ref"],
+            "properties": {
+              "admin_policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Automated-flake quarantine MUST cite an automated_threshold_rule_ref.",
+          "if": {
+            "properties": {
+              "quarantine_authority_class": { "const": "quarantine_by_automated_flake_threshold_policy" }
+            },
+            "required": ["quarantine_authority_class"]
+          },
+          "then": {
+            "required": ["automated_threshold_rule_ref"],
+            "properties": {
+              "automated_threshold_rule_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Active quarantine MUST carry a typed expires_at deadline.",
+          "if": {
+            "properties": {
+              "quarantine_state_class": { "const": "active_quarantine" }
+            },
+            "required": ["quarantine_state_class"]
+          },
+          "then": {
+            "required": ["expires_at"],
+            "properties": {
+              "expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        },
+        {
+          "description": "Lifted states MUST cite a lifted_at timestamp.",
+          "if": {
+            "properties": {
+              "quarantine_state_class": {
+                "enum": [
+                  "lifted_after_stable_streak",
+                  "lifted_by_user_via_command_dispatch",
+                  "lifted_by_policy_change"
+                ]
+              }
+            },
+            "required": ["quarantine_state_class"]
+          },
+          "then": {
+            "required": ["lifted_at"],
+            "properties": {
+              "lifted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        },
+        {
+          "description": "User-initiated lift MUST cite the lift command-dispatch descriptor.",
+          "if": {
+            "properties": {
+              "quarantine_state_class": { "const": "lifted_by_user_via_command_dispatch" }
+            },
+            "required": ["quarantine_state_class"]
+          },
+          "then": {
+            "required": ["lift_command_dispatch_descriptor_ref"],
+            "properties": {
+              "lift_command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Superseded state MUST cite the predecessor quarantine record.",
+          "if": {
+            "properties": {
+              "quarantine_state_class": { "const": "superseded_by_newer_quarantine" }
+            },
+            "required": ["quarantine_state_class"]
+          },
+          "then": {
+            "required": ["predecessor_quarantine_record_ref"],
+            "properties": {
+              "predecessor_quarantine_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One quarantine record. Names the typed authority (user / admin policy / supervisor / automated threshold / session inheritance), the typed reason (flaky / known-failing / environment-dependent / etc.), the typed state (active / expired / lifted / superseded), and the typed expiry / lift / supersede refs so a reviewer can audit a quarantine without opening raw bodies. The contract forbids silent lift after expiry: an expired quarantine MUST narrow to expired_pending_re_evaluation rather than silently transitioning to lifted_*."
+    }
+  }
+}

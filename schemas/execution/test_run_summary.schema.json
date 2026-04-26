@@ -1,0 +1,638 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/test_run_summary.schema.json",
+  "title": "Aureline test run-summary and snapshot / golden review record",
+  "description": "Boundary schema for the typed run-summary projection every test surface (test runner UI, test tree panel, AI tool-call mediator, support exporter, replay / import probe, history row) reads when it needs to answer 'how did this test attempt finish, where did its result come from (local execution, provider import, parity validation), what was the rerun scope, and which snapshot / golden updates require review before they are accepted'. The record family freezes one user-visible test-run model so a UI / CLI / support reviewer cannot silently collapse a partially-complete result into a clean pass, cannot silently render a provider-imported result as a local pass without the typed source class, cannot silently absorb a snapshot update without a baseline-identity preview, and cannot silently rerun-only the failed subset without naming the typed rerun scope. The summary cites - and never re-mints - the parent run / attempt / outcome rows from schemas/execution/run.schema.json and schemas/execution/attempt.schema.json; the per-attempt artifact rail in schemas/execution/artifact_event.schema.json (which carries the structured_test_report / coverage_report / snapshot / golden artifact bytes); the discovery / item / coverage rails in schemas/execution/test_discovery_state.schema.json; the flaky / quarantine rail in schemas/execution/flaky_history.schema.json; the truth-class / degraded-state vocabulary in docs/governance/truth_and_degraded_state_vocabulary.md; the command-dispatch descriptor (ADR-0016); and the trust-decision packet (ADR-0018). Raw command lines, raw stdout / stderr byte streams, raw env bodies, raw API request / response bodies, raw absolute paths, raw URLs, raw secret values, raw test names, raw assertion bodies, raw snapshot bytes, and raw stack traces MUST NOT cross any of these boundaries; records carry refs, hashes, counts, and class labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a test_run_summary_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_run_summary_record" },
+    { "$ref": "#/$defs/snapshot_review_record" }
+  ],
+  "$defs": {
+    "test_run_summary_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "test_run_summary_record",
+        "snapshot_review_record"
+      ]
+    },
+
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "waiting_input",
+        "partially_complete",
+        "passed",
+        "failed",
+        "cancelled",
+        "stale_output",
+        "lifecycle_state_unknown_requires_review"
+      ],
+      "description": "Re-export of the lifecycle vocabulary from schemas/execution/run.schema.json. The summary uses the same terminal lifecycle states as the parent attempt's outcome event."
+    },
+
+    "test_result_source_class": {
+      "type": "string",
+      "enum": [
+        "local_execution_authoritative",
+        "local_execution_cached",
+        "provider_imported_only",
+        "provider_imported_with_local_parity_validation",
+        "merged_local_and_provider_with_parity_validation",
+        "ai_assisted_filter_then_local_execution",
+        "test_result_source_unknown_requires_review"
+      ],
+      "description": "Closed test-result-source vocabulary. local_execution_authoritative is the typed value when the summary projects a fresh local adapter run; local_execution_cached is the typed honest answer when the summary reuses a prior local result without a re-run; provider_imported_only is the typed honest answer when the result was imported from a managed / remote provider and no local parity check ran; provider_imported_with_local_parity_validation is the typed value when a local parity validation accompanied the import (parity_validation_class names the outcome); merged_local_and_provider_with_parity_validation is the typed value when both surfaces contributed and parity was validated; ai_assisted_filter_then_local_execution is the typed value for AI-suggested test selection that nonetheless ran the selected tests locally. test_result_source_unknown_requires_review fails closed."
+    },
+
+    "parity_validation_class": {
+      "type": "string",
+      "enum": [
+        "parity_not_attempted",
+        "parity_validated_local_matches_provider",
+        "parity_drift_detected_minor",
+        "parity_drift_detected_major",
+        "parity_validation_pending_local_rerun",
+        "parity_validation_skipped_under_policy",
+        "parity_validation_unknown_requires_review"
+      ],
+      "description": "Closed parity-validation vocabulary. Names the outcome of a parity check between a provider-imported result and a local re-run. parity_validated_local_matches_provider is the typed value when local and provider agreed on per-item state; parity_drift_detected_minor / _major are the typed honest answers for parity disagreement; parity_validation_pending_local_rerun is the typed honest mid-state when the local rerun has not yet completed; parity_validation_skipped_under_policy is the typed honest answer when an admin policy forbade a local re-run. parity_validation_unknown_requires_review fails closed."
+    },
+
+    "rerun_scope_class": {
+      "type": "string",
+      "enum": [
+        "not_a_rerun_initial_attempt",
+        "rerun_all_tests_in_scope",
+        "rerun_failed_only_subset",
+        "rerun_quarantined_only_subset",
+        "rerun_changed_files_only_subset",
+        "rerun_named_workset_subset",
+        "rerun_explicit_test_id_set",
+        "rerun_until_first_failure_subset",
+        "rerun_scope_unknown_requires_review"
+      ],
+      "description": "Closed rerun-scope vocabulary. Composes with - and never re-mints - the rerun_kind_class on schemas/execution/run.schema.json. rerun_failed_only_subset is the typed honest answer for the common 'rerun failed tests' affordance; rendering it as rerun_all_tests_in_scope is a typed denial. rerun_until_first_failure_subset is the typed value for the bisect-style 'stop at first failure' subset. rerun_scope_unknown_requires_review fails closed."
+    },
+
+    "by_state_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed_count",
+        "failed_count",
+        "errored_count",
+        "timed_out_count",
+        "skipped_count",
+        "quarantined_count",
+        "filtered_out_count",
+        "disabled_by_policy_count",
+        "unsupported_here_count",
+        "stale_partial_count",
+        "unknown_requires_review_count"
+      ],
+      "properties": {
+        "passed_count": { "type": "integer", "minimum": 0 },
+        "failed_count": { "type": "integer", "minimum": 0 },
+        "errored_count": { "type": "integer", "minimum": 0, "description": "Count of items in errored_outside_assertion (a fixture or setup error that prevented the test body from running)." },
+        "timed_out_count": { "type": "integer", "minimum": 0 },
+        "skipped_count": { "type": "integer", "minimum": 0 },
+        "quarantined_count": { "type": "integer", "minimum": 0, "description": "Count of items currently quarantined under flake policy. Each quarantined item MUST cite a quarantine_record_ref on its test_item_record." },
+        "filtered_out_count": { "type": "integer", "minimum": 0 },
+        "disabled_by_policy_count": { "type": "integer", "minimum": 0 },
+        "unsupported_here_count": { "type": "integer", "minimum": 0 },
+        "stale_partial_count": { "type": "integer", "minimum": 0, "description": "Count of items whose state could not be refreshed in this run (e.g. a sparse rerun that did not touch them)." },
+        "unknown_requires_review_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Compact projection of per-item state counts for the run summary. Counts mirror the eleven-state vocabulary on schemas/execution/test_discovery_state.schema.json#test_item_state_class so a reviewer can read the summary and the discovery counts with the same eyes."
+    },
+
+    "snapshot_review_kind_class": {
+      "type": "string",
+      "enum": [
+        "pre_apply_preview_required",
+        "post_apply_audit",
+        "rollback_preview_for_local_history",
+        "auto_update_blocked_no_preview",
+        "snapshot_review_kind_unknown_requires_review"
+      ],
+      "description": "Closed snapshot-review-kind vocabulary. pre_apply_preview_required is the typed canonical value for an incoming snapshot / golden update that has NOT yet been accepted; the contract requires a typed preview with baseline identity and file-count truth before the update can be applied. post_apply_audit is the typed honest answer for an already-accepted update under review for a rollback decision. rollback_preview_for_local_history names the typed preview surfaced by a local-history rollback affordance. auto_update_blocked_no_preview is the typed honest refusal class when an adapter would have silently overwritten a baseline; the typed denial pairs with snapshot_review_record_must_not_admit_silent_baseline_overwrite. snapshot_review_kind_unknown_requires_review fails closed."
+    },
+
+    "snapshot_baseline_identity_class": {
+      "type": "string",
+      "enum": [
+        "workspace_authoritative_baseline",
+        "vcs_committed_baseline",
+        "managed_workspace_baseline",
+        "provider_imported_baseline",
+        "no_prior_baseline_first_capture",
+        "snapshot_baseline_identity_unknown_requires_review"
+      ],
+      "description": "Closed snapshot-baseline-identity vocabulary. Names where the prior baseline lived. workspace_authoritative_baseline is the typed value when the baseline is a durable user-authored row on the local workspace; vcs_committed_baseline is the typed value when the baseline is committed to the VCS; managed_workspace_baseline is the typed value when the baseline lives on a managed workspace; provider_imported_baseline is the typed value when the baseline rode a provider import; no_prior_baseline_first_capture is the typed honest answer for a first capture (no rollback target). snapshot_baseline_identity_unknown_requires_review fails closed."
+    },
+
+    "snapshot_change_class": {
+      "type": "string",
+      "enum": [
+        "snapshot_added_no_prior_baseline",
+        "snapshot_removed_no_replacement",
+        "snapshot_updated_minor_textual_diff",
+        "snapshot_updated_major_structural_diff",
+        "snapshot_updated_redaction_only",
+        "snapshot_unchanged_review_no_op",
+        "snapshot_unreviewable_redaction_limited",
+        "snapshot_change_class_unknown_requires_review"
+      ],
+      "description": "Closed per-snapshot change vocabulary. snapshot_added_no_prior_baseline is the typed value for a new baseline being captured; snapshot_updated_minor_textual_diff and snapshot_updated_major_structural_diff are the typed values for a textual vs structural diff; snapshot_updated_redaction_only is the typed honest answer when only redaction posture changed (no semantic diff); snapshot_unchanged_review_no_op is the typed honest answer for an idempotent re-capture; snapshot_unreviewable_redaction_limited is the typed honest answer when broader capture would be required to render the diff. snapshot_change_class_unknown_requires_review fails closed."
+    },
+
+    "snapshot_review_decision_class": {
+      "type": "string",
+      "enum": [
+        "review_pending_no_decision",
+        "review_accepted_apply_now",
+        "review_accepted_apply_pending_user_action",
+        "review_rejected_keep_prior_baseline",
+        "review_rolled_back_to_prior_baseline",
+        "review_blocked_under_policy",
+        "review_decision_unknown_requires_review"
+      ],
+      "description": "Closed snapshot-review-decision vocabulary. review_accepted_apply_now MUST cite a command_dispatch_descriptor_ref; review_blocked_under_policy MUST cite a denial_reason_class on the record. review_decision_unknown_requires_review fails closed and forbids any apply attempt."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "test_run_summary_record_must_cite_parent_run_ref",
+        "test_run_summary_record_must_cite_parent_attempt_ref",
+        "test_run_summary_record_must_cite_outcome_event_ref",
+        "test_run_summary_record_must_cite_discovery_state_ref",
+        "test_run_summary_record_must_carry_typed_test_result_source_class",
+        "test_run_summary_record_must_carry_typed_rerun_scope_class",
+        "test_run_summary_record_must_carry_typed_parity_validation_class_when_provider_imported",
+        "test_run_summary_record_must_not_collapse_partially_complete_into_passed",
+        "test_run_summary_record_must_not_collapse_provider_imported_into_local_pass",
+        "test_run_summary_record_must_not_admit_silent_collapse_of_failed_only_subset_into_full_rerun",
+        "test_run_summary_record_must_cite_command_dispatch_descriptor_ref_when_user_initiated",
+        "test_run_summary_record_test_result_source_unknown_requires_review",
+        "test_run_summary_record_rerun_scope_unknown_requires_review",
+        "test_run_summary_record_parity_validation_unknown_requires_review",
+        "snapshot_review_record_must_cite_parent_run_ref",
+        "snapshot_review_record_must_cite_parent_attempt_ref",
+        "snapshot_review_record_must_cite_baseline_identity_class",
+        "snapshot_review_record_must_cite_review_kind_class",
+        "snapshot_review_record_must_cite_command_dispatch_descriptor_ref_when_apply",
+        "snapshot_review_record_must_carry_typed_change_summary",
+        "snapshot_review_record_must_carry_file_count_truth",
+        "snapshot_review_record_must_cite_local_history_or_rollback_path",
+        "snapshot_review_record_must_not_admit_silent_baseline_overwrite",
+        "snapshot_review_record_must_cite_artifact_event_ref_for_baseline_and_proposed",
+        "snapshot_review_record_review_kind_unknown_requires_review",
+        "snapshot_review_record_baseline_identity_unknown_requires_review",
+        "snapshot_review_record_decision_unknown_requires_review"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "test_run_summary_record_published",
+        "test_run_summary_record_revoked",
+        "test_run_summary_record_state_counts_updated",
+        "test_run_summary_record_parity_validation_updated",
+        "test_run_summary_record_silent_collapse_of_partially_complete_into_passed_forbidden_denial",
+        "test_run_summary_record_silent_collapse_of_provider_imported_into_local_pass_forbidden_denial",
+        "test_run_summary_record_silent_admit_of_failed_only_subset_as_full_rerun_forbidden_denial",
+        "test_run_summary_record_audit_denial_emitted",
+        "snapshot_review_record_published",
+        "snapshot_review_record_decision_updated",
+        "snapshot_review_record_apply_admitted",
+        "snapshot_review_record_apply_denied",
+        "snapshot_review_record_rolled_back",
+        "snapshot_review_record_silent_baseline_overwrite_forbidden_denial",
+        "snapshot_review_record_audit_denial_emitted"
+      ]
+    },
+
+    "test_run_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_run_summary_schema_version",
+        "test_run_summary_record_id",
+        "parent_run_ref",
+        "parent_attempt_ref",
+        "lifecycle_state_class",
+        "test_result_source_class",
+        "rerun_scope_class",
+        "by_state_counts",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_run_summary_record" },
+        "test_run_summary_schema_version": { "$ref": "#/$defs/test_run_summary_schema_version" },
+        "test_run_summary_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "outcome_event_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the outcome_event_record on schemas/execution/run.schema.json that this summary projects. Required for terminal lifecycle states (passed, failed, cancelled, stale_output, partially_complete); null for non-terminal states (queued, preparing, running, waiting_input)."
+        },
+        "discovery_state_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the test_discovery_state_record on schemas/execution/test_discovery_state.schema.json that this summary projects against. The summary MUST cite the discovery the run executed against; presenting a summary without a typed discovery scope is a typed denial."
+        },
+        "coverage_handoff_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the coverage_handoff_record on schemas/execution/test_discovery_state.schema.json. Null when no coverage payload accompanies this summary."
+        },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "test_result_source_class": { "$ref": "#/$defs/test_result_source_class" },
+        "parity_validation_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/parity_validation_class" }
+          ],
+          "description": "Required when test_result_source_class is one of provider_imported_only, provider_imported_with_local_parity_validation, or merged_local_and_provider_with_parity_validation. Null otherwise."
+        },
+        "rerun_scope_class": { "$ref": "#/$defs/rerun_scope_class" },
+        "predecessor_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the prior run this summary's run reruns. Required when rerun_scope_class is anything other than not_a_rerun_initial_attempt or rerun_scope_unknown_requires_review."
+        },
+        "subset_test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Optional ordered refs to the test_item_record entries that participated in this run (the subset under rerun_failed_only_subset, rerun_quarantined_only_subset, rerun_explicit_test_id_set, etc.). Empty for rerun_all_tests_in_scope and not_a_rerun_initial_attempt; non-empty entries pin the typed subset so a reviewer cannot mistake a partial rerun for a full one."
+        },
+        "by_state_counts": { "$ref": "#/$defs/by_state_counts" },
+        "structured_test_report_artifact_event_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the artifact_event_record on schemas/execution/artifact_event.schema.json carrying the structured_test_report payload. The summary cites the artifact rail rather than re-minting a parallel test-report retention surface."
+        },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when this summary projects a user-initiated rerun. Null only for not_a_rerun_initial_attempt and for automated_retry summaries."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Provider-imported sources MUST carry a typed parity_validation_class.",
+          "if": {
+            "properties": {
+              "test_result_source_class": {
+                "enum": [
+                  "provider_imported_only",
+                  "provider_imported_with_local_parity_validation",
+                  "merged_local_and_provider_with_parity_validation"
+                ]
+              }
+            },
+            "required": ["test_result_source_class"]
+          },
+          "then": {
+            "required": ["parity_validation_class"],
+            "properties": {
+              "parity_validation_class": { "$ref": "#/$defs/parity_validation_class" }
+            }
+          }
+        },
+        {
+          "description": "Reruns MUST cite the predecessor run.",
+          "if": {
+            "properties": {
+              "rerun_scope_class": {
+                "enum": [
+                  "rerun_all_tests_in_scope",
+                  "rerun_failed_only_subset",
+                  "rerun_quarantined_only_subset",
+                  "rerun_changed_files_only_subset",
+                  "rerun_named_workset_subset",
+                  "rerun_explicit_test_id_set",
+                  "rerun_until_first_failure_subset"
+                ]
+              }
+            },
+            "required": ["rerun_scope_class"]
+          },
+          "then": {
+            "required": ["predecessor_run_ref"],
+            "properties": {
+              "predecessor_run_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Subset reruns MUST carry at least one subset test-item ref.",
+          "if": {
+            "properties": {
+              "rerun_scope_class": {
+                "enum": [
+                  "rerun_failed_only_subset",
+                  "rerun_quarantined_only_subset",
+                  "rerun_changed_files_only_subset",
+                  "rerun_named_workset_subset",
+                  "rerun_explicit_test_id_set",
+                  "rerun_until_first_failure_subset"
+                ]
+              }
+            },
+            "required": ["rerun_scope_class"]
+          },
+          "then": {
+            "required": ["subset_test_item_refs"],
+            "properties": {
+              "subset_test_item_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/opaque_ref" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Terminal lifecycle states MUST cite the outcome_event_ref.",
+          "if": {
+            "properties": {
+              "lifecycle_state_class": {
+                "enum": [
+                  "partially_complete",
+                  "passed",
+                  "failed",
+                  "cancelled",
+                  "stale_output"
+                ]
+              }
+            },
+            "required": ["lifecycle_state_class"]
+          },
+          "then": {
+            "required": ["outcome_event_ref"],
+            "properties": {
+              "outcome_event_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One test run-summary record. Compact projection of how a test run / attempt finished, where its result came from, what rerun scope it executed under, and which artifact-event refs carry the per-item details. The summary never collapses partially-complete into passed, never collapses provider-imported into a local pass without a typed parity validation, and never renders a failed-only subset rerun as a full rerun."
+    },
+
+    "snapshot_change_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "added_count",
+        "removed_count",
+        "updated_minor_count",
+        "updated_major_count",
+        "updated_redaction_only_count",
+        "unchanged_count",
+        "unreviewable_redaction_limited_count",
+        "total_file_count"
+      ],
+      "properties": {
+        "added_count": { "type": "integer", "minimum": 0 },
+        "removed_count": { "type": "integer", "minimum": 0 },
+        "updated_minor_count": { "type": "integer", "minimum": 0 },
+        "updated_major_count": { "type": "integer", "minimum": 0 },
+        "updated_redaction_only_count": { "type": "integer", "minimum": 0 },
+        "unchanged_count": { "type": "integer", "minimum": 0 },
+        "unreviewable_redaction_limited_count": { "type": "integer", "minimum": 0 },
+        "total_file_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total file count truth for the snapshot review (sum of added + removed + updated_* + unchanged + unreviewable). The contract requires this number so a UI / CLI / support reviewer cannot accept a snapshot update without seeing how many files would change."
+        }
+      },
+      "description": "Compact projection of per-file change classes for the snapshot review. Counts mirror the snapshot_change_class vocabulary so a reviewer can read the summary and the per-snapshot diff with the same eyes."
+    },
+
+    "snapshot_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_run_summary_schema_version",
+        "snapshot_review_record_id",
+        "parent_run_ref",
+        "parent_attempt_ref",
+        "snapshot_review_kind_class",
+        "snapshot_baseline_identity_class",
+        "snapshot_change_summary",
+        "snapshot_review_decision_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "snapshot_review_record" },
+        "test_run_summary_schema_version": { "$ref": "#/$defs/test_run_summary_schema_version" },
+        "snapshot_review_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "discovery_state_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the test_discovery_state_record this snapshot review pairs with."
+        },
+        "subject_test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to the test_item_record entries (typically snapshot_or_golden_node leaves) the review covers. Empty for a workspace-wide preview that will be narrowed at apply time."
+        },
+        "snapshot_review_kind_class": { "$ref": "#/$defs/snapshot_review_kind_class" },
+        "snapshot_baseline_identity_class": { "$ref": "#/$defs/snapshot_baseline_identity_class" },
+        "baseline_artifact_event_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the artifact_event_record on schemas/execution/artifact_event.schema.json that carries the prior baseline payload. Null only when snapshot_baseline_identity_class = no_prior_baseline_first_capture."
+        },
+        "proposed_artifact_event_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the artifact_event_record carrying the proposed (incoming) snapshot / golden payload. Always required: the contract pins the proposed bytes to the artifact rail so a reviewer can audit the diff without re-deriving it from a transient buffer."
+        },
+        "snapshot_change_summary": { "$ref": "#/$defs/snapshot_change_summary" },
+        "snapshot_review_decision_class": { "$ref": "#/$defs/snapshot_review_decision_class" },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when snapshot_review_decision_class is review_accepted_apply_now or review_rolled_back_to_prior_baseline. Null otherwise."
+        },
+        "rollback_path_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when snapshot_review_decision_class is review_accepted_apply_now or review_accepted_apply_pending_user_action. Cites the local-history / VCS / managed-workspace rollback target so a reviewer can undo the apply. Null only for snapshot_baseline_identity_class = no_prior_baseline_first_capture (no prior to roll back to)."
+        },
+        "review_summary_headline": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional reviewer-facing headline. Raw snapshot bytes, raw assertion bodies, and raw absolute paths MUST NOT appear here."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Apply / rollback decisions MUST cite a command_dispatch_descriptor_ref.",
+          "if": {
+            "properties": {
+              "snapshot_review_decision_class": {
+                "enum": [
+                  "review_accepted_apply_now",
+                  "review_rolled_back_to_prior_baseline"
+                ]
+              }
+            },
+            "required": ["snapshot_review_decision_class"]
+          },
+          "then": {
+            "required": ["command_dispatch_descriptor_ref"],
+            "properties": {
+              "command_dispatch_descriptor_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Apply decisions MUST cite a rollback path unless this is a first capture.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "snapshot_review_decision_class": {
+                    "enum": [
+                      "review_accepted_apply_now",
+                      "review_accepted_apply_pending_user_action"
+                    ]
+                  }
+                },
+                "required": ["snapshot_review_decision_class"]
+              },
+              {
+                "properties": {
+                  "snapshot_baseline_identity_class": {
+                    "not": { "const": "no_prior_baseline_first_capture" }
+                  }
+                },
+                "required": ["snapshot_baseline_identity_class"]
+              }
+            ]
+          },
+          "then": {
+            "required": ["rollback_path_ref"],
+            "properties": {
+              "rollback_path_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "no_prior_baseline_first_capture MUST null the baseline artifact-event ref.",
+          "if": {
+            "properties": {
+              "snapshot_baseline_identity_class": { "const": "no_prior_baseline_first_capture" }
+            },
+            "required": ["snapshot_baseline_identity_class"]
+          },
+          "then": {
+            "properties": {
+              "baseline_artifact_event_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Non-first-capture baselines MUST cite the baseline artifact-event ref.",
+          "if": {
+            "properties": {
+              "snapshot_baseline_identity_class": {
+                "enum": [
+                  "workspace_authoritative_baseline",
+                  "vcs_committed_baseline",
+                  "managed_workspace_baseline",
+                  "provider_imported_baseline"
+                ]
+              }
+            },
+            "required": ["snapshot_baseline_identity_class"]
+          },
+          "then": {
+            "required": ["baseline_artifact_event_ref"],
+            "properties": {
+              "baseline_artifact_event_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One snapshot / golden review record. Names the typed review kind, the typed baseline identity, the typed change summary (with file-count truth), and the typed decision so a reviewer can audit a snapshot update without opening raw bytes. The contract forbids silent baseline overwrite: an apply decision MUST cite the command-dispatch descriptor and a typed rollback path unless this is a first capture."
+    }
+  }
+}

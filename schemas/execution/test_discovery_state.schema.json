@@ -1,0 +1,839 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/test_discovery_state.schema.json",
+  "title": "Aureline test discovery-state, test-item, and coverage-handoff record",
+  "description": "Boundary schema for the test surface every UI / CLI / support-export / replay reviewer reads when it needs to answer 'what tests have we discovered, where did the discovery come from, how fresh is it, what scope did it cover, what is the per-item state right now, and what coverage report (if any) is associated with the latest run?'. The record family freezes one user-visible test model so the test runner UI, the test tree panel, the explorer hover, the activity row, the quick-action chip, the AI tool-call mediator, the support exporter, and the replay / import probe all read the same family rather than inventing per-surface vocabularies. Discovery provenance and scope are first-class so a stale or partial tree cannot silently masquerade as current truth; per-item state separates 'not discovered' / 'filtered out' / 'skipped' / 'quarantined' / 'disabled by policy' / 'unsupported here' from passed / failed / errored / timed_out / stale_partial_discovery so a green badge cannot collapse a quarantined or filtered case into a clean pass; flaky_history_ref and quarantine_record_ref are reserved cross-links so testing extends one base model rather than forking it. Vocabularies compose with - and never re-mint - the lifecycle / queue admission / host boundary / redaction / failure / denial / audit vocabularies frozen in schemas/execution/run.schema.json and schemas/execution/attempt.schema.json, the per-attempt artifact rail in schemas/execution/artifact_event.schema.json, the execution-context root in schemas/runtime/execution_context.schema.json, the snapshot model in schemas/execution/context_snapshot.schema.json, the truth-class / degraded-state vocabulary in docs/governance/truth_and_degraded_state_vocabulary.md, and the task-event envelope in schemas/tooling/task_event_envelope.schema.json. Raw command lines, raw stdout / stderr byte streams, raw env bodies, raw absolute paths, raw URLs, raw secret values, raw artifact bytes, and raw stack traces MUST NOT cross any of these boundaries; records carry refs, hashes, counts, and class labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor with a test_discovery_state_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_discovery_state_record" },
+    { "$ref": "#/$defs/test_item_record" },
+    { "$ref": "#/$defs/coverage_handoff_record" }
+  ],
+  "$defs": {
+    "test_discovery_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "test_discovery_state_record",
+        "test_item_record",
+        "coverage_handoff_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support / evidence / replay exports. Raw absolute paths, raw URLs, raw module bytes, and raw test bodies never appear here."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (run_record, attempt_record, artifact_event_record, execution-context root, context-snapshot, flaky_history_record, quarantine_record, command-dispatch descriptor, audit-event id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in preview, history, and export-review surfaces. Raw command lines, raw env bodies, raw secret values, raw API bodies, and raw stack traces MUST NOT appear here."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for the record. metadata_and_hashes_only is the default; broadened_capture requires an explicit approval-ticket ref."
+    },
+
+    "host_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_host_runtime",
+        "ssh_remote_runtime",
+        "remote_workspace_agent_runtime",
+        "managed_workspace_agent_runtime",
+        "container_local_runtime",
+        "devcontainer_runtime",
+        "provider_remote_agent_runtime",
+        "compatibility_bridge_remote_runtime",
+        "ai_sandbox_runtime",
+        "host_boundary_unknown_requires_review"
+      ],
+      "description": "Re-export of host_boundary_class from schemas/execution/run.schema.json. The discovery / coverage record cites the host boundary the discovery ran against; a discovery from a managed worker MUST cite the matching remote target-identity witness ref through the parent run / attempt or the snapshot the discovery resolved."
+    },
+
+    "discovery_provenance_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative_discovery",
+        "local_cached_discovery_no_fresh_run",
+        "provider_imported_discovery_only",
+        "provider_imported_with_local_parity_check",
+        "merged_local_and_provider_discovery",
+        "ai_inferred_discovery_provisional",
+        "discovery_provenance_unknown_requires_review"
+      ],
+      "description": "Closed discovery-provenance vocabulary. Names where the discovery tree came from. local_authoritative_discovery is the canonical typed value when the discovery was produced by a fresh local adapter run; local_cached_discovery_no_fresh_run is the typed honest answer when the tree is reused from a prior run without a re-collect; provider_imported_discovery_only is the typed honest answer when the tree was imported from a managed / remote provider and no local adapter run has confirmed it; provider_imported_with_local_parity_check requires a typed parity_validation result (see test_run_summary.schema.json#parity_validation_class) on the matched run; merged_local_and_provider_discovery is the typed honest answer when both surfaces contributed; ai_inferred_discovery_provisional MUST cite an authoritative anchor ref under the truth-class rules. discovery_provenance_unknown_requires_review fails closed and forbids any mutating attempt against the discovery."
+    },
+
+    "discovery_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale_partial_discovery",
+        "stale_full_discovery",
+        "discovery_freshness_unknown_requires_review"
+      ],
+      "description": "Closed discovery-freshness vocabulary. Re-projects the truth-class freshness tokens from docs/governance/truth_and_degraded_state_vocabulary.md. stale_partial_discovery is the typed honest answer when only a subset of the tree is current and the rest is older than the freshness floor; stale_full_discovery is the typed honest answer when the entire tree is past freshness floor. A surface that renders the discovery MUST narrow rerun / run-selected affordances when the freshness class is below authoritative_live."
+    },
+
+    "discovery_scope_class": {
+      "type": "string",
+      "enum": [
+        "full_workspace_scope",
+        "current_root_scope",
+        "named_workset_scope",
+        "sparse_slice_scope",
+        "changed_files_only_scope",
+        "failed_only_subset_scope",
+        "single_test_id_scope",
+        "policy_limited_view_scope",
+        "discovery_scope_unknown_requires_review"
+      ],
+      "description": "Closed discovery-scope vocabulary. Composes with - and never re-mints - the scope_class on schemas/execution/context_snapshot.schema.json with two test-specific narrowings: failed_only_subset_scope and single_test_id_scope. policy_limited_view_scope is the typed honest answer when an admin policy redacted parts of the tree; consumers MUST surface the typed limitation rather than presenting a complete tree."
+    },
+
+    "test_item_kind_class": {
+      "type": "string",
+      "enum": [
+        "test_suite_node",
+        "test_module_node",
+        "test_class_node",
+        "test_case_leaf",
+        "parameterized_case_root",
+        "parameterized_case_instance",
+        "fixture_or_setup_node",
+        "doc_test_leaf",
+        "snapshot_or_golden_node",
+        "benchmark_case_leaf",
+        "test_item_kind_unknown_requires_review"
+      ],
+      "description": "Closed test-item-kind vocabulary. Names what kind of node a test_item_record represents in the discovery tree. parameterized_case_root carries the unexpanded canonical id; parameterized_case_instance is one expanded run-time row that cites parameterized_case_root_ref. fixture_or_setup_node represents a setup / teardown node that may itself fail and surface as errored without any test_case_leaf running. snapshot_or_golden_node is a leaf whose pass / fail decision rides the snapshot_review_record."
+    },
+
+    "test_item_state_class": {
+      "type": "string",
+      "enum": [
+        "not_discovered_yet",
+        "filtered_out_by_selection",
+        "skipped_by_test_directive",
+        "quarantined_under_flake_policy",
+        "disabled_by_admin_policy",
+        "unsupported_on_this_host",
+        "passed",
+        "failed",
+        "errored_outside_assertion",
+        "timed_out",
+        "stale_partial_discovery_no_recent_run",
+        "test_item_state_unknown_requires_review"
+      ],
+      "description": "Closed per-item state vocabulary. The contract guarantee is that not_discovered_yet, filtered_out_by_selection, skipped_by_test_directive, quarantined_under_flake_policy, disabled_by_admin_policy, unsupported_on_this_host, passed, failed, errored_outside_assertion, timed_out, and stale_partial_discovery_no_recent_run remain distinct; collapsing any of them into passed (in particular collapsing skipped_by_test_directive or quarantined_under_flake_policy into passed) is a typed denial under test_item_record_must_not_collapse_skipped_or_quarantined_into_passed. errored_outside_assertion is the typed honest answer for a fixture / setup / teardown failure that prevented the test body from running and is distinct from failed (an assertion failure inside the test). stale_partial_discovery_no_recent_run is the typed honest answer when the item was previously discovered but the surrounding tree is now stale; rendering it as passed is forbidden. test_item_state_unknown_requires_review fails closed."
+    },
+
+    "coverage_provenance_class": {
+      "type": "string",
+      "enum": [
+        "local_instrumented_run",
+        "provider_imported_report",
+        "merged_local_and_provider_report",
+        "cached_no_fresh_run",
+        "no_coverage_collected",
+        "coverage_provenance_unknown_requires_review"
+      ],
+      "description": "Closed coverage-provenance vocabulary. local_instrumented_run is the canonical typed value for an instrumented adapter run; provider_imported_report is the typed honest answer for a coverage payload received from a managed / remote provider with no local re-run; merged_local_and_provider_report is the typed honest answer when both contributed; cached_no_fresh_run is the typed honest answer when the row is older than the freshness floor; no_coverage_collected is the typed honest answer when the run produced no coverage payload at all and a reviewer must not see a cached prior coverage row attributed to it. coverage_provenance_unknown_requires_review fails closed."
+    },
+
+    "coverage_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale_partial_coverage",
+        "stale_full_coverage",
+        "no_coverage_to_freshen",
+        "coverage_freshness_unknown_requires_review"
+      ],
+      "description": "Closed coverage-freshness vocabulary. Mirrors discovery_freshness_class with one addition (no_coverage_to_freshen) for the typed honest answer when no coverage payload exists. A surface that renders coverage MUST narrow gauge / overlay affordances when the freshness class is below authoritative_live."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "test_discovery_state_record_must_cite_parent_run_or_attempt_ref",
+        "test_discovery_state_record_must_cite_execution_context_id",
+        "test_discovery_state_record_must_cite_context_snapshot_ref",
+        "test_discovery_state_record_must_narrow_when_below_authoritative_live",
+        "test_discovery_state_record_must_carry_typed_provenance_class",
+        "test_discovery_state_record_must_carry_typed_scope_class",
+        "test_discovery_state_record_must_not_admit_silent_collapse_of_partial_into_full_discovery",
+        "test_discovery_state_record_provenance_unknown_requires_review",
+        "test_discovery_state_record_freshness_unknown_requires_review",
+        "test_discovery_state_record_scope_unknown_requires_review",
+        "test_item_record_must_cite_parent_discovery_state_ref",
+        "test_item_record_must_cite_canonical_test_item_id",
+        "test_item_record_must_cite_parameterized_root_ref_when_instance",
+        "test_item_record_must_not_collapse_skipped_or_quarantined_into_passed",
+        "test_item_record_must_cite_quarantine_record_ref_when_quarantined",
+        "test_item_record_must_cite_flaky_history_ref_when_flaky_classification_present",
+        "test_item_record_state_unknown_requires_review",
+        "test_item_record_kind_unknown_requires_review",
+        "coverage_handoff_record_must_cite_parent_run_or_attempt_ref",
+        "coverage_handoff_record_must_carry_typed_provenance_class",
+        "coverage_handoff_record_must_narrow_when_below_authoritative_live",
+        "coverage_handoff_record_must_cite_artifact_event_ref_when_provenance_local_or_merged",
+        "coverage_handoff_record_must_carry_typed_freshness_class",
+        "coverage_handoff_record_provenance_unknown_requires_review",
+        "coverage_handoff_record_freshness_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary across discovery / item / coverage records. Every refusal fails closed and cites exactly one value."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "test_discovery_state_record_published",
+        "test_discovery_state_record_revoked",
+        "test_discovery_state_record_provenance_updated",
+        "test_discovery_state_record_freshness_narrowed",
+        "test_discovery_state_record_scope_narrowed",
+        "test_discovery_state_record_silent_collapse_of_partial_into_full_forbidden_denial",
+        "test_discovery_state_record_audit_denial_emitted",
+        "test_item_record_published",
+        "test_item_record_state_transitioned",
+        "test_item_record_quarantine_attached",
+        "test_item_record_quarantine_lifted",
+        "test_item_record_silent_collapse_of_skipped_or_quarantined_into_passed_forbidden_denial",
+        "test_item_record_audit_denial_emitted",
+        "coverage_handoff_record_published",
+        "coverage_handoff_record_revoked",
+        "coverage_handoff_record_provenance_updated",
+        "coverage_handoff_record_freshness_narrowed",
+        "coverage_handoff_record_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event id vocabulary across discovery / item / coverage records. Raw command lines, raw stdout / stderr bytes, raw env bodies, raw API bodies, raw absolute paths, raw URLs, raw secret values, and raw stack traces MUST NOT appear on any audit event."
+    },
+
+    "discovery_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_count",
+        "discovered_count",
+        "filtered_out_count",
+        "skipped_count",
+        "quarantined_count",
+        "disabled_by_policy_count",
+        "unsupported_here_count",
+        "unknown_requires_review_count"
+      ],
+      "properties": {
+        "total_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total nodes the discovery surfaces (suites + cases + parameterized expansions). MUST equal the sum of discovered_count + filtered_out_count + skipped_count + quarantined_count + disabled_by_policy_count + unsupported_here_count + unknown_requires_review_count plus any not_discovered_yet rows for an in-progress discovery."
+        },
+        "discovered_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items the discovery surfaced and considered eligible for execution."
+        },
+        "filtered_out_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items filtered out by the user's selection (named workset, sparse slice, single-id scope)."
+        },
+        "skipped_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items skipped by an in-source test directive (skip / xfail / ignore)."
+        },
+        "quarantined_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items currently quarantined under flake policy. Each quarantined item MUST cite a quarantine_record_ref on its test_item_record."
+        },
+        "disabled_by_policy_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items disabled by an admin policy pack (workspace-trust restricted, secret-class intersection, irreversible-action policy)."
+        },
+        "unsupported_here_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items that the current host boundary does not support (a test marked Linux-only running on macOS, a test marked managed-only running locally, a test depending on a credential class not available in account_free_local)."
+        },
+        "unknown_requires_review_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items the discovery could not classify into a typed kind / state and that fail closed under the typed honesty rule."
+        }
+      },
+      "description": "Compact projection of discovery counts so a reviewer can answer 'how many tests, how many filtered, how many quarantined, how many unsupported here' without resolving the per-item records. Counts are projections; the per-item records remain authoritative."
+    },
+
+    "test_discovery_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_discovery_state_schema_version",
+        "test_discovery_state_record_id",
+        "discovery_provenance_class",
+        "discovery_freshness_class",
+        "discovery_scope_class",
+        "host_boundary_class",
+        "execution_context_id",
+        "context_snapshot_ref",
+        "test_item_refs",
+        "discovery_counts",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_discovery_state_record" },
+        "test_discovery_state_schema_version": { "$ref": "#/$defs/test_discovery_state_schema_version" },
+        "test_discovery_state_record_id": { "$ref": "#/$defs/opaque_id" },
+        "discovery_provenance_class": { "$ref": "#/$defs/discovery_provenance_class" },
+        "discovery_freshness_class": { "$ref": "#/$defs/discovery_freshness_class" },
+        "discovery_scope_class": { "$ref": "#/$defs/discovery_scope_class" },
+        "host_boundary_class": { "$ref": "#/$defs/host_boundary_class" },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Execution-context id resolving to schemas/runtime/execution_context.schema.json. Discovery and per-item records share one execution-context id; per-surface ids are forbidden."
+        },
+        "context_snapshot_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Snapshot id resolving to schemas/execution/context_snapshot.schema.json that the discovery resolved against. A discovery whose snapshot has since drifted must narrow discovery_freshness_class to stale_* rather than presenting itself as authoritative_live."
+        },
+        "remote_target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Remote target-identity witness ref. MUST be non-null when host_boundary_class is one of ssh_remote_runtime / remote_workspace_agent_runtime / managed_workspace_agent_runtime / provider_remote_agent_runtime / compatibility_bridge_remote_runtime / ai_sandbox_runtime."
+        },
+        "container_target_identity_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Container / devcontainer target-identity ref. Non-null when host_boundary_class is container_local_runtime or devcontainer_runtime."
+        },
+        "parent_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the run_record that produced (or last refreshed) the discovery tree. Required when discovery_provenance_class is local_authoritative_discovery, provider_imported_with_local_parity_check, or merged_local_and_provider_discovery; null only for cached / provider-imported discovery without a paired local run."
+        },
+        "parent_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the attempt_record that produced (or last refreshed) the discovery tree. Required when parent_run_ref is non-null."
+        },
+        "test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to test_item_record entries on this schema. The discovery MUST NOT collapse a partial discovery into a full one; rendering a stale_partial_discovery as authoritative_live is a typed denial."
+        },
+        "coverage_handoff_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the matching coverage_handoff_record on this schema. Null when no coverage payload is associated with this discovery."
+        },
+        "discovery_counts": { "$ref": "#/$defs/discovery_counts" },
+        "discovery_collected_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Timestamp at which the discovery tree itself was collected. May predate captured_at when the record reprojects a cached discovery."
+        },
+        "freshness_floor_breached": {
+          "type": "boolean",
+          "description": "True when discovery_collected_at is older than the freshness floor for discovery_provenance_class. When true, discovery_freshness_class MUST be stale_partial_discovery, stale_full_discovery, or discovery_freshness_unknown_requires_review."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when redaction_class is broadened_capture. Null otherwise."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Non-local host boundaries MUST cite the matching target-identity witness.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": [
+                  "ssh_remote_runtime",
+                  "remote_workspace_agent_runtime",
+                  "managed_workspace_agent_runtime",
+                  "provider_remote_agent_runtime",
+                  "compatibility_bridge_remote_runtime",
+                  "ai_sandbox_runtime"
+                ]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["remote_target_identity_witness_ref"],
+            "properties": {
+              "remote_target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Container / devcontainer host boundaries MUST cite the container target identity.",
+          "if": {
+            "properties": {
+              "host_boundary_class": {
+                "enum": ["container_local_runtime", "devcontainer_runtime"]
+              }
+            },
+            "required": ["host_boundary_class"]
+          },
+          "then": {
+            "required": ["container_target_identity_ref"],
+            "properties": {
+              "container_target_identity_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Local-authoritative / parity-check / merged provenance MUST cite the parent run and attempt that produced the tree.",
+          "if": {
+            "properties": {
+              "discovery_provenance_class": {
+                "enum": [
+                  "local_authoritative_discovery",
+                  "provider_imported_with_local_parity_check",
+                  "merged_local_and_provider_discovery"
+                ]
+              }
+            },
+            "required": ["discovery_provenance_class"]
+          },
+          "then": {
+            "required": ["parent_run_ref", "parent_attempt_ref"],
+            "properties": {
+              "parent_run_ref": { "$ref": "#/$defs/opaque_ref" },
+              "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Freshness-floor breach MUST narrow freshness class to a stale or unknown value.",
+          "if": {
+            "properties": { "freshness_floor_breached": { "const": true } },
+            "required": ["freshness_floor_breached"]
+          },
+          "then": {
+            "properties": {
+              "discovery_freshness_class": {
+                "enum": [
+                  "stale_partial_discovery",
+                  "stale_full_discovery",
+                  "discovery_freshness_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "broadened_capture redaction MUST carry an approval-ticket ref.",
+          "if": {
+            "properties": { "redaction_class": { "const": "broadened_capture" } },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One test discovery-state record. Stable header for the discovery tree at the moment it was captured. Per-item state rides test_item_record entries; the coverage payload (if any) rides coverage_handoff_record. The header MUST NOT silently render a stale or partial discovery as authoritative live truth."
+    },
+
+    "test_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_discovery_state_schema_version",
+        "test_item_record_id",
+        "parent_discovery_state_ref",
+        "canonical_test_item_id",
+        "test_item_kind_class",
+        "test_item_state_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_item_record" },
+        "test_discovery_state_schema_version": { "$ref": "#/$defs/test_discovery_state_schema_version" },
+        "test_item_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_discovery_state_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the test_discovery_state_record that surfaces this item. Every item MUST cite its parent discovery; per-item rows that float without a discovery header are forbidden."
+        },
+        "canonical_test_item_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable canonical id for this test item (suite + case + parameterized lineage), reserved as the cross-record join key for testing extensions (failure history, evidence packets, coverage overlays, AI suggestions). The canonical id MUST NOT encode a raw absolute path or a raw URL; it is an opaque token."
+        },
+        "test_item_kind_class": { "$ref": "#/$defs/test_item_kind_class" },
+        "test_item_state_class": { "$ref": "#/$defs/test_item_state_class" },
+        "parent_item_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the parent item in the discovery tree. Null for top-level suite / module nodes."
+        },
+        "child_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to child items. Empty for leaf nodes."
+        },
+        "parameterized_case_root_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Required when test_item_kind_class = parameterized_case_instance; cites the parameterized_case_root that this instance expands. Null for non-parameterized items and for the parameterized root itself."
+        },
+        "parameterized_case_instance_index": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional ordinal index of this parameterized instance under its root. Null for non-parameterized items and for the parameterized root itself."
+        },
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Reviewer-facing display label safe for export. Raw absolute paths, raw URLs, raw command lines, and raw secret values MUST NOT appear here."
+        },
+        "latest_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the run_record that produced the latest typed state for this item. Null for not_discovered_yet, filtered_out_by_selection, and stale_partial_discovery_no_recent_run."
+        },
+        "latest_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the attempt_record that produced the latest typed state for this item."
+        },
+        "latest_outcome_event_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the outcome_event_record on schemas/execution/run.schema.json that produced the latest typed state for this item."
+        },
+        "flaky_history_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the flaky_history_record on schemas/execution/flaky_history.schema.json that records the per-item flake aggregation. Required when the item carries a non-null flaky classification on its history record (the test_item_record itself does not duplicate the classification)."
+        },
+        "quarantine_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the quarantine_record on schemas/execution/flaky_history.schema.json. Required when test_item_state_class = quarantined_under_flake_policy."
+        },
+        "skip_reason_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional reviewer-facing skip reason for skipped_by_test_directive items. Raw command lines, raw env bodies, and raw secret values MUST NOT appear here."
+        },
+        "unsupported_reason_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "host_os_mismatch",
+            "host_arch_mismatch",
+            "missing_runtime_capability",
+            "missing_credential_class",
+            "missing_managed_target",
+            "policy_disabled_on_this_host",
+            "broadened_capture_required_not_granted",
+            "unsupported_reason_unknown_requires_review",
+            null
+          ],
+          "description": "Required when test_item_state_class = unsupported_on_this_host. Names the typed reason the item is not runnable here."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "parameterized_case_instance MUST cite a parameterized_case_root_ref.",
+          "if": {
+            "properties": {
+              "test_item_kind_class": { "const": "parameterized_case_instance" }
+            },
+            "required": ["test_item_kind_class"]
+          },
+          "then": {
+            "required": ["parameterized_case_root_ref"],
+            "properties": {
+              "parameterized_case_root_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "quarantined items MUST cite a quarantine_record_ref.",
+          "if": {
+            "properties": {
+              "test_item_state_class": { "const": "quarantined_under_flake_policy" }
+            },
+            "required": ["test_item_state_class"]
+          },
+          "then": {
+            "required": ["quarantine_record_ref"],
+            "properties": {
+              "quarantine_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "unsupported_on_this_host items MUST cite a typed unsupported_reason_class.",
+          "if": {
+            "properties": {
+              "test_item_state_class": { "const": "unsupported_on_this_host" }
+            },
+            "required": ["test_item_state_class"]
+          },
+          "then": {
+            "required": ["unsupported_reason_class"],
+            "properties": {
+              "unsupported_reason_class": {
+                "type": "string",
+                "enum": [
+                  "host_os_mismatch",
+                  "host_arch_mismatch",
+                  "missing_runtime_capability",
+                  "missing_credential_class",
+                  "missing_managed_target",
+                  "policy_disabled_on_this_host",
+                  "broadened_capture_required_not_granted",
+                  "unsupported_reason_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One test-item record. The atomic discovery row for one suite, module, class, case, parameterized instance, fixture, doc-test, snapshot leaf, or benchmark case. The contract guarantee is that skipped, quarantined, disabled-by-policy, unsupported-here, and stale-partial-discovery items remain distinct from passed; collapsing any of them into passed is a typed denial."
+    },
+
+    "coverage_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "covered_file_count",
+        "uncovered_file_count",
+        "excluded_file_count",
+        "covered_line_count",
+        "uncovered_line_count",
+        "excluded_line_count"
+      ],
+      "properties": {
+        "covered_file_count": { "type": "integer", "minimum": 0 },
+        "uncovered_file_count": { "type": "integer", "minimum": 0 },
+        "excluded_file_count": { "type": "integer", "minimum": 0 },
+        "covered_line_count": { "type": "integer", "minimum": 0 },
+        "uncovered_line_count": { "type": "integer", "minimum": 0 },
+        "excluded_line_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Compact projection of file / line counts so a reviewer can answer 'how much of the workspace did this coverage payload cover, how much was uncovered, how much was excluded' without resolving the underlying coverage report. Counts are projections; the artifact_event_record carrying the coverage_report payload remains authoritative."
+    },
+
+    "coverage_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_discovery_state_schema_version",
+        "coverage_handoff_record_id",
+        "coverage_provenance_class",
+        "coverage_freshness_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "coverage_handoff_record" },
+        "test_discovery_state_schema_version": { "$ref": "#/$defs/test_discovery_state_schema_version" },
+        "coverage_handoff_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_run_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the run_record that produced the coverage payload. Required when coverage_provenance_class is local_instrumented_run or merged_local_and_provider_report."
+        },
+        "parent_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the attempt_record that produced the coverage payload. Required when parent_run_ref is non-null."
+        },
+        "parent_discovery_state_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the test_discovery_state_record this coverage row pairs with. Null when no discovery row is associated."
+        },
+        "coverage_artifact_event_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the artifact_event_record on schemas/execution/artifact_event.schema.json that carries the coverage_report payload. Required when coverage_provenance_class is local_instrumented_run or merged_local_and_provider_report; the contract pins the coverage payload to the artifact rail rather than re-minting a parallel coverage retention surface."
+        },
+        "coverage_provenance_class": { "$ref": "#/$defs/coverage_provenance_class" },
+        "coverage_freshness_class": { "$ref": "#/$defs/coverage_freshness_class" },
+        "coverage_collected_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional timestamp at which the coverage payload was collected. Null only when coverage_provenance_class is no_coverage_collected or coverage_provenance_unknown_requires_review."
+        },
+        "coverage_counts": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/coverage_counts" }
+          ],
+          "description": "Optional file / line counts projection. Null when coverage_provenance_class is no_coverage_collected."
+        },
+        "freshness_floor_breached": {
+          "type": "boolean",
+          "description": "True when coverage_collected_at is older than the freshness floor for coverage_provenance_class. When true, coverage_freshness_class MUST be stale_partial_coverage, stale_full_coverage, or coverage_freshness_unknown_requires_review."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Local-instrumented / merged provenance MUST cite the parent run, attempt, and coverage artifact-event ref.",
+          "if": {
+            "properties": {
+              "coverage_provenance_class": {
+                "enum": [
+                  "local_instrumented_run",
+                  "merged_local_and_provider_report"
+                ]
+              }
+            },
+            "required": ["coverage_provenance_class"]
+          },
+          "then": {
+            "required": [
+              "parent_run_ref",
+              "parent_attempt_ref",
+              "coverage_artifact_event_ref"
+            ],
+            "properties": {
+              "parent_run_ref": { "$ref": "#/$defs/opaque_ref" },
+              "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+              "coverage_artifact_event_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "no_coverage_collected MUST null the counts and the collected-at timestamp.",
+          "if": {
+            "properties": {
+              "coverage_provenance_class": { "const": "no_coverage_collected" }
+            },
+            "required": ["coverage_provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "coverage_counts": { "type": "null" },
+              "coverage_collected_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Freshness-floor breach MUST narrow coverage_freshness_class to a stale or unknown value.",
+          "if": {
+            "properties": { "freshness_floor_breached": { "const": true } },
+            "required": ["freshness_floor_breached"]
+          },
+          "then": {
+            "properties": {
+              "coverage_freshness_class": {
+                "enum": [
+                  "stale_partial_coverage",
+                  "stale_full_coverage",
+                  "coverage_freshness_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One coverage handoff record. Names the typed coverage provenance, freshness, and counts so a reviewer can tell which run produced the coverage, how fresh it is, and how to find the underlying artifact_event_record. The handoff record never carries the raw coverage payload itself; that rides the artifact rail."
+    }
+  }
+}
