@@ -1,0 +1,131 @@
+# Repair-transaction seed case: policy / entitlement refresh via trust-
+# approval reacquire.
+#
+# Companion to docs/support/repair_transaction_contract.md and
+# schemas/support/repair_transaction.schema.json. Validates against
+# repair_seed_case_record.
+
+repair_transaction_schema_version: 1
+record_kind: repair_seed_case_record
+case_id: repair_case:policy_entitlement_refresh.trust_approval_reacquire
+scenario_summary: >
+  A workspace-trust approval ticket has expired, a policy epoch has
+  drifted, or an entitlement refresh is required before a route can
+  re-open. The transaction re-requests approval through the reviewed
+  reapproval flow; it never widens trust beyond the user's request,
+  never mints a new ticket, and never alters admin-authored policy
+  rows.
+repair_transaction_id: repair_transaction:policy_entitlement_refresh.trust_approval_reacquire
+repair_class_family: policy_entitlement_refresh
+suggested_repair_class: reacquire_trust_approval
+transaction_reversal_class: compensating
+apply_mode_class: apply_with_rollback_on_failure
+
+initiating_finding_codes:
+  - doctor.finding.trust_state_approval_expired
+  - doctor.finding.trust_state_policy_floor_blocked
+
+impacted_state_classes:
+  - policy_entitlement_handle
+  - trust_approval_ticket
+  - doctor_audit_log_entry
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - remote_helper_authorization
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+  - docs_pack_authoring
+  - installed_extension_marketplace_state
+  - managed_workspace_control_plane
+
+lost_capability_classes:
+  - workspace_trust_widening
+  - remote_helper_attach
+  - managed_control_plane_writes
+  - telemetry_upload
+
+runtime_requirements:
+  online_offline_requirement_class: prefers_online_supports_offline_observe
+  trust_policy_requirement_class: requires_explicit_user_consent_no_trust_widen
+  requires_active_user_consent: true
+  requires_active_admin_consent: false
+
+forbidden_action_assertions:
+  - widen_workspace_trust
+  - publish_route
+  - run_repo_hook_silently
+  - mutate_user_authored_files
+  - read_or_rotate_credentials
+  - mutate_managed_policy
+  - auto_retarget_without_user
+  - auto_widen_redaction_choice
+
+checkpoint_ref_required: true
+idempotency_key: repair-policy-refresh-v1
+preview_artifact_ref: repair_preview:policy_entitlement_refresh.trust_approval_reacquire
+outcome_artifact_ref: repair_outcome:policy_entitlement_refresh.trust_approval_reacquire
+
+escalation_route:
+  escalation_required_when:
+    - policy_forced_narrower_than_user_request
+    - rung_exit_reason_denied_by_policy
+    - managed_policy_changed_mid_transaction
+    - trust_state_below_floor
+    - no_local_repair_path_available
+  default_handoff_packet_template_ref: fixtures/support/escalation_packet_completeness_cases/blocked_trust_state_approval_expired.yaml
+  default_redaction_choice_class: support_bundle_by_reference
+
+linkage_refs:
+  scenario_row_ref: scenario_row:blocked_trust_state
+  recovery_action_id: recovery_action:restricted_reopen.managed_fallback
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/blocked_trust_state_approval_expired.yaml
+  project_doctor_finding_ref: doctor.finding.trust_state_approval_expired
+  checkpoint_ref: checkpoint:policy-refresh:seed
+  preview_record_ref: repair_preview:policy_entitlement_refresh.trust_approval_reacquire
+  outcome_record_ref: repair_outcome:policy_entitlement_refresh.trust_approval_reacquire
+
+default_redaction_choice_class: support_bundle_by_reference
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, buffers, durable indexes, trust posture,
+    credentials, helper-attach authorization, managed policy, session
+    state, exported bundles, docs authoring, the installed extension
+    set, and the managed control plane all stay untouched.
+  change_summary: >
+    The policy entitlement handle and the trust-approval ticket are
+    refreshed through the reviewed reapproval flow; one audit-log
+    entry is written naming the policy epoch and the approval ticket
+    id. Trust is never widened beyond the user's request.
+  capability_disablement_summary: >
+    Workspace trust widening, remote helper attach, managed control-
+    plane writes, and telemetry upload stay disabled until the
+    refreshed approval lands.
+  escalation_summary: >
+    Escalate when policy forces a narrower posture than the user
+    requested, when an exit attempt produced denied_by_policy, when
+    managed policy changed mid-transaction, when trust dropped below
+    the policy floor, or when no local repair path remains; the
+    default escalation packet is the blocked_trust_state handoff case
+    with `support_bundle_by_reference` redaction.
+  user_facing_next_step: >
+    Authorize the reviewed reapproval preview; sign in to the
+    reapproval flow when prompted. The transaction never mints a new
+    ticket on the user's behalf — mutate_managed_policy is asserted
+    forbidden.
+
+notes: >
+  mutate_managed_policy is added to the forbidden-action set so the
+  transaction cannot quietly rewrite admin-authored policy rows.
+  trust_policy_requirement_class is
+  requires_explicit_user_consent_no_trust_widen so apply blocks until
+  the user provides explicit consent and refuses to widen trust beyond
+  what the user requested.
+emitted_at: "2026-04-26T00:00:00Z"

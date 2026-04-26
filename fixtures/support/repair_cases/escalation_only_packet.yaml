@@ -1,0 +1,128 @@
+# Repair-transaction seed case: guided export / escalation when no
+# safe local repair exists.
+#
+# Companion to docs/support/repair_transaction_contract.md and
+# schemas/support/repair_transaction.schema.json. Validates against
+# repair_seed_case_record.
+
+repair_transaction_schema_version: 1
+record_kind: repair_seed_case_record
+case_id: repair_case:guided_export_escalation.no_local_repair_available
+scenario_summary: >
+  Doctor diagnosed a blocked-user state but no narrowest-safe-first
+  repair path is available locally — for example a wrong-target
+  detection that requires reapproval the user cannot grant alone, or
+  a policy-floor block on the workspace. The transaction refuses to
+  apply and prepares an escalation packet so support review can pick
+  up the gap with full context.
+repair_transaction_id: repair_transaction:guided_export_escalation.no_local_repair_available
+repair_class_family: guided_export_escalation
+suggested_repair_class: defer_to_escalation_packet
+transaction_reversal_class: audit_only
+apply_mode_class: apply_refused_escalation_only
+
+initiating_finding_codes:
+  - doctor.finding.wrong_target_detected_requires_reapproval
+  - doctor.finding.trust_state_policy_floor_blocked
+
+impacted_state_classes: []
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - remote_helper_authorization
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+  - docs_pack_authoring
+  - installed_extension_marketplace_state
+  - managed_workspace_control_plane
+
+lost_capability_classes:
+  - extension_auto_activation
+  - remote_helper_attach
+  - managed_control_plane_writes
+  - workspace_trust_widening
+
+runtime_requirements:
+  online_offline_requirement_class: supports_offline_local_only
+  trust_policy_requirement_class: no_trust_or_policy_change
+  requires_active_user_consent: true
+  requires_active_admin_consent: false
+
+forbidden_action_assertions:
+  - widen_workspace_trust
+  - publish_route
+  - run_repo_hook_silently
+  - mutate_user_authored_files
+  - read_or_rotate_credentials
+  - mutate_managed_policy
+  - silent_helper_rebind
+  - silent_extension_reinstall
+  - auto_retarget_without_user
+  - auto_widen_redaction_choice
+  - embed_raw_secret_in_export
+
+checkpoint_ref_required: false
+idempotency_key: repair-escalation-only-v1
+preview_artifact_ref: repair_preview:guided_export_escalation.no_local_repair_available
+outcome_artifact_ref: repair_outcome:guided_export_escalation.no_local_repair_available
+
+escalation_route:
+  escalation_required_when:
+    - no_local_repair_path_available
+    - diagnosis_remains_insufficient
+    - policy_forced_narrower_than_user_request
+  default_handoff_packet_template_ref: fixtures/support/escalation_packet_completeness_cases/wrong_target_environment_requires_reapproval.yaml
+  default_redaction_choice_class: support_bundle_by_reference
+
+linkage_refs:
+  scenario_row_ref: scenario_row:wrong_target_environment
+  recovery_action_id: null
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/wrong_target_environment_requires_reapproval.yaml
+  project_doctor_finding_ref: doctor.finding.wrong_target_detected_requires_reapproval
+  checkpoint_ref: null
+  preview_record_ref: repair_preview:guided_export_escalation.no_local_repair_available
+  outcome_record_ref: repair_outcome:guided_export_escalation.no_local_repair_available
+
+default_redaction_choice_class: support_bundle_by_reference
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, buffers, durable indexes, trust posture,
+    credentials, helper-attach authorization, managed policy, session
+    state, exported bundles, docs authoring, the installed extension
+    set, and the managed control plane all stay untouched. The
+    transaction never writes any state class.
+  change_summary: >
+    No state mutates. The transaction prepares an escalation packet
+    naming the scenario row, the Doctor finding code, the support-
+    bundle ref, and the preserved redaction default; one audit-log
+    entry records the refusal reason.
+  capability_disablement_summary: >
+    Capabilities narrowed by the underlying restricted-mode rung
+    remain narrowed; the transaction itself disables nothing new.
+  escalation_summary: >
+    The transaction is itself an escalation. The default packet is
+    the wrong_target_environment handoff case with
+    `support_bundle_by_reference` redaction so route bodies and
+    credentials never embed.
+  user_facing_next_step: >
+    Review the prepared escalation packet, fill any reviewer-required
+    fields, and route through the reviewed handoff lane. Widening to a
+    different repair family requires a new transaction id; this one is
+    audit-only by construction.
+
+notes: >
+  guided_export_escalation MUST set apply_mode_class =
+  apply_refused_escalation_only, transaction_reversal_class =
+  audit_only, checkpoint_ref = null, and impacted_state_classes = [].
+  The schema enforces these constraints. Forbidden-action set adds
+  embed_raw_secret_in_export and auto_widen_redaction_choice so the
+  exported packet cannot quietly drop secrets or widen redaction
+  defaults.
+emitted_at: "2026-04-26T00:00:00Z"

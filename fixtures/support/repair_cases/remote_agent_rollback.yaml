@@ -1,0 +1,126 @@
+# Repair-transaction seed case: remote agent rollback via remote /
+# runtime repair.
+#
+# Companion to docs/support/repair_transaction_contract.md and
+# schemas/support/repair_transaction.schema.json. Validates against
+# repair_seed_case_record.
+
+repair_transaction_schema_version: 1
+record_kind: repair_seed_case_record
+case_id: repair_case:remote_runtime_repair.remote_agent_rollback
+scenario_summary: >
+  A remote helper or remote agent runtime regressed after a deploy and
+  is no longer healthy on the user's connected target. The transaction
+  rolls the remote runtime back to its last good lineage; the local
+  helper-attach authorization is preserved, and a reattach prompt is
+  surfaced to the user — sessions are never silently rebound.
+repair_transaction_id: repair_transaction:remote_runtime_repair.remote_agent_rollback
+repair_class_family: remote_runtime_repair
+suggested_repair_class: rollback_remote_runtime
+transaction_reversal_class: compensating
+apply_mode_class: apply_with_rollback_on_failure
+
+initiating_finding_codes:
+  - doctor.finding.helper_attach_runtime_regressed
+  - doctor.finding.remote_route_reachability_intermittent
+
+impacted_state_classes:
+  - remote_agent_runtime_handle
+  - remote_helper_session_handle
+  - doctor_audit_log_entry
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - remote_helper_authorization
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+  - docs_pack_authoring
+  - installed_extension_marketplace_state
+  - managed_workspace_control_plane
+
+lost_capability_classes:
+  - remote_helper_attach
+  - background_rebuild
+  - ai_runtime_access
+  - telemetry_upload
+
+runtime_requirements:
+  online_offline_requirement_class: requires_online
+  trust_policy_requirement_class: requires_existing_trust_unchanged
+  requires_active_user_consent: true
+  requires_active_admin_consent: false
+
+forbidden_action_assertions:
+  - widen_workspace_trust
+  - publish_route
+  - run_repo_hook_silently
+  - mutate_user_authored_files
+  - read_or_rotate_credentials
+  - silent_helper_rebind
+  - auto_retarget_without_user
+  - auto_widen_redaction_choice
+
+checkpoint_ref_required: true
+idempotency_key: repair-remote-agent-rollback-v1
+preview_artifact_ref: repair_preview:remote_runtime_repair.remote_agent_rollback
+outcome_artifact_ref: repair_outcome:remote_runtime_repair.remote_agent_rollback
+
+escalation_route:
+  escalation_required_when:
+    - online_runtime_unavailable
+    - exact_undo_unavailable
+    - lost_capability_blocks_current_task
+    - no_local_repair_path_available
+  default_handoff_packet_template_ref: fixtures/support/escalation_packet_completeness_cases/failed_helper_attach_approval_required.yaml
+  default_redaction_choice_class: support_bundle_by_reference
+
+linkage_refs:
+  scenario_row_ref: scenario_row:failed_helper_attach
+  recovery_action_id: recovery_action:restricted_reopen.managed_fallback
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/failed_helper_attach_approval_required.yaml
+  project_doctor_finding_ref: doctor.finding.helper_attach_runtime_regressed
+  checkpoint_ref: checkpoint:remote-runtime-rollback:seed
+  preview_record_ref: repair_preview:remote_runtime_repair.remote_agent_rollback
+  outcome_record_ref: repair_outcome:remote_runtime_repair.remote_agent_rollback
+
+default_redaction_choice_class: support_bundle_by_reference
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, buffers, durable indexes, trust posture,
+    credentials, helper-attach authorization, managed policy, session-
+    restore state, exported bundles, docs authoring, the installed
+    extension set, and the managed control plane all stay untouched.
+  change_summary: >
+    The remote agent runtime handle is rolled back to its last good
+    lineage; the live helper session handle is suspended pending an
+    explicit reattach prompt. One audit-log entry is written naming
+    the runtime lineage refs and the rollback target.
+  capability_disablement_summary: >
+    Remote helper attach, background rebuild, AI runtime access, and
+    telemetry upload pause until the user accepts the reattach prompt.
+  escalation_summary: >
+    Escalate when the online runtime is unavailable, when an exact-undo
+    expectation no longer holds, when a disabled capability blocks the
+    user's current task, or when no local repair path remains; the
+    default escalation packet is the failed_helper_attach handoff case
+    with `support_bundle_by_reference` redaction so route bodies and
+    credentials never embed.
+  user_facing_next_step: >
+    Authorize the reviewed rollback preview; review and accept the
+    reattach prompt before sessions resume. Reattaching is never
+    silent — silent_helper_rebind is asserted forbidden.
+
+notes: >
+  silent_helper_rebind and auto_retarget_without_user are added to the
+  forbidden-action set so the transaction cannot quietly rebind a
+  session or redirect the workspace target. Default redaction is
+  support_bundle_by_reference because the remote route body and the
+  helper credential material MUST NOT embed in the escalation packet.
+emitted_at: "2026-04-26T00:00:00Z"

@@ -1,0 +1,119 @@
+# Repair-transaction seed case: extension quarantine via extension
+# isolation.
+#
+# Companion to docs/support/repair_transaction_contract.md and
+# schemas/support/repair_transaction.schema.json. Validates against
+# repair_seed_case_record.
+
+repair_transaction_schema_version: 1
+record_kind: repair_seed_case_record
+case_id: repair_case:extension_isolation.suspect_host_quarantine
+scenario_summary: >
+  An extension is suspected of driving a runtime-host crash loop or
+  regression. The transaction quarantines the suspect extension and
+  offers a bisect path; it never auto-reenables, never reinstalls, and
+  never rewrites the marketplace install set.
+repair_transaction_id: repair_transaction:extension_isolation.suspect_host_quarantine
+repair_class_family: extension_isolation
+suggested_repair_class: quarantine_and_bisect_extension
+transaction_reversal_class: compensating
+apply_mode_class: apply_with_rollback_on_failure
+
+initiating_finding_codes:
+  - doctor.finding.extension_host_crash_loop_quarantined
+  - doctor.finding.extension_regression_suspected
+
+impacted_state_classes:
+  - extension_quarantine_state
+  - doctor_audit_log_entry
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - remote_helper_authorization
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+  - docs_pack_authoring
+  - installed_extension_marketplace_state
+  - managed_workspace_control_plane
+
+lost_capability_classes:
+  - extension_auto_activation
+  - extension_host_launch
+  - background_rebuild
+  - ai_runtime_access
+
+runtime_requirements:
+  online_offline_requirement_class: supports_offline_local_only
+  trust_policy_requirement_class: no_trust_or_policy_change
+  requires_active_user_consent: true
+  requires_active_admin_consent: false
+
+forbidden_action_assertions:
+  - widen_workspace_trust
+  - publish_route
+  - run_repo_hook_silently
+  - mutate_user_authored_files
+  - read_or_rotate_credentials
+  - silent_extension_reinstall
+  - auto_widen_redaction_choice
+
+checkpoint_ref_required: true
+idempotency_key: repair-extension-isolation-v1
+preview_artifact_ref: repair_preview:extension_isolation.suspect_host_quarantine
+outcome_artifact_ref: repair_outcome:extension_isolation.suspect_host_quarantine
+
+escalation_route:
+  escalation_required_when:
+    - repeated_entry_within_budget
+    - lost_capability_blocks_current_task
+    - no_local_repair_path_available
+  default_handoff_packet_template_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+  default_redaction_choice_class: metadata_only_default
+
+linkage_refs:
+  scenario_row_ref: scenario_row:extension_regression
+  recovery_action_id: recovery_action:extension_quarantine.suspect_host_regression
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+  project_doctor_finding_ref: doctor.finding.extension_host_crash_loop_quarantined
+  checkpoint_ref: checkpoint:extension-quarantine:seed
+  preview_record_ref: repair_preview:extension_isolation.suspect_host_quarantine
+  outcome_record_ref: repair_outcome:extension_isolation.suspect_host_quarantine
+
+default_redaction_choice_class: metadata_only_default
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, buffers, durable indexes, trust posture,
+    credentials, remote-helper authorization, managed policy, session
+    state, exported bundles, docs authoring, the installed extension
+    set, and the managed control plane all stay untouched.
+  change_summary: >
+    The suspect extension is moved to the extension quarantine state
+    and one audit-log entry is written naming the host id, the version,
+    and the crash lineage; the marketplace install set is never edited.
+  capability_disablement_summary: >
+    Extension auto-activation and the extension host pause; background
+    rebuild and AI runtime access pause while the host stabilizes.
+  escalation_summary: >
+    Escalate when the rung is re-entered beyond budget, when a
+    quarantined capability blocks the user's current task, or when no
+    local repair path remains; the default escalation packet is the
+    extension-regression handoff case.
+  user_facing_next_step: >
+    Authorize the quarantine preview; review the bisect plan in the
+    Support Center. To re-enable the extension after a verified fix,
+    open it explicitly — quarantine never auto-reenables.
+
+notes: >
+  silent_extension_reinstall is added to the forbidden-action set so
+  the transaction cannot silently mutate the installed extension set.
+  Extension rollback or reinstall is a separate repair_class_family
+  (extension_rollback_reinstall) and requires explicit user consent
+  plus a manual reversal class.
+emitted_at: "2026-04-26T00:00:00Z"

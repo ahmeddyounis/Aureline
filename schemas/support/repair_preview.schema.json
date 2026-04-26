@@ -1,0 +1,559 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/repair_preview.schema.json",
+  "title": "Aureline repair-preview contract",
+  "description": "Boundary schema for the repair_preview_record frozen in docs/support/repair_transaction_contract.md. Every typed repair transaction MUST own one preview before any apply path runs. The preview surfaces what will change, what will not change, the proposed checkpoint (or its explicit absence), the claimed reversal class, runtime requirements, the forbidden actions the transaction asserts it will not take, and the preview-blocker tokens that route the user to escalation instead of apply. Reuses the closed vocabularies frozen in schemas/support/repair_transaction.schema.json, schemas/support/recovery_action.schema.json, and schemas/support/object_handoff_packet.schema.json.",
+  "type": "object",
+  "$ref": "#/$defs/repair_preview_record",
+  "$defs": {
+    "repair_preview_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "transaction_reversal_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compensating",
+        "regenerate",
+        "manual",
+        "audit_only"
+      ]
+    },
+    "online_offline_requirement_class": {
+      "type": "string",
+      "enum": [
+        "requires_online",
+        "prefers_online_supports_offline_observe",
+        "supports_offline_local_only",
+        "requires_offline_local_only"
+      ]
+    },
+    "trust_policy_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_trust_or_policy_change",
+        "requires_existing_trust_unchanged",
+        "requires_explicit_user_consent_no_trust_widen",
+        "requires_admin_authored_policy_unchanged",
+        "requires_managed_admin_consent"
+      ]
+    },
+    "forbidden_action_class": {
+      "type": "string",
+      "enum": [
+        "widen_workspace_trust",
+        "publish_route",
+        "run_repo_hook_silently",
+        "silent_extension_reinstall",
+        "silent_helper_rebind",
+        "mutate_managed_policy",
+        "mutate_user_authored_files",
+        "read_or_rotate_credentials",
+        "auto_retarget_without_user",
+        "mutate_authoritative_profile_store",
+        "embed_raw_secret_in_export",
+        "auto_widen_redaction_choice"
+      ]
+    },
+    "impacted_state_class": {
+      "type": "string",
+      "enum": [
+        "disposable_derived_cache",
+        "watcher_backlog_state",
+        "docs_pack_mirror_snapshot",
+        "execution_context_handle",
+        "language_server_session_handle",
+        "extension_quarantine_state",
+        "extension_install_set",
+        "remote_helper_session_handle",
+        "remote_agent_runtime_handle",
+        "policy_entitlement_handle",
+        "trust_approval_ticket",
+        "support_export_store_export",
+        "doctor_audit_log_entry"
+      ]
+    },
+    "preserved_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "remote_helper_authorization",
+        "managed_policy_overrides",
+        "session_restore_store",
+        "support_export_store",
+        "docs_pack_authoring",
+        "installed_extension_marketplace_state",
+        "managed_workspace_control_plane"
+      ]
+    },
+    "lost_capability_class": {
+      "type": "string",
+      "enum": [
+        "extension_auto_activation",
+        "extension_host_launch",
+        "session_restore_auto_reopen",
+        "remote_helper_attach",
+        "docs_pack_live_fetch",
+        "background_rebuild",
+        "ai_runtime_access",
+        "telemetry_upload",
+        "managed_control_plane_writes",
+        "workspace_trust_widening"
+      ]
+    },
+    "preview_state_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_complete_pending_review",
+        "dry_run_safe_apply_authorized",
+        "dry_run_blocked_by_policy",
+        "dry_run_refused_widens_trust",
+        "dry_run_refused_publishes_route",
+        "dry_run_refused_runs_repo_hook_silently",
+        "dry_run_refused_mutates_user_files",
+        "dry_run_refused_reads_or_rotates_credentials",
+        "dry_run_refused_auto_retarget",
+        "escalation_only_no_preview_apply"
+      ],
+      "description": "Outcome of the preview pass. dry_run_complete_pending_review means the preview ran cleanly and is awaiting reviewer authorization. dry_run_safe_apply_authorized means the preview ran cleanly and an authorization marker is attached. dry_run_blocked_by_policy means managed policy refused preview-time. dry_run_refused_* means the preview detected that apply would cross a forbidden_action_class boundary and refused. escalation_only_no_preview_apply means the transaction is a guided_export_escalation; there is nothing to preview-apply."
+    },
+    "preview_blocker_class": {
+      "type": "string",
+      "enum": [
+        "missing_finding_evidence",
+        "finding_confidence_insufficient",
+        "no_safe_local_repair_available",
+        "policy_blocks_action",
+        "online_runtime_unavailable",
+        "trust_state_below_floor",
+        "idempotency_key_collision",
+        "checkpoint_capture_unavailable",
+        "rollback_target_unavailable",
+        "managed_admin_consent_required",
+        "managed_policy_changed_during_preview"
+      ],
+      "description": "Closed reasons preview MAY refuse to authorize apply. Empty list MUST be expressed as an empty array, not as omission."
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_pre_apply",
+        "durable_pre_apply",
+        "no_checkpoint_observe_only",
+        "no_checkpoint_escalation_only",
+        "checkpoint_capture_refused"
+      ],
+      "description": "What kind of checkpoint the preview proposes. ephemeral_pre_apply means a session-scoped checkpoint is captured before apply. durable_pre_apply means a durable on-disk checkpoint is captured. no_checkpoint_observe_only means the transaction never writes; no checkpoint required. no_checkpoint_escalation_only means the transaction is escalation-only; no checkpoint to capture. checkpoint_capture_refused means preview detected the underlying state class cannot be checkpointed and refused to authorize apply."
+    },
+    "checkpoint_proposal_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_class",
+        "checkpoint_ref",
+        "capture_summary",
+        "scope_state_classes"
+      ],
+      "properties": {
+        "checkpoint_class": {
+          "$ref": "#/$defs/checkpoint_class"
+        },
+        "checkpoint_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "capture_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "scope_state_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/impacted_state_class"
+          }
+        }
+      },
+      "description": "What the preview proposes for checkpointing. checkpoint_ref MUST be null when checkpoint_class is no_checkpoint_observe_only, no_checkpoint_escalation_only, or checkpoint_capture_refused. checkpoint_ref MUST be non-null when checkpoint_class is ephemeral_pre_apply or durable_pre_apply."
+    },
+    "runtime_requirements_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "online_offline_requirement_class",
+        "trust_policy_requirement_class",
+        "requires_active_user_consent",
+        "requires_active_admin_consent"
+      ],
+      "properties": {
+        "online_offline_requirement_class": {
+          "$ref": "#/$defs/online_offline_requirement_class"
+        },
+        "trust_policy_requirement_class": {
+          "$ref": "#/$defs/trust_policy_requirement_class"
+        },
+        "requires_active_user_consent": {
+          "type": "boolean"
+        },
+        "requires_active_admin_consent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "impacted_change_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impacted_state_class",
+        "change_summary"
+      ],
+      "properties": {
+        "impacted_state_class": {
+          "$ref": "#/$defs/impacted_state_class"
+        },
+        "change_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "preserved_assertion_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_state_class",
+        "preservation_summary"
+      ],
+      "properties": {
+        "preserved_state_class": {
+          "$ref": "#/$defs/preserved_state_class"
+        },
+        "preservation_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "preview_explanation_fields_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_work_summary",
+        "change_summary",
+        "checkpoint_summary",
+        "reversal_summary",
+        "escalation_summary",
+        "user_facing_next_step"
+      ],
+      "properties": {
+        "preserved_work_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "change_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "checkpoint_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "reversal_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "escalation_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "user_facing_next_step": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "governance_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_transaction_schema_ref",
+        "repair_outcome_schema_ref",
+        "support_bundle_schema_ref",
+        "object_handoff_packet_schema_ref",
+        "recovery_action_schema_ref",
+        "evidence_id_conventions_ref"
+      ],
+      "properties": {
+        "repair_transaction_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "repair_outcome_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_bundle_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "object_handoff_packet_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "recovery_action_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_id_conventions_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "repair_transaction_contract_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "repair_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_preview_schema_version",
+        "record_kind",
+        "preview_id",
+        "repair_transaction_ref",
+        "preview_state_class",
+        "claimed_reversal_class",
+        "checkpoint_proposal",
+        "runtime_requirements",
+        "forbidden_action_assertions",
+        "impacted_change_rows",
+        "preserved_assertion_rows",
+        "lost_capability_classes",
+        "preview_blockers",
+        "idempotency_key",
+        "explanation_fields",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "repair_preview_schema_version": {
+          "$ref": "#/$defs/repair_preview_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "repair_preview_record"
+        },
+        "preview_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "repair_transaction_ref": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "preview_state_class": {
+          "$ref": "#/$defs/preview_state_class"
+        },
+        "claimed_reversal_class": {
+          "$ref": "#/$defs/transaction_reversal_class"
+        },
+        "checkpoint_proposal": {
+          "$ref": "#/$defs/checkpoint_proposal_block"
+        },
+        "runtime_requirements": {
+          "$ref": "#/$defs/runtime_requirements_block"
+        },
+        "forbidden_action_assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/forbidden_action_class"
+          }
+        },
+        "impacted_change_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/impacted_change_row"
+          },
+          "description": "What changes if apply runs. MUST be empty when preview_state_class is escalation_only_no_preview_apply or any dry_run_refused_* token."
+        },
+        "preserved_assertion_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_assertion_row"
+          },
+          "description": "What does NOT change if apply runs. user_authored_files MUST appear in this list."
+        },
+        "lost_capability_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/lost_capability_class"
+          }
+        },
+        "preview_blockers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/preview_blocker_class"
+          },
+          "description": "Closed list of reasons the preview refuses to authorize apply. Empty list means no blocker. preview_state_class MUST agree with this list: dry_run_refused_* and dry_run_blocked_by_policy MUST have at least one blocker; dry_run_safe_apply_authorized MUST have an empty blocker list."
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "explanation_fields": {
+          "$ref": "#/$defs/preview_explanation_fields_block"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "preserved_assertion_rows": {
+              "contains": {
+                "properties": {
+                  "preserved_state_class": {
+                    "const": "user_authored_files"
+                  }
+                },
+                "required": [
+                  "preserved_state_class"
+                ]
+              }
+            },
+            "forbidden_action_assertions": {
+              "allOf": [
+                {
+                  "contains": {
+                    "const": "widen_workspace_trust"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "publish_route"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "run_repo_hook_silently"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "mutate_user_authored_files"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "preview_state_class": {
+                "const": "escalation_only_no_preview_apply"
+              }
+            },
+            "required": [
+              "preview_state_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "impacted_change_rows": {
+                "maxItems": 0
+              },
+              "claimed_reversal_class": {
+                "const": "audit_only"
+              },
+              "checkpoint_proposal": {
+                "properties": {
+                  "checkpoint_class": {
+                    "const": "no_checkpoint_escalation_only"
+                  },
+                  "checkpoint_ref": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "preview_state_class": {
+                "const": "dry_run_safe_apply_authorized"
+              }
+            },
+            "required": [
+              "preview_state_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "preview_blockers": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "preview_state_class": {
+                "const": "dry_run_blocked_by_policy"
+              }
+            },
+            "required": [
+              "preview_state_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "preview_blockers": {
+                "minItems": 1,
+                "contains": {
+                  "enum": [
+                    "policy_blocks_action",
+                    "managed_policy_changed_during_preview",
+                    "managed_admin_consent_required"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

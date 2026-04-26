@@ -1,0 +1,125 @@
+# Repair-transaction seed case: toolchain re-resolve via execution-
+# context re-resolve.
+#
+# Companion to docs/support/repair_transaction_contract.md and
+# schemas/support/repair_transaction.schema.json. Validates against
+# repair_seed_case_record.
+
+repair_transaction_schema_version: 1
+record_kind: repair_seed_case_record
+case_id: repair_case:execution_context_reresolve.toolchain_required_component
+scenario_summary: >
+  The declared target requires a toolchain component (interpreter,
+  compiler, language server, or package manager) that Doctor cannot
+  find or finds pinned to an incompatible version. The transaction
+  re-resolves the execution context behind a reviewed checkpoint,
+  installs or repairs the missing component, and never rewrites user
+  source.
+repair_transaction_id: repair_transaction:execution_context_reresolve.toolchain_required_component
+repair_class_family: execution_context_reresolve
+suggested_repair_class: install_or_repair_toolchain
+transaction_reversal_class: compensating
+apply_mode_class: apply_with_rollback_on_failure
+
+initiating_finding_codes:
+  - doctor.finding.toolchain_missing_required_component
+  - doctor.finding.toolchain_version_out_of_range
+
+impacted_state_classes:
+  - execution_context_handle
+  - language_server_session_handle
+  - doctor_audit_log_entry
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - remote_helper_authorization
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+  - docs_pack_authoring
+  - installed_extension_marketplace_state
+
+lost_capability_classes:
+  - background_rebuild
+  - ai_runtime_access
+
+runtime_requirements:
+  online_offline_requirement_class: prefers_online_supports_offline_observe
+  trust_policy_requirement_class: requires_existing_trust_unchanged
+  requires_active_user_consent: true
+  requires_active_admin_consent: false
+
+forbidden_action_assertions:
+  - widen_workspace_trust
+  - publish_route
+  - run_repo_hook_silently
+  - mutate_user_authored_files
+  - read_or_rotate_credentials
+  - auto_retarget_without_user
+  - auto_widen_redaction_choice
+
+checkpoint_ref_required: true
+idempotency_key: repair-toolchain-reresolve-v1
+preview_artifact_ref: repair_preview:execution_context_reresolve.toolchain_required_component
+outcome_artifact_ref: repair_outcome:execution_context_reresolve.toolchain_required_component
+
+escalation_route:
+  escalation_required_when:
+    - online_runtime_unavailable
+    - exact_undo_unavailable
+    - no_local_repair_path_available
+    - repeated_entry_within_budget
+  default_handoff_packet_template_ref: fixtures/support/escalation_packet_completeness_cases/missing_toolchain_required_component.yaml
+  default_redaction_choice_class: metadata_only_default
+
+linkage_refs:
+  scenario_row_ref: scenario_row:missing_toolchain
+  recovery_action_id: recovery_action:cache_reset_candidate.cache_index_repair
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/missing_toolchain_required_component.yaml
+  project_doctor_finding_ref: doctor.finding.toolchain_missing_required_component
+  checkpoint_ref: checkpoint:toolchain-reresolve:seed
+  preview_record_ref: repair_preview:execution_context_reresolve.toolchain_required_component
+  outcome_record_ref: repair_outcome:execution_context_reresolve.toolchain_required_component
+
+default_redaction_choice_class: metadata_only_default
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, buffers, durable indexes, trust posture,
+    credentials, remote-helper authorization, managed policy,
+    session-restore state, exported bundles, docs authoring, and the
+    installed extension set all stay untouched.
+  change_summary: >
+    The execution-context handle and the language-server session are
+    re-resolved against the declared target; the named toolchain
+    component is installed or repaired through the toolchain manager
+    only. Source files and lock files authored by the user are not
+    rewritten.
+  capability_disablement_summary: >
+    Background rebuild and AI runtime access pause until the new
+    execution context settles.
+  escalation_summary: >
+    Escalate when the runtime cannot reach an online toolchain source,
+    when an exact-undo expectation no longer holds, or when no local
+    repair path remains; the default escalation packet is the
+    missing_toolchain handoff case.
+  user_facing_next_step: >
+    Authorize the reviewed install/repair preview; capabilities restore
+    automatically once the new toolchain version verifies. If the
+    target requires a wrong-target correction, route through the
+    `policy_entitlement_refresh` family instead — auto-retargeting is
+    a forbidden action here.
+
+notes: >
+  auto_retarget_without_user is asserted forbidden so the transaction
+  cannot quietly redirect the workspace to a different declared
+  target. trust_policy_requirement_class is
+  requires_existing_trust_unchanged because installing a toolchain
+  component MUST NOT widen workspace trust; managed-target installs
+  route through `policy_entitlement_refresh` instead.
+emitted_at: "2026-04-26T00:00:00Z"

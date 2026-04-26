@@ -1,0 +1,121 @@
+# Repair-transaction seed case: cache / index repair via disposable
+# state rebuild.
+#
+# Companion to docs/support/repair_transaction_contract.md and
+# schemas/support/repair_transaction.schema.json. Validates against
+# repair_seed_case_record.
+
+repair_transaction_schema_version: 1
+record_kind: repair_seed_case_record
+case_id: repair_case:disposable_state_rebuild.cache_index_repair
+scenario_summary: >
+  A disposable derived cache or search/graph index failed integrity
+  checks or drifted off the loaded build's schema version. The
+  transaction rebuilds the disposable artifact from authoritative
+  sources behind a reviewed checkpoint; authored files, profile data,
+  and trust posture are never touched.
+repair_transaction_id: repair_transaction:disposable_state_rebuild.cache_index_repair
+repair_class_family: disposable_state_rebuild
+suggested_repair_class: reset_ephemeral_cache
+transaction_reversal_class: regenerate
+apply_mode_class: apply_with_checkpoint
+
+initiating_finding_codes:
+  - doctor.finding.cache_schema_version_drift
+  - doctor.finding.cache_integrity_failure
+
+impacted_state_classes:
+  - disposable_derived_cache
+  - watcher_backlog_state
+  - doctor_audit_log_entry
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+  - installed_extension_marketplace_state
+  - managed_workspace_control_plane
+
+lost_capability_classes:
+  - background_rebuild
+  - docs_pack_live_fetch
+  - ai_runtime_access
+
+runtime_requirements:
+  online_offline_requirement_class: supports_offline_local_only
+  trust_policy_requirement_class: no_trust_or_policy_change
+  requires_active_user_consent: true
+  requires_active_admin_consent: false
+
+forbidden_action_assertions:
+  - widen_workspace_trust
+  - publish_route
+  - run_repo_hook_silently
+  - mutate_user_authored_files
+  - read_or_rotate_credentials
+  - mutate_authoritative_profile_store
+  - auto_widen_redaction_choice
+
+checkpoint_ref_required: true
+idempotency_key: repair-cache-index-repair-v1
+preview_artifact_ref: repair_preview:disposable_state_rebuild.cache_index_repair
+outcome_artifact_ref: repair_outcome:disposable_state_rebuild.cache_index_repair
+
+escalation_route:
+  escalation_required_when:
+    - exact_undo_unavailable
+    - no_local_repair_path_available
+    - repeated_entry_within_budget
+  default_handoff_packet_template_ref: fixtures/support/escalation_packet_completeness_cases/incompatible_cache_profile_schema_drift.yaml
+  default_redaction_choice_class: metadata_only_default
+
+linkage_refs:
+  scenario_row_ref: scenario_row:incompatible_cache_profile
+  recovery_action_id: recovery_action:cache_reset_candidate.cache_index_repair
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/incompatible_cache_profile_schema_drift.yaml
+  project_doctor_finding_ref: doctor.finding.cache_schema_version_drift
+  checkpoint_ref: checkpoint:cache-reset:seed
+  preview_record_ref: repair_preview:disposable_state_rebuild.cache_index_repair
+  outcome_record_ref: repair_outcome:disposable_state_rebuild.cache_index_repair
+
+default_redaction_choice_class: metadata_only_default
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, open buffers, durable workspace indexes, trust
+    posture, credentials, managed policy, session-restore state,
+    previously exported support bundles, the installed extension set,
+    and the managed control plane all remain untouched.
+  change_summary: >
+    The named disposable derived cache and the watcher backlog are
+    rebuilt from the loaded build and the authoritative profile; one
+    audit-log entry is written naming the storage class that was
+    reset.
+  capability_disablement_summary: >
+    Background rebuild, docs-pack live fetch, and AI runtime access
+    pause until the cache or index regenerates.
+  escalation_summary: >
+    Escalate when the rung is re-entered beyond its strike budget,
+    when an exact-undo expectation no longer holds, or when no local
+    regeneration source exists (for example when the authoritative
+    profile schema itself drifted).
+  user_facing_next_step: >
+    Authorize the reviewed regeneration preview; capabilities restore
+    automatically when regeneration completes. If preview reports
+    `no_safe_local_repair_available`, export a recovery-follow-up
+    handoff packet instead.
+
+notes: >
+  This is the canonical disposable_state_rebuild example. The
+  forbidden-action set adds mutate_authoritative_profile_store so the
+  transaction cannot silently rewrite profile state; if the affected
+  storage class resolves to the authoritative profile, the preview
+  refuses with `no_safe_local_repair_available` and the transaction
+  defaults to `guided_export_escalation`.
+emitted_at: "2026-04-26T00:00:00Z"

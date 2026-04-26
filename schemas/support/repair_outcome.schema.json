@@ -1,0 +1,587 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/repair_outcome.schema.json",
+  "title": "Aureline repair-outcome contract",
+  "description": "Boundary schema for the repair_outcome_record frozen in docs/support/repair_transaction_contract.md. Every repair transaction (and every refused apply) MUST emit one repair_outcome_record so support review can read the post-apply truth: what actually changed, what was preserved, which checkpoint was used, which reversal class executed, whether a forbidden_action_class boundary was crossed, and whether an escalation packet was prepared instead of (or after) apply. Reuses the closed vocabularies frozen in schemas/support/repair_transaction.schema.json and schemas/support/repair_preview.schema.json.",
+  "type": "object",
+  "$ref": "#/$defs/repair_outcome_record",
+  "$defs": {
+    "repair_outcome_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "transaction_reversal_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compensating",
+        "regenerate",
+        "manual",
+        "audit_only"
+      ]
+    },
+    "forbidden_action_class": {
+      "type": "string",
+      "enum": [
+        "widen_workspace_trust",
+        "publish_route",
+        "run_repo_hook_silently",
+        "silent_extension_reinstall",
+        "silent_helper_rebind",
+        "mutate_managed_policy",
+        "mutate_user_authored_files",
+        "read_or_rotate_credentials",
+        "auto_retarget_without_user",
+        "mutate_authoritative_profile_store",
+        "embed_raw_secret_in_export",
+        "auto_widen_redaction_choice"
+      ]
+    },
+    "impacted_state_class": {
+      "type": "string",
+      "enum": [
+        "disposable_derived_cache",
+        "watcher_backlog_state",
+        "docs_pack_mirror_snapshot",
+        "execution_context_handle",
+        "language_server_session_handle",
+        "extension_quarantine_state",
+        "extension_install_set",
+        "remote_helper_session_handle",
+        "remote_agent_runtime_handle",
+        "policy_entitlement_handle",
+        "trust_approval_ticket",
+        "support_export_store_export",
+        "doctor_audit_log_entry"
+      ]
+    },
+    "preserved_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "remote_helper_authorization",
+        "managed_policy_overrides",
+        "session_restore_store",
+        "support_export_store",
+        "docs_pack_authoring",
+        "installed_extension_marketplace_state",
+        "managed_workspace_control_plane"
+      ]
+    },
+    "remaining_unknown_class": {
+      "type": "string",
+      "enum": [
+        "toolchain_version_unreadable",
+        "trust_store_not_inspectable_without_unlock",
+        "watcher_backlog_depth_not_observable",
+        "cache_schema_version_drift_indeterminate",
+        "extension_crash_lineage_incomplete",
+        "target_identity_unresolved_requires_user",
+        "helper_adapter_confidence_below_floor",
+        "docs_pack_revision_not_matched_to_build",
+        "mirror_snapshot_revision_unknown",
+        "remote_route_reachability_intermittent"
+      ],
+      "description": "Re-exported from docs/support/project_doctor_packet.md remaining_unknowns vocabulary so post-apply unknowns reuse Doctor's taxonomy."
+    },
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "preview_only_no_apply",
+        "applied_success_recovered",
+        "applied_partial_recovered_with_typed_unknowns",
+        "applied_failed_rolled_back",
+        "applied_failed_compensated",
+        "applied_failed_no_reversal_export_only",
+        "escalated_no_apply",
+        "refused_pre_apply_widens_trust",
+        "refused_pre_apply_publishes_route",
+        "refused_pre_apply_runs_repo_hook_silently",
+        "refused_pre_apply_silent_helper_rebind",
+        "refused_pre_apply_silent_extension_reinstall",
+        "refused_pre_apply_mutates_user_files",
+        "refused_pre_apply_reads_or_rotates_credentials",
+        "refused_pre_apply_managed_policy_violation",
+        "refused_pre_apply_idempotency_key_collision",
+        "refused_pre_apply_runtime_requirement_unmet"
+      ],
+      "description": "What actually happened. preview_only_no_apply means the transaction never advanced past preview. applied_success_recovered means apply ran and the rung exited with recovered_successfully. applied_partial_recovered_with_typed_unknowns means apply ran but typed unknowns remain. applied_failed_rolled_back means apply failed and the checkpoint was restored. applied_failed_compensated means apply failed and a compensating action restored equivalence. applied_failed_no_reversal_export_only means apply failed and the only safe next step is an escalation packet. escalated_no_apply means the transaction is a guided_export_escalation; an escalation packet was prepared and no apply occurred. refused_pre_apply_* means a forbidden_action_class boundary was detected and apply was refused before any state mutation."
+    },
+    "failure_reason_class": {
+      "type": "string",
+      "enum": [
+        "checkpoint_capture_failed",
+        "rollback_target_unavailable",
+        "managed_policy_changed_mid_apply",
+        "online_runtime_lost_during_apply",
+        "trust_state_drifted_during_apply",
+        "remote_runtime_returned_error",
+        "extension_quarantine_failed_to_settle",
+        "regeneration_source_unavailable",
+        "idempotency_key_collision_during_apply",
+        "user_aborted_apply"
+      ]
+    },
+    "runtime_requirements_held_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "online_state_held",
+        "trust_state_held",
+        "user_consent_held",
+        "admin_consent_held",
+        "idempotency_key_held"
+      ],
+      "properties": {
+        "online_state_held": {
+          "type": "boolean"
+        },
+        "trust_state_held": {
+          "type": "boolean"
+        },
+        "user_consent_held": {
+          "type": "boolean"
+        },
+        "admin_consent_held": {
+          "type": "boolean"
+        },
+        "idempotency_key_held": {
+          "type": "boolean"
+        }
+      }
+    },
+    "applied_change_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impacted_state_class",
+        "change_summary"
+      ],
+      "properties": {
+        "impacted_state_class": {
+          "$ref": "#/$defs/impacted_state_class"
+        },
+        "change_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "outcome_explanation_fields_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "post_apply_state_summary",
+        "preserved_state_summary",
+        "reversal_summary",
+        "escalation_summary",
+        "user_facing_next_step"
+      ],
+      "properties": {
+        "post_apply_state_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "preserved_state_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "reversal_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "escalation_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "user_facing_next_step": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "governance_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_transaction_schema_ref",
+        "repair_preview_schema_ref",
+        "support_bundle_schema_ref",
+        "object_handoff_packet_schema_ref",
+        "recovery_action_schema_ref",
+        "evidence_id_conventions_ref"
+      ],
+      "properties": {
+        "repair_transaction_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "repair_preview_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_bundle_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "object_handoff_packet_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "recovery_action_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_id_conventions_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "repair_transaction_contract_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "repair_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_outcome_schema_version",
+        "record_kind",
+        "outcome_id",
+        "repair_transaction_ref",
+        "repair_preview_ref",
+        "outcome_class",
+        "applied_change_rows",
+        "preserved_state_classes_observed",
+        "checkpoint_used_ref",
+        "reversal_executed_class",
+        "failure_reason_class",
+        "remaining_unknowns",
+        "forbidden_action_assertions_held",
+        "forbidden_action_violations",
+        "runtime_requirements_held",
+        "escalation_packet_ref",
+        "explanation_fields",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "repair_outcome_schema_version": {
+          "$ref": "#/$defs/repair_outcome_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "repair_outcome_record"
+        },
+        "outcome_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "repair_transaction_ref": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "repair_preview_ref": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "outcome_class": {
+          "$ref": "#/$defs/outcome_class"
+        },
+        "applied_change_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/applied_change_row"
+          },
+          "description": "What actually mutated. MUST be empty whenever outcome_class is preview_only_no_apply, escalated_no_apply, applied_failed_rolled_back, or any refused_pre_apply_* token."
+        },
+        "preserved_state_classes_observed": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          },
+          "description": "Preserved state classes the outcome verifies stayed untouched. user_authored_files MUST appear in this list."
+        },
+        "checkpoint_used_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "reversal_executed_class": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/transaction_reversal_class"
+            }
+          ]
+        },
+        "failure_reason_class": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/failure_reason_class"
+            }
+          ]
+        },
+        "remaining_unknowns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/remaining_unknown_class"
+          }
+        },
+        "forbidden_action_assertions_held": {
+          "type": "boolean",
+          "description": "True iff every forbidden_action_class the transaction asserted held during apply. MUST be false whenever forbidden_action_violations is non-empty."
+        },
+        "forbidden_action_violations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_action_class"
+          }
+        },
+        "runtime_requirements_held": {
+          "$ref": "#/$defs/runtime_requirements_held_block"
+        },
+        "escalation_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/stable_ref_id"
+            }
+          ]
+        },
+        "explanation_fields": {
+          "$ref": "#/$defs/outcome_explanation_fields_block"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "preserved_state_classes_observed": {
+              "contains": {
+                "const": "user_authored_files"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "enum": [
+                  "preview_only_no_apply",
+                  "escalated_no_apply",
+                  "applied_failed_rolled_back",
+                  "refused_pre_apply_widens_trust",
+                  "refused_pre_apply_publishes_route",
+                  "refused_pre_apply_runs_repo_hook_silently",
+                  "refused_pre_apply_silent_helper_rebind",
+                  "refused_pre_apply_silent_extension_reinstall",
+                  "refused_pre_apply_mutates_user_files",
+                  "refused_pre_apply_reads_or_rotates_credentials",
+                  "refused_pre_apply_managed_policy_violation",
+                  "refused_pre_apply_idempotency_key_collision",
+                  "refused_pre_apply_runtime_requirement_unmet"
+                ]
+              }
+            },
+            "required": [
+              "outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "applied_change_rows": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "enum": [
+                  "escalated_no_apply",
+                  "applied_failed_no_reversal_export_only"
+                ]
+              }
+            },
+            "required": [
+              "outcome_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "escalation_packet_ref"
+            ],
+            "properties": {
+              "escalation_packet_ref": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "enum": [
+                  "applied_failed_rolled_back",
+                  "applied_failed_compensated",
+                  "applied_failed_no_reversal_export_only"
+                ]
+              }
+            },
+            "required": [
+              "outcome_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "failure_reason_class"
+            ],
+            "properties": {
+              "failure_reason_class": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "enum": [
+                  "applied_failed_rolled_back",
+                  "applied_failed_compensated"
+                ]
+              }
+            },
+            "required": [
+              "outcome_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "reversal_executed_class"
+            ],
+            "properties": {
+              "reversal_executed_class": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "pattern": "^refused_pre_apply_"
+              }
+            },
+            "required": [
+              "outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "forbidden_action_assertions_held": {
+                "const": false
+              },
+              "forbidden_action_violations": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "enum": [
+                  "applied_success_recovered",
+                  "applied_partial_recovered_with_typed_unknowns",
+                  "preview_only_no_apply",
+                  "escalated_no_apply",
+                  "applied_failed_rolled_back",
+                  "applied_failed_compensated"
+                ]
+              }
+            },
+            "required": [
+              "outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "forbidden_action_assertions_held": {
+                "const": true
+              },
+              "forbidden_action_violations": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "const": "applied_partial_recovered_with_typed_unknowns"
+              }
+            },
+            "required": [
+              "outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "remaining_unknowns": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

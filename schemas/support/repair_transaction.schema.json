@@ -1,0 +1,1144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/repair_transaction.schema.json",
+  "title": "Aureline repair-transaction and repair-seed-case contract",
+  "description": "Boundary schema for the repair_transaction_record and repair_seed_case_record frozen in docs/support/repair_transaction_contract.md. Turns Project Doctor and support-initiated 'Fix' actions into typed repair transactions: every transaction declares its stable id, initiating finding codes, repair-class family, impacted and preserved state classes, online/offline runtime requirements, trust/policy requirements, checkpoint reference, idempotency key, reversal class, preview-artifact ref, escalation route, and the closed forbidden-action set the transaction asserts it MUST NOT cross. Reuses the closed vocabularies already frozen in schemas/support/recovery_action.schema.json, schemas/support/object_handoff_packet.schema.json, schemas/support/support_bundle.schema.json, and the project-doctor scenario matrix rather than minting parallel tokens.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/repair_transaction_record"
+    },
+    {
+      "$ref": "#/$defs/repair_seed_case_record"
+    }
+  ],
+  "$defs": {
+    "repair_transaction_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for this repair-transaction contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence intended for support previews, Doctor surfaces, or reviewer tables."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable lowercase id that permits `:` as a prefix separator in addition to `.` so repair ids match the `repair_transaction:<family>.<reason>` fixture convention."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw paths, raw secrets, raw URLs, and raw content bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "doctor_finding_code": {
+      "type": "string",
+      "pattern": "^doctor\\.finding\\.[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Doctor finding code from fixtures/support/scenario_matrix.yaml (for example doctor.finding.cache_schema_version_drift)."
+    },
+    "repair_class_family": {
+      "type": "string",
+      "enum": [
+        "disposable_state_rebuild",
+        "extension_isolation",
+        "extension_rollback_reinstall",
+        "execution_context_reresolve",
+        "remote_runtime_repair",
+        "policy_entitlement_refresh",
+        "guided_export_escalation",
+        "observe_only_no_repair"
+      ],
+      "description": "Coarse repair-class family every transaction belongs to. disposable_state_rebuild rebuilds a derived cache, watcher backlog, mirror snapshot, or other disposable state. extension_isolation quarantines a suspect extension without auto-reenabling it. extension_rollback_reinstall reverts or reinstalls an extension to a prior good version. execution_context_reresolve re-resolves the toolchain, language server, or other execution context handle. remote_runtime_repair restarts, redeploys, or rolls back a remote helper or remote agent runtime. policy_entitlement_refresh refreshes trust posture, approval ticket, or policy/entitlement state without widening trust. guided_export_escalation has no safe local repair: the transaction prepares an escalation packet instead of applying. observe_only_no_repair is a first-class no-write outcome, not a fallback for unknown."
+    },
+    "suggested_repair_class": {
+      "type": "string",
+      "enum": [
+        "observe_only_no_repair",
+        "reacquire_trust_approval",
+        "restart_watcher_with_reseed",
+        "reset_ephemeral_cache",
+        "install_or_repair_toolchain",
+        "quarantine_and_bisect_extension",
+        "reapprove_target_or_route",
+        "reattach_helper_with_new_approval",
+        "refresh_docs_or_mirror_pack",
+        "defer_to_escalation_packet",
+        "rollback_or_reinstall_extension",
+        "rollback_remote_runtime",
+        "refresh_policy_entitlement"
+      ],
+      "description": "Fine-grained suggested repair class. The first ten tokens are re-exported verbatim from docs/support/project_doctor_packet.md so transactions and Doctor findings agree. The last three tokens (rollback_or_reinstall_extension, rollback_remote_runtime, refresh_policy_entitlement) extend the doctor vocabulary for transaction-level distinctions the milestone requires; adding a token here is additive-minor, repurposing a token is breaking and requires a decision row."
+    },
+    "transaction_reversal_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compensating",
+        "regenerate",
+        "manual",
+        "audit_only"
+      ],
+      "description": "How the transaction can be backed out. exact means the prior state is bit-identical after reversal (only disposable state changed). compensating means a semantically equivalent inverse is applied. regenerate means a disposable derived artifact is rebuilt from authoritative sources. manual means reversal requires a user-driven action (for example reinstalling an extension by hand). audit_only means no state was changed; the transaction wrote only audit records or refused to apply. checkpoint_restore is captured separately in repair_preview.checkpoint_proposal.checkpoint_class so this field stays the spec's five-token surface."
+    },
+    "online_offline_requirement_class": {
+      "type": "string",
+      "enum": [
+        "requires_online",
+        "prefers_online_supports_offline_observe",
+        "supports_offline_local_only",
+        "requires_offline_local_only"
+      ],
+      "description": "Runtime connectivity requirement. requires_online means the transaction MUST have working network paths (for example a remote helper rollback). prefers_online_supports_offline_observe means apply needs network but observe-only mode works offline. supports_offline_local_only means apply works offline. requires_offline_local_only means apply MUST refuse to call any remote service."
+    },
+    "trust_policy_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_trust_or_policy_change",
+        "requires_existing_trust_unchanged",
+        "requires_explicit_user_consent_no_trust_widen",
+        "requires_admin_authored_policy_unchanged",
+        "requires_managed_admin_consent"
+      ],
+      "description": "Trust and policy posture the transaction asserts. no_trust_or_policy_change means the transaction does not touch trust or policy state at all. requires_existing_trust_unchanged means the transaction depends on the current trust posture and refuses to apply if trust drifts mid-transaction. requires_explicit_user_consent_no_trust_widen means apply needs an explicit user consent marker but MUST NOT widen trust beyond the user's request. requires_admin_authored_policy_unchanged means the transaction refuses to apply if managed policy changed since preview. requires_managed_admin_consent means a managed admin surface MUST sign off before apply."
+    },
+    "forbidden_action_class": {
+      "type": "string",
+      "enum": [
+        "widen_workspace_trust",
+        "publish_route",
+        "run_repo_hook_silently",
+        "silent_extension_reinstall",
+        "silent_helper_rebind",
+        "mutate_managed_policy",
+        "mutate_user_authored_files",
+        "read_or_rotate_credentials",
+        "auto_retarget_without_user",
+        "mutate_authoritative_profile_store",
+        "embed_raw_secret_in_export",
+        "auto_widen_redaction_choice"
+      ],
+      "description": "Closed set of actions a repair transaction MUST NOT take silently. Every transaction MUST list every applicable forbidden action under forbidden_action_assertions so apply/outcome review can verify the assertion held."
+    },
+    "apply_mode_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_preview_only",
+        "apply_with_checkpoint",
+        "apply_with_rollback_on_failure",
+        "apply_observe_only_no_write",
+        "apply_refused_escalation_only"
+      ],
+      "description": "How the transaction reaches state. dry_run_preview_only never writes; the preview surface is the deliverable. apply_with_checkpoint writes a pre-apply checkpoint then applies. apply_with_rollback_on_failure applies and rolls back to a checkpoint on failure. apply_observe_only_no_write never writes; only audit records are emitted. apply_refused_escalation_only refuses to apply at all and prepares an escalation packet."
+    },
+    "impacted_state_class": {
+      "type": "string",
+      "enum": [
+        "disposable_derived_cache",
+        "watcher_backlog_state",
+        "docs_pack_mirror_snapshot",
+        "execution_context_handle",
+        "language_server_session_handle",
+        "extension_quarantine_state",
+        "extension_install_set",
+        "remote_helper_session_handle",
+        "remote_agent_runtime_handle",
+        "policy_entitlement_handle",
+        "trust_approval_ticket",
+        "support_export_store_export",
+        "doctor_audit_log_entry"
+      ],
+      "description": "State classes a transaction MAY mutate. The set is intentionally narrow: classes the project considers preservable (user_authored_files, managed_policy_overrides, credential_store, workspace_trust_store, remote_helper_authorization, durable_workspace_indexes, session_restore_store) are NOT in this enum and MUST appear in preserved_state_classes instead. extension_install_set MAY appear only when suggested_repair_class = rollback_or_reinstall_extension and the transaction carries an explicit user-consent marker."
+    },
+    "preserved_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "remote_helper_authorization",
+        "managed_policy_overrides",
+        "session_restore_store",
+        "support_export_store",
+        "docs_pack_authoring",
+        "installed_extension_marketplace_state",
+        "managed_workspace_control_plane"
+      ],
+      "description": "State classes the transaction MUST NOT mutate. Re-exported from schemas/support/recovery_action.schema.json with the project-doctor no-touch additions installed_extension_marketplace_state and managed_workspace_control_plane so transactions and Doctor findings agree on what stays untouched."
+    },
+    "lost_capability_class": {
+      "type": "string",
+      "enum": [
+        "extension_auto_activation",
+        "extension_host_launch",
+        "session_restore_auto_reopen",
+        "remote_helper_attach",
+        "docs_pack_live_fetch",
+        "background_rebuild",
+        "ai_runtime_access",
+        "telemetry_upload",
+        "managed_control_plane_writes",
+        "workspace_trust_widening"
+      ],
+      "description": "Capabilities apply MAY narrow while the transaction is in flight. Re-exported from schemas/support/recovery_action.schema.json."
+    },
+    "escalation_trigger_class": {
+      "type": "string",
+      "enum": [
+        "repeated_entry_within_budget",
+        "user_denied_next_rung",
+        "exact_undo_unavailable",
+        "policy_forced_narrower_than_user_request",
+        "lost_capability_blocks_current_task",
+        "rung_exit_reason_denied_by_policy",
+        "diagnosis_remains_insufficient",
+        "no_local_repair_path_available",
+        "online_runtime_unavailable",
+        "idempotency_key_collision",
+        "trust_state_below_floor",
+        "managed_policy_changed_mid_transaction"
+      ],
+      "description": "Reasons that MUST route the user to an escalation packet instead of applying. The first eight tokens are re-exported from schemas/support/recovery_action.schema.json. The last four tokens extend that vocabulary for transaction-level conditions; adding a token is additive-minor."
+    },
+    "default_redaction_choice_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "selected_reference_only",
+        "support_bundle_by_reference",
+        "manual_review_required",
+        "broadened_capture_opt_in"
+      ],
+      "description": "Redaction-choice token re-exported from schemas/support/object_handoff_packet.schema.json$.defs.redaction_choice_class."
+    },
+    "linkage_requirement_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle_record",
+        "object_handoff_packet_record",
+        "project_doctor_finding",
+        "recovery_action_record",
+        "repair_preview_record",
+        "repair_outcome_record",
+        "checkpoint_ref",
+        "crash_envelope_ref",
+        "known_limit_ref",
+        "scenario_row_ref"
+      ]
+    },
+    "linkage_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "linkage_class",
+        "requirement",
+        "field_path",
+        "notes"
+      ],
+      "properties": {
+        "linkage_class": {
+          "$ref": "#/$defs/linkage_requirement_class"
+        },
+        "requirement": {
+          "type": "string",
+          "enum": [
+            "required",
+            "required_when_applicable",
+            "advisory"
+          ]
+        },
+        "field_path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "runtime_requirements_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "online_offline_requirement_class",
+        "trust_policy_requirement_class",
+        "requires_active_user_consent",
+        "requires_active_admin_consent"
+      ],
+      "properties": {
+        "online_offline_requirement_class": {
+          "$ref": "#/$defs/online_offline_requirement_class"
+        },
+        "trust_policy_requirement_class": {
+          "$ref": "#/$defs/trust_policy_requirement_class"
+        },
+        "requires_active_user_consent": {
+          "type": "boolean"
+        },
+        "requires_active_admin_consent": {
+          "type": "boolean"
+        }
+      },
+      "description": "Runtime gates apply MUST satisfy. requires_active_user_consent MUST be true whenever the transaction touches extension_install_set, trust_approval_ticket, policy_entitlement_handle, or support_export_store_export. requires_active_admin_consent MUST be true whenever trust_policy_requirement_class = requires_managed_admin_consent."
+    },
+    "escalation_route_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_required_when",
+        "default_handoff_packet_template_ref",
+        "default_redaction_choice_class"
+      ],
+      "properties": {
+        "escalation_required_when": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/escalation_trigger_class"
+          }
+        },
+        "default_handoff_packet_template_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable repo-relative ref to the escalation_packet_completeness case the transaction defers to when no safe local repair exists."
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/default_redaction_choice_class"
+        }
+      }
+    },
+    "explanation_fields_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_work_summary",
+        "change_summary",
+        "capability_disablement_summary",
+        "escalation_summary",
+        "user_facing_next_step"
+      ],
+      "properties": {
+        "preserved_work_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "change_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "capability_disablement_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "escalation_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "user_facing_next_step": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "Reviewable sentences Doctor and the Support Center MAY render verbatim. These replace free-text Fix-button copy: the transaction is the source of truth for what is preserved, what changes, what capability is narrowed, when escalation is required, and what the user can do next."
+    },
+    "governance_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_packet_header_schema_ref",
+        "support_bundle_schema_ref",
+        "object_handoff_packet_schema_ref",
+        "support_packet_index_schema_ref",
+        "recovery_action_schema_ref",
+        "repair_preview_schema_ref",
+        "repair_outcome_schema_ref",
+        "evidence_id_conventions_ref",
+        "record_class_registry_ref"
+      ],
+      "properties": {
+        "evidence_packet_header_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_bundle_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "object_handoff_packet_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_packet_index_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "recovery_action_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "repair_preview_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "repair_outcome_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_id_conventions_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "record_class_registry_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "project_doctor_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "recovery_ladder_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "scenario_matrix_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "repair_transaction_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_transaction_schema_version",
+        "record_kind",
+        "repair_transaction_id",
+        "title",
+        "summary",
+        "governance_bindings",
+        "repair_class_family",
+        "suggested_repair_class",
+        "initiating_finding_codes",
+        "impacted_state_classes",
+        "preserved_state_classes",
+        "lost_capability_classes",
+        "runtime_requirements",
+        "forbidden_action_assertions",
+        "checkpoint_ref",
+        "idempotency_key",
+        "transaction_reversal_class",
+        "preview_artifact_ref",
+        "apply_mode_class",
+        "escalation_route",
+        "linkage_bindings",
+        "default_redaction_choice_class",
+        "explanation_fields",
+        "emitted_at"
+      ],
+      "properties": {
+        "repair_transaction_schema_version": {
+          "$ref": "#/$defs/repair_transaction_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "repair_transaction_record"
+        },
+        "repair_transaction_id": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id (for example repair_transaction:disposable_state_rebuild.cache_index_repair). Ids are additive-only; repurposing is breaking."
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings"
+        },
+        "repair_class_family": {
+          "$ref": "#/$defs/repair_class_family"
+        },
+        "suggested_repair_class": {
+          "$ref": "#/$defs/suggested_repair_class"
+        },
+        "initiating_finding_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/doctor_finding_code"
+          }
+        },
+        "impacted_state_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/impacted_state_class"
+          },
+          "description": "State classes apply MAY mutate. MUST be empty when apply_mode_class is dry_run_preview_only, apply_observe_only_no_write, or apply_refused_escalation_only."
+        },
+        "preserved_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          },
+          "description": "State classes the transaction MUST NOT mutate. user_authored_files MUST appear on every transaction."
+        },
+        "lost_capability_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/lost_capability_class"
+          }
+        },
+        "runtime_requirements": {
+          "$ref": "#/$defs/runtime_requirements_block"
+        },
+        "forbidden_action_assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/forbidden_action_class"
+          },
+          "description": "Closed set of actions the transaction asserts it WILL NOT take silently. apply review verifies the assertion held; the outcome record records any violation."
+        },
+        "checkpoint_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ],
+          "description": "Pre-apply checkpoint id the transaction wrote (or restored). MUST be non-null whenever apply_mode_class is apply_with_checkpoint or apply_with_rollback_on_failure. MUST be null whenever apply_mode_class is dry_run_preview_only, apply_observe_only_no_write, or apply_refused_escalation_only."
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/stable_token",
+          "description": "Stable idempotency key. Re-submitting a transaction with the same key against the same initiating findings MUST be a no-op apply (preview may still run). Idempotency keys are scoped to (repair_transaction_id, initiating_finding_codes)."
+        },
+        "transaction_reversal_class": {
+          "$ref": "#/$defs/transaction_reversal_class"
+        },
+        "preview_artifact_ref": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id of the repair_preview_record this transaction owns. The preview MUST exist before any apply path runs."
+        },
+        "apply_mode_class": {
+          "$ref": "#/$defs/apply_mode_class"
+        },
+        "escalation_route": {
+          "$ref": "#/$defs/escalation_route_block"
+        },
+        "linkage_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/linkage_binding"
+          }
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/default_redaction_choice_class"
+        },
+        "explanation_fields": {
+          "$ref": "#/$defs/explanation_fields_block"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "repair_class_family": {
+                "const": "guided_export_escalation"
+              }
+            },
+            "required": [
+              "repair_class_family"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_refused_escalation_only"
+              },
+              "transaction_reversal_class": {
+                "const": "audit_only"
+              },
+              "checkpoint_ref": {
+                "type": "null"
+              },
+              "impacted_state_classes": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "repair_class_family": {
+                "const": "observe_only_no_repair"
+              }
+            },
+            "required": [
+              "repair_class_family"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_observe_only_no_write"
+              },
+              "transaction_reversal_class": {
+                "const": "audit_only"
+              },
+              "checkpoint_ref": {
+                "type": "null"
+              },
+              "impacted_state_classes": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "dry_run_preview_only"
+              }
+            },
+            "required": [
+              "apply_mode_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_ref": {
+                "type": "null"
+              },
+              "impacted_state_classes": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_with_checkpoint"
+              }
+            },
+            "required": [
+              "apply_mode_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "checkpoint_ref"
+            ],
+            "properties": {
+              "checkpoint_ref": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_with_rollback_on_failure"
+              }
+            },
+            "required": [
+              "apply_mode_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "checkpoint_ref"
+            ],
+            "properties": {
+              "checkpoint_ref": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_refused_escalation_only"
+              }
+            },
+            "required": [
+              "apply_mode_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "escalation_route": {
+                "type": "object",
+                "properties": {
+                  "escalation_required_when": {
+                    "contains": {
+                      "const": "no_local_repair_path_available"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transaction_reversal_class": {
+                "const": "exact"
+              }
+            },
+            "required": [
+              "transaction_reversal_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_mode_class": {
+                "enum": [
+                  "apply_with_checkpoint",
+                  "apply_with_rollback_on_failure"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "preserved_state_classes": {
+              "contains": {
+                "const": "user_authored_files"
+              }
+            },
+            "forbidden_action_assertions": {
+              "allOf": [
+                {
+                  "contains": {
+                    "const": "widen_workspace_trust"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "publish_route"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "run_repo_hook_silently"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "mutate_user_authored_files"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "read_or_rotate_credentials"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "repair_seed_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_transaction_schema_version",
+        "record_kind",
+        "case_id",
+        "scenario_summary",
+        "repair_transaction_id",
+        "repair_class_family",
+        "suggested_repair_class",
+        "transaction_reversal_class",
+        "apply_mode_class",
+        "initiating_finding_codes",
+        "impacted_state_classes",
+        "preserved_state_classes",
+        "lost_capability_classes",
+        "runtime_requirements",
+        "forbidden_action_assertions",
+        "checkpoint_ref_required",
+        "idempotency_key",
+        "preview_artifact_ref",
+        "outcome_artifact_ref",
+        "escalation_route",
+        "linkage_refs",
+        "default_redaction_choice_class",
+        "explanation_fields",
+        "notes",
+        "emitted_at"
+      ],
+      "properties": {
+        "repair_transaction_schema_version": {
+          "$ref": "#/$defs/repair_transaction_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "repair_seed_case_record"
+        },
+        "case_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "scenario_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "repair_transaction_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "repair_class_family": {
+          "$ref": "#/$defs/repair_class_family"
+        },
+        "suggested_repair_class": {
+          "$ref": "#/$defs/suggested_repair_class"
+        },
+        "transaction_reversal_class": {
+          "$ref": "#/$defs/transaction_reversal_class"
+        },
+        "apply_mode_class": {
+          "$ref": "#/$defs/apply_mode_class"
+        },
+        "initiating_finding_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/doctor_finding_code"
+          }
+        },
+        "impacted_state_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/impacted_state_class"
+          }
+        },
+        "preserved_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          }
+        },
+        "lost_capability_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/lost_capability_class"
+          }
+        },
+        "runtime_requirements": {
+          "$ref": "#/$defs/runtime_requirements_block"
+        },
+        "forbidden_action_assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/forbidden_action_class"
+          }
+        },
+        "checkpoint_ref_required": {
+          "type": "boolean",
+          "description": "Whether a non-null checkpoint_ref MUST be present on the live repair_transaction_record. true for apply_with_checkpoint and apply_with_rollback_on_failure; false otherwise."
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "preview_artifact_ref": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "outcome_artifact_ref": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "escalation_route": {
+          "$ref": "#/$defs/escalation_route_block"
+        },
+        "linkage_refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scenario_row_ref",
+            "recovery_action_id",
+            "support_bundle_case_ref",
+            "object_handoff_case_ref",
+            "project_doctor_finding_ref",
+            "checkpoint_ref",
+            "preview_record_ref",
+            "outcome_record_ref"
+          ],
+          "properties": {
+            "scenario_row_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "recovery_action_id": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "support_bundle_case_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "object_handoff_case_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "project_doctor_finding_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "checkpoint_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "preview_record_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "outcome_record_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            }
+          },
+          "description": "Stable refs the case carries so support review can pivot in O(1) between the transaction, the matched scenario row, the recovery action, the support-bundle case, the escalation packet, and the preview/outcome records. Null is an explicit opt-out, not a missing field; at least one ref must be non-null."
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/default_redaction_choice_class"
+        },
+        "explanation_fields": {
+          "$ref": "#/$defs/explanation_fields_block"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "repair_class_family": {
+                "const": "guided_export_escalation"
+              }
+            },
+            "required": [
+              "repair_class_family"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_refused_escalation_only"
+              },
+              "transaction_reversal_class": {
+                "const": "audit_only"
+              },
+              "checkpoint_ref_required": {
+                "const": false
+              },
+              "impacted_state_classes": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "repair_class_family": {
+                "const": "observe_only_no_repair"
+              }
+            },
+            "required": [
+              "repair_class_family"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_observe_only_no_write"
+              },
+              "transaction_reversal_class": {
+                "const": "audit_only"
+              },
+              "checkpoint_ref_required": {
+                "const": false
+              },
+              "impacted_state_classes": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_with_checkpoint"
+              }
+            },
+            "required": [
+              "apply_mode_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_ref_required": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "apply_mode_class": {
+                "const": "apply_with_rollback_on_failure"
+              }
+            },
+            "required": [
+              "apply_mode_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_ref_required": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "preserved_state_classes": {
+              "contains": {
+                "const": "user_authored_files"
+              }
+            },
+            "forbidden_action_assertions": {
+              "allOf": [
+                {
+                  "contains": {
+                    "const": "widen_workspace_trust"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "publish_route"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "run_repo_hook_silently"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "mutate_user_authored_files"
+                  }
+                },
+                {
+                  "contains": {
+                    "const": "read_or_rotate_credentials"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
