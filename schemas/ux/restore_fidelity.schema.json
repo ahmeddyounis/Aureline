@@ -1,0 +1,793 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/restore_fidelity.schema.json",
+  "title": "Aureline restore-fidelity and crash-loop card contract",
+  "description": "Boundary schema for the crash-loop screen and restore-fidelity contract frozen in docs/ux/crash_loop_and_restore_fidelity_contract.md. The card records the controlled restore-fidelity class, suspected actor, last failure, bounded restart posture, local-forensics refs, topology placeholders, support/export refs, and recovery action grammar. It composes with the workspace entry / restore object model, runtime forensic packet, recovery ladder, and support bundle without replacing those records.",
+  "type": "object",
+  "$ref": "#/$defs/crash_loop_card_record",
+  "$defs": {
+    "restore_fidelity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this restore-fidelity / crash-loop export. Additive changes bump this const; repurposing existing values is breaking."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for logs, manifests, support bundles, and crash-loop surfaces. Raw paths, raw credentials, raw provider URLs, and raw payload bodies never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp emitted by the producer."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewable, redaction-aware text. Raw secret material, raw paths, raw logs, and raw provider payloads must not appear."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "crash_loop_card_record",
+      "description": "Discriminator. Always crash_loop_card_record for records conforming to this schema."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "startup_crash_loop_screen",
+        "start_center_restore_card",
+        "diagnostics_restore_panel",
+        "support_export_preview",
+        "docs_help_example"
+      ],
+      "description": "Surface family reading the record. Startup, diagnostics, support export, and docs/help reuse the same restore class and refs."
+    },
+    "restore_fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ],
+      "description": "Controlled restore-fidelity class. Rendered labels are Exact restore, Compatible restore, Layout only, Recovered drafts, and Evidence only."
+    },
+    "fault_domain_id": {
+      "type": "string",
+      "enum": [
+        "shell_interaction_core",
+        "workspace_knowledge_workers",
+        "session_scoped_execution_hosts",
+        "extension_and_tool_hosts",
+        "ai_and_external_tool_brokers",
+        "remote_connectors",
+        "policy_entitlement_and_verifier_helpers"
+      ],
+      "description": "Fault-domain id re-exported from the runtime restart policy."
+    },
+    "suspect_actor_class": {
+      "type": "string",
+      "enum": [
+        "extension",
+        "extension_host",
+        "runtime_host",
+        "profile_or_settings_change",
+        "workspace_restore_state",
+        "remote_target",
+        "managed_session",
+        "binary_or_schema_version",
+        "monitor_topology",
+        "unknown_pending_probe"
+      ],
+      "description": "The suspected actor or drift class. unknown_pending_probe is required when confidence is insufficient."
+    },
+    "suspect_confidence_class": {
+      "type": "string",
+      "enum": [
+        "confirmed",
+        "likely",
+        "possible",
+        "unknown_pending_probe"
+      ],
+      "description": "How strongly the card may name the suspected actor."
+    },
+    "last_attempted_reopen_mode": {
+      "type": "string",
+      "enum": [
+        "restore_previous_session",
+        "compatible_restore",
+        "layout_only_restore",
+        "recovered_drafts_only",
+        "evidence_only_recovery",
+        "safe_mode",
+        "open_without_restore",
+        "open_clean",
+        "disable_suspect_then_restore",
+        "unknown"
+      ],
+      "description": "The last launch mode attempted before this card was emitted."
+    },
+    "symbolication_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_symbols_available",
+        "exact_build_symbols_unavailable",
+        "partial_symbols_available",
+        "build_or_module_mismatch",
+        "not_applicable"
+      ],
+      "description": "Exact-build symbol or mapping truth shown on crash and support surfaces."
+    },
+    "strike_window_class": {
+      "type": "string",
+      "enum": [
+        "short_window",
+        "medium_window",
+        "long_window"
+      ]
+    },
+    "escalation_state_class": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "offline",
+        "lost"
+      ],
+      "description": "Visible escalation state re-exported from the runtime forensic packet vocabulary."
+    },
+    "exit_reason_class": {
+      "type": "string",
+      "enum": [
+        "crash_segfault_or_signal",
+        "crash_unhandled_panic",
+        "crash_allocation_failure",
+        "crash_abort_on_assertion",
+        "crash_resource_quota_exceeded",
+        "crash_sandbox_denial",
+        "rpc_contract_mismatch",
+        "corrupt_restorable_state",
+        "startup_restore_reentered_loop",
+        "unknown_nonclean_exit"
+      ],
+      "description": "Last failure reason shown to the user and support. Runtime-originated values reuse the forensic packet vocabulary; restore-specific values are scoped to this card."
+    },
+    "missing_target_state": {
+      "type": "string",
+      "enum": [
+        "fully_present",
+        "missing_extension_host",
+        "quarantined_extension",
+        "missing_remote_target",
+        "authority_expired_for_remote",
+        "missing_toolchain",
+        "missing_profile",
+        "missing_devcontainer",
+        "missing_managed_workspace",
+        "topology_changed",
+        "schema_migrated",
+        "binary_or_extension_version_changed",
+        "corrupt_restorable_state",
+        "policy_blocked_restore"
+      ],
+      "description": "Missing-target state re-exported from the workspace entry / restore object model."
+    },
+    "missing_dependency_class": {
+      "type": "string",
+      "enum": [
+        "monitor_topology",
+        "extension_host",
+        "remote_target",
+        "managed_session",
+        "binary_or_schema_version",
+        "workspace_restore_state",
+        "toolchain",
+        "profile",
+        "devcontainer",
+        "policy"
+      ]
+    },
+    "placeholder_behavior_class": {
+      "type": "string",
+      "enum": [
+        "layout_slot_preserved_static_evidence",
+        "layout_clamped_on_screen",
+        "reconnect_required",
+        "reauth_required",
+        "install_or_enable_required",
+        "incompatible_version_review_required",
+        "journal_only_review_required",
+        "evidence_only_card"
+      ],
+      "description": "How an unavailable dependency appears without claiming live readiness."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "debug_session",
+        "notebook_kernel",
+        "task_runner",
+        "preview_server",
+        "remote_tunnel",
+        "extension_view",
+        "ai_tool_session",
+        "shared_control_session",
+        "log_viewer",
+        "support_export",
+        "unknown"
+      ]
+    },
+    "pane_recovery_posture": {
+      "type": "string",
+      "enum": [
+        "ready_verified_live",
+        "context_restored_not_live",
+        "transcript_restored_not_rerun",
+        "evidence_only",
+        "placeholder_missing_dependency",
+        "reconnect_required",
+        "reauth_required",
+        "rerun_required",
+        "journal_recovered_pending_compare",
+        "unavailable"
+      ],
+      "description": "Posture for a restored surface. ready_verified_live is allowed only when the runtime truly survived or was explicitly reconnected under current authority."
+    },
+    "action_id": {
+      "type": "string",
+      "enum": [
+        "restore_now",
+        "skip_once",
+        "open_clean",
+        "compare_to_disk",
+        "open_journal",
+        "safe_mode",
+        "open_without_restore",
+        "disable_suspect_extension",
+        "export_evidence",
+        "retry_reopen",
+        "open_logs"
+      ],
+      "description": "Closed recovery action grammar for crash-loop and restore-fidelity surfaces."
+    },
+    "action_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "disabled_until_probe",
+        "hidden_not_applicable",
+        "blocked_by_policy",
+        "unavailable_missing_evidence"
+      ]
+    },
+    "action_role": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "secondary",
+        "recovery",
+        "diagnostic",
+        "destructive_review"
+      ]
+    },
+    "action_effect_class": {
+      "type": "string",
+      "enum": [
+        "preserve_dirty_buffers",
+        "preserve_evidence",
+        "preserve_crash_envelope",
+        "preserve_logs",
+        "preserve_session_manifest",
+        "preserve_layout_context",
+        "preserve_local_history",
+        "preserve_checkpoint_refs",
+        "defer_restore_this_launch",
+        "discard_auto_restore_attempt",
+        "suspend_extension_activation",
+        "suspend_remote_reattach",
+        "disable_suspect_until_review",
+        "require_user_compare",
+        "require_journal_review",
+        "rerun_nothing",
+        "upload_nothing_by_default"
+      ],
+      "description": "Preservation, discard, and deferral vocabulary for recovery actions."
+    },
+    "action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "availability",
+        "action_role",
+        "enabled",
+        "preserves",
+        "discards_or_defers",
+        "evidence_retained_after_action",
+        "requires_confirmation",
+        "consequence_summary"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/action_id" },
+        "availability": { "$ref": "#/$defs/action_availability_class" },
+        "action_role": { "$ref": "#/$defs/action_role" },
+        "enabled": { "type": "boolean" },
+        "preserves": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_effect_class" },
+          "uniqueItems": true
+        },
+        "discards_or_defers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_effect_class" },
+          "uniqueItems": true
+        },
+        "evidence_retained_after_action": {
+          "type": "boolean",
+          "description": "True when the underlying crash / restore evidence remains retained after this action."
+        },
+        "requires_confirmation": { "type": "boolean" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "consequence_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "restored_surface_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windows",
+        "panes",
+        "editors",
+        "dirty_buffers",
+        "placeholders",
+        "evidence_packets"
+      ],
+      "properties": {
+        "windows": { "type": "integer", "minimum": 0 },
+        "panes": { "type": "integer", "minimum": 0 },
+        "editors": { "type": "integer", "minimum": 0 },
+        "dirty_buffers": { "type": "integer", "minimum": 0 },
+        "placeholders": { "type": "integer", "minimum": 0 },
+        "evidence_packets": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "surface_posture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_class",
+        "posture",
+        "posture_summary"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "posture": { "$ref": "#/$defs/pane_recovery_posture" },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "posture_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "restore_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_class",
+        "restored_surface_counts",
+        "not_restored_summary",
+        "readiness_claim_policy",
+        "surface_postures"
+      ],
+      "properties": {
+        "restore_class": { "$ref": "#/$defs/restore_fidelity_class" },
+        "restored_surface_counts": { "$ref": "#/$defs/restored_surface_counts" },
+        "not_restored_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "readiness_claim_policy": {
+          "type": "string",
+          "enum": [
+            "no_live_readiness_without_runtime_survival",
+            "exact_live_readiness_requires_probe",
+            "evidence_never_live"
+          ]
+        },
+        "surface_postures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_posture_record" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "restore_class": {
+                "enum": [
+                  "layout_only",
+                  "recovered_drafts",
+                  "evidence_only"
+                ]
+              }
+            },
+            "required": ["restore_class"]
+          },
+          "then": {
+            "properties": {
+              "surface_postures": {
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "posture": { "const": "ready_verified_live" }
+                    },
+                    "required": ["posture"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "suspected_actor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_ref",
+        "confidence_class",
+        "confidence_note"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/suspect_actor_class" },
+        "actor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "confidence_class": { "$ref": "#/$defs/suspect_confidence_class" },
+        "confidence_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "last_failure_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crash_id",
+        "crash_envelope_ref",
+        "occurred_at",
+        "exit_reason_class",
+        "build_identity_ref",
+        "restore_manifest_ref",
+        "symbolication_state",
+        "summary"
+      ],
+      "properties": {
+        "crash_id": { "$ref": "#/$defs/opaque_id" },
+        "crash_envelope_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "exit_reason_class": { "$ref": "#/$defs/exit_reason_class" },
+        "build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "symbolication_state": { "$ref": "#/$defs/symbolication_state" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "restart_budget_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted_restart_count",
+        "automatic_restart_budget",
+        "strike_window_class",
+        "escalation_state_class",
+        "bounded_restart_exhausted",
+        "next_automatic_restart_allowed"
+      ],
+      "properties": {
+        "attempted_restart_count": { "type": "integer", "minimum": 0 },
+        "automatic_restart_budget": { "type": "integer", "minimum": 0 },
+        "strike_window_class": { "$ref": "#/$defs/strike_window_class" },
+        "escalation_state_class": { "$ref": "#/$defs/escalation_state_class" },
+        "bounded_restart_exhausted": { "type": "boolean" },
+        "next_automatic_restart_allowed": { "type": "boolean" }
+      }
+    },
+    "crash_loop_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fault_domain_id",
+        "suspected_actor",
+        "last_failure_summary",
+        "restart_budget",
+        "last_attempted_reopen_mode"
+      ],
+      "properties": {
+        "fault_domain_id": { "$ref": "#/$defs/fault_domain_id" },
+        "suspected_actor": { "$ref": "#/$defs/suspected_actor_record" },
+        "last_failure_summary": { "$ref": "#/$defs/last_failure_summary" },
+        "restart_budget": { "$ref": "#/$defs/restart_budget_record" },
+        "last_attempted_reopen_mode": { "$ref": "#/$defs/last_attempted_reopen_mode" }
+      }
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "review_required_code_adjacent",
+        "regulated_support_only",
+        "local_only_private",
+        "raw_dump_excluded"
+      ]
+    },
+    "export_posture": {
+      "type": "string",
+      "enum": [
+        "local_first_not_exported",
+        "export_review_required",
+        "exported_by_reference",
+        "export_blocked_by_policy"
+      ]
+    },
+    "missing_dependency_placeholder_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_class",
+        "placeholder_behavior",
+        "affected_surface_ref",
+        "target_state",
+        "action_ids",
+        "user_visible_note"
+      ],
+      "properties": {
+        "dependency_class": { "$ref": "#/$defs/missing_dependency_class" },
+        "placeholder_behavior": { "$ref": "#/$defs/placeholder_behavior_class" },
+        "affected_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_state": { "$ref": "#/$defs/missing_target_state" },
+        "action_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_id" },
+          "uniqueItems": true
+        },
+        "user_visible_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "local_forensics_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crash_envelope_ref",
+        "log_refs",
+        "restore_diagnostic_refs",
+        "forensic_packet_refs",
+        "support_bundle_candidate_ref",
+        "redaction_class",
+        "export_posture",
+        "missing_dependency_placeholders"
+      ],
+      "properties": {
+        "crash_envelope_ref": { "$ref": "#/$defs/opaque_id" },
+        "log_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "restore_diagnostic_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "forensic_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "support_bundle_candidate_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "missing_dependency_placeholders": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_dependency_placeholder_record" }
+        },
+        "forensics_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "topology_adjustment_class": {
+      "type": "string",
+      "enum": [
+        "monitor_topology_changed",
+        "missing_extension_host",
+        "remote_target_unavailable",
+        "managed_session_expired",
+        "incompatible_version_change",
+        "corrupt_state_quarantined"
+      ]
+    },
+    "topology_adjustment_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjustment_class",
+        "note_visible",
+        "affected_surface_refs",
+        "placeholder_behavior",
+        "adjustment_summary"
+      ],
+      "properties": {
+        "adjustment_class": { "$ref": "#/$defs/topology_adjustment_class" },
+        "note_visible": { "type": "boolean" },
+        "affected_surface_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "placeholder_behavior": { "$ref": "#/$defs/placeholder_behavior_class" },
+        "adjustment_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "support_surface_context": {
+      "type": "string",
+      "enum": [
+        "startup",
+        "diagnostics",
+        "support_export",
+        "docs_help"
+      ]
+    },
+    "shared_reference_field": {
+      "type": "string",
+      "enum": [
+        "crash_id",
+        "crash_envelope_ref",
+        "restore_class",
+        "fault_domain_id",
+        "support_bundle_candidate_ref",
+        "forensic_packet_refs",
+        "restore_manifest_ref",
+        "symbolication_state"
+      ]
+    },
+    "support_surface_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "appears_in",
+        "shared_reference_fields",
+        "docs_help_label"
+      ],
+      "properties": {
+        "appears_in": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_surface_context" },
+          "uniqueItems": true
+        },
+        "shared_reference_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/shared_reference_field" },
+          "uniqueItems": true
+        },
+        "docs_help_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "accessibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keyboard_reachable_actions",
+        "focus_target_ref",
+        "screen_reader_summary"
+      ],
+      "properties": {
+        "keyboard_reachable_actions": { "type": "boolean" },
+        "focus_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "screen_reader_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "crash_loop_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "restore_fidelity_schema_version",
+        "card_id",
+        "surface_family",
+        "restore_summary",
+        "crash_loop_context",
+        "local_forensics",
+        "topology_adjustments",
+        "actions",
+        "support_surface_contract",
+        "accessibility_contract",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "restore_fidelity_schema_version": { "$ref": "#/$defs/restore_fidelity_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "restore_summary": { "$ref": "#/$defs/restore_summary" },
+        "crash_loop_context": { "$ref": "#/$defs/crash_loop_context" },
+        "local_forensics": { "$ref": "#/$defs/local_forensics_surface" },
+        "topology_adjustments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topology_adjustment_record" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_record" }
+        },
+        "support_surface_contract": { "$ref": "#/$defs/support_surface_contract" },
+        "accessibility_contract": { "$ref": "#/$defs/accessibility_contract" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "actions": {
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "safe_mode" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "actions": {
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "open_without_restore" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "actions": {
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "export_evidence" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "actions": {
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "retry_reopen" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

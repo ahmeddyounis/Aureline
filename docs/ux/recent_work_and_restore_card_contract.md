@@ -9,6 +9,7 @@ the workspace entry / restore object model:
 - [`/docs/workspace/entry_restore_object_model.md`](../workspace/entry_restore_object_model.md)
 - [`/schemas/ux/recent_work_row.schema.json`](../../schemas/ux/recent_work_row.schema.json)
 - [`/fixtures/ux/recent_work_rows/`](../../fixtures/ux/recent_work_rows/)
+- [`/docs/ux/crash_loop_and_restore_fidelity_contract.md`](./crash_loop_and_restore_fidelity_contract.md)
 
 The goal is simple: a missing folder, stale cache, disconnected
 remote, suspended managed workspace, or partial restore can never
