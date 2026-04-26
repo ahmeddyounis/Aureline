@@ -574,6 +574,18 @@ code.
   state-map row for the execution-context cache, and one restore-
   provenance fixture per fidelity label) in
   [`/fixtures/profile/restore_provenance_examples/`](../fixtures/profile/restore_provenance_examples/).
+- [`ux/persistence_inspector_contract.md`](./ux/persistence_inspector_contract.md)
+  — concrete remembered-state inspector, portable-state export sheet,
+  and restore-provenance card contract for persistence review. Freezes
+  row fields for artifact class, last-write time, schema version,
+  restore fidelity, portability label, redaction, size, checksum /
+  signature state, local-only exclusions, inspect / export / compare /
+  clear actions, and restore cards that explain live, placeholder,
+  context-only, blocked, and intentionally excluded state. Boundary
+  schema in
+  [`/schemas/state/portable_state_package.schema.json`](../schemas/state/portable_state_package.schema.json);
+  worked restore-card fixtures in
+  [`/fixtures/state/restore_provenance_cards/`](../fixtures/state/restore_provenance_cards/).
 - [`workspace/entry_restore_object_model.md`](./workspace/entry_restore_object_model.md)
   — first-run, open, clone, import, add-root, restore, resume, and
   start-from-snapshot vocabulary covering project-entry action
