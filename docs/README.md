@@ -534,6 +534,15 @@ code.
   [`/schemas/design/component_contract.schema.json`](../schemas/design/component_contract.schema.json);
   worked fixtures in
   [`/fixtures/design/component_contract_examples/`](../fixtures/design/component_contract_examples/).
+- [`ux/feature_readiness_checklist.md`](./ux/feature_readiness_checklist.md)
+  and
+  [`ux/design_release_evidence_pack_template.md`](./ux/design_release_evidence_pack_template.md)
+  — launch-critical feature readiness gate and reusable design release
+  evidence-pack template covering state sets, keyboard and command maps,
+  accessibility, theme captures, performance/efficiency, policy/trust,
+  telemetry, rollout, migration, extension, compatibility, public-proof,
+  and waiver refs. Machine-readable gate manifest in
+  [`/artifacts/ux/review_gate_manifest.yaml`](../artifacts/ux/review_gate_manifest.yaml).
 - [`security/safe_preview_trust_classes.md`](./security/safe_preview_trust_classes.md)
   — safe-preview trust-class and suspicious-content vocabulary for raw
   text, sanitized rich content, trusted local active content, and

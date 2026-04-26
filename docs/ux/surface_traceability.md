@@ -3,8 +3,14 @@
 This note is the reviewer-facing companion to
 `artifacts/ux/surface_traceability_matrix.yaml`. It summarizes which
 canonical ids and proof artifacts currently back each launch-critical
-surface, how the surface degrades, and where M0 still depends on
-provisional or missing artifacts.
+surface, how the surface degrades, and where the current seed still
+depends on provisional or missing artifacts.
+
+Design-complete gating for these rows lives in
+[`artifacts/ux/review_gate_manifest.yaml`](../../artifacts/ux/review_gate_manifest.yaml).
+Launch-critical rows remain blocked until the feature readiness
+checklist is answered and a reviewable design release evidence pack
+exists for the declared scope.
 
 Coverage markers:
 

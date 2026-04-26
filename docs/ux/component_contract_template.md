@@ -23,6 +23,14 @@ Companion artifacts:
   and review checklist. Component packets cite this taxonomy so
   locked, disabled, read-only, pending, loading, selected, current,
   and degraded states do not drift into local synonyms.
+- [`/artifacts/ux/review_gate_manifest.yaml`](../../artifacts/ux/review_gate_manifest.yaml),
+  [`/docs/ux/feature_readiness_checklist.md`](./feature_readiness_checklist.md),
+  and
+  [`/docs/ux/design_release_evidence_pack_template.md`](./design_release_evidence_pack_template.md)
+  — design-complete gate, feature readiness checklist, and reusable
+  evidence-pack template. Component packets cite these refs through
+  `review_gate_refs` so reusable components inherit explicit review
+  gates instead of ad hoc per-team signoff.
 - [`/artifacts/design/theme_support_rows.yaml`](../../artifacts/design/theme_support_rows.yaml)
   — frozen theme rows and accessibility-posture rows components cite by
   id.
@@ -78,6 +86,10 @@ publishes one packet with:
   aliases are non-conforming.
 - A component contract MUST publish a state machine. Happy-path
   screenshots alone are insufficient.
+- A component contract MUST include `review_gate_refs` naming the
+  review gate manifest, component checklist id, design evidence pack id,
+  and waiver state. Launch-critical surfaces cannot consume a component
+  packet that lacks those refs.
 - A component contract SHOULD map every state node to
   `taxonomy_state_refs` from
   [`component_state_taxonomy.md`](../design/component_state_taxonomy.md).
@@ -162,6 +174,16 @@ sections below.
 - `component_family_class`
 - `stability_label`
 - `source_anchor_refs`
+- `review_gate_refs`
+
+Every `review_gate_refs` block names:
+
+- `gate_manifest_ref`
+- `gate_ids[]`
+- `checklist_ids[]`
+- `evidence_pack_id`
+- `waiver_refs[]`
+- `waiver_state`
 
 ### 2. Theme-package hooks
 

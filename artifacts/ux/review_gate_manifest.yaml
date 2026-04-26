@@ -1,0 +1,547 @@
+# UX review gate manifest.
+#
+# This manifest wires launch-critical feature readiness, reusable
+# component review, and design release evidence into one gate contract.
+# Reviewers and future tooling use these ids rather than per-team
+# signoff prose.
+
+schema_version: 1
+manifest_id: aureline.ux.review_gate_manifest
+manifest_revision: 1
+status: seeded
+
+source_refs:
+  feature_readiness_checklist: docs/ux/feature_readiness_checklist.md
+  design_release_evidence_pack_template: docs/ux/design_release_evidence_pack_template.md
+  component_review_checklist: artifacts/design/component_review_checklist.md
+  component_contract_template: docs/ux/component_contract_template.md
+  component_contract_schema: schemas/design/component_contract.schema.json
+  component_state_taxonomy: docs/design/component_state_taxonomy.md
+  surface_traceability_matrix: artifacts/ux/surface_traceability_matrix.yaml
+  qe_strategy: docs/qe/qe_strategy_seed.md
+  qe_test_lane_registry: artifacts/qe/test_lane_registry.yaml
+  qe_release_blocking_rules: artifacts/qe/release_blocking_rules.yaml
+  qe_quality_scenario_hooks: artifacts/qe/quality_scenario_hooks.yaml
+  compatibility_row_seed: docs/compat/compatibility_row_seed.md
+  compatibility_row_schema: schemas/release/compatibility_row.schema.json
+  migration_center_object_model: docs/migration/migration_center_object_model.md
+  public_proof_scoreboards: docs/qe/public_proof_scoreboards.md
+  public_proof_packets: fixtures/qe/public_proof_packets/
+  evidence_id_conventions: artifacts/governance/evidence_id_conventions.md
+  waiver_template: docs/governance/templates/waiver_template.md
+
+gate_state_values:
+  - seeded
+  - blocked_until_checklist_answers
+  - blocked_until_evidence_pack
+  - blocked_until_active_waiver
+  - reviewable
+  - design_complete
+  - waived_narrow
+
+checklist_answer_values:
+  - pass
+  - not_applicable
+  - waived
+  - fail
+  - unanswered
+
+evidence_pack_status_values:
+  - reserved
+  - draft
+  - reviewable
+  - verified
+  - stale
+  - blocked
+
+waiver_state_values:
+  - none
+  - active
+  - expired
+  - closed
+
+review_decision_values:
+  - design_complete
+  - blocked
+  - waived_narrow
+  - needs_review
+
+checklists:
+  - checklist_id: checklist.feature_readiness.launch_critical
+    title: Launch-critical feature readiness
+    artifact_ref: docs/ux/feature_readiness_checklist.md
+    applies_to:
+      - launch_critical_feature
+      - launch_critical_surface
+      - public_surface_state_change
+    required_for_gate_ids:
+      - gate.launch_critical.design_complete
+    required_answer_states:
+      - pass
+      - not_applicable
+      - waived
+
+  - checklist_id: checklist.component_review.reusable
+    title: Reusable component review
+    artifact_ref: artifacts/design/component_review_checklist.md
+    applies_to:
+      - reusable_component_packet
+      - extension_parity_sensitive_component
+      - launch_critical_component_dependency
+    required_for_gate_ids:
+      - gate.reusable_component.packet_acceptance
+    required_answer_states:
+      - pass
+      - not_applicable
+      - waived
+
+evidence_pack_templates:
+  - template_id: template.design_release_evidence_pack
+    title: Design release evidence pack
+    artifact_ref: docs/ux/design_release_evidence_pack_template.md
+    required_for_gate_ids:
+      - gate.launch_critical.design_complete
+      - gate.reusable_component.packet_acceptance
+    evidence_id_pattern_ref: artifacts/governance/evidence_id_conventions.md#canonical-syntax
+    minimum_required_sections:
+      - scope_and_claim
+      - annotated_state_set
+      - keyboard_and_command_map
+      - accessibility_notes
+      - visual_capture_set
+      - performance_and_efficiency
+      - policy_trust_and_data_boundary
+      - validation_telemetry_and_supportability
+      - rollout_and_lifecycle
+      - migration_extension_compatibility_and_public_proof
+      - checklist_answer_table
+      - reviewer_decision
+
+required_waiver_fields:
+  - waiver_refs
+  - waiver_state
+  - waived_item_ids
+  - requirement_or_gate_refs
+  - scope
+  - risk
+  - user_visible_mitigation
+  - owner
+  - approved_by
+  - opened_on
+  - expires_on
+  - exit_signal
+
+required_join_fields:
+  qe:
+    - qe_lane_refs
+    - qe_scenario_refs
+    - release_blocking_rule_refs
+  compatibility:
+    - compatibility_row_refs
+    - public_schema_stability_labels
+    - version_or_deprecation_refs
+  migration:
+    - migration_packet_refs
+    - importer_or_profile_impact_refs
+    - rollback_checkpoint_refs
+  public_proof:
+    - public_proof_refs
+    - public_scoreboard_refs
+    - claim_row_refs
+  design:
+    - checklist_ids
+    - evidence_pack_ids
+    - component_packet_refs
+    - waiver_refs
+
+gate_policies:
+  - gate_id: gate.launch_critical.design_complete
+    title: Launch-critical design-complete gate
+    applies_to:
+      - launch_critical_feature
+      - launch_critical_surface
+      - public_surface_state_change
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_templates:
+      - template.design_release_evidence_pack
+    required_manifest_fields:
+      - gate_subject_id
+      - surface_traceability_ref
+      - required_checklist_ids
+      - required_evidence_pack_ids
+      - checklist_answer_summary
+      - waiver_refs
+      - waiver_state
+      - required_join_refs
+      - current_gate_state
+    design_complete_allowed_when:
+      checklist_answers:
+        allowed_states:
+          - pass
+          - not_applicable
+          - waived
+        fail_count: 0
+        unanswered_count: 0
+      evidence_pack_status:
+        allowed_states:
+          - reviewable
+          - verified
+      waiver_state:
+        allowed_states:
+          - none
+          - active
+        expired_blocks: true
+      required_join_refs_present: true
+    blocks_design_complete_when:
+      - any_required_checklist_item_is_fail
+      - any_required_checklist_item_is_unanswered
+      - required_evidence_pack_missing_or_reserved
+      - required_evidence_pack_stale_or_blocked
+      - waived_item_without_active_waiver_ref
+      - expired_waiver_ref_present
+      - missing_qe_compatibility_migration_or_public_proof_join_when_applicable
+
+  - gate_id: gate.reusable_component.packet_acceptance
+    title: Reusable component packet acceptance gate
+    applies_to:
+      - reusable_component_packet
+      - extension_parity_sensitive_component
+      - launch_critical_component_dependency
+    required_checklist_ids:
+      - checklist.component_review.reusable
+    required_evidence_pack_templates:
+      - template.design_release_evidence_pack
+    required_component_packet_fields:
+      - review_gate_refs.gate_manifest_ref
+      - review_gate_refs.gate_ids
+      - review_gate_refs.checklist_ids
+      - review_gate_refs.evidence_pack_id
+      - review_gate_refs.waiver_refs
+      - review_gate_refs.waiver_state
+      - state_machine.state_taxonomy_ref
+      - evidence_hooks.keyboard_journey_refs
+      - evidence_hooks.assistive_technology_refs
+      - evidence_hooks.token_drift_check_refs
+      - evidence_hooks.screenshot_baseline_refs
+      - evidence_hooks.state_machine_validation_refs
+    packet_acceptance_allowed_when:
+      review_gate_refs_present: true
+      checklist_answers:
+        allowed_states:
+          - pass
+          - not_applicable
+          - waived
+        fail_count: 0
+        unanswered_count: 0
+      evidence_pack_status:
+        allowed_states:
+          - reviewable
+          - verified
+      waiver_state:
+        allowed_states:
+          - none
+          - active
+        expired_blocks: true
+    blocks_acceptance_when:
+      - review_gate_refs_missing
+      - component_state_taxonomy_missing
+      - evidence_hooks_missing_or_freeform
+      - extension_parity_gap_without_disclosure_or_handoff
+      - waived_item_without_active_waiver_ref
+      - expired_waiver_ref_present
+
+launch_critical_surface_gates:
+  - gate_subject_id: surface.command_palette
+    subject_kind: launch_critical_surface
+    title: Command palette
+    surface_traceability_ref: artifacts/ux/surface_traceability_matrix.yaml#surface.command_palette
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_ids:
+      - evidence.design.command_palette.release_pack
+    component_packet_refs:
+      - fixtures/design/component_contract_examples/command_palette_result_row.json#command_palette.result_row
+    inherited_component_checklist_ids:
+      - checklist.component_review.reusable
+    checklist_answer_summary:
+      pass: 0
+      not_applicable: 0
+      waived: 0
+      fail: 0
+      unanswered: 28
+    evidence_pack_status: reserved
+    waiver_refs: []
+    waiver_state: none
+    required_join_refs:
+      qe_lane_refs:
+        - accessibility_regression
+        - rendering_layout_goldens
+        - performance_ci
+      qe_scenario_refs:
+        - scenario:theme_icon_motion_package_validation
+      compatibility_row_refs:
+        - compat_row:command_plane.command_descriptor_schema
+      migration_packet_refs: []
+      public_proof_refs: []
+    current_gate_state: blocked_until_evidence_pack
+
+  - gate_subject_id: surface.quick_open
+    subject_kind: launch_critical_surface
+    title: Quick open
+    surface_traceability_ref: artifacts/ux/surface_traceability_matrix.yaml#surface.quick_open
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_ids:
+      - evidence.design.quick_open.release_pack
+    component_packet_refs:
+      - fixtures/design/component_contract_examples/command_palette_result_row.json#command_palette.result_row
+    inherited_component_checklist_ids:
+      - checklist.component_review.reusable
+    checklist_answer_summary:
+      pass: 0
+      not_applicable: 0
+      waived: 0
+      fail: 0
+      unanswered: 28
+    evidence_pack_status: reserved
+    waiver_refs: []
+    waiver_state: none
+    required_join_refs:
+      qe_lane_refs:
+        - accessibility_regression
+        - rendering_layout_goldens
+        - performance_ci
+      qe_scenario_refs:
+        - scenario:theme_icon_motion_package_validation
+      compatibility_row_refs:
+        - compat_row:command_plane.command_descriptor_schema
+      migration_packet_refs: []
+      public_proof_refs: []
+    current_gate_state: blocked_until_evidence_pack
+
+  - gate_subject_id: surface.entry_open_import_restore
+    subject_kind: launch_critical_surface
+    title: Open, import, and restore
+    surface_traceability_ref: artifacts/ux/surface_traceability_matrix.yaml#surface.entry_open_import_restore
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_ids:
+      - evidence.design.entry_open_import_restore.release_pack
+    component_packet_refs: []
+    inherited_component_checklist_ids:
+      - checklist.component_review.reusable
+    checklist_answer_summary:
+      pass: 0
+      not_applicable: 0
+      waived: 0
+      fail: 0
+      unanswered: 28
+    evidence_pack_status: reserved
+    waiver_refs: []
+    waiver_state: none
+    required_join_refs:
+      qe_lane_refs:
+        - fixture_repo_integration
+        - accessibility_regression
+        - chaos_fault_injection
+      qe_scenario_refs:
+        - scenario:portability_export_integrity
+        - scenario:repair_rollback
+      compatibility_row_refs:
+        - compat_row:state.profile_layout_schema
+      migration_packet_refs:
+        - docs/migration/migration_center_object_model.md
+      public_proof_refs:
+        - fixtures/qe/public_proof_packets/migration_fidelity_ts_web_dry_run.json
+    current_gate_state: blocked_until_evidence_pack
+
+  - gate_subject_id: surface.trust_permission_prompt
+    subject_kind: launch_critical_surface
+    title: Trust or permission prompt
+    surface_traceability_ref: artifacts/ux/surface_traceability_matrix.yaml#surface.trust_permission_prompt
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_ids:
+      - evidence.design.trust_permission_prompt.release_pack
+    component_packet_refs:
+      - fixtures/design/component_contract_examples/permission_trust_prompt.json#trust.permission_prompt
+    inherited_component_checklist_ids:
+      - checklist.component_review.reusable
+    checklist_answer_summary:
+      pass: 0
+      not_applicable: 0
+      waived: 0
+      fail: 0
+      unanswered: 28
+    evidence_pack_status: reserved
+    waiver_refs: []
+    waiver_state: none
+    required_join_refs:
+      qe_lane_refs:
+        - accessibility_regression
+        - protected_sequence_packet_validation
+        - chaos_fault_injection
+      qe_scenario_refs:
+        - scenario:connectivity_reconciliation
+      compatibility_row_refs:
+        - compat_row:provider.service_api_and_browser_handoff
+      migration_packet_refs: []
+      public_proof_refs: []
+    current_gate_state: blocked_until_evidence_pack
+
+  - gate_subject_id: surface.docs_help
+    subject_kind: launch_critical_surface
+    title: Docs and help
+    surface_traceability_ref: artifacts/ux/surface_traceability_matrix.yaml#surface.docs_help
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_ids:
+      - evidence.design.docs_help.release_pack
+    component_packet_refs: []
+    inherited_component_checklist_ids:
+      - checklist.component_review.reusable
+    checklist_answer_summary:
+      pass: 0
+      not_applicable: 0
+      waived: 0
+      fail: 0
+      unanswered: 28
+    evidence_pack_status: reserved
+    waiver_refs: []
+    waiver_state: none
+    required_join_refs:
+      qe_lane_refs:
+        - accessibility_regression
+        - fixture_repo_integration
+      qe_scenario_refs:
+        - scenario:portability_export_integrity
+      compatibility_row_refs:
+        - compat_row:provider.service_api_and_browser_handoff
+      migration_packet_refs: []
+      public_proof_refs:
+        - docs/qe/public_proof_scoreboards.md
+    current_gate_state: blocked_until_evidence_pack
+
+  - gate_subject_id: surface.activity_banner
+    subject_kind: launch_critical_surface
+    title: Activity and banner surface
+    surface_traceability_ref: artifacts/ux/surface_traceability_matrix.yaml#surface.activity_banner
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_ids:
+      - evidence.design.activity_banner.release_pack
+    component_packet_refs:
+      - fixtures/design/component_contract_examples/durable_job_row.json#activity_center.durable_job_row
+    inherited_component_checklist_ids:
+      - checklist.component_review.reusable
+    checklist_answer_summary:
+      pass: 0
+      not_applicable: 0
+      waived: 0
+      fail: 0
+      unanswered: 28
+    evidence_pack_status: reserved
+    waiver_refs: []
+    waiver_state: none
+    required_join_refs:
+      qe_lane_refs:
+        - accessibility_regression
+        - performance_ci
+        - protected_sequence_packet_validation
+      qe_scenario_refs:
+        - scenario:terminal_run_test_debug_replay_safety
+      compatibility_row_refs:
+        - compat_row:tooling.task_event_envelope
+      migration_packet_refs: []
+      public_proof_refs:
+        - fixtures/qe/public_proof_packets/task_run_test_debug_parity_python_pytest.json
+    current_gate_state: blocked_until_evidence_pack
+
+  - gate_subject_id: surface.support_report_handoff
+    subject_kind: launch_critical_surface
+    title: Support or report handoff
+    surface_traceability_ref: artifacts/ux/surface_traceability_matrix.yaml#surface.support_report_handoff
+    required_checklist_ids:
+      - checklist.feature_readiness.launch_critical
+    required_evidence_pack_ids:
+      - evidence.design.support_report_handoff.release_pack
+    component_packet_refs: []
+    inherited_component_checklist_ids:
+      - checklist.component_review.reusable
+    checklist_answer_summary:
+      pass: 0
+      not_applicable: 0
+      waived: 0
+      fail: 0
+      unanswered: 28
+    evidence_pack_status: reserved
+    waiver_refs: []
+    waiver_state: none
+    required_join_refs:
+      qe_lane_refs:
+        - fixture_repo_integration
+        - accessibility_regression
+        - protocol_parser_fuzzing
+      qe_scenario_refs:
+        - scenario:portability_export_integrity
+      compatibility_row_refs:
+        - compat_row:provider.service_api_and_browser_handoff
+      migration_packet_refs:
+        - docs/migration/migration_center_object_model.md
+      public_proof_refs:
+        - docs/qe/public_proof_scoreboards.md
+    current_gate_state: blocked_until_evidence_pack
+
+component_packet_gates:
+  - component_id: command_palette.result_row
+    packet_ref: fixtures/design/component_contract_examples/command_palette_result_row.json
+    required_gate_ids:
+      - gate.reusable_component.packet_acceptance
+    required_checklist_ids:
+      - checklist.component_review.reusable
+    required_evidence_pack_ids:
+      - evidence.design.component.command_palette_result_row.release_pack
+    waiver_refs: []
+    waiver_state: none
+    evidence_pack_status: reserved
+    current_gate_state: blocked_until_evidence_pack
+
+  - component_id: trust.permission_prompt
+    packet_ref: fixtures/design/component_contract_examples/permission_trust_prompt.json
+    required_gate_ids:
+      - gate.reusable_component.packet_acceptance
+    required_checklist_ids:
+      - checklist.component_review.reusable
+    required_evidence_pack_ids:
+      - evidence.design.component.trust_permission_prompt.release_pack
+    waiver_refs: []
+    waiver_state: none
+    evidence_pack_status: reserved
+    current_gate_state: blocked_until_evidence_pack
+
+  - component_id: activity_center.durable_job_row
+    packet_ref: fixtures/design/component_contract_examples/durable_job_row.json
+    required_gate_ids:
+      - gate.reusable_component.packet_acceptance
+    required_checklist_ids:
+      - checklist.component_review.reusable
+    required_evidence_pack_ids:
+      - evidence.design.component.durable_job_row.release_pack
+    waiver_refs: []
+    waiver_state: none
+    evidence_pack_status: reserved
+    current_gate_state: blocked_until_evidence_pack
+
+  - component_id: settings.policy_locked_row
+    packet_ref: fixtures/design/component_contract_examples/policy_locked_settings_row.json
+    required_gate_ids:
+      - gate.reusable_component.packet_acceptance
+    required_checklist_ids:
+      - checklist.component_review.reusable
+    required_evidence_pack_ids:
+      - evidence.design.component.policy_locked_settings_row.release_pack
+    waiver_refs: []
+    waiver_state: none
+    evidence_pack_status: reserved
+    current_gate_state: blocked_until_evidence_pack

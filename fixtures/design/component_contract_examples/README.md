@@ -17,6 +17,8 @@ sections:
 - token, density, motion, and degraded-state bindings;
 - theme / icon / motion / localization hooks;
 - extension-parity guidance; and
+- review gate refs for checklist, evidence-pack, and waiver linkage;
+  and
 - typed evidence hooks.
 
 ## Fixtures
@@ -44,3 +46,6 @@ sections:
   must match, may narrow with disclosure, or should hand off.
 - **Evidence planning:** keyboard, AT, token-drift, screenshot, and
   state-machine hooks stay typed instead of drifting into ad hoc notes.
+- **Gate wiring:** `review_gate_refs` points each packet at the reusable
+  component checklist, review gate manifest, design evidence-pack id,
+  and waiver state.
