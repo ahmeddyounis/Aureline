@@ -2016,6 +2016,9 @@ rows:
       - schemas/vcs/review_anchor.schema.json
       - schemas/vcs/review_pack.schema.json
       - schemas/vcs/review_evaluation_result.schema.json
+      - schemas/vcs/review_inbox_row.schema.json
+      - schemas/vcs/review_workspace_state.schema.json
+      - schemas/vcs/merge_queue_entry.schema.json
       - schemas/vcs/change_object.schema.json
       - schemas/vcs/patch_stack.schema.json
       - schemas/vcs/branch_row.schema.json
@@ -2480,7 +2483,70 @@ rows:
       review_id_impact_class, denial reason, or audit-event id is
       additive-minor and bumps the per-record schema_version const;
       repurposing an existing value is breaking and requires a new
-      decision row.
+      decision row. review_inbox_row.schema.json, review_workspace_
+      state.schema.json, and merge_queue_entry.schema.json freeze
+      the hosted-review inbox, provider-authoritative state, and
+      merge-policy contract (see docs/vcs/hosted_review_and_merge_
+      policy_contract.md). review_inbox_row.schema.json freezes the
+      review_inbox_row_record (seven-value review_inbox_row_class:
+      authored_by_current_actor, review_requested_from_current_
+      actor, following_for_visibility_only, mentioned_in_thread,
+      assigned_for_landing, draft_only_local_not_yet_published,
+      imported_bundle_inbox_row; five-value review_inbox_state_
+      class: provider_authoritative, local_parity_estimate, stale_
+      relative_to_base_or_head, not_evaluated_on_this_surface,
+      draft_only_no_provider_state; four-value inbox_freshness_
+      sync_class; five-value offline_continuation_class) under
+      allOf gates that force inbox_row_unverifiable_provider_
+      unreachable freshness to drop authority away from provider_
+      authoritative (denies with inbox_state_authority_must_not_
+      outlive_freshness), force draft_only_local_not_yet_published
+      and imported_bundle_inbox_row classes to resolve to the
+      matching honest state-class set, and force archived_at non-
+      null when the lifecycle is archived_tombstone. review_
+      workspace_state.schema.json freezes the review_workspace_
+      state_record (header strip with head / base refs and four-
+      value drift_class; checks / evaluation strip cells with the
+      five-value strip_cell_authority_class so a missing evaluator
+      surfaces a typed not_evaluated_on_this_surface cell rather
+      than disappear into a green-by-omission view; approval /
+      publish-sheet cells with the six-value approval_strip_state_
+      class paired through allOf gates with approval_ticket_ref
+      required on provider-authoritative and publish-later-queued
+      states and forbidden on draft-only-local and provider-
+      unreachable states, and the four-value publish_sheet_
+      publication_state_class paired through allOf gates with the
+      cell distribution; stack / dependency strip cells with the
+      five-value stack_strip_dependency_state_class so a downstream
+      entry inherits the upstream block reason). merge_queue_
+      entry.schema.json freezes the merge_queue_entry_record
+      (five-value merge_queue_entry_class: queue_eligible_
+      admissible, queue_blocked_pending_resolution, queue_landed,
+      queue_dequeued_by_actor, queue_failed_to_land_pending_review;
+      seven-value mergeability_class; nine-value queue_entry_
+      blocked_reason; four-value local_vs_provider_rerun_authority
+      _class) under allOf gates that forbid a queue_eligible_
+      admissible row from naming any non-not_blocked_entry_
+      admissible reason or any not_mergeable_* mergeability class
+      (denies with merge_queue_entry_must_not_appear_eligible_
+      under_blocked_reason and merge_queue_entry_mergeability_
+      must_match_class), force a stack_dependency_blocked_
+      upstream_member_blocked cell to pair with queue_entry_
+      blocked_reason = upstream_stack_member_blocked, and force
+      queue_landed rows to cite a non-null approval_ticket_ref.
+      All three reserve a merge_policy_record_id_ref forward-
+      dependency slot that becomes required non-null when the
+      merge-policy resolver lands. Adding a new record_kind,
+      review_inbox_row_class, review_inbox_state_class, inbox_
+      freshness_sync_class, offline_continuation_class, drift
+      class, strip-cell authority class, approval-strip state
+      class, publish-sheet publication-state class, stack-strip
+      dependency-state class, merge-queue entry class,
+      mergeability class, queue-entry blocked-reason value, rerun-
+      authority class, lifecycle state, denial reason, or audit-
+      event id is additive-minor and bumps the per-record schema_
+      version const; repurposing an existing value is breaking
+      and requires a new decision row.
 
   - family_id: work_items
     schema_home: schemas/work_items/

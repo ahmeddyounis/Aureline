@@ -10057,6 +10057,297 @@ artifacts:
       ticket bodies, no raw notebook cell text, no raw
       terminal bytes, no raw URLs).
 
+  - id: hosted_review_and_merge_policy_contract
+    title: Hosted-review inbox, provider-authoritative state, and merge-policy contract
+    canonical_location: docs/vcs/hosted_review_and_merge_policy_contract.md
+    overview_page: docs/vcs/hosted_review_and_merge_policy_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative cross-tool contract binding every reviewer-facing
+      surface that touches the pending-review inbox, the review-
+      workspace header / checks / approval / stack / publish-sheet
+      strips, or the merge-queue entry to one of three record
+      families: review_inbox_row_record (review_inbox_row_class
+      drawn from the seven-value vocabulary authored_by_current_
+      actor, review_requested_from_current_actor, following_for_
+      visibility_only, mentioned_in_thread, assigned_for_landing,
+      draft_only_local_not_yet_published, imported_bundle_inbox_
+      row; review_inbox_state_class drawn from the five-value
+      vocabulary provider_authoritative, local_parity_estimate,
+      stale_relative_to_base_or_head, not_evaluated_on_this_
+      surface, draft_only_no_provider_state; inbox_freshness_
+      sync_class drawn from inbox_row_fresh / _stale_within_grace
+      / _stale_beyond_grace_local_continues / _unverifiable_
+      provider_unreachable; offline_continuation_class drawn from
+      online_synced_no_offline_state, offline_capture_pending_
+      publish_later, offline_export_only_no_publish_later,
+      provider_outage_local_continues_publish_blocked, provider_
+      outage_local_continues_publish_queued); review_workspace_
+      state_record (header strip with head / base refs and head
+      / base drift_class drawn from fresh_no_drift / drifted_
+      within_grace / drifted_beyond_grace_re_evaluate / drift_
+      unverifiable_provider_unreachable; checks / evaluation
+      strip cells citing strip_cell_authority_class drawn from
+      the five-value vocabulary so a missing evaluator publishes
+      a typed not_evaluated_on_this_surface cell rather than
+      disappear into a green-by-omission view; approval / publish
+      sheet cells citing approval_strip_state_class drawn from
+      the six-value vocabulary with approval_ticket_ref required
+      on provider-authoritative and publish-later-queued states
+      and forbidden on draft-only-local and provider-unreachable-
+      local-continues states, paired through allOf gates that
+      deny approval_strip_publish_must_cite_approval_ticket and
+      approval_strip_publish_state_must_match_authority_class;
+      publish_sheet_publication_state_class drawn from publish_
+      sheet_synced_with_provider, _draft_only_local, _publish_
+      later_queued, _export_only_no_provider_publish under allOf
+      gates that deny publish_sheet_publication_state_must_match
+      _strip_cells; stack / dependency strip cells citing stack_
+      strip_dependency_state_class drawn from the five-value
+      vocabulary so a downstream entry inherits the upstream block
+      reason rather than re-deriving one); and merge_queue_entry_
+      record (merge_queue_entry_class drawn from queue_eligible_
+      admissible, queue_blocked_pending_resolution, queue_landed,
+      queue_dequeued_by_actor, queue_failed_to_land_pending_
+      review; mergeability_class drawn from the seven-value
+      vocabulary mergeable_clean, mergeable_with_conflicts_
+      pending_resolution, not_mergeable_required_check_failing,
+      not_mergeable_required_review_missing_or_dismissed, not_
+      mergeable_base_drifted_re_evaluation_required, not_
+      mergeable_approval_invalidated_by_force_push, not_
+      mergeable_policy_or_trust_blocked; queue_entry_blocked_
+      reason drawn from the nine-value vocabulary; local_vs_
+      provider_rerun_authority_class drawn from local_rerun_
+      admissible_provider_rerun_unavailable, provider_rerun_
+      authoritative_local_rerun_advisory, both_rerun_authorities
+      _admissible_user_picks, no_rerun_admissible_re_evaluation
+      _required_against_fresh_base) under allOf gates that forbid
+      a queue_eligible_admissible row from naming any non-not_
+      blocked_entry_admissible reason or any not_mergeable_*
+      mergeability class (denies with merge_queue_entry_must_not
+      _appear_eligible_under_blocked_reason and merge_queue_
+      entry_mergeability_must_match_class) and force a
+      stack_dependency_blocked_upstream_member_blocked cell to
+      pair with queue_entry_blocked_reason = upstream_stack_
+      member_blocked. Reserves merge_policy_record_id_ref forward
+      -dependency slot on every record that becomes required
+      non-null when the merge-policy resolver lands. Composes
+      with schemas/vcs/review_workspace.schema.json (the inbox
+      row, workspace state, and queue entry all cite review_
+      workspace_id_ref; the merge-queue entry binds to the
+      review-workspace contract's provider_rule_snapshot model
+      via provider_rule_snapshot_id_ref and never duplicates the
+      snapshot body), schemas/vcs/review_pack.schema.json and
+      schemas/vcs/review_evaluation_result.schema.json (every
+      checks-strip cell that is not typed not_evaluated_on_this_
+      surface or draft_only_no_provider_state cites a review_
+      evaluation_result_id_ref), schemas/vcs/patch_stack.schema.
+      json (every stack-strip cell cites an upstream patch_stack_
+      member_id_ref), schemas/vcs/branch_row.schema.json /
+      worktree_row.schema.json (header strip head / base refs),
+      schemas/integration/approval_ticket.schema.json (provider-
+      authoritative and publish-later-queued approval cells),
+      schemas/integration/browser_handoff_packet.schema.json (no
+      raw URLs), schemas/work_items/work_item_detail.schema.json
+      (linked_work_item_ref / linked_work_item_refs), schemas/
+      governance/capability_lifecycle.schema.json (re-exported
+      freshness / client_scope / redaction vocabularies), and
+      schemas/identity/policy_bundle.schema.json (workspace trust
+      / policy envelope). This contract is the upstream the
+      docs/vcs/review_workspace_contract.md hosted_review_inbox_
+      record_id_ref and merge_policy_record_id_ref forward-
+      dependency slots will resolve through. Implementing
+      provider HTTP / OAuth adapters, a real merge-queue kernel
+      / worker, the merge-policy resolver, and the full hosted-
+      review reader UI named explicitly out of scope at this
+      revision.
+
+  - id: review_inbox_row_schema
+    title: Review-inbox-row boundary schema
+    canonical_location: schemas/vcs/review_inbox_row.schema.json
+    overview_page: docs/vcs/hosted_review_and_merge_policy_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the review_inbox_row_record
+      and review_inbox_row_audit_event_record shapes frozen in
+      docs/vcs/hosted_review_and_merge_policy_contract.md.
+      additionalProperties false everywhere. allOf gates force
+      review_inbox_state_class to be one of local_parity_
+      estimate / not_evaluated_on_this_surface / draft_only_no_
+      provider_state when inbox_freshness_sync_class is inbox_
+      row_unverifiable_provider_unreachable (denies with inbox_
+      state_authority_must_not_outlive_freshness), force draft_
+      only_local_not_yet_published rows to resolve review_inbox
+      _state_class to draft_only_no_provider_state, force
+      imported_bundle_inbox_row rows to resolve review_inbox_
+      state_class to not_evaluated_on_this_surface or local_
+      parity_estimate, and force archived_at non-null when
+      review_inbox_lifecycle_state is archived_tombstone. Re-
+      exports freshness_class / client_scope / redaction_class
+      from schemas/governance/capability_lifecycle.schema.json
+      and workspace_trust_state_class from the identity family
+      without redefinition. Adding a new record_kind, review_
+      inbox_row_class, review_inbox_state_class, inbox_
+      freshness_sync_class, offline_continuation_class, review_
+      inbox_lifecycle_state, denial reason, or audit-event id
+      is additive-minor and bumps review_inbox_row_schema_
+      version; repurposing an existing value is breaking and
+      requires a new decision row.
+
+  - id: review_workspace_state_schema
+    title: Review-workspace-state (header / checks / approval / stack strip) boundary schema
+    canonical_location: schemas/vcs/review_workspace_state.schema.json
+    overview_page: docs/vcs/hosted_review_and_merge_policy_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the review_workspace_state_
+      record and review_workspace_state_audit_event_record
+      shapes frozen in docs/vcs/hosted_review_and_merge_policy_
+      contract.md. additionalProperties false everywhere. allOf
+      gates force every checks-strip cell whose strip_cell_
+      authority_class is provider_authoritative / local_parity_
+      estimate / stale_relative_to_base_or_head to cite a non-
+      null review_evaluation_result_id_ref and force every cell
+      whose authority is not_evaluated_on_this_surface or draft_
+      only_no_provider_state to cite null (the typed not_
+      evaluated_on_this_surface cell prevents green-by-omission);
+      force every approval-strip cell whose state is one of the
+      provider_authoritative_* states or publish_later_queued
+      to cite a non-null approval_ticket_ref and a provider_
+      authoritative_* state to cite a non-null provider_published
+      _at; force a publish_sheet_synced_with_provider sheet to
+      carry only provider_authoritative_* approval cells; force
+      a publish_sheet_publish_later_queued sheet to contain at
+      least one publish_later_queued approval cell; force a
+      publish_sheet_export_only_no_provider_publish sheet to
+      carry no provider_authoritative_* cells; and force
+      archived_at non-null when review_workspace_state_
+      lifecycle_state is archived_tombstone. Re-exports
+      freshness_class / client_scope / redaction_class from
+      schemas/governance/capability_lifecycle.schema.json and
+      workspace_trust_state_class from the identity family
+      without redefinition. Adding a new record_kind, drift
+      class, strip-cell authority class, approval-strip state
+      class, publish-sheet publication-state class, stack-strip
+      dependency-state class, lifecycle state, denial reason, or
+      audit-event id is additive-minor and bumps review_
+      workspace_state_schema_version; repurposing an existing
+      value is breaking and requires a new decision row.
+
+  - id: merge_queue_entry_schema
+    title: Merge-queue-entry boundary schema
+    canonical_location: schemas/vcs/merge_queue_entry.schema.json
+    overview_page: docs/vcs/hosted_review_and_merge_policy_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the merge_queue_entry_
+      record and merge_queue_entry_audit_event_record shapes
+      frozen in docs/vcs/hosted_review_and_merge_policy_
+      contract.md. additionalProperties false everywhere. allOf
+      gates force queue_eligible_admissible rows to cite queue_
+      entry_blocked_reason = not_blocked_entry_admissible and
+      mergeability_class = mergeable_clean (denies with merge_
+      queue_entry_must_not_appear_eligible_under_blocked_reason
+      and merge_queue_entry_mergeability_must_match_class),
+      force queue_blocked_pending_resolution rows to cite a non
+      -not_blocked_entry_admissible reason, force a stack-
+      dependency strip cell whose state is stack_dependency_
+      blocked_upstream_member_blocked to pair with queue_entry_
+      blocked_reason = upstream_stack_member_blocked, and force
+      queue_landed rows to cite a non-null approval_ticket_ref
+      so the landing remains attributable. Composes with
+      schemas/vcs/review_workspace.schema.json (the entry binds
+      to the review-workspace contract's provider_rule_snapshot
+      model via provider_rule_snapshot_id_ref; the per-mutation
+      merge_queue_action_record on schemas/vcs/review_workspace.
+      schema.json carries the action stream), schemas/vcs/
+      review_workspace_state.schema.json (the stack-dependency
+      strip cell vocabulary is re-cited so the entry inherits
+      the workspace-state stack view rather than re-deriving
+      one), and schemas/vcs/patch_stack.schema.json (per-member
+      dependency identity). Re-exports freshness_class / client_
+      scope / redaction_class from schemas/governance/
+      capability_lifecycle.schema.json and workspace_trust_
+      state_class from the identity family without redefinition.
+      Adding a new record_kind, merge_queue_entry_class,
+      mergeability_class, queue_entry_blocked_reason, local_vs_
+      provider_rerun_authority_class, lifecycle state, denial
+      reason, or audit-event id is additive-minor and bumps
+      merge_queue_entry_schema_version; repurposing an existing
+      value is breaking and requires a new decision row.
+
+  - id: hosted_review_cases_fixtures
+    title: Hosted-review inbox, workspace-state, and merge-queue-entry worked fixtures
+    canonical_location: fixtures/vcs/hosted_review_cases/
+    overview_page: docs/vcs/hosted_review_and_merge_policy_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example YAML fixtures for the hosted-review inbox,
+      provider-authoritative state, and merge-policy contract
+      and schemas. Covers one local_parity_only review_workspace
+      _state_record where checks were evaluated on the user's
+      clone with no provider overlay, a declared check class
+      with no evaluator surfaces a typed not_evaluated_on_this_
+      surface cell rather than disappear into a green-by-
+      omission view, and a draft-only-local approval is visibly
+      distinct from any published state (acceptance bullet 1 +
+      bullet 2); one provider_authoritative_checks review_
+      workspace_state_record where the provider owns required-
+      check / approval / mergeability cues and local parity-
+      estimate cells render alongside without being collapsed
+      into one ambiguous "ready to merge" badge (acceptance
+      bullet 1); one merge_queue_blocked_stale_base merge_queue
+      _entry_record where the workspace's base drifted relative
+      to the captured provider rule snapshot and the queue
+      entry never appears queue-eligible while the base is
+      stale (acceptance bullet 3); one stacked_review_dependency
+      merge_queue_entry_record where the downstream entry
+      inherits an upstream member's block through the stack-
+      dependency strip rather than re-deriving an independent
+      block reason (acceptance bullet 3); and one provider_
+      outage_local_continuation review_inbox_row_record where
+      the inbox row honestly chips as a local_parity_estimate
+      under inbox_row_unverifiable_provider_unreachable
+      freshness with provider_outage_local_continues_publish_
+      queued offline-continuation so a publish-later action is
+      mechanically distinguishable from a real-time publish
+      (acceptance bullet 1 + bullet 2 + bullet 3). Each fixture
+      cites the contract sections it exercises in the directory
+      README and carries only opaque workspace / branch /
+      revision / provider-rule-snapshot / approval-ticket /
+      actor / command / patch-stack-member / review-evaluation-
+      result / review-pack handles plus monotonic placeholder
+      timestamps and redaction-aware labels (no raw absolute
+      paths, no raw branch / commit URLs, no raw author identity
+      strings, no raw comment bodies, no raw provider rule
+      bodies, no raw approval-ticket bodies, no raw notebook
+      cell text, no raw terminal bytes, no raw URLs).
+
   - id: change_stack_contract
     title: Change-object, worktree, patch-stack, and sequence-editor contract
     canonical_location: docs/vcs/change_stack_contract.md

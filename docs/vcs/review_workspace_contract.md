@@ -34,12 +34,15 @@ ticket and command id) live under
 The eventual review-workspace crate's Rust types are the schema of
 record. This document and the JSON Schema exports are the cross-tool
 boundary every non-owning surface reads. The hosted-review inbox
-contract and the merge-policy contract are forward dependencies: when
-they land, this contract MUST be the upstream they cite for review-
-workspace, anchor, and merge-queue identity. If this document and a
-later hosted-review or merge-policy contract disagree, those contracts
-win for hosted-review and merge-policy semantics and this document MUST
-be updated in the same change.
+contract and the merge-policy contract land in
+[`/docs/vcs/hosted_review_and_merge_policy_contract.md`](hosted_review_and_merge_policy_contract.md);
+that contract cites this contract for review-workspace, anchor, and
+merge-queue identity, and reserves the slots that resolve back into
+this contract's `hosted_review_inbox_record_id_ref` and
+`merge_policy_record_id_ref` forward-dependency refs. If this document
+and the hosted-review-and-merge-policy contract disagree, that contract
+wins for inbox-row, workspace-state-strip, and merge-queue-entry
+semantics and this document MUST be updated in the same change.
 
 Companion artifacts:
 

@@ -1,0 +1,688 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/review_workspace_state.schema.json",
+  "title": "Aureline review-workspace-state (header / checks-strip / approval-publish-sheet / stack-strip) vocabulary",
+  "description": "Boundary schema for the review-workspace-state record family frozen in docs/vcs/hosted_review_and_merge_policy_contract.md. One review_workspace_state_record pins a workspace's header strip (head / base refs and head / base drift), the checks / evaluation strip (a list of cells, each citing one review_evaluation_result_record plus one strip_cell_authority_class so a missing evaluator publishes a typed not_evaluated_on_this_surface cell rather than disappear into a green-by-omission view), the approval / publish sheet (a list of approval cells citing one approval_strip_state_class plus an approval_ticket_ref required on provider-authoritative and publish-later-queued states and forbidden on draft-only-local and provider-unreachable states; the sheet itself names a publish_sheet_publication_state_class that MUST match the cells), and the stack / dependency strip (a list of upstream patch_stack_member references plus a stack_strip_dependency_state_class so a downstream entry inherits the upstream block reason rather than re-deriving one). Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw comment bodies, raw provider rule bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema. The eventual hosted-review-state crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, header drift class, strip-cell authority class, approval-strip state class, publish-sheet publication state class, stack-strip dependency state class, denial reason, or audit-event id is additive-minor and bumps review_workspace_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_workspace_state_record" },
+    { "$ref": "#/$defs/review_workspace_state_audit_event_record" }
+  ],
+  "$defs": {
+    "review_workspace_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the review-workspace-state vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "review_workspace_state_record",
+        "review_workspace_state_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw comment bodies, raw provider rule bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the workspace-state row was minted under."
+    },
+
+    "drift_class": {
+      "type": "string",
+      "enum": [
+        "fresh_no_drift",
+        "drifted_within_grace",
+        "drifted_beyond_grace_re_evaluate",
+        "drift_unverifiable_provider_unreachable"
+      ],
+      "description": "Frozen drift-class vocabulary used on the head and base drift cells. fresh_no_drift = the ref matches its captured snapshot; drifted_within_grace = the ref drifted but is still inside the grace window; drifted_beyond_grace_re_evaluate = the ref drifted past the grace window and re-evaluation is required before any mutation-class action is admitted; drift_unverifiable_provider_unreachable = the provider is unreachable and drift cannot be verified, so the chip surfaces 'unverifiable' rather than 'fresh'."
+    },
+
+    "strip_cell_authority_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative",
+        "local_parity_estimate",
+        "stale_relative_to_base_or_head",
+        "not_evaluated_on_this_surface",
+        "draft_only_no_provider_state"
+      ],
+      "description": "Frozen strip-cell-authority vocabulary. Matches the inbox-state vocabulary so a downstream surface that lifts a cell into the inbox row does not need to translate. provider_authoritative = the cell's evaluation result was published by the provider; local_parity_estimate = the cell's result was published by a local / CI / AI evaluator that the surface treats as a local parity estimate of the provider's authority; stale_relative_to_base_or_head = the cell's result was pinned to a base / head identity that has drifted and re-evaluation is required; not_evaluated_on_this_surface = no evaluator on this surface published a result for this check class (the cell is typed so a missing evaluator does not disappear into a green-by-omission view); draft_only_no_provider_state = the cell is a local draft (e.g. the actor opened a workspace they have not yet published to a provider) and there is no provider state to compare against."
+    },
+
+    "approval_strip_state_class": {
+      "type": "string",
+      "enum": [
+        "approval_strip_state_provider_authoritative_approved",
+        "approval_strip_state_provider_authoritative_changes_requested",
+        "approval_strip_state_provider_authoritative_dismissed",
+        "approval_strip_state_draft_only_local_pending_publish",
+        "approval_strip_state_publish_later_queued",
+        "approval_strip_state_provider_unreachable_local_continues"
+      ],
+      "description": "Frozen approval-strip vocabulary. provider_authoritative_approved / _changes_requested / _dismissed = the approval crossed the wire and the provider holds the authoritative state; draft_only_local_pending_publish = the actor authored an approval / changes-request / dismissal locally that has not been published; publish_later_queued = the actor has explicitly queued the local approval for publish-later; provider_unreachable_local_continues = the provider is unreachable and the local approval is held until the next sync, with no publish-later commitment."
+    },
+
+    "publish_sheet_publication_state_class": {
+      "type": "string",
+      "enum": [
+        "publish_sheet_synced_with_provider",
+        "publish_sheet_draft_only_local",
+        "publish_sheet_publish_later_queued",
+        "publish_sheet_export_only_no_provider_publish"
+      ],
+      "description": "Frozen publish-sheet-level publication-state vocabulary. publish_sheet_synced_with_provider = every approval cell on the sheet is provider-authoritative; publish_sheet_draft_only_local = at least one cell is draft-only-local-pending-publish and none are publish-later-queued; publish_sheet_publish_later_queued = at least one cell is publish-later-queued; publish_sheet_export_only_no_provider_publish = the sheet's underlying workspace is imported-bundle / browser-handoff / provider-outage with no publish-later admissible — only export is admissible."
+    },
+
+    "stack_strip_dependency_state_class": {
+      "type": "string",
+      "enum": [
+        "stack_dependency_admissible_member_landed",
+        "stack_dependency_pending_upstream_member_not_yet_landed",
+        "stack_dependency_blocked_upstream_member_blocked",
+        "stack_dependency_drifted_upstream_member_re_evaluation_required",
+        "stack_dependency_superseded_upstream_member_superseded"
+      ],
+      "description": "Frozen stack-strip dependency-state vocabulary. _admissible_member_landed = the upstream member landed cleanly; _pending_upstream_member_not_yet_landed = the upstream member has not landed yet but is not blocked; _blocked_upstream_member_blocked = the upstream member is blocked and the downstream entry inherits the block; _drifted_upstream_member_re_evaluation_required = the upstream member drifted and the downstream entry MUST re-evaluate; _superseded_upstream_member_superseded = the upstream member was superseded by a rewrite and the downstream entry MUST re-pin to the successor."
+    },
+
+    "review_workspace_state_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "open_under_review",
+        "publish_pending_provider_round_trip",
+        "merged_landed",
+        "closed_unmerged",
+        "archived_tombstone"
+      ],
+      "description": "Frozen review-workspace-state lifecycle vocabulary. publish_pending_provider_round_trip is the explicit state for workspaces whose draft approvals or publish-later actions are queued for the next provider sync."
+    },
+
+    "review_workspace_state_denial_reason": {
+      "type": "string",
+      "enum": [
+        "checks_strip_green_by_omission_forbidden",
+        "checks_strip_authority_must_match_evaluation_source",
+        "approval_strip_publish_must_cite_approval_ticket",
+        "approval_strip_publish_state_must_match_authority_class",
+        "publish_sheet_publication_state_must_match_strip_cells",
+        "stack_strip_blocked_dependency_must_match_queue_entry_blocked_reason",
+        "header_drift_class_required_for_each_named_ref",
+        "review_workspace_state_lifecycle_transition_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "review_workspace_state_record_required_field_missing",
+        "review_workspace_state_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the review_workspace_state audit stream."
+    },
+
+    "review_workspace_state_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "review_workspace_state_opened",
+        "review_workspace_state_strip_cell_added",
+        "review_workspace_state_strip_cell_authority_changed",
+        "review_workspace_state_approval_strip_cell_added",
+        "review_workspace_state_publish_sheet_state_changed",
+        "review_workspace_state_stack_strip_cell_added",
+        "review_workspace_state_archived",
+        "review_workspace_state_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the review_workspace_state stream. review_workspace_state_audit_denial_emitted MUST cite a review_workspace_state_denial_reason."
+    },
+
+    "header_strip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head_branch_or_worktree_ref",
+        "base_branch_or_worktree_ref",
+        "head_drift_class",
+        "base_drift_class"
+      ],
+      "properties": {
+        "head_branch_or_worktree_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/vcs/branch_row.schema.json or schemas/vcs/worktree_row.schema.json for the head ref. Raw branch names and raw absolute paths never appear here."
+        },
+        "base_branch_or_worktree_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the git-state contract for the base ref."
+        },
+        "head_drift_class": { "$ref": "#/$defs/drift_class" },
+        "base_drift_class": { "$ref": "#/$defs/drift_class" },
+        "head_revision_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the head revision the workspace was opened against."
+        },
+        "base_revision_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the base revision."
+        }
+      },
+      "description": "Header-strip carrying the bound head / base refs and their drift classes."
+    },
+
+    "checks_strip_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checks_strip_cell_id",
+        "strip_cell_authority_class",
+        "summary_label"
+      ],
+      "properties": {
+        "checks_strip_cell_id": { "$ref": "#/$defs/opaque_id" },
+        "review_evaluation_result_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/vcs/review_evaluation_result.schema.json. Required (non-null) when strip_cell_authority_class is provider_authoritative, local_parity_estimate, or stale_relative_to_base_or_head; null when the cell's authority class is not_evaluated_on_this_surface or draft_only_no_provider_state. The cell never duplicates the result row's fields."
+        },
+        "review_pack_check_class_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the review_pack_check_descriptor row this cell evaluates against. Used by the strip surface to route a not_evaluated_on_this_surface cell back to the missing check class."
+        },
+        "strip_cell_authority_class": { "$ref": "#/$defs/strip_cell_authority_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "review_evaluation_result_id_ref is required (non-null) when strip_cell_authority_class is provider_authoritative, local_parity_estimate, or stale_relative_to_base_or_head; null when the authority class is not_evaluated_on_this_surface or draft_only_no_provider_state.",
+          "if": {
+            "properties": {
+              "strip_cell_authority_class": {
+                "enum": [
+                  "provider_authoritative",
+                  "local_parity_estimate",
+                  "stale_relative_to_base_or_head"
+                ]
+              }
+            },
+            "required": ["strip_cell_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "review_evaluation_result_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["review_evaluation_result_id_ref"]
+          },
+          "else": {
+            "properties": {
+              "review_evaluation_result_id_ref": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "One row in the checks / evaluation strip. The strip surface MUST publish a typed not_evaluated_on_this_surface cell rather than omit a missing evaluator; the absence of a cell for a declared check class is the green-by-omission failure mode."
+    },
+
+    "approval_strip_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_strip_cell_id",
+        "approval_strip_state_class",
+        "summary_label"
+      ],
+      "properties": {
+        "approval_strip_cell_id": { "$ref": "#/$defs/opaque_id" },
+        "approval_strip_state_class": { "$ref": "#/$defs/approval_strip_state_class" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into schemas/integration/approval_ticket.schema.json. Required (non-null) when approval_strip_state_class is provider_authoritative_approved / _changes_requested / _dismissed or publish_later_queued; null when the state is draft_only_local_pending_publish or provider_unreachable_local_continues. A row that mismatches denies with approval_strip_publish_must_cite_approval_ticket or approval_strip_publish_state_must_match_authority_class."
+        },
+        "approving_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the approving identity. Required (non-null); raw author identity strings never appear here."
+        },
+        "provider_published_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when the approval crossed the wire (any provider_authoritative_* state). Null on draft-only-local and provider-unreachable-local-continues states. A draft-only or publish-later-queued cell that carries a non-null provider_published_at denies with approval_strip_publish_state_must_match_authority_class."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "approval_ticket_ref is required (non-null) when approval_strip_state_class is one of the provider_authoritative_* states or publish_later_queued.",
+          "if": {
+            "properties": {
+              "approval_strip_state_class": {
+                "enum": [
+                  "approval_strip_state_provider_authoritative_approved",
+                  "approval_strip_state_provider_authoritative_changes_requested",
+                  "approval_strip_state_provider_authoritative_dismissed",
+                  "approval_strip_state_publish_later_queued"
+                ]
+              }
+            },
+            "required": ["approval_strip_state_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["approval_ticket_ref"]
+          },
+          "else": {
+            "properties": {
+              "approval_ticket_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "provider_published_at MUST be non-null when approval_strip_state_class is one of the provider_authoritative_* states; MUST be null otherwise.",
+          "if": {
+            "properties": {
+              "approval_strip_state_class": {
+                "enum": [
+                  "approval_strip_state_provider_authoritative_approved",
+                  "approval_strip_state_provider_authoritative_changes_requested",
+                  "approval_strip_state_provider_authoritative_dismissed"
+                ]
+              }
+            },
+            "required": ["approval_strip_state_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_published_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["provider_published_at"]
+          },
+          "else": {
+            "properties": {
+              "provider_published_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "One row in the approval / publish sheet. Offline-captured approvals, publish-later queued approvals, and provider-authoritative approvals are mechanically distinguishable through the state class."
+    },
+
+    "stack_strip_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stack_strip_cell_id",
+        "upstream_patch_stack_member_id_ref",
+        "stack_strip_dependency_state_class",
+        "summary_label"
+      ],
+      "properties": {
+        "stack_strip_cell_id": { "$ref": "#/$defs/opaque_id" },
+        "upstream_patch_stack_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into schemas/vcs/patch_stack.schema.json patch_stack_record. Used when the stack-strip cell pins a member that lives in a different patch stack than the workspace's primary stack."
+        },
+        "upstream_patch_stack_member_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/vcs/patch_stack.schema.json patch_stack_member_record. The stack-strip cell never duplicates the member row's ordinal or landing state."
+        },
+        "stack_strip_dependency_state_class": { "$ref": "#/$defs/stack_strip_dependency_state_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "One row in the stack / dependency strip."
+    },
+
+    "review_workspace_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_workspace_state_schema_version",
+        "review_workspace_state_id",
+        "review_workspace_id_ref",
+        "review_workspace_state_lifecycle_state",
+        "header_strip",
+        "checks_strip_cells",
+        "approval_strip_cells",
+        "publish_sheet_publication_state_class",
+        "stack_strip_cells",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "created_at",
+        "updated_at",
+        "merge_policy_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_workspace_state_record" },
+        "review_workspace_state_schema_version": { "$ref": "#/$defs/review_workspace_state_schema_version" },
+        "review_workspace_state_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the review_workspace_record (schemas/vcs/review_workspace.schema.json) this state row is the header / strip / sheet view of."
+        },
+        "review_workspace_state_lifecycle_state": { "$ref": "#/$defs/review_workspace_state_lifecycle_state" },
+        "header_strip": { "$ref": "#/$defs/header_strip" },
+        "checks_strip_cells": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/checks_strip_cell" },
+          "description": "Ordered list of checks / evaluation strip cells. MAY be empty on a freshly opened workspace before any evaluator has reported, but every declared check class on the bound review_pack MUST eventually appear as a cell (even if as not_evaluated_on_this_surface)."
+        },
+        "approval_strip_cells": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/approval_strip_cell" },
+          "description": "Ordered list of approval / publish-sheet cells."
+        },
+        "publish_sheet_publication_state_class": { "$ref": "#/$defs/publish_sheet_publication_state_class" },
+        "stack_strip_cells": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stack_strip_cell" },
+          "description": "Ordered list of stack / dependency strip cells. MAY be empty when the workspace is not part of a stack."
+        },
+        "linked_work_item_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional list of opaque refs into schemas/work_items/work_item_detail.schema.json."
+        },
+        "linked_review_pack_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into schemas/vcs/review_pack.schema.json. Cited so the strip surface can route a not_evaluated_on_this_surface cell back to the declared check class."
+        },
+        "merge_queue_entry_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into schemas/vcs/merge_queue_entry.schema.json when the workspace has an active queue entry."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when review_workspace_state_lifecycle_state is archived_tombstone. Null otherwise."
+        },
+        "merge_policy_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge-policy resolver. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "publish_sheet_publication_state_class = publish_sheet_synced_with_provider MUST NOT carry any approval_strip_cell whose state is draft_only_local_pending_publish, publish_later_queued, or provider_unreachable_local_continues.",
+          "if": {
+            "properties": {
+              "publish_sheet_publication_state_class": { "const": "publish_sheet_synced_with_provider" }
+            },
+            "required": ["publish_sheet_publication_state_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_strip_cells": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "approval_strip_state_class": {
+                      "enum": [
+                        "approval_strip_state_provider_authoritative_approved",
+                        "approval_strip_state_provider_authoritative_changes_requested",
+                        "approval_strip_state_provider_authoritative_dismissed"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "publish_sheet_publication_state_class = publish_sheet_publish_later_queued MUST carry at least one approval_strip_cell whose state is approval_strip_state_publish_later_queued.",
+          "if": {
+            "properties": {
+              "publish_sheet_publication_state_class": { "const": "publish_sheet_publish_later_queued" }
+            },
+            "required": ["publish_sheet_publication_state_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_strip_cells": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "approval_strip_state_class": { "const": "approval_strip_state_publish_later_queued" }
+                  },
+                  "required": ["approval_strip_state_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "publish_sheet_publication_state_class = publish_sheet_export_only_no_provider_publish MUST NOT carry any provider_authoritative_* approval cell.",
+          "if": {
+            "properties": {
+              "publish_sheet_publication_state_class": { "const": "publish_sheet_export_only_no_provider_publish" }
+            },
+            "required": ["publish_sheet_publication_state_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_strip_cells": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "approval_strip_state_class": {
+                      "not": {
+                        "enum": [
+                          "approval_strip_state_provider_authoritative_approved",
+                          "approval_strip_state_provider_authoritative_changes_requested",
+                          "approval_strip_state_provider_authoritative_dismissed"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "archived_at is required (non-null) when review_workspace_state_lifecycle_state is archived_tombstone and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_workspace_state_lifecycle_state": { "const": "archived_tombstone" } },
+            "required": ["review_workspace_state_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by review-workspace surfaces, hosted-review readers, AI review-aware overlays, and support / export. Exactly one row per review-workspace identity per surface."
+    },
+
+    "review_workspace_state_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_workspace_state_schema_version",
+        "review_workspace_state_audit_event_id_value",
+        "audit_event_record_id",
+        "review_workspace_state_id_ref",
+        "review_workspace_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_workspace_state_audit_event_record" },
+        "review_workspace_state_schema_version": { "$ref": "#/$defs/review_workspace_state_schema_version" },
+        "review_workspace_state_audit_event_id_value": { "$ref": "#/$defs/review_workspace_state_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_state_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_workspace_state_denial_reason" }
+          ],
+          "description": "Required (non-null) when review_workspace_state_audit_event_id_value is review_workspace_state_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is review_workspace_state_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_workspace_state_audit_event_id_value": { "const": "review_workspace_state_audit_denial_emitted" } },
+            "required": ["review_workspace_state_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/review_workspace_state_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the review_workspace_state stream."
+    }
+  }
+}

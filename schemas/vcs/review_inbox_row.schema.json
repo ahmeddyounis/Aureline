@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/review_inbox_row.schema.json",
+  "title": "Aureline pending-review-inbox row vocabulary",
+  "description": "Boundary schema for the pending-review-inbox row record family frozen in docs/vcs/hosted_review_and_merge_policy_contract.md. One review_inbox_row_record pins which review surface is rendering one inbox row, which review_workspace_record the row points at, why the row is in the actor's inbox (the closed seven-value review_inbox_row_class vocabulary: authored_by_current_actor, review_requested_from_current_actor, following_for_visibility_only, mentioned_in_thread, assigned_for_landing, draft_only_local_not_yet_published, imported_bundle_inbox_row), the row's authority chip (the closed five-value review_inbox_state_class vocabulary: provider_authoritative, local_parity_estimate, stale_relative_to_base_or_head, not_evaluated_on_this_surface, draft_only_no_provider_state), the inbox-level freshness chip (the closed four-value inbox_freshness_sync_class vocabulary), and the offline-continuation posture (the closed five-value offline_continuation_class vocabulary). The record reserves linked refs into the review-workspace, review-pack, review-evaluation-result, work-item, merge-queue-entry, and merge-policy contracts; raw bodies, raw URLs, and raw branch / commit identity strings never appear on this record. The eventual hosted-review-inbox crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, inbox-row class, inbox-state class, freshness-sync class, offline-continuation class, lifecycle state, denial reason, or audit-event id is additive-minor and bumps review_inbox_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_inbox_row_record" },
+    { "$ref": "#/$defs/review_inbox_row_audit_event_record" }
+  ],
+  "$defs": {
+    "review_inbox_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the review-inbox-row vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "review_inbox_row_record",
+        "review_inbox_row_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw comment bodies, raw provider rule bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). The row-level chip; per-row inbox freshness lives in inbox_freshness_sync_class."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the inbox row was minted under."
+    },
+
+    "review_inbox_row_class": {
+      "type": "string",
+      "enum": [
+        "authored_by_current_actor",
+        "review_requested_from_current_actor",
+        "following_for_visibility_only",
+        "mentioned_in_thread",
+        "assigned_for_landing",
+        "draft_only_local_not_yet_published",
+        "imported_bundle_inbox_row"
+      ],
+      "description": "Frozen review-inbox-row class vocabulary. authored_by_current_actor = the actor authored the underlying workspace; review_requested_from_current_actor = a review was requested from the actor; following_for_visibility_only = the actor is following the workspace for visibility but no action is required; mentioned_in_thread = the actor was @-mentioned in a comment thread on the workspace; assigned_for_landing = the actor is assigned to land the workspace; draft_only_local_not_yet_published = the actor opened the workspace locally and it has not been published to a provider; imported_bundle_inbox_row = the row was hydrated from an imported review bundle (no provider authority)."
+    },
+
+    "review_inbox_state_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative",
+        "local_parity_estimate",
+        "stale_relative_to_base_or_head",
+        "not_evaluated_on_this_surface",
+        "draft_only_no_provider_state"
+      ],
+      "description": "Frozen review-inbox-state vocabulary. provider_authoritative = the headline cues are owned by the provider and the surface MUST cite a fresh inbox_freshness_sync_class to keep the chip honest; local_parity_estimate = computed locally from a fresh provider snapshot, surface MUST surface the typed 'estimated locally' disclosure; stale_relative_to_base_or_head = the row's headline cues are pinned to a base or head identity that has drifted and the chip MUST NOT be relabelled as authoritative; not_evaluated_on_this_surface = the row exists for triage / link purposes only; draft_only_no_provider_state = the row is a local draft and the provider has no overlay for the underlying workspace."
+    },
+
+    "inbox_freshness_sync_class": {
+      "type": "string",
+      "enum": [
+        "inbox_row_fresh",
+        "inbox_row_stale_within_grace",
+        "inbox_row_stale_beyond_grace_local_continues",
+        "inbox_row_unverifiable_provider_unreachable"
+      ],
+      "description": "Frozen inbox-row freshness vocabulary. _fresh = the inbox row is within its grace window; _stale_within_grace = past ideal freshness but inside grace, the chip surfaces 'stale' without blocking; _stale_beyond_grace_local_continues = past grace, provider-authoritative cues are no longer rendered as authoritative and local review continues; _unverifiable_provider_unreachable = the provider was unreachable on the last attempt and the inbox row continues with the last-known cached label marked degraded."
+    },
+
+    "offline_continuation_class": {
+      "type": "string",
+      "enum": [
+        "online_synced_no_offline_state",
+        "offline_capture_pending_publish_later",
+        "offline_export_only_no_publish_later",
+        "provider_outage_local_continues_publish_blocked",
+        "provider_outage_local_continues_publish_queued"
+      ],
+      "description": "Frozen offline-continuation vocabulary. online_synced_no_offline_state = the actor is online and no offline draft exists; offline_capture_pending_publish_later = the actor authored a comment / approval / dismissal locally that has not been published yet; offline_export_only_no_publish_later = the row supports export only and no publish-later action is admissible; provider_outage_local_continues_publish_blocked = the provider is unreachable and publish-later actions are forbidden under this row's policy / trust posture; provider_outage_local_continues_publish_queued = the provider is unreachable but publish-later actions are admissible and have been queued for the next sync."
+    },
+
+    "review_inbox_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "open_pending_action",
+        "acknowledged_no_action_required",
+        "dismissed_by_actor",
+        "archived_tombstone"
+      ],
+      "description": "Frozen review-inbox lifecycle vocabulary."
+    },
+
+    "review_inbox_row_denial_reason": {
+      "type": "string",
+      "enum": [
+        "inbox_state_authority_must_not_outlive_freshness",
+        "inbox_offline_continuation_must_match_freshness",
+        "inbox_draft_only_local_must_have_no_provider_overlay",
+        "inbox_imported_bundle_class_must_have_imported_bundle_workspace",
+        "review_inbox_row_lifecycle_transition_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "review_inbox_row_required_field_missing",
+        "review_inbox_row_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the review_inbox_row audit stream."
+    },
+
+    "review_inbox_row_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "review_inbox_row_opened",
+        "review_inbox_row_state_changed",
+        "review_inbox_row_offline_capture_added",
+        "review_inbox_row_publish_later_queued",
+        "review_inbox_row_acknowledged",
+        "review_inbox_row_dismissed",
+        "review_inbox_row_archived",
+        "review_inbox_row_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the review_inbox_row stream. review_inbox_row_audit_denial_emitted MUST cite a review_inbox_row_denial_reason."
+    },
+
+    "review_inbox_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_inbox_row_schema_version",
+        "review_inbox_row_id",
+        "review_workspace_id_ref",
+        "review_inbox_row_class",
+        "review_inbox_state_class",
+        "inbox_freshness_sync_class",
+        "offline_continuation_class",
+        "review_inbox_lifecycle_state",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "created_at",
+        "updated_at",
+        "merge_policy_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_inbox_row_record" },
+        "review_inbox_row_schema_version": { "$ref": "#/$defs/review_inbox_row_schema_version" },
+        "review_inbox_row_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the review_workspace_record (schemas/vcs/review_workspace.schema.json) the inbox row points at."
+        },
+        "review_inbox_row_class": { "$ref": "#/$defs/review_inbox_row_class" },
+        "review_inbox_state_class": { "$ref": "#/$defs/review_inbox_state_class" },
+        "inbox_freshness_sync_class": { "$ref": "#/$defs/inbox_freshness_sync_class" },
+        "offline_continuation_class": { "$ref": "#/$defs/offline_continuation_class" },
+        "review_inbox_lifecycle_state": { "$ref": "#/$defs/review_inbox_lifecycle_state" },
+        "linked_work_item_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into schemas/work_items/work_item_detail.schema.json. The inbox row never duplicates the work-item body."
+        },
+        "linked_review_pack_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into schemas/vcs/review_pack.schema.json."
+        },
+        "linked_review_evaluation_result_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into schemas/vcs/review_evaluation_result.schema.json. When the inbox row's headline cue is a checks-strip summary, this ref pins the result the cue summarised; the strip rows themselves live on the review_workspace_state_record."
+        },
+        "merge_queue_entry_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into schemas/vcs/merge_queue_entry.schema.json when the inbox row's underlying workspace has an active queue entry."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when review_inbox_lifecycle_state is archived_tombstone. Null otherwise."
+        },
+        "merge_policy_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the merge-policy resolver. Currently always null; once the merge-policy contract lands, this slot may carry the resolved merge-policy row id."
+        }
+      },
+      "allOf": [
+        {
+          "description": "When inbox_freshness_sync_class is inbox_row_unverifiable_provider_unreachable, the inbox row MUST resolve review_inbox_state_class to local_parity_estimate, not_evaluated_on_this_surface, or draft_only_no_provider_state so cached overlay cues are not relabelled as authoritative.",
+          "if": {
+            "properties": {
+              "inbox_freshness_sync_class": { "const": "inbox_row_unverifiable_provider_unreachable" }
+            },
+            "required": ["inbox_freshness_sync_class"]
+          },
+          "then": {
+            "properties": {
+              "review_inbox_state_class": {
+                "enum": [
+                  "local_parity_estimate",
+                  "not_evaluated_on_this_surface",
+                  "draft_only_no_provider_state"
+                ]
+              },
+              "offline_continuation_class": {
+                "enum": [
+                  "provider_outage_local_continues_publish_blocked",
+                  "provider_outage_local_continues_publish_queued",
+                  "offline_export_only_no_publish_later"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "draft_only_local_not_yet_published rows MUST resolve review_inbox_state_class to draft_only_no_provider_state.",
+          "if": {
+            "properties": {
+              "review_inbox_row_class": { "const": "draft_only_local_not_yet_published" }
+            },
+            "required": ["review_inbox_row_class"]
+          },
+          "then": {
+            "properties": {
+              "review_inbox_state_class": { "const": "draft_only_no_provider_state" }
+            }
+          }
+        },
+        {
+          "description": "imported_bundle_inbox_row rows MUST resolve review_inbox_state_class to not_evaluated_on_this_surface or local_parity_estimate; an imported bundle is never provider_authoritative on this surface.",
+          "if": {
+            "properties": {
+              "review_inbox_row_class": { "const": "imported_bundle_inbox_row" }
+            },
+            "required": ["review_inbox_row_class"]
+          },
+          "then": {
+            "properties": {
+              "review_inbox_state_class": {
+                "enum": [
+                  "not_evaluated_on_this_surface",
+                  "local_parity_estimate"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "archived_at is required (non-null) when review_inbox_lifecycle_state is archived_tombstone and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_inbox_lifecycle_state": { "const": "archived_tombstone" } },
+            "required": ["review_inbox_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          },
+          "else": {
+            "properties": {
+              "archived_at": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by pending-review inbox surfaces, hosted-review readers, AI review-aware overlays, and support / export. Exactly one row per actor-visible inbox identity per workspace; the same workspace MAY appear in more than one row class for the same actor."
+    },
+
+    "review_inbox_row_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_inbox_row_schema_version",
+        "review_inbox_row_audit_event_id_value",
+        "audit_event_record_id",
+        "review_inbox_row_id_ref",
+        "review_workspace_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_inbox_row_audit_event_record" },
+        "review_inbox_row_schema_version": { "$ref": "#/$defs/review_inbox_row_schema_version" },
+        "review_inbox_row_audit_event_id_value": { "$ref": "#/$defs/review_inbox_row_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_inbox_row_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_inbox_row_denial_reason" }
+          ],
+          "description": "Required (non-null) when review_inbox_row_audit_event_id_value is review_inbox_row_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is review_inbox_row_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_inbox_row_audit_event_id_value": { "const": "review_inbox_row_audit_denial_emitted" } },
+            "required": ["review_inbox_row_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/review_inbox_row_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the review_inbox_row stream."
+    }
+  }
+}
