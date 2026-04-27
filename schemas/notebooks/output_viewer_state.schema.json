@@ -1,0 +1,802 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebooks/output_viewer_state.schema.json",
+  "title": "Aureline notebook output viewer state",
+  "description": "Boundary schema for notebook_output_viewer_state_record, the notebook-specific truth layer frozen in docs/notebooks/output_viewer_truth_contract.md. The record composes with schemas/ux/output_viewer_object.schema.json for generic viewer posture and with schemas/notebook/notebook_metadata_aureline.schema.json for notebook document, kernel, output-lineage, and widget-trust vocabularies. It distinguishes live, captured, stale, replayed, orphaned, blocked-widget, intentionally omitted, and unavailable outputs while preserving heavy-output degradation, virtualization, accessibility, buffering, freeze, provenance, queue/replay, widget, export-policy, and support-capture truth. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw widget state, raw kernel protocol frames, raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material never appear in this record.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_output_viewer_state_record" }
+  ],
+  "$defs": {
+    "output_viewer_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook output viewer state boundary."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "notebook_output_viewer_state_record"
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another boundary record or registry entry. Raw paths, URLs, hostnames, bodies, and secrets are forbidden."
+    },
+
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing redaction-aware label."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "nullable_non_negative_integer": {
+      "oneOf": [
+        { "$ref": "#/$defs/non_negative_integer" },
+        { "type": "null" }
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "support_bundle_scoped",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "raw_payload_forbidden"
+      ]
+    },
+
+    "viewer_surface_class": {
+      "type": "string",
+      "enum": [
+        "inline_cell_output",
+        "output_gallery",
+        "dataframe_table_viewer",
+        "generic_table_viewer",
+        "variable_explorer_row",
+        "variable_explorer_detail",
+        "media_viewer",
+        "rich_html_viewer",
+        "widget_viewer",
+        "detached_output_viewer",
+        "raw_or_textual_fallback_viewer",
+        "export_preview_viewer",
+        "support_capture_preview"
+      ],
+      "description": "Notebook surface currently presenting the output."
+    },
+
+    "rendered_output_class": {
+      "type": "string",
+      "enum": [
+        "plain_text_output",
+        "stream_text_output",
+        "error_traceback_output",
+        "dataframe_output",
+        "structured_table_output",
+        "variable_inspector_output",
+        "image_media_output",
+        "audio_video_media_output",
+        "sanitized_html_output",
+        "active_html_output",
+        "widget_output",
+        "raw_mime_bundle_output",
+        "detached_artifact_output",
+        "output_summary_only",
+        "output_payload_absent"
+      ],
+      "description": "Output kind at the notebook boundary. This describes what is being represented, not whether the representation is full, virtualized, fallback, or omitted."
+    },
+
+    "output_truth_state_class": {
+      "type": "string",
+      "enum": [
+        "live_output",
+        "captured_output",
+        "stale_output",
+        "replayed_output",
+        "orphaned_output",
+        "blocked_widget_output",
+        "intentionally_omitted_output",
+        "unavailable_output"
+      ],
+      "description": "Viewer truth state visible to notebook users and support reviewers."
+    },
+
+    "payload_presence_class": {
+      "type": "string",
+      "enum": [
+        "payload_rendered",
+        "payload_degraded",
+        "payload_metadata_only",
+        "payload_detached_reference",
+        "payload_blocked",
+        "payload_omitted",
+        "payload_unavailable"
+      ]
+    },
+
+    "notebook_output_lineage_class": {
+      "type": "string",
+      "enum": [
+        "live_output_from_current_session",
+        "captured_output_from_prior_session",
+        "replayed_from_captured_output",
+        "orphaned_no_kernel_binding",
+        "widget_gated_output"
+      ],
+      "description": "Re-export of ADR-0022 notebook_output_lineage_class for outputs that exist."
+    },
+
+    "notebook_output_trust_state": {
+      "type": "string",
+      "enum": [
+        "output_trust_live_from_current_session",
+        "output_trust_captured_from_prior_session",
+        "output_trust_replayed_from_captured_output",
+        "output_trust_orphaned_no_kernel_binding",
+        "output_trust_widget_gated"
+      ]
+    },
+
+    "notebook_widget_trust_state": {
+      "type": "string",
+      "enum": [
+        "widget_trust_denied_by_default",
+        "widget_trust_admitted_with_preview",
+        "widget_trust_suppressed_by_trust",
+        "widget_trust_suppressed_by_policy",
+        "widget_trust_suppressed_by_content_class",
+        "widget_trust_unavailable_no_kernel"
+      ]
+    },
+
+    "notebook_execution_queue_admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted_in_order",
+        "admitted_skipped_by_policy",
+        "admitted_deferred_no_kernel",
+        "denied_by_trust"
+      ]
+    },
+
+    "freshness_basis_class": {
+      "type": "string",
+      "enum": [
+        "current_kernel_live",
+        "captured_prior_session",
+        "captured_current_document",
+        "stale_after_source_edit",
+        "stale_after_kernel_identity_change",
+        "stale_after_environment_or_data_drift",
+        "stale_after_policy_or_trust_change",
+        "replayed_from_capture",
+        "orphaned_no_kernel_binding",
+        "widget_runtime_blocked",
+        "metadata_only_omitted",
+        "unavailable_dependency_missing"
+      ]
+    },
+
+    "stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_stale",
+        "source_cell_changed_since_capture",
+        "kernel_session_identity_changed",
+        "kernelspec_or_transport_changed",
+        "execution_context_changed",
+        "environment_fingerprint_changed",
+        "dataset_or_query_snapshot_changed",
+        "policy_epoch_changed",
+        "document_or_widget_trust_changed",
+        "renderer_or_schema_version_changed",
+        "stale_reason_unknown_requires_review"
+      ]
+    },
+
+    "heavy_output_posture_class": {
+      "type": "string",
+      "enum": [
+        "within_inline_budget",
+        "row_virtualized",
+        "row_and_column_virtualized",
+        "media_thumbnail_or_proxy",
+        "open_detail_required",
+        "summary_only_required",
+        "raw_or_textual_fallback",
+        "render_blocked"
+      ]
+    },
+
+    "degradation_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_degradation",
+        "viewer_inline_byte_budget_reached",
+        "viewer_row_budget_reached",
+        "viewer_cell_budget_reached",
+        "viewer_media_pixel_budget_reached",
+        "update_rate_budget_reached",
+        "resource_governor_budget_reached",
+        "provider_or_kernel_cap_reached",
+        "accessibility_representation_required",
+        "active_content_blocked",
+        "widget_runtime_unavailable",
+        "raw_renderer_unavailable",
+        "support_or_export_scope_limited",
+        "policy_or_redaction_blocked"
+      ]
+    },
+
+    "queue_marker_class": {
+      "type": "string",
+      "enum": [
+        "not_queued",
+        "queued_pending_kernel",
+        "queued_in_order",
+        "running_current_cell",
+        "completed_current_session",
+        "cancelled_by_user",
+        "cancelled_by_trust_downgrade",
+        "deferred_no_kernel",
+        "denied_by_trust_or_policy",
+        "restore_replay_forbidden"
+      ]
+    },
+
+    "replay_marker_class": {
+      "type": "string",
+      "enum": [
+        "not_replayed",
+        "replay_from_capture_never_authoritative",
+        "replay_blocked_restore_auto_rerun_forbidden",
+        "replay_blocked_identity_drift",
+        "replay_blocked_no_kernel",
+        "replay_queued_user_admitted"
+      ]
+    },
+
+    "orphan_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_orphaned",
+        "kernelspec_unresolved",
+        "kernel_session_record_missing",
+        "remote_agent_unreachable",
+        "target_identity_witness_unverifiable",
+        "cell_execution_ref_missing",
+        "imported_output_without_lineage",
+        "orphan_reason_unknown_requires_review"
+      ]
+    },
+
+    "widget_runtime_state_class": {
+      "type": "string",
+      "enum": [
+        "not_widget_output",
+        "static_preview_only",
+        "runtime_available_live_binding_admitted",
+        "runtime_available_but_trust_blocked",
+        "runtime_available_but_policy_blocked",
+        "runtime_unavailable_no_kernel",
+        "runtime_unavailable_missing_widget_runtime",
+        "runtime_suppressed_by_content_class"
+      ]
+    },
+
+    "buffer_state_class": {
+      "type": "string",
+      "enum": [
+        "not_buffered_static",
+        "live_following",
+        "user_frozen",
+        "budget_frozen",
+        "producer_rate_limited",
+        "buffer_spilled_to_disk",
+        "buffer_dropped_oldest",
+        "capture_finalized"
+      ]
+    },
+
+    "freeze_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_frozen",
+        "user_paused_follow",
+        "anchor_preserved_for_review",
+        "latency_budget_protection",
+        "memory_budget_protection",
+        "accessibility_budget_protection",
+        "support_capture_finalized"
+      ]
+    },
+
+    "accessibility_representation_class": {
+      "type": "string",
+      "enum": [
+        "semantic_full_representation",
+        "semantic_virtualized_representation",
+        "textual_equivalent_representation",
+        "media_alt_text_representation",
+        "summary_only_representation",
+        "blocked_placeholder_representation",
+        "accessibility_representation_unknown_requires_review"
+      ]
+    },
+
+    "accessibility_gap_class": {
+      "type": "string",
+      "enum": [
+        "no_accessibility_gap",
+        "row_count_approximate",
+        "column_headers_partial",
+        "alt_text_missing",
+        "caption_or_transcript_missing",
+        "widget_static_fallback_only",
+        "raw_fallback_only",
+        "accessibility_gap_unknown_requires_review"
+      ]
+    },
+
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_basis_class",
+        "stale_reason_class",
+        "label"
+      ],
+      "properties": {
+        "freshness_basis_class": { "$ref": "#/$defs/freshness_basis_class" },
+        "stale_reason_class": { "$ref": "#/$defs/stale_reason_class" },
+        "last_live_seen_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "captured_basis_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lineage_class",
+        "output_trust_state",
+        "orphan_reason_class"
+      ],
+      "properties": {
+        "lineage_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/notebook_output_lineage_class" },
+            { "type": "null" }
+          ]
+        },
+        "output_trust_state": {
+          "oneOf": [
+            { "$ref": "#/$defs/notebook_output_trust_state" },
+            { "type": "null" }
+          ]
+        },
+        "output_lineage_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "orphan_reason_class": { "$ref": "#/$defs/orphan_reason_class" },
+        "lineage_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "kernel_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kernel_session_id_ref",
+        "cell_execution_id_ref",
+        "execution_context_record_ref"
+      ],
+      "properties": {
+        "kernel_session_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "kernelspec_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "cell_execution_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "execution_context_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "data_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "queue_and_replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queue_marker_class",
+        "replay_marker_class",
+        "auto_rerun_forbidden"
+      ],
+      "properties": {
+        "execution_queue_admission_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/notebook_execution_queue_admission_class" },
+            { "type": "null" }
+          ]
+        },
+        "queue_marker_class": { "$ref": "#/$defs/queue_marker_class" },
+        "replay_marker_class": { "$ref": "#/$defs/replay_marker_class" },
+        "auto_rerun_forbidden": { "type": "boolean" },
+        "queue_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "replay_source_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "widget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "widget_runtime_state_class",
+        "widget_trust_state"
+      ],
+      "properties": {
+        "widget_runtime_state_class": { "$ref": "#/$defs/widget_runtime_state_class" },
+        "widget_trust_state": {
+          "oneOf": [
+            { "$ref": "#/$defs/notebook_widget_trust_state" },
+            { "type": "null" }
+          ]
+        },
+        "widget_trust_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "widget_runtime_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "static_preview_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "widget_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "budget_owner_class",
+        "inline_byte_limit",
+        "inline_row_limit",
+        "visible_row_window",
+        "visible_column_window",
+        "update_rate_limit_hz"
+      ],
+      "properties": {
+        "budget_owner_class": {
+          "type": "string",
+          "enum": [
+            "viewer_default",
+            "resource_governor",
+            "provider_or_kernel_cap",
+            "user_selected",
+            "support_or_export_policy"
+          ]
+        },
+        "inline_byte_limit": { "$ref": "#/$defs/nullable_non_negative_integer" },
+        "inline_row_limit": { "$ref": "#/$defs/nullable_non_negative_integer" },
+        "inline_cell_limit": { "$ref": "#/$defs/nullable_non_negative_integer" },
+        "media_pixel_limit": { "$ref": "#/$defs/nullable_non_negative_integer" },
+        "visible_row_window": { "$ref": "#/$defs/nullable_non_negative_integer" },
+        "visible_column_window": { "$ref": "#/$defs/nullable_non_negative_integer" },
+        "update_rate_limit_hz": { "$ref": "#/$defs/nullable_non_negative_integer" },
+        "budget_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "buffering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buffer_state_class",
+        "freeze_reason_class",
+        "buffered_change_count",
+        "dropped_chunk_count"
+      ],
+      "properties": {
+        "buffer_state_class": { "$ref": "#/$defs/buffer_state_class" },
+        "freeze_reason_class": { "$ref": "#/$defs/freeze_reason_class" },
+        "buffered_change_count": { "$ref": "#/$defs/non_negative_integer" },
+        "dropped_chunk_count": { "$ref": "#/$defs/non_negative_integer" },
+        "spool_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "jump_to_latest_changes_export_basis": { "type": "boolean" },
+        "buffering_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "accessibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accessibility_representation_class",
+        "accessibility_gap_class",
+        "keyboard_reachable",
+        "screen_reader_label_present",
+        "focus_return_ref"
+      ],
+      "properties": {
+        "accessibility_representation_class": { "$ref": "#/$defs/accessibility_representation_class" },
+        "accessibility_gap_class": { "$ref": "#/$defs/accessibility_gap_class" },
+        "keyboard_reachable": { "type": "boolean" },
+        "screen_reader_label_present": { "type": "boolean" },
+        "semantic_row_count_available": { "type": "boolean" },
+        "semantic_column_count_available": { "type": "boolean" },
+        "focus_return_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "accessibility_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_viewer_object_ref",
+        "source_hash_ref",
+        "renderer_schema_ref",
+        "policy_epoch_ref"
+      ],
+      "properties": {
+        "output_viewer_object_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "live_set_state_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "mime_bundle_descriptor_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "result_grid_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "media_proxy_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "detached_artifact_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "raw_or_textual_fallback_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "source_hash_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "renderer_schema_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "notebook_output_viewer_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "output_viewer_state_schema_version",
+        "viewer_state_id",
+        "notebook_document_ref",
+        "cell_id_ref",
+        "output_id_ref",
+        "viewer_surface_class",
+        "rendered_output_class",
+        "output_truth_state_class",
+        "payload_presence_class",
+        "heavy_output_posture_class",
+        "degradation_reason_class",
+        "freshness",
+        "lineage",
+        "kernel_lineage",
+        "queue_and_replay",
+        "widget",
+        "budgets",
+        "buffering",
+        "accessibility",
+        "provenance",
+        "include_policy_ref",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "output_viewer_state_schema_version": { "$ref": "#/$defs/output_viewer_state_schema_version" },
+        "viewer_state_id": { "$ref": "#/$defs/opaque_ref" },
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "output_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "viewer_surface_class": { "$ref": "#/$defs/viewer_surface_class" },
+        "rendered_output_class": { "$ref": "#/$defs/rendered_output_class" },
+        "output_truth_state_class": { "$ref": "#/$defs/output_truth_state_class" },
+        "payload_presence_class": { "$ref": "#/$defs/payload_presence_class" },
+        "heavy_output_posture_class": { "$ref": "#/$defs/heavy_output_posture_class" },
+        "degradation_reason_class": { "$ref": "#/$defs/degradation_reason_class" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "kernel_lineage": { "$ref": "#/$defs/kernel_lineage" },
+        "queue_and_replay": { "$ref": "#/$defs/queue_and_replay" },
+        "widget": { "$ref": "#/$defs/widget" },
+        "budgets": { "$ref": "#/$defs/budgets" },
+        "buffering": { "$ref": "#/$defs/buffering" },
+        "accessibility": { "$ref": "#/$defs/accessibility" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "include_policy_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "review_summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Live output must cite live lineage, current kernel refs, live-set state, and cannot be auto-rerun silently.",
+          "if": {
+            "properties": {
+              "output_truth_state_class": { "const": "live_output" }
+            },
+            "required": ["output_truth_state_class"]
+          },
+          "then": {
+            "properties": {
+              "payload_presence_class": { "enum": ["payload_rendered", "payload_degraded", "payload_detached_reference"] },
+              "lineage": {
+                "properties": {
+                  "lineage_class": { "const": "live_output_from_current_session" },
+                  "output_trust_state": { "const": "output_trust_live_from_current_session" }
+                }
+              },
+              "kernel_lineage": {
+                "properties": {
+                  "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+                  "cell_execution_id_ref": { "$ref": "#/$defs/opaque_ref" },
+                  "execution_context_record_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              },
+              "provenance": {
+                "properties": {
+                  "live_set_state_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              },
+              "queue_and_replay": {
+                "properties": {
+                  "replay_marker_class": { "const": "not_replayed" },
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Replayed output is evidence only and must cite replay markers.",
+          "if": {
+            "properties": {
+              "output_truth_state_class": { "const": "replayed_output" }
+            },
+            "required": ["output_truth_state_class"]
+          },
+          "then": {
+            "properties": {
+              "lineage": {
+                "properties": {
+                  "lineage_class": { "const": "replayed_from_captured_output" },
+                  "output_trust_state": { "const": "output_trust_replayed_from_captured_output" }
+                }
+              },
+              "queue_and_replay": {
+                "properties": {
+                  "replay_marker_class": { "const": "replay_from_capture_never_authoritative" },
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Orphaned output must use orphaned lineage and a non-default orphan reason.",
+          "if": {
+            "properties": {
+              "output_truth_state_class": { "const": "orphaned_output" }
+            },
+            "required": ["output_truth_state_class"]
+          },
+          "then": {
+            "properties": {
+              "lineage": {
+                "properties": {
+                  "lineage_class": { "const": "orphaned_no_kernel_binding" },
+                  "output_trust_state": { "const": "output_trust_orphaned_no_kernel_binding" },
+                  "orphan_reason_class": {
+                    "not": { "const": "not_orphaned" }
+                  }
+                }
+              },
+              "kernel_lineage": {
+                "properties": {
+                  "kernel_session_id_ref": { "type": "null" }
+                }
+              },
+              "queue_and_replay": {
+                "properties": {
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Widget-blocked output must cite widget gated lineage and widget runtime/trust state.",
+          "if": {
+            "properties": {
+              "output_truth_state_class": { "const": "blocked_widget_output" }
+            },
+            "required": ["output_truth_state_class"]
+          },
+          "then": {
+            "properties": {
+              "rendered_output_class": { "const": "widget_output" },
+              "payload_presence_class": { "enum": ["payload_blocked", "payload_degraded", "payload_metadata_only"] },
+              "lineage": {
+                "properties": {
+                  "lineage_class": { "const": "widget_gated_output" },
+                  "output_trust_state": { "const": "output_trust_widget_gated" }
+                }
+              },
+              "widget": {
+                "properties": {
+                  "widget_runtime_state_class": {
+                    "enum": [
+                      "static_preview_only",
+                      "runtime_available_but_trust_blocked",
+                      "runtime_available_but_policy_blocked",
+                      "runtime_unavailable_no_kernel",
+                      "runtime_unavailable_missing_widget_runtime",
+                      "runtime_suppressed_by_content_class"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Intentionally omitted output carries no payload and must cite include policy.",
+          "if": {
+            "properties": {
+              "output_truth_state_class": { "const": "intentionally_omitted_output" }
+            },
+            "required": ["output_truth_state_class"]
+          },
+          "then": {
+            "required": ["include_policy_ref"],
+            "properties": {
+              "payload_presence_class": { "const": "payload_omitted" },
+              "rendered_output_class": { "const": "output_payload_absent" },
+              "include_policy_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Stale output must name a stale reason outside not_stale.",
+          "if": {
+            "properties": {
+              "output_truth_state_class": { "const": "stale_output" }
+            },
+            "required": ["output_truth_state_class"]
+          },
+          "then": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "stale_reason_class": {
+                    "not": { "const": "not_stale" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
