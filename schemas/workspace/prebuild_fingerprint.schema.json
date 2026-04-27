@@ -1,0 +1,643 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/prebuild_fingerprint.schema.json",
+  "title": "Aureline prebuild fingerprint, reuse decision, and disclosure record",
+  "description": "Boundary schema for the workspace prebuild fingerprint contract. Prebuilds are accelerators, not authorities: reuse requires matching source, environment capsule, toolchain, host, policy, feature, trust, credential-handle, port, index, cache-artifact, freshness, and redaction dimensions. A stale snapshot or invalidated prebuild cannot be represented as a successful live resume. Raw credentials, raw environment values, raw terminal history, raw machine-specific residue, and raw uncommitted user content never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/prebuild_fingerprint_record" },
+    { "$ref": "#/$defs/prebuild_reuse_decision_record" },
+    { "$ref": "#/$defs/prebuild_disclosure_record" }
+  ],
+  "$defs": {
+    "prebuild_fingerprint_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this prebuild fingerprint family. Additive enum or optional-field changes bump this value; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "prebuild_fingerprint_record",
+        "prebuild_reuse_decision_record",
+        "prebuild_disclosure_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw paths, URLs with credentials, secret values, and raw payload bodies never appear here."
+    },
+    "digest_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(sha256:[A-Za-z0-9._:-]+|digest:[A-Za-z0-9._:-]+|ref:[A-Za-z0-9._:-]+)$",
+      "description": "Digest or opaque digest-like reference. The schema accepts reviewable placeholders but forbids raw content bodies."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short sentence safe for UI, CLI, support bundles, and audit logs. Raw secrets and raw residue never appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation", "revoked", "managed_locked"]
+    },
+    "host_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "devcontainer",
+        "container_local",
+        "ssh_remote",
+        "remote_workspace_vm",
+        "managed_workspace",
+        "prebuild_runtime"
+      ]
+    },
+    "platform_arch": {
+      "type": "string",
+      "enum": [
+        "darwin-aarch64",
+        "darwin-x86_64",
+        "linux-aarch64",
+        "linux-x86_64",
+        "windows-x86_64",
+        "platform_unknown_requires_review"
+      ]
+    },
+    "freshness_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh_under_window",
+        "near_expiry",
+        "stale_over_window",
+        "expired",
+        "unknown_requires_revalidation"
+      ]
+    },
+    "producer_class": {
+      "type": "string",
+      "enum": [
+        "local_user_materializer",
+        "first_party_template_pipeline",
+        "managed_workspace_service",
+        "self_hosted_prebuild_service",
+        "enterprise_mirror_pipeline",
+        "imported_bundle",
+        "producer_unknown_requires_review"
+      ]
+    },
+    "signer_posture_class": {
+      "type": "string",
+      "enum": [
+        "signed_verified",
+        "signed_rotation_preauthorized",
+        "signed_review_required",
+        "unsigned_allowed_local_only",
+        "signature_missing_blocked",
+        "signature_mismatch_blocked",
+        "not_applicable"
+      ]
+    },
+    "cache_class": {
+      "type": "string",
+      "enum": [
+        "toolchain_layer",
+        "dependency_store",
+        "index_shard",
+        "artifact_mirror",
+        "extension_package",
+        "docs_pack",
+        "service_image_layer",
+        "environment_capsule_manifest"
+      ]
+    },
+    "cache_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cache_class", "artifact_ref", "digest_ref", "included_in_full_reuse"],
+      "properties": {
+        "cache_class": { "$ref": "#/$defs/cache_class" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "digest_ref": { "$ref": "#/$defs/digest_ref" },
+        "included_in_full_reuse": { "type": "boolean" },
+        "rebuild_if_missing": { "type": "boolean", "default": true }
+      }
+    },
+    "excluded_residue_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_material",
+        "raw_credential_bodies",
+        "raw_environment_values",
+        "raw_command_lines",
+        "os_keychain_items",
+        "enterprise_vault_bodies",
+        "ssh_agent_sockets",
+        "host_absolute_paths",
+        "machine_unique_trust_anchors",
+        "local_uid_gid",
+        "runtime_process_ids",
+        "port_allocations",
+        "socket_paths",
+        "terminal_history",
+        "clipboard_contents",
+        "dirty_buffer_journals",
+        "uncommitted_workspace_edits",
+        "local_only_logs",
+        "cache_tempdirs"
+      ]
+    },
+    "export_field_class": {
+      "type": "string",
+      "enum": [
+        "opaque_refs",
+        "digests",
+        "schema_versions",
+        "producer_and_signer_posture",
+        "cache_class_labels",
+        "freshness_age_class",
+        "redaction_summary_counts",
+        "invalidation_reason_refs",
+        "revalidation_requirements"
+      ]
+    },
+    "redaction_and_portability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_export_fields",
+        "excluded_residue_classes",
+        "support_export_posture",
+        "broadened_capture_approved"
+      ],
+      "properties": {
+        "allowed_export_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_field_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "excluded_residue_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/excluded_residue_class" },
+          "uniqueItems": true,
+          "minItems": 5,
+          "allOf": [
+            { "contains": { "const": "raw_secret_material" } },
+            { "contains": { "const": "raw_credential_bodies" } },
+            { "contains": { "const": "raw_environment_values" } },
+            { "contains": { "const": "machine_unique_trust_anchors" } },
+            { "contains": { "const": "uncommitted_workspace_edits" } }
+          ]
+        },
+        "support_export_posture": {
+          "type": "string",
+          "enum": [
+            "metadata_safe_default",
+            "redacted_support_default",
+            "operator_only_restricted",
+            "blocked_until_redaction_review"
+          ]
+        },
+        "broadened_capture_approved": { "type": "boolean", "const": false },
+        "redaction_summary_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_repo_ref",
+        "workspace_root_ref",
+        "commit_or_tree_identity",
+        "dependency_lock_digest_refs"
+      ],
+      "properties": {
+        "source_repo_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "commit_or_tree_identity": { "$ref": "#/$defs/opaque_id" },
+        "branch_or_ref_intent": { "type": ["string", "null"] },
+        "submodule_lfs_sparse_digest_ref": { "$ref": "#/$defs/digest_ref" },
+        "dependency_lock_digest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/digest_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "environment_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_capsule_ref",
+        "capsule_hash",
+        "host_class",
+        "platform_arch",
+        "materializer_version_ref"
+      ],
+      "properties": {
+        "environment_capsule_ref": { "$ref": "#/$defs/opaque_id" },
+        "capsule_hash": { "$ref": "#/$defs/digest_ref" },
+        "workspace_template_ref": { "type": ["string", "null"] },
+        "base_image_or_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "platform_arch": { "$ref": "#/$defs/platform_arch" },
+        "service_topology_ref": { "type": ["string", "null"] },
+        "mount_model_ref": { "type": ["string", "null"] },
+        "materializer_version_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "toolchain_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "critical_toolchain_digest_refs",
+        "extension_lock_digest_ref",
+        "package_manager_lock_digest_refs",
+        "known_unsupported_gap_refs"
+      ],
+      "properties": {
+        "critical_toolchain_digest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/digest_ref" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "extension_lock_digest_ref": { "$ref": "#/$defs/digest_ref" },
+        "package_manager_lock_digest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/digest_ref" },
+          "uniqueItems": true
+        },
+        "known_unsupported_gap_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "policy_feature_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_state",
+        "policy_epoch",
+        "policy_bundle_ref",
+        "feature_flag_digest_ref",
+        "sandbox_profile_ref",
+        "egress_posture_ref"
+      ],
+      "properties": {
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "policy_epoch": { "type": "integer", "minimum": 0 },
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "feature_flag_digest_ref": { "$ref": "#/$defs/digest_ref" },
+        "entitlement_snapshot_ref": { "type": ["string", "null"] },
+        "sandbox_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "egress_posture_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "secret_handle_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_handle_set_digest_ref",
+        "projection_mode_refs",
+        "trust_store_epoch_ref",
+        "credential_expiry_posture"
+      ],
+      "properties": {
+        "secret_handle_set_digest_ref": { "$ref": "#/$defs/digest_ref" },
+        "projection_mode_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "trust_store_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "credential_expiry_posture": {
+          "type": "string",
+          "enum": [
+            "current",
+            "expiring_revalidate_before_use",
+            "expired_reauth_required",
+            "store_locked_reauth_required",
+            "not_configured"
+          ]
+        }
+      }
+    },
+    "port_route_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_port_set_digest_ref", "route_dependency_class", "collision_key_ref"],
+      "properties": {
+        "declared_port_set_digest_ref": { "$ref": "#/$defs/digest_ref" },
+        "route_dependency_class": {
+          "type": "string",
+          "enum": ["direct", "tunneled", "managed_proxy", "policy_mirror", "not_applicable"]
+        },
+        "collision_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "exposure_policy_ref": { "type": ["string", "null"] }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "created_at",
+        "last_validated_at",
+        "max_reuse_age_seconds",
+        "freshness_age_class",
+        "producer_class",
+        "signer_posture"
+      ],
+      "properties": {
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "last_validated_at": { "$ref": "#/$defs/timestamp" },
+        "max_reuse_age_seconds": { "type": "integer", "minimum": 0 },
+        "age_seconds_at_decision": { "type": "integer", "minimum": 0 },
+        "freshness_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "producer_class": { "$ref": "#/$defs/producer_class" },
+        "signer_posture": { "$ref": "#/$defs/signer_posture_class" }
+      }
+    },
+    "prebuild_path_class": {
+      "type": "string",
+      "enum": [
+        "resume_live_workspace",
+        "start_from_snapshot",
+        "clone_fresh",
+        "reuse_cached_prebuild"
+      ]
+    },
+    "source_materialization_class": {
+      "type": "string",
+      "enum": [
+        "live_materialized_workspace",
+        "prebuilt_snapshot",
+        "stale_prebuild_snapshot",
+        "fresh_clone_materialization",
+        "local_override_materialization"
+      ]
+    },
+    "reuse_outcome_class": {
+      "type": "string",
+      "enum": [
+        "reuse_allowed",
+        "reuse_after_revalidation",
+        "partial_warm_reuse_only",
+        "rebuild_required",
+        "clone_fresh_required",
+        "resume_live_denied"
+      ]
+    },
+    "required_revalidation_class": {
+      "type": "string",
+      "enum": [
+        "credentials",
+        "ports",
+        "indexes",
+        "policy",
+        "trust",
+        "feature_flags",
+        "source",
+        "environment",
+        "toolchain",
+        "host",
+        "schema",
+        "redaction_review",
+        "none"
+      ]
+    },
+    "disclosure_state_class": {
+      "type": "string",
+      "enum": [
+        "live_materialized",
+        "prebuilt_reused",
+        "prebuilt_reused_after_revalidation",
+        "partially_warm",
+        "stale_prebuild_rebuild_required",
+        "fresh_clone",
+        "local_override_rebuild_required",
+        "resume_denied_snapshot_available"
+      ]
+    },
+    "prebuild_fingerprint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prebuild_fingerprint_schema_version",
+        "fingerprint_id",
+        "prebuild_artifact_ref",
+        "source_identity",
+        "environment_identity",
+        "toolchain_identity",
+        "policy_feature_identity",
+        "secret_handle_identity",
+        "port_route_identity",
+        "cache_artifacts",
+        "redaction_and_portability",
+        "freshness"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "prebuild_fingerprint_record" },
+        "prebuild_fingerprint_schema_version": { "$ref": "#/$defs/prebuild_fingerprint_schema_version" },
+        "fingerprint_id": { "$ref": "#/$defs/opaque_id" },
+        "prebuild_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_identity": { "$ref": "#/$defs/source_identity" },
+        "environment_identity": { "$ref": "#/$defs/environment_identity" },
+        "toolchain_identity": { "$ref": "#/$defs/toolchain_identity" },
+        "policy_feature_identity": { "$ref": "#/$defs/policy_feature_identity" },
+        "secret_handle_identity": { "$ref": "#/$defs/secret_handle_identity" },
+        "port_route_identity": { "$ref": "#/$defs/port_route_identity" },
+        "cache_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cache_artifact" },
+          "minItems": 1
+        },
+        "redaction_and_portability": { "$ref": "#/$defs/redaction_and_portability" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "support_packet_ref": { "type": ["string", "null"] }
+      }
+    },
+    "prebuild_reuse_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prebuild_fingerprint_schema_version",
+        "decision_id",
+        "requested_path",
+        "source_materialization_class",
+        "candidate_fingerprint_ref",
+        "current_fingerprint_ref",
+        "reuse_outcome",
+        "invalidation_bundle_refs",
+        "required_revalidations",
+        "disclosure_record_ref",
+        "support_packet_inclusion"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "prebuild_reuse_decision_record" },
+        "prebuild_fingerprint_schema_version": { "$ref": "#/$defs/prebuild_fingerprint_schema_version" },
+        "decision_id": { "$ref": "#/$defs/opaque_id" },
+        "requested_path": { "$ref": "#/$defs/prebuild_path_class" },
+        "source_materialization_class": { "$ref": "#/$defs/source_materialization_class" },
+        "candidate_fingerprint_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_fingerprint_ref": { "$ref": "#/$defs/opaque_id" },
+        "reuse_outcome": { "$ref": "#/$defs/reuse_outcome_class" },
+        "invalidation_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "required_revalidations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_revalidation_class" },
+          "uniqueItems": true
+        },
+        "allowed_partial_cache_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cache_class" },
+          "uniqueItems": true
+        },
+        "blocked_authority_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "local_override_ref": { "type": ["string", "null"] },
+        "disclosure_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_packet_inclusion": {
+          "type": "string",
+          "enum": [
+            "include_metadata_and_reasons",
+            "include_metadata_marked_stale",
+            "include_denial_only",
+            "blocked_until_redaction_review"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reuse_outcome": { "const": "reuse_allowed" }
+            },
+            "required": ["reuse_outcome"]
+          },
+          "then": {
+            "properties": {
+              "invalidation_bundle_refs": { "maxItems": 0 },
+              "required_revalidations": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "requested_path": { "const": "resume_live_workspace" },
+              "source_materialization_class": {
+                "enum": ["prebuilt_snapshot", "stale_prebuild_snapshot"]
+              }
+            },
+            "required": ["requested_path", "source_materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "reuse_outcome": { "const": "resume_live_denied" }
+            }
+          }
+        }
+      ]
+    },
+    "prebuild_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prebuild_fingerprint_schema_version",
+        "disclosure_id",
+        "decision_ref",
+        "disclosure_state",
+        "requested_path",
+        "source_materialization_class",
+        "freshness_age_class",
+        "host_class",
+        "platform_arch",
+        "required_revalidations",
+        "rebuild_required",
+        "fresh_clone_required",
+        "local_override_disclosed",
+        "stale_snapshot_must_not_be_labeled_live_resume",
+        "excluded_residue_classes",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "prebuild_disclosure_record" },
+        "prebuild_fingerprint_schema_version": { "$ref": "#/$defs/prebuild_fingerprint_schema_version" },
+        "disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "decision_ref": { "$ref": "#/$defs/opaque_id" },
+        "fingerprint_ref": { "type": ["string", "null"] },
+        "disclosure_state": { "$ref": "#/$defs/disclosure_state_class" },
+        "requested_path": { "$ref": "#/$defs/prebuild_path_class" },
+        "source_materialization_class": { "$ref": "#/$defs/source_materialization_class" },
+        "freshness_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "age_seconds_at_decision": { "type": "integer", "minimum": 0 },
+        "max_reuse_age_seconds": { "type": "integer", "minimum": 0 },
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "platform_arch": { "$ref": "#/$defs/platform_arch" },
+        "required_revalidations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_revalidation_class" },
+          "uniqueItems": true
+        },
+        "rebuild_required": { "type": "boolean" },
+        "fresh_clone_required": { "type": "boolean" },
+        "local_override_disclosed": { "type": "boolean" },
+        "local_override_ref": { "type": ["string", "null"] },
+        "stale_snapshot_must_not_be_labeled_live_resume": { "type": "boolean", "const": true },
+        "alternative_lane_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/prebuild_path_class" },
+          "uniqueItems": true
+        },
+        "excluded_residue_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/excluded_residue_class" },
+          "uniqueItems": true,
+          "allOf": [
+            { "contains": { "const": "raw_secret_material" } },
+            { "contains": { "const": "raw_credential_bodies" } },
+            { "contains": { "const": "uncommitted_workspace_edits" } }
+          ]
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}
