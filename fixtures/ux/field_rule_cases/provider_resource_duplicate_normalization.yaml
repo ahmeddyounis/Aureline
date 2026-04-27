@@ -1,0 +1,111 @@
+# yaml-language-server: $schema=../../../schemas/ux/field_rule.schema.json
+schema_version: 1
+record_kind: field_rule_record
+field_rule_id: field_rule:request.provider_resource:001
+field_rule_class: provider_resource_identifier
+risk_class: external_resource_identity
+surface_families:
+  - request_workspace
+  - settings_form
+  - support_export
+field_display_class: multi_value_list
+value_shape_classes:
+  - provider_resource_ref
+  - multi_value_list
+field_label: Target provider resources
+value_representation:
+  storage_class: provider_resource_ref
+  display_redaction_class: redacted_summary
+  raw_value_allowed_at_rest: false
+  raw_value_allowed_in_export: false
+  copy_posture: copy_metadata_only
+  value_ref: provider_resource_set:request.targets:001
+  summary: Resources are stored by stable provider id path with display labels as presentation only.
+review_affordances:
+  - basis_disclosure
+  - scope_authority_disclosure
+  - duplicate_resolution
+  - lossy_normalization_warning
+  - redaction_preview
+evaluation_context:
+  context_required_before_apply: true
+  unsafe_when_missing_context: true
+  resolver_actor_class: request_runtime
+  execution_location_class: request_runtime
+  resolution_time_class: apply_time
+  basis_fields:
+    - provider_account
+    - selected_target
+    - policy_epoch
+  context_summary: Provider resources resolve under the selected account, target, and policy epoch.
+validation_hooks:
+  - validation_class: schema
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Resource id path must match the provider schema.
+  - validation_class: target_discovery
+    validation_timing_class: async_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Provider discovery confirms that each stable id resolves in the selected account.
+  - validation_class: remote_auth
+    validation_timing_class: async_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Auth state must permit discovery without exposing credentials.
+  - validation_class: policy
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Policy may narrow account, tenant, region, or resource type.
+unsafe_value_warnings:
+  - provider_resource_ambiguous
+  - duplicate_value_collision
+  - lossy_normalization_detected
+  - endpoint_retarget_or_origin_change
+export_policy:
+  default_export_class: structured_safe_value
+  elevated_export_class: explicit_user_review
+  never_export_raw_secret: false
+  downgrade_requires_class_change: false
+  included_metadata:
+    - field_rule_class
+    - field_label
+    - source_class
+    - evaluation_context
+    - risk_class
+    - redaction_report
+    - authority_scope
+    - duplicate_policy
+    - normalization_report
+  export_summary: Export includes stable id path, display label, duplicate policy, and normalization report when policy allows.
+multi_value_policy:
+  supports_bulk_paste: true
+  supports_drag_drop: true
+  duplicate_handling: merge_by_stable_id
+  lossy_normalization_policy: warn_and_preserve_raw_ref
+  relative_path_basis_policy: not_applicable
+  multi_value_summary: Duplicate display labels merge only when stable ids match; pasted labels keep raw refs if normalization changes them.
+unsafe_value_review:
+  required_before_apply: true
+  review_surface_class: side_sheet
+  scope_authority_fields:
+    - actor
+    - target
+    - account_or_tenant
+    - policy_source
+    - export_destination
+  review_summary: Review shows provider, account or tenant, stable id path, duplicate handling, and normalization report.
+narrative_refs:
+  - docs/ux/field_rules_contract.md
+  - docs/api/request_workspace_contract.md
+  - docs/ux/forms_validation_contract.md
+emitted_at: "2026-04-27T10:06:00Z"
+__fixture__:
+  name: provider_resource_duplicate_normalization
+  scenario: A request workspace imports provider resources with duplicate labels and case-normalized ids without silently merging unrelated targets.
+  exercised_axes:
+    - duplicate_handling
+    - lossy_normalization_warning
+    - stable_id_path_required

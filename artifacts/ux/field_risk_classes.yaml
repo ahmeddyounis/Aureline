@@ -1,0 +1,464 @@
+# High-risk field-rule risk classes.
+#
+# This matrix backs docs/ux/field_rules_contract.md. It is intentionally
+# cross-surface: settings, request workspaces, package-manager auth,
+# notebook kernels, transport configuration, repair flows, and support
+# exports read the same rule-family defaults rather than minting private
+# widgets, validators, redaction rules, or copy/export behavior.
+
+schema_version: 1
+matrix_id: aureline.ux.field_risk_classes
+status: seeded
+contract_ref: docs/ux/field_rules_contract.md
+schema_ref: schemas/ux/field_rule.schema.json
+fixture_manifest_ref: fixtures/ux/field_rule_cases/manifest.yaml
+
+source_refs:
+  form_validation_contract: docs/ux/forms_validation_contract.md
+  secret_broker_adr: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  secret_class_rows: artifacts/security/secret_class_rows.yaml
+  path_truth_contract: docs/fs/path_truth_packet.md
+  request_workspace_contract: docs/api/request_workspace_contract.md
+  package_action_contract: docs/package/package_action_contract.md
+  transport_governance_seed: docs/network/transport_governance_seed.md
+  repair_transaction_contract: docs/support/repair_transaction_contract.md
+  interaction_safety_contract: docs/ux/shell_interaction_safety_contract.md
+
+risk_class_vocabulary:
+  - risk_class: secret_bearing
+    description: Secret value is represented by a broker, vault, or delegated handle.
+    default_export_class: handle_ref_only
+    must_never_export_raw_secret: true
+  - risk_class: raw_secret_exposure
+    description: User-entered credential material exists only during admission or denial.
+    default_export_class: excluded
+    must_never_export_raw_secret: true
+  - risk_class: filesystem_authority
+    description: Value points at local, workspace, remote, archive, generated, or provider-owned filesystem state.
+    default_export_class: path_with_basis
+    must_never_export_raw_secret: false
+  - risk_class: network_target
+    description: Value selects a URI, endpoint, origin, route, mirror, registry, or egress target.
+    default_export_class: endpoint_summary
+    must_never_export_raw_secret: false
+  - risk_class: evaluated_code
+    description: Value is evaluated by a runtime, expression engine, assertion engine, query engine, or generator.
+    default_export_class: redacted_summary
+    must_never_export_raw_secret: false
+  - risk_class: shell_execution
+    description: Value becomes a command, process launch, shell template, script hook, or repair action.
+    default_export_class: redacted_summary
+    must_never_export_raw_secret: false
+  - risk_class: environment_resolution
+    description: Value resolves through environment layers, variable precedence, profile state, or runtime context.
+    default_export_class: metadata_only
+    must_never_export_raw_secret: false
+  - risk_class: trust_material
+    description: Value references certificate, trust-store, SSH proof, CA bundle, client cert, or signing material.
+    default_export_class: ref_with_fingerprint
+    must_never_export_raw_secret: true
+  - risk_class: external_resource_identity
+    description: Value selects provider-owned account, tenant, project, model, package, cluster, database, or resource identity.
+    default_export_class: structured_safe_value
+    must_never_export_raw_secret: false
+
+rule_family_rows:
+  - field_rule_class: secret_handle_field
+    risk_class: secret_bearing
+    storage_class: handle_ref_only
+    reserved_value_shapes:
+      - secret_handle_ref
+    default_review_affordances:
+      - storage_mode_label
+      - reveal_friction
+      - scope_authority_disclosure
+      - redaction_preview
+    required_validation_classes:
+      - secret_resolution
+      - policy
+    default_export_class: handle_ref_only
+    unsafe_warning_triggers:
+      - plaintext_export_attempt
+      - policy_narrows_authority
+    applies_to_surfaces:
+      - settings_form
+      - request_workspace
+      - package_manager_auth
+      - network_transport_form
+      - support_export
+    prohibited_downgrades:
+      - raw_plaintext_export
+      - implicit_reveal_on_copy
+
+  - field_rule_class: raw_secret_input
+    risk_class: raw_secret_exposure
+    storage_class: literal_session_entry
+    reserved_value_shapes:
+      - raw_secret_literal
+    default_review_affordances:
+      - storage_mode_label
+      - reveal_friction
+      - unsafe_warning
+      - redaction_preview
+    required_validation_classes:
+      - local_syntax
+      - secret_resolution
+      - policy
+    default_export_class: excluded
+    unsafe_warning_triggers:
+      - raw_secret_literal_detected
+      - plaintext_export_attempt
+      - bulk_paste_requires_review
+    applies_to_surfaces:
+      - request_workspace
+      - package_manager_auth
+      - settings_form
+      - support_export
+    prohibited_downgrades:
+      - persistent_plaintext_storage
+      - support_export_raw_value
+
+  - field_rule_class: filesystem_path_ref
+    risk_class: filesystem_authority
+    storage_class: path_locator_ref
+    reserved_value_shapes:
+      - generic_path_ref
+      - file_ref
+      - folder_ref
+      - archive_inner_path_ref
+      - multi_value_list
+    default_review_affordances:
+      - basis_disclosure
+      - scope_authority_disclosure
+      - unsafe_warning
+      - duplicate_resolution
+      - lossy_normalization_warning
+    required_validation_classes:
+      - local_syntax
+      - local_capability
+      - policy
+      - target_discovery
+    default_export_class: path_with_basis
+    unsafe_warning_triggers:
+      - missing_relative_path_basis
+      - path_escape_or_symlink_alias
+      - path_not_reachable_in_target_context
+      - drag_drop_requires_target_disclosure
+      - lossy_normalization_detected
+    applies_to_surfaces:
+      - settings_form
+      - package_manager_auth
+      - notebook_kernel
+      - repair_flow
+      - support_export
+    prohibited_downgrades:
+      - relative_path_without_basis
+      - remote_path_rendered_as_local
+
+  - field_rule_class: uri_endpoint
+    risk_class: network_target
+    storage_class: endpoint_locator_ref
+    reserved_value_shapes:
+      - uri_ref
+      - endpoint_ref
+      - multi_value_list
+    default_review_affordances:
+      - basis_disclosure
+      - policy_explanation
+      - scope_authority_disclosure
+      - redaction_preview
+    required_validation_classes:
+      - local_syntax
+      - external_probe
+      - remote_auth
+      - policy
+      - target_discovery
+    default_export_class: endpoint_summary
+    unsafe_warning_triggers:
+      - endpoint_retarget_or_origin_change
+      - plaintext_export_attempt
+      - policy_narrows_authority
+    applies_to_surfaces:
+      - settings_form
+      - request_workspace
+      - package_manager_auth
+      - network_transport_form
+      - support_export
+    prohibited_downgrades:
+      - raw_url_with_credentials_export
+      - silent_endpoint_retarget
+
+  - field_rule_class: code_backed_expression
+    risk_class: evaluated_code
+    storage_class: expression_source_ref
+    reserved_value_shapes:
+      - code_fragment
+      - json_fragment
+      - yaml_fragment
+      - multi_value_list
+    default_review_affordances:
+      - preview_diff
+      - dry_run_preview
+      - raw_source_inspection
+      - scope_authority_disclosure
+      - unsafe_warning
+    required_validation_classes:
+      - local_syntax
+      - schema
+      - dry_run
+      - policy
+    default_export_class: redacted_summary
+    unsafe_warning_triggers:
+      - code_evaluates_with_workspace_authority
+      - bulk_paste_requires_review
+      - lossy_normalization_detected
+    applies_to_surfaces:
+      - request_workspace
+      - notebook_kernel
+      - template_scaffold_form
+      - repair_flow
+      - support_export
+    prohibited_downgrades:
+      - evaluated_code_as_plain_text
+      - apply_without_evaluator_context
+
+  - field_rule_class: command_template
+    risk_class: shell_execution
+    storage_class: command_template_ref
+    reserved_value_shapes:
+      - command_template
+      - generic_path_ref
+    default_review_affordances:
+      - basis_disclosure
+      - dry_run_preview
+      - scope_authority_disclosure
+      - unsafe_warning
+      - redaction_preview
+    required_validation_classes:
+      - local_syntax
+      - schema
+      - dry_run
+      - policy
+      - target_discovery
+    default_export_class: redacted_summary
+    unsafe_warning_triggers:
+      - command_shell_interpolation
+      - env_ref_unresolved_or_shadowed
+      - bulk_paste_requires_review
+      - policy_narrows_authority
+    applies_to_surfaces:
+      - package_manager_auth
+      - notebook_kernel
+      - repair_flow
+      - runtime_target_form
+      - support_export
+    prohibited_downgrades:
+      - command_as_inert_text
+      - apply_without_working_directory
+
+  - field_rule_class: environment_ref
+    risk_class: environment_resolution
+    storage_class: environment_key_ref
+    reserved_value_shapes:
+      - environment_key
+      - key_value_map
+      - multi_value_list
+    default_review_affordances:
+      - basis_disclosure
+      - scope_authority_disclosure
+      - duplicate_resolution
+      - redaction_preview
+    required_validation_classes:
+      - local_syntax
+      - schema
+      - secret_resolution
+      - policy
+    default_export_class: metadata_only
+    unsafe_warning_triggers:
+      - env_ref_unresolved_or_shadowed
+      - duplicate_value_collision
+      - raw_secret_literal_detected
+    applies_to_surfaces:
+      - settings_form
+      - request_workspace
+      - notebook_kernel
+      - repair_flow
+      - support_export
+    prohibited_downgrades:
+      - winning_layer_hidden
+      - secret_env_value_exported
+
+  - field_rule_class: certificate_ref
+    risk_class: trust_material
+    storage_class: certificate_binding_ref
+    reserved_value_shapes:
+      - certificate_binding
+    default_review_affordances:
+      - storage_mode_label
+      - policy_explanation
+      - scope_authority_disclosure
+      - redaction_preview
+    required_validation_classes:
+      - local_syntax
+      - local_capability
+      - external_probe
+      - policy
+    default_export_class: ref_with_fingerprint
+    unsafe_warning_triggers:
+      - certificate_expired_or_untrusted
+      - plaintext_export_attempt
+      - policy_narrows_authority
+    applies_to_surfaces:
+      - network_transport_form
+      - settings_form
+      - repair_flow
+      - support_export
+    prohibited_downgrades:
+      - private_key_material_export
+      - trust_store_source_hidden
+
+  - field_rule_class: provider_resource_identifier
+    risk_class: external_resource_identity
+    storage_class: provider_resource_ref
+    reserved_value_shapes:
+      - provider_resource_ref
+      - multi_value_list
+    default_review_affordances:
+      - basis_disclosure
+      - scope_authority_disclosure
+      - duplicate_resolution
+      - lossy_normalization_warning
+      - redaction_preview
+    required_validation_classes:
+      - schema
+      - external_probe
+      - remote_auth
+      - policy
+      - target_discovery
+    default_export_class: structured_safe_value
+    unsafe_warning_triggers:
+      - provider_resource_ambiguous
+      - duplicate_value_collision
+      - lossy_normalization_detected
+      - endpoint_retarget_or_origin_change
+    applies_to_surfaces:
+      - settings_form
+      - request_workspace
+      - package_manager_auth
+      - notebook_kernel
+      - network_transport_form
+      - repair_flow
+      - support_export
+    prohibited_downgrades:
+      - display_label_without_stable_id
+      - duplicate_resource_silent_merge
+
+cross_surface_mapping:
+  - surface_family: settings_form
+    required_rule_classes:
+      - secret_handle_field
+      - filesystem_path_ref
+      - uri_endpoint
+      - environment_ref
+      - certificate_ref
+      - provider_resource_identifier
+    export_requirement: Effective source, policy lock, redaction class, and apply timing remain visible.
+  - surface_family: request_workspace
+    required_rule_classes:
+      - secret_handle_field
+      - raw_secret_input
+      - uri_endpoint
+      - environment_ref
+      - code_backed_expression
+      - provider_resource_identifier
+    export_requirement: Auth resolves through handles; endpoint retargeting and stale schema are reviewable before send or replay.
+  - surface_family: package_manager_auth
+    required_rule_classes:
+      - secret_handle_field
+      - raw_secret_input
+      - uri_endpoint
+      - command_template
+      - filesystem_path_ref
+      - provider_resource_identifier
+    export_requirement: Registry auth, script risk, manifest scope, and lockfile basis stay visible without raw tokens.
+  - surface_family: notebook_kernel
+    required_rule_classes:
+      - filesystem_path_ref
+      - code_backed_expression
+      - command_template
+      - environment_ref
+      - provider_resource_identifier
+    export_requirement: Kernel/runtime identity, working directory, environment, and captured-vs-live state stay distinct.
+  - surface_family: network_transport_form
+    required_rule_classes:
+      - uri_endpoint
+      - certificate_ref
+      - secret_handle_field
+      - filesystem_path_ref
+      - provider_resource_identifier
+    export_requirement: Proxy, trust, route, egress, cert refs, and policy epoch are inspectable with sensitive material omitted.
+  - surface_family: repair_flow
+    required_rule_classes:
+      - filesystem_path_ref
+      - command_template
+      - environment_ref
+      - certificate_ref
+      - provider_resource_identifier
+    export_requirement: Preview, checkpoint, reversal, forbidden actions, affected state, and stale/skipped probes survive handoff.
+  - surface_family: support_export
+    required_rule_classes:
+      - secret_handle_field
+      - raw_secret_input
+      - filesystem_path_ref
+      - uri_endpoint
+      - code_backed_expression
+      - command_template
+      - environment_ref
+      - certificate_ref
+      - provider_resource_identifier
+    export_requirement: Metadata, evaluation context, validation state, redaction report, and omitted-value reasons survive; raw secrets do not.
+
+semantic_reservations:
+  relative_path_basis:
+    required_for:
+      - filesystem_path_ref
+      - command_template
+      - code_backed_expression
+    allowed_basis_policies:
+      - workspace_root_required
+      - containing_file_required
+      - selected_target_required
+      - user_chosen_basis_required
+      - reject_relative_paths
+    rule: Relative paths without a declared basis block mutation-class apply.
+  drag_drop_compatibility:
+    required_for:
+      - filesystem_path_ref
+      - command_template
+      - provider_resource_identifier
+    rule: Drops disclose local-client, workspace-host, remote-target, archive-internal, or provider-owned target context before apply.
+  bulk_paste:
+    required_for:
+      - raw_secret_input
+      - uri_endpoint
+      - code_backed_expression
+      - command_template
+      - environment_ref
+      - provider_resource_identifier
+    rule: Bulk paste declares split, duplicate, normalization, and review behavior before apply.
+  duplicate_handling:
+    allowed_policies:
+      - reject_duplicates
+      - preserve_order_with_duplicate_warning
+      - merge_by_stable_id
+      - last_value_wins_requires_review
+      - not_applicable
+    rule: Silent duplicate merge is forbidden unless the rule declares merge_by_stable_id and shows the stable id path.
+  lossy_normalization:
+    allowed_policies:
+      - block
+      - warn_and_preserve_raw_ref
+      - warn_and_apply_canonical_form
+      - allowed_no_warning
+      - not_applicable
+    rule: Lossy canonicalization is either blocked or warned with a raw ref or normalization report.

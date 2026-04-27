@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=../../../schemas/ux/field_rule.schema.json
+schema_version: 1
+record_kind: field_rule_record
+field_rule_id: field_rule:transport.proxy_endpoint:001
+field_rule_class: uri_endpoint
+risk_class: network_target
+surface_families:
+  - network_transport_form
+  - settings_form
+  - support_export
+field_display_class: single_value
+value_shape_classes:
+  - uri_ref
+  - endpoint_ref
+field_label: Proxy endpoint
+value_representation:
+  storage_class: endpoint_locator_ref
+  display_redaction_class: redacted_summary
+  raw_value_allowed_at_rest: false
+  raw_value_allowed_in_export: false
+  copy_posture: copy_endpoint_summary
+  value_ref: endpoint_locator:proxy.corp:001
+  summary: Endpoint is stored as a locator with route, egress, and policy context, not as a raw URL.
+review_affordances:
+  - basis_disclosure
+  - policy_explanation
+  - scope_authority_disclosure
+  - redaction_preview
+  - unsafe_warning
+evaluation_context:
+  context_required_before_apply: true
+  unsafe_when_missing_context: true
+  resolver_actor_class: transport_resolver
+  execution_location_class: local_client
+  resolution_time_class: apply_time
+  basis_fields:
+    - selected_target
+    - active_profile
+    - policy_epoch
+  context_summary: Endpoint meaning depends on the selected target, active profile, route, egress class, and policy epoch.
+validation_hooks:
+  - validation_class: local_syntax
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: not_applicable
+    hook_summary: URI shape and forbidden credential components are checked locally.
+  - validation_class: external_probe
+    validation_timing_class: async_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Non-mutating transport probe confirms route and trust posture.
+  - validation_class: policy
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Policy must allow the egress class and route before apply.
+  - validation_class: target_discovery
+    validation_timing_class: async_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Target discovery confirms the endpoint has not silently retargeted.
+unsafe_value_warnings:
+  - endpoint_retarget_or_origin_change
+  - plaintext_export_attempt
+  - policy_narrows_authority
+export_policy:
+  default_export_class: endpoint_summary
+  elevated_export_class: explicit_user_review
+  never_export_raw_secret: false
+  downgrade_requires_class_change: false
+  included_metadata:
+    - field_rule_class
+    - field_label
+    - source_class
+    - evaluation_context
+    - risk_class
+    - redaction_report
+    - omitted_value_reason
+    - authority_scope
+  export_summary: Support export includes endpoint class, route, egress class, and redaction report without raw credentials or sensitive host components.
+multi_value_policy:
+  supports_bulk_paste: true
+  supports_drag_drop: false
+  duplicate_handling: reject_duplicates
+  lossy_normalization_policy: warn_and_preserve_raw_ref
+  relative_path_basis_policy: not_applicable
+  multi_value_summary: Pasted endpoints are reviewed individually and cannot silently replace the active target.
+unsafe_value_review:
+  required_before_apply: true
+  review_surface_class: side_sheet
+  scope_authority_fields:
+    - actor
+    - target
+    - remote_host
+    - policy_source
+    - execution_location
+  review_summary: Review shows route, egress class, target identity, policy source, and retarget warnings before apply.
+narrative_refs:
+  - docs/ux/field_rules_contract.md
+  - docs/network/transport_governance_seed.md
+  - docs/ux/forms_validation_contract.md
+emitted_at: "2026-04-27T10:07:00Z"
+__fixture__:
+  name: transport_uri_endpoint_retarget
+  scenario: A transport form detects that a pasted proxy endpoint would retarget egress and requires route/policy review.
+  exercised_axes:
+    - endpoint_retarget_warning
+    - route_policy_context
+    - endpoint_summary_export

@@ -1,0 +1,111 @@
+# yaml-language-server: $schema=../../../schemas/ux/field_rule.schema.json
+schema_version: 1
+record_kind: field_rule_record
+field_rule_id: field_rule:request.environment_ref:001
+field_rule_class: environment_ref
+risk_class: environment_resolution
+surface_families:
+  - request_workspace
+  - notebook_kernel
+  - support_export
+field_display_class: key_value_map
+value_shape_classes:
+  - environment_key
+  - key_value_map
+field_label: Request environment variables
+value_representation:
+  storage_class: environment_key_ref
+  display_redaction_class: redacted_summary
+  raw_value_allowed_at_rest: false
+  raw_value_allowed_in_export: false
+  copy_posture: copy_redacted_summary
+  value_ref: environment_key_set:request.checkout:001
+  summary: Environment values are referenced by keys and layers; secret-like winners are represented by handles.
+review_affordances:
+  - basis_disclosure
+  - scope_authority_disclosure
+  - duplicate_resolution
+  - redaction_preview
+  - unsafe_warning
+evaluation_context:
+  context_required_before_apply: true
+  unsafe_when_missing_context: true
+  resolver_actor_class: request_runtime
+  execution_location_class: request_runtime
+  resolution_time_class: run_time
+  basis_fields:
+    - active_profile
+    - environment_layer
+    - request_environment
+    - policy_epoch
+  context_summary: Environment resolution depends on active profile, layer precedence, request environment, and policy epoch.
+validation_hooks:
+  - validation_class: local_syntax
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: not_applicable
+    hook_summary: Environment key names are checked locally.
+  - validation_class: schema
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Environment shape must match the request workspace schema.
+  - validation_class: secret_resolution
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Secret-like winners must resolve to broker handles before export or replay.
+  - validation_class: policy
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Policy may suppress or override layers before run.
+unsafe_value_warnings:
+  - env_ref_unresolved_or_shadowed
+  - duplicate_value_collision
+  - raw_secret_literal_detected
+export_policy:
+  default_export_class: metadata_only
+  elevated_export_class: explicit_user_review
+  never_export_raw_secret: true
+  downgrade_requires_class_change: true
+  included_metadata:
+    - field_rule_class
+    - field_label
+    - source_class
+    - storage_mode
+    - evaluation_context
+    - risk_class
+    - redaction_report
+    - omitted_value_reason
+    - duplicate_policy
+  export_summary: Support export includes keys, winning layers, unresolved keys, duplicate policy, and redaction report, not secret values.
+multi_value_policy:
+  supports_bulk_paste: true
+  supports_drag_drop: false
+  duplicate_handling: last_value_wins_requires_review
+  lossy_normalization_policy: warn_and_preserve_raw_ref
+  relative_path_basis_policy: not_applicable
+  multi_value_summary: Bulk-pasted key/value rows preserve layer order and require review when a later layer shadows a prior value.
+unsafe_value_review:
+  required_before_apply: true
+  review_surface_class: side_sheet
+  scope_authority_fields:
+    - actor
+    - target
+    - credential_scope
+    - policy_source
+    - execution_location
+  review_summary: Review shows layer precedence, shadowed keys, secret-handle winners, and policy overrides before replay.
+narrative_refs:
+  - docs/ux/field_rules_contract.md
+  - docs/api/request_workspace_contract.md
+  - docs/ux/forms_validation_contract.md
+emitted_at: "2026-04-27T10:08:00Z"
+__fixture__:
+  name: request_environment_ref_shadowing
+  scenario: A request workspace environment map exposes layer precedence and duplicate shadowing before replay or export.
+  exercised_axes:
+    - layer_precedence_visible
+    - env_ref_shadowing_warning
+    - duplicate_handling

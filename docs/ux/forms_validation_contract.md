@@ -29,6 +29,11 @@ Companion artifacts:
   - worked YAML records covering settings, connection setup, package
   actions, policy edits, repair actions, transport forms, and request /
   runtime forms.
+- [`/docs/ux/field_rules_contract.md`](./field_rules_contract.md)
+  and [`/schemas/ux/field_rule.schema.json`](../../schemas/ux/field_rule.schema.json)
+  - high-risk field rules for secret handles, raw secret inputs, paths,
+  URIs/endpoints, code-backed expressions, command templates,
+  environment refs, certificate refs, and provider/resource ids.
 
 This contract composes with, and does not replace:
 
@@ -56,6 +61,10 @@ This contract composes with, and does not replace:
 - [`/docs/ux/live_update_review_contract.md`](./live_update_review_contract.md)
   for stale and live-review honesty when a form depends on moving
   external state.
+- [`/docs/ux/field_rules_contract.md`](./field_rules_contract.md)
+  for the per-field storage, evaluation-context, unsafe-warning,
+  copy/export, paste/drop, duplicate, and normalization rules used by
+  any high-risk `field_rows[]` value.
 
 Normative source sections projected here include the form / validation
 templates in `.t2/docs/Aureline_UI_UX_Spec_Document.md`, the repair and

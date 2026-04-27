@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=../../../schemas/ux/field_rule.schema.json
+schema_version: 1
+record_kind: field_rule_record
+field_rule_id: field_rule:transport.client_certificate:001
+field_rule_class: certificate_ref
+risk_class: trust_material
+surface_families:
+  - network_transport_form
+  - support_export
+field_display_class: single_value
+value_shape_classes:
+  - certificate_binding
+field_label: Client certificate
+value_representation:
+  storage_class: certificate_binding_ref
+  display_redaction_class: metadata_only
+  raw_value_allowed_at_rest: false
+  raw_value_allowed_in_export: false
+  copy_posture: copy_metadata_only
+  value_ref: certificate_binding:transport.client:001
+  summary: Certificate binding is represented by handle ref, issuer, epoch, fingerprint, and expiry only.
+review_affordances:
+  - storage_mode_label
+  - policy_explanation
+  - scope_authority_disclosure
+  - redaction_preview
+evaluation_context:
+  context_required_before_apply: true
+  unsafe_when_missing_context: true
+  resolver_actor_class: transport_resolver
+  execution_location_class: local_client
+  resolution_time_class: apply_time
+  basis_fields:
+    - certificate_store
+    - policy_epoch
+    - selected_target
+  context_summary: Transport resolution checks the selected target against the configured certificate store and policy epoch.
+validation_hooks:
+  - validation_class: local_syntax
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: not_applicable
+    hook_summary: Fingerprint and binding id shape are checked locally.
+  - validation_class: local_capability
+    validation_timing_class: async_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: The certificate store must report the binding as present without exporting private key material.
+  - validation_class: external_probe
+    validation_timing_class: async_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Endpoint trust probe confirms the certificate is accepted for the selected target.
+  - validation_class: policy
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Policy owner and epoch must allow this certificate binding.
+unsafe_value_warnings:
+  - certificate_expired_or_untrusted
+  - plaintext_export_attempt
+  - policy_narrows_authority
+export_policy:
+  default_export_class: ref_with_fingerprint
+  elevated_export_class: admin_policy_required
+  never_export_raw_secret: true
+  downgrade_requires_class_change: true
+  included_metadata:
+    - field_rule_class
+    - field_label
+    - storage_mode
+    - evaluation_context
+    - risk_class
+    - fingerprint
+    - redaction_report
+    - omitted_value_reason
+  export_summary: Support export includes binding ref, fingerprint, issuer, expiry, and policy owner only.
+multi_value_policy:
+  supports_bulk_paste: false
+  supports_drag_drop: false
+  duplicate_handling: not_applicable
+  lossy_normalization_policy: warn_and_apply_canonical_form
+  relative_path_basis_policy: not_applicable
+  multi_value_summary: Certificate fingerprint formatting may canonicalize with a normalization report.
+unsafe_value_review:
+  required_before_apply: true
+  review_surface_class: side_sheet
+  scope_authority_fields:
+    - actor
+    - target
+    - account_or_tenant
+    - policy_source
+    - credential_scope
+  review_summary: Review shows fingerprint, issuer, expiry, target scope, and policy source before apply.
+narrative_refs:
+  - docs/ux/field_rules_contract.md
+  - docs/network/transport_governance_seed.md
+  - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+emitted_at: "2026-04-27T10:05:00Z"
+__fixture__:
+  name: transport_certificate_ref
+  scenario: A transport form uses a client-certificate binding by ref and exports only fingerprint metadata.
+  exercised_axes:
+    - fingerprint_export
+    - certificate_expiry_warning
+    - policy_source_visible

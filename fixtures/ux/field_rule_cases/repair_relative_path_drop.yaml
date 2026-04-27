@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=../../../schemas/ux/field_rule.schema.json
+schema_version: 1
+record_kind: field_rule_record
+field_rule_id: field_rule:repair.cache_path:001
+field_rule_class: filesystem_path_ref
+risk_class: filesystem_authority
+surface_families:
+  - repair_flow
+  - support_export
+field_display_class: attachment_or_drop_target
+value_shape_classes:
+  - generic_path_ref
+  - folder_ref
+field_label: Cache path
+value_representation:
+  storage_class: path_locator_ref
+  display_redaction_class: redacted_summary
+  raw_value_allowed_at_rest: false
+  raw_value_allowed_in_export: false
+  copy_posture: copy_path_with_basis
+  value_ref: path_locator:repair.cache:001
+  summary: The dropped path is stored as a locator with workspace-root basis and alias metadata.
+review_affordances:
+  - basis_disclosure
+  - scope_authority_disclosure
+  - unsafe_warning
+  - duplicate_resolution
+  - lossy_normalization_warning
+evaluation_context:
+  context_required_before_apply: true
+  unsafe_when_missing_context: true
+  resolver_actor_class: repair_supervisor
+  execution_location_class: workspace_host
+  resolution_time_class: apply_time
+  basis_fields:
+    - workspace_root
+    - current_working_directory
+    - policy_epoch
+  context_summary: Repair applies on the workspace host, so a local-client drop must be resolved against the workspace root.
+validation_hooks:
+  - validation_class: local_syntax
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: not_applicable
+    hook_summary: Path syntax and relative shape are checked locally.
+  - validation_class: local_capability
+    validation_timing_class: async_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: The workspace host must confirm the locator is reachable and not an alias escape.
+  - validation_class: policy
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Repair policy must allow touching the selected cache root.
+unsafe_value_warnings:
+  - missing_relative_path_basis
+  - path_escape_or_symlink_alias
+  - path_not_reachable_in_target_context
+  - drag_drop_requires_target_disclosure
+  - lossy_normalization_detected
+export_policy:
+  default_export_class: path_with_basis
+  elevated_export_class: explicit_user_review
+  never_export_raw_secret: false
+  downgrade_requires_class_change: false
+  included_metadata:
+    - field_rule_class
+    - field_label
+    - evaluation_context
+    - risk_class
+    - redaction_report
+    - authority_scope
+    - path_basis
+    - normalization_report
+  export_summary: Support export includes workspace-root basis and alias warning, with sensitive path components redacted.
+multi_value_policy:
+  supports_bulk_paste: false
+  supports_drag_drop: true
+  duplicate_handling: reject_duplicates
+  lossy_normalization_policy: warn_and_preserve_raw_ref
+  relative_path_basis_policy: workspace_root_required
+  multi_value_summary: Drag/drop is accepted only after local vs workspace-host target disclosure.
+unsafe_value_review:
+  required_before_apply: true
+  review_surface_class: side_sheet
+  scope_authority_fields:
+    - actor
+    - target
+    - workspace_root
+    - execution_location
+    - policy_source
+  review_summary: Repair preview shows path basis, alias state, target host, and affected state class before apply.
+narrative_refs:
+  - docs/ux/field_rules_contract.md
+  - docs/fs/path_truth_packet.md
+  - docs/support/repair_transaction_contract.md
+emitted_at: "2026-04-27T10:02:00Z"
+__fixture__:
+  name: repair_relative_path_drop
+  scenario: A repair flow accepts a dropped relative path only after declaring workspace-root basis and target execution location.
+  exercised_axes:
+    - relative_path_basis
+    - drag_drop_target_disclosure
+    - path_alias_warning

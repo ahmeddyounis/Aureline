@@ -1,0 +1,103 @@
+# yaml-language-server: $schema=../../../schemas/ux/field_rule.schema.json
+schema_version: 1
+record_kind: field_rule_record
+field_rule_id: field_rule:package.postinstall_template:001
+field_rule_class: command_template
+risk_class: shell_execution
+surface_families:
+  - package_manager_auth
+  - support_export
+field_display_class: structured_fragment
+value_shape_classes:
+  - command_template
+field_label: Package script command
+value_representation:
+  storage_class: command_template_ref
+  display_redaction_class: redacted_summary
+  raw_value_allowed_at_rest: true
+  raw_value_allowed_in_export: false
+  copy_posture: copy_redacted_summary
+  value_ref: command_template:package.postinstall:001
+  summary: The command template is stored by ref and reviewed with environment interpolation before apply.
+review_affordances:
+  - basis_disclosure
+  - dry_run_preview
+  - scope_authority_disclosure
+  - unsafe_warning
+  - redaction_preview
+evaluation_context:
+  context_required_before_apply: true
+  unsafe_when_missing_context: true
+  resolver_actor_class: package_adapter
+  execution_location_class: package_manager_process
+  resolution_time_class: apply_time
+  basis_fields:
+    - package_manifest_scope
+    - current_working_directory
+    - environment_layer
+    - policy_epoch
+  context_summary: Package command resolution depends on manifest scope, working directory, and environment layer.
+validation_hooks:
+  - validation_class: local_syntax
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: not_applicable
+    hook_summary: Template syntax and interpolation slots are parsed locally.
+  - validation_class: dry_run
+    validation_timing_class: dry_run_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Package review must produce a non-mutating preview before running scripts.
+  - validation_class: policy
+    validation_timing_class: sync_non_mutating
+    required_for_apply: true
+    stale_behavior: block_until_current
+    hook_summary: Policy may deny unsandboxed scripts or native-build hooks.
+unsafe_value_warnings:
+  - command_shell_interpolation
+  - env_ref_unresolved_or_shadowed
+  - bulk_paste_requires_review
+  - policy_narrows_authority
+export_policy:
+  default_export_class: redacted_summary
+  elevated_export_class: support_case_required
+  never_export_raw_secret: false
+  downgrade_requires_class_change: false
+  included_metadata:
+    - field_rule_class
+    - field_label
+    - evaluation_context
+    - risk_class
+    - redaction_report
+    - authority_scope
+    - omitted_value_reason
+  export_summary: Package review export includes command ref, interpolation summary, policy result, and omitted secret variables.
+multi_value_policy:
+  supports_bulk_paste: true
+  supports_drag_drop: false
+  duplicate_handling: preserve_order_with_duplicate_warning
+  lossy_normalization_policy: warn_and_preserve_raw_ref
+  relative_path_basis_policy: workspace_root_required
+  multi_value_summary: Bulk-pasted command fragments are reviewed in order; path variables use workspace-root basis.
+unsafe_value_review:
+  required_before_apply: true
+  review_surface_class: full_sheet
+  scope_authority_fields:
+    - actor
+    - target
+    - workspace_root
+    - execution_location
+    - policy_source
+  review_summary: Review shows shell interpolation, package scope, working directory, and dry-run result before apply.
+narrative_refs:
+  - docs/ux/field_rules_contract.md
+  - docs/package/package_action_contract.md
+  - docs/ux/forms_validation_contract.md
+emitted_at: "2026-04-27T10:04:00Z"
+__fixture__:
+  name: package_command_template_review
+  scenario: A package action command template discloses shell interpolation, environment context, and dry-run review before scripts run.
+  exercised_axes:
+    - shell_interpolation_warning
+    - dry_run_preview
+    - environment_context
