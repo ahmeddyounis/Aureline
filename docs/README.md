@@ -754,6 +754,19 @@ code.
   [`/artifacts/runtime/managed_workspace_lifecycle.yaml`](../artifacts/runtime/managed_workspace_lifecycle.yaml);
   example compatibility-label and activation-budget-summary
   packet shapes are embedded in the taxonomy doc.
+- [`remote/attach_tunnel_port_forward_contract.md`](./remote/attach_tunnel_port_forward_contract.md)
+  — remote attach, reconnect, tunnel, port-forward, service-discovery,
+  and browser-preview route-truth contract. Freezes attach-session and
+  forwarded-endpoint records with target identity, route origin,
+  auth source, secret-exposure review, authority ticket, collision
+  handling, stale-target labels, local-only versus shareable link
+  disclosure, browser-handoff disclosure, lifecycle, recovery, and
+  teardown semantics. Boundary schemas in
+  [`/schemas/remote/attach_session.schema.json`](../schemas/remote/attach_session.schema.json)
+  and
+  [`/schemas/remote/forwarded_endpoint.schema.json`](../schemas/remote/forwarded_endpoint.schema.json);
+  worked fixtures in
+  [`/fixtures/remote/attach_cases/`](../fixtures/remote/attach_cases/).
 - [`runtime/resource_governor_contract.md`](./runtime/resource_governor_contract.md)
   — shared runtime resource-governor contract covering protected
   work classes, threshold families, queue and shed order,

@@ -1,0 +1,1137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/remote/forwarded_endpoint.schema.json",
+  "title": "Aureline forwarded endpoint, tunnel, port-forward, and browser-preview route contract",
+  "description": "Boundary schema for the forwarded_endpoint_record frozen in docs/remote/attach_tunnel_port_forward_contract.md. The record is the route-truth object for service-discovery rows, local loopback forwards, remote port forwards, reverse tunnels, managed workspace tunnels, browser-preview routes, notebook endpoints, debugger sockets, auth callbacks, webhooks, and machine-to-machine callbacks. It preserves endpoint identity, route origin, target witness, auth source, secret exposure review, authority ticket, lifecycle, collision handling, stale-target labeling, local-only versus shareable link disclosure, browser-handoff disclosure, downgrade/recovery state, and teardown semantics. Raw URLs, hostnames, IP addresses, ports, paths, query strings, cookies, headers, bearer tokens, API keys, callback bodies, and secret bytes never appear; opaque handles and class labels do. Adding enum values or optional fields is additive-minor with a forwarded_endpoint_schema_version bump when payloads change; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/forwarded_endpoint_record" }
+  ],
+  "$defs": {
+    "forwarded_endpoint_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this forwarded-endpoint boundary."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "forwarded_endpoint_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. It MUST NOT contain raw URLs, raw hostnames, raw IPs, raw ports, raw paths, raw query strings, raw tokens, or raw secret material."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640,
+      "description": "Review-safe summary. It MUST NOT include raw endpoint URLs, hostnames, ports, paths, query strings, cookies, headers, or token fragments."
+    },
+    "endpoint_class": {
+      "type": "string",
+      "enum": [
+        "discovered_service_row",
+        "local_loopback_forward",
+        "remote_port_forward",
+        "reverse_tunnel",
+        "managed_workspace_tunnel",
+        "browser_preview_route",
+        "notebook_endpoint",
+        "debugger_socket",
+        "auth_callback_route",
+        "webhook_callback_route",
+        "machine_to_machine_callback"
+      ]
+    },
+    "endpoint_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "pending_review",
+        "active",
+        "suspended_reconnect",
+        "paused",
+        "degraded",
+        "stale_target",
+        "retarget_review_required",
+        "policy_denied",
+        "approval_expired",
+        "capability_narrowed",
+        "provider_unavailable",
+        "revoked",
+        "expired",
+        "closed",
+        "blocked_collision",
+        "blocked_secret_review"
+      ],
+      "description": "Closed endpoint lifecycle vocabulary. Reconnect, retarget, paused, degraded, provider-unavailable, policy-denied, expired-approval, and capability-narrowed states are deliberately distinct."
+    },
+    "protocol_class": {
+      "type": "string",
+      "enum": [
+        "http",
+        "https",
+        "tcp",
+        "tls_tcp",
+        "websocket",
+        "grpc",
+        "debug_protocol",
+        "unknown_protocol_requires_review"
+      ]
+    },
+    "action_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke_local",
+        "user_voice_or_gesture_local",
+        "cli_invocation_local",
+        "ai_tool_call_local",
+        "ai_tool_call_managed",
+        "recipe_or_automation_local",
+        "extension_host_local",
+        "remote_agent_request",
+        "managed_control_plane_request",
+        "provider_callback_inbound",
+        "webhook_inbound",
+        "scheduled_trigger",
+        "supervisor_repair_origin",
+        "import_or_restore_session",
+        "unknown_origin_class"
+      ]
+    },
+    "action_target_class": {
+      "type": "string",
+      "enum": [
+        "local_host_target",
+        "user_mode_sandbox_target",
+        "container_local_target",
+        "devcontainer_target",
+        "remote_ssh_target",
+        "remote_agent_target",
+        "managed_workspace_target",
+        "notebook_kernel_local_target",
+        "notebook_kernel_remote_target",
+        "ai_sandbox_target",
+        "connected_provider_target",
+        "embedded_webview_target",
+        "system_browser_target",
+        "native_os_callback_target",
+        "publish_release_target",
+        "tunnel_exposed_target",
+        "bridged_helper_target",
+        "unknown_target_class"
+      ]
+    },
+    "action_route_class": {
+      "type": "string",
+      "enum": [
+        "in_process_route",
+        "local_rpc_route",
+        "remote_rpc_route",
+        "managed_control_plane_route",
+        "remote_agent_attach_route",
+        "approval_gated_route",
+        "browser_handoff_route",
+        "embedded_webview_route",
+        "native_callback_route",
+        "provider_webhook_return_route",
+        "publish_pipeline_route",
+        "tunnel_exposed_route",
+        "mirror_or_private_registry_route",
+        "bridged_helper_route",
+        "heuristic_unknown_route"
+      ]
+    },
+    "action_exposure_class": {
+      "type": "string",
+      "enum": [
+        "no_side_effect_local_read",
+        "local_only_mutation",
+        "workspace_visible_mutation",
+        "provider_visible_mutation",
+        "publicly_visible_publish",
+        "cross_tenant_visible",
+        "third_party_callback_visible",
+        "browser_session_visible",
+        "tunnel_exposed_public",
+        "exposure_unknown_requires_review"
+      ]
+    },
+    "route_change_reason_code": {
+      "type": "string",
+      "enum": [
+        "canonical_no_route_change",
+        "route_escalated_to_approval_required",
+        "route_escalated_to_browser_handoff",
+        "route_escalated_to_publish_pipeline",
+        "route_escalated_to_tunnel_exposure",
+        "route_changed_target_unreachable",
+        "route_changed_target_reassigned",
+        "route_changed_policy_narrowed",
+        "route_changed_authority_escalation",
+        "route_changed_wrong_target_detected",
+        "route_changed_approval_withdrawn",
+        "route_changed_freshness_floor_unmet",
+        "route_changed_host_mismatch",
+        "route_unknown_requires_review"
+      ]
+    },
+    "authority_linkage_class": {
+      "type": "string",
+      "enum": [
+        "no_authority_required_read_only",
+        "local_user_keystroke_authority",
+        "approval_ticket_linked",
+        "browser_handoff_packet_linked",
+        "publish_evidence_packet_linked",
+        "remote_agent_attach_ticket_linked",
+        "managed_control_plane_token_linked",
+        "policy_injected_service_identity_linked",
+        "supervisor_repair_ticket_linked",
+        "authority_missing_denied"
+      ]
+    },
+    "visibility_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "same_device_lan",
+        "workspace_only",
+        "organization_only",
+        "tenant_only",
+        "public_ephemeral",
+        "persistent_environment",
+        "blocked",
+        "visibility_unknown_requires_review"
+      ]
+    },
+    "link_scope_class": {
+      "type": "string",
+      "enum": [
+        "local_only_not_shareable",
+        "shareable_authenticated_users",
+        "public_link_timeboxed",
+        "persistent_environment_link",
+        "blocked_policy",
+        "unknown_requires_review"
+      ]
+    },
+    "viewer_state_class": {
+      "type": "string",
+      "enum": [
+        "live_service",
+        "captured_snapshot",
+        "mock_or_sample_data",
+        "stale_mirrored_state",
+        "no_live_viewer"
+      ]
+    },
+    "data_sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "public_demo",
+        "workspace_private",
+        "secrets_or_user_data_possible",
+        "admin_or_infrastructure",
+        "unknown_requires_review"
+      ]
+    },
+    "copy_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "local_only_copy",
+        "authenticated_route_copy",
+        "public_link_step_up_required",
+        "copy_blocked",
+        "unknown_requires_review"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_loopback_only",
+        "workspace_session_auth",
+        "organization_sso",
+        "signed_preview_link",
+        "machine_to_machine_allowlist",
+        "external_auth_passthrough",
+        "approval_ticket_required",
+        "auth_unknown_requires_review"
+      ]
+    },
+    "authority_ticket_class": {
+      "type": "string",
+      "enum": [
+        "no_authority_required_read_only",
+        "remote_agent_attach_ticket",
+        "approval_ticket",
+        "browser_handoff_packet",
+        "managed_control_plane_token",
+        "supervisor_repair_ticket"
+      ]
+    },
+    "credential_projection_class": {
+      "type": "string",
+      "enum": [
+        "no_credentials",
+        "handle_only",
+        "delegated_session_scoped",
+        "agent_side_secret_system",
+        "browser_handoff_only",
+        "raw_secret_observed_blocked"
+      ]
+    },
+    "secret_exposure_review_class": {
+      "type": "string",
+      "enum": [
+        "not_required_metadata_only",
+        "reviewed_no_raw_secret_projection",
+        "review_required_before_projection",
+        "denied_raw_secret_observed",
+        "blocked_pending_redaction"
+      ]
+    },
+    "collision_state": {
+      "type": "string",
+      "enum": [
+        "no_collision",
+        "collision_with_local_service",
+        "collision_with_existing_endpoint_same_target",
+        "collision_with_existing_endpoint_different_target",
+        "collision_with_stale_endpoint",
+        "collision_reserved_by_policy",
+        "collision_unknown_requires_review"
+      ]
+    },
+    "collision_handling_class": {
+      "type": "string",
+      "enum": [
+        "no_action",
+        "allocate_new_local_bind_handle",
+        "reuse_existing_same_target_no_widening",
+        "revoke_stale_then_reopen",
+        "deny_public_collision",
+        "block_pending_user_choice",
+        "block_pending_policy_review"
+      ]
+    },
+    "target_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "stale_target_identity",
+        "unverifiable_target",
+        "retargeted_pending_review",
+        "closed"
+      ]
+    },
+    "stale_target_label_class": {
+      "type": ["string", "null"],
+      "enum": [
+        "no_stale_label",
+        "stale_cached_target",
+        "target_identity_changed",
+        "target_unverifiable",
+        "retargeted_pending_review",
+        null
+      ]
+    },
+    "reapproval_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_reapproval_required",
+        "session_ticket_refresh_required",
+        "approval_ticket_reissue_required",
+        "admin_confirmation_required",
+        "policy_narrowing_required",
+        "trust_reevaluation_required"
+      ]
+    },
+    "browser_handoff_disclosure_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "shown_in_product_no_external_handoff",
+        "required_shown",
+        "required_pending",
+        "blocked_missing_packet",
+        "provider_unavailable"
+      ]
+    },
+    "browser_destination_class": {
+      "type": "string",
+      "enum": [
+        "local_browser_preview",
+        "system_browser_preview",
+        "managed_browser_pool",
+        "external_provider_browser",
+        "browser_destination_unknown_requires_review"
+      ]
+    },
+    "termination_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "terminates_on_local_device",
+        "terminates_on_remote_agent",
+        "terminates_on_managed_workspace",
+        "terminates_on_provider",
+        "terminates_unknown_requires_review"
+      ]
+    },
+    "viewer_access_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "authenticated_workspace",
+        "authenticated_org",
+        "public_ephemeral",
+        "persistent_environment",
+        "blocked"
+      ]
+    },
+    "teardown_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pending_revoke",
+        "suspended_no_traffic",
+        "revoked",
+        "expired",
+        "closed"
+      ]
+    },
+    "teardown_trigger_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "user_disconnect",
+        "manual_revoke",
+        "session_close",
+        "trust_downgrade",
+        "policy_epoch_change",
+        "approval_expiry",
+        "target_identity_change",
+        "lifecycle_pause",
+        "provider_unavailable",
+        "network_loss_window_exceeded",
+        "supervisor_quarantine"
+      ]
+    },
+    "revoke_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_live_route",
+        "user_self_revoke",
+        "workspace_admin_revoke",
+        "managed_admin_revoke",
+        "policy_revocation_only",
+        "automatic_expiry_only",
+        "provider_revoke_required",
+        "unknown_revoke_requires_review"
+      ]
+    },
+    "endpoint_downgrade_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "network_loss_suspended",
+        "retarget_pending_review",
+        "policy_denied_blocked",
+        "approval_expired_reissue_required",
+        "capability_narrowed_no_share",
+        "provider_unavailable_suspended",
+        "paused_no_traffic",
+        "degraded_read_only",
+        "stale_target_inspect_only",
+        "closed_no_recovery"
+      ]
+    },
+    "endpoint_recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "resume_same_identity",
+        "reissue_approval",
+        "select_new_target",
+        "narrow_to_local_only",
+        "wait_for_provider",
+        "revoke_and_recreate",
+        "no_recovery_closed"
+      ]
+    },
+    "last_access_observed_class": {
+      "type": "string",
+      "enum": [
+        "not_observed",
+        "observed_metadata_only",
+        "redacted_by_policy"
+      ]
+    },
+    "export_inclusion_posture": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "broadened_capture_opt_in"
+      ]
+    },
+    "endpoint_identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint_generation",
+        "source_execution_context_ref",
+        "service_ref",
+        "service_discovery_ref",
+        "target_host_ref",
+        "target_port_handle_ref",
+        "target_path_handle_ref",
+        "local_bind_handle_ref",
+        "public_route_handle_ref",
+        "protocol_class",
+        "target_identity_witness_ref",
+        "endpoint_fingerprint_ref",
+        "collision_key_ref"
+      ],
+      "properties": {
+        "endpoint_generation": { "type": "integer", "minimum": 1 },
+        "source_execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "service_ref": { "$ref": "#/$defs/opaque_ref" },
+        "service_discovery_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_host_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_port_handle_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_path_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_bind_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "public_route_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "protocol_class": { "$ref": "#/$defs/protocol_class" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" },
+        "endpoint_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "collision_key_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "route_truth_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invocation_session_id",
+        "route_truth_ref",
+        "action_origin_class",
+        "action_target_class",
+        "action_route_class",
+        "action_exposure_class",
+        "route_change_reason_code",
+        "authority_linkage_class"
+      ],
+      "properties": {
+        "invocation_session_id": { "$ref": "#/$defs/opaque_id" },
+        "route_truth_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_origin_class": { "$ref": "#/$defs/action_origin_class" },
+        "action_target_class": { "$ref": "#/$defs/action_target_class" },
+        "action_route_class": { "$ref": "#/$defs/action_route_class" },
+        "action_exposure_class": { "$ref": "#/$defs/action_exposure_class" },
+        "route_change_reason_code": { "$ref": "#/$defs/route_change_reason_code" },
+        "authority_linkage_class": { "$ref": "#/$defs/authority_linkage_class" }
+      }
+    },
+    "exposure_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visibility_class",
+        "link_scope_class",
+        "viewer_state_class",
+        "data_sensitivity_class",
+        "copy_disclosure_class",
+        "share_link_handle_ref",
+        "audience_ref",
+        "ttl_expires_at",
+        "summary"
+      ],
+      "properties": {
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+        "link_scope_class": { "$ref": "#/$defs/link_scope_class" },
+        "viewer_state_class": { "$ref": "#/$defs/viewer_state_class" },
+        "data_sensitivity_class": { "$ref": "#/$defs/data_sensitivity_class" },
+        "copy_disclosure_class": { "$ref": "#/$defs/copy_disclosure_class" },
+        "share_link_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audience_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "ttl_expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "secret_exposure_review_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_exposure_review_class",
+        "review_ticket_ref",
+        "redaction_profile_ref",
+        "raw_secret_observed"
+      ],
+      "properties": {
+        "secret_exposure_review_class": { "$ref": "#/$defs/secret_exposure_review_class" },
+        "review_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "raw_secret_observed": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "auth_posture_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auth_source_class",
+        "authority_ticket_class",
+        "authority_ticket_ref",
+        "credential_projection_class",
+        "broker_handle_ref",
+        "auth_session_ref",
+        "secret_exposure_review"
+      ],
+      "properties": {
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "authority_ticket_class": { "$ref": "#/$defs/authority_ticket_class" },
+        "authority_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "credential_projection_class": { "$ref": "#/$defs/credential_projection_class" },
+        "broker_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "auth_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "secret_exposure_review": { "$ref": "#/$defs/secret_exposure_review_block" }
+      }
+    },
+    "collision_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "collision_state",
+        "collision_handling_class",
+        "colliding_endpoint_refs",
+        "selected_resolution_ref",
+        "review_required",
+        "summary"
+      ],
+      "properties": {
+        "collision_state": { "$ref": "#/$defs/collision_state" },
+        "collision_handling_class": { "$ref": "#/$defs/collision_handling_class" },
+        "colliding_endpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "selected_resolution_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "review_required": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "target_freshness_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_freshness_class",
+        "stale_target_label_class",
+        "prior_target_ref",
+        "reapproval_requirement_class",
+        "summary"
+      ],
+      "properties": {
+        "target_freshness_class": { "$ref": "#/$defs/target_freshness_class" },
+        "stale_target_label_class": { "$ref": "#/$defs/stale_target_label_class" },
+        "prior_target_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "reapproval_requirement_class": { "$ref": "#/$defs/reapproval_requirement_class" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "browser_handoff_disclosure_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "browser_handoff_disclosure_state",
+        "browser_handoff_packet_ref",
+        "browser_destination_class",
+        "termination_disclosure_class",
+        "viewer_access_disclosure_class",
+        "summary"
+      ],
+      "properties": {
+        "browser_handoff_disclosure_state": { "$ref": "#/$defs/browser_handoff_disclosure_state" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "browser_destination_class": { "$ref": "#/$defs/browser_destination_class" },
+        "termination_disclosure_class": { "$ref": "#/$defs/termination_disclosure_class" },
+        "viewer_access_disclosure_class": { "$ref": "#/$defs/viewer_access_disclosure_class" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "teardown_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "teardown_state",
+        "teardown_trigger_class",
+        "revoke_posture_class",
+        "revocation_ref",
+        "expires_at",
+        "summary"
+      ],
+      "properties": {
+        "teardown_state": { "$ref": "#/$defs/teardown_state" },
+        "teardown_trigger_class": { "$ref": "#/$defs/teardown_trigger_class" },
+        "revoke_posture_class": { "$ref": "#/$defs/revoke_posture_class" },
+        "revocation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "downgrade_recovery_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint_downgrade_state",
+        "endpoint_recovery_action_class",
+        "route_change_reason_code",
+        "local_continuation_allowed",
+        "cancelled_action_refs",
+        "preserved_read_only_refs",
+        "summary"
+      ],
+      "properties": {
+        "endpoint_downgrade_state": { "$ref": "#/$defs/endpoint_downgrade_state" },
+        "endpoint_recovery_action_class": { "$ref": "#/$defs/endpoint_recovery_action_class" },
+        "route_change_reason_code": { "$ref": "#/$defs/route_change_reason_code" },
+        "local_continuation_allowed": { "type": "boolean" },
+        "cancelled_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "preserved_read_only_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "audit_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_event_refs",
+        "last_access_observed_at",
+        "last_access_observed_class"
+      ],
+      "properties": {
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "last_access_observed_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "last_access_observed_class": { "$ref": "#/$defs/last_access_observed_class" }
+      }
+    },
+    "export_policy_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_inclusion_posture",
+        "redaction_profile_ref",
+        "support_export_safe"
+      ],
+      "properties": {
+        "export_inclusion_posture": { "$ref": "#/$defs/export_inclusion_posture" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "support_export_safe": { "type": "boolean" }
+      }
+    },
+    "forwarded_endpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "forwarded_endpoint_schema_version",
+        "endpoint_id",
+        "attach_session_ref",
+        "captured_at",
+        "updated_at",
+        "endpoint_class",
+        "endpoint_lifecycle_state",
+        "identity",
+        "route_truth",
+        "exposure",
+        "auth_posture",
+        "collision",
+        "target_freshness",
+        "browser_handoff_disclosure",
+        "teardown",
+        "downgrade_recovery",
+        "audit",
+        "export_policy",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "forwarded_endpoint_schema_version": { "$ref": "#/$defs/forwarded_endpoint_schema_version" },
+        "endpoint_id": { "$ref": "#/$defs/opaque_id" },
+        "attach_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "endpoint_class": { "$ref": "#/$defs/endpoint_class" },
+        "endpoint_lifecycle_state": { "$ref": "#/$defs/endpoint_lifecycle_state" },
+        "identity": { "$ref": "#/$defs/endpoint_identity_block" },
+        "route_truth": { "$ref": "#/$defs/route_truth_block" },
+        "exposure": { "$ref": "#/$defs/exposure_block" },
+        "auth_posture": { "$ref": "#/$defs/auth_posture_block" },
+        "collision": { "$ref": "#/$defs/collision_block" },
+        "target_freshness": { "$ref": "#/$defs/target_freshness_block" },
+        "browser_handoff_disclosure": { "$ref": "#/$defs/browser_handoff_disclosure_block" },
+        "teardown": { "$ref": "#/$defs/teardown_block" },
+        "downgrade_recovery": { "$ref": "#/$defs/downgrade_recovery_block" },
+        "audit": { "$ref": "#/$defs/audit_block" },
+        "export_policy": { "$ref": "#/$defs/export_policy_block" },
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Local-only endpoints are not shareable and do not carry a share link handle.",
+          "if": {
+            "properties": {
+              "exposure": {
+                "properties": {
+                  "visibility_class": { "const": "local_only" }
+                },
+                "required": ["visibility_class"]
+              }
+            },
+            "required": ["exposure"]
+          },
+          "then": {
+            "properties": {
+              "exposure": {
+                "properties": {
+                  "link_scope_class": { "const": "local_only_not_shareable" },
+                  "share_link_handle_ref": { "type": "null" },
+                  "copy_disclosure_class": { "const": "local_only_copy" }
+                },
+                "required": ["link_scope_class", "share_link_handle_ref", "copy_disclosure_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Shareable endpoints require a non-null authority ticket and non-loopback auth posture.",
+          "if": {
+            "properties": {
+              "exposure": {
+                "properties": {
+                  "visibility_class": {
+                    "enum": [
+                      "workspace_only",
+                      "organization_only",
+                      "tenant_only",
+                      "public_ephemeral",
+                      "persistent_environment"
+                    ]
+                  }
+                },
+                "required": ["visibility_class"]
+              }
+            },
+            "required": ["exposure"]
+          },
+          "then": {
+            "properties": {
+              "auth_posture": {
+                "properties": {
+                  "authority_ticket_ref": { "type": "string" },
+                  "auth_source_class": {
+                    "enum": [
+                      "workspace_session_auth",
+                      "organization_sso",
+                      "signed_preview_link",
+                      "machine_to_machine_allowlist",
+                      "external_auth_passthrough",
+                      "approval_ticket_required",
+                      "auth_unknown_requires_review"
+                    ]
+                  }
+                },
+                "required": ["authority_ticket_ref", "auth_source_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Public ephemeral endpoints require a TTL, step-up copy disclosure, and public access disclosure.",
+          "if": {
+            "properties": {
+              "exposure": {
+                "properties": {
+                  "visibility_class": { "const": "public_ephemeral" }
+                },
+                "required": ["visibility_class"]
+              }
+            },
+            "required": ["exposure"]
+          },
+          "then": {
+            "properties": {
+              "exposure": {
+                "properties": {
+                  "ttl_expires_at": { "type": "string" },
+                  "link_scope_class": { "const": "public_link_timeboxed" },
+                  "copy_disclosure_class": { "const": "public_link_step_up_required" }
+                },
+                "required": ["ttl_expires_at", "link_scope_class", "copy_disclosure_class"]
+              },
+              "browser_handoff_disclosure": {
+                "properties": {
+                  "viewer_access_disclosure_class": { "const": "public_ephemeral" }
+                },
+                "required": ["viewer_access_disclosure_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Stale or retargeted endpoint states must show a stale label and non-live target freshness.",
+          "if": {
+            "properties": {
+              "endpoint_lifecycle_state": {
+                "enum": ["stale_target", "retarget_review_required"]
+              }
+            },
+            "required": ["endpoint_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "target_freshness": {
+                "properties": {
+                  "target_freshness_class": {
+                    "enum": [
+                      "stale_target_identity",
+                      "unverifiable_target",
+                      "retargeted_pending_review"
+                    ]
+                  },
+                  "stale_target_label_class": {
+                    "enum": [
+                      "stale_cached_target",
+                      "target_identity_changed",
+                      "target_unverifiable",
+                      "retargeted_pending_review"
+                    ]
+                  }
+                },
+                "required": ["target_freshness_class", "stale_target_label_class"]
+              },
+              "downgrade_recovery": {
+                "properties": {
+                  "endpoint_downgrade_state": {
+                    "enum": ["stale_target_inspect_only", "retarget_pending_review"]
+                  }
+                },
+                "required": ["endpoint_downgrade_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Retarget review requires prior target evidence and a target-selection recovery action.",
+          "if": {
+            "properties": {
+              "endpoint_lifecycle_state": { "const": "retarget_review_required" }
+            },
+            "required": ["endpoint_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "target_freshness": {
+                "properties": {
+                  "prior_target_ref": { "type": "string" },
+                  "reapproval_requirement_class": {
+                    "enum": [
+                      "session_ticket_refresh_required",
+                      "approval_ticket_reissue_required",
+                      "admin_confirmation_required",
+                      "policy_narrowing_required",
+                      "trust_reevaluation_required"
+                    ]
+                  }
+                },
+                "required": ["prior_target_ref", "reapproval_requirement_class"]
+              },
+              "downgrade_recovery": {
+                "properties": {
+                  "endpoint_recovery_action_class": { "const": "select_new_target" }
+                },
+                "required": ["endpoint_recovery_action_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Collision-free endpoints use no_action and do not require review.",
+          "if": {
+            "properties": {
+              "collision": {
+                "properties": {
+                  "collision_state": { "const": "no_collision" }
+                },
+                "required": ["collision_state"]
+              }
+            },
+            "required": ["collision"]
+          },
+          "then": {
+            "properties": {
+              "collision": {
+                "properties": {
+                  "collision_handling_class": { "const": "no_action" },
+                  "review_required": { "const": false }
+                },
+                "required": ["collision_handling_class", "review_required"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Collisions on different targets, stale endpoints, public routes, or policy reservations block until review.",
+          "if": {
+            "properties": {
+              "collision": {
+                "properties": {
+                  "collision_state": {
+                    "enum": [
+                      "collision_with_existing_endpoint_different_target",
+                      "collision_with_stale_endpoint",
+                      "collision_reserved_by_policy",
+                      "collision_unknown_requires_review"
+                    ]
+                  }
+                },
+                "required": ["collision_state"]
+              }
+            },
+            "required": ["collision"]
+          },
+          "then": {
+            "properties": {
+              "collision": {
+                "properties": {
+                  "review_required": { "const": true },
+                  "collision_handling_class": {
+                    "enum": [
+                      "revoke_stale_then_reopen",
+                      "deny_public_collision",
+                      "block_pending_user_choice",
+                      "block_pending_policy_review"
+                    ]
+                  }
+                },
+                "required": ["review_required", "collision_handling_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Browser-preview routes must carry an explicit browser-handoff disclosure, even when no external browser handoff is required.",
+          "if": {
+            "properties": {
+              "endpoint_class": { "const": "browser_preview_route" }
+            },
+            "required": ["endpoint_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_disclosure": {
+                "properties": {
+                  "browser_handoff_disclosure_state": {
+                    "enum": [
+                      "shown_in_product_no_external_handoff",
+                      "required_shown",
+                      "required_pending",
+                      "blocked_missing_packet",
+                      "provider_unavailable"
+                    ]
+                  }
+                },
+                "required": ["browser_handoff_disclosure_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocked, denied, expired, provider-unavailable, and capability-narrowed endpoint states cannot remain active.",
+          "if": {
+            "properties": {
+              "endpoint_lifecycle_state": {
+                "enum": [
+                  "policy_denied",
+                  "approval_expired",
+                  "capability_narrowed",
+                  "provider_unavailable",
+                  "blocked_collision",
+                  "blocked_secret_review"
+                ]
+              }
+            },
+            "required": ["endpoint_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "teardown": {
+                "properties": {
+                  "teardown_state": {
+                    "enum": ["pending_revoke", "suspended_no_traffic", "revoked", "expired", "closed"]
+                  }
+                },
+                "required": ["teardown_state"]
+              },
+              "downgrade_recovery": {
+                "properties": {
+                  "endpoint_downgrade_state": {
+                    "enum": [
+                      "retarget_pending_review",
+                      "policy_denied_blocked",
+                      "approval_expired_reissue_required",
+                      "capability_narrowed_no_share",
+                      "provider_unavailable_suspended",
+                      "stale_target_inspect_only",
+                      "closed_no_recovery"
+                    ]
+                  }
+                },
+                "required": ["endpoint_downgrade_state"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

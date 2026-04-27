@@ -1,0 +1,225 @@
+__fixture__:
+  name: stale_target_retarget_collision
+  scenario: >
+    A remote SSH alias now resolves to a different canonical target while
+    an existing endpoint still owns the previous collision key. The
+    attach and endpoint preserve prior target evidence and block until
+    the user chooses a target and reissues authority.
+  expected_states:
+    attach_lifecycle_state: retarget_review_required
+    endpoint_lifecycle_state: blocked_collision
+    stale_target_label_class: retargeted_pending_review
+
+attach_session:
+  record_kind: remote_attach_session_record
+  attach_session_schema_version: 1
+  attach_session_id: remote_attach:retarget_collision:01
+  captured_at: "2026-04-27T08:30:00Z"
+  updated_at: "2026-04-27T08:31:00Z"
+  attach_session_class: remote_ssh_attach
+  lifecycle_state: retarget_review_required
+  target_identity:
+    target_class: ssh_remote
+    logical_target_ref: target:ssh_alias:delta
+    canonical_target_ref: target:ssh_alias:delta:new_canonical
+    materialized_instance_ref: ssh_session:delta:new:01
+    target_identity_witness_ref: witness:ssh_delta:changed_unadmitted:01
+    execution_context_ref: execution_context:ssh_delta:01
+    host_boundary_cue_stack:
+      - local_host_boundary
+      - remote_ssh_boundary
+    reachability_state: reachable_pending_reauth
+    target_freshness_class: retargeted_pending_review
+    stale_target_label_class: retargeted_pending_review
+    prior_target_ref: target:ssh_alias:delta:prior_canonical
+  route_truth:
+    invocation_session_id: invocation:ssh_retarget:delta:01
+    route_truth_ref: route_truth:ssh_retarget_collision:01
+    action_origin_class: user_keystroke_local
+    action_target_class: remote_ssh_target
+    action_route_class: remote_rpc_route
+    action_exposure_class: browser_session_visible
+    route_change_reason_code: route_changed_wrong_target_detected
+    authority_linkage_class: remote_agent_attach_ticket_linked
+  auth_context:
+    auth_source_class: os_keychain_handle
+    credential_projection_class: handle_only
+    credential_scope_ref: credential_scope:ssh_delta:session
+    broker_handle_ref: credential_handle:ssh_delta:01
+    auth_session_ref: auth_session:ssh_delta:pending_reapproval:01
+    secret_exposure_review:
+      secret_exposure_review_class: reviewed_no_raw_secret_projection
+      review_ticket_ref: secret_review:ssh_delta:01
+      redaction_profile_ref: redaction:metadata_only:01
+      raw_secret_observed: false
+      summary: SSH credential remains an opaque handle during retarget review.
+  authority:
+    authority_ticket_class: remote_agent_attach_ticket
+    authority_ticket_ref: attach_ticket:ssh_delta:prior:01
+    approval_ticket_ref: null
+    browser_handoff_packet_ref: null
+    managed_control_plane_token_ref: null
+    policy_epoch_ref: policy_epoch:workspace_delta:trusted:01
+    issued_at: "2026-04-27T08:00:00Z"
+    expires_at: "2026-04-27T12:00:00Z"
+  capability_posture:
+    requested_capabilities:
+      - vfs_read
+      - service_discovery
+      - port_forward
+      - browser_preview
+    admitted_capabilities: []
+    narrowed_capabilities:
+      - vfs_read
+      - service_discovery
+      - port_forward
+      - browser_preview
+    narrowing_reasons:
+      - target_identity_witness_changed_unadmitted
+      - port_forward_capability_not_admitted
+    effective_capability_posture_class: blocked
+  reconnect_policy:
+    reconnect_policy_class: reconnect_requires_reapproval_on_identity_change
+    reconnect_window_seconds: 0
+    identity_match_required: true
+    in_flight_action_handling: cancel_all_on_disconnect
+  teardown_policy:
+    endpoint_teardown_on:
+      - target_identity_change
+      - session_close
+      - approval_expiry
+    teardown_deadline: null
+    route_revocation_refs: []
+    summary: Prior endpoints remain historical and no traffic resumes until reapproval.
+  service_discovery:
+    service_discovery_state: stale_cached
+    discovered_service_refs:
+      - service:framework_dev_server:delta:prior
+    discovery_freshness_class: stale_target_identity
+  browser_preview_handoff:
+    browser_preview_handoff_state: handoff_blocked
+    browser_handoff_packet_ref: null
+    disclosure_required: true
+    viewer_state_class: stale_mirrored_state
+    summary: Preview is blocked because the target identity changed.
+  forwarded_endpoint_refs:
+    - forwarded_endpoint:retarget_collision:01
+  downgrade_recovery:
+    downgrade_recovery_state: retarget_pending_review
+    recovery_action_class: select_or_confirm_target
+    provider_state_ref: null
+    reapproval_requirement_class: approval_ticket_reissue_required
+    route_change_reason_code: route_changed_wrong_target_detected
+    local_continuation_allowed: true
+    cancelled_action_refs:
+      - action:port_forward:delta:cancelled:01
+    preserved_read_only_refs: []
+    summary: User must select or confirm the target before a new endpoint can open.
+  export_policy:
+    export_inclusion_posture: operator_only_restricted
+    redaction_profile_ref: redaction:metadata_only:01
+    support_export_safe: true
+  summary: SSH target changed and requires retarget review.
+
+forwarded_endpoints:
+  - record_kind: forwarded_endpoint_record
+    forwarded_endpoint_schema_version: 1
+    endpoint_id: forwarded_endpoint:retarget_collision:01
+    attach_session_ref: remote_attach:retarget_collision:01
+    captured_at: "2026-04-27T08:30:20Z"
+    updated_at: "2026-04-27T08:31:00Z"
+    endpoint_class: remote_port_forward
+    endpoint_lifecycle_state: blocked_collision
+    identity:
+      endpoint_generation: 3
+      source_execution_context_ref: execution_context:ssh_delta:01
+      service_ref: service:framework_dev_server:delta:prior
+      service_discovery_ref: service_discovery:ssh_delta:stale:01
+      target_host_ref: target_host:ssh_delta:new
+      target_port_handle_ref: port_handle:framework_dev_server:delta:01
+      target_path_handle_ref: route_path_handle:root:delta:01
+      local_bind_handle_ref: local_bind:preview:delta:prior
+      public_route_handle_ref: null
+      protocol_class: http
+      target_identity_witness_ref: witness:ssh_delta:changed_unadmitted:01
+      endpoint_fingerprint_ref: endpoint_fingerprint:retarget_collision:01
+      collision_key_ref: collision_key:ssh_delta:preview:01
+    route_truth:
+      invocation_session_id: invocation:ssh_retarget:delta:01
+      route_truth_ref: route_truth:forwarded_endpoint:retarget_collision:01
+      action_origin_class: user_keystroke_local
+      action_target_class: tunnel_exposed_target
+      action_route_class: tunnel_exposed_route
+      action_exposure_class: browser_session_visible
+      route_change_reason_code: route_changed_wrong_target_detected
+      authority_linkage_class: remote_agent_attach_ticket_linked
+    exposure:
+      visibility_class: local_only
+      link_scope_class: local_only_not_shareable
+      viewer_state_class: stale_mirrored_state
+      data_sensitivity_class: workspace_private
+      copy_disclosure_class: local_only_copy
+      share_link_handle_ref: null
+      audience_ref: null
+      ttl_expires_at: null
+      summary: Existing local route is stale and cannot be reopened against a different target.
+    auth_posture:
+      auth_source_class: no_auth_loopback_only
+      authority_ticket_class: remote_agent_attach_ticket
+      authority_ticket_ref: attach_ticket:ssh_delta:prior:01
+      credential_projection_class: no_credentials
+      broker_handle_ref: null
+      auth_session_ref: null
+      secret_exposure_review:
+        secret_exposure_review_class: reviewed_no_raw_secret_projection
+        review_ticket_ref: secret_review:ssh_delta:01
+        redaction_profile_ref: redaction:metadata_only:01
+        raw_secret_observed: false
+        summary: No secret-bearing copy/share material is exposed.
+    collision:
+      collision_state: collision_with_existing_endpoint_different_target
+      collision_handling_class: block_pending_user_choice
+      colliding_endpoint_refs:
+        - forwarded_endpoint:retarget_collision:prior
+      selected_resolution_ref: null
+      review_required: true
+      summary: Existing endpoint uses the same collision key for the prior canonical target.
+    target_freshness:
+      target_freshness_class: retargeted_pending_review
+      stale_target_label_class: retargeted_pending_review
+      prior_target_ref: target:ssh_alias:delta:prior_canonical
+      reapproval_requirement_class: approval_ticket_reissue_required
+      summary: Target witness changed and prior target evidence is preserved.
+    browser_handoff_disclosure:
+      browser_handoff_disclosure_state: required_pending
+      browser_handoff_packet_ref: null
+      browser_destination_class: local_browser_preview
+      termination_disclosure_class: terminates_unknown_requires_review
+      viewer_access_disclosure_class: blocked
+      summary: Browser open is blocked until the user confirms the target.
+    teardown:
+      teardown_state: suspended_no_traffic
+      teardown_trigger_class: target_identity_change
+      revoke_posture_class: user_self_revoke
+      revocation_ref: null
+      expires_at: null
+      summary: Endpoint is suspended with no traffic while retarget review is pending.
+    downgrade_recovery:
+      endpoint_downgrade_state: retarget_pending_review
+      endpoint_recovery_action_class: select_new_target
+      route_change_reason_code: route_changed_wrong_target_detected
+      local_continuation_allowed: true
+      cancelled_action_refs:
+        - action:port_forward:delta:cancelled:01
+      preserved_read_only_refs: []
+      summary: Select or confirm the target before creating a new endpoint generation.
+    audit:
+      audit_event_refs:
+        - audit:forwarded_endpoint_collision_detected:delta:01
+      last_access_observed_at: "2026-04-27T08:29:40Z"
+      last_access_observed_class: observed_metadata_only
+    export_policy:
+      export_inclusion_posture: operator_only_restricted
+      redaction_profile_ref: redaction:metadata_only:01
+      support_export_safe: true
+    summary: Blocked endpoint collision caused by SSH target retargeting.

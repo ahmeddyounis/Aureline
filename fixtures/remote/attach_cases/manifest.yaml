@@ -1,0 +1,58 @@
+schema_version: 1
+manifest_id: remote.attach_cases.v1
+status: seeded
+
+contract_source: docs/remote/attach_tunnel_port_forward_contract.md
+attach_session_schema: schemas/remote/attach_session.schema.json
+forwarded_endpoint_schema: schemas/remote/forwarded_endpoint.schema.json
+
+rules:
+  - Every attach case carries one remote_attach_session_record.
+  - Every endpoint case carries forwarded_endpoint_record rows or explicitly states none.
+  - Raw URLs, raw hostnames, raw IP addresses, raw ports, raw paths, cookies, headers, bearer tokens, and secret values are forbidden.
+  - A route that widens visibility must cite a fresh authority ticket and route_change_reason_code.
+  - Reconnect, retarget, paused, degraded, provider-unavailable, policy-denied, expired-approval, and capability-narrowed states must remain distinct.
+
+case_files:
+  - file: active_remote_preview_local_only.yaml
+    attach_lifecycle_state: active
+    endpoint_lifecycle_state: active
+    coverage:
+      - local_only_browser_preview
+      - service_discovery_active
+      - no_share_link_handle
+  - file: reconnect_degraded_read_only.yaml
+    attach_lifecycle_state: reconnecting
+    endpoint_lifecycle_state: suspended_reconnect
+    coverage:
+      - network_loss_reconnect_window
+      - cancelled_mutations_preserved_read_only
+      - no_traffic_until_witness_match
+  - file: public_tunnel_policy_denied.yaml
+    attach_lifecycle_state: policy_denied
+    endpoint_lifecycle_state: policy_denied
+    coverage:
+      - public_tunnel_denied
+      - no_silent_authority_widening
+      - secret_review_not_bypassed
+  - file: stale_target_retarget_collision.yaml
+    attach_lifecycle_state: retarget_review_required
+    endpoint_lifecycle_state: blocked_collision
+    coverage:
+      - stale_target_label
+      - retarget_requires_reapproval
+      - collision_different_target_blocked
+  - file: provider_unavailable_browser_handoff.yaml
+    attach_lifecycle_state: provider_unavailable
+    endpoint_lifecycle_state: provider_unavailable
+    coverage:
+      - provider_unavailable_distinct_state
+      - browser_handoff_disclosure
+      - local_continuation_only
+  - file: paused_managed_workspace_no_traffic.yaml
+    attach_lifecycle_state: paused
+    endpoint_lifecycle_state: paused
+    coverage:
+      - paused_no_traffic
+      - managed_workspace_pause
+      - resume_requires_same_target_witness

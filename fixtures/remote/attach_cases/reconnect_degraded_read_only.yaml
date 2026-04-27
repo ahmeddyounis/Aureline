@@ -1,0 +1,234 @@
+__fixture__:
+  name: reconnect_degraded_read_only
+  scenario: >
+    The remote agent transport drops inside the reconnect window. Route
+    truth is preserved, in-flight mutations are cancelled, and the
+    forwarded endpoint is suspended with no traffic until the target
+    witness matches again.
+  expected_states:
+    attach_lifecycle_state: reconnecting
+    endpoint_lifecycle_state: suspended_reconnect
+    downgrade_recovery_state: network_loss_reconnect_window
+
+attach_session:
+  record_kind: remote_attach_session_record
+  attach_session_schema_version: 1
+  attach_session_id: remote_attach:reconnect_read_only:01
+  captured_at: "2026-04-27T08:10:00Z"
+  updated_at: "2026-04-27T08:11:15Z"
+  attach_session_class: remote_agent_primary_attach
+  lifecycle_state: reconnecting
+  target_identity:
+    target_class: remote_agent
+    logical_target_ref: target:workspace_remote_agent:beta
+    canonical_target_ref: target:workspace_remote_agent:beta:canonical
+    materialized_instance_ref: remote_agent_instance:beta:01
+    target_identity_witness_ref: witness:remote_agent:beta:last_matched:01
+    execution_context_ref: execution_context:remote_agent_beta:01
+    host_boundary_cue_stack:
+      - local_host_boundary
+      - remote_agent_boundary
+    reachability_state: degraded
+    target_freshness_class: warm_cached
+    stale_target_label_class: stale_cached_target
+    prior_target_ref: null
+  route_truth:
+    invocation_session_id: invocation:reconnect:beta:01
+    route_truth_ref: route_truth:remote_agent_reconnect:beta:01
+    action_origin_class: supervisor_repair_origin
+    action_target_class: remote_agent_target
+    action_route_class: remote_agent_attach_route
+    action_exposure_class: browser_session_visible
+    route_change_reason_code: route_changed_target_unreachable
+    authority_linkage_class: remote_agent_attach_ticket_linked
+  auth_context:
+    auth_source_class: remote_agent_attach_ticket
+    credential_projection_class: handle_only
+    credential_scope_ref: credential_scope:remote_agent_beta:session
+    broker_handle_ref: credential_handle:remote_agent_beta:01
+    auth_session_ref: auth_session:remote_agent_beta:01
+    secret_exposure_review:
+      secret_exposure_review_class: reviewed_no_raw_secret_projection
+      review_ticket_ref: secret_review:remote_preview:beta:01
+      redaction_profile_ref: redaction:metadata_only:01
+      raw_secret_observed: false
+      summary: Reconnect keeps credential handles opaque.
+  authority:
+    authority_ticket_class: remote_agent_attach_ticket
+    authority_ticket_ref: attach_ticket:remote_agent_beta:01
+    approval_ticket_ref: null
+    browser_handoff_packet_ref: null
+    managed_control_plane_token_ref: null
+    policy_epoch_ref: policy_epoch:workspace_beta:trusted:01
+    issued_at: "2026-04-27T08:09:30Z"
+    expires_at: "2026-04-27T12:09:30Z"
+  capability_posture:
+    requested_capabilities:
+      - vfs_read
+      - vfs_write
+      - watcher_stream
+      - service_discovery
+      - port_forward
+      - browser_preview
+    admitted_capabilities:
+      - vfs_read
+      - watcher_stream
+    narrowed_capabilities:
+      - vfs_write
+      - service_discovery
+      - port_forward
+      - browser_preview
+    narrowing_reasons:
+      - reconnect_window_exceeded_no_preserved_state
+      - service_discovery_unavailable
+      - port_forward_capability_not_admitted
+    effective_capability_posture_class: read_only
+  reconnect_policy:
+    reconnect_policy_class: preserve_read_only_reconnect_same_identity
+    reconnect_window_seconds: 120
+    identity_match_required: true
+    in_flight_action_handling: preserve_read_only_resubscribe_on_reconnect
+  teardown_policy:
+    endpoint_teardown_on:
+      - session_close
+      - trust_downgrade
+      - policy_epoch_change
+      - approval_expiry
+      - target_identity_change
+      - network_loss_window_exceeded
+    teardown_deadline: "2026-04-27T08:13:15Z"
+    route_revocation_refs: []
+    summary: Forwarded endpoints are suspended during reconnect and expire if the window closes.
+  service_discovery:
+    service_discovery_state: stale_cached
+    discovered_service_refs:
+      - service:framework_dev_server:beta:01
+    discovery_freshness_class: warm_cached
+  browser_preview_handoff:
+    browser_preview_handoff_state: handoff_blocked
+    browser_handoff_packet_ref: null
+    disclosure_required: true
+    viewer_state_class: stale_mirrored_state
+    summary: Existing preview is stale and cannot forward traffic until the witness matches again.
+  forwarded_endpoint_refs:
+    - forwarded_endpoint:remote_preview_reconnect:01
+  downgrade_recovery:
+    downgrade_recovery_state: network_loss_reconnect_window
+    recovery_action_class: retry_same_identity
+    provider_state_ref: null
+    reapproval_requirement_class: no_reapproval_required
+    route_change_reason_code: route_changed_target_unreachable
+    local_continuation_allowed: true
+    cancelled_action_refs:
+      - action:remote_write:beta:cancelled:01
+    preserved_read_only_refs:
+      - subscription:vfs_read:beta:01
+    summary: Mutations are cancelled; read-only subscriptions may resume after identity match.
+  export_policy:
+    export_inclusion_posture: operator_only_restricted
+    redaction_profile_ref: redaction:metadata_only:01
+    support_export_safe: true
+  summary: Remote attach reconnecting with read-only preservation and suspended endpoint traffic.
+
+forwarded_endpoints:
+  - record_kind: forwarded_endpoint_record
+    forwarded_endpoint_schema_version: 1
+    endpoint_id: forwarded_endpoint:remote_preview_reconnect:01
+    attach_session_ref: remote_attach:reconnect_read_only:01
+    captured_at: "2026-04-27T08:10:05Z"
+    updated_at: "2026-04-27T08:11:15Z"
+    endpoint_class: browser_preview_route
+    endpoint_lifecycle_state: suspended_reconnect
+    identity:
+      endpoint_generation: 2
+      source_execution_context_ref: execution_context:remote_agent_beta:01
+      service_ref: service:framework_dev_server:beta:01
+      service_discovery_ref: service_discovery:remote_agent_beta:stale:01
+      target_host_ref: target_host:remote_agent_beta:loopback
+      target_port_handle_ref: port_handle:framework_dev_server:beta:01
+      target_path_handle_ref: route_path_handle:root:beta:01
+      local_bind_handle_ref: local_bind:preview:beta:01
+      public_route_handle_ref: null
+      protocol_class: http
+      target_identity_witness_ref: witness:remote_agent:beta:last_matched:01
+      endpoint_fingerprint_ref: endpoint_fingerprint:remote_preview_reconnect:01
+      collision_key_ref: collision_key:remote_preview_reconnect:01
+    route_truth:
+      invocation_session_id: invocation:reconnect:beta:01
+      route_truth_ref: route_truth:forwarded_endpoint:remote_preview_reconnect:01
+      action_origin_class: supervisor_repair_origin
+      action_target_class: tunnel_exposed_target
+      action_route_class: tunnel_exposed_route
+      action_exposure_class: browser_session_visible
+      route_change_reason_code: route_changed_target_unreachable
+      authority_linkage_class: remote_agent_attach_ticket_linked
+    exposure:
+      visibility_class: local_only
+      link_scope_class: local_only_not_shareable
+      viewer_state_class: stale_mirrored_state
+      data_sensitivity_class: workspace_private
+      copy_disclosure_class: local_only_copy
+      share_link_handle_ref: null
+      audience_ref: null
+      ttl_expires_at: null
+      summary: Local-only route is suspended and cannot be copied as live.
+    auth_posture:
+      auth_source_class: no_auth_loopback_only
+      authority_ticket_class: remote_agent_attach_ticket
+      authority_ticket_ref: attach_ticket:remote_agent_beta:01
+      credential_projection_class: no_credentials
+      broker_handle_ref: null
+      auth_session_ref: null
+      secret_exposure_review:
+        secret_exposure_review_class: reviewed_no_raw_secret_projection
+        review_ticket_ref: secret_review:remote_preview:beta:01
+        redaction_profile_ref: redaction:metadata_only:01
+        raw_secret_observed: false
+        summary: Suspended route exposes no secret-bearing copy action.
+    collision:
+      collision_state: no_collision
+      collision_handling_class: no_action
+      colliding_endpoint_refs: []
+      selected_resolution_ref: null
+      review_required: false
+      summary: No endpoint collision observed.
+    target_freshness:
+      target_freshness_class: warm_cached
+      stale_target_label_class: stale_cached_target
+      prior_target_ref: null
+      reapproval_requirement_class: no_reapproval_required
+      summary: Last known witness is cached while reconnect is in progress.
+    browser_handoff_disclosure:
+      browser_handoff_disclosure_state: required_pending
+      browser_handoff_packet_ref: null
+      browser_destination_class: local_browser_preview
+      termination_disclosure_class: terminates_on_remote_agent
+      viewer_access_disclosure_class: local_only
+      summary: Preview row says traffic is suspended until remote identity is revalidated.
+    teardown:
+      teardown_state: suspended_no_traffic
+      teardown_trigger_class: network_loss_window_exceeded
+      revoke_posture_class: automatic_expiry_only
+      revocation_ref: null
+      expires_at: "2026-04-27T08:13:15Z"
+      summary: Endpoint has no traffic during reconnect and expires when the window closes.
+    downgrade_recovery:
+      endpoint_downgrade_state: network_loss_suspended
+      endpoint_recovery_action_class: resume_same_identity
+      route_change_reason_code: route_changed_target_unreachable
+      local_continuation_allowed: true
+      cancelled_action_refs:
+        - action:remote_write:beta:cancelled:01
+      preserved_read_only_refs:
+        - subscription:vfs_read:beta:01
+      summary: Resume only if target witness matches; no mutation replay.
+    audit:
+      audit_event_refs:
+        - audit:forwarded_endpoint_suspended_reconnect:beta:01
+      last_access_observed_at: "2026-04-27T08:10:50Z"
+      last_access_observed_class: observed_metadata_only
+    export_policy:
+      export_inclusion_posture: operator_only_restricted
+      redaction_profile_ref: redaction:metadata_only:01
+      support_export_safe: true
+    summary: Suspended local-only preview endpoint during remote reconnect.
