@@ -22,6 +22,13 @@ Companion artifacts:
 - [`/schemas/support/support_packet_index.schema.json`](../../schemas/support/support_packet_index.schema.json)
   — support packet family index that gives bundle consumers a stable
   packet-family vocabulary.
+- [`/docs/workspace/bootstrap_packet_contract.md`](../workspace/bootstrap_packet_contract.md)
+  and
+  [`/schemas/workspace/bootstrap_packet.schema.json`](../../schemas/workspace/bootstrap_packet.schema.json)
+  — workspace bootstrap packet contract that preserves clone / import /
+  open / resume source identity, checkout plan, mirror/public route,
+  credential-handle refs, resumability, partial failures, and post-open
+  prerequisites by reference.
 - [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
   and
   [`/docs/governance/record_class_governance.md`](../governance/record_class_governance.md)
@@ -231,6 +238,11 @@ inventing side metadata:
 - emergency-action, revocation, and manual-import receipt refs may live
   in `artifact_manifest` rows with their upstream ids, freshness, and
   continuity state preserved instead of paraphrased.
+- workspace bootstrap packet refs may live in `artifact_manifest` rows
+  with `artifact_kind_class = bootstrap_packet_reference` so support can
+  reconstruct source acquisition, route narrowing, resumability, and
+  missing-prerequisite state without exporting raw source, credential, or
+  archive bodies.
 
 That makes the packet useful for future support tooling, shiproom, or
 field handoff without a redesign of its core fields.

@@ -1,0 +1,319 @@
+schema_version: 1
+artifact_id: workspace.bootstrap_reason_codes
+status: seeded
+
+narrative_source: docs/workspace/bootstrap_packet_contract.md
+packet_schema: schemas/workspace/bootstrap_packet.schema.json
+source_contracts:
+  - schemas/workspace/source_locator.schema.json
+  - schemas/workspace/checkout_plan.schema.json
+  - schemas/workspace/bootstrap_queue_item.schema.json
+  - schemas/workspace/entry_route.schema.json
+  - artifacts/runtime/action_origin_target_labels.yaml
+
+rules:
+  - Every interrupted, narrowed, resumed, offline, or prerequisite-blocked bootstrap packet names at least one bootstrap_reason_code.
+  - Reason codes are stable machine tokens. Product strings resolve from the token; support packets, issue handoffs, route audits, and automation exports preserve the token.
+  - A reason code may redact evidence refs, but it may not omit source_locator_ref, checkout_plan_ref, trust_stage, mirror_public_route_class, public_route_posture, resume_state, and the current export posture.
+  - Adding a code is additive-minor and bumps bootstrap_packet_schema_version. Repurposing a code is breaking and requires a decision row.
+
+families:
+  - family: completed
+    summary: The bootstrap path completed without route or policy narrowing.
+  - family: interrupted_clone
+    summary: Clone or fetch was interrupted and must expose resume, discard, or read-only continuation.
+  - family: interrupted_import
+    summary: Import or archive acquisition was interrupted, unsupported, unsigned, or otherwise review-blocked.
+  - family: interrupted_resume
+    summary: A live or cached resume path was interrupted by expired authority or an unreachable target.
+  - family: mirror_or_airgap_fallback
+    summary: Acquisition continued through a mirror, private proxy, offline bundle, or air-gapped medium instead of public origin.
+  - family: offline_continuation
+    summary: The user can continue locally with explicit offline limitations and no hidden public-network retry.
+  - family: policy_denial
+    summary: A policy or trust rule denied an execution path or credential projection.
+  - family: target_mismatch
+    summary: The resolved destination or remote witness does not match the requested or remembered target.
+  - family: missing_prerequisite
+    summary: Open or trusted bootstrap waits on a typed prerequisite rather than a generic setup failure.
+  - family: partial_failure
+    summary: One or more bootstrap queue items failed or partially applied while other items may have succeeded.
+
+codes:
+  - code: bootstrap_path_completed_no_narrowing
+    family: completed
+    applies_to_entry_verbs: [open, clone, import, restore, resume, start_from_snapshot]
+    default_packet_outcome: completed
+    default_next_steps: [export_evidence]
+    support_export_required_fields:
+      - source_locator_ref
+      - checkout_plan_ref
+      - trust_stage
+      - mirror_public_route_class
+      - public_route_posture
+    redaction_posture: metadata_safe
+    summary: Bootstrap completed without route narrowing, policy denial, or pending prerequisite.
+
+  - code: clone_interrupted_network_resumable
+    family: interrupted_clone
+    applies_to_entry_verbs: [clone]
+    default_packet_outcome: failed_resumable
+    default_next_steps: [resume_acquisition, open_read_only_partial, discard_and_restart]
+    support_export_required_fields:
+      - source_locator_ref
+      - checkout_plan_ref
+      - resume_checkpoint_ref
+      - read_only_partial_root_refs
+      - mirror_public_route_class
+    redaction_posture: handle_ref_only
+    summary: Clone or fetch stopped on a network interruption and has a durable resume checkpoint.
+
+  - code: clone_interrupted_destination_dirty_discard_required
+    family: interrupted_clone
+    applies_to_entry_verbs: [clone]
+    default_packet_outcome: failed_discard_required
+    default_next_steps: [discard_and_restart, export_evidence]
+    support_export_required_fields:
+      - source_locator_ref
+      - checkout_plan_ref
+      - destination_ref
+      - rollback_refs
+    redaction_posture: metadata_safe
+    summary: Clone wrote enough destination state that retry requires discard or rollback before restarting.
+
+  - code: import_interrupted_schema_version_unsupported
+    family: interrupted_import
+    applies_to_entry_verbs: [import]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [set_up_later, export_evidence]
+    support_export_required_fields:
+      - source_locator_ref
+      - checkout_plan_ref
+      - artifact_descriptor_ref
+      - schema_version
+    redaction_posture: metadata_safe
+    summary: Import was blocked because the transferred artifact schema is not supported by this build.
+
+  - code: import_interrupted_unsigned_or_unverified_bundle
+    family: interrupted_import
+    applies_to_entry_verbs: [import]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [open_read_only_partial, discard_and_restart, export_evidence]
+    support_export_required_fields:
+      - source_locator_ref
+      - checkout_plan_ref
+      - signer_continuity_class
+      - review_ticket_ref
+    redaction_posture: metadata_safe
+    summary: Import materialized an unsigned or unverified bundle and must stay browse-safe until signer review.
+
+  - code: resume_interrupted_authority_expired
+    family: interrupted_resume
+    applies_to_entry_verbs: [resume, restore]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [reauth_required, continue_in_restricted_mode, export_evidence]
+    support_export_required_fields:
+      - source_locator_ref
+      - checkout_plan_ref
+      - credential_handle_ref
+      - trust_stage
+      - target_identity_ref
+    redaction_posture: handle_ref_only
+    summary: Resume cannot reattach because the prior authority or credential handle expired.
+
+  - code: resume_interrupted_remote_agent_unreachable
+    family: interrupted_resume
+    applies_to_entry_verbs: [resume, restore]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [continue_offline, locate_missing_target, export_evidence]
+    support_export_required_fields:
+      - source_locator_ref
+      - checkout_plan_ref
+      - target_identity_ref
+      - route_change_reason_code
+    redaction_posture: metadata_safe
+    summary: Resume cannot reach the remembered remote agent; local evidence may remain inspectable.
+
+  - code: mirror_only_public_origin_blocked
+    family: mirror_or_airgap_fallback
+    applies_to_entry_verbs: [clone, import, start_from_snapshot]
+    default_packet_outcome: continued_offline_local_only
+    default_next_steps: [refresh_mirror, switch_to_live_origin, export_evidence]
+    support_export_required_fields:
+      - mirror_public_route_class
+      - public_route_posture
+      - mirror_attestation_ref
+      - declared_freshness_class
+    redaction_posture: metadata_safe
+    summary: Policy or deployment posture requires using the mirror/private route instead of public origin.
+
+  - code: airgap_bundle_missing_attestation
+    family: mirror_or_airgap_fallback
+    applies_to_entry_verbs: [import, start_from_snapshot]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [open_read_only_partial, discard_and_restart, export_evidence]
+    support_export_required_fields:
+      - manual_import_receipt_ref
+      - signer_continuity_class
+      - declared_freshness_class
+      - trust_stage
+    redaction_posture: metadata_safe
+    summary: An air-gapped or offline bundle lacks the attestation needed for trusted bootstrap.
+
+  - code: offline_continuation_local_only
+    family: offline_continuation
+    applies_to_entry_verbs: [open, clone, import, restore, resume, start_from_snapshot]
+    default_packet_outcome: continued_offline_local_only
+    default_next_steps: [continue_offline, set_up_later, export_evidence]
+    support_export_required_fields:
+      - public_route_posture
+      - route_change_reason_code
+      - unavailable_prerequisite_refs
+    redaction_posture: metadata_safe
+    summary: Aureline opened what is locally safe and deferred network-dependent work without silent public fallback.
+
+  - code: policy_denied_execution_path
+    family: policy_denial
+    applies_to_entry_verbs: [clone, import, start_from_snapshot, resume]
+    default_packet_outcome: policy_denied
+    default_next_steps: [continue_in_restricted_mode, open_minimal, export_evidence]
+    support_export_required_fields:
+      - checkout_plan_ref
+      - policy_bundle_ref
+      - blocked_execution_paths
+      - bootstrap_queue_item_refs
+    redaction_posture: metadata_safe
+    summary: Policy denied one or more declared bootstrap execution paths.
+
+  - code: policy_denied_secret_projection
+    family: policy_denial
+    applies_to_entry_verbs: [clone, import, resume, start_from_snapshot]
+    default_packet_outcome: policy_denied
+    default_next_steps: [reauth_required, continue_in_restricted_mode, export_evidence]
+    support_export_required_fields:
+      - credential_handle_ref
+      - credential_projection_mode
+      - policy_bundle_ref
+    redaction_posture: handle_ref_only
+    summary: Policy denied the requested credential projection; only the handle ref and posture may export.
+
+  - code: target_mismatch_destination_identity
+    family: target_mismatch
+    applies_to_entry_verbs: [clone, import, restore, resume]
+    default_packet_outcome: target_mismatch_denied
+    default_next_steps: [locate_missing_target, discard_and_restart, export_evidence]
+    support_export_required_fields:
+      - requested_target_identity_ref
+      - observed_target_identity_ref
+      - route_change_reason_code
+    redaction_posture: metadata_safe
+    summary: The destination identity no longer matches the requested or cached target.
+
+  - code: target_mismatch_remote_witness
+    family: target_mismatch
+    applies_to_entry_verbs: [resume, restore]
+    default_packet_outcome: target_mismatch_denied
+    default_next_steps: [locate_missing_target, continue_in_restricted_mode, export_evidence]
+    support_export_required_fields:
+      - requested_target_identity_ref
+      - observed_target_identity_ref
+      - route_change_reason_code
+      - trust_stage
+    redaction_posture: metadata_safe
+    summary: A remote or managed resume witness resolved to a different target than the remembered session.
+
+  - code: missing_prerequisite_trust_review
+    family: missing_prerequisite
+    applies_to_entry_verbs: [open, clone, import, start_from_snapshot]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [continue_in_restricted_mode, open_minimal, export_evidence]
+    support_export_required_fields:
+      - checkout_plan_ref
+      - trust_stage
+      - blocked_execution_paths
+    redaction_posture: metadata_safe
+    summary: Trusted bootstrap waits on a trust or signer review.
+
+  - code: missing_prerequisite_credential_handle
+    family: missing_prerequisite
+    applies_to_entry_verbs: [clone, import, resume, start_from_snapshot]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [reauth_required, set_up_later, export_evidence]
+    support_export_required_fields:
+      - credential_handle_ref
+      - credential_handle_class
+      - trust_stage
+    redaction_posture: handle_ref_only
+    summary: Bootstrap cannot continue until a required credential handle is refreshed or issued.
+
+  - code: missing_prerequisite_lfs_hydration
+    family: missing_prerequisite
+    applies_to_entry_verbs: [open, clone]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [set_up_later, open_read_only_partial, export_evidence]
+    support_export_required_fields:
+      - bootstrap_queue_item_refs
+      - read_only_partial_root_refs
+      - topology_marker_refs
+    redaction_posture: metadata_safe
+    summary: LFS pointer-only content remains explicit until hydration completes.
+
+  - code: missing_prerequisite_submodule_init
+    family: missing_prerequisite
+    applies_to_entry_verbs: [open, clone]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [set_up_later, open_read_only_partial, export_evidence]
+    support_export_required_fields:
+      - bootstrap_queue_item_refs
+      - topology_marker_refs
+      - blocked_execution_paths
+    redaction_posture: metadata_safe
+    summary: One or more submodules are not initialized and cannot be treated as ordinary empty folders.
+
+  - code: missing_prerequisite_package_restore
+    family: missing_prerequisite
+    applies_to_entry_verbs: [clone, import, start_from_snapshot]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [set_up_later, continue_in_restricted_mode, export_evidence]
+    support_export_required_fields:
+      - bootstrap_queue_item_refs
+      - lockfile_digest_ref
+      - policy_bundle_ref
+    redaction_posture: metadata_safe
+    summary: Dependency restore is pending, skipped, or narrowed and must remain distinct from source acquisition.
+
+  - code: missing_prerequisite_reauth
+    family: missing_prerequisite
+    applies_to_entry_verbs: [resume, restore]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [reauth_required, continue_in_restricted_mode, export_evidence]
+    support_export_required_fields:
+      - credential_handle_ref
+      - trust_stage
+      - target_identity_ref
+    redaction_posture: handle_ref_only
+    summary: Reauthentication is required before live authority can resume.
+
+  - code: missing_prerequisite_mirror_refresh
+    family: missing_prerequisite
+    applies_to_entry_verbs: [clone, import, start_from_snapshot]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [refresh_mirror, switch_to_live_origin, export_evidence]
+    support_export_required_fields:
+      - mirror_attestation_ref
+      - declared_freshness_class
+      - public_route_posture
+    redaction_posture: metadata_safe
+    summary: Mirror freshness is below the required floor for the requested bootstrap path.
+
+  - code: partial_failure_bootstrap_item_failed
+    family: partial_failure
+    applies_to_entry_verbs: [clone, import, start_from_snapshot, resume]
+    default_packet_outcome: waiting_for_prerequisite
+    default_next_steps: [set_up_later, continue_in_restricted_mode, export_evidence]
+    support_export_required_fields:
+      - bootstrap_queue_item_refs
+      - partial_failure_stage
+      - affected_item_refs
+    redaction_posture: metadata_safe
+    summary: At least one bootstrap queue item failed or partially applied while the packet preserves item-level outcomes.

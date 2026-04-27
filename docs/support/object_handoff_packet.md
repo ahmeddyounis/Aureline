@@ -196,6 +196,10 @@ flattening them:
   `import_source_ref`; and
 - migration flows via `migration_session_ref`,
   `importer_outcome_packet_ref`, and `migration_report_ref`.
+- workspace bootstrap provenance via `bootstrap_packet_ref` so clone,
+  import, open, and resume failures preserve source identity, checkout
+  plan, trust stage, mirror/public route, resumability, prerequisites,
+  and reason codes without copying raw secrets or source bodies.
 
 If a linked record is unavailable, the packet may omit the ref, but it
 must keep the relevant state row and summary honest about the gap.

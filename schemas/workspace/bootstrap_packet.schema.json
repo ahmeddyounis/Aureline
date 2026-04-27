@@ -1,0 +1,811 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/bootstrap_packet.schema.json",
+  "title": "Aureline workspace bootstrap packet",
+  "description": "Boundary schema for the workspace bootstrap packet every clone, import, open, resume, support export, issue handoff, migration diff, route audit, and headless automation surface reads when it needs to reconstruct how a workspace entered Aureline and why the path completed, failed, resumed, narrowed, or continued offline. The packet composes source_locator_record, checkout_plan_record, bootstrap_queue_item_record, workspace entry-route truth, route-change reason codes, credential-handle refs, resumability checkpoints, partial-failure state, and post-open prerequisites without exposing raw secrets, raw paths, raw remote URLs with embedded credentials, raw archive bytes, or raw provider payloads. Adding a new bootstrap_reason_code, route class, packet outcome, prerequisite class, or export destination is additive-minor and bumps bootstrap_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/bootstrap_packet_record" }
+  ],
+  "$defs": {
+    "bootstrap_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the bootstrap-packet payload shape. Current value is 1. Bumped on breaking changes and on additive enum growth."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "bootstrap_packet_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, persist, export, and reference from support bundles, issue handoff packets, migration reports, and route audits."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewable text already scrubbed by the producer. Raw absolute paths, raw URLs with credentials, raw secrets, raw archive bytes, and raw provider payloads do not appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic or wall-clock timestamp. Consumers compare only within the packet lineage unless a companion evidence header supplies a wall-clock binding."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example metadata carried by fixtures. Ignored by the boundary contract."
+    },
+    "entry_verb": {
+      "type": "string",
+      "enum": [
+        "open",
+        "clone",
+        "import",
+        "add_root",
+        "restore",
+        "resume",
+        "start_from_snapshot"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ]
+    },
+    "source_surface": {
+      "type": "string",
+      "enum": [
+        "start_center",
+        "command_palette",
+        "quick_open",
+        "os_file_association",
+        "drag_and_drop",
+        "deep_link",
+        "cli",
+        "headless_automation",
+        "workspace_switcher",
+        "recent_work_activation",
+        "template_or_prebuild_card",
+        "migration_center",
+        "crash_recovery_screen",
+        "companion_handoff_return"
+      ]
+    },
+    "locator_class": {
+      "type": "string",
+      "enum": [
+        "local_folder",
+        "local_file",
+        "workspace_file_manifest",
+        "workset_manifest",
+        "repo_url",
+        "mirror_or_proxy_repo",
+        "snapshot_archive",
+        "template",
+        "prebuild_snapshot",
+        "live_resume_target",
+        "handoff_packet",
+        "portable_state_package",
+        "recovery_checkpoint",
+        "review_or_work_item_deep_link"
+      ]
+    },
+    "acquisition_posture": {
+      "type": "string",
+      "enum": [
+        "already_on_disk",
+        "not_yet_acquired",
+        "partially_acquired",
+        "filtered_or_sparse",
+        "hydrated_stale",
+        "live_session_attached",
+        "unreachable",
+        "policy_blocked",
+        "unknown"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ]
+    },
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "continuous_with_previous_acquisition",
+        "new_signer_first_seen",
+        "signer_changed_trust_on_first_use",
+        "signer_changed_review_required",
+        "signer_rotation_preauthorized",
+        "unsigned",
+        "signature_missing",
+        "signature_mismatch",
+        "not_applicable"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+    "trust_stage": {
+      "type": "string",
+      "enum": [
+        "not_evaluated",
+        "pre_fetch_inspection",
+        "post_fetch_content_review",
+        "admitted_restricted",
+        "admitted_trusted",
+        "quarantined",
+        "policy_blocked",
+        "signer_review_required",
+        "reauth_required",
+        "reconnect_required"
+      ]
+    },
+    "browse_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_manifest",
+        "inspect_history",
+        "inspect_contributors",
+        "inspect_readme",
+        "inspect_license",
+        "inspect_workflows_ci_config",
+        "inspect_dependency_manifest",
+        "inspect_scripts_catalog",
+        "inspect_entry_points",
+        "diff_before_commit",
+        "render_diff_readonly",
+        "show_signer_identity",
+        "show_mirror_metadata",
+        "show_upstream_delta",
+        "show_partial_or_sparse_scope",
+        "export_evidence_only"
+      ]
+    },
+    "blocked_execution_path_class": {
+      "type": "string",
+      "enum": [
+        "post_checkout_hook",
+        "pre_commit_hook",
+        "git_filter_driver",
+        "lfs_smudge_filter",
+        "submodule_recursive_init",
+        "submodule_update_command",
+        "generator_install",
+        "generator_run",
+        "package_manager_restore",
+        "package_manager_postinstall_script",
+        "toolchain_bootstrap",
+        "devcontainer_bootstrap",
+        "prebuild_attach_side_effects",
+        "remote_attach_handshake",
+        "index_warmup_with_workers",
+        "docs_import_fetch",
+        "ai_context_warmup",
+        "extension_activation",
+        "workspace_auto_task",
+        "deep_link_side_effect"
+      ]
+    },
+    "action_route_class": {
+      "type": "string",
+      "enum": [
+        "in_process_route",
+        "local_rpc_route",
+        "remote_rpc_route",
+        "managed_control_plane_route",
+        "remote_agent_attach_route",
+        "approval_gated_route",
+        "browser_handoff_route",
+        "embedded_webview_route",
+        "native_callback_route",
+        "provider_webhook_return_route",
+        "publish_pipeline_route",
+        "tunnel_exposed_route",
+        "mirror_or_private_registry_route",
+        "bridged_helper_route",
+        "heuristic_unknown_route"
+      ]
+    },
+    "route_change_reason_code": {
+      "type": "string",
+      "enum": [
+        "canonical_no_route_change",
+        "route_escalated_to_approval_required",
+        "route_escalated_to_browser_handoff",
+        "route_escalated_to_publish_pipeline",
+        "route_escalated_to_tunnel_exposure",
+        "route_changed_target_unreachable",
+        "route_changed_target_reassigned",
+        "route_changed_policy_narrowed",
+        "route_changed_authority_escalation",
+        "route_changed_wrong_target_detected",
+        "route_changed_approval_withdrawn",
+        "route_changed_freshness_floor_unmet",
+        "route_changed_host_mismatch"
+      ]
+    },
+    "mirror_public_route_class": {
+      "type": "string",
+      "enum": [
+        "public_origin",
+        "customer_managed_mirror",
+        "private_proxy",
+        "offline_bundle",
+        "air_gapped_media",
+        "managed_cloud",
+        "local_filesystem",
+        "no_network_route",
+        "unknown_route"
+      ],
+      "description": "Route family used to acquire or resume the source. A mirror-only or air-gapped packet must name the mirror/offline route explicitly rather than omitting public-route data."
+    },
+    "public_route_posture": {
+      "type": "string",
+      "enum": [
+        "public_route_used",
+        "public_route_available_not_used",
+        "public_route_blocked_by_policy",
+        "public_route_unavailable_offline",
+        "public_route_forbidden_airgap",
+        "not_applicable"
+      ]
+    },
+    "credential_handle_class": {
+      "type": "string",
+      "enum": [
+        "ssh_agent",
+        "pat_handle",
+        "oauth_handle",
+        "device_code_handle",
+        "managed_session_ticket",
+        "connected_provider_ticket",
+        "anonymous",
+        "inherit_local_identity",
+        "none",
+        "other"
+      ]
+    },
+    "credential_projection_mode": {
+      "type": "string",
+      "enum": [
+        "env",
+        "header",
+        "fd",
+        "mount",
+        "client_cert",
+        "sign_only",
+        "ssh_agent",
+        "managed_session_ticket",
+        "browser_ticket",
+        "none",
+        "other"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe",
+        "handle_ref_only",
+        "local_only",
+        "review_required",
+        "omitted_secret"
+      ]
+    },
+    "bootstrap_reason_code": {
+      "type": "string",
+      "enum": [
+        "bootstrap_path_completed_no_narrowing",
+        "clone_interrupted_network_resumable",
+        "clone_interrupted_destination_dirty_discard_required",
+        "import_interrupted_schema_version_unsupported",
+        "import_interrupted_unsigned_or_unverified_bundle",
+        "resume_interrupted_authority_expired",
+        "resume_interrupted_remote_agent_unreachable",
+        "mirror_only_public_origin_blocked",
+        "airgap_bundle_missing_attestation",
+        "offline_continuation_local_only",
+        "policy_denied_execution_path",
+        "policy_denied_secret_projection",
+        "target_mismatch_destination_identity",
+        "target_mismatch_remote_witness",
+        "missing_prerequisite_trust_review",
+        "missing_prerequisite_credential_handle",
+        "missing_prerequisite_lfs_hydration",
+        "missing_prerequisite_submodule_init",
+        "missing_prerequisite_package_restore",
+        "missing_prerequisite_reauth",
+        "missing_prerequisite_mirror_refresh",
+        "partial_failure_bootstrap_item_failed"
+      ],
+      "description": "Closed reason-code family for reconstructing interrupted, narrowed, offline, target-mismatch, policy-denied, and missing-prerequisite bootstrap paths. Canonical rows live in artifacts/workspace/bootstrap_reason_codes.yaml."
+    },
+    "packet_outcome_class": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "failed_resumable",
+        "failed_discard_required",
+        "opened_read_only_partial",
+        "continued_offline_local_only",
+        "policy_denied",
+        "target_mismatch_denied",
+        "waiting_for_prerequisite",
+        "rolled_back",
+        "unknown"
+      ]
+    },
+    "partial_failure_stage": {
+      "type": "string",
+      "enum": [
+        "locate",
+        "acquire",
+        "checkout",
+        "trust_review",
+        "bootstrap_queue",
+        "post_open_prerequisite",
+        "resume_attach",
+        "export",
+        "none"
+      ]
+    },
+    "acquisition_resume_state": {
+      "type": "string",
+      "enum": [
+        "never_started",
+        "in_progress",
+        "interrupted_resumable",
+        "interrupted_discard_required",
+        "interrupted_open_read_only_available",
+        "completed",
+        "aborted",
+        "resume_blocked_pending_prerequisite"
+      ]
+    },
+    "resumability_action_class": {
+      "type": "string",
+      "enum": [
+        "resume_acquisition",
+        "discard_and_restart",
+        "open_read_only_partial",
+        "roll_back_to_checkpoint",
+        "reauth_required",
+        "refresh_mirror",
+        "switch_to_live_origin",
+        "continue_offline",
+        "continue_in_restricted_mode",
+        "open_minimal",
+        "set_up_later",
+        "locate_missing_target",
+        "export_evidence"
+      ]
+    },
+    "post_open_prerequisite_class": {
+      "type": "string",
+      "enum": [
+        "trust_review",
+        "signer_review",
+        "credential_handle_refresh",
+        "reauth",
+        "mirror_refresh",
+        "network_restore",
+        "target_identity_review",
+        "submodule_init",
+        "lfs_hydration",
+        "partial_clone_hydration",
+        "package_restore",
+        "toolchain_install",
+        "devcontainer_attach",
+        "extension_restore",
+        "policy_review",
+        "disk_space",
+        "schema_upgrade",
+        "none"
+      ]
+    },
+    "post_open_prerequisite_posture": {
+      "type": "string",
+      "enum": [
+        "required_before_open",
+        "required_before_mutation",
+        "required_before_trusted_bootstrap",
+        "optional_deferred",
+        "satisfied",
+        "blocked"
+      ]
+    },
+    "export_destination_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle",
+        "object_handoff_packet",
+        "migration_diff_view",
+        "workspace_entry_route_audit",
+        "cli_headless_export",
+        "automation_run_record",
+        "local_debug_packet"
+      ]
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "included_metadata_only",
+        "included_by_reference",
+        "local_only_ref",
+        "review_before_export",
+        "denied_by_policy",
+        "not_requested"
+      ]
+    },
+    "entry_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_verb",
+        "target_kind",
+        "source_surface",
+        "source_locator_ref"
+      ],
+      "properties": {
+        "entry_verb": { "$ref": "#/$defs/entry_verb" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "source_surface": { "$ref": "#/$defs/source_surface" },
+        "source_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "entry_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "entry_route_case_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_locator_ref",
+        "locator_class",
+        "acquisition_posture",
+        "declared_freshness_class",
+        "signer_continuity_class"
+      ],
+      "properties": {
+        "source_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "locator_class": { "$ref": "#/$defs/locator_class" },
+        "acquisition_posture": { "$ref": "#/$defs/acquisition_posture" },
+        "declared_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "signer_continuity_class": { "$ref": "#/$defs/signer_continuity_class" },
+        "local_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_digest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "host_endpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "upstream_origin_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "mirror_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "checkout_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkout_plan_ref",
+        "trust_state",
+        "trust_stage",
+        "browse_safe_actions",
+        "blocked_execution_paths"
+      ],
+      "properties": {
+        "checkout_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "trust_stage": { "$ref": "#/$defs/trust_stage" },
+        "destination_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "browse_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/browse_safe_action_class" },
+          "uniqueItems": true
+        },
+        "blocked_execution_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/blocked_execution_path_class" },
+          "uniqueItems": true
+        },
+        "bootstrap_queue_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "route_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_public_route_class",
+        "public_route_posture",
+        "action_route_class",
+        "route_change_reason_code"
+      ],
+      "properties": {
+        "mirror_public_route_class": { "$ref": "#/$defs/mirror_public_route_class" },
+        "public_route_posture": { "$ref": "#/$defs/public_route_posture" },
+        "action_route_class": { "$ref": "#/$defs/action_route_class" },
+        "route_change_reason_code": { "$ref": "#/$defs/route_change_reason_code" },
+        "mirror_attestation_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "manual_import_receipt_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "network_attribution_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "route_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "credential_handle_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle_ref",
+        "handle_class",
+        "projection_mode",
+        "redaction_class",
+        "consumer_ref"
+      ],
+      "properties": {
+        "handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "handle_class": { "$ref": "#/$defs/credential_handle_class" },
+        "projection_mode": { "$ref": "#/$defs/credential_projection_mode" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "consumer_ref": { "$ref": "#/$defs/opaque_id" },
+        "issued_for_reason_codes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bootstrap_reason_code" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "resumability_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resume_state",
+        "checkpoint_refs",
+        "rollback_refs",
+        "reason_codes",
+        "available_actions"
+      ],
+      "properties": {
+        "resume_state": { "$ref": "#/$defs/acquisition_resume_state" },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "rollback_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "read_only_partial_root_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bootstrap_reason_code" },
+          "uniqueItems": true
+        },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resumability_action_class" },
+          "uniqueItems": true
+        },
+        "resume_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "partial_failure_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome_class",
+        "failed_stage",
+        "reason_codes",
+        "affected_item_refs",
+        "user_visible_summary"
+      ],
+      "properties": {
+        "outcome_class": { "$ref": "#/$defs/packet_outcome_class" },
+        "failed_stage": { "$ref": "#/$defs/partial_failure_stage" },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bootstrap_reason_code" },
+          "uniqueItems": true
+        },
+        "affected_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "user_visible_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "post_open_prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prerequisite_class",
+        "posture",
+        "reason_code",
+        "blocking",
+        "summary"
+      ],
+      "properties": {
+        "prerequisite_class": { "$ref": "#/$defs/post_open_prerequisite_class" },
+        "posture": { "$ref": "#/$defs/post_open_prerequisite_posture" },
+        "reason_code": { "$ref": "#/$defs/bootstrap_reason_code" },
+        "blocking": { "type": "boolean" },
+        "bootstrap_item_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "repair_hook_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "export_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination_class",
+        "export_posture",
+        "redaction_class",
+        "required_field_refs",
+        "forbidden_field_classes"
+      ],
+      "properties": {
+        "destination_class": { "$ref": "#/$defs/export_destination_class" },
+        "export_posture": { "$ref": "#/$defs/export_posture_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "required_field_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "forbidden_field_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "raw_secret",
+              "raw_absolute_path",
+              "raw_remote_url_with_credentials",
+              "raw_archive_bytes",
+              "raw_provider_payload",
+              "raw_policy_bundle"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "bootstrap_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "bootstrap_packet_schema_version",
+        "bootstrap_packet_id",
+        "created_at",
+        "entry_context",
+        "source_identity",
+        "checkout_context",
+        "route_context",
+        "credential_handle_refs",
+        "bootstrap_queue_item_refs",
+        "resumability",
+        "partial_failure",
+        "post_open_prerequisites",
+        "export_rules",
+        "reason_codes",
+        "redaction_summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "bootstrap_packet_schema_version": { "$ref": "#/$defs/bootstrap_packet_schema_version" },
+        "bootstrap_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "entry_context": { "$ref": "#/$defs/entry_context" },
+        "source_identity": { "$ref": "#/$defs/source_identity" },
+        "checkout_context": { "$ref": "#/$defs/checkout_context" },
+        "route_context": { "$ref": "#/$defs/route_context" },
+
+        "credential_handle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/credential_handle_ref" },
+          "description": "Zero or more opaque credential-handle refs used or requested by this path. Raw secrets never appear."
+        },
+        "bootstrap_queue_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+
+        "resumability": { "$ref": "#/$defs/resumability_context" },
+        "partial_failure": { "$ref": "#/$defs/partial_failure_state" },
+        "post_open_prerequisites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/post_open_prerequisite" }
+        },
+        "export_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_rule" }
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bootstrap_reason_code" },
+          "uniqueItems": true
+        },
+        "support_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "object_handoff_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "migration_session_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One reconstructable bootstrap packet joining source identity, checkout plan, route choice, credential-handle refs, resumability, partial failures, post-open prerequisites, and export rules. Support, issue handoff, migration, route audit, and automation consumers read this packet by id."
+    }
+  }
+}

@@ -1,0 +1,155 @@
+$schema: ../../../schemas/workspace/bootstrap_packet.schema.json
+__fixture__:
+  name: live_resume_managed_workspace__packet
+  scenario: >
+    Bootstrap packet for a managed workspace resume whose remembered
+    session is still identifiable but whose authority ticket expired.
+    The packet preserves the live-resume source identity, managed-cloud
+    route, credential handle, reauth prerequisite, and evidence-only
+    continuation path without implying hidden authority reuse.
+  doc_sections:
+    - docs/workspace/bootstrap_packet_contract.md §2
+    - docs/workspace/bootstrap_packet_contract.md §4
+
+record_kind: bootstrap_packet_record
+bootstrap_packet_schema_version: 1
+bootstrap_packet_id: bootstrap-packet-managed-cloud-resume-0005
+created_at: mono:4815:00:30:00.0400
+
+entry_context:
+  entry_verb: resume
+  target_kind: managed_cloud_workspace
+  source_surface: recent_work_activation
+  source_locator_ref: locator-managed-cloud-resume-0005
+  entry_action_ref: entry-action-managed-cloud-resume-0005
+  entry_route_case_ref: entry_route_case.resume_snapshot_reauth_required
+  command_id_ref: command.workspace.resume_snapshot
+  summary: Recent-work resume requested for the managed payments workspace.
+
+source_identity:
+  source_locator_ref: locator-managed-cloud-resume-0005
+  locator_class: live_resume_target
+  acquisition_posture: live_session_attached
+  declared_freshness_class: live_origin
+  signer_continuity_class: continuous_with_previous_acquisition
+  local_identity_ref: null
+  source_digest_ref: null
+  host_endpoint_ref: managed-session-handle-0005
+  source_summary: Managed session identity is known, but authority is pending reauth.
+
+checkout_context:
+  checkout_plan_ref: plan-managed-cloud-resume-0005
+  trust_state: restricted
+  trust_stage: reauth_required
+  destination_ref: null
+  target_identity_ref: managed-workspace-payments-dev-0005
+  browse_safe_actions:
+    - inspect_manifest
+    - show_signer_identity
+  blocked_execution_paths:
+    - remote_attach_handshake
+    - generator_run
+    - workspace_auto_task
+    - extension_activation
+  bootstrap_queue_ref: queue-managed-cloud-resume-0005
+
+route_context:
+  mirror_public_route_class: managed_cloud
+  public_route_posture: not_applicable
+  action_route_class: managed_control_plane_route
+  route_change_reason_code: route_changed_authority_escalation
+  mirror_attestation_ref: null
+  manual_import_receipt_ref: null
+  network_attribution_ref: network-attribution-managed-resume-0005
+  route_summary: Managed-cloud route is preserved, but attach authority must be revalidated.
+
+credential_handle_refs:
+  - handle_ref: cred-handle-managed-session-0005
+    handle_class: managed_session_ticket
+    projection_mode: managed_session_ticket
+    redaction_class: handle_ref_only
+    consumer_ref: managed-session-handle-0005
+    issued_for_reason_codes:
+      - resume_interrupted_authority_expired
+      - missing_prerequisite_reauth
+
+bootstrap_queue_item_refs:
+  - boot-managed-cloud-resume-credential-provisioning-0001
+
+resumability:
+  resume_state: resume_blocked_pending_prerequisite
+  checkpoint_refs:
+    - managed-session-handle-0005
+  rollback_refs: []
+  read_only_partial_root_refs: []
+  reason_codes:
+    - resume_interrupted_authority_expired
+  available_actions:
+    - reauth_required
+    - continue_in_restricted_mode
+    - set_up_later
+    - export_evidence
+  resume_summary: Cached evidence and layout may open restricted; live attach waits for a fresh authority ticket.
+
+partial_failure:
+  outcome_class: waiting_for_prerequisite
+  failed_stage: resume_attach
+  reason_codes:
+    - resume_interrupted_authority_expired
+  affected_item_refs:
+    - boot-managed-cloud-resume-credential-provisioning-0001
+  user_visible_summary: Managed session ticket expired while the window was closed.
+
+post_open_prerequisites:
+  - prerequisite_class: reauth
+    posture: required_before_open
+    reason_code: missing_prerequisite_reauth
+    blocking: true
+    bootstrap_item_ref: boot-managed-cloud-resume-credential-provisioning-0001
+    repair_hook_ref: repair-hook-managed-reauth-0005
+    summary: Reauthentication is required before remote attach resumes.
+  - prerequisite_class: credential_handle_refresh
+    posture: required_before_mutation
+    reason_code: missing_prerequisite_credential_handle
+    blocking: true
+    bootstrap_item_ref: boot-managed-cloud-resume-credential-provisioning-0001
+    repair_hook_ref: repair-hook-refresh-managed-session-handle-0005
+    summary: The managed-session credential handle must be refreshed before mutating work resumes.
+
+export_rules:
+  - destination_class: support_bundle
+    export_posture: included_by_reference
+    redaction_class: handle_ref_only
+    required_field_refs:
+      - source_locator_ref
+      - checkout_plan_ref
+      - credential_handle_ref
+      - trust_stage
+      - target_identity_ref
+    forbidden_field_classes:
+      - raw_secret
+      - raw_remote_url_with_credentials
+      - raw_provider_payload
+    summary: Support export includes handle refs and target identity only, never delegated-token bytes.
+  - destination_class: object_handoff_packet
+    export_posture: included_by_reference
+    redaction_class: handle_ref_only
+    required_field_refs:
+      - bootstrap_packet_id
+      - source_locator_ref
+      - checkout_plan_ref
+      - reason_codes
+      - post_open_prerequisites
+    forbidden_field_classes:
+      - raw_secret
+      - raw_provider_payload
+    summary: Issue handoff cites the bootstrap packet and reason codes rather than copying auth material.
+
+reason_codes:
+  - resume_interrupted_authority_expired
+  - missing_prerequisite_reauth
+  - missing_prerequisite_credential_handle
+support_bundle_refs: []
+object_handoff_packet_refs: []
+migration_session_refs: []
+redaction_summary: Managed credential bytes are omitted; handle refs and reauth posture remain exportable.

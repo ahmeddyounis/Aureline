@@ -9,6 +9,15 @@ and validated by the three schemas:
 - [`/schemas/workspace/checkout_plan.schema.json`](../../../schemas/workspace/checkout_plan.schema.json)
 - [`/schemas/workspace/bootstrap_queue_item.schema.json`](../../../schemas/workspace/bootstrap_queue_item.schema.json)
 
+Bootstrap packet fixtures validate against:
+
+- [`/schemas/workspace/bootstrap_packet.schema.json`](../../../schemas/workspace/bootstrap_packet.schema.json)
+
+The packet contract and reason-code family live at:
+
+- [`/docs/workspace/bootstrap_packet_contract.md`](../../../docs/workspace/bootstrap_packet_contract.md)
+- [`/artifacts/workspace/bootstrap_reason_codes.yaml`](../../../artifacts/workspace/bootstrap_reason_codes.yaml)
+
 Each fixture names the record kind it exercises, the locator
 class / trust stage / resume state / topology markers /
 bootstrap-item class / execution class / absence class /
@@ -41,15 +50,20 @@ records (locator, plan, bootstrap items) group together:
 - `<case>__plan.json` — the `checkout_plan_record`.
 - `<case>__bootstrap_<item_class>.json` — one
   `bootstrap_queue_item_record` from the case's queue.
+- `<case>__packet.yaml` — one `bootstrap_packet_record`
+  joining the locator, plan, queue-item refs, route posture,
+  credential-handle refs, resumability, partial-failure state,
+  post-open prerequisites, export rules, and typed reason codes.
 
 **Index**
 
-| Case | Seed section | Locator | Plan | Bootstrap items |
-|------|--------------|---------|------|-----------------|
-| `clone_remote_with_submodules_and_lfs` | §4.1 | [`clone_remote_with_submodules_and_lfs__locator.json`](./clone_remote_with_submodules_and_lfs__locator.json) | [`clone_remote_with_submodules_and_lfs__plan.json`](./clone_remote_with_submodules_and_lfs__plan.json) | [`submodule_init`](./clone_remote_with_submodules_and_lfs__bootstrap_submodule_init.json), [`lfs_hydrate`](./clone_remote_with_submodules_and_lfs__bootstrap_lfs_hydrate.json), [`package_restore`](./clone_remote_with_submodules_and_lfs__bootstrap_package_restore.json) |
-| `resume_interrupted_mirror_clone` | §4.2 | [`resume_interrupted_mirror_clone__locator.json`](./resume_interrupted_mirror_clone__locator.json) | [`resume_interrupted_mirror_clone__plan.json`](./resume_interrupted_mirror_clone__plan.json) | — |
-| `snapshot_archive_import` | §4.3 | [`snapshot_archive_import__locator.json`](./snapshot_archive_import__locator.json) | [`snapshot_archive_import__plan.json`](./snapshot_archive_import__plan.json) | — |
-| `prebuild_with_bootstrap_queue` | §4.4 | [`prebuild_with_bootstrap_queue__locator.json`](./prebuild_with_bootstrap_queue__locator.json) | [`prebuild_with_bootstrap_queue__plan.json`](./prebuild_with_bootstrap_queue__plan.json) | [`toolchain_install`](./prebuild_with_bootstrap_queue__bootstrap_toolchain_install.json), [`package_restore`](./prebuild_with_bootstrap_queue__bootstrap_package_restore.json), [`devcontainer_attach`](./prebuild_with_bootstrap_queue__bootstrap_devcontainer_attach.json) |
-| `live_resume_managed_workspace` | §4.5 | [`live_resume_managed_workspace__locator.json`](./live_resume_managed_workspace__locator.json) | [`live_resume_managed_workspace__plan.json`](./live_resume_managed_workspace__plan.json) | [`credential_provisioning`](./live_resume_managed_workspace__bootstrap_credential_provisioning.json) |
-| `lfs_pointer_only_read_only` | §4.6 | [`lfs_pointer_only_read_only__locator.json`](./lfs_pointer_only_read_only__locator.json) | [`lfs_pointer_only_read_only__plan.json`](./lfs_pointer_only_read_only__plan.json) | [`lfs_hydrate`](./lfs_pointer_only_read_only__bootstrap_lfs_hydrate.json) |
-| `policy_guided_deployment_generators_blocked` | §4.7 | [`policy_guided_deployment_generators_blocked__locator.json`](./policy_guided_deployment_generators_blocked__locator.json) | [`policy_guided_deployment_generators_blocked__plan.json`](./policy_guided_deployment_generators_blocked__plan.json) | [`generator_install`](./policy_guided_deployment_generators_blocked__bootstrap_generator_install.json), [`package_restore`](./policy_guided_deployment_generators_blocked__bootstrap_package_restore.json) |
+| Case | Seed section | Locator | Plan | Bootstrap items | Packet |
+|------|--------------|---------|------|-----------------|--------|
+| `clone_remote_with_submodules_and_lfs` | §4.1 | [`clone_remote_with_submodules_and_lfs__locator.json`](./clone_remote_with_submodules_and_lfs__locator.json) | [`clone_remote_with_submodules_and_lfs__plan.json`](./clone_remote_with_submodules_and_lfs__plan.json) | [`submodule_init`](./clone_remote_with_submodules_and_lfs__bootstrap_submodule_init.json), [`lfs_hydrate`](./clone_remote_with_submodules_and_lfs__bootstrap_lfs_hydrate.json), [`package_restore`](./clone_remote_with_submodules_and_lfs__bootstrap_package_restore.json) | — |
+| `resume_interrupted_mirror_clone` | §4.2 | [`resume_interrupted_mirror_clone__locator.json`](./resume_interrupted_mirror_clone__locator.json) | [`resume_interrupted_mirror_clone__plan.json`](./resume_interrupted_mirror_clone__plan.json) | — | [`packet`](./resume_interrupted_mirror_clone__packet.yaml) |
+| `snapshot_archive_import` | §4.3 | [`snapshot_archive_import__locator.json`](./snapshot_archive_import__locator.json) | [`snapshot_archive_import__plan.json`](./snapshot_archive_import__plan.json) | — | [`packet`](./snapshot_archive_import__packet.yaml) |
+| `prebuild_with_bootstrap_queue` | §4.4 | [`prebuild_with_bootstrap_queue__locator.json`](./prebuild_with_bootstrap_queue__locator.json) | [`prebuild_with_bootstrap_queue__plan.json`](./prebuild_with_bootstrap_queue__plan.json) | [`toolchain_install`](./prebuild_with_bootstrap_queue__bootstrap_toolchain_install.json), [`package_restore`](./prebuild_with_bootstrap_queue__bootstrap_package_restore.json), [`devcontainer_attach`](./prebuild_with_bootstrap_queue__bootstrap_devcontainer_attach.json) | — |
+| `live_resume_managed_workspace` | §4.5 | [`live_resume_managed_workspace__locator.json`](./live_resume_managed_workspace__locator.json) | [`live_resume_managed_workspace__plan.json`](./live_resume_managed_workspace__plan.json) | [`credential_provisioning`](./live_resume_managed_workspace__bootstrap_credential_provisioning.json) | [`packet`](./live_resume_managed_workspace__packet.yaml) |
+| `lfs_pointer_only_read_only` | §4.6 | [`lfs_pointer_only_read_only__locator.json`](./lfs_pointer_only_read_only__locator.json) | [`lfs_pointer_only_read_only__plan.json`](./lfs_pointer_only_read_only__plan.json) | [`lfs_hydrate`](./lfs_pointer_only_read_only__bootstrap_lfs_hydrate.json) | — |
+| `policy_guided_deployment_generators_blocked` | §4.7 | [`policy_guided_deployment_generators_blocked__locator.json`](./policy_guided_deployment_generators_blocked__locator.json) | [`policy_guided_deployment_generators_blocked__plan.json`](./policy_guided_deployment_generators_blocked__plan.json) | [`generator_install`](./policy_guided_deployment_generators_blocked__bootstrap_generator_install.json), [`package_restore`](./policy_guided_deployment_generators_blocked__bootstrap_package_restore.json) | [`packet`](./policy_guided_deployment_generators_blocked__packet.yaml) |
+| `target_mismatch_managed_resume` | Bootstrap packet contract §4 | — | — | — | [`packet`](./target_mismatch_managed_resume__packet.yaml) |

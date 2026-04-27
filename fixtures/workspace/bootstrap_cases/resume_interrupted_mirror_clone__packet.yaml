@@ -1,0 +1,170 @@
+$schema: ../../../schemas/workspace/bootstrap_packet.schema.json
+__fixture__:
+  name: resume_interrupted_mirror_clone__packet
+  scenario: >
+    Bootstrap packet for a partial clone that was served from a
+    customer-managed mirror, lost network mid-fetch, and still exposes a
+    read-only promisor root plus a durable resume checkpoint. The packet
+    keeps the mirror route, public-origin posture, credential handle,
+    trust stage, and post-open submodule/mirror prerequisites together so
+    support and automation can reconstruct the path without raw secrets.
+  doc_sections:
+    - docs/workspace/bootstrap_packet_contract.md §2
+    - docs/workspace/bootstrap_packet_contract.md §4
+
+record_kind: bootstrap_packet_record
+bootstrap_packet_schema_version: 1
+bootstrap_packet_id: bootstrap-packet-mirror-acme-payments-0002
+created_at: mono:4812:00:22:00.0250
+
+entry_context:
+  entry_verb: clone
+  target_kind: remote_repository
+  source_surface: cli
+  source_locator_ref: locator-mirror-acme-payments-0002
+  entry_action_ref: null
+  entry_route_case_ref: null
+  command_id_ref: command.workspace.clone_repository
+  summary: Clone requested for acme/payments through the managed mirror route.
+
+source_identity:
+  source_locator_ref: locator-mirror-acme-payments-0002
+  locator_class: mirror_or_proxy_repo
+  acquisition_posture: partially_acquired
+  declared_freshness_class: mirror_lagged
+  signer_continuity_class: continuous_with_previous_acquisition
+  local_identity_ref: fs-identity-acme-payments-promisor-0002
+  source_digest_ref: digest-mirror-acme-payments-promisor-0002
+  host_endpoint_ref: host-endpoint-acme-mirror-0002
+  upstream_origin_label: github.com/acme/payments
+  mirror_label: acme-internal-mirror
+  source_summary: Mirror-served partial clone with known upstream delta.
+
+checkout_context:
+  checkout_plan_ref: plan-mirror-acme-payments-0002
+  trust_state: pending_evaluation
+  trust_stage: post_fetch_content_review
+  destination_ref: checkout-destination-acme-payments-0002
+  target_identity_ref: target-remote-repository-acme-payments
+  browse_safe_actions:
+    - inspect_manifest
+    - inspect_history
+    - inspect_readme
+    - show_mirror_metadata
+    - show_upstream_delta
+    - show_partial_or_sparse_scope
+    - export_evidence_only
+  blocked_execution_paths:
+    - post_checkout_hook
+    - lfs_smudge_filter
+    - submodule_recursive_init
+    - generator_install
+    - generator_run
+    - package_manager_postinstall_script
+    - extension_activation
+  bootstrap_queue_ref: null
+
+route_context:
+  mirror_public_route_class: customer_managed_mirror
+  public_route_posture: public_route_blocked_by_policy
+  action_route_class: mirror_or_private_registry_route
+  route_change_reason_code: route_changed_freshness_floor_unmet
+  mirror_attestation_ref: mirror-attest-ref-0002
+  manual_import_receipt_ref: null
+  network_attribution_ref: network-attribution-mirror-clone-0002
+  route_summary: Public origin was not used; the mirror is lagged and remains visibly labeled.
+
+credential_handle_refs:
+  - handle_ref: cred-handle-pat-0002
+    handle_class: pat_handle
+    projection_mode: header
+    redaction_class: handle_ref_only
+    consumer_ref: host-endpoint-acme-mirror-0002
+    issued_for_reason_codes:
+      - clone_interrupted_network_resumable
+      - mirror_only_public_origin_blocked
+
+bootstrap_queue_item_refs: []
+
+resumability:
+  resume_state: interrupted_resumable
+  checkpoint_refs:
+    - resume-ckpt-mirror-acme-payments-0002
+  rollback_refs: []
+  read_only_partial_root_refs:
+    - fs-identity-acme-payments-promisor-0002
+  reason_codes:
+    - clone_interrupted_network_resumable
+    - mirror_only_public_origin_blocked
+  available_actions:
+    - resume_acquisition
+    - open_read_only_partial
+    - discard_and_restart
+    - refresh_mirror
+    - switch_to_live_origin
+    - export_evidence
+  resume_summary: Resume can continue from the promisor checkpoint; read-only inspection is already safe.
+
+partial_failure:
+  outcome_class: failed_resumable
+  failed_stage: acquire
+  reason_codes:
+    - clone_interrupted_network_resumable
+  affected_item_refs: []
+  user_visible_summary: Connection dropped after the promisor pack landed.
+
+post_open_prerequisites:
+  - prerequisite_class: submodule_init
+    posture: required_before_trusted_bootstrap
+    reason_code: missing_prerequisite_submodule_init
+    blocking: true
+    bootstrap_item_ref: null
+    repair_hook_ref: repair-hook-submodule-init-after-resume
+    summary: Three submodules remain pending and cannot be treated as ordinary folders.
+  - prerequisite_class: mirror_refresh
+    posture: optional_deferred
+    reason_code: missing_prerequisite_mirror_refresh
+    blocking: false
+    bootstrap_item_ref: null
+    repair_hook_ref: repair-hook-refresh-mirror
+    summary: Mirror freshness is outside the declared skew and should be refreshed before trusted bootstrap.
+
+export_rules:
+  - destination_class: support_bundle
+    export_posture: included_by_reference
+    redaction_class: handle_ref_only
+    required_field_refs:
+      - source_locator_ref
+      - checkout_plan_ref
+      - resume_checkpoint_ref
+      - mirror_attestation_ref
+      - credential_handle_ref
+    forbidden_field_classes:
+      - raw_secret
+      - raw_absolute_path
+      - raw_remote_url_with_credentials
+      - raw_provider_payload
+    summary: Support export carries refs, route posture, reason codes, and handle ids only.
+  - destination_class: workspace_entry_route_audit
+    export_posture: included_metadata_only
+    redaction_class: metadata_safe
+    required_field_refs:
+      - entry_verb
+      - target_kind
+      - mirror_public_route_class
+      - public_route_posture
+      - route_change_reason_code
+    forbidden_field_classes:
+      - raw_secret
+      - raw_remote_url_with_credentials
+    summary: Route audit preserves that the clone narrowed to a customer mirror.
+
+reason_codes:
+  - clone_interrupted_network_resumable
+  - mirror_only_public_origin_blocked
+  - missing_prerequisite_submodule_init
+  - missing_prerequisite_mirror_refresh
+support_bundle_refs: []
+object_handoff_packet_refs: []
+migration_session_refs: []
+redaction_summary: Raw credentials and remote URLs are excluded; opaque handle and route refs are retained.

@@ -30,6 +30,14 @@ The machine-readable schemas live at:
 - [`/schemas/workspace/source_locator.schema.json`](../../schemas/workspace/source_locator.schema.json)
 - [`/schemas/workspace/checkout_plan.schema.json`](../../schemas/workspace/checkout_plan.schema.json)
 - [`/schemas/workspace/bootstrap_queue_item.schema.json`](../../schemas/workspace/bootstrap_queue_item.schema.json)
+- [`/schemas/workspace/bootstrap_packet.schema.json`](../../schemas/workspace/bootstrap_packet.schema.json)
+
+The bootstrap packet contract that joins locator, plan, queue-item,
+route, credential-handle, resumability, partial-failure, prerequisite,
+and export truth lives at:
+
+- [`/docs/workspace/bootstrap_packet_contract.md`](./bootstrap_packet_contract.md)
+- [`/artifacts/workspace/bootstrap_reason_codes.yaml`](../../artifacts/workspace/bootstrap_reason_codes.yaml)
 
 The companion fixtures live under:
 
@@ -948,6 +956,14 @@ or reasons about the records defined in §1 – §3.
     bundles, CLI / headless diagnostics, and claim manifests with
     the same fields it renders in chrome. Redaction is the only
     way to hide a field.
+11. **Bootstrap packets are reconstructable.** Every non-trivial
+    clone, import, open, restore, resume, template, prebuild, or
+    recovery-checkpoint path that completes, fails, resumes,
+    narrows, or continues offline emits one bootstrap packet that
+    joins source identity, checkout plan, mirror/public route,
+    credential-handle refs, resumability checkpoints,
+    partial-failure state, post-open prerequisites, export rules,
+    and typed reason codes.
 
 ## 6. Changing this vocabulary
 
@@ -962,9 +978,13 @@ or reasons about the records defined in §1 – §3.
   `bootstrap_item_class`, `bootstrap_execution_class`,
   `bootstrap_item_state`, `absence_class`, `skip_reason_class`,
   `blocker_class`, `attributable_evidence_class`,
-  `repair_hook_class`, `next_step_decision_hook`) land here and
-  in the companion schema in the same change. The change MUST
-  cite the motivating fixture or packet.
+  `repair_hook_class`, `next_step_decision_hook`,
+  `bootstrap_reason_code`, `mirror_public_route_class`,
+  `public_route_posture`, `packet_outcome_class`,
+  `post_open_prerequisite_class`, `export_destination_class`)
+  land here and in the companion schema or reason-code artifact in
+  the same change. The change MUST cite the motivating fixture or
+  packet.
 - **Repurposing** an existing value is breaking. It opens a new
   decision row in
   [`artifacts/governance/decision_index.yaml`](../../artifacts/governance/decision_index.yaml)
@@ -989,6 +1009,12 @@ or reasons about the records defined in §1 – §3.
   not-yet-hydrated content from genuine absence or user
   misconfiguration via the typed `absence_class` on every
   bootstrap item.
+- Bootstrap packets preserve source identity, checkout plan, trust
+  stage, mirror/public route, credential-handle refs,
+  resumability checkpoints, partial-failure state, required
+  post-open prerequisites, and export rules through support,
+  issue-handoff, migration, route-audit, CLI, and automation
+  consumers.
 - Seed-level topology markers (sparse workset, partial clone /
   promisor state, submodule init state, LFS hydrate state) land
   on every bootstrap fixture even before the deeper
@@ -998,7 +1024,11 @@ or reasons about the records defined in §1 – §3.
   [`/schemas/workspace/checkout_plan.schema.json`](../../schemas/workspace/checkout_plan.schema.json),
   and
   [`/schemas/workspace/bootstrap_queue_item.schema.json`](../../schemas/workspace/bootstrap_queue_item.schema.json)
-  validate the seven worked-example fixtures under
+  validate the seven worked-example fixture groups under
+  [`/fixtures/workspace/bootstrap_cases/`](../../fixtures/workspace/bootstrap_cases/).
+- The bootstrap packet schema at
+  [`/schemas/workspace/bootstrap_packet.schema.json`](../../schemas/workspace/bootstrap_packet.schema.json)
+  validates the packet fixtures under
   [`/fixtures/workspace/bootstrap_cases/`](../../fixtures/workspace/bootstrap_cases/).
 
 ## 8. Source anchors
@@ -1042,5 +1072,11 @@ or reasons about the records defined in §1 – §3.
   [`schemas/workspace/checkout_plan.schema.json`](../../schemas/workspace/checkout_plan.schema.json).
 - Bootstrap-queue-item schema:
   [`schemas/workspace/bootstrap_queue_item.schema.json`](../../schemas/workspace/bootstrap_queue_item.schema.json).
+- Bootstrap-packet contract:
+  [`docs/workspace/bootstrap_packet_contract.md`](./bootstrap_packet_contract.md).
+- Bootstrap-packet schema:
+  [`schemas/workspace/bootstrap_packet.schema.json`](../../schemas/workspace/bootstrap_packet.schema.json).
+- Bootstrap reason codes:
+  [`artifacts/workspace/bootstrap_reason_codes.yaml`](../../artifacts/workspace/bootstrap_reason_codes.yaml).
 - Worked-example fixtures:
   [`fixtures/workspace/bootstrap_cases/`](../../fixtures/workspace/bootstrap_cases/).

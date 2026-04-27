@@ -694,6 +694,23 @@ code.
   [`/schemas/workspace/entry_route.schema.json`](../schemas/workspace/entry_route.schema.json);
   worked fixtures in
   [`/fixtures/workspace/entry_route_cases/`](../fixtures/workspace/entry_route_cases/).
+- [`workspace/source_acquisition_and_bootstrap_seed.md`](./workspace/source_acquisition_and_bootstrap_seed.md)
+  and
+  [`workspace/bootstrap_packet_contract.md`](./workspace/bootstrap_packet_contract.md)
+  — source-locator, checkout-plan, bootstrap-queue, and bootstrap
+  packet contracts for open / clone / import / resume provenance,
+  trust stage, mirror/public route, credential-handle refs,
+  resumability, partial failures, post-open prerequisites, export
+  rules, and typed reason codes. Boundary schemas in
+  [`/schemas/workspace/source_locator.schema.json`](../schemas/workspace/source_locator.schema.json),
+  [`/schemas/workspace/checkout_plan.schema.json`](../schemas/workspace/checkout_plan.schema.json),
+  [`/schemas/workspace/bootstrap_queue_item.schema.json`](../schemas/workspace/bootstrap_queue_item.schema.json),
+  and
+  [`/schemas/workspace/bootstrap_packet.schema.json`](../schemas/workspace/bootstrap_packet.schema.json);
+  reason codes in
+  [`/artifacts/workspace/bootstrap_reason_codes.yaml`](../artifacts/workspace/bootstrap_reason_codes.yaml);
+  worked fixtures in
+  [`/fixtures/workspace/bootstrap_cases/`](../fixtures/workspace/bootstrap_cases/).
 - [`ux/archetype_detection_contract.md`](./ux/archetype_detection_contract.md)
   — post-entry workspace archetype detection, readiness-preflight,
   admission-checkpoint, first-useful-work routing, setup-later, and
