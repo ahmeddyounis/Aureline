@@ -390,6 +390,28 @@ code.
   mixed-locale, newer-than-client, non-publishable, and a standalone
   stale-example record) in
   [`/fixtures/docs/docs_pack_examples/`](../fixtures/docs/docs_pack_examples/).
+- [`docs_integrity/citation_and_reference_contract.md`](./docs_integrity/citation_and_reference_contract.md)
+  — citation-anchor and symbol-linked-reference contract shared by
+  docs search, docs panes, guided tours, glossary cards, AI
+  explanations, hosted-review evidence, repair packets, and
+  portability/offboarding exports. Boundary schemas in
+  [`/schemas/docs/citation_anchor.schema.json`](../schemas/docs/citation_anchor.schema.json)
+  and
+  [`/schemas/docs/symbol_linked_reference.schema.json`](../schemas/docs/symbol_linked_reference.schema.json);
+  worked fixtures in
+  [`/fixtures/docs/citation_cases/`](../fixtures/docs/citation_cases/).
+- [`docs_integrity/assist_to_help_bridge_contract.md`](./docs_integrity/assist_to_help_bridge_contract.md)
+  — assist-to-help bridge contract preserving symbol/file identity,
+  source class, mapping quality, version/freshness/locale posture,
+  citation retention, browser/provider handoff reason, and return
+  context when hover, peek, inline assist, AI explanation, onboarding,
+  glossary, docs, or support/export surfaces open help. Boundary
+  schemas in
+  [`/schemas/docs/assist_reference.schema.json`](../schemas/docs/assist_reference.schema.json)
+  and
+  [`/schemas/docs/assist_help_handoff.schema.json`](../schemas/docs/assist_help_handoff.schema.json);
+  worked fixtures in
+  [`/fixtures/docs/assist_reference_cases/`](../fixtures/docs/assist_reference_cases/).
 - [`docs/reviewed_pack_and_late_copy_policy.md`](./docs/reviewed_pack_and_late_copy_policy.md)
   — reviewed-pack and controlled late-copy contract for release-bearing
   trust, legal, policy, recovery, support, and compatibility copy.

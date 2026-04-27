@@ -1,0 +1,713 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/assist_help_handoff.schema.json",
+  "title": "Aureline assist-to-help handoff packet",
+  "description": "Boundary schema for the assist_help_handoff_record frozen in docs/docs_integrity/assist_to_help_bridge_contract.md. Every transition from hover, peek, completion detail, diagnostic help, inline assist, AI explanation, glossary, onboarding, docs row, or support reconstruction into docs/help/browser/provider-native help emits one packet that preserves the originating assist_reference_record, source and destination surfaces, handoff reason, return path, subject identity snapshot, source class, mapping quality, citation retention, locale, version match, freshness, browser/provider handoff metadata, export posture, and denial/admission state. Raw source bytes, raw docs bodies, raw URLs, raw prompt/completion text, raw provider payloads, and secret material never cross this boundary. The eventual docs-integrity crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new destination surface, transition class, handoff reason, return target, focus restore policy, authority posture, consumer class, export visibility class, admission state, denial reason, or audit-event id is additive-minor and requires an assist_reference_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/assist_help_handoff_record",
+  "$defs": {
+    "assist_reference_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Shared schema version with schemas/docs/assist_reference.schema.json. Assist-reference and assist-help-handoff records evolve lock-step."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "assist_help_handoff_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / support bundles / claim manifests / portability exports. Raw URLs, raw source bytes, raw docs bodies, raw prompt text, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "display_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short privacy-safe label. MUST NOT contain raw source bytes, raw docs bodies, raw URLs, raw absolute paths, raw prompt/completion text, or secret material."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "derived_explanation",
+        "vendor_provider_docs",
+        "support_runbook",
+        "external_status_feed"
+      ]
+    },
+
+    "source_selection_class": {
+      "type": "string",
+      "enum": [
+        "project_docs_pack",
+        "generated_reference_index",
+        "mirrored_docs_pack",
+        "curated_knowledge_pack",
+        "offline_docs_pack",
+        "provider_native_docs",
+        "live_external_docs",
+        "support_runbook",
+        "derived_explanation"
+      ]
+    },
+
+    "browser_handoff_reason": {
+      "type": "string",
+      "enum": [
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "step_up_required",
+        "mutation_not_supported_in_product"
+      ]
+    },
+
+    "browser_handoff_packet_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "reason_code"],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "reason_code": { "$ref": "#/$defs/browser_handoff_reason" }
+      }
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "initiating_surface_class": {
+      "type": "string",
+      "enum": [
+        "hover_card",
+        "peek_panel",
+        "docs_pane",
+        "docs_browser",
+        "inline_assist",
+        "completion_detail",
+        "diagnostic_quick_fix",
+        "ai_explanation_overlay",
+        "glossary_card",
+        "onboarding_step",
+        "command_palette_help",
+        "support_export"
+      ]
+    },
+
+    "destination_surface_class": {
+      "type": "string",
+      "enum": [
+        "docs_pane",
+        "docs_browser",
+        "inline_docs_popover",
+        "peek_panel",
+        "system_browser",
+        "provider_native_view",
+        "ai_explanation_overlay",
+        "glossary_card",
+        "onboarding_step",
+        "support_export"
+      ],
+      "description": "Surface that receives the handoff."
+    },
+
+    "assist_action_class": {
+      "type": "string",
+      "enum": [
+        "hover_to_docs",
+        "peek_to_docs",
+        "open_docs",
+        "explain_symbol",
+        "explain_file",
+        "explain_code_span",
+        "glossary_lookup",
+        "onboarding_help",
+        "diagnostic_help",
+        "completion_detail_help",
+        "support_reconstruction_lookup",
+        "browser_handoff_lookup",
+        "ask_follow_up"
+      ]
+    },
+
+    "transition_class": {
+      "type": "string",
+      "enum": [
+        "hover_to_peek",
+        "hover_to_docs",
+        "peek_to_docs",
+        "open_full_docs",
+        "docs_to_browser",
+        "assist_to_ai_explanation",
+        "ai_explanation_to_docs",
+        "onboarding_to_docs",
+        "glossary_to_docs",
+        "support_export_capture"
+      ],
+      "description": "How the user or surface moved from the source surface into the destination surface."
+    },
+
+    "handoff_reason_class": {
+      "type": "string",
+      "enum": [
+        "user_requested_deeper_docs",
+        "explicit_open_docs_action",
+        "hover_expanded_to_peek",
+        "citation_followed_from_ai",
+        "provider_native_docs_required",
+        "live_external_docs_required",
+        "stale_local_pack_fallback",
+        "offline_pack_used",
+        "support_reconstruction",
+        "onboarding_step_help",
+        "glossary_definition_opened",
+        "uncited_assist_refused"
+      ],
+      "description": "Why this handoff happened, preserved for return navigation, support exports, onboarding/glossary evidence, and AI explanations."
+    },
+
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "symbol",
+        "file",
+        "code_span",
+        "docs_anchor",
+        "setting",
+        "command",
+        "diagnostic",
+        "provider_object",
+        "glossary_term",
+        "onboarding_step",
+        "runbook_step"
+      ]
+    },
+
+    "subject_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_ref", "display_label", "mapping_quality_class"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/display_label" },
+        "parent_file_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "range_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "mapping_quality_class": {
+          "type": "string",
+          "enum": [
+            "exact_symbol_anchor",
+            "exact_file_anchor",
+            "exact_code_span_anchor",
+            "exact_docs_anchor",
+            "generated_reference_exact",
+            "provider_native_anchor",
+            "nearby_symbol_fallback",
+            "package_level_docs_fallback",
+            "file_level_docs_fallback",
+            "keyword_or_heuristic_fallback",
+            "unresolved_requires_refresh",
+            "no_claim_yet_support_routed"
+          ]
+        }
+      },
+      "description": "Snapshot of the assist subject so exports can reconstruct the object that triggered the lookup even if the assist_reference_record is unavailable."
+    },
+
+    "source_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_selection_class",
+        "source_class",
+        "pack_id",
+        "pack_revision_ref",
+        "citation_anchor_refs",
+        "symbol_linked_reference_refs",
+        "locale",
+        "target_build_identity_ref",
+        "freshness_class_at_mint",
+        "version_match_state_at_mint"
+      ],
+      "properties": {
+        "source_selection_class": { "$ref": "#/$defs/source_selection_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "symbol_linked_reference_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "target_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class_at_mint": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state_at_mint": { "$ref": "#/$defs/version_match_state" },
+        "stale_or_fallback_label_class": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "stale_docs_pack_label",
+            "stale_mirror_label",
+            "offline_cache_label",
+            "fallback_nearby_symbol_label",
+            "fallback_package_guide_label",
+            "fallback_file_level_label",
+            "provider_native_inspect_only_label",
+            "live_external_boundary_label",
+            "unresolved_requires_refresh_label"
+          ]
+        }
+      },
+      "description": "Source identity and posture copied from the assist_reference_record so support exports and return navigation do not have to infer the docs source from UI copy."
+    },
+
+    "return_target_kind": {
+      "type": "string",
+      "enum": [
+        "editor_selection",
+        "hover_card",
+        "peek_panel",
+        "docs_scroll_position",
+        "ai_thread_turn",
+        "support_export_row",
+        "onboarding_step",
+        "glossary_card",
+        "external_browser_no_product_return"
+      ]
+    },
+
+    "focus_restore_policy": {
+      "type": "string",
+      "enum": [
+        "restore_editor_selection",
+        "restore_peek_origin",
+        "restore_docs_scroll_position",
+        "restore_ai_thread_turn",
+        "restore_onboarding_step",
+        "restore_glossary_card",
+        "no_return_available_export_only",
+        "manual_return_required_external_browser"
+      ]
+    },
+
+    "return_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "return_context_id",
+        "return_target_kind",
+        "origin_surface_ref",
+        "focus_restore_policy",
+        "navigation_history_entry_ref"
+      ],
+      "properties": {
+        "return_context_id": { "$ref": "#/$defs/opaque_id" },
+        "return_target_kind": { "$ref": "#/$defs/return_target_kind" },
+        "origin_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "focus_restore_policy": { "$ref": "#/$defs/focus_restore_policy" },
+        "navigation_history_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "navigation_history_entry_record or navigation_peek_context_record ref. Null only for export-only or external-browser handoffs that cannot restore focus in-product."
+        }
+      },
+      "description": "Return context preserved when the user moves from hover/peek/assist/docs into help or a browser. A docs surface may render a compact back affordance, but the packet keeps the durable return target."
+    },
+
+    "explanation_source_posture_class": {
+      "type": "string",
+      "enum": [
+        "primary_docs",
+        "generated_reference",
+        "mirrored_or_offline_docs",
+        "derived_cited_summary",
+        "provider_inspect_only",
+        "live_external_docs",
+        "support_runbook",
+        "unresolved_denied"
+      ],
+      "description": "How the destination surface may present the explanation. derived_cited_summary MUST retain upstream citation anchors and MUST NOT flatten into primary authority."
+    },
+
+    "handoff_consumer_class": {
+      "type": "string",
+      "enum": [
+        "docs_browser",
+        "docs_pane",
+        "ai_explanation_overlay",
+        "onboarding",
+        "glossary_card",
+        "support_export",
+        "provider_bridge",
+        "browser_handoff",
+        "command_palette_help"
+      ],
+      "description": "Downstream consumer class allowed to read this packet."
+    },
+
+    "support_export_visibility_class": {
+      "type": "string",
+      "enum": [
+        "retain_full_packet",
+        "retain_metadata_only",
+        "retain_opaque_ids_only",
+        "redacted_under_policy",
+        "not_exported"
+      ],
+      "description": "Export posture for support bundles, onboarding/profile exports, and AI evidence packets."
+    },
+
+    "handoff_admission_state": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "admitted_with_stale_label",
+        "admitted_with_fallback_label",
+        "denied_missing_citation",
+        "denied_policy_blocked",
+        "denied_unresolved_mapping",
+        "denied_browser_handoff_unavailable",
+        "denied_redacted_under_policy"
+      ],
+      "description": "Whether the handoff can render and which explicit label or denial state applies."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "assist_handoff_missing_reference",
+        "assist_handoff_missing_required_citation_anchor",
+        "assist_handoff_derived_explanation_uncited",
+        "assist_handoff_provider_native_not_authoritative",
+        "assist_handoff_browser_handoff_packet_missing",
+        "assist_handoff_policy_blocked",
+        "assist_handoff_unresolved_mapping",
+        "assist_handoff_redacted_under_policy"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "assist_help_handoff_created",
+        "assist_help_handoff_admitted",
+        "assist_help_handoff_admitted_with_label",
+        "assist_help_handoff_denied",
+        "assist_help_handoff_return_context_restored",
+        "assist_help_handoff_exported"
+      ]
+    },
+
+    "assist_help_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_reference_schema_version",
+        "handoff_id",
+        "assist_reference_id_ref",
+        "source_surface_class",
+        "destination_surface_class",
+        "assist_action_class",
+        "transition_class",
+        "handoff_reason_class",
+        "subject_snapshot",
+        "source_snapshot",
+        "return_path",
+        "explanation_source_posture_class",
+        "retained_citation_anchor_refs",
+        "retained_upstream_citation_anchor_refs",
+        "handoff_consumer_classes",
+        "support_export_visibility_class",
+        "handoff_admission_state",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "audit_event_ids",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "assist_reference_schema_version": { "$ref": "#/$defs/assist_reference_schema_version" },
+        "handoff_id": { "$ref": "#/$defs/opaque_id" },
+        "assist_reference_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_surface_class": { "$ref": "#/$defs/initiating_surface_class" },
+        "destination_surface_class": { "$ref": "#/$defs/destination_surface_class" },
+        "assist_action_class": { "$ref": "#/$defs/assist_action_class" },
+        "transition_class": { "$ref": "#/$defs/transition_class" },
+        "handoff_reason_class": { "$ref": "#/$defs/handoff_reason_class" },
+        "subject_snapshot": { "$ref": "#/$defs/subject_snapshot" },
+        "source_snapshot": { "$ref": "#/$defs/source_snapshot" },
+        "return_path": { "$ref": "#/$defs/return_path" },
+        "explanation_source_posture_class": { "$ref": "#/$defs/explanation_source_posture_class" },
+        "retained_citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Citation anchors retained in the receiving help/docs/browser surface."
+        },
+        "retained_upstream_citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Upstream authoritative anchors retained for derived explanations or synthesized help."
+        },
+        "browser_handoff_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_reason" }
+          ]
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_packet_ref" }
+          ]
+        },
+        "provider_native_docs_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "handoff_consumer_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/handoff_consumer_class" },
+          "uniqueItems": true
+        },
+        "support_export_visibility_class": { "$ref": "#/$defs/support_export_visibility_class" },
+        "handoff_admission_state": { "$ref": "#/$defs/handoff_admission_state" },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "audit_event_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/audit_event_id" },
+          "uniqueItems": true
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "System-browser and provider-native destinations require a browser handoff reason and packet ref.",
+          "if": {
+            "properties": {
+              "destination_surface_class": {
+                "enum": ["system_browser", "provider_native_view"]
+              }
+            },
+            "required": ["destination_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_reason": { "$ref": "#/$defs/browser_handoff_reason" },
+              "browser_handoff_packet_ref": { "$ref": "#/$defs/browser_handoff_packet_ref" }
+            },
+            "required": ["browser_handoff_reason", "browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "Derived explanation handoffs must retain upstream citation anchors.",
+          "if": {
+            "properties": {
+              "explanation_source_posture_class": {
+                "const": "derived_cited_summary"
+              }
+            },
+            "required": ["explanation_source_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "retained_citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1
+              },
+              "retained_upstream_citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": [
+              "retained_citation_anchor_refs",
+              "retained_upstream_citation_anchor_refs"
+            ]
+          }
+        },
+        {
+          "description": "Denied handoffs require a denial reason; admitted states require null denial_reason.",
+          "if": {
+            "properties": {
+              "handoff_admission_state": {
+                "enum": [
+                  "denied_missing_citation",
+                  "denied_policy_blocked",
+                  "denied_unresolved_mapping",
+                  "denied_browser_handoff_unavailable",
+                  "denied_redacted_under_policy"
+                ]
+              }
+            },
+            "required": ["handoff_admission_state"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "External browser return paths require the manual external-browser restore policy.",
+          "if": {
+            "properties": {
+              "destination_surface_class": { "const": "system_browser" }
+            },
+            "required": ["destination_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "return_path": {
+                "properties": {
+                  "return_target_kind": { "const": "external_browser_no_product_return" },
+                  "focus_restore_policy": { "const": "manual_return_required_external_browser" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One assist-to-help transition packet preserving the source assist reference, destination, reason, return path, subject/source identity, citation retention, and browser/provider handoff posture so docs browser, onboarding, glossary, AI explanations, and support exports share one provenance model."
+    }
+  }
+}

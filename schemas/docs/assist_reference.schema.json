@@ -1,0 +1,664 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/assist_reference.schema.json",
+  "title": "Aureline assist reference provenance record",
+  "description": "Boundary schema for the assist_reference_record frozen in docs/docs_integrity/assist_to_help_bridge_contract.md. Every hover, peek, completion-detail, diagnostic-help, inline-assist, glossary, onboarding, AI-explanation, docs-open, and support-reconstruction lookup that can lead to docs/help resolves through one assist_reference_record before it opens help or exports evidence. The record preserves the initiating surface, lookup intent, subject identity, mapping quality, selected source class, docs pack revision, citation anchors, locale, freshness, version-match posture, and browser/provider handoff posture without carrying raw source bytes, raw docs bodies, raw URLs, raw prompt/completion text, or raw provider payloads. The eventual docs-integrity crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new surface, action, lookup intent, source-selection class, authority posture, mapping-quality class, stale/fallback label, citation-retention class, denial reason, or audit-event id is additive-minor and requires an assist_reference_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/assist_reference_record",
+  "$defs": {
+    "assist_reference_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the assist-reference and assist-help-handoff family. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version. The sibling schemas/docs/assist_help_handoff.schema.json schema evolves lock-step."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "assist_reference_record",
+      "description": "Discriminator for this payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / support bundles / claim manifests / portability exports. Raw URLs, raw source bytes, raw docs bodies, raw prompt text, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 language tag re-exported from schemas/docs/citation_anchor.schema.json without modification."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/docs/citation_anchor.schema.json without modification."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Re-exported from schemas/docs/citation_anchor.schema.json without modification."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "derived_explanation",
+        "vendor_provider_docs",
+        "support_runbook",
+        "external_status_feed"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json and schemas/docs/citation_anchor.schema.json without modification."
+    },
+
+    "browser_handoff_reason": {
+      "type": "string",
+      "enum": [
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "step_up_required",
+        "mutation_not_supported_in_product"
+      ],
+      "description": "Re-exported from the ADR-0010 / ADR-0013 browser-handoff subset. Required when the assist reference can only resolve through a system browser, provider portal, or live external docs surface."
+    },
+
+    "browser_handoff_packet_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "reason_code"],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "reason_code": { "$ref": "#/$defs/browser_handoff_reason" }
+      }
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy context the assist reference was minted under (ADR-0001 trust state, ADR-0008 policy epoch, ADR-0009 execution-context id)."
+    },
+
+    "initiating_surface_class": {
+      "type": "string",
+      "enum": [
+        "hover_card",
+        "peek_panel",
+        "docs_pane",
+        "docs_browser",
+        "inline_assist",
+        "completion_detail",
+        "diagnostic_quick_fix",
+        "ai_explanation_overlay",
+        "glossary_card",
+        "onboarding_step",
+        "command_palette_help",
+        "support_export"
+      ],
+      "description": "Surface that initiated the lookup. This is the source surface, not necessarily where the help opens."
+    },
+
+    "assist_action_class": {
+      "type": "string",
+      "enum": [
+        "hover_to_docs",
+        "peek_to_docs",
+        "open_docs",
+        "explain_symbol",
+        "explain_file",
+        "explain_code_span",
+        "glossary_lookup",
+        "onboarding_help",
+        "diagnostic_help",
+        "completion_detail_help",
+        "support_reconstruction_lookup",
+        "browser_handoff_lookup",
+        "ask_follow_up"
+      ],
+      "description": "Action that caused the assist reference to be minted. It preserves why the lookup happened before any docs surface or browser handoff flattens it into a route."
+    },
+
+    "lookup_intent_class": {
+      "type": "string",
+      "enum": [
+        "symbol_docs",
+        "file_docs",
+        "code_span_explanation",
+        "docs_anchor",
+        "provider_native_docs",
+        "project_docs_search",
+        "generated_reference_search",
+        "mirrored_reference_search",
+        "glossary_definition",
+        "onboarding_context",
+        "support_reconstruction"
+      ],
+      "description": "Typed user or surface intent for the lookup."
+    },
+
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "symbol",
+        "file",
+        "code_span",
+        "docs_anchor",
+        "setting",
+        "command",
+        "diagnostic",
+        "provider_object",
+        "glossary_term",
+        "onboarding_step",
+        "runbook_step"
+      ],
+      "description": "Kind of product object the assist reference binds to."
+    },
+
+    "display_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short privacy-safe label. MUST NOT contain raw source bytes, raw docs bodies, raw URLs, raw absolute paths, raw prompt/completion text, or secret material."
+    },
+
+    "assist_subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_ref", "display_label"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/display_label" },
+        "parent_file_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque file identity when the subject is a symbol or span. Raw paths never appear here."
+        },
+        "range_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque buffer/span identity. Raw line text never appears here."
+        },
+        "language_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "package_or_module_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "description": "Stable identity for the symbol, file, span, docs anchor, command, setting, diagnostic, provider object, glossary term, onboarding step, or runbook step that drove the docs/help lookup."
+    },
+
+    "mapping_quality_class": {
+      "type": "string",
+      "enum": [
+        "exact_symbol_anchor",
+        "exact_file_anchor",
+        "exact_code_span_anchor",
+        "exact_docs_anchor",
+        "generated_reference_exact",
+        "provider_native_anchor",
+        "nearby_symbol_fallback",
+        "package_level_docs_fallback",
+        "file_level_docs_fallback",
+        "keyword_or_heuristic_fallback",
+        "unresolved_requires_refresh",
+        "no_claim_yet_support_routed"
+      ],
+      "description": "Closed mapping-quality vocabulary for assist-to-help lookups. Exact values are the only states that may render as exact symbol-linked docs. Fallback values MUST carry a stale_or_fallback_label_class other than not_applicable. unresolved_requires_refresh and no_claim_yet_support_routed MUST carry a repair_hook_ref."
+    },
+
+    "source_selection_class": {
+      "type": "string",
+      "enum": [
+        "project_docs_pack",
+        "generated_reference_index",
+        "mirrored_docs_pack",
+        "curated_knowledge_pack",
+        "offline_docs_pack",
+        "provider_native_docs",
+        "live_external_docs",
+        "support_runbook",
+        "derived_explanation"
+      ],
+      "description": "Concrete source family selected for the lookup. This remains separate from source_class so cached/offline and provider-native decisions can be audited without reinterpreting a broader source class."
+    },
+
+    "authority_posture_class": {
+      "type": "string",
+      "enum": [
+        "primary_authoritative",
+        "derived_with_citations",
+        "inspect_only_provider_native",
+        "fallback_labeled",
+        "stale_labeled",
+        "unresolved_denied"
+      ],
+      "description": "How the selected source may be treated by help and assist surfaces. derived_with_citations is never primary authority without upstream citation anchors; inspect_only_provider_native may be shown but not reused as authoritative AI backing by itself."
+    },
+
+    "stale_or_fallback_label_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "stale_docs_pack_label",
+        "stale_mirror_label",
+        "offline_cache_label",
+        "fallback_nearby_symbol_label",
+        "fallback_package_guide_label",
+        "fallback_file_level_label",
+        "provider_native_inspect_only_label",
+        "live_external_boundary_label",
+        "unresolved_requires_refresh_label"
+      ],
+      "description": "User-visible stale/fallback disclosure class. not_applicable is allowed only for exact, current, in-product sources."
+    },
+
+    "citation_retention_class": {
+      "type": "string",
+      "enum": [
+        "retained_primary_anchor",
+        "retained_primary_and_upstream",
+        "retained_opaque_only",
+        "denied_missing_citation"
+      ],
+      "description": "How citation anchors survive the assist-to-help transition. denied_missing_citation refuses derived explanations and citation-required packs whose anchor chain is missing."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ]
+        },
+        "hook_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/display_label" }
+      },
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "assist_reference_missing_subject_identity",
+        "assist_reference_mapping_unresolved",
+        "assist_reference_missing_required_citation_anchor",
+        "assist_reference_derived_explanation_uncited",
+        "assist_reference_provider_native_not_authoritative",
+        "assist_reference_browser_handoff_packet_missing",
+        "assist_reference_policy_blocked",
+        "assist_reference_redacted_under_policy"
+      ],
+      "description": "Closed denial reason used when the reference cannot be admitted to a help transition."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "assist_reference_minted",
+        "assist_reference_source_selected",
+        "assist_reference_fallback_labeled",
+        "assist_reference_browser_handoff_required",
+        "assist_reference_denied_missing_citation",
+        "assist_reference_exported"
+      ],
+      "description": "Closed audit-event id vocabulary for the assist-reference family."
+    },
+
+    "assist_reference_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_reference_schema_version",
+        "assist_reference_id",
+        "initiating_surface_class",
+        "assist_action_class",
+        "lookup_intent_class",
+        "subject",
+        "mapping_quality_class",
+        "source_selection_class",
+        "source_class",
+        "authority_posture_class",
+        "stale_or_fallback_label_class",
+        "citation_retention_class",
+        "pack_id",
+        "pack_revision_ref",
+        "citation_anchor_refs",
+        "symbol_linked_reference_refs",
+        "upstream_citation_anchor_refs",
+        "locale",
+        "target_build_identity_ref",
+        "freshness_class_at_mint",
+        "version_match_state_at_mint",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "audit_event_ids",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "assist_reference_schema_version": { "$ref": "#/$defs/assist_reference_schema_version" },
+        "assist_reference_id": { "$ref": "#/$defs/opaque_id" },
+        "initiating_surface_class": { "$ref": "#/$defs/initiating_surface_class" },
+        "assist_action_class": { "$ref": "#/$defs/assist_action_class" },
+        "lookup_intent_class": { "$ref": "#/$defs/lookup_intent_class" },
+        "subject": { "$ref": "#/$defs/assist_subject_ref" },
+        "mapping_quality_class": { "$ref": "#/$defs/mapping_quality_class" },
+        "mapping_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional refs to provider-result, graph, docs-index, or navigation-peek evidence rows used to decide mapping_quality_class."
+        },
+        "source_selection_class": { "$ref": "#/$defs/source_selection_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "authority_posture_class": { "$ref": "#/$defs/authority_posture_class" },
+        "stale_or_fallback_label_class": { "$ref": "#/$defs/stale_or_fallback_label_class" },
+        "citation_retention_class": { "$ref": "#/$defs/citation_retention_class" },
+        "pack_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque stable id of the docs pack, provider docs source, support runbook pack, or derived explanation session that was selected."
+        },
+        "pack_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the source revision selected for the lookup."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "docs_citation_anchor_record anchor ids backing the selected help row."
+        },
+        "symbol_linked_reference_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "symbol_linked_reference_record ids backing the selected help row when the subject is a symbol, file, command, setting, or span."
+        },
+        "upstream_citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Upstream citation anchors retained when the selected row is derived. Required non-empty for source_class = derived_explanation or authority_posture_class = derived_with_citations."
+        },
+        "locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "target_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class_at_mint": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state_at_mint": { "$ref": "#/$defs/version_match_state" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "uniqueItems": true
+        },
+        "browser_handoff_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_reason" }
+          ]
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_packet_ref" }
+          ]
+        },
+        "provider_native_docs_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque provider-owned docs or portal object ref when source_selection_class = provider_native_docs. Raw provider URL or payload is never carried."
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "audit_event_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/audit_event_id" },
+          "uniqueItems": true
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Derived rows must retain upstream citation anchors.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": { "source_class": { "const": "derived_explanation" } },
+                "required": ["source_class"]
+              },
+              {
+                "properties": { "authority_posture_class": { "const": "derived_with_citations" } },
+                "required": ["authority_posture_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "upstream_citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1
+              },
+              "citation_retention_class": {
+                "enum": ["retained_primary_and_upstream"]
+              }
+            },
+            "required": ["upstream_citation_anchor_refs", "citation_retention_class"]
+          }
+        },
+        {
+          "description": "Provider-native and live-external lookups require browser handoff metadata and inspect-only / boundary labeling.",
+          "if": {
+            "properties": {
+              "source_selection_class": {
+                "enum": ["provider_native_docs", "live_external_docs"]
+              }
+            },
+            "required": ["source_selection_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_reason": { "$ref": "#/$defs/browser_handoff_reason" },
+              "browser_handoff_packet_ref": { "$ref": "#/$defs/browser_handoff_packet_ref" },
+              "authority_posture_class": {
+                "enum": ["inspect_only_provider_native", "fallback_labeled", "stale_labeled"]
+              },
+              "stale_or_fallback_label_class": {
+                "enum": ["provider_native_inspect_only_label", "live_external_boundary_label"]
+              }
+            },
+            "required": [
+              "browser_handoff_reason",
+              "browser_handoff_packet_ref",
+              "authority_posture_class",
+              "stale_or_fallback_label_class"
+            ]
+          }
+        },
+        {
+          "description": "Fallback and stale mapping/source states must carry a visible label.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "mapping_quality_class": {
+                    "enum": [
+                      "nearby_symbol_fallback",
+                      "package_level_docs_fallback",
+                      "file_level_docs_fallback",
+                      "keyword_or_heuristic_fallback"
+                    ]
+                  }
+                },
+                "required": ["mapping_quality_class"]
+              },
+              {
+                "properties": {
+                  "authority_posture_class": {
+                    "enum": ["fallback_labeled", "stale_labeled"]
+                  }
+                },
+                "required": ["authority_posture_class"]
+              },
+              {
+                "properties": {
+                  "freshness_class_at_mint": {
+                    "enum": ["degraded_cached", "stale", "unverified"]
+                  }
+                },
+                "required": ["freshness_class_at_mint"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "stale_or_fallback_label_class": {
+                "not": { "const": "not_applicable" }
+              }
+            },
+            "required": ["stale_or_fallback_label_class"]
+          }
+        },
+        {
+          "description": "Unresolved mappings require a repair hook and denial reason.",
+          "if": {
+            "properties": {
+              "mapping_quality_class": {
+                "enum": ["unresolved_requires_refresh", "no_claim_yet_support_routed"]
+              }
+            },
+            "required": ["mapping_quality_class"]
+          },
+          "then": {
+            "properties": {
+              "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" },
+              "denial_reason": { "$ref": "#/$defs/denial_reason" },
+              "authority_posture_class": { "const": "unresolved_denied" }
+            },
+            "required": ["repair_hook_ref", "denial_reason", "authority_posture_class"]
+          }
+        }
+      ],
+      "description": "One assist-side reference record preserving why a hover, peek, inline assist, AI explanation, onboarding/glossary card, or support export looked up docs/help and which symbol/file/docs anchor, source class, version, freshness, locale, and citation chain backed the result."
+    }
+  }
+}
