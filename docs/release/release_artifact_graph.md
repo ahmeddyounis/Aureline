@@ -91,6 +91,14 @@ Companion artifacts:
   and release-lane provenance policy. Caches accelerate the
   materialization of node-bearing inputs but never become a node
   family in this graph.
+- [`/docs/release/supply_chain_trust_framework_matrix.md`](./supply_chain_trust_framework_matrix.md),
+  [`/artifacts/release/trust_framework_rows.yaml`](../../artifacts/release/trust_framework_rows.yaml),
+  and
+  [`/schemas/release/provenance_stack_exception.schema.json`](../../schemas/release/provenance_stack_exception.schema.json)
+  -- preferred TUF-style, Sigstore-style, SLSA-style, SPDX/CycloneDX,
+  mirror-continuity, trust-root-rotation, and exception-policy posture
+  for release, update, extension, policy, docs, model, symbol, support,
+  and release-control artifact families.
 
 Normative sources this graph projects from:
 

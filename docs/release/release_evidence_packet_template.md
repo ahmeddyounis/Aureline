@@ -17,6 +17,9 @@ Related control artifacts:
 - docs/release/build_farm_and_remote_cache_policy.md
 - artifacts/release/pipeline_lane_rules.yaml
 - artifacts/release/cache_trust_classes.yaml
+- docs/release/supply_chain_trust_framework_matrix.md
+- artifacts/release/trust_framework_rows.yaml
+- schemas/release/provenance_stack_exception.schema.json
 - docs/release/ring_progression_policy.md
 - artifacts/release/ring_matrix.yaml
 - artifacts/governance/signing_quorum.yaml
@@ -115,6 +118,37 @@ preview-only, or claim-narrowed.
 | `<ide_binary>` | `<exact_build_identity_ref>` | `build_log_ref`, `artifact_graph_node_ref`, `public_release_note_ref` | `<repo-relative path>` |
 | `<docs_pack>` | `<exact_build_identity_ref>` | `provenance_statement_ref`, `sbom_document_ref` | `<repo-relative path>` |
 | ... | ... | ... | ... |
+
+## Supply-chain trust framework posture
+
+- **Trust-framework row refs:** row ids from
+  `artifacts/release/trust_framework_rows.yaml` that cover every
+  release, update, extension, policy, docs, model, symbol, support, and
+  release-control artifact family in scope.
+- **Preferred patterns satisfied:** `tuf_style_delegated_metadata`,
+  `sigstore_style_identity_backed_signing`,
+  `platform_native_code_signing`, `slsa_style_provenance`,
+  `in_toto_style_attestation`, `spdx_primary_sbom`,
+  `cyclonedx_security_export`,
+  `oci_distribution_or_equivalent_transport`,
+  `content_addressed_identity`, `signed_monotonic_policy_object`,
+  `exact_build_identity_linkage`, or
+  `signed_packet_or_digest_pinned_evidence`.
+- **Active provenance-stack exception refs:** exception ids conforming
+  to `schemas/release/provenance_stack_exception.schema.json`, or
+  `none`.
+- **Mirror continuity:** one sentence confirming whether origin digest
+  and signature are preserved, stale mirrors narrow rather than widen,
+  and manual-import receipts exist where required.
+- **Trust-root rotation:** one sentence naming the active root,
+  continuity statement, cross-signed transition, or exception ref.
+- **Emergency supersedence:** revocation, channel-freeze, kill-switch,
+  replacement-manifest, or signed successor refs, or `none`.
+- **SBOM outputs:** SPDX ref, CycloneDX ref when required, and any
+  narrowed reason when a family does not emit both.
+- **Attestation outputs:** signed provenance, in-toto/SLSA-style
+  predicate refs, reproducibility pack refs, or a schema-valid
+  exception.
 
 ## Benchmark and fitness evidence
 

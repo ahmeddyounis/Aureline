@@ -1,0 +1,760 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/provenance_stack_exception.schema.json",
+  "title": "Aureline provenance-stack exception packet",
+  "description": "Boundary schema for a time-bounded exception when an artifact family intentionally does not follow the preferred supply-chain trust pattern from docs/release/supply_chain_trust_framework_matrix.md and artifacts/release/trust_framework_rows.yaml. The packet names the affected artifact family group, the missing or substituted trust control, the owner, risk statement, mitigation, compensating controls, expiry, review forum, and release/support projection refs. Raw signing material, raw policy bodies, raw reviewer notes, raw credentials, raw model weights, raw artifact bytes, and raw support payloads never cross this boundary; the packet carries opaque refs, typed vocabulary, and reviewable summaries only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "exception_schema_version",
+    "record_kind",
+    "exception_id",
+    "workflow_state",
+    "opened_at",
+    "owner",
+    "evidence_owner",
+    "review_forum",
+    "affected_artifact_family_groups",
+    "affected_release_channels",
+    "deployment_profiles",
+    "preferred_trust_patterns",
+    "deviation_class",
+    "deviation_statement",
+    "risk_statement",
+    "user_or_operator_visible_effect",
+    "mitigation_plan",
+    "planned_exit",
+    "compensating_controls",
+    "expiry",
+    "source_revision"
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewable handle or team alias, for example '@release-dri' or 'security-trust@team'."
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "artifact_family_group": {
+      "type": "string",
+      "enum": [
+        "release_payloads",
+        "update_metadata",
+        "extension_distribution_artifacts",
+        "policy_and_emergency_artifacts",
+        "docs_and_public_contract_artifacts",
+        "model_and_ai_artifacts",
+        "symbol_and_debug_sidecars",
+        "support_and_release_control_artifacts"
+      ],
+      "description": "Artifact family group vocabulary from artifacts/release/trust_framework_rows.yaml."
+    },
+    "exact_build_artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "cli_binary",
+        "sdk_library",
+        "ide_debug_symbols",
+        "cli_debug_symbols",
+        "source_map_bundle",
+        "crash_symbols_archive",
+        "docs_pack",
+        "reference_pack",
+        "schema_export",
+        "sbom_document",
+        "signed_attestation",
+        "source_bundle",
+        "reproducibility_pack",
+        "support_runbook_bundle",
+        "release_evidence_packet"
+      ],
+      "description": "Exact-build artifact family class vocabulary aligned with artifacts/release/artifact_family_map.yaml."
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ]
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "trust_pattern": {
+      "type": "string",
+      "enum": [
+        "tuf_style_delegated_metadata",
+        "sigstore_style_identity_backed_signing",
+        "platform_native_code_signing",
+        "slsa_style_provenance",
+        "in_toto_style_attestation",
+        "spdx_primary_sbom",
+        "cyclonedx_security_export",
+        "oci_distribution_or_equivalent_transport",
+        "content_addressed_identity",
+        "signed_monotonic_policy_object",
+        "exact_build_identity_linkage",
+        "signed_packet_or_digest_pinned_evidence"
+      ],
+      "description": "Preferred trust-pattern vocabulary from artifacts/release/trust_framework_rows.yaml."
+    },
+    "deviation_class": {
+      "type": "string",
+      "enum": [
+        "temporary_implementation_gap",
+        "intentional_standard_substitution",
+        "platform_constraint",
+        "ecosystem_interop_constraint",
+        "mirror_or_air_gap_constraint",
+        "emergency_override",
+        "evidence_freshness_gap",
+        "unsupported_family_until_claimed"
+      ],
+      "description": "Why the family is not following the preferred trust pattern."
+    },
+    "workflow_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "submitted_for_review",
+        "active",
+        "renewal_requested",
+        "renewed",
+        "rejected",
+        "closed",
+        "expired",
+        "superseded"
+      ],
+      "description": "Only active or renewed exceptions may be cited by release evidence as current."
+    },
+    "review_forum": {
+      "type": "string",
+      "enum": [
+        "architecture_council",
+        "security_trust_review",
+        "compatibility_ecosystem_review",
+        "product_scope_review",
+        "release_council",
+        "support_readiness_review",
+        "shiproom_executive_scope_review"
+      ],
+      "description": "Forum accountable for approving, rejecting, renewing, or closing the exception."
+    },
+    "compensating_control_class": {
+      "type": "string",
+      "enum": [
+        "manual_signature_verification",
+        "cleanroom_rebuild_required",
+        "release_claim_narrowed",
+        "mirror_import_receipt_required",
+        "runtime_feature_disabled",
+        "manual_operator_confirmation",
+        "support_export_disclosure_required",
+        "advisory_or_known_limit_disclosure_required",
+        "no_auto_update_until_closed",
+        "additional_quorum_required"
+      ]
+    },
+    "evidence_artifact_family": {
+      "type": "string",
+      "enum": [
+        "release_evidence_packet",
+        "exact_build_identity",
+        "cleanroom_rebuild_capture",
+        "sbom_document",
+        "signed_attestation",
+        "manual_import_receipt",
+        "emergency_action_record",
+        "support_bundle",
+        "advisory_record",
+        "known_limit_note",
+        "registry_manifest",
+        "policy_bundle",
+        "model_registry_entry",
+        "docs_pack_manifest"
+      ]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "artifact_family",
+        "evidence_ref",
+        "captured_at",
+        "freshness_state",
+        "comparability_note"
+      ],
+      "properties": {
+        "evidence_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "artifact_family": {
+          "$ref": "#/$defs/evidence_artifact_family"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative path or opaque stable ref."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/utc_datetime"
+        },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "ISO 8601 duration or event-bound label; null when not time-bound."
+        },
+        "freshness_state": {
+          "type": "string",
+          "enum": [
+            "current",
+            "warm_cached",
+            "stale",
+            "superseded",
+            "not_applicable"
+          ]
+        },
+        "comparability_note": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "expiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "maximum_validity_window",
+        "renewal_policy",
+        "reapproval_triggers",
+        "stale_evidence_behavior"
+      ],
+      "properties": {
+        "expires_at": {
+          "$ref": "#/$defs/utc_datetime"
+        },
+        "maximum_validity_window": {
+          "type": "string",
+          "enum": [
+            "next_release_gate",
+            "thirty_days",
+            "ninety_days",
+            "one_minor_release",
+            "custom"
+          ]
+        },
+        "custom_validity_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "renewal_policy": {
+          "type": "string",
+          "enum": [
+            "fresh_evidence_required",
+            "forum_reapproval_required",
+            "executive_review_required",
+            "no_renewal_allowed"
+          ]
+        },
+        "reapproval_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "next_release_gate",
+              "channel_widening",
+              "deployment_profile_widening",
+              "source_revision_change",
+              "evidence_freshness_expired",
+              "trust_root_rotation",
+              "emergency_supersedence",
+              "mirror_route_change",
+              "exact_build_identity_change"
+            ]
+          }
+        },
+        "stale_evidence_behavior": {
+          "type": "string",
+          "enum": [
+            "block_release",
+            "narrow_claim",
+            "renew_before_gate",
+            "disable_affected_distribution_path"
+          ]
+        }
+      }
+    },
+    "release_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_packet_refs",
+        "support_export_disclosure",
+        "release_note_disclosure_required"
+      ],
+      "properties": {
+        "release_packet_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "support_export_disclosure": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "release_note_disclosure_required": {
+          "type": "boolean"
+        },
+        "public_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "continuity_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_continuity_handling",
+        "trust_root_rotation_handling",
+        "emergency_supersedence_handling"
+      ],
+      "properties": {
+        "mirror_continuity_handling": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "trust_root_rotation_handling": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emergency_supersedence_handling": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  },
+  "properties": {
+    "exception_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "const": "provenance_stack_exception"
+    },
+    "exception_id": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Stable exception id safe to cite from release packets, support exports, and shiproom review."
+    },
+    "workflow_state": {
+      "$ref": "#/$defs/workflow_state"
+    },
+    "opened_at": {
+      "$ref": "#/$defs/utc_datetime"
+    },
+    "submitted_at": {
+      "$ref": "#/$defs/nullable_utc_datetime"
+    },
+    "approved_at": {
+      "$ref": "#/$defs/nullable_utc_datetime"
+    },
+    "closed_at": {
+      "$ref": "#/$defs/nullable_utc_datetime"
+    },
+    "owner": {
+      "$ref": "#/$defs/owner_ref",
+      "description": "Accountable owner for closing or renewing the exception."
+    },
+    "evidence_owner": {
+      "$ref": "#/$defs/owner_ref",
+      "description": "Owner responsible for compensating evidence freshness."
+    },
+    "review_forum": {
+      "$ref": "#/$defs/review_forum"
+    },
+    "approved_by": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/owner_ref"
+      }
+    },
+    "affected_artifact_family_groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/artifact_family_group"
+      }
+    },
+    "affected_exact_build_family_classes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/exact_build_artifact_family_class"
+      }
+    },
+    "affected_release_channels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/release_channel_class"
+      }
+    },
+    "deployment_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/deployment_profile"
+      }
+    },
+    "preferred_trust_patterns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/trust_pattern"
+      }
+    },
+    "missing_or_substituted_trust_patterns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/trust_pattern"
+      }
+    },
+    "substitute_trust_pattern": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ],
+      "description": "Human-readable substitute pattern when deviation_class = intentional_standard_substitution."
+    },
+    "deviation_class": {
+      "$ref": "#/$defs/deviation_class"
+    },
+    "deviation_statement": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "risk_statement": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "user_or_operator_visible_effect": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "mitigation_plan": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "planned_exit": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "compensating_controls": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/compensating_control_class"
+      }
+    },
+    "compensating_evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_ref"
+      }
+    },
+    "continuity_handling": {
+      "$ref": "#/$defs/continuity_handling"
+    },
+    "release_projection": {
+      "$ref": "#/$defs/release_projection"
+    },
+    "expiry": {
+      "$ref": "#/$defs/expiry"
+    },
+    "source_revision": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Revision of the matrix row, release packet, schema, or source artifact that opened this exception."
+    },
+    "trigger_revision": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ],
+      "description": "External revision that invalidates the exception when it changes."
+    },
+    "renewal_of_exception_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "renewal_count": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+    "superseded_by_exception_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "description": "A current exception must explicitly name the missing or substituted trust pattern.",
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "enum": [
+              "submitted_for_review",
+              "active",
+              "renewal_requested",
+              "renewed"
+            ]
+          }
+        },
+        "required": ["workflow_state"]
+      },
+      "then": {
+        "required": ["missing_or_substituted_trust_patterns"]
+      }
+    },
+    {
+      "description": "Submitted and later states require a submitted timestamp.",
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "enum": [
+              "submitted_for_review",
+              "active",
+              "renewal_requested",
+              "renewed",
+              "rejected",
+              "closed",
+              "expired",
+              "superseded"
+            ]
+          }
+        },
+        "required": ["workflow_state"]
+      },
+      "then": {
+        "required": ["submitted_at"],
+        "properties": {
+          "submitted_at": {
+            "$ref": "#/$defs/utc_datetime"
+          }
+        }
+      }
+    },
+    {
+      "description": "Active, renewed, closed, expired, and superseded exceptions require approval metadata.",
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "enum": [
+              "active",
+              "renewed",
+              "closed",
+              "expired",
+              "superseded"
+            ]
+          }
+        },
+        "required": ["workflow_state"]
+      },
+      "then": {
+        "required": [
+          "approved_at",
+          "approved_by",
+          "compensating_evidence",
+          "continuity_handling",
+          "release_projection"
+        ],
+        "properties": {
+          "approved_at": {
+            "$ref": "#/$defs/utc_datetime"
+          },
+          "compensating_evidence": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "description": "Rejected, closed, expired, and superseded exceptions require closure metadata.",
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "enum": [
+              "rejected",
+              "closed",
+              "expired",
+              "superseded"
+            ]
+          }
+        },
+        "required": ["workflow_state"]
+      },
+      "then": {
+        "required": ["closed_at"],
+        "properties": {
+          "closed_at": {
+            "$ref": "#/$defs/utc_datetime"
+          }
+        }
+      }
+    },
+    {
+      "description": "Renewed exceptions must identify the prior exception.",
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "const": "renewed"
+          }
+        },
+        "required": ["workflow_state"]
+      },
+      "then": {
+        "required": ["renewal_of_exception_id"],
+        "properties": {
+          "renewal_count": {
+            "minimum": 1
+          },
+          "renewal_of_exception_id": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+    {
+      "description": "A non-zero renewal count requires a renewal source.",
+      "if": {
+        "properties": {
+          "renewal_count": {
+            "minimum": 1
+          }
+        },
+        "required": ["renewal_count"]
+      },
+      "then": {
+        "required": ["renewal_of_exception_id"],
+        "properties": {
+          "renewal_of_exception_id": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+    {
+      "description": "Superseded exceptions must cite a successor exception.",
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "const": "superseded"
+          }
+        },
+        "required": ["workflow_state"]
+      },
+      "then": {
+        "required": ["superseded_by_exception_id"],
+        "properties": {
+          "superseded_by_exception_id": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+    {
+      "description": "Custom validity windows require a human-readable note.",
+      "if": {
+        "properties": {
+          "expiry": {
+            "properties": {
+              "maximum_validity_window": {
+                "const": "custom"
+              }
+            },
+            "required": ["maximum_validity_window"]
+          }
+        },
+        "required": ["expiry"]
+      },
+      "then": {
+        "properties": {
+          "expiry": {
+            "required": ["custom_validity_note"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Intentional standards substitutions must name the substitute pattern.",
+      "if": {
+        "properties": {
+          "deviation_class": {
+            "const": "intentional_standard_substitution"
+          }
+        },
+        "required": ["deviation_class"]
+      },
+      "then": {
+        "required": ["substitute_trust_pattern"],
+        "properties": {
+          "substitute_trust_pattern": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+    {
+      "description": "Release-note-required projections must carry a public summary.",
+      "if": {
+        "properties": {
+          "release_projection": {
+            "properties": {
+              "release_note_disclosure_required": {
+                "const": true
+              }
+            },
+            "required": ["release_note_disclosure_required"]
+          }
+        },
+        "required": ["release_projection"]
+      },
+      "then": {
+        "properties": {
+          "release_projection": {
+            "required": ["public_summary"]
+          }
+        }
+      }
+    }
+  ]
+}
