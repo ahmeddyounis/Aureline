@@ -565,6 +565,14 @@ code.
   worked fixtures (destructive core path, publish-capable /
   externally-mutating path, responsive-fallback denial) in
   [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
+- [`ux/status_bar_contract.md`](./ux/status_bar_contract.md)
+  — status bar priority, stable-slot, compact overflow, search/menu
+  parity, extension contribution budget, and anti-jitter contract for
+  recovery-critical state, active context truth, ongoing work, and
+  ambient metadata. Boundary schema in
+  [`/schemas/ux/status_item.schema.json`](../schemas/ux/status_item.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/status_items/`](../fixtures/ux/status_items/).
 - [`ux/live_update_review_contract.md`](./ux/live_update_review_contract.md)
   — shared live-update review contract covering pause/freeze,
   buffered-vs-stale honesty, anchor stability, batch-membership drift,
