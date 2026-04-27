@@ -1,0 +1,691 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/section_slot.schema.json",
+  "title": "Aureline rail/sidebar section-slot, budget, overflow, and reopen contract",
+  "description": "Boundary schema for the rail/sidebar section-slot contract frozen in docs/ux/rail_sidebar_contract.md. The schema exports the canonical top-level section taxonomy, primary rail budget, overflow rules, duplicate-surface guardrails, command-backed hide/show/direct-jump routes, remembered sidebar state, and reviewer placement decisions. Raw paths, raw URLs, raw provider payloads, raw credentials, and raw user content never cross this boundary; records carry opaque refs, typed vocabulary, counts, and command ids only. Adding a new section id, rail slot class, sidebar content class, placement lane, state-memory class, visibility class, badge class, command purpose, or placement verdict is additive-minor and requires a section_slot_schema_version bump. Repurposing an existing value is breaking and requires a governance decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/section_slot_catalog_record" },
+    { "$ref": "#/$defs/section_slot_record" },
+    { "$ref": "#/$defs/sidebar_visibility_state_record" },
+    { "$ref": "#/$defs/section_surface_placement_decision_record" }
+  ],
+  "$defs": {
+    "section_slot_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the rail/sidebar section-slot vocabulary export."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "section_slot_catalog_record",
+        "section_slot_record",
+        "sidebar_visibility_state_record",
+        "section_surface_placement_decision_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, and safe in conformance reports."
+    },
+    "short_label_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reference to a localized label or product copy row. Raw display copy may resolve elsewhere; this schema carries refs."
+    },
+    "safe_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware summary safe for design evidence, support export, and review packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic or UTC timestamp. The schema does not require a particular clock source."
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical command id or reserved command id. Launch-bearing UI must resolve this to a command descriptor before shipping."
+    },
+    "command_registry_state": {
+      "type": "string",
+      "enum": [
+        "seeded_descriptor",
+        "reserved_pending_descriptor",
+        "descriptor_required_before_ship"
+      ],
+      "description": "Whether the command descriptor already exists or is reserved by this contract and must be seeded before product launch."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__."
+    },
+    "section_slot_id": {
+      "type": "string",
+      "enum": [
+        "section.explorer",
+        "section.search",
+        "section.source_control",
+        "section.run_test",
+        "section.extensions",
+        "section.collaboration",
+        "section.support_admin",
+        "section.future_overflow"
+      ],
+      "description": "Closed top-level section id set frozen by the rail/sidebar contract."
+    },
+    "rail_slot_class": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "conditional_primary",
+        "overflow_only"
+      ],
+      "description": "Whether a section occupies a primary rail rank, has a conditional primary rank, or starts in overflow."
+    },
+    "section_visibility_class": {
+      "type": "string",
+      "enum": [
+        "visible_enabled",
+        "visible_degraded",
+        "visible_placeholder",
+        "hidden_not_applicable",
+        "hidden_by_user",
+        "overflowed"
+      ],
+      "description": "Visibility/admission state for a section."
+    },
+    "sidebar_content_class": {
+      "type": "string",
+      "enum": [
+        "structural_tree",
+        "result_collection",
+        "durable_queue",
+        "durable_list",
+        "status_summary",
+        "contextual_group"
+      ],
+      "description": "Closed vocabulary for durable structural content classes allowed in the sidebar."
+    },
+    "placement_lane": {
+      "type": "string",
+      "enum": [
+        "rail",
+        "sidebar",
+        "main_workspace",
+        "right_inspector",
+        "bottom_panel",
+        "status_bar",
+        "command_palette",
+        "global_menu",
+        "context_menu",
+        "sheet",
+        "review_surface",
+        "contextual_link",
+        "overflow_drawer"
+      ],
+      "description": "Shell lane or route family used by a surface, action, or fallback."
+    },
+    "section_state_memory_class": {
+      "type": "string",
+      "enum": [
+        "visible_active",
+        "visible_background",
+        "hidden_remembered",
+        "hidden_no_prior_state",
+        "compact_sheet_remembered",
+        "unavailable_placeholder",
+        "reset_to_default"
+      ],
+      "description": "Remembered sidebar state class used by hide, restore, and compact sheet fallback."
+    },
+    "surface_placement_verdict": {
+      "type": "string",
+      "enum": [
+        "rail_primary",
+        "rail_conditional_primary",
+        "rail_overflow",
+        "sidebar_section",
+        "sidebar_subsection",
+        "contextual_link_only",
+        "bottom_panel_tab",
+        "right_inspector_pane",
+        "main_workspace_surface",
+        "sheet_or_review_surface",
+        "command_only",
+        "denied_duplicate_surface"
+      ],
+      "description": "Reviewer-facing verdict for where a candidate surface belongs."
+    },
+    "navigation_route_id": {
+      "type": "string",
+      "enum": [
+        "route.activity_rail",
+        "route.sidebar",
+        "route.command_palette",
+        "route.global_menu",
+        "route.context_menu",
+        "route.status_bar_link",
+        "route.inspector_link",
+        "route.notification_or_banner",
+        "route.deep_link_or_protocol",
+        "route.cli_invocation"
+      ],
+      "description": "Navigation route id re-exported from the navigation contract for the routes this schema needs."
+    },
+    "slot_key": {
+      "type": "string",
+      "enum": [
+        "rail.primary_route_entry",
+        "rail.handoff_entry",
+        "sidebar.section_action",
+        "sidebar.selection_action",
+        "command_palette.result_row",
+        "global_menu.command_item",
+        "context_menu.explorer_item",
+        "context_menu.search_item",
+        "context_menu.source_control_item",
+        "bottom_panel.panel_tab_action",
+        "bottom_panel.panel_toolbar_action",
+        "inspector.header_action",
+        "inspector.footer_action",
+        "status_bar.primary_status_item",
+        "status_bar.quick_action"
+      ],
+      "description": "Stable slot key from the command-graph UI-slot taxonomy."
+    },
+    "rail_badge_class": {
+      "type": "string",
+      "enum": [
+        "aggregate_attention_count",
+        "provider_degraded_count",
+        "pending_review_count",
+        "changed_item_count",
+        "running_or_failed_session_count",
+        "blocked_policy_count"
+      ],
+      "description": "Allowed aggregate rail badge/count class."
+    },
+    "command_purpose": {
+      "type": "string",
+      "enum": [
+        "hide_sidebar",
+        "toggle_sidebar",
+        "reopen_last_section",
+        "direct_section_jump",
+        "open_overflow",
+        "open_default_view",
+        "open_subsection",
+        "critical_action",
+        "focus_existing_route"
+      ],
+      "description": "Purpose of a required command binding."
+    },
+    "state_capture_field": {
+      "type": "string",
+      "enum": [
+        "last_active_section_id",
+        "active_view_ref",
+        "focus_return_target",
+        "sidebar_size_or_sheet_posture",
+        "expanded_nodes",
+        "selected_saved_view",
+        "filter_sort_scope",
+        "scroll_anchor",
+        "selection_summary",
+        "hidden_selected_disclosure",
+        "provider_freshness",
+        "disabled_reason_ref",
+        "placeholder_state"
+      ],
+      "description": "Remembered state field the shell may preserve when hiding or restoring the sidebar."
+    },
+    "reopen_fallback_class": {
+      "type": "string",
+      "enum": [
+        "exact_last_section",
+        "same_section_placeholder",
+        "first_admitted_primary_by_rank",
+        "explorer_default",
+        "workspace_entry_main_surface"
+      ],
+      "description": "Ordered fallback class used by reopen-last-section."
+    },
+    "command_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "command_id",
+        "registry_state",
+        "route_refs",
+        "slot_keys",
+        "keyboard_first_route_present",
+        "notes"
+      ],
+      "properties": {
+        "purpose": { "$ref": "#/$defs/command_purpose" },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "registry_state": { "$ref": "#/$defs/command_registry_state" },
+        "section_slot_id": { "$ref": "#/$defs/section_slot_id" },
+        "route_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/navigation_route_id" }
+        },
+        "slot_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slot_key" }
+        },
+        "keyboard_first_route_present": {
+          "type": "boolean",
+          "description": "True when at least one route is keyboard first."
+        },
+        "notes": { "$ref": "#/$defs/safe_summary" }
+      },
+      "description": "Command-backed equivalent for hide, show, reopen, direct jump, or critical action."
+    },
+    "section_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section_slot_id",
+        "stable_rank",
+        "rail_slot_class",
+        "default_visibility_class",
+        "label_ref",
+        "owner_summary",
+        "default_sidebar_content_classes",
+        "direct_section_command_id"
+      ],
+      "properties": {
+        "section_slot_id": { "$ref": "#/$defs/section_slot_id" },
+        "stable_rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rail_slot_class": { "$ref": "#/$defs/rail_slot_class" },
+        "default_visibility_class": { "$ref": "#/$defs/section_visibility_class" },
+        "label_ref": { "$ref": "#/$defs/short_label_ref" },
+        "owner_summary": { "$ref": "#/$defs/safe_summary" },
+        "default_sidebar_content_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sidebar_content_class" }
+        },
+        "direct_section_command_id": { "$ref": "#/$defs/command_id" }
+      },
+      "description": "Compact row used by the section-slot catalog."
+    },
+    "primary_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_primary_sections",
+        "allocated_primary_ranks",
+        "conditional_primary_ranks_reserved",
+        "future_rows_default_to_overflow",
+        "hidden_conditional_rows_create_vacancy"
+      ],
+      "properties": {
+        "max_primary_sections": {
+          "type": "integer",
+          "const": 7
+        },
+        "allocated_primary_ranks": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/section_slot_id" }
+        },
+        "conditional_primary_ranks_reserved": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/section_slot_id" }
+        },
+        "future_rows_default_to_overflow": { "type": "boolean", "const": true },
+        "hidden_conditional_rows_create_vacancy": { "type": "boolean", "const": false }
+      },
+      "description": "Primary rail budget and reservation policy."
+    },
+    "overflow_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overflow_command_id",
+        "overflow_section_id",
+        "overflow_lane",
+        "overflow_is_second_sidebar",
+        "keyboard_reachable",
+        "future_rows_require_placement_decision"
+      ],
+      "properties": {
+        "overflow_command_id": { "$ref": "#/$defs/command_id" },
+        "overflow_section_id": { "$ref": "#/$defs/section_slot_id" },
+        "overflow_lane": { "$ref": "#/$defs/placement_lane" },
+        "overflow_is_second_sidebar": { "type": "boolean", "const": false },
+        "keyboard_reachable": { "type": "boolean", "const": true },
+        "future_rows_require_placement_decision": { "type": "boolean", "const": true }
+      },
+      "description": "Overflow routing and guardrail policy."
+    },
+    "section_slot_catalog_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "section_slot_schema_version",
+        "catalog_id",
+        "source_contract_refs",
+        "primary_budget",
+        "overflow_policy",
+        "section_summaries",
+        "command_bindings",
+        "duplicate_surface_rules",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "section_slot_catalog_record" },
+        "section_slot_schema_version": { "$ref": "#/$defs/section_slot_schema_version" },
+        "catalog_id": { "$ref": "#/$defs/opaque_id" },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "primary_budget": { "$ref": "#/$defs/primary_budget" },
+        "overflow_policy": { "$ref": "#/$defs/overflow_policy" },
+        "section_summaries": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/section_summary" }
+        },
+        "command_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_binding" }
+        },
+        "duplicate_surface_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_summary" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "section_slot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "section_slot_schema_version",
+        "section_record_id",
+        "section_slot_id",
+        "stable_rank",
+        "rail_slot_class",
+        "allowed_visibility_classes",
+        "owner_summary",
+        "rail_contract",
+        "sidebar_contract",
+        "other_lane_boundaries",
+        "required_command_bindings",
+        "default_reopen_behavior",
+        "duplicate_surface_guardrails",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "section_slot_record" },
+        "section_slot_schema_version": { "$ref": "#/$defs/section_slot_schema_version" },
+        "section_record_id": { "$ref": "#/$defs/opaque_id" },
+        "section_slot_id": { "$ref": "#/$defs/section_slot_id" },
+        "stable_rank": { "type": "integer", "minimum": 1 },
+        "rail_slot_class": { "$ref": "#/$defs/rail_slot_class" },
+        "allowed_visibility_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/section_visibility_class" }
+        },
+        "owner_summary": { "$ref": "#/$defs/safe_summary" },
+        "rail_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route_ref",
+            "slot_key",
+            "allowed_badge_classes",
+            "forbidden_uses"
+          ],
+          "properties": {
+            "route_ref": { "$ref": "#/$defs/navigation_route_id" },
+            "slot_key": { "$ref": "#/$defs/slot_key" },
+            "allowed_badge_classes": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/rail_badge_class" }
+            },
+            "forbidden_uses": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/safe_summary" }
+            }
+          }
+        },
+        "sidebar_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "shell_zone",
+            "route_ref",
+            "content_classes",
+            "durable_population_refs",
+            "forbidden_private_actions",
+            "count_policy"
+          ],
+          "properties": {
+            "shell_zone": { "const": "left_sidebar" },
+            "route_ref": { "$ref": "#/$defs/navigation_route_id" },
+            "content_classes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/sidebar_content_class" }
+            },
+            "durable_population_refs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/opaque_id" }
+            },
+            "forbidden_private_actions": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/safe_summary" }
+            },
+            "count_policy": { "$ref": "#/$defs/safe_summary" }
+          }
+        },
+        "other_lane_boundaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lane", "boundary_summary"],
+            "properties": {
+              "lane": { "$ref": "#/$defs/placement_lane" },
+              "boundary_summary": { "$ref": "#/$defs/safe_summary" }
+            }
+          }
+        },
+        "required_command_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_binding" }
+        },
+        "default_reopen_behavior": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state_memory_class", "capture_fields", "fallback_order"],
+          "properties": {
+            "state_memory_class": { "$ref": "#/$defs/section_state_memory_class" },
+            "capture_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/state_capture_field" }
+            },
+            "fallback_order": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/reopen_fallback_class" }
+            }
+          }
+        },
+        "duplicate_surface_guardrails": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_summary" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "sidebar_visibility_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "section_slot_schema_version",
+        "visibility_state_id",
+        "state_memory_class",
+        "sidebar_visible",
+        "last_active_section_id",
+        "captured_fields",
+        "reopen_command",
+        "direct_section_command",
+        "fallback_order",
+        "no_visible_return_path",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "sidebar_visibility_state_record" },
+        "section_slot_schema_version": { "$ref": "#/$defs/section_slot_schema_version" },
+        "visibility_state_id": { "$ref": "#/$defs/opaque_id" },
+        "state_memory_class": { "$ref": "#/$defs/section_state_memory_class" },
+        "sidebar_visible": { "type": "boolean" },
+        "last_active_section_id": { "$ref": "#/$defs/section_slot_id" },
+        "active_view_ref": { "$ref": "#/$defs/opaque_id" },
+        "captured_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/state_capture_field" }
+        },
+        "reopen_command": { "$ref": "#/$defs/command_binding" },
+        "direct_section_command": { "$ref": "#/$defs/command_binding" },
+        "fallback_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reopen_fallback_class" }
+        },
+        "visible_return_routes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/navigation_route_id" }
+        },
+        "no_visible_return_path": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. True would mean the user can be stranded after hiding the sidebar."
+        },
+        "focus_return_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "section_surface_placement_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "section_slot_schema_version",
+        "placement_decision_id",
+        "candidate_surface_ref",
+        "candidate_summary",
+        "requested_lanes",
+        "verdict",
+        "owning_section_id",
+        "placement_lane",
+        "decision_factors",
+        "required_command_bindings",
+        "duplicate_surface_analysis",
+        "critical_action_private_only",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "section_surface_placement_decision_record" },
+        "section_slot_schema_version": { "$ref": "#/$defs/section_slot_schema_version" },
+        "placement_decision_id": { "$ref": "#/$defs/opaque_id" },
+        "candidate_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "candidate_summary": { "$ref": "#/$defs/safe_summary" },
+        "requested_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/placement_lane" }
+        },
+        "verdict": { "$ref": "#/$defs/surface_placement_verdict" },
+        "owning_section_id": { "$ref": "#/$defs/section_slot_id" },
+        "placement_lane": { "$ref": "#/$defs/placement_lane" },
+        "decision_factors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_summary" }
+        },
+        "required_command_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_binding" }
+        },
+        "duplicate_surface_analysis": { "$ref": "#/$defs/safe_summary" },
+        "critical_action_private_only": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Critical actions cannot exist only inside a private sidebar affordance."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
