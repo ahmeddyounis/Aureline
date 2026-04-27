@@ -1,0 +1,436 @@
+# Enterprise proxy, trust-store, SSH host-proof, client-certificate, and
+# no-bypass lab matrix.
+#
+# Machine-readable companion to docs/network/transport_governance_packet_seed.md
+# and schemas/network/transport_decision.schema.json.
+#
+# The matrix names the claimed desktop and enterprise rows that must stay
+# green before a release/support/compatibility artifact can claim transport
+# behavior for proxy, CA, PAC, manual proxy, strict SSH host proof, client
+# certificate, mirror-only, deny-all, or offline-deferred continuity.
+
+schema_version: 1
+status: seeded
+
+packet_seed_source: docs/network/transport_governance_packet_seed.md
+decision_schema_source: schemas/network/transport_decision.schema.json
+egress_matrix_source: artifacts/network/egress_classes.yaml
+fixture_source: fixtures/network/transport_cases/
+
+owner_dri: "@ahmeddyounis"
+owning_decision_forum: security_trust_review
+review_cadence: release_candidate_and_transport_change
+visibility_class: public
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "Network, proxy, certificates, and transport-governance architecture"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Appendix G Network and Transport Policy Matrix"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "Appendix CX Transport governance, proxy resolution, and egress-class matrix"
+      - "Appendix CY Trust store, CA bundle, SSH host-key, and client-certificate matrix"
+      - "Appendix CZ Network inspector, allow/deny event, and mirror/offline continuity matrix"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "Appendix BS Transport, proxy, certificate, and mirror-state templates"
+
+lab_case_class_vocabulary:
+  - custom_ca
+  - pac_proxy
+  - manual_proxy
+  - environment_proxy
+  - system_proxy
+  - ssh_strict_host
+  - client_certificate
+  - mirror_only_no_bypass
+  - deny_all_no_bypass
+  - offline_deferred_idempotent
+
+claimed_surface_family_vocabulary:
+  - desktop_client
+  - headless_runner
+  - extension_host
+  - ai_broker
+  - api_client
+  - docs_pack
+  - extension_registry
+  - mirror_refresh
+  - remote_target
+
+rerun_trigger_vocabulary:
+  - release_candidate_cut
+  - platform_network_stack_update
+  - proxy_settings_change
+  - pac_script_fingerprint_change
+  - manual_proxy_setting_change
+  - environment_proxy_variable_change
+  - trust_store_change
+  - org_ca_bundle_rotation
+  - pinned_control_plane_trust_rotation
+  - ssh_host_key_pin_change
+  - client_certificate_expiry_or_rotation
+  - policy_epoch_change
+  - mirror_snapshot_freshness_change
+  - deployment_profile_claim_change
+  - support_incident_reopened
+
+expectation_state_vocabulary:
+  - required_pass
+  - required_deny_typed
+  - optional_observe
+  - not_applicable
+
+proxy_precedence:
+  - precedence: 1
+    proxy_resolution_mode: manual_proxy
+    source: admin_policy_manual_proxy
+    route_class: manual_proxy_route
+    rule: Policy-bound manual proxy overrides every user or ambient source.
+  - precedence: 2
+    proxy_resolution_mode: manual_proxy
+    source: user_manual_proxy
+    route_class: manual_proxy_route
+    rule: User manual proxy overrides environment, PAC, and system sources when policy permits it.
+  - precedence: 3
+    proxy_resolution_mode: environment_proxy
+    source: process_environment
+    route_class: environment_proxy_route
+    rule: HTTPS_PROXY, HTTP_PROXY, ALL_PROXY, and NO_PROXY apply before PAC or system proxy.
+  - precedence: 4
+    proxy_resolution_mode: pac_proxy
+    source: platform_pac_auto_config
+    route_class: pac_resolved_route
+    rule: PAC resolves the effective proxy when no manual or environment proxy is active.
+  - precedence: 5
+    proxy_resolution_mode: system_proxy
+    source: platform_system_proxy
+    route_class: system_proxy_route
+    rule: System proxy applies before direct egress.
+  - precedence: 6
+    proxy_resolution_mode: direct_no_proxy
+    source: policy_permitted_direct_route
+    route_class: direct_target_local_route
+    rule: Direct egress is selected only when the active profile and egress class permit it.
+
+no_bypass_rules:
+  - rule_id: no_bypass.silent_direct_origin_fallback
+    forbidden_bypass_class: silent_direct_origin_fallback
+    applies_to:
+      - mirror_only_no_bypass
+      - deny_all_no_bypass
+      - custom_ca
+      - pac_proxy
+      - manual_proxy
+    expectation: >
+      Public or direct origin fallback is unavailable unless a published
+      exception ref is attached to the decision record.
+  - rule_id: no_bypass.insecure_tls_fallback
+    forbidden_bypass_class: insecure_tls_fallback
+    applies_to:
+      - custom_ca
+      - client_certificate
+    expectation: >
+      TLS verification, pinned trust, org CA bundle, and client-certificate
+      checks never downgrade to insecure transport.
+  - rule_id: no_bypass.proxy_resolution_skip
+    forbidden_bypass_class: proxy_resolution_skip
+    applies_to:
+      - pac_proxy
+      - manual_proxy
+      - environment_proxy
+      - system_proxy
+    expectation: >
+      A component cannot skip the effective proxy and retry direct after a
+      proxy failure.
+  - rule_id: no_bypass.cli_desktop_proxy_divergence
+    forbidden_bypass_class: cli_desktop_proxy_divergence
+    applies_to:
+      - pac_proxy
+      - manual_proxy
+      - environment_proxy
+      - system_proxy
+    expectation: >
+      Desktop and CLI/headless resolve the same effective proxy ref on the
+      same platform profile.
+  - rule_id: no_bypass.extension_ambient_egress
+    forbidden_bypass_class: extension_ambient_egress
+    applies_to:
+      - pac_proxy
+      - manual_proxy
+      - mirror_only_no_bypass
+      - deny_all_no_bypass
+    expectation: >
+      Extension-host egress above local_only requires a permission grant ref
+      and emits the same transport decision vocabulary as core surfaces.
+  - rule_id: no_bypass.destructive_offline_defer
+    forbidden_bypass_class: destructive_offline_defer
+    applies_to:
+      - offline_deferred_idempotent
+    expectation: >
+      Only idempotent actions may enter the deferred queue; mutating external
+      actions fail typed or request fresh approval later.
+
+projection_requirements:
+  summary_strip:
+    required_fields:
+      - proxy_resolution_mode
+      - trust_store_source
+      - mirror_public_label
+      - transport_decision_code
+      - no_bypass_status
+      - repair_hints
+  endpoint_row:
+    required_fields:
+      - component_class
+      - permission_class
+      - target_class
+      - origin_scope
+      - egress_class
+      - auth_mode
+      - route_class
+      - outcome_class
+  certificate_card:
+    required_fields:
+      - trust_store_source
+      - ssh_host_key_provenance
+      - client_certificate_state
+      - trust_failure_state
+      - repair_hints
+  denied_attempt_history:
+    required_fields:
+      - decision_id
+      - component_class
+      - target_class
+      - failure_reason
+      - trust_failure_state
+      - no_bypass_status
+      - repair_hints
+
+lab_rows:
+  - row_id: proxy_lab.enterprise_online.macos_pac_custom_ca
+    title: Enterprise macOS desktop PAC and org CA overlay
+    owner_dri: "@ahmeddyounis"
+    claimed_surface_families:
+      - desktop_client
+      - headless_runner
+    operating_system_claim: macos_desktop
+    active_deployment_profile: enterprise_online
+    active_identity_mode: managed_workspace
+    rerun_triggers:
+      - release_candidate_cut
+      - platform_network_stack_update
+      - pac_script_fingerprint_change
+      - trust_store_change
+      - org_ca_bundle_rotation
+      - policy_epoch_change
+    typed_expectations:
+      - case_class: pac_proxy
+        expectation_state: required_pass
+        proxy_resolution_mode: pac_proxy
+        route_class: pac_resolved_route
+        no_bypass_status: no_bypass_enforced
+        expected_decision_code: allow
+      - case_class: custom_ca
+        expectation_state: required_pass
+        trust_store_source: os_trust_store_plus_org_ca_bundle
+        trust_failure_state_when_missing: ca_untrusted
+        no_bypass_status: no_bypass_enforced
+    linked_fixture_refs:
+      - fixtures/network/transport_cases/enterprise_pac_update_allowed.yaml
+
+  - row_id: proxy_lab.enterprise_online.windows_manual_proxy_client_cert
+    title: Enterprise Windows desktop manual proxy and mTLS client certificate
+    owner_dri: "@ahmeddyounis"
+    claimed_surface_families:
+      - desktop_client
+      - headless_runner
+      - api_client
+    operating_system_claim: windows_desktop
+    active_deployment_profile: enterprise_online
+    active_identity_mode: managed_workspace
+    rerun_triggers:
+      - release_candidate_cut
+      - platform_network_stack_update
+      - manual_proxy_setting_change
+      - trust_store_change
+      - client_certificate_expiry_or_rotation
+      - policy_epoch_change
+    typed_expectations:
+      - case_class: manual_proxy
+        expectation_state: required_pass
+        proxy_resolution_mode: manual_proxy
+        route_class: manual_proxy_route
+        no_bypass_status: no_bypass_enforced
+      - case_class: client_certificate
+        expectation_state: required_deny_typed
+        auth_mode: mtls_client_cert
+        client_certificate_state: expired
+        trust_failure_state: client_certificate_expired
+        expected_decision_code: deny_trust
+        no_bypass_status: no_bypass_enforced
+    linked_fixture_refs:
+      - fixtures/network/transport_cases/enterprise_manual_proxy_client_cert_expired.yaml
+
+  - row_id: proxy_lab.enterprise_online.linux_environment_proxy_custom_ca
+    title: Enterprise Linux desktop environment proxy and org CA overlay
+    owner_dri: "@ahmeddyounis"
+    claimed_surface_families:
+      - desktop_client
+      - headless_runner
+      - extension_host
+    operating_system_claim: linux_desktop
+    active_deployment_profile: enterprise_online
+    active_identity_mode: managed_workspace
+    rerun_triggers:
+      - release_candidate_cut
+      - platform_network_stack_update
+      - environment_proxy_variable_change
+      - trust_store_change
+      - org_ca_bundle_rotation
+      - policy_epoch_change
+    typed_expectations:
+      - case_class: environment_proxy
+        expectation_state: required_pass
+        proxy_resolution_mode: environment_proxy
+        route_class: environment_proxy_route
+        no_bypass_status: no_bypass_enforced
+      - case_class: custom_ca
+        expectation_state: required_pass
+        trust_store_source: os_trust_store_plus_org_ca_bundle
+        trust_failure_state_when_missing: ca_untrusted
+        no_bypass_status: no_bypass_enforced
+    linked_fixture_refs:
+      - fixtures/network/connectivity_cases/enterprise_online_ai_extension_denied_by_policy.json
+
+  - row_id: proxy_lab.self_hosted.strict_ssh_host_proof
+    title: Self-hosted strict SSH host proof
+    owner_dri: "@ahmeddyounis"
+    claimed_surface_families:
+      - desktop_client
+      - headless_runner
+      - remote_target
+    operating_system_claim: cross_platform_desktop
+    active_deployment_profile: self_hosted
+    active_identity_mode: self_hosted_org
+    rerun_triggers:
+      - release_candidate_cut
+      - ssh_host_key_pin_change
+      - pinned_control_plane_trust_rotation
+      - policy_epoch_change
+      - support_incident_reopened
+    typed_expectations:
+      - case_class: ssh_strict_host
+        expectation_state: required_deny_typed
+        auth_mode: ssh_host_key_pinned
+        ssh_host_key_provenance: mismatched_rejected
+        trust_failure_state: ssh_host_key_mismatch
+        expected_decision_code: deny_trust
+        no_bypass_status: no_bypass_enforced
+    linked_fixture_refs:
+      - fixtures/network/transport_cases/self_hosted_ssh_strict_host_rejected.yaml
+
+  - row_id: proxy_lab.air_gapped.mirror_only_no_public_fallback
+    title: Air-gapped mirror-only route with stale mirror denial
+    owner_dri: "@ahmeddyounis"
+    claimed_surface_families:
+      - desktop_client
+      - headless_runner
+      - docs_pack
+      - extension_registry
+    operating_system_claim: cross_platform_desktop
+    active_deployment_profile: air_gapped
+    active_identity_mode: self_hosted_org
+    rerun_triggers:
+      - release_candidate_cut
+      - mirror_snapshot_freshness_change
+      - policy_epoch_change
+      - deployment_profile_claim_change
+      - support_incident_reopened
+    typed_expectations:
+      - case_class: mirror_only_no_bypass
+        expectation_state: required_deny_typed
+        mirror_route_class: mirror_only_no_direct_allowed
+        mirror_freshness_class: mirror_past_extended_window
+        expected_decision_code: stale_mirror
+        no_bypass_status: no_bypass_enforced
+    linked_fixture_refs:
+      - fixtures/network/transport_cases/mirror_only_docs_allowed.yaml
+      - fixtures/network/transport_cases/mirror_only_docs_stale_denied.yaml
+
+  - row_id: proxy_lab.individual_local.deny_all_no_background_retry
+    title: Individual local deny-all profile blocks networked actions
+    owner_dri: "@ahmeddyounis"
+    claimed_surface_families:
+      - desktop_client
+      - headless_runner
+      - extension_host
+      - ai_broker
+    operating_system_claim: cross_platform_desktop
+    active_deployment_profile: individual_local
+    active_identity_mode: account_free_local
+    rerun_triggers:
+      - release_candidate_cut
+      - policy_epoch_change
+      - deployment_profile_claim_change
+      - support_incident_reopened
+    typed_expectations:
+      - case_class: deny_all_no_bypass
+        expectation_state: required_deny_typed
+        offline_or_deny_all_state: deny_all_enforced
+        route_class: air_gap_no_network_route
+        egress_class: deny_all
+        expected_decision_code: deny_policy
+        no_bypass_status: no_bypass_enforced
+    linked_fixture_refs:
+      - fixtures/network/transport_cases/deny_all_ai_gateway_blocked.yaml
+
+  - row_id: proxy_lab.enterprise_online.offline_deferred_idempotent
+    title: Enterprise offline-deferred idempotent mirror refresh
+    owner_dri: "@ahmeddyounis"
+    claimed_surface_families:
+      - desktop_client
+      - headless_runner
+      - mirror_refresh
+    operating_system_claim: cross_platform_desktop
+    active_deployment_profile: enterprise_online
+    active_identity_mode: managed_workspace
+    rerun_triggers:
+      - release_candidate_cut
+      - policy_epoch_change
+      - mirror_snapshot_freshness_change
+      - support_incident_reopened
+    typed_expectations:
+      - case_class: offline_deferred_idempotent
+        expectation_state: required_deny_typed
+        offline_or_deny_all_state: offline_grace_preserved
+        expected_decision_code: offline_deferred
+        no_bypass_status: no_bypass_enforced
+    linked_fixture_refs:
+      - fixtures/network/transport_cases/offline_deferred_mirror_refresh.yaml
+
+transport_case_index:
+  - fixture: fixtures/network/transport_cases/enterprise_pac_update_allowed.yaml
+    row_ref: proxy_lab.enterprise_online.macos_pac_custom_ca
+    scenario_tag: enterprise_pac_custom_ca_update_allowed
+  - fixture: fixtures/network/transport_cases/enterprise_manual_proxy_client_cert_expired.yaml
+    row_ref: proxy_lab.enterprise_online.windows_manual_proxy_client_cert
+    scenario_tag: enterprise_manual_proxy_client_certificate_expired_denied
+  - fixture: fixtures/network/transport_cases/self_hosted_ssh_strict_host_rejected.yaml
+    row_ref: proxy_lab.self_hosted.strict_ssh_host_proof
+    scenario_tag: self_hosted_strict_ssh_host_key_rejected
+  - fixture: fixtures/network/transport_cases/mirror_only_docs_stale_denied.yaml
+    row_ref: proxy_lab.air_gapped.mirror_only_no_public_fallback
+    scenario_tag: mirror_only_stale_docs_no_public_fallback
+  - fixture: fixtures/network/transport_cases/mirror_only_docs_allowed.yaml
+    row_ref: proxy_lab.air_gapped.mirror_only_no_public_fallback
+    scenario_tag: mirror_only_docs_allowed_no_public_fallback
+  - fixture: fixtures/network/transport_cases/deny_all_ai_gateway_blocked.yaml
+    row_ref: proxy_lab.individual_local.deny_all_no_background_retry
+    scenario_tag: deny_all_ai_gateway_no_background_retry
+  - fixture: fixtures/network/transport_cases/offline_deferred_mirror_refresh.yaml
+    row_ref: proxy_lab.enterprise_online.offline_deferred_idempotent
+    scenario_tag: offline_deferred_idempotent_mirror_refresh

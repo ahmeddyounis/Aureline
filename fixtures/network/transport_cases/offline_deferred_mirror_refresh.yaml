@@ -1,0 +1,153 @@
+$schema: ../../../schemas/network/transport_decision.schema.json
+__fixture__:
+  name: offline_deferred_mirror_refresh
+  scenario: Enterprise profile is in offline grace. A mirror-refresh metadata check is idempotent, so it is placed in the visible deferred queue with retry conditions and no direct fallback.
+  contract_sections:
+    - Offline-deferred continuity
+    - Mirror and public labels
+    - No-bypass rules
+    - Projection contract
+  linked_docs:
+    - docs/network/transport_governance_packet_seed.md
+    - artifacts/network/proxy_lab_matrix.yaml
+
+schema_version: 1
+record_kind: transport_decision_record
+decision_id: transport_decision.offline_deferred.mirror_refresh
+linked_attribution_ref: null
+decision_captured_at: "2026-04-23T16:00:00Z"
+
+decision_context:
+  component_class: mirror_refresh_component
+  component_instance_ref: mirror_refresh.docs_registry_primary
+  permission_class: mirror_refresh
+  permission_grant_ref: grant.mirror_refresh.enterprise_policy
+  target_class: mirror_endpoint_target
+  target_identity_ref: target.mirror_endpoint.corp_primary
+  target_scope_ref: scope.tenant_corp_primary
+  origin_scope: headless_runner
+  egress_class: org_approved_external
+  auth_mode: mtls_client_cert
+  auth_handle_ref: handle.mtls_client_cert.mirror_refresh
+  active_deployment_profile: enterprise_online
+  active_identity_mode: managed_workspace
+  active_policy_bundle_ref: policy_bundle.corp_primary
+  policy_epoch_ref: policy_epoch.managed.windowed.2026_04_23
+  offline_or_deny_all_state: offline_grace_preserved
+  reason_sentence: Check whether the enterprise mirror has a newer approved metadata snapshot.
+
+chosen_route:
+  route_selected: false
+  route_class: air_gap_no_network_route
+  proxy_resolution_mode: pac_proxy
+  effective_proxy_ref: effective_proxy.corp_primary
+  route_origin_scope: headless_runner
+  proxy_config_ref: proxy_config.corp_pac_primary
+  pac_script_fingerprint: pac_script:fp_corp_primary_2026_04
+  route_note: Offline grace blocks the live mirror refresh; cached PAC state is retained for retry.
+
+trust_evidence:
+  trust_store_source: os_trust_store_plus_org_ca_bundle
+  org_ca_bundle_fingerprint: org_ca_bundle:fp_corp_primary_2026_04
+  pinned_control_plane_trust_refs:
+    - pinned_cp_trust.managed_control_plane
+  ssh_host_key_provenance: not_applicable_non_ssh
+  ssh_host_key_fingerprint: null
+  tls_server_cert_chain_fingerprint: null
+  client_certificate_state: handle_valid
+  client_certificate_handle_ref: handle.mtls_client_cert.mirror_refresh
+  client_certificate_fingerprint: client_cert:fp_mirror_refresh_2026_04
+  trust_failure_state: none
+  trust_note: Cached trust posture remains available for retry; no live TLS handshake occurred.
+
+mirror_public_label:
+  label_class: customer_operated_mirror
+  mirror_route_class: customer_operated_mirror_active
+  mirror_endpoint_ref: mirror_endpoint.corp_primary
+  mirror_snapshot_ref: mirror_snapshot.corp_primary_2026_04_23
+  mirror_freshness_class: mirror_fresh_within_window
+  public_origin_allowed: false
+  mirror_note: The deferred refresh targets the customer-operated mirror, not public origin.
+
+decision_result:
+  transport_decision_code: offline_deferred
+  outcome_class: outbound_denied_by_offline_mode
+  failure_reason: offline_deferred
+  failure_sentence: Offline grace preserves current mirror state and queues this idempotent refresh.
+  deny_reason_detail:
+    deny_reason_class: offline_mode_denied
+    deny_reason_sentence: Live mirror refresh is unavailable while the profile is offline.
+    policy_rule_ref: policy_rule.mirror_refresh.offline_grace
+    user_setting_ref: null
+  trust_failure_state: none
+  offline_deferred_details:
+    deferred_action_safe: true
+    deferred_queue_ref: deferred_queue.transport.enterprise_mirror_refresh
+    retry_after_posture_ref: transport_posture.enterprise_online.corp_primary.retry
+    retry_condition_sentence: Retry only after online_live_allowed returns for the same policy epoch or after review.
+  result_note: The refresh is queued visibly because it is idempotent and policy allows deferred retry.
+
+no_bypass:
+  no_bypass_status: no_bypass_enforced
+  direct_fallback_allowed: false
+  insecure_fallback_allowed: false
+  forbidden_bypass_classes:
+    - destructive_offline_defer
+    - silent_direct_origin_fallback
+    - public_origin_on_mirror_only_profile
+    - proxy_resolution_skip
+  exception_ref: null
+  no_bypass_note: Deferred retry keeps the mirror route and cannot switch to public origin.
+
+repair_hints:
+  - repair_hint_class: review_deferred_queue
+    hint_sentence: Review the deferred queue to see retry posture and policy epoch before reconnect.
+    repair_action_ref: repair_action.transport.open_deferred_queue
+  - repair_hint_class: keep_local_work_available
+    hint_sentence: Continue local work using the current mirror snapshot while offline.
+    repair_action_ref: null
+
+projection_contract:
+  consumer_surfaces:
+    - summary_strip
+    - endpoint_row
+    - denied_attempt_history
+    - cli_explain
+    - support_export
+  summary_strip_fields:
+    - proxy_resolution_mode
+    - trust_store_source
+    - mirror_public_label
+    - transport_decision_code
+    - no_bypass_status
+    - repair_hints
+  endpoint_row_fields:
+    - component_class
+    - permission_class
+    - target_class
+    - origin_scope
+    - egress_class
+    - auth_mode
+    - route_class
+    - outcome_class
+  certificate_card_fields:
+    - trust_store_source
+    - client_certificate_state
+    - trust_failure_state
+    - repair_hints
+  denied_attempt_history_fields:
+    - decision_id
+    - component_class
+    - target_class
+    - failure_reason
+    - trust_failure_state
+    - no_bypass_status
+    - repair_hints
+
+redaction_class: metadata_safe_default
+export_safe: true
+narrative_refs:
+  - docs/network/transport_governance_packet_seed.md
+  - schemas/network/transport_decision.schema.json
+  - artifacts/network/proxy_lab_matrix.yaml
+

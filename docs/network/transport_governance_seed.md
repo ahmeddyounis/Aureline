@@ -25,6 +25,20 @@ claims that way.
 
 Companion artifacts:
 
+- [`/docs/network/transport_governance_packet_seed.md`](transport_governance_packet_seed.md):
+  decision-packet layer that projects the shared route, trust,
+  mirror/public, failure, no-bypass, and repair vocabulary into
+  summary strips, endpoint rows, certificate cards, denied-attempt
+  histories, CLI explain output, support exports, and release
+  evidence.
+- [`/schemas/network/transport_decision.schema.json`](../../schemas/network/transport_decision.schema.json):
+  machine-readable boundary for one `transport_decision_record`,
+  reusing the proxy, trust, SSH host-key, mirror, egress, outcome,
+  and deny-reason values from this seed.
+- [`/artifacts/network/proxy_lab_matrix.yaml`](../../artifacts/network/proxy_lab_matrix.yaml):
+  enterprise proxy, custom CA, PAC, manual proxy, strict SSH, mTLS
+  client-certificate, mirror-only, deny-all, and offline-deferred lab
+  matrix for claimed profiles.
 - [`/schemas/network/network_attribution_record.schema.json`](../../schemas/network/network_attribution_record.schema.json)
   — machine-readable boundary for
   `network_attribution_record`, including the embedded

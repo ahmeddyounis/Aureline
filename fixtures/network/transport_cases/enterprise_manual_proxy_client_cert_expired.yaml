@@ -1,0 +1,149 @@
+$schema: ../../../schemas/network/transport_decision.schema.json
+__fixture__:
+  name: enterprise_manual_proxy_client_cert_expired
+  scenario: Enterprise API client resolves an admin manual proxy, but the required mTLS client-certificate handle is expired. The decision denies trust and offers certificate repair without falling back to another auth mode.
+  contract_sections:
+    - Proxy precedence
+    - Client certificate handles
+    - Trust store layering
+    - No-bypass rules
+  linked_docs:
+    - docs/network/transport_governance_packet_seed.md
+    - artifacts/network/proxy_lab_matrix.yaml
+
+schema_version: 1
+record_kind: transport_decision_record
+decision_id: transport_decision.enterprise_manual_proxy.client_cert_expired
+linked_attribution_ref: null
+decision_captured_at: "2026-04-23T13:10:00Z"
+
+decision_context:
+  component_class: api_client_component
+  component_instance_ref: api_client.workspace_primary
+  permission_class: api_client_request
+  permission_grant_ref: grant.api_client.enterprise_workspace
+  target_class: private_registry_target
+  target_identity_ref: target.private_registry.package_index
+  target_scope_ref: scope.workspace.enterprise_primary
+  origin_scope: desktop_client
+  egress_class: org_approved_external
+  auth_mode: mtls_client_cert
+  auth_handle_ref: handle.mtls_client_cert.package_index
+  active_deployment_profile: enterprise_online
+  active_identity_mode: managed_workspace
+  active_policy_bundle_ref: policy_bundle.corp_primary
+  policy_epoch_ref: policy_epoch.managed.windowed.2026_04_23
+  offline_or_deny_all_state: online_live_allowed
+  reason_sentence: Send an API client request to the private package index using the enterprise client certificate.
+
+chosen_route:
+  route_selected: true
+  route_class: manual_proxy_route
+  proxy_resolution_mode: manual_proxy
+  effective_proxy_ref: effective_proxy.admin_manual_primary
+  route_origin_scope: desktop_client
+  proxy_config_ref: proxy_config.admin_manual_primary
+  pac_script_fingerprint: null
+  route_note: Admin policy manual proxy takes precedence over user, environment, PAC, and system proxy sources.
+
+trust_evidence:
+  trust_store_source: os_trust_store_plus_org_ca_bundle
+  org_ca_bundle_fingerprint: org_ca_bundle:fp_corp_primary_2026_04
+  pinned_control_plane_trust_refs:
+    - pinned_cp_trust.managed_control_plane
+  ssh_host_key_provenance: not_applicable_non_ssh
+  ssh_host_key_fingerprint: null
+  tls_server_cert_chain_fingerprint: tls_chain:fp_private_registry_2026_04
+  client_certificate_state: expired
+  client_certificate_handle_ref: handle.mtls_client_cert.package_index
+  client_certificate_fingerprint: client_cert:fp_package_index_2026_01
+  trust_failure_state: client_certificate_expired
+  trust_note: The mTLS client-certificate handle is expired; the request is refused before transport.
+
+mirror_public_label:
+  label_class: org_approved_origin
+  mirror_route_class: no_mirror_direct_origin
+  mirror_endpoint_ref: null
+  mirror_snapshot_ref: null
+  mirror_freshness_class: not_applicable
+  public_origin_allowed: false
+  mirror_note: The target is an org-approved private registry; public fallback is not allowed.
+
+decision_result:
+  transport_decision_code: deny_trust
+  outcome_class: outbound_denied_by_trust_failure
+  failure_reason: deny_trust
+  failure_sentence: Required client-certificate handle is expired for this endpoint.
+  deny_reason_detail:
+    deny_reason_class: trust_store_verification_failed
+    deny_reason_sentence: Client-certificate validation failed before the request could proceed.
+    policy_rule_ref: policy_rule.transport.mtls_required_private_registry
+    user_setting_ref: null
+  trust_failure_state: client_certificate_expired
+  offline_deferred_details: null
+  result_note: The manual proxy route was resolved, but the certificate handle blocked transport.
+
+no_bypass:
+  no_bypass_status: no_bypass_enforced
+  direct_fallback_allowed: false
+  insecure_fallback_allowed: false
+  forbidden_bypass_classes:
+    - silent_direct_origin_fallback
+    - insecure_tls_fallback
+    - proxy_resolution_skip
+    - generic_network_error_when_typed_reason_known
+  exception_ref: null
+  no_bypass_note: The client certificate requirement cannot be bypassed with anonymous auth or direct origin access.
+
+repair_hints:
+  - repair_hint_class: inspect_certificate_posture
+    hint_sentence: Renew or replace the client-certificate handle bound to this private registry.
+    repair_action_ref: repair_action.transport.client_cert_renew
+  - repair_hint_class: retry_after_repair
+    hint_sentence: Retry the same manual-proxy route after the certificate handle is valid.
+    repair_action_ref: null
+
+projection_contract:
+  consumer_surfaces:
+    - summary_strip
+    - endpoint_row
+    - certificate_card
+    - denied_attempt_history
+    - support_export
+  summary_strip_fields:
+    - proxy_resolution_mode
+    - trust_store_source
+    - mirror_public_label
+    - transport_decision_code
+    - no_bypass_status
+    - repair_hints
+  endpoint_row_fields:
+    - component_class
+    - permission_class
+    - target_class
+    - origin_scope
+    - egress_class
+    - auth_mode
+    - route_class
+    - outcome_class
+  certificate_card_fields:
+    - trust_store_source
+    - client_certificate_state
+    - trust_failure_state
+    - repair_hints
+  denied_attempt_history_fields:
+    - decision_id
+    - component_class
+    - target_class
+    - failure_reason
+    - trust_failure_state
+    - no_bypass_status
+    - repair_hints
+
+redaction_class: operator_only_restricted
+export_safe: false
+narrative_refs:
+  - docs/network/transport_governance_packet_seed.md
+  - schemas/network/transport_decision.schema.json
+  - artifacts/network/proxy_lab_matrix.yaml
+

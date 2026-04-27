@@ -1,0 +1,149 @@
+$schema: ../../../schemas/network/transport_decision.schema.json
+__fixture__:
+  name: self_hosted_ssh_strict_host_rejected
+  scenario: Self-hosted remote attach sees an SSH host-key mismatch under strict policy. Trust-on-first-use is forbidden, so the decision denies trust and records no bypass.
+  contract_sections:
+    - SSH host proof
+    - Trust store layering
+    - No-bypass rules
+    - Projection contract
+  linked_docs:
+    - docs/network/transport_governance_packet_seed.md
+    - artifacts/network/proxy_lab_matrix.yaml
+
+schema_version: 1
+record_kind: transport_decision_record
+decision_id: transport_decision.self_hosted_ssh.strict_host_rejected
+linked_attribution_ref: net_attr.self_hosted_remote_ssh_host_key_strict_rejected
+decision_captured_at: "2026-04-23T12:15:00Z"
+
+decision_context:
+  component_class: remote_ssh_component
+  component_instance_ref: remote_ssh.primary_build_host
+  permission_class: remote_connect
+  permission_grant_ref: grant.remote_connect.primary_build_host
+  target_class: remote_ssh_target
+  target_identity_ref: target.remote_ssh.primary_build_host
+  target_scope_ref: scope.workspace.primary_build_host
+  origin_scope: desktop_client
+  egress_class: target_local
+  auth_mode: ssh_host_key_pinned
+  auth_handle_ref: handle.ssh_user_identity.primary
+  active_deployment_profile: self_hosted
+  active_identity_mode: self_hosted_org
+  active_policy_bundle_ref: policy_bundle.self_hosted_primary
+  policy_epoch_ref: policy_epoch.self_hosted.windowed.2026_04_23
+  offline_or_deny_all_state: online_live_allowed
+  reason_sentence: Reconnect to the primary remote build host to resume a remote development session.
+
+chosen_route:
+  route_selected: true
+  route_class: direct_target_local_route
+  proxy_resolution_mode: direct_no_proxy
+  effective_proxy_ref: null
+  route_origin_scope: desktop_client
+  proxy_config_ref: null
+  pac_script_fingerprint: null
+  route_note: Direct target-local SSH route was selected; proxy is not involved.
+
+trust_evidence:
+  trust_store_source: pinned_control_plane_trust_only
+  org_ca_bundle_fingerprint: null
+  pinned_control_plane_trust_refs:
+    - pinned_cp_trust.self_hosted_control_plane
+  ssh_host_key_provenance: mismatched_rejected
+  ssh_host_key_fingerprint: ssh_host_key:fp_primary_build_host_rotated_2026_04_23
+  tls_server_cert_chain_fingerprint: null
+  client_certificate_state: not_required
+  client_certificate_handle_ref: null
+  client_certificate_fingerprint: null
+  trust_failure_state: ssh_host_key_mismatch
+  trust_note: Strict SSH host proof rejected the presented fingerprint; trust-on-first-use is forbidden.
+
+mirror_public_label:
+  label_class: local_or_target_local
+  mirror_route_class: mirror_not_applicable
+  mirror_endpoint_ref: null
+  mirror_snapshot_ref: null
+  mirror_freshness_class: not_applicable
+  public_origin_allowed: false
+  mirror_note: This is a target-local SSH route; mirror/public origin labeling is not applicable.
+
+decision_result:
+  transport_decision_code: deny_trust
+  outcome_class: outbound_failed_ssh_host_key_mismatch
+  failure_reason: deny_trust
+  failure_sentence: SSH host-key fingerprint did not match the pinned strict-mode record.
+  deny_reason_detail:
+    deny_reason_class: ssh_host_key_strict_mode_rejected
+    deny_reason_sentence: Strict host-key policy rejected the changed SSH host proof.
+    policy_rule_ref: policy_rule.remote_ssh.strict_host_key_primary
+    user_setting_ref: null
+  trust_failure_state: ssh_host_key_mismatch
+  offline_deferred_details: null
+  result_note: Attach is blocked until the host proof is reviewed and updated by policy.
+
+no_bypass:
+  no_bypass_status: no_bypass_enforced
+  direct_fallback_allowed: false
+  insecure_fallback_allowed: false
+  forbidden_bypass_classes:
+    - insecure_tls_fallback
+    - remote_origin_hidden
+    - generic_network_error_when_typed_reason_known
+  exception_ref: null
+  no_bypass_note: Strict SSH mode forbids trust-on-first-use and hidden retargeting.
+
+repair_hints:
+  - repair_hint_class: inspect_trust_source
+    hint_sentence: Review the pinned SSH host proof before allowing a new fingerprint.
+    repair_action_ref: repair_action.remote_ssh.review_host_proof
+  - repair_hint_class: retry_after_repair
+    hint_sentence: Retry attach only after the policy pin or known-hosts proof is updated.
+    repair_action_ref: null
+
+projection_contract:
+  consumer_surfaces:
+    - summary_strip
+    - endpoint_row
+    - certificate_card
+    - denied_attempt_history
+    - cli_explain
+    - support_export
+  summary_strip_fields:
+    - proxy_resolution_mode
+    - trust_store_source
+    - mirror_public_label
+    - transport_decision_code
+    - no_bypass_status
+    - repair_hints
+  endpoint_row_fields:
+    - component_class
+    - permission_class
+    - target_class
+    - origin_scope
+    - egress_class
+    - auth_mode
+    - route_class
+    - outcome_class
+  certificate_card_fields:
+    - trust_store_source
+    - ssh_host_key_provenance
+    - trust_failure_state
+    - repair_hints
+  denied_attempt_history_fields:
+    - decision_id
+    - component_class
+    - target_class
+    - failure_reason
+    - trust_failure_state
+    - no_bypass_status
+    - repair_hints
+
+redaction_class: operator_only_restricted
+export_safe: false
+narrative_refs:
+  - docs/network/transport_governance_packet_seed.md
+  - schemas/network/transport_decision.schema.json
+  - artifacts/network/proxy_lab_matrix.yaml
+

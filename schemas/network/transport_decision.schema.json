@@ -1,0 +1,1024 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/network/transport_decision.schema.json",
+  "title": "Aureline transport decision record",
+  "description": "Boundary schema for one transport_decision_record. A decision records the route selected or refused by the shared transport-governance layer before a network-capable surface proceeds. It re-exports the endpoint, origin, egress, route, proxy, trust-store, SSH host-proof, client-certificate, mirror, offline, outcome, and deny-reason vocabularies used by the network attribution record and the UI transport-posture contract. Summary strips, endpoint rows, certificate cards, denied-attempt history rows, CLI explain output, support exports, and admin audit packets read this one object without inventing private status strings. Raw URLs, host names, IP addresses, PAC script bodies, proxy credentials, CA bundle bytes, certificate PEM, private keys, tokens, request bodies, and response bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "decision_id",
+    "decision_captured_at",
+    "decision_context",
+    "chosen_route",
+    "trust_evidence",
+    "mirror_public_label",
+    "decision_result",
+    "no_bypass",
+    "repair_hints",
+    "projection_contract",
+    "redaction_class",
+    "narrative_refs"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "transport_decision_record"
+    },
+    "decision_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable opaque id for this decision. Must not contain planning slugs, raw endpoint names, raw hosts, or raw IPs."
+    },
+    "linked_attribution_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Optional ref to the network_attribution_record emitted for the same attempt."
+    },
+    "decision_captured_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "decision_context": {
+      "$ref": "#/$defs/decision_context"
+    },
+    "chosen_route": {
+      "$ref": "#/$defs/chosen_route"
+    },
+    "trust_evidence": {
+      "$ref": "#/$defs/trust_evidence"
+    },
+    "mirror_public_label": {
+      "$ref": "#/$defs/mirror_public_label"
+    },
+    "decision_result": {
+      "$ref": "#/$defs/decision_result"
+    },
+    "no_bypass": {
+      "$ref": "#/$defs/no_bypass_status"
+    },
+    "repair_hints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repair_hint" }
+    },
+    "projection_contract": {
+      "$ref": "#/$defs/projection_contract"
+    },
+    "redaction_class": {
+      "$ref": "#/$defs/redaction_class"
+    },
+    "export_safe": {
+      "type": "boolean",
+      "default": true
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "notes": {
+      "type": "string"
+    },
+    "__fixture__": {
+      "$ref": "#/$defs/fixture_metadata"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Mirror-allowed decisions must carry an active mirror label and a selected mirror route.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "transport_decision_code": { "const": "allow_mirror" }
+            },
+            "required": ["transport_decision_code"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "chosen_route": {
+            "properties": {
+              "route_selected": { "const": true },
+              "route_class": { "const": "mirror_proxy_route" }
+            },
+            "required": ["route_selected", "route_class"]
+          },
+          "mirror_public_label": {
+            "properties": {
+              "mirror_route_class": {
+                "enum": [
+                  "customer_operated_mirror_active",
+                  "vendor_published_mirror_active",
+                  "offline_bundle_derived_mirror_active",
+                  "mirror_only_no_direct_allowed"
+                ]
+              }
+            },
+            "required": ["mirror_route_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Trust denials must name the trust failure state from the trust-store, SSH host-proof, or client-certificate vocabulary.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "transport_decision_code": { "const": "deny_trust" }
+            },
+            "required": ["transport_decision_code"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "trust_evidence": {
+            "properties": {
+              "trust_failure_state": { "not": { "const": "none" } }
+            },
+            "required": ["trust_failure_state"]
+          },
+          "decision_result": {
+            "properties": {
+              "failure_reason": { "const": "deny_trust" }
+            },
+            "required": ["failure_reason"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Offline-deferred decisions are only valid for idempotent actions that carry retry conditions.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "transport_decision_code": { "const": "offline_deferred" }
+            },
+            "required": ["transport_decision_code"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "decision_result": {
+            "required": ["offline_deferred_details"],
+            "properties": {
+              "failure_reason": { "const": "offline_deferred" },
+              "offline_deferred_details": {
+                "properties": {
+                  "deferred_action_safe": { "const": true }
+                },
+                "required": ["deferred_action_safe"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Stale mirror decisions must identify mirror freshness as past-window or unknown and cannot permit public-origin fallback.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "transport_decision_code": { "const": "stale_mirror" }
+            },
+            "required": ["transport_decision_code"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "mirror_public_label": {
+            "properties": {
+              "mirror_freshness_class": {
+                "enum": [
+                  "mirror_past_extended_window",
+                  "mirror_freshness_unknown"
+                ]
+              },
+              "public_origin_allowed": { "const": false }
+            },
+            "required": ["mirror_freshness_class", "public_origin_allowed"]
+          },
+          "no_bypass": {
+            "properties": {
+              "direct_fallback_allowed": { "const": false }
+            },
+            "required": ["direct_fallback_allowed"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Any denial or deferred result must carry a failure reason and a reviewable failure sentence.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "transport_decision_code": {
+                "enum": [
+                  "deny_policy",
+                  "deny_proxy_resolution",
+                  "deny_trust",
+                  "offline_deferred",
+                  "stale_mirror",
+                  "unsupported_auth_mode"
+                ]
+              }
+            },
+            "required": ["transport_decision_code"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "failure_reason": { "not": { "type": "null" } },
+              "failure_sentence": { "not": { "type": "null" } }
+            },
+            "required": ["failure_reason", "failure_sentence"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Enforced no-bypass posture forbids direct and insecure fallback.",
+      "if": {
+        "properties": {
+          "no_bypass": {
+            "properties": {
+              "no_bypass_status": { "const": "no_bypass_enforced" }
+            },
+            "required": ["no_bypass_status"]
+          }
+        },
+        "required": ["no_bypass"]
+      },
+      "then": {
+        "properties": {
+          "no_bypass": {
+            "properties": {
+              "direct_fallback_allowed": { "const": false },
+              "insecure_fallback_allowed": { "const": false }
+            },
+            "required": [
+              "direct_fallback_allowed",
+              "insecure_fallback_allowed"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "opaque_fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "nullable_opaque_fingerprint": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_fingerprint" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280,
+      "description": "Short privacy-safe sentence for UI, CLI, support exports, and admin audit. Raw endpoints, hosts, URLs, payloads, and credentials must not appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "network_component_class": {
+      "type": "string",
+      "enum": [
+        "desktop_shell_component",
+        "cli_headless_component",
+        "update_client_component",
+        "extension_registry_component",
+        "extension_host_component",
+        "ai_broker_component",
+        "docs_pack_component",
+        "policy_distribution_component",
+        "telemetry_sink_component",
+        "remote_tunnel_component",
+        "remote_ssh_component",
+        "remote_agent_component",
+        "managed_control_plane_component",
+        "git_vcs_component",
+        "notebook_kernel_component",
+        "debugger_symbol_component",
+        "api_client_component",
+        "mirror_refresh_component",
+        "browser_handoff_launcher_component",
+        "provider_callback_receiver_component",
+        "heuristic_unknown_component"
+      ]
+    },
+    "network_permission_class": {
+      "type": "string",
+      "enum": [
+        "core_update",
+        "registry_read",
+        "registry_write",
+        "ai_context_egress",
+        "ai_tool_egress",
+        "docs_fetch",
+        "remote_connect",
+        "vcs_network",
+        "extension_network",
+        "policy_refresh",
+        "telemetry_send",
+        "tunnel_publish",
+        "provider_callback_inbound",
+        "mirror_refresh",
+        "browser_handoff_launch",
+        "api_client_request"
+      ]
+    },
+    "network_target_class": {
+      "type": "string",
+      "enum": [
+        "local_host_target",
+        "device_local_loopback_target",
+        "remote_ssh_target",
+        "remote_agent_target",
+        "managed_workspace_target",
+        "connected_provider_target",
+        "system_browser_target",
+        "embedded_webview_target",
+        "mirror_endpoint_target",
+        "private_registry_target",
+        "public_registry_target",
+        "ai_provider_endpoint_target",
+        "docs_mirror_target",
+        "policy_endpoint_target",
+        "update_feed_target",
+        "telemetry_sink_target",
+        "tunnel_exposed_target",
+        "bridged_helper_target",
+        "unknown_target"
+      ]
+    },
+    "origin_scope_class": {
+      "type": "string",
+      "enum": [
+        "desktop_client",
+        "headless_runner",
+        "extension_host",
+        "remote_target",
+        "managed_service",
+        "system_browser",
+        "local_helper"
+      ],
+      "description": "Origin vocabulary for where the egress decision is made or where traffic originates."
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_public",
+        "api_key_handle",
+        "oauth_delegated_handle",
+        "device_code_handle",
+        "mtls_client_cert",
+        "ssh_host_key_pinned",
+        "system_browser_callback_token",
+        "org_ca_bundle_pinned",
+        "managed_service_identity",
+        "step_up_authenticator_required",
+        "auth_unknown"
+      ]
+    },
+    "route_class": {
+      "type": "string",
+      "enum": [
+        "direct_local_loopback_route",
+        "direct_target_local_route",
+        "system_proxy_route",
+        "manual_proxy_route",
+        "pac_resolved_route",
+        "environment_proxy_route",
+        "mirror_proxy_route",
+        "managed_relay_route",
+        "remote_target_originated_route",
+        "browser_system_route",
+        "air_gap_no_network_route",
+        "heuristic_unknown_route"
+      ]
+    },
+    "egress_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "target_local",
+        "org_approved_external",
+        "public_internet",
+        "deny_all"
+      ]
+    },
+    "proxy_resolution_mode_class": {
+      "type": "string",
+      "enum": [
+        "system_proxy",
+        "pac_proxy",
+        "environment_proxy",
+        "manual_proxy",
+        "direct_no_proxy",
+        "proxy_unknown"
+      ]
+    },
+    "trust_store_source_class": {
+      "type": "string",
+      "enum": [
+        "os_trust_store",
+        "os_trust_store_plus_org_ca_bundle",
+        "pinned_control_plane_trust_only",
+        "air_gap_offline_trust_root",
+        "trust_store_unknown"
+      ]
+    },
+    "ssh_host_key_provenance_class": {
+      "type": "string",
+      "enum": [
+        "known_hosts_entry_trusted",
+        "first_use_trust_on_first_use",
+        "pinned_by_policy",
+        "admin_policy_strict_required",
+        "mismatched_rejected",
+        "not_applicable_non_ssh"
+      ]
+    },
+    "mirror_route_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror_direct_origin",
+        "customer_operated_mirror_active",
+        "vendor_published_mirror_active",
+        "offline_bundle_derived_mirror_active",
+        "mirror_only_no_direct_allowed",
+        "mirror_not_applicable"
+      ]
+    },
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "mirror_fresh_within_window",
+        "mirror_within_extended_window",
+        "mirror_past_extended_window",
+        "mirror_freshness_unknown",
+        "not_applicable"
+      ]
+    },
+    "offline_or_deny_all_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic"
+      ]
+    },
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "outbound_allowed_completed",
+        "outbound_allowed_in_flight",
+        "outbound_allowed_completed_with_warning",
+        "outbound_denied_by_policy",
+        "outbound_denied_by_user_setting",
+        "outbound_denied_by_offline_mode",
+        "outbound_denied_by_egress_class_boundary",
+        "outbound_denied_by_permission_missing",
+        "outbound_denied_by_trust_failure",
+        "outbound_denied_by_proxy_auth_required",
+        "outbound_denied_by_deny_all_profile",
+        "outbound_failed_transport_error",
+        "outbound_failed_host_unreachable",
+        "outbound_failed_tls_verification",
+        "outbound_failed_ssh_host_key_mismatch",
+        "outbound_failed_unknown",
+        "inbound_callback_received",
+        "inbound_callback_refused"
+      ]
+    },
+    "deny_reason_detail_class": {
+      "type": "string",
+      "enum": [
+        "admin_policy_denied",
+        "user_setting_denied",
+        "offline_mode_denied",
+        "air_gap_profile_denied",
+        "egress_class_boundary_denied",
+        "permission_not_granted",
+        "permission_floor_blocked",
+        "extension_permission_missing",
+        "extension_network_capability_revoked",
+        "approval_ticket_missing",
+        "approval_ticket_expired",
+        "step_up_required_not_satisfied",
+        "trust_store_verification_failed",
+        "org_ca_bundle_not_loaded",
+        "pinned_control_plane_trust_mismatch",
+        "ssh_host_key_strict_mode_rejected",
+        "proxy_auth_required",
+        "proxy_auth_denied",
+        "proxy_unreachable",
+        "deny_all_profile_enforced",
+        "region_pinned_target_out_of_region",
+        "freshness_floor_unmet",
+        "deny_reason_unknown_requires_review"
+      ]
+    },
+    "transport_decision_code": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "allow_mirror",
+        "deny_policy",
+        "deny_proxy_resolution",
+        "deny_trust",
+        "offline_deferred",
+        "stale_mirror",
+        "unsupported_auth_mode"
+      ],
+      "description": "Outcome and denial vocabulary from the network inspector continuity matrix."
+    },
+    "nullable_transport_failure_reason": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "enum": [
+            "deny_policy",
+            "deny_proxy_resolution",
+            "deny_trust",
+            "offline_deferred",
+            "stale_mirror",
+            "unsupported_auth_mode"
+          ]
+        }
+      ]
+    },
+    "trust_failure_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ca_untrusted",
+        "hostname_mismatch",
+        "bundle_stale",
+        "pin_mismatch",
+        "rotation_required",
+        "ssh_host_key_unknown",
+        "ssh_host_key_mismatch",
+        "client_certificate_required",
+        "client_certificate_expired",
+        "policy_blocked"
+      ],
+      "description": "Trust failure states from the trust-store, SSH host-key, and client-certificate matrix."
+    },
+    "client_certificate_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "handle_valid",
+        "required_missing",
+        "expired",
+        "handle_unavailable",
+        "policy_blocked"
+      ]
+    },
+    "mirror_public_label_class": {
+      "type": "string",
+      "enum": [
+        "public_origin",
+        "org_approved_origin",
+        "customer_operated_mirror",
+        "vendor_published_mirror",
+        "offline_bundle_mirror",
+        "mirror_only_no_direct",
+        "local_or_target_local",
+        "no_route_selected"
+      ]
+    },
+    "no_bypass_status_class": {
+      "type": "string",
+      "enum": [
+        "no_bypass_enforced",
+        "bypass_not_applicable",
+        "published_exception_required",
+        "published_exception_active",
+        "no_bypass_violation_detected"
+      ]
+    },
+    "forbidden_bypass_class": {
+      "type": "string",
+      "enum": [
+        "silent_direct_origin_fallback",
+        "insecure_tls_fallback",
+        "proxy_resolution_skip",
+        "cli_desktop_proxy_divergence",
+        "extension_ambient_egress",
+        "remote_origin_hidden",
+        "public_origin_on_mirror_only_profile",
+        "feature_specific_retry_under_deny_all",
+        "destructive_offline_defer",
+        "generic_network_error_when_typed_reason_known"
+      ]
+    },
+    "repair_hint_class": {
+      "type": "string",
+      "enum": [
+        "no_action_required",
+        "inspect_policy_source",
+        "request_narrower_scope",
+        "inspect_proxy_mode",
+        "inspect_platform_proxy_settings",
+        "inspect_trust_source",
+        "inspect_certificate_posture",
+        "refresh_mirror",
+        "use_approved_alternate_route",
+        "review_deferred_queue",
+        "use_supported_auth_path",
+        "change_deployment_profile",
+        "retry_after_repair",
+        "keep_local_work_available"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "decision_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_class",
+        "permission_class",
+        "target_class",
+        "target_identity_ref",
+        "origin_scope",
+        "egress_class",
+        "auth_mode",
+        "active_deployment_profile",
+        "active_identity_mode",
+        "offline_or_deny_all_state"
+      ],
+      "properties": {
+        "component_class": { "$ref": "#/$defs/network_component_class" },
+        "component_instance_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "permission_class": { "$ref": "#/$defs/network_permission_class" },
+        "permission_grant_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_class": { "$ref": "#/$defs/network_target_class" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "origin_scope": { "$ref": "#/$defs/origin_scope_class" },
+        "egress_class": { "$ref": "#/$defs/egress_class" },
+        "auth_mode": { "$ref": "#/$defs/auth_mode_class" },
+        "auth_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "active_deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "active_identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "active_policy_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "offline_or_deny_all_state": { "$ref": "#/$defs/offline_or_deny_all_state_class" },
+        "reason_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "chosen_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_selected",
+        "route_class",
+        "proxy_resolution_mode",
+        "effective_proxy_ref",
+        "route_origin_scope",
+        "route_note"
+      ],
+      "properties": {
+        "route_selected": { "type": "boolean" },
+        "route_class": { "$ref": "#/$defs/route_class" },
+        "proxy_resolution_mode": { "$ref": "#/$defs/proxy_resolution_mode_class" },
+        "effective_proxy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "route_origin_scope": { "$ref": "#/$defs/origin_scope_class" },
+        "proxy_config_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "pac_script_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "route_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_store_source",
+        "ssh_host_key_provenance",
+        "client_certificate_state",
+        "trust_failure_state",
+        "trust_note"
+      ],
+      "properties": {
+        "trust_store_source": { "$ref": "#/$defs/trust_store_source_class" },
+        "org_ca_bundle_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "pinned_control_plane_trust_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "ssh_host_key_provenance": { "$ref": "#/$defs/ssh_host_key_provenance_class" },
+        "ssh_host_key_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "tls_server_cert_chain_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "client_certificate_state": { "$ref": "#/$defs/client_certificate_state" },
+        "client_certificate_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "client_certificate_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "trust_failure_state": { "$ref": "#/$defs/trust_failure_state" },
+        "trust_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "mirror_public_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label_class",
+        "mirror_route_class",
+        "mirror_freshness_class",
+        "public_origin_allowed",
+        "mirror_note"
+      ],
+      "properties": {
+        "label_class": { "$ref": "#/$defs/mirror_public_label_class" },
+        "mirror_route_class": { "$ref": "#/$defs/mirror_route_class" },
+        "mirror_endpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mirror_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "public_origin_allowed": { "type": "boolean" },
+        "mirror_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "deny_reason_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deny_reason_class",
+        "deny_reason_sentence"
+      ],
+      "properties": {
+        "deny_reason_class": { "$ref": "#/$defs/deny_reason_detail_class" },
+        "deny_reason_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_rule_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "user_setting_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "offline_deferred_details": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deferred_action_safe",
+        "deferred_queue_ref",
+        "retry_after_posture_ref",
+        "retry_condition_sentence"
+      ],
+      "properties": {
+        "deferred_action_safe": { "type": "boolean" },
+        "deferred_queue_ref": { "$ref": "#/$defs/opaque_id" },
+        "retry_after_posture_ref": { "$ref": "#/$defs/opaque_id" },
+        "retry_condition_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "decision_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transport_decision_code",
+        "outcome_class",
+        "failure_reason",
+        "failure_sentence",
+        "deny_reason_detail",
+        "trust_failure_state"
+      ],
+      "properties": {
+        "transport_decision_code": { "$ref": "#/$defs/transport_decision_code" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "failure_reason": { "$ref": "#/$defs/nullable_transport_failure_reason" },
+        "failure_sentence": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+        "deny_reason_detail": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/deny_reason_detail" }
+          ]
+        },
+        "trust_failure_state": { "$ref": "#/$defs/trust_failure_state" },
+        "offline_deferred_details": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/offline_deferred_details" }
+          ]
+        },
+        "result_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "no_bypass_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_bypass_status",
+        "direct_fallback_allowed",
+        "insecure_fallback_allowed",
+        "forbidden_bypass_classes",
+        "exception_ref",
+        "no_bypass_note"
+      ],
+      "properties": {
+        "no_bypass_status": { "$ref": "#/$defs/no_bypass_status_class" },
+        "direct_fallback_allowed": { "type": "boolean" },
+        "insecure_fallback_allowed": { "type": "boolean" },
+        "forbidden_bypass_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/forbidden_bypass_class" },
+          "uniqueItems": true
+        },
+        "exception_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "no_bypass_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "repair_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_hint_class",
+        "hint_sentence",
+        "repair_action_ref"
+      ],
+      "properties": {
+        "repair_hint_class": { "$ref": "#/$defs/repair_hint_class" },
+        "hint_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "repair_action_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "summary_strip",
+        "endpoint_row",
+        "certificate_card",
+        "denied_attempt_history",
+        "cli_explain",
+        "support_export",
+        "admin_audit"
+      ]
+    },
+    "projection_field": {
+      "type": "string",
+      "enum": [
+        "decision_id",
+        "component_class",
+        "permission_class",
+        "target_class",
+        "origin_scope",
+        "egress_class",
+        "auth_mode",
+        "route_class",
+        "proxy_resolution_mode",
+        "trust_store_source",
+        "ssh_host_key_provenance",
+        "client_certificate_state",
+        "mirror_public_label",
+        "mirror_freshness_class",
+        "transport_decision_code",
+        "outcome_class",
+        "failure_reason",
+        "trust_failure_state",
+        "no_bypass_status",
+        "repair_hints"
+      ]
+    },
+    "projection_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surfaces",
+        "summary_strip_fields",
+        "endpoint_row_fields",
+        "certificate_card_fields",
+        "denied_attempt_history_fields"
+      ],
+      "properties": {
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface_class" },
+          "uniqueItems": true
+        },
+        "summary_strip_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/projection_field" },
+          "uniqueItems": true
+        },
+        "endpoint_row_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/projection_field" },
+          "uniqueItems": true
+        },
+        "certificate_card_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/projection_field" },
+          "uniqueItems": true
+        },
+        "denied_attempt_history_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/projection_field" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
