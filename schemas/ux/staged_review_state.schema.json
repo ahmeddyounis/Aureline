@@ -1,0 +1,733 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/staged_review_state.schema.json",
+  "title": "Aureline staged form-review boundary",
+  "description": "Boundary schema for one staged_review_state_record frozen in docs/ux/forms_validation_contract.md. A staged-review record captures the review sheet, CLI JSON packet, or headless review state for high-impact forms before mutation. It binds live and staged basis refs, field rows, source classes, lock/policy explanations, synchronous validation state, asynchronous probe rollup, stale/skipped handling, mutation-blocking tier, apply action availability, and support/issue-handoff exportability. It is shared by settings, connection setup, package actions, policy edits, repair actions, network/transport forms, request/runtime forms, data connections, and any future form that validates against external targets or secrets. Raw secrets, raw endpoints, raw request bodies, raw policy bundles, raw package registry addresses, raw database coordinates, and raw filesystem paths never appear here. Adding an enum value is additive-minor and bumps staged_review_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/staged_review_state_record",
+  "$defs": {
+    "staged_review_state_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "staged_review_state_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 760
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "settings_form",
+        "connection_setup_form",
+        "data_connection_form",
+        "package_action_form",
+        "policy_edit_form",
+        "repair_action_form",
+        "network_transport_form",
+        "request_runtime_form",
+        "runtime_target_form",
+        "extension_install_form",
+        "migration_import_form",
+        "generic_high_impact_form"
+      ]
+    },
+    "review_surface_class": {
+      "type": "string",
+      "enum": [
+        "inline_section",
+        "side_sheet",
+        "full_sheet",
+        "modal_dialog",
+        "cli_json_summary",
+        "headless_summary",
+        "support_packet_projection"
+      ]
+    },
+    "apply_timing_class": {
+      "type": "string",
+      "enum": [
+        "immediate_live_apply",
+        "staged_apply_required",
+        "preview_first_apply_required",
+        "policy_locked_no_apply",
+        "dry_run_then_apply",
+        "observe_only_no_apply"
+      ]
+    },
+    "staging_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "live_value_current",
+        "draft_dirty",
+        "staged_pending_validation",
+        "staged_pending_review",
+        "staged_review_ready",
+        "applying",
+        "applied",
+        "denied",
+        "withdrawn",
+        "expired"
+      ]
+    },
+    "value_source_class": {
+      "type": "string",
+      "enum": [
+        "embedded_default",
+        "user_input",
+        "workspace_file",
+        "imported_profile",
+        "policy_override",
+        "managed_provider",
+        "generated_probe",
+        "secret_handle"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "local_settings_write",
+        "workspace_file_write",
+        "credential_handle_reference",
+        "external_network_probe",
+        "package_lockfile_change",
+        "policy_bundle_change",
+        "repair_transaction_apply",
+        "route_or_transport_change",
+        "request_replay_or_runtime_change",
+        "database_connection_change",
+        "support_export_created"
+      ]
+    },
+    "validation_rollup_state": {
+      "type": "string",
+      "enum": [
+        "current_passed",
+        "current_warnings",
+        "pending",
+        "failed",
+        "blocking_failed",
+        "stale",
+        "skipped",
+        "policy_blocked",
+        "mixed",
+        "not_required"
+      ]
+    },
+    "validation_set_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "not_started",
+        "pending",
+        "current_passed",
+        "current_warning",
+        "failed",
+        "blocking_failed",
+        "stale",
+        "skipped",
+        "policy_blocked",
+        "unsupported"
+      ]
+    },
+    "stale_validation_handling": {
+      "type": "string",
+      "enum": [
+        "revalidate_before_apply",
+        "allow_stale_with_ack",
+        "allow_stale_without_ack_local_only",
+        "block_until_current",
+        "skipped_allowed_with_reason",
+        "skipped_blocks_apply",
+        "not_applicable"
+      ]
+    },
+    "mutation_blocking_tier": {
+      "type": "string",
+      "enum": [
+        "none",
+        "advisory",
+        "warning",
+        "soft_block",
+        "hard_block",
+        "policy_block",
+        "security_block"
+      ]
+    },
+    "currentness_label": {
+      "type": "string",
+      "enum": [
+        "current",
+        "pending",
+        "stale",
+        "skipped",
+        "policy_blocked",
+        "mixed",
+        "not_applicable"
+      ]
+    },
+    "probe_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "pending",
+        "current_passed",
+        "current_warning",
+        "current_failed",
+        "current_blocking_failed",
+        "skipped_by_user",
+        "skipped_by_policy",
+        "policy_blocked",
+        "stale_passed",
+        "stale_warning",
+        "stale_failed",
+        "expired",
+        "unsupported"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "pending",
+        "current",
+        "warm_within_grace",
+        "stale_within_grace",
+        "stale_beyond_grace",
+        "skipped",
+        "unknown"
+      ]
+    },
+    "probe_gate_role": {
+      "type": "string",
+      "enum": [
+        "required_for_apply",
+        "advisory_context",
+        "support_attribution_only",
+        "skipped_optional",
+        "policy_blocker"
+      ]
+    },
+    "apply_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_apply_impact",
+        "blocks_apply",
+        "blocks_mutating_apply",
+        "requires_revalidation",
+        "requires_acknowledgement",
+        "allows_apply"
+      ]
+    },
+    "parameter_source_class": {
+      "type": "string",
+      "enum": [
+        "default",
+        "user_input",
+        "workspace_config",
+        "profile_import",
+        "policy_override",
+        "managed_provider",
+        "secret_handle",
+        "external_probe_result",
+        "generated_dry_run"
+      ]
+    },
+    "value_redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "redacted_shape",
+        "class_label_only",
+        "secret_handle_only",
+        "omitted"
+      ]
+    },
+    "field_validation_state": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "pending",
+        "warning",
+        "error",
+        "blocking_error",
+        "stale",
+        "skipped",
+        "policy_blocked",
+        "locked"
+      ]
+    },
+    "staged_change_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "added",
+        "modified",
+        "removed",
+        "replaced",
+        "generated",
+        "unknown"
+      ]
+    },
+    "lock_state": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "read_only",
+        "policy_locked",
+        "policy_constrained",
+        "capability_locked",
+        "stale_authority_locked",
+        "managed_admin_only"
+      ]
+    },
+    "lock_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "policy_pins_value",
+        "policy_constrains_allowed_set",
+        "capability_dependency_unmet",
+        "stale_authority_requires_refresh",
+        "managed_admin_consent_required",
+        "read_only_surface",
+        "secret_unavailable",
+        "trust_or_scope_not_satisfied"
+      ]
+    },
+    "apply_action_class": {
+      "type": "string",
+      "enum": [
+        "apply_changes",
+        "apply_safe_subset",
+        "revalidate",
+        "open_policy_details",
+        "reauthenticate",
+        "create_checkpoint",
+        "export_review",
+        "cancel",
+        "repair",
+        "run_dry_run",
+        "continue_with_stale",
+        "continue_with_skipped"
+      ]
+    },
+    "action_availability_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_pending_validation",
+        "disabled_validation_failed",
+        "disabled_policy_blocked",
+        "disabled_stale_validation",
+        "disabled_missing_checkpoint",
+        "enabled_requires_ack",
+        "hidden_by_policy",
+        "inspect_only"
+      ]
+    },
+    "mutation_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "local_mutation",
+        "external_mutation",
+        "trust_or_policy_mutation",
+        "secret_bearing_mutation"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe",
+        "redact_value_preserve_shape",
+        "secret_handle_only",
+        "exclude_payload",
+        "support_restricted"
+      ]
+    },
+    "review_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "live_value_ref",
+        "staged_value_ref",
+        "baseline_snapshot_ref",
+        "staging_started_at",
+        "last_live_refresh_at",
+        "value_source_class",
+        "changed_field_count",
+        "side_effect_classes",
+        "basis_summary"
+      ],
+      "properties": {
+        "live_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "staged_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "baseline_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "staging_started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_live_refresh_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "value_source_class": { "$ref": "#/$defs/value_source_class" },
+        "changed_field_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "side_effect_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "basis_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "validation_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_rollup_state",
+        "sync_validation_state",
+        "async_probe_state",
+        "stale_validation_handling",
+        "mutation_blocking_tier",
+        "currentness_label",
+        "summary"
+      ],
+      "properties": {
+        "validation_rollup_state": { "$ref": "#/$defs/validation_rollup_state" },
+        "sync_validation_state": { "$ref": "#/$defs/validation_set_state" },
+        "async_probe_state": { "$ref": "#/$defs/validation_set_state" },
+        "stale_validation_handling": { "$ref": "#/$defs/stale_validation_handling" },
+        "mutation_blocking_tier": { "$ref": "#/$defs/mutation_blocking_tier" },
+        "currentness_label": { "$ref": "#/$defs/currentness_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "probe_state_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "form_probe_state_id_ref",
+        "gate_role",
+        "last_known_lifecycle_state",
+        "freshness_class",
+        "apply_impact_class"
+      ],
+      "properties": {
+        "form_probe_state_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "gate_role": { "$ref": "#/$defs/probe_gate_role" },
+        "last_known_lifecycle_state": { "$ref": "#/$defs/probe_lifecycle_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "apply_impact_class": { "$ref": "#/$defs/apply_impact_class" }
+      }
+    },
+    "field_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_ref",
+        "label",
+        "parameter_source_class",
+        "value_redaction_class",
+        "field_validation_state",
+        "staged_change_class",
+        "lock_state"
+      ],
+      "properties": {
+        "field_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "parameter_source_class": { "$ref": "#/$defs/parameter_source_class" },
+        "value_redaction_class": { "$ref": "#/$defs/value_redaction_class" },
+        "field_validation_state": { "$ref": "#/$defs/field_validation_state" },
+        "staged_change_class": { "$ref": "#/$defs/staged_change_class" },
+        "lock_state": { "$ref": "#/$defs/lock_state" },
+        "field_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "lock_policy_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_ref",
+        "lock_state",
+        "reason_class",
+        "source_ref",
+        "explanation",
+        "action_ref"
+      ],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "lock_state": { "$ref": "#/$defs/lock_state" },
+        "reason_class": { "$ref": "#/$defs/lock_reason_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "action_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "apply_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_class",
+        "availability_class",
+        "mutation_class",
+        "requires_current_validation"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_class": { "$ref": "#/$defs/apply_action_class" },
+        "availability_class": { "$ref": "#/$defs/action_availability_class" },
+        "mutation_class": { "$ref": "#/$defs/mutation_class" },
+        "requires_current_validation": { "type": "boolean" },
+        "action_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_export_eligible",
+        "issue_handoff_eligible",
+        "evidence_refs",
+        "omitted_data_classes",
+        "redaction_class"
+      ],
+      "properties": {
+        "support_export_eligible": { "type": "boolean" },
+        "issue_handoff_eligible": { "type": "boolean" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "omitted_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "scenario"
+      ],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "staged_review_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "staged_review_state_id",
+        "surface_family",
+        "owning_flow_ref",
+        "review_surface_class",
+        "apply_timing_class",
+        "staging_lifecycle_state",
+        "basis",
+        "validation_summary",
+        "probe_state_refs",
+        "field_rows",
+        "lock_policy_explanations",
+        "apply_actions",
+        "support_handoff",
+        "emitted_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/staged_review_state_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "staged_review_state_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "owning_flow_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_surface_class": { "$ref": "#/$defs/review_surface_class" },
+        "apply_timing_class": { "$ref": "#/$defs/apply_timing_class" },
+        "staging_lifecycle_state": { "$ref": "#/$defs/staging_lifecycle_state" },
+        "basis": { "$ref": "#/$defs/review_basis" },
+        "validation_summary": { "$ref": "#/$defs/validation_summary" },
+        "probe_state_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/probe_state_ref" }
+        },
+        "field_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/field_row" }
+        },
+        "lock_policy_explanations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lock_policy_explanation" }
+        },
+        "apply_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/apply_action" }
+        },
+        "support_handoff": { "$ref": "#/$defs/support_handoff" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "Policy-locked reviews must render a policy block and cannot claim a lesser tier.",
+          "if": {
+            "properties": {
+              "apply_timing_class": { "const": "policy_locked_no_apply" }
+            },
+            "required": ["apply_timing_class"]
+          },
+          "then": {
+            "properties": {
+              "validation_summary": {
+                "properties": {
+                  "validation_rollup_state": { "const": "policy_blocked" },
+                  "mutation_blocking_tier": { "const": "policy_block" },
+                  "currentness_label": { "const": "policy_blocked" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A policy-blocked rollup must use the policy-block mutation tier.",
+          "if": {
+            "properties": {
+              "validation_summary": {
+                "properties": {
+                  "validation_rollup_state": { "const": "policy_blocked" }
+                },
+                "required": ["validation_rollup_state"]
+              }
+            },
+            "required": ["validation_summary"]
+          },
+          "then": {
+            "properties": {
+              "validation_summary": {
+                "properties": {
+                  "mutation_blocking_tier": { "const": "policy_block" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocking validation failures must be represented as hard, policy, or security blocks.",
+          "if": {
+            "properties": {
+              "validation_summary": {
+                "properties": {
+                  "validation_rollup_state": { "const": "blocking_failed" }
+                },
+                "required": ["validation_rollup_state"]
+              }
+            },
+            "required": ["validation_summary"]
+          },
+          "then": {
+            "properties": {
+              "validation_summary": {
+                "properties": {
+                  "mutation_blocking_tier": {
+                    "enum": ["hard_block", "policy_block", "security_block"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Reviews that block until current validation cannot use a non-blocking mutation tier.",
+          "if": {
+            "properties": {
+              "validation_summary": {
+                "properties": {
+                  "stale_validation_handling": { "const": "block_until_current" }
+                },
+                "required": ["stale_validation_handling"]
+              }
+            },
+            "required": ["validation_summary"]
+          },
+          "then": {
+            "properties": {
+              "validation_summary": {
+                "properties": {
+                  "mutation_blocking_tier": {
+                    "enum": ["hard_block", "policy_block", "security_block"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

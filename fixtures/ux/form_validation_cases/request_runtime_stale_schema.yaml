@@ -1,0 +1,85 @@
+schema_version: 1
+record_kind: staged_review_state_record
+staged_review_state_id: staged_review:request.schema_stale:001
+surface_family: request_runtime_form
+owning_flow_ref: request.form:replay:001
+review_surface_class: side_sheet
+apply_timing_class: staged_apply_required
+staging_lifecycle_state: staged_pending_validation
+basis:
+  live_value_ref: request_history:operation.checkout:001
+  staged_value_ref: request_replay:operation.checkout:001
+  baseline_snapshot_ref: schema_snapshot:checkout:stale:001
+  staging_started_at: "2026-04-27T09:18:00Z"
+  last_live_refresh_at: "2026-04-27T08:12:00Z"
+  value_source_class: workspace_file
+  changed_field_count: 1
+  side_effect_classes:
+    - request_replay_or_runtime_change
+  basis_summary: Request replay is staged against a schema snapshot that is stale.
+validation_summary:
+  validation_rollup_state: stale
+  sync_validation_state: current_passed
+  async_probe_state: stale
+  stale_validation_handling: revalidate_before_apply
+  mutation_blocking_tier: soft_block
+  currentness_label: stale
+  summary: Refresh the schema snapshot before replaying against the current runtime.
+probe_state_refs:
+  - form_probe_state_id_ref: probe:request.schema_snapshot:001
+    gate_role: required_for_apply
+    last_known_lifecycle_state: stale_warning
+    freshness_class: stale_beyond_grace
+    apply_impact_class: requires_revalidation
+field_rows:
+  - field_ref: field:request.environment
+    label: Environment
+    parameter_source_class: workspace_config
+    value_redaction_class: class_label_only
+    field_validation_state: stale
+    staged_change_class: none
+    lock_state: unlocked
+    field_summary: The environment is unchanged, but its schema snapshot is stale.
+  - field_ref: field:request.auth_handle
+    label: Auth handle
+    parameter_source_class: secret_handle
+    value_redaction_class: secret_handle_only
+    field_validation_state: valid
+    staged_change_class: none
+    lock_state: unlocked
+    field_summary: Auth is represented by a broker handle only.
+lock_policy_explanations: []
+apply_actions:
+  - action_id: action:replay_request
+    action_class: apply_changes
+    availability_class: disabled_stale_validation
+    mutation_class: external_mutation
+    requires_current_validation: true
+    action_summary: Replay is disabled until schema freshness is revalidated.
+  - action_id: action:refresh_request_schema
+    action_class: revalidate
+    availability_class: enabled
+    mutation_class: read_only
+    requires_current_validation: false
+    action_summary: Refresh the schema snapshot without replaying the request.
+support_handoff:
+  support_export_eligible: true
+  issue_handoff_eligible: true
+  evidence_refs:
+    - evidence:request.schema_stale:001
+  omitted_data_classes:
+    - raw_request_body
+    - raw_header_values
+    - raw_secret
+  redaction_class: secret_handle_only
+emitted_at: "2026-04-27T09:18:08Z"
+narrative_refs:
+  - docs/ux/forms_validation_contract.md
+  - docs/api/request_workspace_contract.md
+__fixture__:
+  name: request_runtime_stale_schema
+  scenario: A request replay form must refresh stale schema validation before apply.
+  exercised_axes:
+    - stale_beyond_grace
+    - revalidate_before_apply
+    - request_runtime_handoff

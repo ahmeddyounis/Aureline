@@ -1,0 +1,597 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/form_probe_state.schema.json",
+  "title": "Aureline form probe-state boundary",
+  "description": "Boundary schema for one form_probe_state_record frozen in docs/ux/forms_validation_contract.md. A probe-state record captures one sync validation, async external probe, auth check, policy check, dry-run result, target-discovery result, or secret-resolution result that can influence a high-impact form before apply. The record preserves probe source, version, target, scope, safety class, freshness, lifecycle state, result tier, stale/skipped admission, apply gating, and support/issue-handoff attribution. Raw secrets, raw URLs, raw hostnames, raw request bodies, raw policy bundles, raw certificate material, raw package registry addresses, raw database coordinates, raw connection strings, raw filesystem paths, and raw provider payloads never appear here; use opaque refs and redaction-aware summaries. Adding an enum value is additive-minor and bumps form_probe_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/form_probe_state_record",
+  "$defs": {
+    "form_probe_state_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "form_probe_state_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Stable opaque id safe for logs, RPC, support bundles, and issue handoff."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "settings_form",
+        "connection_setup_form",
+        "data_connection_form",
+        "package_action_form",
+        "policy_edit_form",
+        "repair_action_form",
+        "network_transport_form",
+        "request_runtime_form",
+        "runtime_target_form",
+        "extension_install_form",
+        "migration_import_form",
+        "generic_high_impact_form"
+      ]
+    },
+    "validation_class": {
+      "type": "string",
+      "enum": [
+        "local_syntax",
+        "schema",
+        "local_capability",
+        "secret_resolution",
+        "external_probe",
+        "remote_auth",
+        "policy",
+        "dry_run",
+        "dependency_graph",
+        "target_discovery"
+      ]
+    },
+    "probe_source_class": {
+      "type": "string",
+      "enum": [
+        "inline_client_validator",
+        "schema_registry",
+        "settings_resolver",
+        "connection_broker",
+        "secret_broker",
+        "package_adapter",
+        "policy_engine",
+        "transport_resolver",
+        "request_runtime",
+        "project_doctor",
+        "repair_supervisor",
+        "network_probe_runner",
+        "managed_provider",
+        "support_replay",
+        "ai_tool_review"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "setting_key",
+        "connection_profile",
+        "package_manifest",
+        "policy_bundle",
+        "repair_transaction",
+        "network_endpoint",
+        "request_origin",
+        "runtime_target",
+        "secret_handle",
+        "filesystem_path",
+        "external_service",
+        "route_or_tunnel",
+        "package_registry",
+        "database_engine",
+        "unknown_target"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "user_profile",
+        "machine",
+        "workspace",
+        "folder_or_module",
+        "project",
+        "package_manifest",
+        "tenant",
+        "remote_session",
+        "runtime_environment",
+        "request_environment",
+        "repair_transaction",
+        "support_export",
+        "admin_policy_scope"
+      ]
+    },
+    "probe_safety_class": {
+      "type": "string",
+      "enum": [
+        "sync_local_non_mutating",
+        "async_external_non_mutating",
+        "dry_run_non_mutating",
+        "mutating_preflight_declared",
+        "mutating_probe_forbidden"
+      ],
+      "description": "Declares whether the probe can run without side effects. mutating_probe_forbidden means this check must be represented by a preview/apply record, not by a validation probe."
+    },
+    "probe_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "pending",
+        "current_passed",
+        "current_warning",
+        "current_failed",
+        "current_blocking_failed",
+        "skipped_by_user",
+        "skipped_by_policy",
+        "policy_blocked",
+        "stale_passed",
+        "stale_warning",
+        "stale_failed",
+        "expired",
+        "unsupported"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "pending",
+        "current",
+        "warm_within_grace",
+        "stale_within_grace",
+        "stale_beyond_grace",
+        "skipped",
+        "unknown"
+      ]
+    },
+    "stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "field_changed_after_probe",
+        "target_identity_changed",
+        "scope_changed_after_probe",
+        "credential_changed_after_probe",
+        "policy_epoch_changed",
+        "time_to_live_expired",
+        "provider_unreachable",
+        "support_replay_snapshot_only",
+        "unknown_staleness"
+      ]
+    },
+    "result_class": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "pending",
+        "valid",
+        "warning",
+        "error",
+        "blocking_error",
+        "policy_block",
+        "skipped",
+        "unsupported"
+      ]
+    },
+    "error_tier": {
+      "type": "string",
+      "enum": [
+        "none",
+        "info",
+        "advisory",
+        "warning",
+        "error",
+        "blocking",
+        "policy_block",
+        "security_block"
+      ]
+    },
+    "mutation_blocking_class": {
+      "type": "string",
+      "enum": [
+        "does_not_gate_apply",
+        "gates_apply_until_current",
+        "gates_apply_until_acknowledged",
+        "gates_apply_when_failed",
+        "gates_apply_by_policy",
+        "allows_apply_with_stale_validation",
+        "allows_apply_when_skipped",
+        "inspect_only_no_apply"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe",
+        "redact_value_preserve_shape",
+        "secret_handle_only",
+        "exclude_payload",
+        "support_restricted"
+      ]
+    },
+    "probe_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "source_ref",
+        "probe_version",
+        "actor_ref"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/probe_source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "probe_version": { "$ref": "#/$defs/non_empty_string" },
+        "actor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "probe_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "target_ref",
+        "raw_target_redacted"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "boundary_label_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "raw_target_redacted": {
+          "type": "boolean",
+          "description": "True when a raw endpoint, URL, path, host, registry, connection string, or other target payload was withheld."
+        }
+      }
+    },
+    "probe_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "scope_ref"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "captured_at",
+        "stale_after",
+        "stale_reason_class"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "captured_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "ISO 8601 duration or null when no probe ran."
+        },
+        "stale_reason_class": { "$ref": "#/$defs/stale_reason_class" }
+      }
+    },
+    "probe_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_class",
+        "error_tier",
+        "result_code",
+        "summary"
+      ],
+      "properties": {
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "error_tier": { "$ref": "#/$defs/error_tier" },
+        "result_code": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "remediation_action_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "apply_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutation_blocking_class",
+        "required_for_apply",
+        "acknowledgement_required",
+        "apply_action_may_proceed",
+        "apply_action_may_proceed_with_stale",
+        "apply_action_may_proceed_when_skipped"
+      ],
+      "properties": {
+        "mutation_blocking_class": { "$ref": "#/$defs/mutation_blocking_class" },
+        "required_for_apply": { "type": "boolean" },
+        "acknowledgement_required": { "type": "boolean" },
+        "apply_action_may_proceed": { "type": "boolean" },
+        "apply_action_may_proceed_with_stale": { "type": "boolean" },
+        "apply_action_may_proceed_when_skipped": { "type": "boolean" },
+        "gate_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_export_eligible",
+        "issue_handoff_eligible",
+        "evidence_refs",
+        "omitted_data_classes"
+      ],
+      "properties": {
+        "support_export_eligible": { "type": "boolean" },
+        "issue_handoff_eligible": { "type": "boolean" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "omitted_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "scenario"
+      ],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "form_probe_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "form_probe_state_id",
+        "surface_family",
+        "owning_form_ref",
+        "field_scope_refs",
+        "validation_class",
+        "probe_source",
+        "probe_target",
+        "probe_scope",
+        "probe_safety_class",
+        "probe_lifecycle_state",
+        "freshness",
+        "probe_result",
+        "apply_gate",
+        "attribution",
+        "redaction_class",
+        "emitted_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/form_probe_state_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "form_probe_state_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "owning_form_ref": { "$ref": "#/$defs/opaque_id" },
+        "field_scope_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "validation_class": { "$ref": "#/$defs/validation_class" },
+        "probe_source": { "$ref": "#/$defs/probe_source" },
+        "probe_target": { "$ref": "#/$defs/probe_target" },
+        "probe_scope": { "$ref": "#/$defs/probe_scope" },
+        "probe_safety_class": { "$ref": "#/$defs/probe_safety_class" },
+        "probe_lifecycle_state": { "$ref": "#/$defs/probe_lifecycle_state" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "probe_result": { "$ref": "#/$defs/probe_result" },
+        "apply_gate": { "$ref": "#/$defs/apply_gate" },
+        "attribution": { "$ref": "#/$defs/attribution" },
+        "linked_staged_review_state_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "A policy-blocked probe must render as a policy block and must not allow apply.",
+          "if": {
+            "properties": {
+              "probe_lifecycle_state": { "const": "policy_blocked" }
+            },
+            "required": ["probe_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "probe_result": {
+                "properties": {
+                  "result_class": { "const": "policy_block" },
+                  "error_tier": { "const": "policy_block" }
+                }
+              },
+              "apply_gate": {
+                "properties": {
+                  "mutation_blocking_class": { "const": "gates_apply_by_policy" },
+                  "apply_action_may_proceed": { "const": false }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A pending probe is not current and cannot present a success result.",
+          "if": {
+            "properties": {
+              "probe_lifecycle_state": { "const": "pending" }
+            },
+            "required": ["probe_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "freshness_class": { "const": "pending" }
+                }
+              },
+              "probe_result": {
+                "properties": {
+                  "result_class": { "const": "pending" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Skipped probe lifecycle states must render as skipped freshness and skipped result.",
+          "if": {
+            "properties": {
+              "probe_lifecycle_state": {
+                "enum": ["skipped_by_user", "skipped_by_policy"]
+              }
+            },
+            "required": ["probe_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "freshness_class": { "const": "skipped" }
+                }
+              },
+              "probe_result": {
+                "properties": {
+                  "result_class": { "const": "skipped" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Expired or stale probes cannot be marked current.",
+          "if": {
+            "properties": {
+              "probe_lifecycle_state": {
+                "enum": ["stale_passed", "stale_warning", "stale_failed", "expired"]
+              }
+            },
+            "required": ["probe_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "freshness_class": {
+                    "enum": ["warm_within_grace", "stale_within_grace", "stale_beyond_grace", "unknown"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Policy-gated apply must not simultaneously claim apply can proceed.",
+          "if": {
+            "properties": {
+              "apply_gate": {
+                "properties": {
+                  "mutation_blocking_class": { "const": "gates_apply_by_policy" }
+                },
+                "required": ["mutation_blocking_class"]
+              }
+            },
+            "required": ["apply_gate"]
+          },
+          "then": {
+            "properties": {
+              "apply_gate": {
+                "properties": {
+                  "apply_action_may_proceed": { "const": false }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

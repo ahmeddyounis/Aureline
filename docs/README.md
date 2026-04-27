@@ -566,6 +566,16 @@ code.
   [`/schemas/ux/live_set_state.schema.json`](../schemas/ux/live_set_state.schema.json);
   worked fixtures in
   [`/fixtures/ux/live_review_examples/`](../fixtures/ux/live_review_examples/).
+- [`ux/forms_validation_contract.md`](./ux/forms_validation_contract.md)
+  — shared form-validation, async-probe, and staged-review contract
+  for settings, connections, packages, policy edits, repairs,
+  transport forms, request/runtime forms, and secret-bearing or
+  external-target validation flows. Boundary schemas in
+  [`/schemas/ux/form_probe_state.schema.json`](../schemas/ux/form_probe_state.schema.json)
+  and
+  [`/schemas/ux/staged_review_state.schema.json`](../schemas/ux/staged_review_state.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/form_validation_cases/`](../fixtures/ux/form_validation_cases/).
 - [`ux/degraded_mode_pattern.md`](./ux/degraded_mode_pattern.md)
   — degraded-mode template and lifecycle-status card family for
   workspaces, extensions, remote sessions, collaboration sessions, AI

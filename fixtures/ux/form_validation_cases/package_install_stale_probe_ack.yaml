@@ -1,0 +1,85 @@
+schema_version: 1
+record_kind: staged_review_state_record
+staged_review_state_id: staged_review:package.install_stale:001
+surface_family: package_action_form
+owning_flow_ref: package.review:install.native:001
+review_surface_class: full_sheet
+apply_timing_class: preview_first_apply_required
+staging_lifecycle_state: staged_review_ready
+basis:
+  live_value_ref: package_manifest:workspace.current:001
+  staged_value_ref: package_review:install.native.proposed:001
+  baseline_snapshot_ref: lockfile_snapshot:pre_install:001
+  staging_started_at: "2026-04-27T09:07:00Z"
+  last_live_refresh_at: "2026-04-27T09:04:20Z"
+  value_source_class: user_input
+  changed_field_count: 2
+  side_effect_classes:
+    - package_lockfile_change
+  basis_summary: The package review has a lockfile checkpoint and one advisory probe is stale.
+validation_summary:
+  validation_rollup_state: stale
+  sync_validation_state: current_passed
+  async_probe_state: stale
+  stale_validation_handling: allow_stale_with_ack
+  mutation_blocking_tier: soft_block
+  currentness_label: stale
+  summary: The advisory mirror freshness probe is stale and requires acknowledgement before apply.
+probe_state_refs:
+  - form_probe_state_id_ref: probe:package.mirror_freshness:001
+    gate_role: advisory_context
+    last_known_lifecycle_state: stale_warning
+    freshness_class: stale_within_grace
+    apply_impact_class: requires_acknowledgement
+field_rows:
+  - field_ref: field:package.name
+    label: Package
+    parameter_source_class: user_input
+    value_redaction_class: none
+    field_validation_state: valid
+    staged_change_class: added
+    lock_state: unlocked
+    field_summary: Package identifier resolves in the curated registry cache.
+  - field_ref: field:package.registry
+    label: Registry source
+    parameter_source_class: managed_provider
+    value_redaction_class: class_label_only
+    field_validation_state: stale
+    staged_change_class: none
+    lock_state: unlocked
+    field_summary: Mirror freshness is stale but still inside the declared grace window.
+lock_policy_explanations: []
+apply_actions:
+  - action_id: action:apply_package_install
+    action_class: apply_changes
+    availability_class: enabled_requires_ack
+    mutation_class: local_mutation
+    requires_current_validation: false
+    action_summary: Apply is available only after acknowledging stale mirror freshness.
+  - action_id: action:revalidate_package_mirror
+    action_class: revalidate
+    availability_class: enabled
+    mutation_class: read_only
+    requires_current_validation: false
+    action_summary: Refresh the non-mutating mirror freshness probe.
+support_handoff:
+  support_export_eligible: true
+  issue_handoff_eligible: true
+  evidence_refs:
+    - evidence:package.review:install.native:001
+    - evidence:package.probe:mirror_freshness:001
+  omitted_data_classes:
+    - raw_registry_url
+    - raw_lockfile_body
+  redaction_class: metadata_safe
+emitted_at: "2026-04-27T09:07:12Z"
+narrative_refs:
+  - docs/ux/forms_validation_contract.md
+  - docs/package/package_action_contract.md
+__fixture__:
+  name: package_install_stale_probe_ack
+  scenario: A package review can proceed only after the user acknowledges a stale advisory probe.
+  exercised_axes:
+    - stale_within_grace
+    - allow_stale_with_ack
+    - enabled_requires_ack

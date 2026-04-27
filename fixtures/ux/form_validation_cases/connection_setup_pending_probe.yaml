@@ -1,0 +1,87 @@
+schema_version: 1
+record_kind: staged_review_state_record
+staged_review_state_id: staged_review:connection.pending_probe:001
+surface_family: connection_setup_form
+owning_flow_ref: connection.form:warehouse:001
+review_surface_class: full_sheet
+apply_timing_class: staged_apply_required
+staging_lifecycle_state: staged_pending_validation
+basis:
+  live_value_ref: null
+  staged_value_ref: connection_profile:warehouse.proposed:001
+  baseline_snapshot_ref: null
+  staging_started_at: "2026-04-27T09:03:00Z"
+  last_live_refresh_at: null
+  value_source_class: user_input
+  changed_field_count: 4
+  side_effect_classes:
+    - credential_handle_reference
+    - external_network_probe
+    - database_connection_change
+  basis_summary: A new warehouse connection is staged but the broker probe is still pending.
+validation_summary:
+  validation_rollup_state: pending
+  sync_validation_state: current_passed
+  async_probe_state: pending
+  stale_validation_handling: block_until_current
+  mutation_blocking_tier: hard_block
+  currentness_label: pending
+  summary: Required broker and transport probes must finish before save.
+probe_state_refs:
+  - form_probe_state_id_ref: probe:connection.warehouse.broker:001
+    gate_role: required_for_apply
+    last_known_lifecycle_state: pending
+    freshness_class: pending
+    apply_impact_class: blocks_apply
+field_rows:
+  - field_ref: field:connection.engine
+    label: Engine
+    parameter_source_class: user_input
+    value_redaction_class: none
+    field_validation_state: valid
+    staged_change_class: added
+    lock_state: unlocked
+    field_summary: Engine class is syntactically valid.
+  - field_ref: field:connection.credential
+    label: Credential
+    parameter_source_class: secret_handle
+    value_redaction_class: secret_handle_only
+    field_validation_state: pending
+    staged_change_class: added
+    lock_state: unlocked
+    field_summary: Credential handle is pending broker confirmation.
+lock_policy_explanations: []
+apply_actions:
+  - action_id: action:save_connection
+    action_class: apply_changes
+    availability_class: disabled_pending_validation
+    mutation_class: secret_bearing_mutation
+    requires_current_validation: true
+    action_summary: Save is disabled until the broker probe completes.
+  - action_id: action:revalidate_connection
+    action_class: revalidate
+    availability_class: enabled
+    mutation_class: read_only
+    requires_current_validation: false
+    action_summary: Restart the non-mutating broker probe.
+support_handoff:
+  support_export_eligible: true
+  issue_handoff_eligible: true
+  evidence_refs:
+    - evidence:connection.pending_probe:001
+  omitted_data_classes:
+    - raw_connection_string
+    - raw_hostname
+    - raw_secret
+  redaction_class: secret_handle_only
+emitted_at: "2026-04-27T09:03:06Z"
+narrative_refs:
+  - docs/ux/forms_validation_contract.md
+  - docs/data/database_tooling_contract.md
+__fixture__:
+  name: connection_setup_pending_probe
+  scenario: A connection form has valid local fields but cannot save until the async broker probe is current.
+  exercised_axes:
+    - pending
+    - hard_block
+    - secret_handle_only
