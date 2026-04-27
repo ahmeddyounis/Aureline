@@ -226,10 +226,14 @@ and scopes.
 ### Quality engineering
 
 - The `benchmark_governance`, `benchmark_change_control`,
+  `external_proof_program_packet`,
+  `design_partner_intake_checklist`,
   `benchmark_reference_hardware_manifest`,
   `benchmark_lab_image_manifest`, `benchmark_self_capture_parity`,
   `protected_metrics_file`, `benchmark_publication_pack`,
-  `benchmark_public_comparison_rules`, `fitness_function_catalog`,
+  `benchmark_publication_rehearsal_checklist`,
+  `benchmark_public_comparison_rules`, `fixture_privacy_clearance_cases`,
+  `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `journey_trace_schema`,
   `journey_harness_tool`, `journey_trace_seed`,
   `protected_path_ledger`, `latency_budget_ledger`,
@@ -257,6 +261,17 @@ and scopes.
   so exact command line, corpus revision, protected-metrics revision,
   comparability, docs applicability, known limits, and competitor
   settings are frozen in one packet.
+- Design-partner and partner-derived fixture inputs now route through
+  [`docs/program/design_partner_and_public_proof_packet.md`](../program/design_partner_and_public_proof_packet.md)
+  and
+  [`artifacts/program/design_partner_intake_checklist.yaml`](../../artifacts/program/design_partner_intake_checklist.yaml).
+  Privacy clearance cases live in
+  [`fixtures/bench/privacy_clearance_cases/`](../../fixtures/bench/privacy_clearance_cases/),
+  and benchmark-publication dry runs route through
+  [`artifacts/bench/publication_rehearsal_checklist.yaml`](../../artifacts/bench/publication_rehearsal_checklist.yaml).
+  Do not admit raw partner bytes, raw traces, support packets, or
+  license-restricted corpora into public proof without a recorded
+  clearance decision, bundle ref, owner coverage, and rehearsal result.
 - Benchmark-publication packs now share the same packet-header and
   evidence-id join rules as verification and signoff packets. Reuse the
   same `evidence_id` when a benchmark run also appears in a design,

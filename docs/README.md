@@ -191,6 +191,10 @@ code.
 - [`benchmarks/public_comparison_rules.md`](./benchmarks/public_comparison_rules.md)
   — methodology-only versus claim-bearing publication rules and
   head-to-head comparison disclosure requirements.
+- [`program/design_partner_and_public_proof_packet.md`](./program/design_partner_and_public_proof_packet.md)
+  — design-partner intake, privacy-clearance, and publication-rehearsal
+  packet tying external proof inputs to workflow-bundle ids, exact-build
+  linkage, known limits, owners, and public-proof review steps.
 
 ## Platform conformance
 

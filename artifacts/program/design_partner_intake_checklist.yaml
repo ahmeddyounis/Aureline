@@ -1,0 +1,274 @@
+# Design-partner, fixture-repository, and reference-workspace intake checklist.
+#
+# Tooling and reviewers use this checklist before any partner-derived or
+# external input can become benchmark corpus, reference-workspace evidence,
+# support-packet evidence, release evidence, or public-proof material.
+# The narrative companion is docs/program/design_partner_and_public_proof_packet.md.
+
+schema_version: 1
+checklist_id: aureline.program.design_partner_intake
+status: seeded
+overview_doc: docs/program/design_partner_and_public_proof_packet.md
+
+authoritative_sources:
+  public_proof_register: artifacts/qe/workflow_bundle_ids.yaml
+  reference_workspace_rows: artifacts/compat/reference_workspace_rows.yaml
+  benchmark_corpus_manifest: fixtures/benchmarks/corpus_manifest.yaml
+  benchmark_corpus_change_control: artifacts/bench/corpus_change_control.yaml
+  benchmark_publication_pack_template: docs/benchmarks/benchmark_publication_pack_template.md
+  public_comparison_rules: docs/benchmarks/public_comparison_rules.md
+  exact_build_identity_model: docs/build/exact_build_identity_model.md
+  known_limits_contract: docs/product/known_limits_contract.md
+  ownership_matrix: artifacts/governance/ownership_matrix.yaml
+  evidence_freshness_slos: artifacts/governance/evidence_freshness_slos.yaml
+  evidence_rerun_triggers: artifacts/governance/evidence_rerun_triggers.yaml
+  privacy_clearance_cases: fixtures/bench/privacy_clearance_cases/
+
+workflow_bundle_refs:
+  - bundle_id: launch_bundle:typescript_web_app.seed
+    bundle_revision: 1
+    archetype_row_refs:
+      - archetype_row_id: archetype_row:ts_web_app_or_service
+        archetype_revision: 1
+    admissible_target_classes:
+      - design_partner_repository
+      - fixture_repository
+      - reference_workspace
+      - benchmark_corpus
+  - bundle_id: launch_bundle:python_service_or_data_app.seed
+    bundle_revision: 1
+    archetype_row_refs:
+      - archetype_row_id: archetype_row:python_service_or_data_app
+        archetype_revision: 1
+    admissible_target_classes:
+      - design_partner_repository
+      - fixture_repository
+      - reference_workspace
+      - benchmark_corpus
+  - bundle_id: launch_bundle:rust_workspace.seed
+    bundle_revision: 1
+    archetype_row_refs:
+      - archetype_row_id: archetype_row:rust_workspace
+        archetype_revision: 1
+    admissible_target_classes:
+      - self_host_reference_slice
+      - fixture_repository
+      - reference_workspace
+      - benchmark_corpus
+
+target_class_vocabulary:
+  - design_partner_repository
+  - fixture_repository
+  - reference_workspace
+  - benchmark_corpus
+  - benchmark_trace
+  - support_packet
+  - self_host_reference_slice
+
+intake_state_vocabulary:
+  - proposed
+  - blocked_missing_identity
+  - privacy_review
+  - license_review
+  - redaction_required
+  - approval_pending
+  - admitted_public
+  - admitted_internal_only
+  - excluded_until_replaced
+  - withdrawn
+
+privacy_decision_vocabulary:
+  - admit_public
+  - admit_internal_only
+  - redact_then_admit
+  - exclude_until_replaced
+  - withdraw_existing_use
+
+approval_step_vocabulary:
+  - bundle_identity_bound
+  - source_lineage_recorded
+  - license_review_complete
+  - privacy_clearance_complete
+  - retention_and_access_review_complete
+  - owner_and_backup_coverage_recorded
+  - corpus_or_reference_workspace_row_prepared
+  - benchmark_rehearsal_linked
+  - publication_owner_signoff
+
+required_owner_refs:
+  selection_owner_lane: lane:compatibility_ecosystem_review
+  evidence_owner_lane: lane:benchmark_lab
+  publication_owner_lane: lane:release_evidence
+  docs_owner_lane: lane:docs_public_truth
+  backup_policy_ref: artifacts/governance/ownership_matrix.yaml
+
+check_groups:
+  - group_id: identity_and_scope
+    title: Identity and scope
+    blocking: true
+    checks:
+      - check_id: workflow_bundle_ref_present
+        required_for:
+          - design_partner_repository
+          - fixture_repository
+          - reference_workspace
+          - benchmark_corpus
+          - benchmark_trace
+          - support_packet
+        required_fields:
+          - workflow_bundle_ref.bundle_id
+          - workflow_bundle_ref.bundle_revision
+          - target_class
+          - evidence_use_classes
+        failure_state: blocked_missing_identity
+      - check_id: archetype_row_ref_present_when_archetype_bound
+        required_for:
+          - design_partner_repository
+          - reference_workspace
+          - benchmark_corpus
+        required_fields:
+          - archetype_row_ref.archetype_row_id
+          - archetype_row_ref.archetype_revision
+        failure_state: blocked_missing_identity
+      - check_id: public_proof_scoreboard_family_selected
+        required_fields:
+          - scoreboard_family_id
+          - intended_packet_shape
+        allowed_scoreboard_families:
+          - workflow_bundle_or_archetype_proof_scoreboard
+          - benchmark_and_public_proof_packet_scoreboard
+          - docs_known_limits_support_copy_alignment_scoreboard
+
+  - group_id: source_lineage
+    title: Source lineage and corpus provenance
+    blocking: true
+    checks:
+      - check_id: source_class_recorded
+        required_fields:
+          - source_class
+          - source_owner_ref
+          - source_revision_ref
+          - transformation_recipe_ref
+        allowed_source_classes:
+          - original_project_authored
+          - synthetic
+          - design_partner_derived
+          - third_party_with_attribution
+          - self_host_slice
+      - check_id: corpus_lineage_not_ambiguous
+        required_fields:
+          - corpus_or_reference_workspace_ref
+          - lineage_summary
+          - upstream_corpus_refs
+        failure_state: blocked_missing_identity
+      - check_id: private_names_redacted_from_public_refs
+        required_fields:
+          - public_label
+          - private_name_storage_ref
+        public_packet_rule: public_refs_use_stable_ids_or_redacted_labels_only
+
+  - group_id: license_privacy_retention
+    title: License, privacy, retention, and access
+    blocking: true
+    checks:
+      - check_id: license_review_complete
+        required_fields:
+          - license_posture
+          - redistribution_posture
+          - attribution_ref
+          - license_reviewer_ref
+      - check_id: privacy_clearance_complete
+        required_fields:
+          - secret_scan_ref
+          - personal_data_scan_ref
+          - path_and_name_redaction_ref
+          - privacy_decision
+          - review_evidence_refs
+      - check_id: retention_and_access_review_complete
+        required_fields:
+          - retention_class
+          - delete_or_refresh_posture
+          - access_control_class
+          - segregated_storage_ref
+      - check_id: support_export_safe_if_support_packet
+        required_for:
+          - support_packet
+        required_fields:
+          - support_export_redaction_result
+          - support_export_destination_refs
+        failure_decisions:
+          - admit_internal_only
+          - exclude_until_replaced
+
+  - group_id: corpus_and_reference_workspace_admission
+    title: Corpus and reference-workspace admission
+    blocking: true
+    checks:
+      - check_id: benchmark_corpus_row_prepared_when_needed
+        required_for:
+          - fixture_repository
+          - benchmark_corpus
+          - reference_workspace
+        required_fields:
+          - corpus_ref
+          - corpus_class
+          - visibility_class
+          - license_status
+          - retention_class
+          - evidence_consumer_channels
+      - check_id: reference_workspace_row_prepared_when_needed
+        required_for:
+          - design_partner_repository
+          - reference_workspace
+        required_fields:
+          - reference_workspace_ref
+          - sanitisation_profile_ref
+          - partner_approval_ref
+          - design_partner_input_class
+      - check_id: restricted_inputs_do_not_ship_in_public_repo
+        failure_rule: >
+          Inputs with visibility_class restricted or license_status
+          requires_extra_privacy_review_before_ci remain outside public
+          CI and public packets until a sanitised replacement lands.
+
+  - group_id: owner_refresh_and_signoff
+    title: Owner coverage, refresh cadence, and signoff
+    blocking: true
+    checks:
+      - check_id: owners_and_backup_coverage_recorded
+        required_fields:
+          - selection_owner_ref
+          - evidence_owner_ref
+          - publication_owner_ref
+          - backup_owner_ref_or_waiver
+      - check_id: freshness_and_rerun_triggers_recorded
+        required_fields:
+          - freshness_cadence
+          - stale_after
+          - rerun_trigger_refs
+        allowed_rerun_trigger_refs:
+          - corpus_or_fixture_revision_changed
+          - exact_build_identity_chain_changed
+          - claim_row_or_channel_binding_changed
+          - support_window_or_release_family_changed
+      - check_id: benchmark_publication_rehearsal_linked
+        required_fields:
+          - publication_rehearsal_ref
+          - rehearsal_lane_refs
+        failure_state: approval_pending
+
+admission_rules:
+  - rule_id: no_public_packet_without_privacy_clearance
+    summary: >
+      Public benchmark, compatibility, migration, and public-proof packets
+      may cite only admitted_public or redact_then_admit inputs.
+  - rule_id: internal_only_inputs_require_narrowed_public_copy
+    summary: >
+      Inputs admitted_internal_only may feed release evidence by stable
+      ref, but public packets must cite derived metrics, redacted labels,
+      or known-limit notes.
+  - rule_id: excluded_inputs_block_claim_widening
+    summary: >
+      Excluded or withdrawn inputs block benchmark, compatibility,
+      migration, and public-proof claim widening until replacement
+      evidence is admitted through this checklist.
