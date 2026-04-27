@@ -1,0 +1,647 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/managed/usage_export_row.schema.json",
+  "title": "Aureline managed usage-export row record",
+  "description": "Boundary schema for one usage_export_row_record frozen in docs/managed/metering_and_usage_export_contract.md. Monthly and bounded customer-visible usage exports emit one row per scope, quota family, unit, time basis, source class, and authority class. Rows preserve whether usage came from an authoritative service meter, cached service meter, local estimate, mixed reconciliation, unavailable gap marker, policy-suppressed marker, BYOK external reference, or admin adjustment. Raw prompts, code payloads, user emails, tenant names, billing ids, invoice ids, provider URLs, and provider account identifiers never cross this boundary. Adding enum values is additive-minor and requires a schema_version bump plus a fixture; repurposing an existing value is breaking.",
+  "$ref": "#/$defs/usage_export_row_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, exports, support packets, and offboarding packets. Raw customer, billing, provider, URL, prompt, and code identifiers never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-safe sentence. Must not contain raw prompts, raw code, raw emails, raw tenant names, raw billing ids, raw invoice ids, raw URLs, or provider account identifiers."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "cached",
+        "estimated",
+        "unavailable",
+        "policy_suppressed"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "service_meter_authoritative",
+        "service_meter_cached",
+        "client_local_estimate",
+        "reconciled_mixed",
+        "unavailable_gap_marker",
+        "policy_suppressed_marker",
+        "byok_vendor_external_reference",
+        "admin_adjustment"
+      ]
+    },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_settings_sync",
+        "collaboration_relay_presence",
+        "remote_workspace_control_plane",
+        "ai_gateway",
+        "registry_mirror_services",
+        "support_ingest",
+        "entitlement_usage_export",
+        "offboarding_export"
+      ]
+    },
+    "quota_family_class": {
+      "type": "string",
+      "enum": [
+        "ai_tokens",
+        "ai_tool_invocations",
+        "ai_managed_validation_runs",
+        "managed_workspace_hours",
+        "managed_workspace_storage",
+        "collaboration_participant_minutes",
+        "profile_sync_bytes",
+        "registry_downloads",
+        "support_ingest_bytes",
+        "aggregate_managed_service_spend",
+        "custom_contractual_quota"
+      ]
+    },
+    "quota_unit_class": {
+      "type": "string",
+      "enum": [
+        "tokens",
+        "tool_invocations",
+        "validation_run_count",
+        "workspace_hours",
+        "bytes_stored",
+        "bytes_transferred",
+        "participant_minutes",
+        "download_count",
+        "support_bundle_count",
+        "orchestration_ops",
+        "spend_units",
+        "request_count"
+      ]
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "usage_event_time",
+        "service_ingest_time",
+        "rating_window_close_time",
+        "export_generation_time",
+        "policy_effective_time"
+      ]
+    },
+    "aggregation_method_class": {
+      "type": "string",
+      "enum": [
+        "sum",
+        "max",
+        "count",
+        "distinct_count",
+        "duration_sum",
+        "snapshot",
+        "gap_marker"
+      ]
+    },
+    "precision_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "rounded",
+        "bucketed",
+        "estimated",
+        "redacted_policy",
+        "unavailable",
+        "not_applicable"
+      ]
+    },
+    "reset_window_class": {
+      "type": "string",
+      "enum": [
+        "calendar_month_utc",
+        "rolling_24h",
+        "rolling_7d",
+        "rolling_30d",
+        "contract_term",
+        "manual_admin_reset",
+        "no_reset_window",
+        "unknown_unavailable",
+        "policy_suppressed"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "organization",
+        "user",
+        "workspace",
+        "repository",
+        "feature",
+        "provider",
+        "model",
+        "action",
+        "support_case",
+        "offboarding_packet"
+      ]
+    },
+    "spend_attribution_dimension_class": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "organization",
+        "user",
+        "workspace",
+        "repository",
+        "feature",
+        "provider",
+        "model",
+        "action",
+        "execution_locus",
+        "region",
+        "quota_family",
+        "managed_service",
+        "source_class"
+      ]
+    },
+    "caveat_class": {
+      "type": "string",
+      "enum": [
+        "rounding_applied",
+        "late_arriving_events_possible",
+        "provider_attribution_partial",
+        "mixed_source_reconciliation",
+        "policy_suppressed_amount",
+        "policy_suppressed_scope",
+        "service_unavailable",
+        "local_estimate_pending_reconciliation",
+        "cache_stale",
+        "reset_window_unknown",
+        "outside_platform_scope",
+        "byok_vendor_billed_elsewhere",
+        "offboarding_partial_export"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "suppressed_field_class": {
+      "type": "string",
+      "enum": [
+        "quantity",
+        "limit",
+        "spend",
+        "scope",
+        "provider",
+        "model",
+        "action",
+        "caveat_detail"
+      ]
+    },
+    "time_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_basis_class",
+        "window_start_at",
+        "window_end_at",
+        "generated_at"
+      ],
+      "properties": {
+        "time_basis_class": { "$ref": "#/$defs/time_basis_class" },
+        "window_start_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "window_end_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "timezone": {
+          "type": "string",
+          "const": "UTC"
+        },
+        "basis_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "scope_ref",
+        "parent_scope_refs"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "parent_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "usage_quantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quantity",
+        "unit_class",
+        "precision_class",
+        "aggregation_method_class"
+      ],
+      "properties": {
+        "quantity": {
+          "type": ["number", "null"]
+        },
+        "unit_class": { "$ref": "#/$defs/quota_unit_class" },
+        "precision_class": { "$ref": "#/$defs/precision_class" },
+        "aggregation_method_class": { "$ref": "#/$defs/aggregation_method_class" },
+        "quantity_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "usage_limit_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "limit_quantity",
+        "reset_window_class",
+        "next_reset_at"
+      ],
+      "properties": {
+        "limit_quantity": {
+          "type": ["number", "null"]
+        },
+        "reset_window_class": { "$ref": "#/$defs/reset_window_class" },
+        "next_reset_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "limit_source_ref": { "$ref": "#/$defs/opaque_id" },
+        "limit_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "spend_attribution": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dimension_class",
+          "value_ref"
+        ],
+        "properties": {
+          "dimension_class": { "$ref": "#/$defs/spend_attribution_dimension_class" },
+          "value_ref": { "$ref": "#/$defs/opaque_id" },
+          "value_label": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "caveat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caveat_class",
+        "note"
+      ],
+      "properties": {
+        "caveat_class": { "$ref": "#/$defs/caveat_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "deployment_profile_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "export_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "customer_visible",
+        "support_export_safe",
+        "redaction_class",
+        "policy_suppressed_fields"
+      ],
+      "properties": {
+        "customer_visible": { "type": "boolean" },
+        "support_export_safe": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_suppressed_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppressed_field_class" }
+        }
+      }
+    },
+    "offboarding_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "included_in_offboarding_packet",
+        "available_after_seat_end",
+        "support_ticket_required",
+        "offboarding_summary"
+      ],
+      "properties": {
+        "included_in_offboarding_packet": { "type": "boolean" },
+        "available_after_seat_end": { "type": "boolean" },
+        "support_ticket_required": {
+          "type": "boolean",
+          "const": false
+        },
+        "offboarding_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_ref",
+        "quota_state_refs",
+        "record_class_ref"
+      ],
+      "properties": {
+        "contract_ref": {
+          "type": "string",
+          "const": "docs/managed/metering_and_usage_export_contract.md"
+        },
+        "quota_state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "record_class_ref": { "$ref": "#/$defs/opaque_id" },
+        "export_manifest_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "usage_export_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "usage_export_row_id",
+        "export_job_ref",
+        "row_sequence",
+        "time_basis",
+        "scope",
+        "service_family_class",
+        "quota_family_class",
+        "quota_unit_class",
+        "source_class",
+        "authority_class",
+        "usage_quantity",
+        "usage_limit_snapshot",
+        "spend_attribution",
+        "caveats",
+        "policy_context",
+        "export_visibility",
+        "offboarding_posture",
+        "links"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "usage_export_row_record"
+        },
+        "usage_export_row_id": { "$ref": "#/$defs/opaque_id" },
+        "export_job_ref": { "$ref": "#/$defs/opaque_id" },
+        "row_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "time_basis": { "$ref": "#/$defs/time_basis" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "service_family_class": { "$ref": "#/$defs/service_family_class" },
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "quota_unit_class": { "$ref": "#/$defs/quota_unit_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "usage_quantity": { "$ref": "#/$defs/usage_quantity" },
+        "usage_limit_snapshot": { "$ref": "#/$defs/usage_limit_snapshot" },
+        "spend_attribution": { "$ref": "#/$defs/spend_attribution" },
+        "caveats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/caveat" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "export_visibility": { "$ref": "#/$defs/export_visibility" },
+        "offboarding_posture": { "$ref": "#/$defs/offboarding_posture" },
+        "links": { "$ref": "#/$defs/links" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture-only annotation block; never emitted by runtime producers."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Authoritative service meter rows must carry authoritative authority.",
+          "if": {
+            "properties": {
+              "source_class": { "const": "service_meter_authoritative" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "authoritative" }
+            }
+          }
+        },
+        {
+          "description": "Cached service rows must carry cached authority and at least one cache-stale caveat.",
+          "if": {
+            "properties": {
+              "source_class": { "const": "service_meter_cached" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "cached" },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": { "const": "cache_stale" }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Client estimate rows must carry estimated authority and a local-estimate caveat.",
+          "if": {
+            "properties": {
+              "source_class": { "const": "client_local_estimate" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "estimated" },
+              "usage_quantity": {
+                "properties": {
+                  "precision_class": { "const": "estimated" }
+                }
+              },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": { "const": "local_estimate_pending_reconciliation" }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Unavailable gap marker rows must carry unavailable authority and null quantity.",
+          "if": {
+            "properties": {
+              "source_class": { "const": "unavailable_gap_marker" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "unavailable" },
+              "usage_quantity": {
+                "properties": {
+                  "quantity": { "type": "null" },
+                  "precision_class": { "const": "unavailable" },
+                  "aggregation_method_class": { "const": "gap_marker" }
+                }
+              },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": { "const": "service_unavailable" }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Policy-suppressed rows must carry policy_suppressed authority, null quantity, suppressed fields, and a policy caveat.",
+          "if": {
+            "properties": {
+              "source_class": { "const": "policy_suppressed_marker" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "policy_suppressed" },
+              "usage_quantity": {
+                "properties": {
+                  "quantity": { "type": "null" },
+                  "precision_class": { "const": "redacted_policy" }
+                }
+              },
+              "export_visibility": {
+                "properties": {
+                  "policy_suppressed_fields": { "minItems": 1 }
+                }
+              },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": {
+                      "enum": [
+                        "policy_suppressed_amount",
+                        "policy_suppressed_scope"
+                      ]
+                    }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Any non-authoritative row must carry at least one caveat.",
+          "if": {
+            "properties": {
+              "authority_class": {
+                "enum": [
+                  "cached",
+                  "estimated",
+                  "unavailable",
+                  "policy_suppressed"
+                ]
+              }
+            },
+            "required": ["authority_class"]
+          },
+          "then": {
+            "properties": {
+              "caveats": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

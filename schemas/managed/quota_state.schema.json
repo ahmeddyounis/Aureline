@@ -1,0 +1,731 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/managed/quota_state.schema.json",
+  "title": "Aureline managed metering quota-state record",
+  "description": "Boundary schema for one quota_state_record frozen in docs/managed/metering_and_usage_export_contract.md. The record is the product-wide explainability object for managed quota and usage displays. It separates authority class, source class, meter freshness, scope, unit, reset window, numeric readout, spend attribution, caveats, and downgrade behavior so UI, CLI, AI, support, dashboard, and offboarding surfaces can distinguish authoritative, cached, estimated, unavailable, and policy-suppressed states without hidden billing assumptions. Raw prompts, code payloads, user emails, tenant names, billing ids, invoice ids, provider URLs, and provider account identifiers never cross this boundary. Adding enum values is additive-minor and requires a schema_version bump plus a fixture; repurposing an existing value is breaking.",
+  "$ref": "#/$defs/quota_state_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, exports, support packets, and offboarding packets. Raw customer, billing, provider, URL, prompt, and code identifiers never appear here."
+    },
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from an authoritative or monotonic timestamp source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-safe sentence. Must not contain raw prompts, raw code, raw emails, raw tenant names, raw billing ids, raw invoice ids, raw URLs, or provider account identifiers."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "cached",
+        "estimated",
+        "unavailable",
+        "policy_suppressed"
+      ]
+    },
+    "meter_reading_class": {
+      "type": "string",
+      "enum": [
+        "service_authoritative",
+        "service_cached",
+        "local_estimate",
+        "service_unavailable",
+        "policy_suppressed"
+      ]
+    },
+    "quota_status_class": {
+      "type": "string",
+      "enum": [
+        "within_quota",
+        "soft_limit_warning",
+        "hard_limit_exhausted",
+        "unavailable_cannot_bound",
+        "blocked_policy_suppressed",
+        "disabled_not_applicable"
+      ]
+    },
+    "quota_family_class": {
+      "type": "string",
+      "enum": [
+        "ai_tokens",
+        "ai_tool_invocations",
+        "ai_managed_validation_runs",
+        "managed_workspace_hours",
+        "managed_workspace_storage",
+        "collaboration_participant_minutes",
+        "profile_sync_bytes",
+        "registry_downloads",
+        "support_ingest_bytes",
+        "aggregate_managed_service_spend",
+        "custom_contractual_quota"
+      ]
+    },
+    "quota_unit_class": {
+      "type": "string",
+      "enum": [
+        "tokens",
+        "tool_invocations",
+        "validation_run_count",
+        "workspace_hours",
+        "bytes_stored",
+        "bytes_transferred",
+        "participant_minutes",
+        "download_count",
+        "support_bundle_count",
+        "orchestration_ops",
+        "spend_units",
+        "request_count"
+      ]
+    },
+    "precision_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "rounded",
+        "bucketed",
+        "estimated",
+        "redacted_policy",
+        "unavailable",
+        "not_applicable"
+      ]
+    },
+    "reset_window_class": {
+      "type": "string",
+      "enum": [
+        "calendar_month_utc",
+        "rolling_24h",
+        "rolling_7d",
+        "rolling_30d",
+        "contract_term",
+        "manual_admin_reset",
+        "no_reset_window",
+        "unknown_unavailable",
+        "policy_suppressed"
+      ]
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "usage_event_time",
+        "service_ingest_time",
+        "rating_window_close_time",
+        "export_generation_time",
+        "policy_effective_time"
+      ]
+    },
+    "stale_label_class": {
+      "type": "string",
+      "enum": [
+        "no_stale_label",
+        "cached_within_freshness_floor",
+        "cached_beyond_freshness_floor",
+        "estimate_pending_reconciliation",
+        "unavailable_meter",
+        "policy_suppressed_meter"
+      ]
+    },
+    "ui_confidence_label": {
+      "$ref": "#/$defs/authority_class"
+    },
+    "downgrade_action_class": {
+      "type": "string",
+      "enum": [
+        "allow_with_authoritative_meter",
+        "allow_with_cached_meter_label",
+        "allow_with_estimate_label",
+        "narrow_to_read_only",
+        "block_managed_action_with_reason",
+        "hide_amounts_show_policy_suppressed",
+        "unavailable_no_claim",
+        "fallback_to_byok_or_local",
+        "manual_review_required"
+      ]
+    },
+    "caveat_class": {
+      "type": "string",
+      "enum": [
+        "rounding_applied",
+        "late_arriving_events_possible",
+        "provider_attribution_partial",
+        "policy_suppressed_amount",
+        "policy_suppressed_scope",
+        "service_unavailable",
+        "local_estimate_pending_reconciliation",
+        "cache_stale",
+        "reset_window_unknown",
+        "outside_platform_scope",
+        "byok_vendor_billed_elsewhere",
+        "offboarding_partial_export"
+      ]
+    },
+    "spend_attribution_dimension_class": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "organization",
+        "user",
+        "workspace",
+        "repository",
+        "feature",
+        "provider",
+        "model",
+        "action",
+        "execution_locus",
+        "region",
+        "quota_family",
+        "managed_service",
+        "source_class"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "organization",
+        "user",
+        "workspace",
+        "repository",
+        "feature",
+        "provider",
+        "model",
+        "action",
+        "support_case",
+        "offboarding_packet"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "scope_ref",
+        "parent_scope_refs"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "parent_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "authority_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_class",
+        "meter_reading_class",
+        "ui_confidence_label",
+        "source_ref"
+      ],
+      "properties": {
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "meter_reading_class": { "$ref": "#/$defs/meter_reading_class" },
+        "ui_confidence_label": { "$ref": "#/$defs/ui_confidence_label" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "numeric_readout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "used_quantity",
+        "limit_quantity",
+        "remaining_quantity",
+        "precision_class",
+        "display_amount_class"
+      ],
+      "properties": {
+        "used_quantity": {
+          "type": ["number", "null"]
+        },
+        "limit_quantity": {
+          "type": ["number", "null"]
+        },
+        "remaining_quantity": {
+          "type": ["number", "null"]
+        },
+        "precision_class": { "$ref": "#/$defs/precision_class" },
+        "display_amount_class": {
+          "type": "string",
+          "enum": [
+            "show_quantity",
+            "show_bucket",
+            "show_estimate",
+            "hide_policy_suppressed",
+            "hide_unavailable",
+            "not_applicable"
+          ]
+        },
+        "rounding_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "reset_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reset_window_class",
+        "time_basis_class",
+        "current_window_start_at",
+        "current_window_end_at",
+        "next_reset_at",
+        "source_ref"
+      ],
+      "properties": {
+        "reset_window_class": { "$ref": "#/$defs/reset_window_class" },
+        "time_basis_class": { "$ref": "#/$defs/time_basis_class" },
+        "current_window_start_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "current_window_end_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "next_reset_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "reset_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "stale_meter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stale_label_class",
+        "last_refreshed_at",
+        "freshness_floor_expires_at",
+        "must_show_label",
+        "display_summary"
+      ],
+      "properties": {
+        "stale_label_class": { "$ref": "#/$defs/stale_label_class" },
+        "last_refreshed_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "freshness_floor_expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "must_show_label": { "type": "boolean" },
+        "display_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "downgrade_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_core_blocking",
+        "managed_action_posture",
+        "ai_surface_behavior",
+        "dashboard_behavior",
+        "support_packet_behavior",
+        "offboarding_export_behavior"
+      ],
+      "properties": {
+        "local_core_blocking": {
+          "type": "boolean",
+          "const": false
+        },
+        "managed_action_posture": { "$ref": "#/$defs/downgrade_action_class" },
+        "ai_surface_behavior": { "$ref": "#/$defs/downgrade_action_class" },
+        "dashboard_behavior": { "$ref": "#/$defs/downgrade_action_class" },
+        "support_packet_behavior": { "$ref": "#/$defs/downgrade_action_class" },
+        "offboarding_export_behavior": { "$ref": "#/$defs/downgrade_action_class" },
+        "typed_reason_ref": { "$ref": "#/$defs/opaque_id" },
+        "fallback_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "downgrade_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "spend_attribution": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dimension_class",
+          "value_ref"
+        ],
+        "properties": {
+          "dimension_class": { "$ref": "#/$defs/spend_attribution_dimension_class" },
+          "value_ref": { "$ref": "#/$defs/opaque_id" },
+          "value_label": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "caveat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caveat_class",
+        "note"
+      ],
+      "properties": {
+        "caveat_class": { "$ref": "#/$defs/caveat_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "deployment_profile_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_ref",
+        "service_slo_refs",
+        "record_class_ref"
+      ],
+      "properties": {
+        "contract_ref": {
+          "type": "string",
+          "const": "docs/managed/metering_and_usage_export_contract.md"
+        },
+        "service_slo_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "record_class_ref": { "$ref": "#/$defs/opaque_id" },
+        "usage_export_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "quota_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "quota_state_id",
+        "scope",
+        "quota_family_class",
+        "quota_unit_class",
+        "quota_status_class",
+        "authority",
+        "numeric_readout",
+        "reset_window",
+        "stale_meter",
+        "downgrade_behavior",
+        "spend_attribution",
+        "caveats",
+        "policy_context",
+        "minted_at",
+        "links"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "quota_state_record"
+        },
+        "quota_state_id": { "$ref": "#/$defs/opaque_id" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "quota_unit_class": { "$ref": "#/$defs/quota_unit_class" },
+        "quota_status_class": { "$ref": "#/$defs/quota_status_class" },
+        "authority": { "$ref": "#/$defs/authority_block" },
+        "numeric_readout": { "$ref": "#/$defs/numeric_readout" },
+        "reset_window": { "$ref": "#/$defs/reset_window" },
+        "stale_meter": { "$ref": "#/$defs/stale_meter" },
+        "downgrade_behavior": { "$ref": "#/$defs/downgrade_behavior" },
+        "spend_attribution": { "$ref": "#/$defs/spend_attribution" },
+        "caveats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/caveat" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "links": { "$ref": "#/$defs/links" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture-only annotation block; never emitted by runtime producers."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Authoritative states must use the service_authoritative source and no stale label.",
+          "if": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "authority_class": { "const": "authoritative" }
+                },
+                "required": ["authority_class"]
+              }
+            },
+            "required": ["authority"]
+          },
+          "then": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "meter_reading_class": { "const": "service_authoritative" },
+                  "ui_confidence_label": { "const": "authoritative" }
+                }
+              },
+              "stale_meter": {
+                "properties": {
+                  "stale_label_class": { "const": "no_stale_label" },
+                  "must_show_label": { "const": false }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Cached states must use service_cached and show a stale label.",
+          "if": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "authority_class": { "const": "cached" }
+                },
+                "required": ["authority_class"]
+              }
+            },
+            "required": ["authority"]
+          },
+          "then": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "meter_reading_class": { "const": "service_cached" },
+                  "ui_confidence_label": { "const": "cached" }
+                }
+              },
+              "stale_meter": {
+                "properties": {
+                  "stale_label_class": {
+                    "enum": [
+                      "cached_within_freshness_floor",
+                      "cached_beyond_freshness_floor"
+                    ]
+                  },
+                  "must_show_label": { "const": true }
+                }
+              },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": { "const": "cache_stale" }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Estimated states must use local_estimate and carry the estimate stale label.",
+          "if": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "authority_class": { "const": "estimated" }
+                },
+                "required": ["authority_class"]
+              }
+            },
+            "required": ["authority"]
+          },
+          "then": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "meter_reading_class": { "const": "local_estimate" },
+                  "ui_confidence_label": { "const": "estimated" }
+                }
+              },
+              "numeric_readout": {
+                "properties": {
+                  "precision_class": { "const": "estimated" },
+                  "display_amount_class": { "const": "show_estimate" }
+                }
+              },
+              "stale_meter": {
+                "properties": {
+                  "stale_label_class": { "const": "estimate_pending_reconciliation" },
+                  "must_show_label": { "const": true }
+                }
+              },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": { "const": "local_estimate_pending_reconciliation" }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Unavailable states must not display quantities as current truth.",
+          "if": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "authority_class": { "const": "unavailable" }
+                },
+                "required": ["authority_class"]
+              }
+            },
+            "required": ["authority"]
+          },
+          "then": {
+            "properties": {
+              "quota_status_class": { "const": "unavailable_cannot_bound" },
+              "authority": {
+                "properties": {
+                  "meter_reading_class": { "const": "service_unavailable" },
+                  "ui_confidence_label": { "const": "unavailable" }
+                }
+              },
+              "numeric_readout": {
+                "properties": {
+                  "used_quantity": { "type": "null" },
+                  "remaining_quantity": { "type": "null" },
+                  "precision_class": { "const": "unavailable" },
+                  "display_amount_class": { "const": "hide_unavailable" }
+                }
+              },
+              "stale_meter": {
+                "properties": {
+                  "stale_label_class": { "const": "unavailable_meter" },
+                  "must_show_label": { "const": true }
+                }
+              },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": { "const": "service_unavailable" }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Policy-suppressed states must not display quantities and must carry a policy-suppression caveat.",
+          "if": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "authority_class": { "const": "policy_suppressed" }
+                },
+                "required": ["authority_class"]
+              }
+            },
+            "required": ["authority"]
+          },
+          "then": {
+            "properties": {
+              "quota_status_class": { "const": "blocked_policy_suppressed" },
+              "authority": {
+                "properties": {
+                  "meter_reading_class": { "const": "policy_suppressed" },
+                  "ui_confidence_label": { "const": "policy_suppressed" }
+                }
+              },
+              "numeric_readout": {
+                "properties": {
+                  "used_quantity": { "type": "null" },
+                  "remaining_quantity": { "type": "null" },
+                  "precision_class": { "const": "redacted_policy" },
+                  "display_amount_class": { "const": "hide_policy_suppressed" }
+                }
+              },
+              "stale_meter": {
+                "properties": {
+                  "stale_label_class": { "const": "policy_suppressed_meter" },
+                  "must_show_label": { "const": true }
+                }
+              },
+              "caveats": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "caveat_class": {
+                      "enum": [
+                        "policy_suppressed_amount",
+                        "policy_suppressed_scope"
+                      ]
+                    }
+                  },
+                  "required": ["caveat_class"]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

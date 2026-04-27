@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=../../../schemas/managed/quota_state.schema.json
+__fixture__:
+  name: local_estimate_ai_usage_pending_reconciliation
+  scenario: >
+    The client has local AI token counters for a disconnected period,
+    but the managed service has not reconciled them yet. The product
+    can show an estimate and may choose an estimate-admitted fallback,
+    but support and export surfaces cannot treat the amount as final
+    service truth.
+  exercised_contract_sections:
+    - authority_and_source_classes
+    - quota_state_record
+    - downgrade_behavior
+
+schema_version: 1
+record_kind: quota_state_record
+quota_state_id: quota-state:ai.tokens:local-estimate:0001
+scope:
+  scope_class: user
+  scope_ref: scope:user:opaque:0007
+  parent_scope_refs:
+    - scope:organization:managed:0001
+    - scope:tenant:managed:0001
+  scope_label: User quota scope.
+quota_family_class: ai_tokens
+quota_unit_class: tokens
+quota_status_class: within_quota
+authority:
+  authority_class: estimated
+  meter_reading_class: local_estimate
+  ui_confidence_label: estimated
+  source_ref: local-meter:ai_tokens:pending_reconciliation:0001
+  source_summary: Local counter estimate is waiting for service reconciliation.
+numeric_readout:
+  used_quantity: 12750
+  limit_quantity: 50000
+  remaining_quantity: 37250
+  precision_class: estimated
+  display_amount_class: show_estimate
+  rounding_note: Local token count is estimated from client-side request accounting.
+reset_window:
+  reset_window_class: calendar_month_utc
+  time_basis_class: usage_event_time
+  current_window_start_at: "2026-04-01T00:00:00Z"
+  current_window_end_at: "2026-05-01T00:00:00Z"
+  next_reset_at: "2026-05-01T00:00:00Z"
+  source_ref: local-quota-policy-cache:ai_tokens:0001
+  reset_summary: Cached policy says the quota resets at the next UTC month boundary.
+stale_meter:
+  stale_label_class: estimate_pending_reconciliation
+  last_refreshed_at: null
+  freshness_floor_expires_at: null
+  must_show_label: true
+  display_summary: Usage is estimated locally and pending service reconciliation.
+downgrade_behavior:
+  local_core_blocking: false
+  managed_action_posture: allow_with_estimate_label
+  ai_surface_behavior: fallback_to_byok_or_local
+  dashboard_behavior: allow_with_estimate_label
+  support_packet_behavior: allow_with_estimate_label
+  offboarding_export_behavior: allow_with_estimate_label
+  typed_reason_ref: reason:local_usage_estimate_pending_reconciliation
+  fallback_route_ref: route:local_ai_or_byok
+  downgrade_summary: Managed AI may fall back to local or BYOK routes while service reconciliation is pending.
+spend_attribution:
+  - dimension_class: user
+    value_ref: scope:user:opaque:0007
+  - dimension_class: feature
+    value_ref: feature:ai.patch_flow
+  - dimension_class: provider
+    value_ref: provider-entry:first_party_managed:ai_gateway:0001
+  - dimension_class: source_class
+    value_ref: source:local_estimate
+caveats:
+  - caveat_class: local_estimate_pending_reconciliation
+    note: Local estimate is not final service or invoice truth.
+    evidence_ref: local-meter:ai_tokens:pending_reconciliation:0001
+policy_context:
+  policy_epoch: policy-epoch:metering:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-04-27T15:02:00Z"
+expires_at: "2026-04-27T16:02:00Z"
+links:
+  contract_ref: docs/managed/metering_and_usage_export_contract.md
+  service_slo_refs:
+    - artifacts/service/slo_rows.yaml#managed_entitlement_usage
+  record_class_ref: artifacts/governance/record_class_registry.yaml#entitlement_usage_export_packet
+  usage_export_row_refs: []

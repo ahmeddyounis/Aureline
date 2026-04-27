@@ -321,6 +321,18 @@ code.
   seed no-account switching scoreboard in
   [`/artifacts/product/no_account_switching_scoreboard_seed.yaml`](../artifacts/product/no_account_switching_scoreboard_seed.yaml).
 
+## Managed services
+
+- [`managed/metering_and_usage_export_contract.md`](./managed/metering_and_usage_export_contract.md)
+  — managed metering, quota-state, stale-meter disclosure, spend-
+  attribution, downgrade, and usage-export row contract for optional
+  managed-service and AI usage surfaces. Boundary schemas in
+  [`/schemas/managed/quota_state.schema.json`](../schemas/managed/quota_state.schema.json)
+  and
+  [`/schemas/managed/usage_export_row.schema.json`](../schemas/managed/usage_export_row.schema.json);
+  worked cases in
+  [`/fixtures/managed/metering_cases/`](../fixtures/managed/metering_cases/).
+
 ## Deployment continuity
 
 - [`deployment/drill_catalog_seed.md`](./deployment/drill_catalog_seed.md)

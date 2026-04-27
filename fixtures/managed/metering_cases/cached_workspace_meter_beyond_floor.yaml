@@ -1,0 +1,91 @@
+# yaml-language-server: $schema=../../../schemas/managed/quota_state.schema.json
+__fixture__:
+  name: cached_workspace_meter_beyond_floor
+  scenario: >
+    The remote workspace control-plane meter is reachable only from a
+    cached state older than the declared freshness floor. Dashboard and
+    support surfaces can quote the cached value, but managed workspace
+    creates narrow until a fresh meter is available.
+  exercised_contract_sections:
+    - stale_meter_labels
+    - downgrade_behavior
+    - ui_and_support_rules
+
+schema_version: 1
+record_kind: quota_state_record
+quota_state_id: quota-state:workspace.hours:cached:0001
+scope:
+  scope_class: workspace
+  scope_ref: scope:workspace:managed:alpha
+  parent_scope_refs:
+    - scope:organization:managed:0001
+    - scope:tenant:managed:0001
+  scope_label: Managed workspace quota scope.
+quota_family_class: managed_workspace_hours
+quota_unit_class: workspace_hours
+quota_status_class: soft_limit_warning
+authority:
+  authority_class: cached
+  meter_reading_class: service_cached
+  ui_confidence_label: cached
+  source_ref: meter-cache:workspace_control_plane:alpha:0007
+  source_summary: Last-known service meter is cached beyond the freshness floor.
+numeric_readout:
+  used_quantity: 91.5
+  limit_quantity: 100
+  remaining_quantity: 8.5
+  precision_class: rounded
+  display_amount_class: show_bucket
+  rounding_note: Cached workspace hours are rounded to the nearest half hour.
+reset_window:
+  reset_window_class: rolling_30d
+  time_basis_class: service_ingest_time
+  current_window_start_at: "2026-03-28T15:00:00Z"
+  current_window_end_at: "2026-04-27T15:00:00Z"
+  next_reset_at: "2026-04-28T15:00:00Z"
+  source_ref: quota-policy:workspace_hours:rolling_30d:0001
+  reset_summary: Rolling workspace-hours window uses service ingest time.
+stale_meter:
+  stale_label_class: cached_beyond_freshness_floor
+  last_refreshed_at: "2026-04-27T12:15:00Z"
+  freshness_floor_expires_at: "2026-04-27T12:45:00Z"
+  must_show_label: true
+  display_summary: Cached quota is beyond the freshness floor and cannot support precision claims.
+downgrade_behavior:
+  local_core_blocking: false
+  managed_action_posture: block_managed_action_with_reason
+  ai_surface_behavior: unavailable_no_claim
+  dashboard_behavior: allow_with_cached_meter_label
+  support_packet_behavior: allow_with_cached_meter_label
+  offboarding_export_behavior: allow_with_cached_meter_label
+  typed_reason_ref: reason:workspace_meter_stale_beyond_floor
+  fallback_route_ref: route:direct_ssh_or_local_container
+  downgrade_summary: New managed workspace creates are blocked until the meter refreshes; local and direct remote workflows remain available.
+spend_attribution:
+  - dimension_class: organization
+    value_ref: scope:organization:managed:0001
+  - dimension_class: workspace
+    value_ref: scope:workspace:managed:alpha
+  - dimension_class: managed_service
+    value_ref: service:remote_workspace_control_plane
+  - dimension_class: quota_family
+    value_ref: quota-family:managed_workspace_hours
+  - dimension_class: source_class
+    value_ref: source:service_cached
+caveats:
+  - caveat_class: cache_stale
+    note: Cached service meter is beyond the freshness floor.
+    evidence_ref: meter-cache:workspace_control_plane:alpha:0007
+policy_context:
+  policy_epoch: policy-epoch:metering:0042
+  trust_state: trusted
+  deployment_profile_class: enterprise_online
+  redaction_class: metadata_safe_default
+minted_at: "2026-04-27T15:01:00Z"
+expires_at: "2026-04-27T15:11:00Z"
+links:
+  contract_ref: docs/managed/metering_and_usage_export_contract.md
+  service_slo_refs:
+    - artifacts/service/slo_rows.yaml#managed_entitlement_usage
+  record_class_ref: artifacts/governance/record_class_registry.yaml#entitlement_usage_export_packet
+  usage_export_row_refs: []
