@@ -1,0 +1,150 @@
+# Supportability case: managed remote mismatch with escalation packet.
+
+case_schema_version: 1
+case_id: supportability.case.managed_remote_escalation_packet
+case_summary: >
+  A managed remote target reports agent drift. Doctor can inspect the
+  envelope and route refs but cannot repair or reattach without managed
+  consent, so the governed action is an escalation packet.
+support_context_class: remote_managed
+first_actionable_diagnosis_target: >
+  Identify target drift and produce a complete escalation packet with
+  route/session identity instead of auto-reattaching.
+
+capability_map:
+  project_doctor: available_read_only
+  safe_mode: read_only
+  extension_bisect: read_only
+  support_bundle_preview: available
+  trace_capture: available_read_only
+  repair_entry: read_only
+  escalation_packet: available
+
+doctor_finding:
+  doctor_finding_schema_version: 1
+  record_kind: doctor_finding_record
+  finding_id: finding:remote.agent_skew.managed_escalation
+  finding_code: doctor.finding.remote_agent_skew_requires_reapproval
+  probe:
+    probe_id: remote.routes.agent_skew
+    probe_version: probe:remote.routes.v1
+    probe_catalog_ref: docs/architecture/supportability_adr.md#probe-catalog-and-explanation-hooks
+  rule_id: supportability.remote.agent_skew.managed_escalation
+  probe_family_class: remote_routes_collaboration
+  severity_class: degraded
+  confidence_class: observed_with_gap
+  latency_class: remote_or_network_bounded
+  first_actionable_diagnosis_target: >
+    Preserve agent envelope, route refs, and policy epoch in the
+    escalation packet before any managed reattach.
+  affected_scope:
+    scope_class: target
+    scope_ref: remote_target:managed.workspace.0001
+    support_context_class: remote_managed
+  state:
+    diagnostic_state_class: escalated
+    unsupported_state_class: unsupported_managed_policy_state
+    remaining_unknowns:
+      - remote_route_reachability_intermittent
+      - user_consent_not_collected
+  evidence:
+    - evidence_ref: evidence:remote.agent_envelope.0001
+      source_class: existing_manifest
+      signal_class: manifest
+      data_class: environment_adjacent
+      redaction_class: metadata_safe_default
+      support_pack_inclusion_class: included_by_reference
+      replayability_class: replayable_from_refs
+      collected_at: "2026-04-27T00:00:00Z"
+    - evidence_ref: evidence:remote.route_decision.0001
+      source_class: route_decision
+      signal_class: route_decision
+      data_class: metadata_only
+      redaction_class: metadata_safe_default
+      support_pack_inclusion_class: included_by_default_metadata
+      replayability_class: replayable_from_refs
+      collected_at: "2026-04-27T00:00:00Z"
+  explanation:
+    expected: >
+      The managed target envelope should match the approved route and
+      session identity.
+    observed: >
+      The agent envelope and route decision no longer agree on the
+      target fingerprint.
+    belief_basis: >
+      The signed agent envelope and route decision share a session id
+      but report different target fingerprints.
+    first_actionable_summary: >
+      Export an escalation packet with envelope, route, policy, and
+      finding refs.
+    safest_next_action: >
+      Do not auto-reattach; wait for managed approval or create a
+      local-only continuation packet.
+  safety:
+    safety_class: safe_probe_metadata_only
+    safe_probe_non_mutating: true
+    allowed_side_effects:
+      - read_existing_metadata
+      - write_local_evidence_row
+      - create_local_preview_manifest
+    forbidden_side_effects:
+      - no_state_mutation
+      - no_external_service_mutation
+      - no_credential_access
+      - no_trust_change
+      - no_route_publication
+  redaction:
+    data_class: environment_adjacent
+    secret_class: credential_fingerprint
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_reference
+    high_risk_gate_class: requires_admin_policy_authority
+    redaction_accuracy_check_ref: redaction_check:supportability.remote_agent.envelope
+  context_availability:
+    - support_context_class: desktop
+      availability_class: available_read_only
+      notes: >
+        Desktop can show the finding and packet preview, but repair
+        waits for managed approval.
+    - support_context_class: cli_headless
+      availability_class: available_read_only
+      notes: >
+        Headless output emits the same finding and route refs.
+    - support_context_class: remote_managed
+      availability_class: available_read_only
+      notes: >
+        Managed support may inspect the envelope and authorize a later
+        repair.
+    - support_context_class: offline_local
+      availability_class: limited_available
+      notes: >
+        Offline support can retain the last known envelope and route
+        refs but cannot prove current reachability.
+  next_governed_action:
+    action_class: create_escalation_packet
+    repair_class: guided_export_escalation
+    recovery_rung_class: restricted_reopen
+    repair_candidate_ids: []
+    requires_reviewed_action_path: true
+  escalation:
+    escalation_owner_class: managed_admin
+    support_bundle_ref: support_bundle:managed.remote_agent_skew
+    object_handoff_packet_ref: escalation_packet:managed.remote_agent_skew
+    escalation_packet_minimum_ref: fixtures/support/escalation_packet_completeness_cases/wrong_target_environment_requires_reapproval.yaml
+  emitted_at: "2026-04-27T00:00:00Z"
+
+support_pack_items:
+  - artifact_kind_class: action_route_truth_packet
+    support_pack_inclusion_class: included_by_reference
+    redaction_class: metadata_safe_default
+    high_risk_gate_class: requires_admin_policy_authority
+  - artifact_kind_class: trace_capture
+    support_pack_inclusion_class: review_required_before_export
+    redaction_class: internal_support_restricted
+    high_risk_gate_class: requires_admin_policy_authority
+
+assertions:
+  - managed_repair_is_read_only_until_admin_consent
+  - remote_reattach_is_forbidden_during_diagnosis
+  - escalation_packet_preserves_route_and_policy_refs
+  - support_bundle_items_use_inclusion_classes

@@ -1,0 +1,143 @@
+# Supportability case: desktop safe mode after extension crash loop.
+
+case_schema_version: 1
+case_id: supportability.case.desktop_safe_mode_extension_crash_loop
+case_summary: >
+  The desktop supervisor detected repeated extension-host crashes and
+  entered safe mode. Doctor emits one finding, support bundle preview
+  includes metadata by default, and raw dump payloads remain gated.
+support_context_class: desktop
+first_actionable_diagnosis_target: >
+  Surface the extension crash-loop finding and safe-mode recovery rung
+  before offering quarantine, bisect, or escalation.
+
+capability_map:
+  project_doctor: available
+  safe_mode: available
+  extension_bisect: available
+  support_bundle_preview: available
+  trace_capture: available
+  repair_entry: available
+  escalation_packet: available
+
+doctor_finding:
+  doctor_finding_schema_version: 1
+  record_kind: doctor_finding_record
+  finding_id: finding:extension.crash_loop.safe_mode
+  finding_code: doctor.finding.extension_host_crash_loop_quarantined
+  probe:
+    probe_id: extension.runtime_health.crash_loop
+    probe_version: probe:extension.runtime_health.v1
+    probe_catalog_ref: docs/architecture/supportability_adr.md#probe-catalog-and-explanation-hooks
+  rule_id: supportability.extension.crash_loop.safe_mode
+  probe_family_class: extension_runtime_health
+  severity_class: blocking
+  confidence_class: observed_authoritative
+  latency_class: common_local_under_10s
+  first_actionable_diagnosis_target: >
+    Identify the crash-looping host and offer safe mode before any
+    extension reactivation.
+  affected_scope:
+    scope_class: extension
+    scope_ref: extension:sample.crash_loop_host
+    support_context_class: desktop
+  state:
+    diagnostic_state_class: finding_open
+    unsupported_state_class: none
+    remaining_unknowns: []
+  evidence:
+    - evidence_ref: evidence:extension.health.crash_loop.0001
+      source_class: health_event
+      signal_class: health_event
+      data_class: metadata_only
+      redaction_class: metadata_safe_default
+      support_pack_inclusion_class: included_by_default_metadata
+      replayability_class: replayable_from_refs
+      collected_at: "2026-04-27T00:00:00Z"
+  explanation:
+    expected: >
+      Extension hosts should start without exceeding the crash-loop
+      strike budget.
+    observed: >
+      The extension host exceeded its restart budget and safe mode is
+      active.
+    belief_basis: >
+      Supervisor health events and extension host restart lineage agree
+      on the same host identity.
+    first_actionable_summary: >
+      Stay in safe mode and start an extension bisect or quarantine
+      preview.
+    safest_next_action: >
+      Run a reviewed extension-bisect pass; do not re-enable the host
+      outside the governed recovery path.
+  safety:
+    safety_class: safe_probe_read_only
+    safe_probe_non_mutating: true
+    allowed_side_effects:
+      - read_existing_metadata
+      - hash_existing_artifact
+    forbidden_side_effects:
+      - no_state_mutation
+      - no_external_service_mutation
+      - no_credential_access
+      - no_trust_change
+      - no_route_publication
+  redaction:
+    data_class: metadata_only
+    secret_class: no_secret_material
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    high_risk_gate_class: not_high_risk_metadata_only
+    redaction_accuracy_check_ref: redaction_check:supportability.extension.crash_loop.metadata
+  context_availability:
+    - support_context_class: desktop
+      availability_class: available
+      notes: >
+        The desktop can show the finding, safe-mode rung, bisect entry,
+        support-bundle preview, and repair preview.
+    - support_context_class: cli_headless
+      availability_class: available
+      notes: >
+        Headless output emits the same finding code and recovery refs.
+    - support_context_class: remote_managed
+      availability_class: available_read_only
+      notes: >
+        Managed support may inspect the finding; repair requires
+        managed consent.
+    - support_context_class: offline_local
+      availability_class: available_local_only
+      notes: >
+        Offline support can inspect local crash and health events.
+  next_governed_action:
+    action_class: enter_recovery_rung
+    repair_class: extension_isolation
+    recovery_rung_class: extension_bisect
+    repair_candidate_ids:
+      - repair_transaction:extension_isolation.bisect_crash_loop
+    requires_reviewed_action_path: true
+  escalation:
+    escalation_owner_class: supportability_owner
+    support_bundle_ref: support_bundle:desktop.safe_mode.extension_crash_loop
+    object_handoff_packet_ref: escalation_packet:desktop.extension_crash_loop
+    escalation_packet_minimum_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+  emitted_at: "2026-04-27T00:00:00Z"
+
+support_pack_items:
+  - artifact_kind_class: project_doctor_findings
+    support_pack_inclusion_class: included_by_default_metadata
+    redaction_class: metadata_safe_default
+    high_risk_gate_class: not_high_risk_metadata_only
+  - artifact_kind_class: recovery_ladder_timeline
+    support_pack_inclusion_class: included_by_default_metadata
+    redaction_class: metadata_safe_default
+    high_risk_gate_class: not_high_risk_metadata_only
+  - artifact_kind_class: crash_dump_payload
+    support_pack_inclusion_class: opt_in_high_risk
+    redaction_class: internal_support_restricted
+    high_risk_gate_class: requires_explicit_high_friction_consent
+
+assertions:
+  - probes_are_non_mutating_until_repair
+  - safe_mode_preserves_local_editing_and_bundle_export
+  - raw_crash_dump_payload_is_not_included_by_default
+  - extension_reenable_requires_governed_repair_path

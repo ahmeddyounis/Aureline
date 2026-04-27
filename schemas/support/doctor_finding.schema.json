@@ -1,0 +1,837 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/doctor_finding.schema.json",
+  "title": "Aureline Project Doctor finding and probe-catalog contract",
+  "description": "Boundary schema for supportability-owned Project Doctor findings and probe-catalog hooks. The schema gives Doctor, safe mode, extension bisect, support bundles, trace capture, escalation packets, and repair previews one shared vocabulary for finding ids, probe families, evidence sources, safety classes, unsupported-state labels, replayability, redaction defaults, first-actionable-diagnosis targets, and next governed actions. Diagnosis records are read-only by default; mutating fixes must enter the governed repair transaction path.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/doctor_finding_record"
+    },
+    {
+      "$ref": "#/$defs/probe_catalog_entry_record"
+    }
+  ],
+  "$defs": {
+    "doctor_finding_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for the Doctor finding and probe-catalog contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short redaction-safe sentence intended for Doctor surfaces, support bundle previews, CLI/headless summaries, or escalation packet review."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable lowercase id safe for manifests, support bundles, CLI/headless output, and escalation packets."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable reference. Raw paths, raw URLs, raw code bodies, raw provider payloads, and raw secrets never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "doctor_finding_code": {
+      "type": "string",
+      "pattern": "^doctor\\.finding\\.[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable, never-localized finding code. Adding a finding code is additive; repurposing one is breaking."
+    },
+    "probe_family_class": {
+      "type": "string",
+      "enum": [
+        "execution_context_toolchains",
+        "trust_identity_policy",
+        "filesystem_watchers",
+        "network_proxy_ca_transport",
+        "extension_runtime_health",
+        "caches_schema_local_state",
+        "remote_routes_collaboration",
+        "docs_mirror_help",
+        "crash_symbolication",
+        "support_bundle_integrity",
+        "trace_capture"
+      ],
+      "description": "Canonical probe-family hook reserved by the supportability ADR."
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "info",
+        "degraded",
+        "blocking",
+        "security",
+        "unsupported"
+      ]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "observed_authoritative",
+        "observed_with_gap",
+        "inferred_from_evidence",
+        "unknown_requires_probe"
+      ]
+    },
+    "latency_class": {
+      "type": "string",
+      "enum": [
+        "warm_metadata_under_2s",
+        "common_local_under_10s",
+        "deep_probe_streaming",
+        "remote_or_network_bounded",
+        "manual_or_escalation_only"
+      ],
+      "description": "Diagnosis-latency class used for first-actionable-diagnosis targets."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "profile",
+        "device",
+        "target",
+        "extension",
+        "route",
+        "session",
+        "storage_class",
+        "docs_pack",
+        "support_bundle",
+        "trace_capture"
+      ]
+    },
+    "support_context_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli_headless",
+        "remote_managed",
+        "offline_local"
+      ]
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "available_local_only",
+        "limited_available",
+        "read_only",
+        "unavailable"
+      ]
+    },
+    "diagnostic_state_class": {
+      "type": "string",
+      "enum": [
+        "finding_open",
+        "finding_suppressed",
+        "insufficient_evidence",
+        "unsupported_state",
+        "repair_preview_ready",
+        "repair_in_progress",
+        "repair_closed",
+        "escalated"
+      ]
+    },
+    "unsupported_state_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "unsupported_profile",
+        "unsupported_probe_target",
+        "unsupported_offline_state",
+        "unsupported_managed_policy_state",
+        "insufficient_permissions",
+        "unsupported_high_risk_capture"
+      ]
+    },
+    "remaining_unknown_class": {
+      "type": "string",
+      "enum": [
+        "exact_build_identity_missing",
+        "probe_evidence_unavailable",
+        "policy_epoch_unknown",
+        "target_identity_unresolved",
+        "secret_redaction_not_verified",
+        "remote_route_reachability_intermittent",
+        "user_consent_not_collected",
+        "repair_reversal_not_proven"
+      ]
+    },
+    "safety_class": {
+      "type": "string",
+      "enum": [
+        "safe_probe_read_only",
+        "safe_probe_metadata_only",
+        "reviewed_repair_required",
+        "high_risk_capture_requires_consent",
+        "prohibited_probe"
+      ]
+    },
+    "probe_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "read_existing_metadata",
+        "hash_existing_artifact",
+        "write_local_evidence_row",
+        "create_local_preview_manifest",
+        "no_repo_hook_execution",
+        "no_state_mutation",
+        "no_external_service_mutation",
+        "no_credential_access",
+        "no_trust_change",
+        "no_route_publication"
+      ]
+    },
+    "evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "probe_observation",
+        "existing_manifest",
+        "health_event",
+        "structured_log",
+        "metric_counter",
+        "trace_slice",
+        "crash_envelope",
+        "symbolication_report",
+        "policy_decision",
+        "route_decision",
+        "task_event",
+        "support_bundle_manifest",
+        "user_annotation"
+      ]
+    },
+    "signal_class": {
+      "type": "string",
+      "enum": [
+        "manifest",
+        "log",
+        "metric",
+        "trace",
+        "health_event",
+        "crash_envelope",
+        "symbolication_report",
+        "policy_decision",
+        "route_decision",
+        "task_event",
+        "probe_observation",
+        "user_report"
+      ],
+      "description": "Canonical signal-class hook reserved by the supportability ADR."
+    },
+    "secret_class": {
+      "type": "string",
+      "enum": [
+        "no_secret_material",
+        "opaque_secret_handle",
+        "credential_fingerprint",
+        "secret_adjacent_environment",
+        "redacted_secret_match",
+        "prohibited_raw_secret"
+      ],
+      "description": "Canonical secret-class hook reserved by the supportability ADR."
+    },
+    "diagnostic_data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "support_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "support_pack_inclusion_class": {
+      "type": "string",
+      "enum": [
+        "included_by_default_metadata",
+        "included_by_reference",
+        "local_only_retained",
+        "review_required_before_export",
+        "opt_in_high_risk",
+        "excluded_always"
+      ],
+      "description": "Item-level inclusion class used by Doctor findings, trace captures, support bundles, and escalation packets."
+    },
+    "high_risk_gate_class": {
+      "type": "string",
+      "enum": [
+        "not_high_risk_metadata_only",
+        "requires_explicit_high_friction_consent",
+        "requires_admin_policy_authority",
+        "prohibited_by_policy"
+      ]
+    },
+    "replayability_class": {
+      "type": "string",
+      "enum": [
+        "replayable_from_refs",
+        "replayable_from_hashes_only",
+        "requires_local_retained_artifact",
+        "requires_user_opt_in_payload",
+        "not_replayable_redacted"
+      ]
+    },
+    "recovery_rung_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "safe_mode",
+        "extension_bisect",
+        "extension_quarantine",
+        "open_without_restore",
+        "cache_reset_candidate",
+        "restricted_reopen",
+        "rollback_reinstall_candidate",
+        "typed_repair_flow"
+      ]
+    },
+    "repair_class": {
+      "type": "string",
+      "enum": [
+        "observe_only_no_repair",
+        "disposable_state_rebuild",
+        "extension_isolation",
+        "extension_rollback_reinstall",
+        "execution_context_reresolve",
+        "remote_runtime_repair",
+        "policy_entitlement_refresh",
+        "guided_export_escalation",
+        "support_bundle_export",
+        "trace_capture"
+      ]
+    },
+    "governed_action_class": {
+      "type": "string",
+      "enum": [
+        "observe_only",
+        "run_repair_preview",
+        "enter_recovery_rung",
+        "create_support_bundle",
+        "create_escalation_packet",
+        "capture_trace",
+        "stop_and_escalate"
+      ]
+    },
+    "escalation_owner_class": {
+      "type": "string",
+      "enum": [
+        "user_local_only",
+        "project_maintainer",
+        "supportability_owner",
+        "release_manager",
+        "managed_admin",
+        "security_response"
+      ]
+    },
+    "support_context_availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_context_class",
+        "availability_class",
+        "notes"
+      ],
+      "properties": {
+        "support_context_class": {
+          "$ref": "#/$defs/support_context_class"
+        },
+        "availability_class": {
+          "$ref": "#/$defs/availability_class"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "evidence_locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref",
+        "source_class",
+        "signal_class",
+        "data_class",
+        "redaction_class",
+        "support_pack_inclusion_class",
+        "replayability_class"
+      ],
+      "properties": {
+        "evidence_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "source_class": {
+          "$ref": "#/$defs/evidence_source_class"
+        },
+        "signal_class": {
+          "$ref": "#/$defs/signal_class"
+        },
+        "data_class": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/support_redaction_class"
+        },
+        "support_pack_inclusion_class": {
+          "$ref": "#/$defs/support_pack_inclusion_class"
+        },
+        "replayability_class": {
+          "$ref": "#/$defs/replayability_class"
+        },
+        "collected_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ]
+        }
+      }
+    },
+    "doctor_probe_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_id",
+        "probe_version",
+        "probe_catalog_ref"
+      ],
+      "properties": {
+        "probe_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "probe_version": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "probe_catalog_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      }
+    },
+    "affected_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "scope_ref",
+        "support_context_class"
+      ],
+      "properties": {
+        "scope_class": {
+          "$ref": "#/$defs/scope_class"
+        },
+        "scope_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "support_context_class": {
+          "$ref": "#/$defs/support_context_class"
+        }
+      }
+    },
+    "finding_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_state_class",
+        "unsupported_state_class",
+        "remaining_unknowns"
+      ],
+      "properties": {
+        "diagnostic_state_class": {
+          "$ref": "#/$defs/diagnostic_state_class"
+        },
+        "unsupported_state_class": {
+          "$ref": "#/$defs/unsupported_state_class"
+        },
+        "remaining_unknowns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/remaining_unknown_class"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "finding_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected",
+        "observed",
+        "belief_basis",
+        "first_actionable_summary",
+        "safest_next_action"
+      ],
+      "properties": {
+        "expected": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "observed": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "belief_basis": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "first_actionable_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "safest_next_action": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "safety_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "safety_class",
+        "safe_probe_non_mutating",
+        "allowed_side_effects",
+        "forbidden_side_effects"
+      ],
+      "properties": {
+        "safety_class": {
+          "$ref": "#/$defs/safety_class"
+        },
+        "safe_probe_non_mutating": {
+          "type": "boolean"
+        },
+        "allowed_side_effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/probe_side_effect_class"
+          },
+          "uniqueItems": true
+        },
+        "forbidden_side_effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/probe_side_effect_class"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "redaction_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_class",
+        "secret_class",
+        "redaction_class",
+        "support_pack_inclusion_class",
+        "high_risk_gate_class",
+        "redaction_accuracy_check_ref"
+      ],
+      "properties": {
+        "data_class": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "secret_class": {
+          "$ref": "#/$defs/secret_class"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/support_redaction_class"
+        },
+        "support_pack_inclusion_class": {
+          "$ref": "#/$defs/support_pack_inclusion_class"
+        },
+        "high_risk_gate_class": {
+          "$ref": "#/$defs/high_risk_gate_class"
+        },
+        "redaction_accuracy_check_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        }
+      }
+    },
+    "next_governed_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "repair_class",
+        "recovery_rung_class",
+        "repair_candidate_ids",
+        "requires_reviewed_action_path"
+      ],
+      "properties": {
+        "action_class": {
+          "$ref": "#/$defs/governed_action_class"
+        },
+        "repair_class": {
+          "$ref": "#/$defs/repair_class"
+        },
+        "recovery_rung_class": {
+          "$ref": "#/$defs/recovery_rung_class"
+        },
+        "repair_candidate_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_ref_id"
+          },
+          "uniqueItems": true
+        },
+        "requires_reviewed_action_path": {
+          "type": "boolean"
+        }
+      }
+    },
+    "escalation_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_owner_class",
+        "support_bundle_ref",
+        "object_handoff_packet_ref",
+        "escalation_packet_minimum_ref"
+      ],
+      "properties": {
+        "escalation_owner_class": {
+          "$ref": "#/$defs/escalation_owner_class"
+        },
+        "support_bundle_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "object_handoff_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "escalation_packet_minimum_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        }
+      }
+    },
+    "doctor_finding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doctor_finding_schema_version",
+        "record_kind",
+        "finding_id",
+        "finding_code",
+        "probe",
+        "rule_id",
+        "probe_family_class",
+        "severity_class",
+        "confidence_class",
+        "latency_class",
+        "first_actionable_diagnosis_target",
+        "affected_scope",
+        "state",
+        "evidence",
+        "explanation",
+        "safety",
+        "redaction",
+        "context_availability",
+        "next_governed_action",
+        "escalation",
+        "emitted_at"
+      ],
+      "properties": {
+        "doctor_finding_schema_version": {
+          "$ref": "#/$defs/doctor_finding_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "doctor_finding_record"
+        },
+        "finding_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "finding_code": {
+          "$ref": "#/$defs/doctor_finding_code"
+        },
+        "probe": {
+          "$ref": "#/$defs/doctor_probe_ref"
+        },
+        "rule_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "probe_family_class": {
+          "$ref": "#/$defs/probe_family_class"
+        },
+        "severity_class": {
+          "$ref": "#/$defs/severity_class"
+        },
+        "confidence_class": {
+          "$ref": "#/$defs/confidence_class"
+        },
+        "latency_class": {
+          "$ref": "#/$defs/latency_class"
+        },
+        "first_actionable_diagnosis_target": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "affected_scope": {
+          "$ref": "#/$defs/affected_scope"
+        },
+        "state": {
+          "$ref": "#/$defs/finding_state"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_locator"
+          }
+        },
+        "explanation": {
+          "$ref": "#/$defs/finding_explanation"
+        },
+        "safety": {
+          "$ref": "#/$defs/safety_contract"
+        },
+        "redaction": {
+          "$ref": "#/$defs/redaction_contract"
+        },
+        "context_availability": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/support_context_availability"
+          }
+        },
+        "next_governed_action": {
+          "$ref": "#/$defs/next_governed_action"
+        },
+        "escalation": {
+          "$ref": "#/$defs/escalation_contract"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "probe_catalog_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doctor_finding_schema_version",
+        "record_kind",
+        "probe_id",
+        "probe_family_class",
+        "probe_version",
+        "rule_ids",
+        "latency_class",
+        "first_actionable_diagnosis_target",
+        "execution_posture",
+        "allowed_side_effects",
+        "signal_classes",
+        "secret_class_ceiling",
+        "context_availability",
+        "evidence_contract_ref",
+        "redaction_profile_ref",
+        "redaction_accuracy_check_ref",
+        "owner_ref"
+      ],
+      "properties": {
+        "doctor_finding_schema_version": {
+          "$ref": "#/$defs/doctor_finding_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "probe_catalog_entry_record"
+        },
+        "probe_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "probe_family_class": {
+          "$ref": "#/$defs/probe_family_class"
+        },
+        "probe_version": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "rule_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/stable_dot_id"
+          },
+          "uniqueItems": true
+        },
+        "latency_class": {
+          "$ref": "#/$defs/latency_class"
+        },
+        "first_actionable_diagnosis_target": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "execution_posture": {
+          "$ref": "#/$defs/safety_class"
+        },
+        "allowed_side_effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/probe_side_effect_class"
+          },
+          "uniqueItems": true
+        },
+        "signal_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/signal_class"
+          },
+          "uniqueItems": true
+        },
+        "secret_class_ceiling": {
+          "$ref": "#/$defs/secret_class"
+        },
+        "context_availability": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/support_context_availability"
+          }
+        },
+        "evidence_contract_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "redaction_profile_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "redaction_accuracy_check_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      }
+    }
+  }
+}

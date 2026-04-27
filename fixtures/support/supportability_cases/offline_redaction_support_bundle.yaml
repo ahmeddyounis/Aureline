@@ -1,0 +1,161 @@
+# Supportability case: offline support bundle redaction review.
+
+case_schema_version: 1
+case_id: supportability.case.offline_redaction_support_bundle
+case_summary: >
+  Offline support generates a local-only bundle preview for an
+  execution-context failure. Metadata and hashes are included by
+  default, code-adjacent payloads require review, and raw secrets are
+  excluded.
+support_context_class: offline_local
+first_actionable_diagnosis_target: >
+  Produce a local-only bundle with exact-build identity, Doctor
+  findings, omitted-class reasons, and redaction accuracy evidence.
+
+capability_map:
+  project_doctor: available_local_only
+  safe_mode: available
+  extension_bisect: available
+  support_bundle_preview: available_local_only
+  trace_capture: available_local_only
+  repair_entry: limited_available
+  escalation_packet: available_local_only
+
+doctor_finding:
+  doctor_finding_schema_version: 1
+  record_kind: doctor_finding_record
+  finding_id: finding:execution.context.offline_metadata_bundle
+  finding_code: doctor.finding.execution_context_evidence_local_only
+  probe:
+    probe_id: execution.context.offline_bundle
+    probe_version: probe:execution.context.v1
+    probe_catalog_ref: docs/architecture/supportability_adr.md#probe-catalog-and-explanation-hooks
+  rule_id: supportability.execution.context.offline_bundle
+  probe_family_class: execution_context_toolchains
+  severity_class: degraded
+  confidence_class: inferred_from_evidence
+  latency_class: warm_metadata_under_2s
+  first_actionable_diagnosis_target: >
+    Preserve exact-build and execution-context refs in a local-only
+    support bundle before asking for broader evidence.
+  affected_scope:
+    scope_class: workspace
+    scope_ref: workspace:local.offline.0001
+    support_context_class: offline_local
+  state:
+    diagnostic_state_class: insufficient_evidence
+    unsupported_state_class: unsupported_offline_state
+    remaining_unknowns:
+      - probe_evidence_unavailable
+      - target_identity_unresolved
+  evidence:
+    - evidence_ref: evidence:exact_build.local.0001
+      source_class: existing_manifest
+      signal_class: manifest
+      data_class: metadata_only
+      redaction_class: metadata_safe_default
+      support_pack_inclusion_class: included_by_default_metadata
+      replayability_class: replayable_from_refs
+      collected_at: "2026-04-27T00:00:00Z"
+  explanation:
+    expected: >
+      The execution context should identify the selected toolchain and
+      target with enough evidence for first diagnosis.
+    observed: >
+      Offline state only contains exact-build and cached execution
+      metadata, not current target reachability.
+    belief_basis: >
+      Local manifests are intact, but remote or managed probes are
+      unavailable in the offline context.
+    first_actionable_summary: >
+      Create a local-only bundle and keep code-adjacent evidence
+      omitted unless reviewed.
+    safest_next_action: >
+      Export metadata-only evidence now, then broaden capture only
+      after reviewing the redaction preview.
+  safety:
+    safety_class: safe_probe_metadata_only
+    safe_probe_non_mutating: true
+    allowed_side_effects:
+      - read_existing_metadata
+      - hash_existing_artifact
+      - write_local_evidence_row
+      - create_local_preview_manifest
+    forbidden_side_effects:
+      - no_repo_hook_execution
+      - no_state_mutation
+      - no_external_service_mutation
+      - no_credential_access
+      - no_trust_change
+      - no_route_publication
+  redaction:
+    data_class: metadata_only
+    secret_class: redacted_secret_match
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    high_risk_gate_class: not_high_risk_metadata_only
+    redaction_accuracy_check_ref: redaction_check:supportability.offline_bundle.metadata
+  context_availability:
+    - support_context_class: desktop
+      availability_class: available
+      notes: >
+        Desktop can reopen the local bundle preview when online or
+        offline.
+    - support_context_class: cli_headless
+      availability_class: available
+      notes: >
+        Headless export can save the same local-only manifest.
+    - support_context_class: remote_managed
+      availability_class: unavailable
+      notes: >
+        Managed support cannot prove live target state while offline.
+    - support_context_class: offline_local
+      availability_class: available_local_only
+      notes: >
+        Offline support can assemble metadata, hashes, and omission
+        reasons locally.
+  next_governed_action:
+    action_class: create_support_bundle
+    repair_class: support_bundle_export
+    recovery_rung_class: typed_repair_flow
+    repair_candidate_ids: []
+    requires_reviewed_action_path: true
+  escalation:
+    escalation_owner_class: user_local_only
+    support_bundle_ref: support_bundle:offline.execution_context.local_only
+    object_handoff_packet_ref: null
+    escalation_packet_minimum_ref: null
+  emitted_at: "2026-04-27T00:00:00Z"
+
+support_pack_items:
+  - artifact_kind_class: exact_build_identity_manifest
+    support_pack_inclusion_class: included_by_default_metadata
+    redaction_class: metadata_safe_default
+    high_risk_gate_class: not_high_risk_metadata_only
+  - artifact_kind_class: execution_context_summary
+    support_pack_inclusion_class: included_by_reference
+    redaction_class: metadata_safe_default
+    high_risk_gate_class: not_high_risk_metadata_only
+  - artifact_kind_class: terminal_transcript_excerpt
+    support_pack_inclusion_class: review_required_before_export
+    redaction_class: internal_support_restricted
+    high_risk_gate_class: requires_explicit_high_friction_consent
+  - artifact_kind_class: full_shell_history_capture
+    support_pack_inclusion_class: excluded_always
+    redaction_class: internal_support_restricted
+    high_risk_gate_class: prohibited_by_policy
+
+redaction_review:
+  redaction_profile_ref: fixtures/support/redaction_profiles/local_first_default.yaml
+  redaction_accuracy_check_required: true
+  redaction_accuracy_check_ref: redaction_check:supportability.offline_bundle.metadata
+  omitted_classes:
+    - raw_secret_material
+    - full_shell_history
+    - unreviewed_code_adjacent_payload
+
+assertions:
+  - offline_bundle_is_local_only
+  - redaction_accuracy_check_is_declared
+  - high_risk_artifacts_are_gated_or_excluded
+  - exact_build_identity_is_included_by_default

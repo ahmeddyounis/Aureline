@@ -1,0 +1,121 @@
+# Supportability case: CLI/headless exact-build trace capture.
+
+case_schema_version: 1
+case_id: supportability.case.cli_headless_exact_build_trace
+case_summary: >
+  A headless support command captures a bounded runtime task-event and
+  IPC trace slice for a failing task. The request is exact-build bound,
+  metadata-only by default, and local-only until the user exports it.
+support_context_class: cli_headless
+first_actionable_diagnosis_target: >
+  Capture enough exact-build trace evidence to decide whether the task
+  failure belongs to execution context or runtime event routing.
+
+capability_map:
+  project_doctor: available
+  safe_mode: read_only
+  extension_bisect: available
+  support_bundle_preview: available
+  trace_capture: available
+  repair_entry: available
+  escalation_packet: available
+
+trace_capture_request:
+  trace_capture_schema_version: 1
+  record_kind: trace_capture_request_record
+  trace_capture_request_id: trace_request:cli.exact_build.runtime_task_slice
+  requested_at: "2026-04-27T00:00:00Z"
+  requester:
+    requester_surface_class: cli_headless
+    support_context_class: cli_headless
+    requested_by_ref: local_user:current
+    reason: >
+      Headless Doctor needs a bounded trace slice for a failing task.
+  exact_build_identity:
+    exact_build_identity_ref: exact_build:local.alpha.20260427
+    product_version: 0.0.0-support-seed
+    channel: alpha
+    platform: macos
+    component_build_refs:
+      - component_build:runtime.task_event
+      - component_build:ipc.router
+  capture_target:
+    capture_goal_class: first_actionable_diagnosis
+    target_ref: task_session:local.failing_test.0001
+    trace_signal_classes:
+      - runtime_task_event_slice
+      - ipc_trace
+    data_class_ceiling: environment_adjacent
+    secret_class_ceiling: redacted_secret_match
+  capture_window:
+    duration_seconds: 120
+    max_bytes: 10485760
+    stream_partial_results: true
+    cancel_supported: true
+  consent_and_policy:
+    consent_class: local_only_no_upload
+    policy_authority_ref: null
+    high_risk_gate_class: not_high_risk_metadata_only
+    destination_ref: null
+  redaction:
+    redaction_profile_ref: fixtures/support/redaction_profiles/local_first_default.yaml
+    default_redaction_class: metadata_safe_default
+    redaction_accuracy_check_required: true
+    redaction_accuracy_check_ref: redaction_check:supportability.cli_trace.metadata
+    prohibited_secret_classes:
+      - prohibited_raw_secret
+  side_effect_budget:
+    allowed_side_effects:
+      - read_existing_metadata
+      - hash_existing_artifact
+      - write_local_trace_artifact
+      - write_local_evidence_row
+      - create_local_preview_manifest
+    forbidden_side_effects:
+      - no_repo_hook_execution
+      - no_state_mutation
+      - no_external_service_mutation
+      - no_credential_access
+      - no_trust_change
+      - no_route_publication
+      - no_remote_reattach
+  support_bundle_binding:
+    support_bundle_ref: support_bundle:cli.runtime_task_trace
+    support_pack_inclusion_class: local_only_retained
+    artifact_kind_class: trace_capture
+    finding_refs:
+      - finding:execution.task_event.trace_needed
+    escalation_packet_ref: null
+  outputs:
+    storage_mode: local_only_copy_retained
+    embedding_state: omitted
+    local_retention_ref: local_trace:runtime_task_slice.0001
+    manifest_ref: trace_manifest:runtime_task_slice.0001
+  context_availability:
+    - support_context_class: desktop
+      availability_class: available
+      notes: >
+        Desktop may render the retained trace manifest in bundle preview.
+    - support_context_class: cli_headless
+      availability_class: available
+      notes: >
+        The CLI can request and retain the trace locally.
+    - support_context_class: remote_managed
+      availability_class: available_read_only
+      notes: >
+        Managed support can see the manifest unless policy authorizes
+        trace upload.
+    - support_context_class: offline_local
+      availability_class: available_local_only
+      notes: >
+        Offline capture is permitted for local task-event and IPC
+        signals.
+  probe_refs:
+    - probe:execution.task_event.v1
+    - probe:support.trace_capture.v1
+
+assertions:
+  - exact_build_identity_is_present_for_trace_capture
+  - capture_duration_is_bounded
+  - trace_payload_is_local_only_until_export_review
+  - repo_hooks_are_not_executed_by_capture

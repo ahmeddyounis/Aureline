@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/trace_capture_request.schema.json",
+  "title": "Aureline exact-build trace-capture request contract",
+  "description": "Boundary schema for supportability-owned trace-capture requests. Every trace capture is tied to exact-build identity, consent or policy authority, data and secret class ceilings, capture duration, side-effect budget, redaction policy, redaction-accuracy checks, and support-bundle inclusion class before any payload can enter a support bundle or escalation packet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "trace_capture_schema_version",
+    "record_kind",
+    "trace_capture_request_id",
+    "requested_at",
+    "requester",
+    "exact_build_identity",
+    "capture_target",
+    "capture_window",
+    "consent_and_policy",
+    "redaction",
+    "side_effect_budget",
+    "support_bundle_binding",
+    "outputs",
+    "context_availability",
+    "probe_refs"
+  ],
+  "properties": {
+    "trace_capture_schema_version": {
+      "$ref": "#/$defs/trace_capture_schema_version"
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "trace_capture_request_record"
+    },
+    "trace_capture_request_id": {
+      "$ref": "#/$defs/stable_ref_id"
+    },
+    "requested_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "requester": {
+      "$ref": "#/$defs/requester"
+    },
+    "exact_build_identity": {
+      "$ref": "#/$defs/exact_build_identity"
+    },
+    "capture_target": {
+      "$ref": "#/$defs/capture_target"
+    },
+    "capture_window": {
+      "$ref": "#/$defs/capture_window"
+    },
+    "consent_and_policy": {
+      "$ref": "#/$defs/consent_and_policy"
+    },
+    "redaction": {
+      "$ref": "#/$defs/redaction"
+    },
+    "side_effect_budget": {
+      "$ref": "#/$defs/side_effect_budget"
+    },
+    "support_bundle_binding": {
+      "$ref": "#/$defs/support_bundle_binding"
+    },
+    "outputs": {
+      "$ref": "#/$defs/outputs"
+    },
+    "context_availability": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/support_context_availability"
+      }
+    },
+    "probe_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stable_ref_id"
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "trace_capture_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for the trace-capture request contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short redaction-safe sentence intended for capture preview, CLI/headless output, support bundle manifests, or escalation packet review."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable lowercase id safe for manifests, support bundles, CLI/headless output, and escalation packets."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable reference. Raw paths, raw URLs, raw command lines, raw payload bodies, and raw secrets never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "requester_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop_support_center",
+        "cli_headless",
+        "managed_admin_support",
+        "doctor_probe",
+        "crash_recovery",
+        "repair_preview"
+      ]
+    },
+    "support_context_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli_headless",
+        "remote_managed",
+        "offline_local"
+      ]
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "available_local_only",
+        "limited_available",
+        "read_only",
+        "unavailable"
+      ]
+    },
+    "capture_goal_class": {
+      "type": "string",
+      "enum": [
+        "first_actionable_diagnosis",
+        "exact_build_reproduction",
+        "performance_regression",
+        "crash_loop",
+        "support_escalation",
+        "redaction_accuracy_check"
+      ]
+    },
+    "trace_signal_class": {
+      "type": "string",
+      "enum": [
+        "renderer_trace",
+        "ipc_trace",
+        "lsp_trace",
+        "dap_trace",
+        "terminal_metadata",
+        "runtime_task_event_slice",
+        "network_transport_decisions",
+        "extension_host_health",
+        "crash_context",
+        "perf_profile"
+      ]
+    },
+    "diagnostic_data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "secret_class": {
+      "type": "string",
+      "enum": [
+        "no_secret_material",
+        "opaque_secret_handle",
+        "credential_fingerprint",
+        "secret_adjacent_environment",
+        "redacted_secret_match",
+        "prohibited_raw_secret"
+      ],
+      "description": "Canonical secret-class hook reserved by the supportability ADR."
+    },
+    "support_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "support_pack_inclusion_class": {
+      "type": "string",
+      "enum": [
+        "included_by_default_metadata",
+        "included_by_reference",
+        "local_only_retained",
+        "review_required_before_export",
+        "opt_in_high_risk",
+        "excluded_always"
+      ]
+    },
+    "support_storage_mode": {
+      "type": "string",
+      "enum": [
+        "embedded_export_copy",
+        "local_only_copy_retained",
+        "managed_reference_only",
+        "optional_upload_candidate",
+        "intentionally_excluded"
+      ]
+    },
+    "evidence_embedding_state": {
+      "type": "string",
+      "enum": [
+        "embedded",
+        "by_reference",
+        "omitted",
+        "redacted"
+      ]
+    },
+    "high_risk_gate_class": {
+      "type": "string",
+      "enum": [
+        "not_high_risk_metadata_only",
+        "requires_explicit_high_friction_consent",
+        "requires_admin_policy_authority",
+        "prohibited_by_policy"
+      ]
+    },
+    "consent_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_consent",
+        "admin_policy_authorized",
+        "local_only_no_upload",
+        "consent_denied"
+      ]
+    },
+    "capture_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "read_existing_metadata",
+        "hash_existing_artifact",
+        "write_local_trace_artifact",
+        "write_local_evidence_row",
+        "create_local_preview_manifest",
+        "no_repo_hook_execution",
+        "no_state_mutation",
+        "no_external_service_mutation",
+        "no_credential_access",
+        "no_trust_change",
+        "no_route_publication",
+        "no_remote_reattach"
+      ]
+    },
+    "requester": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requester_surface_class",
+        "support_context_class",
+        "requested_by_ref",
+        "reason"
+      ],
+      "properties": {
+        "requester_surface_class": {
+          "$ref": "#/$defs/requester_surface_class"
+        },
+        "support_context_class": {
+          "$ref": "#/$defs/support_context_class"
+        },
+        "requested_by_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "reason": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "exact_build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_ref",
+        "product_version",
+        "channel",
+        "platform",
+        "component_build_refs"
+      ],
+      "properties": {
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "product_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "channel": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "platform": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "component_build_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_ref"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "capture_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_goal_class",
+        "target_ref",
+        "trace_signal_classes",
+        "data_class_ceiling",
+        "secret_class_ceiling"
+      ],
+      "properties": {
+        "capture_goal_class": {
+          "$ref": "#/$defs/capture_goal_class"
+        },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "trace_signal_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/trace_signal_class"
+          },
+          "uniqueItems": true
+        },
+        "data_class_ceiling": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "secret_class_ceiling": {
+          "$ref": "#/$defs/secret_class"
+        }
+      }
+    },
+    "capture_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "duration_seconds",
+        "max_bytes",
+        "stream_partial_results",
+        "cancel_supported"
+      ],
+      "properties": {
+        "duration_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "stream_partial_results": {
+          "type": "boolean"
+        },
+        "cancel_supported": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consent_and_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consent_class",
+        "policy_authority_ref",
+        "high_risk_gate_class",
+        "destination_ref"
+      ],
+      "properties": {
+        "consent_class": {
+          "$ref": "#/$defs/consent_class"
+        },
+        "policy_authority_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "high_risk_gate_class": {
+          "$ref": "#/$defs/high_risk_gate_class"
+        },
+        "destination_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_profile_ref",
+        "default_redaction_class",
+        "redaction_accuracy_check_required",
+        "redaction_accuracy_check_ref",
+        "prohibited_secret_classes"
+      ],
+      "properties": {
+        "redaction_profile_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "default_redaction_class": {
+          "$ref": "#/$defs/support_redaction_class"
+        },
+        "redaction_accuracy_check_required": {
+          "type": "boolean"
+        },
+        "redaction_accuracy_check_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "prohibited_secret_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/secret_class"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "side_effect_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_side_effects",
+        "forbidden_side_effects"
+      ],
+      "properties": {
+        "allowed_side_effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capture_side_effect_class"
+          },
+          "uniqueItems": true
+        },
+        "forbidden_side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/capture_side_effect_class"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "support_bundle_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_ref",
+        "support_pack_inclusion_class",
+        "artifact_kind_class",
+        "finding_refs",
+        "escalation_packet_ref"
+      ],
+      "properties": {
+        "support_bundle_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "support_pack_inclusion_class": {
+          "$ref": "#/$defs/support_pack_inclusion_class"
+        },
+        "artifact_kind_class": {
+          "type": "string",
+          "const": "trace_capture"
+        },
+        "finding_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_ref_id"
+          },
+          "uniqueItems": true
+        },
+        "escalation_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storage_mode",
+        "embedding_state",
+        "local_retention_ref",
+        "manifest_ref"
+      ],
+      "properties": {
+        "storage_mode": {
+          "$ref": "#/$defs/support_storage_mode"
+        },
+        "embedding_state": {
+          "$ref": "#/$defs/evidence_embedding_state"
+        },
+        "local_retention_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "manifest_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      }
+    },
+    "support_context_availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_context_class",
+        "availability_class",
+        "notes"
+      ],
+      "properties": {
+        "support_context_class": {
+          "$ref": "#/$defs/support_context_class"
+        },
+        "availability_class": {
+          "$ref": "#/$defs/availability_class"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    }
+  }
+}
