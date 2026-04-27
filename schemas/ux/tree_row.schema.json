@@ -1,0 +1,669 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/tree_row.schema.json",
+  "title": "Aureline structural tree row, placeholder, and hidden-scope contract",
+  "description": "Boundary schema for the structural tree row contract frozen in docs/ux/tree_row_contract.md. File trees, outlines, component trees, runtime trees, route trees, dependency trees, write-scope preview trees, and support/export projections use this shared row anatomy, placeholder readiness vocabulary, hidden-scope disclosure model, and identity/recovery posture. The eventual shell / workspace / graph Rust types are the source of record; this schema is the cross-tool boundary every non-owning surface reads.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/tree_row_record" },
+    { "$ref": "#/$defs/tree_placeholder_record" },
+    { "$ref": "#/$defs/tree_surface_snapshot_record" }
+  ],
+  "$defs": {
+    "tree_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the structural tree row contract export. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "tree_row_record",
+        "tree_placeholder_record",
+        "tree_surface_snapshot_record"
+      ],
+      "description": "Discriminator for the concrete tree-row payload shape."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried by fixtures."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, RPC, support export, and fixtures. Raw credentials and raw provider payloads never appear here."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "workspace_root",
+            "workset",
+            "sparse_slice",
+            "review_workspace",
+            "remote_session",
+            "runtime_session",
+            "support_export"
+          ]
+        },
+        "id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed scope the tree row, placeholder, or snapshot belongs to."
+    },
+    "count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "exact" },
+            "value": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "approximate" },
+            "value": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "const": "unknown" }
+          }
+        }
+      ],
+      "description": "Exact, approximate, or unknown count truth."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "file_tree",
+        "outline_tree",
+        "component_tree",
+        "runtime_tree",
+        "route_tree",
+        "dependency_tree",
+        "write_scope_preview_tree",
+        "support_export_tree"
+      ],
+      "description": "Structural tree family using this shared row contract."
+    },
+    "node_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_root",
+        "directory",
+        "file",
+        "generated_artifact",
+        "symlink_or_alias",
+        "symbol",
+        "class",
+        "function",
+        "method",
+        "field",
+        "module",
+        "package",
+        "route",
+        "component",
+        "service",
+        "runtime_node",
+        "notebook_cell",
+        "test",
+        "placeholder",
+        "missing_target",
+        "unsupported_scope",
+        "imported_node",
+        "cached_node"
+      ],
+      "description": "What the row represents. This is not an icon name."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ],
+      "description": "Canonical-owner classification re-exported from the subscription contract."
+    },
+    "materialization_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ],
+      "description": "Materialized-view class re-exported from the subscription/materialized-view model."
+    },
+    "source_state": {
+      "type": "string",
+      "enum": [
+        "live_discovery",
+        "imported_state",
+        "cached_snapshot",
+        "generated_manifest",
+        "provider_overlay",
+        "runtime_inspection",
+        "support_export_snapshot"
+      ],
+      "description": "How the row was sourced."
+    },
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "discovering",
+        "hot_set_ready",
+        "full_indexing",
+        "fully_indexed",
+        "paused",
+        "rebuilding",
+        "stale",
+        "failed_degraded"
+      ],
+      "description": "Closed placeholder and snapshot readiness vocabulary. fully_indexed is the only state that may claim complete scope without a partial or hidden-scope cue."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness vocabulary re-exported from the capability lifecycle and search-readiness contracts."
+    },
+    "completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete_for_scope",
+        "partial_for_scope",
+        "hidden_scope_present",
+        "unknown_for_scope",
+        "not_applicable"
+      ],
+      "description": "Claim the tree makes about the requested scope."
+    },
+    "label_source_class": {
+      "type": "string",
+      "enum": [
+        "canonical_owner",
+        "imported_metadata",
+        "cached_snapshot",
+        "runtime_observation",
+        "generated_lineage",
+        "redacted_placeholder"
+      ],
+      "description": "Where the display label came from."
+    },
+    "row_badge_class": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "unsupported",
+        "experimental",
+        "cached",
+        "stale",
+        "partial",
+        "imported",
+        "generated",
+        "read_only",
+        "policy_limited",
+        "remote_limited",
+        "runtime_only",
+        "approximate_mapping",
+        "unknown",
+        "none"
+      ],
+      "description": "Closed support and freshness badge vocabulary."
+    },
+    "row_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["badge_class"],
+      "properties": {
+        "badge_class": { "$ref": "#/$defs/row_badge_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "mutability_state": {
+      "type": "string",
+      "enum": [
+        "writable",
+        "read_only",
+        "locked_by_policy",
+        "locked_by_provider",
+        "generated_read_only",
+        "unsupported_read_only",
+        "cached_read_only",
+        "unknown"
+      ],
+      "description": "Closed lock and read-only state vocabulary. Generated and read-only remain distinct."
+    },
+    "selection_sync_state": {
+      "type": "string",
+      "enum": [
+        "synced_to_active_target",
+        "can_sync_on_focus",
+        "can_reveal_target",
+        "out_of_scope",
+        "target_missing",
+        "mapping_approximate",
+        "disabled_read_only",
+        "not_supported",
+        "unknown"
+      ],
+      "description": "Whether the row can track, reveal, or synchronize with the current editor/runtime/source target."
+    },
+    "selection_sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": { "$ref": "#/$defs/selection_sync_state" },
+        "active_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "reveal_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "selection_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "fallback_action_id": { "$ref": "#/$defs/recovery_action_id" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "search_match_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "direct_match",
+        "descendant_match",
+        "hidden_descendant_match",
+        "stale_match",
+        "approximate_match"
+      ],
+      "description": "Search or filter highlight state for the row."
+    },
+    "search_match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": { "$ref": "#/$defs/search_match_state" },
+        "query_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "direct_match_count": { "$ref": "#/$defs/count_value" },
+        "descendant_match_count": { "$ref": "#/$defs/count_value" },
+        "hidden_match_count": { "$ref": "#/$defs/count_value" },
+        "match_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "hidden_scope_reason": {
+      "type": "string",
+      "enum": [
+        "trust_state_excludes_surface",
+        "policy_narrows_source",
+        "sparse_scope_excludes_root",
+        "outside_loaded_scope",
+        "excluded_by_user_filter",
+        "client_scope_excludes_surface",
+        "provider_overlay_unauthorised",
+        "remote_shard_unreachable",
+        "generated_artifact_hidden_by_default",
+        "ignored_by_workspace_rules",
+        "unsupported_scope",
+        "redaction_narrowed"
+      ],
+      "description": "Closed reasons a subtree, descendant set, or peer scope is omitted from the visible tree."
+    },
+    "hidden_scope_placement": {
+      "type": "string",
+      "enum": [
+        "inline_badge",
+        "child_placeholder_row",
+        "ancestor_summary",
+        "support_export_only"
+      ],
+      "description": "Narrowest visible placement for a hidden-scope disclosure."
+    },
+    "hidden_scope_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "count", "placement"],
+      "properties": {
+        "reason": { "$ref": "#/$defs/hidden_scope_reason" },
+        "count": { "$ref": "#/$defs/count_value" },
+        "placement": { "$ref": "#/$defs/hidden_scope_placement" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" },
+        "detail_action_id": { "$ref": "#/$defs/recovery_action_id" }
+      },
+      "description": "Disclosure for omitted scope, hidden children, hidden descendants, or hidden search matches."
+    },
+    "identity_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "moved_resolved",
+        "moved_ambiguous",
+        "missing_target",
+        "stale_cached_identity",
+        "generated_artifact_lineage",
+        "unsupported_scope",
+        "imported_cached_state",
+        "collision_review_required"
+      ],
+      "description": "Stable identity and recovery posture for moved, missing, generated, imported, cached, unsupported, or colliding rows."
+    },
+    "recovery_action_id": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "reveal_current_target",
+        "locate_missing_target",
+        "review_ambiguous_move",
+        "remove_row_from_view",
+        "reopen_parent_scope",
+        "rebuild_scope",
+        "refresh_provider",
+        "open_read_only_cache",
+        "show_lineage",
+        "inspect_support_export",
+        "retry_discovery",
+        "resume_discovery",
+        "widen_scope",
+        "view_unsupported_reason",
+        "open_generated_source",
+        "open_current_file",
+        "open_index_status"
+      ],
+      "description": "Closed recovery and inspect action vocabulary for tree rows and placeholders."
+    },
+    "action_role": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "secondary",
+        "recovery",
+        "destructive",
+        "inspect"
+      ]
+    },
+    "recovery_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "action_role", "enabled"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/recovery_action_id" },
+        "action_role": { "$ref": "#/$defs/action_role" },
+        "enabled": { "type": "boolean" },
+        "requires_target_revalidation": { "type": "boolean" },
+        "requires_confirmation": { "type": "boolean" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "identity_recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_state", "recovery_actions", "support_export_required"],
+      "properties": {
+        "identity_state": { "$ref": "#/$defs/identity_state" },
+        "predecessor_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "current_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "lineage_ref": { "$ref": "#/$defs/opaque_id" },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" },
+          "minItems": 1
+        },
+        "support_export_required": { "type": "boolean" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "tree_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "tree_row_schema_version",
+        "tree_row_id",
+        "structural_identity_ref",
+        "surface_class",
+        "scope_ref",
+        "node_kind",
+        "primary_label",
+        "label_source_class",
+        "authority_class",
+        "source_state",
+        "freshness_class",
+        "completeness_class",
+        "mutability_state",
+        "selection_sync",
+        "search_match",
+        "identity_recovery"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "tree_row_record" },
+        "tree_row_schema_version": { "$ref": "#/$defs/tree_row_schema_version" },
+        "tree_row_id": { "$ref": "#/$defs/opaque_id" },
+        "structural_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "parent_row_id": { "$ref": "#/$defs/opaque_id" },
+        "depth": { "type": "integer", "minimum": 0 },
+        "sibling_order": { "type": "integer", "minimum": 0 },
+        "has_children": { "type": "boolean" },
+        "expansion_state": {
+          "type": "string",
+          "enum": ["expanded", "collapsed", "leaf", "unknown"]
+        },
+        "node_kind": { "$ref": "#/$defs/node_kind" },
+        "primary_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "secondary_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "label_source_class": { "$ref": "#/$defs/label_source_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "source_state": { "$ref": "#/$defs/source_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "badges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_badge" }
+        },
+        "mutability_state": { "$ref": "#/$defs/mutability_state" },
+        "selection_sync": { "$ref": "#/$defs/selection_sync" },
+        "search_match": { "$ref": "#/$defs/search_match" },
+        "hidden_scope_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hidden_scope_disclosure" }
+        },
+        "identity_recovery": { "$ref": "#/$defs/identity_recovery" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "placeholder_selection_policy": {
+      "type": "string",
+      "enum": [
+        "preserve_selection",
+        "preserve_focus_only",
+        "move_focus_to_placeholder",
+        "clear_only_if_target_missing"
+      ]
+    },
+    "placeholder_replacement_policy": {
+      "type": "string",
+      "enum": [
+        "replace_when_scope_ready",
+        "append_until_complete",
+        "retain_until_revalidated",
+        "manual_retry_required",
+        "support_export_only"
+      ]
+    },
+    "placeholder_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_existing_rows",
+        "may_append_rows",
+        "may_reorder_existing_rows",
+        "selection_policy",
+        "replacement_policy"
+      ],
+      "properties": {
+        "preserves_existing_rows": { "type": "boolean" },
+        "may_append_rows": { "type": "boolean" },
+        "may_reorder_existing_rows": { "type": "boolean" },
+        "selection_policy": { "$ref": "#/$defs/placeholder_selection_policy" },
+        "replacement_policy": { "$ref": "#/$defs/placeholder_replacement_policy" },
+        "progress_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "How incremental fill interacts with existing rows, focus, selection, ordering, and replacement."
+    },
+    "tree_placeholder_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "tree_row_schema_version",
+        "placeholder_id",
+        "surface_class",
+        "scope_ref",
+        "readiness_state",
+        "freshness_class",
+        "completeness_class",
+        "primary_label",
+        "known_row_count",
+        "unknown_or_hidden_count",
+        "behavior",
+        "row_actions"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "tree_placeholder_record" },
+        "tree_row_schema_version": { "$ref": "#/$defs/tree_row_schema_version" },
+        "placeholder_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "parent_row_id": { "$ref": "#/$defs/opaque_id" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "primary_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "preserved_capability": { "$ref": "#/$defs/redaction_aware_text" },
+        "narrowed_capability": { "$ref": "#/$defs/redaction_aware_text" },
+        "known_row_count": { "$ref": "#/$defs/count_value" },
+        "unknown_or_hidden_count": { "$ref": "#/$defs/count_value" },
+        "hidden_scope_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hidden_scope_disclosure" }
+        },
+        "behavior": { "$ref": "#/$defs/placeholder_behavior" },
+        "row_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" },
+          "minItems": 1
+        },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "tree_surface_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "tree_row_schema_version",
+        "snapshot_id",
+        "surface_class",
+        "scope_ref",
+        "authority_class",
+        "materialization_class",
+        "readiness_state",
+        "freshness_class",
+        "completeness_class",
+        "rows",
+        "placeholders",
+        "captured_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "tree_surface_snapshot_record" },
+        "tree_row_schema_version": { "$ref": "#/$defs/tree_row_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "materialization_class": { "$ref": "#/$defs/materialization_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "snapshot_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "delta_sequence_ref": { "$ref": "#/$defs/opaque_id" },
+        "hidden_scope_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hidden_scope_disclosure" }
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tree_row_record" }
+        },
+        "placeholders": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tree_placeholder_record" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

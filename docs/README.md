@@ -566,6 +566,17 @@ code.
   [`/schemas/ux/live_set_state.schema.json`](../schemas/ux/live_set_state.schema.json);
   worked fixtures in
   [`/fixtures/ux/live_review_examples/`](../fixtures/ux/live_review_examples/).
+- [`ux/tree_row_contract.md`](./ux/tree_row_contract.md)
+  — shared structural tree row contract for file trees, outlines,
+  component/runtime trees, route and dependency trees, write-scope
+  preview trees, and support/export projections. Freezes row anatomy,
+  partial-readiness placeholders, hidden-scope disclosures, selection
+  sync, read-only/generated/locked states, search-match highlights, and
+  identity recovery for moved, missing, imported, cached, generated, and
+  unsupported nodes. Boundary schema in
+  [`/schemas/ux/tree_row.schema.json`](../schemas/ux/tree_row.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/tree_rows/`](../fixtures/ux/tree_rows/).
 - [`ux/forms_validation_contract.md`](./ux/forms_validation_contract.md)
   — shared form-validation, async-probe, and staged-review contract
   for settings, connections, packages, policy edits, repairs,
