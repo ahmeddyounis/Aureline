@@ -452,6 +452,14 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`ux/quick_open_contract.md`](./ux/quick_open_contract.md)
+  — quick-open result-row, readiness-banner, same-surface
+  explanation, and focus-return contract. Boundary schemas in
+  [`/schemas/search/quick_open_result.schema.json`](../schemas/search/quick_open_result.schema.json)
+  and
+  [`/schemas/search/quick_open_explanation.schema.json`](../schemas/search/quick_open_explanation.schema.json);
+  worked fixtures in
+  [`/fixtures/search/quick_open_rows/`](../fixtures/search/quick_open_rows/).
 - [`architecture/language_protocol_router_adr.md`](./architecture/language_protocol_router_adr.md)
   — typed language protocol-router ADR seed for LSP, DAP, formatter,
   linter, test, build, framework, native analyzer, project graph,

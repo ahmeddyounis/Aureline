@@ -1,0 +1,958 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/quick_open_result.schema.json",
+  "title": "Aureline quick-open session and result-row contract",
+  "description": "Boundary schema for quick_open_session_record and quick_open_result_row_record, frozen in docs/ux/quick_open_contract.md. Quick open is a protected navigation surface that projects search-result truth, planner/result-fusion provenance, command and route identity, recent-location continuity, target truth, and focus-return behavior into one keyboard-first surface. Raw query bodies, raw document bodies, raw absolute paths, raw provider payloads, and raw URLs do not appear in these records.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/quick_open_session_record" },
+    { "$ref": "#/$defs/quick_open_result_row_record" }
+  ],
+  "$defs": {
+    "quick_open_result_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for quick-open result projections. Additive optional fields or enum values bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "quick_open_session_record",
+        "quick_open_result_row_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, safe in support bundles, and safe in fixtures. Raw query bodies, raw absolute paths, raw document bodies, raw provider payloads, and raw URLs do not appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "not_indexed",
+        "hot_set_ready",
+        "partial_index",
+        "warm_index",
+        "fully_indexed",
+        "stale_index",
+        "reindexing",
+        "index_unavailable"
+      ],
+      "description": "Mirrors schemas/search/search_result_truth.schema.json. fully_indexed is the only state that renders a result set complete for the requested scope."
+    },
+    "result_truth_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "imported",
+        "heuristic",
+        "hybrid"
+      ]
+    },
+    "ranking_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_name_match",
+        "exact_path_match",
+        "lexical_prefix_match",
+        "lexical_fuzzy_match",
+        "symbol_kind_prior",
+        "graph_neighbourhood_hop",
+        "recent_file_bias",
+        "recent_edit_bias",
+        "frequent_use_bias",
+        "imported_fact_match",
+        "heuristic_summary_cluster",
+        "semantic_embedding_neighbour",
+        "docs_anchor_match",
+        "palette_command_canonical",
+        "symbol_jump_declaration_anchor",
+        "structural_fallback",
+        "policy_hidden_placeholder"
+      ]
+    },
+    "semantic_fallback_state": {
+      "type": "string",
+      "enum": [
+        "semantic_unavailable_lexical_only",
+        "semantic_degraded_lexical_preferred",
+        "semantic_available_as_supplement",
+        "semantic_disabled_by_policy",
+        "semantic_not_applicable"
+      ]
+    },
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "hidden_scope_reason": {
+      "type": "string",
+      "enum": [
+        "trust_state_excludes_surface",
+        "policy_narrows_source",
+        "sparse_scope_excludes_root",
+        "outside_loaded_scope",
+        "excluded_by_user_filter",
+        "client_scope_excludes_surface",
+        "provider_overlay_unauthorised",
+        "pack_quarantined",
+        "redaction_narrowed",
+        "remote_shard_unreachable"
+      ]
+    },
+    "partial_truth_cause": {
+      "type": "string",
+      "enum": [
+        "hot_set_only",
+        "manifest_only",
+        "cache_only",
+        "outside_loaded_scope",
+        "indexing_in_progress",
+        "semantic_service_unavailable",
+        "remote_shard_unreachable",
+        "provider_overlay_unreachable",
+        "policy_blocked_shard",
+        "freshness_floor_unmet",
+        "stale_index_served"
+      ]
+    },
+    "quick_open_row_kind": {
+      "type": "string",
+      "enum": [
+        "file",
+        "symbol",
+        "recent_place",
+        "route",
+        "command",
+        "setting",
+        "docs_anchor",
+        "provider_resource",
+        "hidden_placeholder"
+      ]
+    },
+    "source_lane_class": {
+      "type": "string",
+      "enum": [
+        "hot_set_file",
+        "lexical_file",
+        "symbol_index",
+        "recent_place",
+        "route_registry",
+        "command_registry",
+        "settings_registry",
+        "docs_pack",
+        "provider_overlay",
+        "imported_precomputed",
+        "support_projection"
+      ],
+      "description": "Quick-open projection lane. Rows still cite their upstream search packet, result-fusion record, command row, route, or navigation artifact."
+    },
+    "quick_open_banner_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "hot_set_only",
+        "partial_index",
+        "stale",
+        "outside_current_workset",
+        "hidden_by_filter",
+        "policy_limited",
+        "provider_limited"
+      ]
+    },
+    "query_state_class": {
+      "type": "string",
+      "enum": [
+        "focused_empty",
+        "ime_composing",
+        "filtering",
+        "streaming",
+        "stable",
+        "empty_partial",
+        "cancelled",
+        "committed",
+        "inspecting_detail"
+      ]
+    },
+    "row_availability_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "previewable",
+        "disabled_selectable",
+        "hidden_explainable",
+        "policy_blocked",
+        "provider_limited",
+        "target_unresolved"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_file",
+        "buffer_anchor",
+        "graph_symbol",
+        "recent_location",
+        "command_route",
+        "settings_route",
+        "docs_anchor",
+        "provider_resource",
+        "generated_artifact",
+        "terminal_zone",
+        "output_viewer"
+      ]
+    },
+    "host_class": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "split_editor",
+        "side_panel",
+        "bottom_panel",
+        "external_browser_handoff",
+        "remote_host",
+        "command_runtime",
+        "no_host"
+      ]
+    },
+    "route_cue_class": {
+      "type": "string",
+      "enum": [
+        "current_workspace",
+        "current_file",
+        "current_symbol",
+        "current_workset",
+        "outside_current_workset",
+        "remote_workspace",
+        "docs_pack",
+        "provider_overlay",
+        "command_graph",
+        "settings_surface"
+      ]
+    },
+    "deep_link_drift_state": {
+      "type": "string",
+      "enum": [
+        "resolved_exact",
+        "resolved_remapped",
+        "resolved_ambiguous",
+        "target_missing",
+        "target_moved",
+        "target_renamed",
+        "target_branch_drifted",
+        "target_policy_blocked",
+        "target_scope_excluded",
+        "index_not_ready_for_target",
+        "unresolvable"
+      ]
+    },
+    "preselection_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_current_buffer",
+        "recent_place_restore",
+        "first_enabled_row",
+        "previous_query_row",
+        "bookmarked_target",
+        "none_available"
+      ]
+    },
+    "focus_origin_class": {
+      "type": "string",
+      "enum": [
+        "editor_text",
+        "editor_sidebar",
+        "terminal",
+        "panel",
+        "modal_sheet",
+        "command_palette",
+        "quick_open",
+        "workbench_shell"
+      ]
+    },
+    "focus_outcome_class": {
+      "type": "string",
+      "enum": [
+        "return_to_invoker",
+        "focus_opened_target",
+        "focus_preview_target",
+        "keep_query_focused",
+        "focus_detail_panel",
+        "nearest_safe_ancestor"
+      ]
+    },
+    "keyboard_action_class": {
+      "type": "string",
+      "enum": [
+        "move_next",
+        "move_previous",
+        "page_next",
+        "page_previous",
+        "primary_open",
+        "preview_selected",
+        "alternate_open",
+        "inspect_explanation",
+        "clear_query",
+        "cancel",
+        "reopen_last_query"
+      ]
+    },
+    "still_available_action_class": {
+      "type": "string",
+      "enum": [
+        "open_visible_rows",
+        "preview_visible_rows",
+        "inspect_explanation",
+        "widen_scope",
+        "clear_filter",
+        "retry_provider",
+        "request_policy_change",
+        "rebuild_index",
+        "keep_typing",
+        "cancel_to_invoker"
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "scenario"
+      ],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "exercised_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted"
+          ]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "hidden_result_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hidden_result_count",
+        "count_is_approximate",
+        "hidden_scope_reasons",
+        "explanation_ref"
+      ],
+      "properties": {
+        "hidden_result_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "count_is_approximate": { "type": "boolean" },
+        "hidden_scope_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hidden_scope_reason" }
+        },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "stale_or_partial_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partial_truth_causes",
+        "human_readable_summary"
+      ],
+      "properties": {
+        "partial_truth_causes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/partial_truth_cause" }
+        },
+        "human_readable_summary": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Frozen copy from docs/search/search_readiness_vocabulary.md."
+        }
+      }
+    },
+    "quick_open_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "banner_state",
+        "readiness_state",
+        "allowed_actions",
+        "explanation_ref"
+      ],
+      "properties": {
+        "banner_state": { "$ref": "#/$defs/quick_open_banner_state" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "partial_truth_causes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/partial_truth_cause" }
+        },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "allowed_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/still_available_action_class" }
+        },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "row_display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_label",
+        "primary_label_ref",
+        "secondary_label",
+        "source_lane_label_ref"
+      ],
+      "properties": {
+        "primary_label": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "secondary_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "source_lane_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "matched_range_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "canonical_target_ref",
+        "host_class",
+        "route_cues",
+        "deep_link_drift_state",
+        "resolved_deep_link_ref"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "canonical_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "path_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "symbol_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "route_cues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/route_cue_class" }
+        },
+        "deep_link_drift_state": { "$ref": "#/$defs/deep_link_drift_state" },
+        "resolved_deep_link_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "source_record_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "search_result_packet_ref",
+        "result_fusion_ref",
+        "planner_pass_ref",
+        "result_set_ref"
+      ],
+      "properties": {
+        "search_result_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "result_fusion_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "planner_pass_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "result_set_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "shard_snapshot_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "palette_result_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "navigation_artifact_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "provider_state_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "focus_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_return_token_ref",
+        "focus_origin_class",
+        "opened_focus_outcome",
+        "preview_focus_outcome",
+        "cancel_focus_outcome",
+        "inspect_focus_outcome",
+        "nearest_safe_ancestor_ref",
+        "reopen_preselection_reason"
+      ],
+      "properties": {
+        "focus_return_token_ref": { "$ref": "#/$defs/opaque_id" },
+        "focus_origin_class": { "$ref": "#/$defs/focus_origin_class" },
+        "opened_focus_outcome": { "$ref": "#/$defs/focus_outcome_class" },
+        "preview_focus_outcome": { "$ref": "#/$defs/focus_outcome_class" },
+        "cancel_focus_outcome": { "$ref": "#/$defs/focus_outcome_class" },
+        "inspect_focus_outcome": { "$ref": "#/$defs/focus_outcome_class" },
+        "nearest_safe_ancestor_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_preselection_reason": { "$ref": "#/$defs/preselection_reason_class" }
+      }
+    },
+    "keyboard_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keyboard_action_class",
+        "gesture_ref",
+        "narration_ref"
+      ],
+      "properties": {
+        "keyboard_action_class": { "$ref": "#/$defs/keyboard_action_class" },
+        "gesture_ref": { "$ref": "#/$defs/opaque_id" },
+        "narration_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "keyboard_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_starts_in_query_field",
+        "selection_is_stable_row_id",
+        "bindings"
+      ],
+      "properties": {
+        "focus_starts_in_query_field": { "type": "boolean" },
+        "selection_is_stable_row_id": { "type": "boolean" },
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/keyboard_binding" }
+        }
+      }
+    },
+    "availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_availability_class",
+        "row_is_selectable",
+        "primary_open_allowed",
+        "preview_allowed",
+        "explanation_allowed",
+        "next_safe_action_refs"
+      ],
+      "properties": {
+        "row_availability_class": { "$ref": "#/$defs/row_availability_class" },
+        "row_is_selectable": { "type": "boolean" },
+        "primary_open_allowed": { "type": "boolean" },
+        "preview_allowed": { "type": "boolean" },
+        "explanation_allowed": { "type": "boolean" },
+        "next_safe_action_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "preselection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_row_ref",
+        "preselection_reason",
+        "selection_preserved_across_streaming"
+      ],
+      "properties": {
+        "selected_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "preselection_reason": { "$ref": "#/$defs/preselection_reason_class" },
+        "selection_preserved_across_streaming": { "type": "boolean" }
+      }
+    },
+    "quick_open_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quick_open_result_schema_version",
+        "quick_open_session_id",
+        "query_session_id_ref",
+        "result_set_id_ref",
+        "query_state",
+        "scope_filter_class",
+        "readiness_state",
+        "semantic_fallback_state",
+        "visible_result_count",
+        "hidden_result_disclosure",
+        "active_banners",
+        "preselection",
+        "keyboard_contract",
+        "focus_contract",
+        "policy_context",
+        "redaction_class",
+        "opened_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "record_kind": { "const": "quick_open_session_record" },
+        "quick_open_result_schema_version": { "$ref": "#/$defs/quick_open_result_schema_version" },
+        "quick_open_session_id": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "query_state": { "$ref": "#/$defs/query_state_class" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "semantic_fallback_state": { "$ref": "#/$defs/semantic_fallback_state" },
+        "visible_result_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "active_banners": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/quick_open_banner" }
+        },
+        "preselection": { "$ref": "#/$defs/preselection" },
+        "keyboard_contract": { "$ref": "#/$defs/keyboard_contract" },
+        "focus_contract": { "$ref": "#/$defs/focus_contract" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      }
+    },
+    "quick_open_result_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quick_open_result_schema_version",
+        "quick_open_row_id",
+        "quick_open_session_id_ref",
+        "query_session_id_ref",
+        "result_set_id_ref",
+        "row_kind",
+        "source_lane_class",
+        "display",
+        "availability",
+        "target_identity",
+        "readiness_state",
+        "result_truth_class",
+        "ranking_reason_classes",
+        "semantic_fallback_state",
+        "scope_filter_class",
+        "freshness_class",
+        "client_scopes",
+        "hidden_result_disclosure",
+        "stale_or_partial_explanation",
+        "banner",
+        "source_record_refs",
+        "explanation_ref",
+        "focus_contract",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "record_kind": { "const": "quick_open_result_row_record" },
+        "quick_open_result_schema_version": { "$ref": "#/$defs/quick_open_result_schema_version" },
+        "quick_open_row_id": { "$ref": "#/$defs/opaque_id" },
+        "quick_open_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "$ref": "#/$defs/quick_open_row_kind" },
+        "source_lane_class": { "$ref": "#/$defs/source_lane_class" },
+        "display": { "$ref": "#/$defs/row_display" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "result_truth_class": { "$ref": "#/$defs/result_truth_class" },
+        "ranking_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ranking_reason_class" }
+        },
+        "semantic_fallback_state": { "$ref": "#/$defs/semantic_fallback_state" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "stale_or_partial_explanation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stale_or_partial_explanation" }
+          ]
+        },
+        "banner": { "$ref": "#/$defs/quick_open_banner" },
+        "source_record_refs": { "$ref": "#/$defs/source_record_refs" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" },
+        "focus_contract": { "$ref": "#/$defs/focus_contract" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Rows that are not fully indexed carry a stale or partial explanation.",
+          "if": {
+            "properties": {
+              "readiness_state": {
+                "not": { "const": "fully_indexed" }
+              }
+            },
+            "required": ["readiness_state"]
+          },
+          "then": {
+            "properties": {
+              "stale_or_partial_explanation": { "$ref": "#/$defs/stale_or_partial_explanation" }
+            },
+            "required": ["stale_or_partial_explanation"]
+          }
+        },
+        {
+          "description": "Rows with non-none banners carry an explanation ref and at least one allowed action.",
+          "if": {
+            "properties": {
+              "banner": {
+                "properties": {
+                  "banner_state": {
+                    "not": { "const": "none" }
+                  }
+                },
+                "required": ["banner_state"]
+              }
+            },
+            "required": ["banner"]
+          },
+          "then": {
+            "properties": {
+              "banner": {
+                "properties": {
+                  "allowed_actions": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                },
+                "required": ["explanation_ref", "allowed_actions"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Symbol rows must carry a symbol anchor ref.",
+          "if": {
+            "properties": {
+              "row_kind": { "const": "symbol" }
+            },
+            "required": ["row_kind"]
+          },
+          "then": {
+            "properties": {
+              "target_identity": {
+                "properties": {
+                  "symbol_anchor_ref": { "$ref": "#/$defs/opaque_id" }
+                },
+                "required": ["symbol_anchor_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Policy-blocked rows must be selectable for explanation and must not allow primary open.",
+          "if": {
+            "properties": {
+              "availability": {
+                "properties": {
+                  "row_availability_class": { "const": "policy_blocked" }
+                },
+                "required": ["row_availability_class"]
+              }
+            },
+            "required": ["availability"]
+          },
+          "then": {
+            "properties": {
+              "availability": {
+                "properties": {
+                  "row_is_selectable": { "const": true },
+                  "primary_open_allowed": { "const": false },
+                  "explanation_allowed": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
