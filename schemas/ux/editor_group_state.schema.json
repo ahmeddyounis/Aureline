@@ -1,0 +1,829 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/editor_group_state.schema.json",
+  "title": "Aureline editor-tab, editor-group, dirty-state, and compare-fallback contract",
+  "description": "Boundary schema for the tab and editor-group working-set contract frozen in docs/ux/tabs_editor_groups_contract.md. The schema exports editor_group_snapshot_record, editor_group_transition_record, and compare_fallback_decision_record so shell, restore, support export, compare, notebook, generated-artifact, and live-preview surfaces share one vocabulary for tab labels, dirty attribution, pinned or preview state, restored or generated state, compare posture, live-preview posture, missing-dependency placeholders, group identity, overflow, close-affordance swaps, and minimum-width fallback. Raw file bodies, raw absolute paths, raw URLs, raw terminal output, raw notebook output, raw preview DOM, raw provider payloads, and raw credential material never cross this boundary; records carry opaque refs, bounded labels, and typed state only. Adding a new record kind, state enum, operation, fallback decision, or denial reason is additive-minor and requires an editor_group_state_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/editor_group_snapshot_record" },
+    { "$ref": "#/$defs/editor_group_transition_record" },
+    { "$ref": "#/$defs/compare_fallback_decision_record" }
+  ],
+  "$defs": {
+    "editor_group_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for editor-tab, editor-group, and compare-fallback payloads. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "record_kinds_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, and safe in support bundles. Raw paths, raw payloads, and capability tickets never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced by the emitting subsystem."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display text. Raw absolute paths, raw logs, raw notebook outputs, raw provider payloads, and secret material must not appear."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 140,
+      "description": "Short redaction-aware label suitable for a tab strip or overflow row."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "editor_group_snapshot_record",
+        "editor_group_transition_record",
+        "compare_fallback_decision_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "tab_surface_class": {
+      "type": "string",
+      "enum": [
+        "text_editor",
+        "diff_view",
+        "notebook_view",
+        "generated_artifact_view",
+        "preview_view",
+        "live_preview_view",
+        "terminal_transcript_view",
+        "placeholder_view",
+        "custom_extension_view"
+      ],
+      "description": "Surface class represented by the tab."
+    },
+    "tab_activity_state": {
+      "type": "string",
+      "enum": ["active", "inactive"],
+      "description": "Whether this tab is the active tab in its group."
+    },
+    "dirty_state": {
+      "type": "string",
+      "enum": [
+        "clean",
+        "modified",
+        "dirty_conflict",
+        "save_blocked",
+        "recovered_draft"
+      ],
+      "description": "Visible dirty-state vocabulary. Any non-clean value must name dirty_authority."
+    },
+    "dirty_authority_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "buffer_authority",
+        "notebook_authority",
+        "review_authority",
+        "generated_artifact_authority",
+        "live_preview_authority"
+      ],
+      "description": "Authority that owns the dirty or recovered-draft claim."
+    },
+    "pin_state": {
+      "type": "string",
+      "enum": ["unpinned", "pinned"]
+    },
+    "preview_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "disposable_preview",
+        "preview_pinned",
+        "promoted_full"
+      ],
+      "description": "Preview-to-full state. Promotion preserves identity unless the target object changes."
+    },
+    "restore_state": {
+      "type": "string",
+      "enum": [
+        "never_restored",
+        "exact_restored",
+        "compatible_restored",
+        "layout_only_restored",
+        "evidence_only_restored",
+        "recovered_draft"
+      ],
+      "description": "Restore posture projected onto a tab."
+    },
+    "generated_state": {
+      "type": "string",
+      "enum": [
+        "authored",
+        "generated_read_only",
+        "generated_edit_blocked",
+        "generated_editable_with_lineage"
+      ],
+      "description": "Generated-artifact edit posture visible on tabs and overflow rows."
+    },
+    "compare_mode": {
+      "type": "string",
+      "enum": [
+        "none",
+        "split_compare",
+        "tabbed_compare",
+        "staged_peek",
+        "explicit_choice",
+        "metadata_only_compare"
+      ],
+      "description": "Compare presentation mode for a tab or group."
+    },
+    "compare_role": {
+      "type": "string",
+      "enum": ["none", "source", "target", "base", "result", "unified"],
+      "description": "Role of this tab in a compare surface."
+    },
+    "live_preview_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "live_connected",
+        "live_reconnecting",
+        "stale_snapshot",
+        "blocked_missing_runtime",
+        "manual_rebind_required"
+      ],
+      "description": "Live-preview truth. No value implies editable source truth or restored live readiness by itself."
+    },
+    "missing_dependency_posture": {
+      "type": "string",
+      "enum": [
+        "none",
+        "missing_extension",
+        "missing_remote",
+        "missing_runtime",
+        "missing_authority",
+        "revoked_permission",
+        "non_reentrant_live_surface"
+      ],
+      "description": "Missing dependency or placeholder posture for restored or live tabs."
+    },
+    "read_only_state": {
+      "type": "string",
+      "enum": [
+        "writable",
+        "read_only_policy",
+        "read_only_filesystem",
+        "read_only_generated",
+        "read_only_shared_follow"
+      ],
+      "description": "Read-only reason. Kept separate from disabled, pinned, and blocked state."
+    },
+    "collaboration_state": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "shared_editing",
+        "followed_remote",
+        "presenting",
+        "observing"
+      ],
+      "description": "Visible collaboration, follow, or presentation posture."
+    },
+    "blocked_state": {
+      "type": "string",
+      "enum": [
+        "unblocked",
+        "blocked_by_policy",
+        "blocked_by_missing_dependency",
+        "blocked_by_authority",
+        "blocked_by_unsafe_width"
+      ],
+      "description": "Blocked tab state. Any blocked value must carry a visible reason or repair action."
+    },
+    "close_affordance": {
+      "type": "string",
+      "enum": [
+        "visible_close",
+        "visible_close_dirty_confirm",
+        "hidden_for_pinned_show_unpin",
+        "disabled_read_only_followed",
+        "overflow_menu_only",
+        "blocked_with_reason"
+      ],
+      "description": "Close / unpin / confirmation posture. A swap must remain legible and keyboard reachable."
+    },
+    "label_truncation_state": {
+      "type": "string",
+      "enum": [
+        "full_visible",
+        "truncated_middle",
+        "truncated_tail",
+        "overflowed"
+      ]
+    },
+    "full_title_recovery_surface": {
+      "type": "string",
+      "enum": [
+        "none",
+        "tooltip",
+        "keyboard_focus_popover",
+        "overflow_menu",
+        "breadcrumb_or_inspector"
+      ],
+      "description": "Where the complete title is recoverable when visible_label truncates."
+    },
+    "overflow_priority_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "dirty_or_conflict",
+        "pinned",
+        "shared_or_followed",
+        "compare_role",
+        "live_preview",
+        "restored_or_generated",
+        "ordinary_inactive"
+      ],
+      "description": "Priority bucket used by overflow policy."
+    },
+    "fallback_surface": {
+      "type": "string",
+      "enum": [
+        "none",
+        "visible_tab_strip",
+        "overflow_menu",
+        "keyboard_focus_popover",
+        "placeholder_card",
+        "sheet",
+        "staged_peek"
+      ],
+      "description": "Fallback surface used when labels or panes collapse."
+    },
+    "group_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "restored_skeleton",
+        "tabbed_compare_host",
+        "staged_peek_host",
+        "placeholder_host"
+      ],
+      "description": "Current group posture."
+    },
+    "minimum_width_posture": {
+      "type": "string",
+      "enum": [
+        "respected",
+        "fallback_required",
+        "violated_denied"
+      ],
+      "description": "Whether the group or compare layout meets the minimum useful width rule."
+    },
+    "editor_group_operation": {
+      "type": "string",
+      "enum": [
+        "move_tab",
+        "split_group",
+        "merge_groups",
+        "move_group_to_window",
+        "reopen_closed_tab",
+        "restore_group",
+        "promote_preview_to_full",
+        "pin_tab",
+        "close_tab",
+        "open_compare",
+        "follow_shared_group"
+      ],
+      "description": "Identity-affecting working-set operation."
+    },
+    "operation_outcome": {
+      "type": "string",
+      "enum": [
+        "identity_preserved",
+        "identity_preserved_with_placeholder",
+        "preview_promoted_identity_preserved",
+        "denied_min_width",
+        "fallback_selected",
+        "blocked_pending_user_choice"
+      ]
+    },
+    "compare_fallback_decision": {
+      "type": "string",
+      "enum": [
+        "none",
+        "split_compare",
+        "tabbed_compare",
+        "staged_peek",
+        "explicit_choice",
+        "deny_until_resize"
+      ],
+      "description": "Fallback decision applied to compare or multi-pane opening."
+    },
+    "tab_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tab_id",
+        "pane_id_ref",
+        "stable_content_ref",
+        "surface_class",
+        "visible_label",
+        "full_title",
+        "activity_state",
+        "dirty_state",
+        "dirty_authority",
+        "pin_state",
+        "preview_state",
+        "restore_state",
+        "generated_state",
+        "compare_mode",
+        "compare_role",
+        "live_preview_state",
+        "missing_dependency_posture",
+        "read_only_state",
+        "collaboration_state",
+        "blocked_state",
+        "close_affordance",
+        "label_truncation_state",
+        "full_title_recovery_surface",
+        "overflow_priority",
+        "visible_state_text",
+        "non_icon_cues",
+        "state_attribution_refs"
+      ],
+      "properties": {
+        "tab_id": { "$ref": "#/$defs/opaque_id" },
+        "pane_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stable_content_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/tab_surface_class" },
+        "visible_label": { "$ref": "#/$defs/short_label_text" },
+        "full_title": { "$ref": "#/$defs/redaction_aware_text" },
+        "activity_state": { "$ref": "#/$defs/tab_activity_state" },
+        "dirty_state": { "$ref": "#/$defs/dirty_state" },
+        "dirty_authority": { "$ref": "#/$defs/dirty_authority_class" },
+        "pin_state": { "$ref": "#/$defs/pin_state" },
+        "preview_state": { "$ref": "#/$defs/preview_state" },
+        "restore_state": { "$ref": "#/$defs/restore_state" },
+        "generated_state": { "$ref": "#/$defs/generated_state" },
+        "compare_mode": { "$ref": "#/$defs/compare_mode" },
+        "compare_role": { "$ref": "#/$defs/compare_role" },
+        "live_preview_state": { "$ref": "#/$defs/live_preview_state" },
+        "missing_dependency_posture": { "$ref": "#/$defs/missing_dependency_posture" },
+        "read_only_state": { "$ref": "#/$defs/read_only_state" },
+        "collaboration_state": { "$ref": "#/$defs/collaboration_state" },
+        "blocked_state": { "$ref": "#/$defs/blocked_state" },
+        "close_affordance": { "$ref": "#/$defs/close_affordance" },
+        "label_truncation_state": { "$ref": "#/$defs/label_truncation_state" },
+        "full_title_recovery_surface": { "$ref": "#/$defs/full_title_recovery_surface" },
+        "overflow_priority": { "$ref": "#/$defs/overflow_priority_class" },
+        "visible_in_tab_strip": {
+          "type": "boolean",
+          "description": "False when the tab is represented only through overflow."
+        },
+        "visible_state_text": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_label_text" },
+          "description": "Short visible words or accessible labels that carry state without relying on icons alone."
+        },
+        "non_icon_cues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/short_label_text" },
+          "description": "Non-icon cues such as text, shape, border, or menu row labels."
+        },
+        "state_attribution_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to buffer authority, generated lineage, restore provenance, policy, session, or dependency records behind visible state."
+        },
+        "safe_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/short_label_text" },
+          "description": "Human-reviewable action labels for placeholders, blocked tabs, or restored panes."
+        },
+        "support_export_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "One tab projected in an editor group. Every state axis is explicit and attributable."
+    },
+    "width_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_width_px",
+        "minimum_useful_width_px",
+        "minimum_useful_compare_pane_width_px",
+        "posture"
+      ],
+      "properties": {
+        "current_width_px": { "type": "integer", "minimum": 0 },
+        "minimum_useful_width_px": { "type": "integer", "minimum": 1 },
+        "minimum_useful_compare_pane_width_px": { "type": "integer", "minimum": 1 },
+        "posture": { "$ref": "#/$defs/minimum_width_posture" },
+        "zoom_percent": { "type": "integer", "minimum": 25 },
+        "forced_narrow_split": { "type": "boolean" }
+      },
+      "description": "Minimum useful width posture for one group."
+    },
+    "overflow_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_tab_ids",
+        "overflowed_tab_ids",
+        "active_dirty_pinned_visible",
+        "overflow_surface",
+        "full_title_recovery_surface"
+      ],
+      "properties": {
+        "visible_tab_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "overflowed_tab_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "active_dirty_pinned_visible": { "type": "boolean" },
+        "overflow_surface": { "$ref": "#/$defs/fallback_surface" },
+        "full_title_recovery_surface": { "$ref": "#/$defs/full_title_recovery_surface" },
+        "overflow_summary_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Tab overflow policy for one editor group."
+    },
+    "editor_group_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id",
+        "window_id_ref",
+        "workspace_authority_ref",
+        "active_tab_id",
+        "group_state",
+        "tabs",
+        "width_policy",
+        "overflow_policy",
+        "focus_return_target_ref",
+        "topology_lineage_refs"
+      ],
+      "properties": {
+        "group_id": { "$ref": "#/$defs/opaque_id" },
+        "window_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_tab_id": { "$ref": "#/$defs/opaque_id" },
+        "group_state": { "$ref": "#/$defs/group_state" },
+        "tabs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tab_state_record" }
+        },
+        "width_policy": { "$ref": "#/$defs/width_policy_record" },
+        "overflow_policy": { "$ref": "#/$defs/overflow_policy_record" },
+        "focus_return_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "topology_lineage_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "collaboration_badges_visible": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/collaboration_state" }
+        },
+        "support_export_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "One stable editor group within a window topology."
+    },
+    "closed_tab_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tab",
+        "closed_from_group_id",
+        "closed_at",
+        "intentional_close",
+        "reopen_target_group_id",
+        "restored_identity_rule"
+      ],
+      "properties": {
+        "tab": { "$ref": "#/$defs/tab_state_record" },
+        "closed_from_group_id": { "$ref": "#/$defs/opaque_id" },
+        "closed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "intentional_close": { "type": "boolean" },
+        "reopen_target_group_id": { "$ref": "#/$defs/opaque_id" },
+        "restored_identity_rule": { "$ref": "#/$defs/short_label_text" }
+      },
+      "description": "One reopenable closed tab preserving identity and close intent."
+    },
+    "compare_pair_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pair_id",
+        "source_tab_id_ref",
+        "target_tab_id_ref",
+        "compare_mode",
+        "basis_snapshot_ref"
+      ],
+      "properties": {
+        "pair_id": { "$ref": "#/$defs/opaque_id" },
+        "source_tab_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_tab_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_tab_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "compare_mode": { "$ref": "#/$defs/compare_mode" },
+        "basis_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "fallback_decision_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "One source / target compare pair in a snapshot."
+    },
+    "support_export_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dirty_tab_count",
+        "restored_tab_count",
+        "generated_tab_count",
+        "blocked_tab_count",
+        "overflowed_tab_count",
+        "compare_pair_count"
+      ],
+      "properties": {
+        "dirty_tab_count": { "type": "integer", "minimum": 0 },
+        "restored_tab_count": { "type": "integer", "minimum": 0 },
+        "generated_tab_count": { "type": "integer", "minimum": 0 },
+        "blocked_tab_count": { "type": "integer", "minimum": 0 },
+        "overflowed_tab_count": { "type": "integer", "minimum": 0 },
+        "compare_pair_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Privacy-safe support-export counts for one snapshot."
+    },
+    "identity_preservation_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tab_ids_preserved",
+        "pane_ids_preserved",
+        "group_lineage_recorded",
+        "workspace_authority_ref_unchanged",
+        "dirty_authority_refs_preserved",
+        "focus_return_target_recorded"
+      ],
+      "properties": {
+        "tab_ids_preserved": { "type": "boolean" },
+        "pane_ids_preserved": { "type": "boolean" },
+        "group_lineage_recorded": { "type": "boolean" },
+        "workspace_authority_ref_unchanged": { "type": "boolean" },
+        "dirty_authority_refs_preserved": { "type": "boolean" },
+        "focus_return_target_recorded": { "type": "boolean" }
+      },
+      "description": "Booleans proving an operation preserved supportable identity."
+    },
+    "editor_group_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "editor_group_state_schema_version",
+        "snapshot_id",
+        "window_id",
+        "workspace_authority_ref",
+        "active_group_id",
+        "groups",
+        "closed_tab_stack",
+        "compare_pairs",
+        "support_export_summary",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "editor_group_snapshot_record" },
+        "editor_group_state_schema_version": { "$ref": "#/$defs/editor_group_state_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "window_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "topology_family_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "active_group_id": { "$ref": "#/$defs/opaque_id" },
+        "groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/editor_group_record" }
+        },
+        "closed_tab_stack": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/closed_tab_record" }
+        },
+        "compare_pairs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compare_pair_record" }
+        },
+        "support_export_summary": { "$ref": "#/$defs/support_export_summary_record" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Snapshot of all editor groups in one window."
+    },
+    "editor_group_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "editor_group_state_schema_version",
+        "operation_event_id",
+        "operation",
+        "outcome",
+        "workspace_authority_ref",
+        "source_window_id_ref",
+        "target_window_id_ref",
+        "source_group_id_ref",
+        "target_group_id_ref",
+        "affected_tab_ids",
+        "before_identity_refs",
+        "after_identity_refs",
+        "identity_preservation_checks",
+        "compare_fallback_decision",
+        "focus_return_target_ref",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "editor_group_transition_record" },
+        "editor_group_state_schema_version": { "$ref": "#/$defs/editor_group_state_schema_version" },
+        "operation_event_id": { "$ref": "#/$defs/opaque_id" },
+        "operation": { "$ref": "#/$defs/editor_group_operation" },
+        "outcome": { "$ref": "#/$defs/operation_outcome" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_window_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_window_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_group_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_group_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "affected_tab_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "before_identity_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "after_identity_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "identity_preservation_checks": { "$ref": "#/$defs/identity_preservation_checks" },
+        "compare_fallback_decision": { "$ref": "#/$defs/compare_fallback_decision" },
+        "focus_return_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "user_visible_choice_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label_text" },
+            { "type": "null" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One identity-affecting tab or editor-group transition."
+    },
+    "compare_fallback_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "editor_group_state_schema_version",
+        "decision_id",
+        "requested_compare_mode",
+        "selected_decision",
+        "workspace_authority_ref",
+        "window_id_ref",
+        "available_main_workspace_width_px",
+        "requested_group_count",
+        "attempted_per_pane_width_px",
+        "minimum_useful_group_width_px",
+        "minimum_useful_compare_pane_width_px",
+        "violation_detected",
+        "user_choice_required",
+        "offered_decisions",
+        "affected_group_refs",
+        "affected_tab_refs",
+        "source_tab_id_ref",
+        "target_tab_id_ref",
+        "basis_snapshot_ref",
+        "focus_return_target_ref",
+        "forbidden_outcomes_verified_absent",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "compare_fallback_decision_record" },
+        "editor_group_state_schema_version": { "$ref": "#/$defs/editor_group_state_schema_version" },
+        "decision_id": { "$ref": "#/$defs/opaque_id" },
+        "requested_compare_mode": { "$ref": "#/$defs/compare_mode" },
+        "selected_decision": { "$ref": "#/$defs/compare_fallback_decision" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "available_main_workspace_width_px": { "type": "integer", "minimum": 0 },
+        "requested_group_count": { "type": "integer", "minimum": 1 },
+        "attempted_per_pane_width_px": { "type": "integer", "minimum": 0 },
+        "minimum_useful_group_width_px": { "type": "integer", "minimum": 1 },
+        "minimum_useful_compare_pane_width_px": { "type": "integer", "minimum": 1 },
+        "violation_detected": { "type": "boolean" },
+        "user_choice_required": { "type": "boolean" },
+        "offered_decisions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/compare_fallback_decision" }
+        },
+        "affected_group_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "affected_tab_refs": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "source_tab_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_tab_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "basis_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "focus_return_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "reason_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "forbidden_outcomes_verified_absent": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/short_label_text" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Decision packet emitted before compare or multi-pane presentation would violate minimum useful width."
+    }
+  }
+}
+
