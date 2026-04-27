@@ -1,0 +1,724 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebooks/notebook_share_scope.schema.json",
+  "title": "Aureline notebook runtime-boundary, share-scope, redaction, and continuity records",
+  "description": "Boundary schema for notebook_runtime_boundary_record, notebook_share_scope_record, notebook_redaction_review_record, notebook_share_continuity_record, and notebook_share_audit_event_record as frozen in docs/notebooks/notebook_collaboration_contract.md. The schema distinguishes local-only, shared-live, captured-for-export, captured-for-presentation, captured-for-support, metadata-only, and stale-overlay notebook states. Every share scope cites a runtime boundary and redaction review. Redaction resolves before share admission for outputs, secrets, transient runtime state, provider-linked resources, comments, and attachments. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw widget state, raw kernel protocol frames, raw environment values, raw provider URLs, raw account ids, raw paths, raw hostnames, raw user identifiers, and raw credential material never appear in this schema.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_runtime_boundary_record" },
+    { "$ref": "#/$defs/notebook_share_scope_record" },
+    { "$ref": "#/$defs/notebook_redaction_review_record" },
+    { "$ref": "#/$defs/notebook_share_continuity_record" },
+    { "$ref": "#/$defs/notebook_share_audit_event_record" }
+  ],
+  "$defs": {
+    "notebook_share_scope_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_runtime_boundary_record",
+        "notebook_share_scope_record",
+        "notebook_redaction_review_record",
+        "notebook_share_continuity_record",
+        "notebook_share_audit_event_record"
+      ]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id or ref. Raw source, output, runtime payloads, URLs, paths, hostnames, user identifiers, and secrets are forbidden."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "support_bundle_scoped",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "raw_payload_forbidden"
+      ]
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "browser_companion",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+
+    "runtime_boundary_label_class": {
+      "type": "string",
+      "enum": [
+        "no_kernel_document_only",
+        "local_only_no_shared_runtime",
+        "shared_live_local_kernel",
+        "shared_live_remote_kernel",
+        "shared_live_managed_kernel",
+        "captured_for_export_or_presentation",
+        "runtime_disconnected_last_known",
+        "provider_runtime_unavailable",
+        "offline_review_no_live_runtime"
+      ]
+    },
+
+    "runtime_state_class": {
+      "type": "string",
+      "enum": [
+        "no_kernel_selected",
+        "live_kernel_current",
+        "live_kernel_shared_current",
+        "kernel_disconnected",
+        "managed_kernel_suspended",
+        "captured_replay_only",
+        "stale_after_kernel_identity_change",
+        "runtime_unavailable_by_policy"
+      ]
+    },
+
+    "captured_vs_live_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "shared_live",
+        "captured_for_export",
+        "captured_for_presentation",
+        "captured_for_support",
+        "stale_captured",
+        "metadata_only"
+      ]
+    },
+
+    "host_locus_class": {
+      "type": "string",
+      "enum": [
+        "no_runtime",
+        "local_desktop",
+        "container_or_devcontainer",
+        "remote_host",
+        "managed_workspace",
+        "provider_service_plane"
+      ]
+    },
+
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "collaboration_session",
+        "presentation_session",
+        "notebook_export",
+        "report_export",
+        "artifact_share_bundle",
+        "support_bundle",
+        "clipboard_copy",
+        "browser_companion_view",
+        "offline_review_packet"
+      ]
+    },
+
+    "share_surface_class": {
+      "type": "string",
+      "enum": [
+        "live_collaboration",
+        "presenter_follow",
+        "export_preview",
+        "support_capture",
+        "browser_review",
+        "offline_review",
+        "report_generation"
+      ]
+    },
+
+    "notebook_shared_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only_not_shared",
+        "shared_live",
+        "captured_for_export",
+        "captured_for_presentation",
+        "captured_for_support",
+        "metadata_only_shared",
+        "stale_overlay_only"
+      ]
+    },
+
+    "share_scope_class": {
+      "type": "string",
+      "enum": [
+        "whole_notebook_metadata_only",
+        "selected_cells",
+        "selected_outputs",
+        "selected_comments",
+        "selected_cells_and_outputs",
+        "presentation_waypoints",
+        "support_minimized_scope"
+      ]
+    },
+
+    "output_payload_policy_class": {
+      "type": "string",
+      "enum": [
+        "include_full_payload_after_redaction",
+        "include_metadata_only",
+        "include_summary_only",
+        "include_truncated_payload",
+        "include_detached_reference",
+        "omit_sensitive_payload_by_default",
+        "blocked_active_content",
+        "unavailable_payload"
+      ]
+    },
+
+    "secret_handling_class": {
+      "type": "string",
+      "enum": [
+        "no_secret_intersection",
+        "secret_refs_only",
+        "secret_values_redacted",
+        "brokered_handles_only",
+        "blocked_secret_bearing_payload"
+      ]
+    },
+
+    "transient_runtime_state_class": {
+      "type": "string",
+      "enum": [
+        "no_runtime_state",
+        "omitted_by_default",
+        "metadata_only_kernel_status",
+        "captured_snapshot_declared",
+        "live_shared_declared",
+        "disconnected_prior_state_declared"
+      ]
+    },
+
+    "provider_resource_handling_class": {
+      "type": "string",
+      "enum": [
+        "no_provider_resources",
+        "resource_refs_metadata_only",
+        "provider_links_removed",
+        "signed_refs_only",
+        "blocked_cross_tenant_resource"
+      ]
+    },
+
+    "redaction_review_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_redaction_review",
+        "redacted_before_share",
+        "blocked_pending_redaction",
+        "share_denied_by_policy",
+        "metadata_only_after_redaction",
+        "no_redaction_needed"
+      ]
+    },
+
+    "reviewed_payload_class": {
+      "type": "string",
+      "enum": [
+        "outputs",
+        "secrets",
+        "transient_runtime_state",
+        "provider_linked_resources",
+        "comments",
+        "attachments",
+        "notebook_metadata"
+      ]
+    },
+
+    "offline_review_state_class": {
+      "type": "string",
+      "enum": [
+        "not_offline",
+        "offline_review_available_local_only",
+        "offline_review_metadata_only",
+        "offline_review_blocked_policy"
+      ]
+    },
+
+    "collaboration_overlay_state_class": {
+      "type": "string",
+      "enum": [
+        "no_overlay",
+        "live_overlay_current",
+        "stale_overlay_marked",
+        "overlay_unavailable",
+        "archived_overlay_metadata_only"
+      ]
+    },
+
+    "runtime_disconnect_state_class": {
+      "type": "string",
+      "enum": [
+        "no_disconnect",
+        "remote_kernel_disconnected_prior_outputs_captured",
+        "managed_kernel_suspended_review_only",
+        "local_kernel_dead_review_only",
+        "no_kernel_selected"
+      ]
+    },
+
+    "continuity_recovery_path_class": {
+      "type": "string",
+      "enum": [
+        "continue_local_review",
+        "rejoin_collaboration",
+        "rerun_with_current_kernel",
+        "select_new_kernel",
+        "export_captured_snapshot",
+        "request_fresh_share_scope",
+        "open_stale_overlay_details"
+      ]
+    },
+
+    "share_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "notebook_runtime_boundary_recorded",
+        "notebook_share_scope_minted",
+        "notebook_share_scope_amended",
+        "notebook_redaction_review_recorded",
+        "notebook_share_continuity_recorded",
+        "notebook_share_audit_denial_emitted",
+        "notebook_share_scope_schema_version_bumped"
+      ]
+    },
+
+    "share_denial_reason": {
+      "type": "string",
+      "enum": [
+        "runtime_boundary_label_missing",
+        "share_scope_state_class_missing",
+        "redaction_review_missing",
+        "share_attempted_before_redaction_review",
+        "secret_bearing_payload_blocked",
+        "transient_runtime_state_share_forbidden",
+        "provider_resource_share_forbidden",
+        "captured_state_mislabeled_as_live",
+        "local_only_state_mislabeled_as_shared",
+        "stale_overlay_mislabeled_as_current",
+        "notebook_share_scope_schema_version_lagging"
+      ]
+    },
+
+    "selection_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_document_ref",
+        "scope_summary_label"
+      ],
+      "properties": {
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "cell_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "output_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "comment_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "metadata_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "attachment_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "include_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "scope_summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "notebook_runtime_boundary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_share_scope_schema_version",
+        "record_kind",
+        "runtime_boundary_id",
+        "notebook_document_ref",
+        "runtime_boundary_label_class",
+        "runtime_state_class",
+        "captured_vs_live_state_class",
+        "host_locus_class",
+        "visible_state_label",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_runtime_boundary_record" },
+        "notebook_share_scope_schema_version": { "$ref": "#/$defs/notebook_share_scope_schema_version" },
+        "runtime_boundary_id": { "$ref": "#/$defs/opaque_id" },
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "kernel_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "kernelspec_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "execution_context_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "runtime_boundary_label_class": { "$ref": "#/$defs/runtime_boundary_label_class" },
+        "runtime_state_class": { "$ref": "#/$defs/runtime_state_class" },
+        "captured_vs_live_state_class": { "$ref": "#/$defs/captured_vs_live_state_class" },
+        "host_locus_class": { "$ref": "#/$defs/host_locus_class" },
+        "live_cue_visible": { "type": "boolean" },
+        "last_live_seen_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reconnect_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "runtime_boundary_label_class": {
+                "enum": [
+                  "shared_live_local_kernel",
+                  "shared_live_remote_kernel",
+                  "shared_live_managed_kernel"
+                ]
+              }
+            },
+            "required": ["runtime_boundary_label_class"]
+          },
+          "then": {
+            "required": ["kernel_session_ref", "execution_context_record_ref", "live_cue_visible"],
+            "properties": {
+              "kernel_session_ref": { "$ref": "#/$defs/opaque_id" },
+              "execution_context_record_ref": { "$ref": "#/$defs/opaque_id" },
+              "live_cue_visible": { "const": true },
+              "captured_vs_live_state_class": { "const": "shared_live" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "runtime_boundary_label_class": {
+                "enum": [
+                  "captured_for_export_or_presentation",
+                  "runtime_disconnected_last_known"
+                ]
+              }
+            },
+            "required": ["runtime_boundary_label_class"]
+          },
+          "then": {
+            "required": ["last_live_seen_at"]
+          }
+        }
+      ]
+    },
+
+    "notebook_share_scope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_share_scope_schema_version",
+        "record_kind",
+        "share_scope_id",
+        "notebook_document_ref",
+        "destination_class",
+        "share_surface_class",
+        "notebook_shared_state_class",
+        "share_scope_class",
+        "runtime_boundary_ref",
+        "redaction_review_ref",
+        "selection_scope",
+        "visible_state_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_share_scope_record" },
+        "notebook_share_scope_schema_version": { "$ref": "#/$defs/notebook_share_scope_schema_version" },
+        "share_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "share_surface_class": { "$ref": "#/$defs/share_surface_class" },
+        "notebook_shared_state_class": { "$ref": "#/$defs/notebook_shared_state_class" },
+        "share_scope_class": { "$ref": "#/$defs/share_scope_class" },
+        "runtime_boundary_ref": { "$ref": "#/$defs/opaque_id" },
+        "redaction_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "selection_scope": { "$ref": "#/$defs/selection_scope" },
+        "session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "presenter_focus_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "session_policy_manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "retention_policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_profile_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_rights_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "delete_rights_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "notebook_shared_state_class": { "const": "shared_live" }
+            },
+            "required": ["notebook_shared_state_class"]
+          },
+          "then": {
+            "required": ["session_ref", "session_policy_manifest_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "destination_class": {
+                "enum": [
+                  "collaboration_session",
+                  "presentation_session"
+                ]
+              }
+            },
+            "required": ["destination_class"]
+          },
+          "then": {
+            "required": ["session_ref"]
+          }
+        }
+      ]
+    },
+
+    "notebook_redaction_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_share_scope_schema_version",
+        "record_kind",
+        "redaction_review_id",
+        "redaction_review_state_class",
+        "output_payload_policy_class",
+        "secret_handling_class",
+        "transient_runtime_state_class",
+        "provider_resource_handling_class",
+        "reviewed_payload_classes",
+        "redaction_completed_before_share",
+        "share_allowed_after_review",
+        "visible_state_label",
+        "reviewed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_redaction_review_record" },
+        "notebook_share_scope_schema_version": { "$ref": "#/$defs/notebook_share_scope_schema_version" },
+        "redaction_review_id": { "$ref": "#/$defs/opaque_id" },
+        "share_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_review_state_class": { "$ref": "#/$defs/redaction_review_state_class" },
+        "output_payload_policy_class": { "$ref": "#/$defs/output_payload_policy_class" },
+        "secret_handling_class": { "$ref": "#/$defs/secret_handling_class" },
+        "transient_runtime_state_class": { "$ref": "#/$defs/transient_runtime_state_class" },
+        "provider_resource_handling_class": { "$ref": "#/$defs/provider_resource_handling_class" },
+        "reviewed_payload_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewed_payload_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "omitted_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redacted_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "detached_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_profile_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_completed_before_share": { "type": "boolean" },
+        "share_allowed_after_review": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "reviewed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "redaction_review_state_class": {
+                "enum": [
+                  "redacted_before_share",
+                  "metadata_only_after_redaction",
+                  "no_redaction_needed"
+                ]
+              }
+            },
+            "required": ["redaction_review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_completed_before_share": { "const": true },
+              "share_allowed_after_review": { "const": true }
+            },
+            "required": [
+              "redaction_completed_before_share",
+              "share_allowed_after_review"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "redaction_review_state_class": {
+                "enum": [
+                  "pending_redaction_review",
+                  "blocked_pending_redaction",
+                  "share_denied_by_policy"
+                ]
+              }
+            },
+            "required": ["redaction_review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_allowed_after_review": { "const": false }
+            },
+            "required": ["share_allowed_after_review"]
+          }
+        }
+      ]
+    },
+
+    "notebook_share_continuity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_share_scope_schema_version",
+        "record_kind",
+        "continuity_id",
+        "notebook_document_ref",
+        "runtime_boundary_ref",
+        "offline_review_state_class",
+        "collaboration_overlay_state_class",
+        "runtime_disconnect_state_class",
+        "captured_vs_live_state_class",
+        "recovery_path_classes",
+        "visible_state_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_share_continuity_record" },
+        "notebook_share_scope_schema_version": { "$ref": "#/$defs/notebook_share_scope_schema_version" },
+        "continuity_id": { "$ref": "#/$defs/opaque_id" },
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "share_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "runtime_boundary_ref": { "$ref": "#/$defs/opaque_id" },
+        "offline_review_state_class": { "$ref": "#/$defs/offline_review_state_class" },
+        "collaboration_overlay_state_class": { "$ref": "#/$defs/collaboration_overlay_state_class" },
+        "runtime_disconnect_state_class": { "$ref": "#/$defs/runtime_disconnect_state_class" },
+        "captured_vs_live_state_class": { "$ref": "#/$defs/captured_vs_live_state_class" },
+        "recovery_path_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/continuity_recovery_path_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "stale_overlay_reason_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "collaboration_overlay_state_class": {
+                "enum": [
+                  "stale_overlay_marked",
+                  "archived_overlay_metadata_only"
+                ]
+              }
+            },
+            "required": ["collaboration_overlay_state_class"]
+          },
+          "then": {
+            "required": ["stale_overlay_reason_label"]
+          }
+        }
+      ]
+    },
+
+    "notebook_share_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_share_scope_schema_version",
+        "record_kind",
+        "audit_event_id_value",
+        "audit_event_id",
+        "visible_state_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_share_audit_event_record" },
+        "notebook_share_scope_schema_version": { "$ref": "#/$defs/notebook_share_scope_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "notebook_document_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "runtime_boundary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "share_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "continuity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/share_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/share_denial_reason" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "audit_event_id": { "const": "notebook_share_audit_denial_emitted" } }, "required": ["audit_event_id"] },
+          "then": { "required": ["denial_reason"] }
+        }
+      ]
+    }
+  }
+}

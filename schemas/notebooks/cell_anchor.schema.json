@@ -1,0 +1,557 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebooks/cell_anchor.schema.json",
+  "title": "Aureline notebook cell, output, comment, and presenter-focus anchors",
+  "description": "Boundary schema for notebook_anchor_record, notebook_anchor_drift_review_record, notebook_presenter_focus_record, and notebook_anchor_audit_event_record as frozen in docs/notebooks/notebook_collaboration_contract.md. The schema binds notebook comments, outputs, metadata, attachments, and presenter focus to stable notebook document and cell identity. Cross-cell rebind, output rebind, deleted-cell relocation, and line-only degraded fallback are explicit review states; silent anchor relocation is forbidden. Presenter focus is view authority only and never confers edit, run, kernel, debug, terminal, export, or secret authority. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw comment bodies, raw widget state, raw kernel protocol frames, raw paths, raw URLs, raw hostnames, raw user identifiers, and raw credential material never appear in this schema.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_anchor_record" },
+    { "$ref": "#/$defs/notebook_anchor_drift_review_record" },
+    { "$ref": "#/$defs/notebook_presenter_focus_record" },
+    { "$ref": "#/$defs/notebook_anchor_audit_event_record" }
+  ],
+  "$defs": {
+    "cell_anchor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for notebook anchor and presenter-focus boundary records."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_anchor_record",
+        "notebook_anchor_drift_review_record",
+        "notebook_presenter_focus_record",
+        "notebook_anchor_audit_event_record"
+      ]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id or ref. Raw source, output, comments, paths, URLs, hostnames, user identifiers, and secrets are forbidden."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800,
+      "description": "Short redaction-safe label shown on anchor, presenter, drift, and audit surfaces."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "support_bundle_scoped",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "raw_payload_forbidden"
+      ]
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "browser_companion",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+
+    "anchor_target_kind_class": {
+      "type": "string",
+      "enum": [
+        "cell_source_anchor",
+        "cell_output_anchor",
+        "cell_comment_thread_anchor",
+        "cell_metadata_anchor",
+        "cell_attachment_anchor",
+        "notebook_document_anchor"
+      ],
+      "description": "Notebook anchor target kind. Line-only anchors are represented through anchor_basis_class and drift state, not by inventing a new stable target."
+    },
+
+    "anchor_basis_class": {
+      "type": "string",
+      "enum": [
+        "stable_cell_id_only",
+        "stable_cell_id_plus_source_span",
+        "stable_cell_id_plus_output_id",
+        "stable_cell_id_plus_comment_thread",
+        "stable_cell_id_plus_metadata_path",
+        "stable_cell_id_plus_attachment_ref",
+        "document_level_notebook_ref",
+        "line_only_degraded_fallback"
+      ]
+    },
+
+    "anchor_resolution_state_class": {
+      "type": "string",
+      "enum": [
+        "resolved_current",
+        "resolved_with_visible_remap",
+        "degraded_line_only",
+        "drifted_review_required",
+        "deleted_metadata_only",
+        "unresolved_missing_artifact",
+        "local_only_pending_rejoin"
+      ]
+    },
+
+    "anchor_drift_state_class": {
+      "type": "string",
+      "enum": [
+        "anchor_exact",
+        "anchor_remapped_same_cell_review_optional",
+        "anchor_cell_reordered_exact",
+        "anchor_output_reexecuted_review_required",
+        "anchor_output_deleted_metadata_only",
+        "anchor_cell_deleted_relocation_forbidden",
+        "anchor_cross_cell_rebind_candidate_review_required",
+        "anchor_line_only_degraded_review_required",
+        "anchor_remote_projection_diverged_local_only"
+      ],
+      "description": "Frozen notebook anchor drift state. Cross-cell and output rebinds require review. Deleted-cell relocation and silent relocation are forbidden."
+    },
+
+    "anchor_rebind_decision_class": {
+      "type": "string",
+      "enum": [
+        "no_rebind_exact",
+        "preserve_anchor_with_drift_label",
+        "user_confirmed_same_cell_rebind",
+        "user_confirmed_cross_cell_rebind",
+        "user_confirmed_output_rebind",
+        "supersede_with_new_anchor",
+        "silent_rebind_denied",
+        "rebind_denied_by_policy"
+      ]
+    },
+
+    "presenter_focus_subject_class": {
+      "type": "string",
+      "enum": [
+        "notebook_document",
+        "cell_source",
+        "cell_output",
+        "cell_comment_thread",
+        "cell_metadata",
+        "cell_attachment",
+        "runtime_status",
+        "presentation_waypoint"
+      ]
+    },
+
+    "presenter_follow_state_class": {
+      "type": "string",
+      "enum": [
+        "presenter_focus_active",
+        "following_presenter",
+        "breakaway_local_view",
+        "focus_paused",
+        "follow_unavailable_captured_only"
+      ],
+      "description": "Notebook narrowing of presenter/follow state. Breakaway local view is not drift; unavailable follow is captured/read-only only."
+    },
+
+    "runtime_boundary_label_class": {
+      "type": "string",
+      "enum": [
+        "no_kernel_document_only",
+        "local_only_no_shared_runtime",
+        "shared_live_local_kernel",
+        "shared_live_remote_kernel",
+        "shared_live_managed_kernel",
+        "captured_for_export_or_presentation",
+        "runtime_disconnected_last_known",
+        "provider_runtime_unavailable",
+        "offline_review_no_live_runtime"
+      ]
+    },
+
+    "notebook_focus_authority_class": {
+      "type": "string",
+      "enum": [
+        "presenter_authoritative_for_view_only",
+        "local_authoritative_no_session_authority"
+      ]
+    },
+
+    "anchor_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "notebook_anchor_minted",
+        "notebook_anchor_drift_detected",
+        "notebook_anchor_rebind_review_recorded",
+        "notebook_anchor_superseded",
+        "notebook_presenter_focus_minted",
+        "notebook_presenter_focus_changed",
+        "notebook_presenter_focus_degraded",
+        "notebook_anchor_audit_denial_emitted",
+        "notebook_cell_anchor_schema_version_bumped"
+      ]
+    },
+
+    "anchor_denial_reason": {
+      "type": "string",
+      "enum": [
+        "anchor_target_kind_unresolved",
+        "stable_cell_id_required_for_anchor",
+        "output_anchor_requires_output_id_ref",
+        "comment_anchor_requires_thread_ref",
+        "metadata_anchor_requires_metadata_path_ref",
+        "attachment_anchor_requires_attachment_ref",
+        "anchor_drift_review_missing",
+        "silent_cross_cell_rebind_forbidden",
+        "silent_output_rebind_forbidden",
+        "deleted_cell_relocation_forbidden",
+        "line_only_anchor_must_be_degraded",
+        "presenter_focus_mutation_forbidden",
+        "runtime_boundary_label_missing",
+        "notebook_anchor_schema_version_lagging"
+      ]
+    },
+
+    "anchor_endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_document_ref",
+        "anchor_target_kind_class",
+        "summary_label"
+      ],
+      "properties": {
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "cell_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "output_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "comment_thread_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "metadata_path_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "attachment_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_span_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "anchor_target_kind_class": { "$ref": "#/$defs/anchor_target_kind_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "notebook_anchor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_anchor_schema_version",
+        "record_kind",
+        "anchor_id",
+        "notebook_document_ref",
+        "anchor_target_kind_class",
+        "anchor_basis_class",
+        "anchor_resolution_state_class",
+        "visible_state_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_anchor_record" },
+        "cell_anchor_schema_version": { "$ref": "#/$defs/cell_anchor_schema_version" },
+        "anchor_id": { "$ref": "#/$defs/opaque_id" },
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "cell_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "output_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "comment_thread_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "metadata_path_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "attachment_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_span_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "output_lineage_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "output_viewer_state_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "anchor_target_kind_class": { "$ref": "#/$defs/anchor_target_kind_class" },
+        "anchor_basis_class": { "$ref": "#/$defs/anchor_basis_class" },
+        "anchor_resolution_state_class": { "$ref": "#/$defs/anchor_resolution_state_class" },
+        "anchor_drift_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "supersedes_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "superseded_by_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "author_actor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "anchor_target_kind_class": {
+                "enum": [
+                  "cell_source_anchor",
+                  "cell_output_anchor",
+                  "cell_comment_thread_anchor",
+                  "cell_metadata_anchor",
+                  "cell_attachment_anchor"
+                ]
+              }
+            },
+            "required": ["anchor_target_kind_class"]
+          },
+          "then": {
+            "required": ["cell_id_ref"],
+            "properties": {
+              "cell_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "anchor_target_kind_class": { "const": "cell_output_anchor" } }, "required": ["anchor_target_kind_class"] },
+          "then": {
+            "required": ["output_id_ref", "output_lineage_record_ref"],
+            "properties": {
+              "output_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "output_lineage_record_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "anchor_target_kind_class": { "const": "cell_comment_thread_anchor" } }, "required": ["anchor_target_kind_class"] },
+          "then": {
+            "required": ["comment_thread_ref"],
+            "properties": {
+              "comment_thread_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "anchor_target_kind_class": { "const": "cell_metadata_anchor" } }, "required": ["anchor_target_kind_class"] },
+          "then": {
+            "required": ["metadata_path_ref"],
+            "properties": {
+              "metadata_path_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "anchor_target_kind_class": { "const": "cell_attachment_anchor" } }, "required": ["anchor_target_kind_class"] },
+          "then": {
+            "required": ["attachment_ref"],
+            "properties": {
+              "attachment_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "anchor_basis_class": { "const": "line_only_degraded_fallback" } }, "required": ["anchor_basis_class"] },
+          "then": {
+            "properties": {
+              "anchor_resolution_state_class": { "const": "degraded_line_only" }
+            }
+          }
+        }
+      ]
+    },
+
+    "notebook_anchor_drift_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_anchor_schema_version",
+        "record_kind",
+        "drift_review_id",
+        "anchor_ref",
+        "drift_state_class",
+        "rebind_decision_class",
+        "review_required",
+        "prior_target",
+        "current_or_candidate_target",
+        "visible_state_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_anchor_drift_review_record" },
+        "cell_anchor_schema_version": { "$ref": "#/$defs/cell_anchor_schema_version" },
+        "drift_review_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "drift_state_class": { "$ref": "#/$defs/anchor_drift_state_class" },
+        "rebind_decision_class": { "$ref": "#/$defs/anchor_rebind_decision_class" },
+        "review_required": { "type": "boolean" },
+        "reviewer_actor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "prior_target": { "$ref": "#/$defs/anchor_endpoint" },
+        "current_or_candidate_target": { "$ref": "#/$defs/anchor_endpoint" },
+        "supersedes_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "superseded_by_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/anchor_denial_reason" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "drift_state_class": {
+                "enum": [
+                  "anchor_output_reexecuted_review_required",
+                  "anchor_output_deleted_metadata_only",
+                  "anchor_cell_deleted_relocation_forbidden",
+                  "anchor_cross_cell_rebind_candidate_review_required",
+                  "anchor_line_only_degraded_review_required",
+                  "anchor_remote_projection_diverged_local_only"
+                ]
+              }
+            },
+            "required": ["drift_state_class"]
+          },
+          "then": {
+            "properties": {
+              "review_required": { "const": true }
+            },
+            "required": ["review_required"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "rebind_decision_class": {
+                "enum": [
+                  "user_confirmed_same_cell_rebind",
+                  "user_confirmed_cross_cell_rebind",
+                  "user_confirmed_output_rebind",
+                  "supersede_with_new_anchor"
+                ]
+              }
+            },
+            "required": ["rebind_decision_class"]
+          },
+          "then": {
+            "required": ["reviewer_actor_ref"],
+            "properties": {
+              "reviewer_actor_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "rebind_decision_class": { "const": "silent_rebind_denied" } }, "required": ["rebind_decision_class"] },
+          "then": { "required": ["denial_reason"] }
+        }
+      ]
+    },
+
+    "notebook_presenter_focus_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_anchor_schema_version",
+        "record_kind",
+        "presenter_focus_id",
+        "session_ref",
+        "presenter_actor_ref",
+        "notebook_document_ref",
+        "focus_subject_class",
+        "focus_anchor_ref",
+        "presenter_follow_state_class",
+        "runtime_boundary_label_class",
+        "focus_authority_class",
+        "follow_mutation_forbidden",
+        "visible_state_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_presenter_focus_record" },
+        "cell_anchor_schema_version": { "$ref": "#/$defs/cell_anchor_schema_version" },
+        "presenter_focus_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "presenter_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "presenter_state_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "follow_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "focus_subject_class": { "$ref": "#/$defs/presenter_focus_subject_class" },
+        "focus_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "runtime_boundary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notebook_share_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "kernel_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "output_viewer_state_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "presenter_follow_state_class": { "$ref": "#/$defs/presenter_follow_state_class" },
+        "runtime_boundary_label_class": { "$ref": "#/$defs/runtime_boundary_label_class" },
+        "focus_authority_class": { "$ref": "#/$defs/notebook_focus_authority_class" },
+        "follow_mutation_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "Presenter focus is view authority only and never grants mutation."
+        },
+        "restore_prior_layout_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restore_prior_selection_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "notebook_anchor_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_anchor_schema_version",
+        "record_kind",
+        "audit_event_id_value",
+        "audit_event_id",
+        "visible_state_label",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_anchor_audit_event_record" },
+        "cell_anchor_schema_version": { "$ref": "#/$defs/cell_anchor_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notebook_document_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "drift_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "presenter_focus_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/anchor_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/anchor_denial_reason" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_state_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "audit_event_id": { "const": "notebook_anchor_audit_denial_emitted" } }, "required": ["audit_event_id"] },
+          "then": { "required": ["denial_reason"] }
+        }
+      ]
+    }
+  }
+}
