@@ -1,0 +1,214 @@
+{
+  "$schema": "../../../schemas/ux/job_row.schema.json",
+  "__fixture__": {
+    "name": "approval_publish_waiting",
+    "scenario": "A provider publish is blocked on policy approval. It partitions into needs attention, exposes the approval source and expiry, and links all transient surfaces back to the canonical row.",
+    "exercised_axes": {
+      "state_class": "needs_approval",
+      "activity_partition": "needs_attention",
+      "progress_forms": [
+        "approval_source",
+        "detail_or_evidence_link"
+      ],
+      "detail_or_evidence_required": true
+    },
+    "contract_sections": [
+      "State classes",
+      "Progress-form grammar",
+      "Linkback rules"
+    ]
+  },
+  "record_kind": "job_row_record",
+  "job_row_schema_version": 1,
+  "job_row_id": "ux:job-row:provider-publish:approval",
+  "canonical_event_id": "ux:event:provider-publish:approval",
+  "durable_job_id_ref": "ux:durable-job:provider-publish:approval",
+  "activity_partition": "needs_attention",
+  "state": {
+    "state_class": "needs_approval",
+    "outcome_class": "not_terminal",
+    "state_label": "Needs approval",
+    "reason_label": "Publishing is paused until the policy approval ticket is reviewed.",
+    "severity_class": "needs_attention",
+    "visible_cues": [
+      "state_label",
+      "target_label",
+      "source_label",
+      "approval_source",
+      "elapsed_or_queued_age",
+      "open_details_action",
+      "canonical_linkback"
+    ],
+    "included_count": 1,
+    "excluded_count": 0,
+    "failed_count": 0,
+    "reviewable_after_navigation": true
+  },
+  "source": {
+    "source_subsystem": "provider_bearing",
+    "actor_identity_ref": "id:actor:user:release-operator",
+    "actor_label": "Release operator",
+    "execution_origin_class": "user_initiated",
+    "client_scope": "desktop_product",
+    "originating_surface_class": "activity_center",
+    "source_record_refs": [
+      "approval-ticket:provider-publish:review"
+    ]
+  },
+  "target": {
+    "target_identity_ref": "obj:provider-publish:change-stack",
+    "target_kind": "provider_publish",
+    "scope_label": "Provider publish",
+    "object_label": "Change stack publish",
+    "redaction_class": "operator_only_restricted",
+    "source_record_refs": [
+      "publish-later:change-stack",
+      "approval-ticket:provider-publish:review"
+    ]
+  },
+  "progress": {
+    "forms": [
+      "approval_source",
+      "actor_subsystem_label",
+      "elapsed_or_queued_age",
+      "open_detail_action",
+      "detail_or_evidence_link"
+    ],
+    "progress_bar": null,
+    "phase_label": "Waiting for approval",
+    "queue_reason_label": null,
+    "approval_source_label": "Policy approval ticket",
+    "actor_or_subsystem_label": "Provider broker",
+    "age_label": "18 min waiting",
+    "indeterminate_reason_label": null,
+    "expected_boundary_class": "approval",
+    "cancellability_class": "cancel_requires_review",
+    "detail_or_evidence_ref": "evidence:provider-publish:approval"
+  },
+  "impact": {
+    "affects_cost": false,
+    "affects_policy": true,
+    "affects_network": true,
+    "affects_trust": true,
+    "affects_provider_state": true,
+    "affects_recovery_posture": false,
+    "detail_or_evidence_required": true,
+    "impact_summary_sentence": "Publishing can mutate provider state and crosses policy, network, and trust boundaries, so review details are mandatory."
+  },
+  "actions": [
+    {
+      "action_id": "action:job-row:provider-publish:review",
+      "action_kind": "review_approval",
+      "label": "Review approval",
+      "command_id": "cmd:provider_publish.review_approval",
+      "availability_class": "requires_review",
+      "disabled_reason_label": null,
+      "target_ref": "approval-ticket:provider-publish:review",
+      "mutates_source_object": false,
+      "preserves_durable_history": true
+    },
+    {
+      "action_id": "action:job-row:provider-publish:open",
+      "action_kind": "open_details",
+      "label": "Open publish details",
+      "command_id": "cmd:activity.open_job_details",
+      "availability_class": "enabled",
+      "disabled_reason_label": null,
+      "target_ref": "ux:durable-job:provider-publish:approval",
+      "mutates_source_object": false,
+      "preserves_durable_history": true
+    }
+  ],
+  "linkbacks": [
+    {
+      "from_surface_class": "activity_center",
+      "reopen_target_kind": "durable_job_row_exact",
+      "target_ref": "ux:job-row:provider-publish:approval",
+      "canonical_event_id": "ux:event:provider-publish:approval",
+      "durable_job_id_ref": "ux:durable-job:provider-publish:approval",
+      "dedupe_key_scheme": "canonical_event_id",
+      "is_canonical": true,
+      "announcement_label": "Open publish approval row"
+    },
+    {
+      "from_surface_class": "toast",
+      "reopen_target_kind": "review_sheet",
+      "target_ref": "approval-ticket:provider-publish:review",
+      "canonical_event_id": "ux:event:provider-publish:approval",
+      "durable_job_id_ref": "ux:durable-job:provider-publish:approval",
+      "dedupe_key_scheme": "canonical_event_id",
+      "is_canonical": false,
+      "announcement_label": "Review publish approval"
+    }
+  ],
+  "suppression": {
+    "quiet_hours_modes": [
+      "mode_none"
+    ],
+    "suppression_reasons": [],
+    "held_count": 0,
+    "release_rule_label": null,
+    "policy_source_ref": "policy:publish:approval-required",
+    "audit_event_refs": [
+      "audit:provider-publish:approval-opened"
+    ],
+    "preserves_durable_history": true
+  },
+  "lineage": {
+    "event_lineage_id_ref": "ux:lineage:provider-publish:approval",
+    "dedupe_key_scheme": "canonical_event_id",
+    "source_envelope_refs": [
+      "ux:env:provider-publish:approval:durable",
+      "ux:env:provider-publish:approval:toast"
+    ],
+    "badge_classes": [
+      "needs_review"
+    ],
+    "grouped_burst_id_ref": null,
+    "dismissal_verbs_available": [
+      "snooze",
+      "acknowledge"
+    ]
+  },
+  "support_export": {
+    "exportable": true,
+    "redaction_class": "operator_only_restricted",
+    "export_field_refs": [
+      "export.job_row.identity",
+      "export.job_row.policy",
+      "export.job_row.linkbacks",
+      "export.job_row.approval"
+    ],
+    "notification_dedupe_ref": "ux:lineage:provider-publish:approval",
+    "carries_target_source_suppression_detail": true,
+    "raw_private_material_excluded": true
+  },
+  "accessibility": {
+    "status_announced": true,
+    "keyboard_reachable": true,
+    "focus_return_target_ref": "focus:review:publish-approval",
+    "visible_cues_announced": [
+      "state_label",
+      "approval_source",
+      "open_details_action",
+      "canonical_linkback"
+    ]
+  },
+  "policy_context": {
+    "policy_epoch": "pe:2026-04-28:01",
+    "trust_state": "trusted",
+    "execution_context_id": "exec-context:provider-publish"
+  },
+  "timestamps": {
+    "minted_at": "2026-04-28T18:20:00Z",
+    "queued_at": "2026-04-28T18:20:00Z",
+    "started_at": "2026-04-28T18:20:05Z",
+    "held_at": null,
+    "last_updated_at": "2026-04-28T18:38:00Z",
+    "finished_at": null
+  },
+  "narrative_refs": [
+    "docs/ux/durable_work_contract.md",
+    "docs/providers/provider_mode_contract.md"
+  ]
+}

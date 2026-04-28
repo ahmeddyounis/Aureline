@@ -589,6 +589,15 @@ code.
   [`/schemas/ux/status_item.schema.json`](../schemas/ux/status_item.schema.json);
   worked fixtures in
   [`/fixtures/ux/status_items/`](../fixtures/ux/status_items/).
+- [`ux/durable_work_contract.md`](./ux/durable_work_contract.md) -
+  durable-work row contract for long-running, queued, approval-
+  blocked, attention-required, completed, partially completed, quiet-
+  hours held, and policy-suppressed work. Freezes state classes,
+  progress forms, activity-center partitions, notification linkbacks,
+  and support-export fields. Boundary schema in
+  [`/schemas/ux/job_row.schema.json`](../schemas/ux/job_row.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/job_rows/`](../fixtures/ux/job_rows/).
 - [`ux/status_strip_family_contract.md`](./ux/status_strip_family_contract.md)
   — shared top-of-surface status-strip and readiness-banner family for
   workspace, environment, provider, graph, and framework surfaces.

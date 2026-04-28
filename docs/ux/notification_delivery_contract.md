@@ -54,6 +54,11 @@ vocabularies frozen in:
   (`canonical_event_id`, `delivery_surface_class`, `client_scope`)
   triple. This contract's `event_lineage_record` keeps one trail
   across those envelopes.
+- [`/docs/ux/durable_work_contract.md`](./durable_work_contract.md)
+  and [`/schemas/ux/job_row.schema.json`](../../schemas/ux/job_row.schema.json)
+  define the render-level durable row contract that every toast, badge,
+  OS notification, and companion push resolves back to when the event
+  represents long-running or reviewable work.
 - [`/artifacts/ux/quiet_hours_policy_matrix.yaml`](../../artifacts/ux/quiet_hours_policy_matrix.yaml)
   — per-`quiet_hours_mode` suppression / preservation rules. This
   contract does not re-declare which modes suppress which

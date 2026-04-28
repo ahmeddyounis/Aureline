@@ -30,6 +30,12 @@ The companion artifacts are:
   `grouped_burst_record`, the `reopen_target_record`, the
   `quiet_hours_policy_row_record`, and the
   `activity_event_audit_event_record`.
+- [`/docs/ux/durable_work_contract.md`](./durable_work_contract.md)
+  and [`/schemas/ux/job_row.schema.json`](../../schemas/ux/job_row.schema.json)
+  define the render-level durable row contract for state classes,
+  progress forms, activity-center partitions, notification linkbacks,
+  and support-export fields. They compose with this taxonomy rather
+  than re-minting event-envelope vocabulary.
 - [`/artifacts/ux/quiet_hours_policy_matrix.yaml`](../../artifacts/ux/quiet_hours_policy_matrix.yaml)
   — one row per frozen `quiet_hours_mode` declaring what delivery
   surfaces are suppressed, what is preserved, and that durable
