@@ -1,0 +1,1028 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/table_view_state.schema.json",
+  "title": "Aureline table-grid view-state boundary vocabulary",
+  "description": "Boundary schema for one table_view_state_record emitted by dense table and grid surfaces. The record freezes column presets, hidden and frozen columns, sort/filter basis, row-scope counts, virtualization posture, cell truth cues, keyboard/accessibility behavior, copy/export scope, and reopen/handoff survival rules. It composes with the collection selection, saved-view, batch-review, output-viewer, live-set, and view-freshness contracts by opaque reference. Raw row bodies, raw cell values, raw provider URLs, raw absolute paths, raw filter literals, and secret-bearing values MUST NOT appear on records emitted against this schema; records carry opaque ids, typed vocabulary, count truth, redaction-aware labels, and policy/freshness posture only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/table_view_state_record" },
+    { "$ref": "#/$defs/table_view_state_audit_event_record" }
+  ],
+  "$defs": {
+    "table_view_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the table view-state vocabulary. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example metadata carried on fixtures."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, persist, export, and cite in support bundles. It must not contain raw row text, raw cell values, raw URLs, or secret-bearing literals."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "opaque_id_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware label suitable for UI, accessibility, export summaries, and support packets. It must not carry raw private data."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "table_family_class": {
+      "type": "string",
+      "enum": [
+        "review_queue_table",
+        "result_grid_table",
+        "schema_explorer_table",
+        "support_table",
+        "admin_data_table",
+        "evidence_table",
+        "variable_table"
+      ]
+    },
+    "collection_surface_class": {
+      "type": "string",
+      "enum": [
+        "search_collection",
+        "review_collection",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_collection",
+        "admin_or_settings_grid"
+      ]
+    },
+    "dataset_posture_class": {
+      "type": "string",
+      "enum": [
+        "client_complete",
+        "paged_windowed",
+        "streaming_live",
+        "provider_limited",
+        "snapshot_basis"
+      ]
+    },
+    "row_population_term": {
+      "type": "string",
+      "enum": [
+        "visible_rows",
+        "loaded_rows",
+        "matching_rows",
+        "selected_rows",
+        "hidden_rows",
+        "blocked_rows",
+        "not_loaded_rows",
+        "included_rows",
+        "excluded_rows",
+        "skipped_rows"
+      ]
+    },
+    "count_status": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "provider_limited",
+        "stale",
+        "cached",
+        "partial",
+        "unknown"
+      ]
+    },
+    "row_population_count": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status", "value"],
+          "properties": {
+            "term": { "$ref": "#/$defs/row_population_term" },
+            "status": {
+              "type": "string",
+              "enum": [
+                "exact",
+                "approximate",
+                "provider_limited",
+                "stale",
+                "cached",
+                "partial"
+              ]
+            },
+            "value": { "type": "integer", "minimum": 0 },
+            "tolerance_label": { "$ref": "#/$defs/reviewable_label" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status"],
+          "properties": {
+            "term": { "$ref": "#/$defs/row_population_term" },
+            "status": { "const": "unknown" },
+            "value": { "type": "null" },
+            "tolerance_label": { "$ref": "#/$defs/reviewable_label" }
+          }
+        }
+      ]
+    },
+    "select_all_scope_class": {
+      "type": "string",
+      "enum": [
+        "select_visible_rows",
+        "select_loaded_rows",
+        "select_all_matching_rows",
+        "select_explicit_custom_set",
+        "select_all_unavailable"
+      ]
+    },
+    "row_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_cell",
+        "current_row",
+        "visible_rows",
+        "loaded_rows",
+        "selected_rows",
+        "all_matching_rows",
+        "filter_preserving_snapshot"
+      ]
+    },
+    "column_scope_class": {
+      "type": "string",
+      "enum": [
+        "visible_columns",
+        "visible_columns_plus_identity",
+        "preset_columns",
+        "all_user_visible_columns",
+        "redacted_safe_columns",
+        "explicit_reviewed_columns"
+      ]
+    },
+    "column_semantic_role": {
+      "type": "string",
+      "enum": [
+        "primary_identity",
+        "secondary_identity",
+        "status",
+        "freshness",
+        "provenance",
+        "measurement",
+        "timestamp",
+        "policy",
+        "selection_control",
+        "row_action",
+        "cell_action",
+        "metadata",
+        "raw_payload_summary"
+      ]
+    },
+    "column_data_type_class": {
+      "type": "string",
+      "enum": [
+        "boolean",
+        "integer",
+        "decimal",
+        "string",
+        "timestamp",
+        "duration",
+        "enum",
+        "json_summary",
+        "binary_summary",
+        "identity_ref",
+        "status_ref",
+        "unknown"
+      ]
+    },
+    "column_visibility_state": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "hidden_by_user",
+        "hidden_by_preset",
+        "hidden_by_policy",
+        "collapsed_before_truncate",
+        "unavailable_from_provider"
+      ]
+    },
+    "frozen_column_state": {
+      "type": "string",
+      "enum": [
+        "not_frozen",
+        "frozen_start",
+        "frozen_end"
+      ]
+    },
+    "resize_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_resizable",
+        "preset_controlled",
+        "provider_controlled",
+        "policy_locked",
+        "not_resizable"
+      ]
+    },
+    "width_class": {
+      "type": "string",
+      "enum": [
+        "narrow",
+        "standard",
+        "wide",
+        "auto_fit",
+        "collapsed"
+      ]
+    },
+    "column_export_inclusion_class": {
+      "type": "string",
+      "enum": [
+        "included_by_default",
+        "included_for_identity_only",
+        "excluded_when_hidden",
+        "excluded_by_policy",
+        "redacted_summary_only",
+        "requires_explicit_review"
+      ]
+    },
+    "sort_direction": {
+      "type": "string",
+      "enum": ["ascending", "descending"]
+    },
+    "sort_source_class": {
+      "type": "string",
+      "enum": ["provider", "client", "saved_view", "policy"]
+    },
+    "sort_stability_class": {
+      "type": "string",
+      "enum": [
+        "stable_total_order",
+        "stable_with_identity_tiebreaker",
+        "provider_order_approximate",
+        "unstable_streaming_order",
+        "unknown_requires_review"
+      ]
+    },
+    "filter_chip_source_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "saved_view",
+        "policy",
+        "client_scope",
+        "provider"
+      ]
+    },
+    "filter_chip_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "locked",
+        "unavailable",
+        "stale",
+        "partial"
+      ]
+    },
+    "preset_owner_class": {
+      "type": "string",
+      "enum": [
+        "user_local",
+        "workspace_shared",
+        "team_shared",
+        "policy_locked",
+        "provider_default",
+        "support_capture"
+      ]
+    },
+    "preset_drift_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "column_unavailable_disclosed",
+        "policy_narrowed_disclosed",
+        "provider_schema_drift_disclosed",
+        "fallback_mapping_applied",
+        "unresolvable_offer_reset"
+      ]
+    },
+    "row_virtualization_class": {
+      "type": "string",
+      "enum": [
+        "not_virtualized_small_table",
+        "row_virtualized",
+        "row_virtualized_windowed_provider",
+        "row_virtualized_streaming_freeze_required"
+      ]
+    },
+    "column_virtualization_class": {
+      "type": "string",
+      "enum": [
+        "columns_inline",
+        "columns_virtualized",
+        "columns_virtualized_with_frozen_edges"
+      ]
+    },
+    "sticky_header_context_class": {
+      "type": "string",
+      "enum": [
+        "sticky_header_complete",
+        "sticky_header_condensed_counts",
+        "alternate_context_required",
+        "sticky_header_unavailable_denied"
+      ]
+    },
+    "cell_truth_cue_class": {
+      "type": "string",
+      "enum": [
+        "fresh_value",
+        "stale_value",
+        "approximate_value",
+        "policy_hidden",
+        "redacted",
+        "provider_lag",
+        "unavailable"
+      ]
+    },
+    "cell_export_behavior_class": {
+      "type": "string",
+      "enum": [
+        "export_exact_value_allowed",
+        "export_with_stale_cue",
+        "export_with_approximation_cue",
+        "export_redacted_representation_only",
+        "export_policy_hidden_placeholder_only",
+        "export_unavailable_placeholder_only",
+        "export_requires_review"
+      ]
+    },
+    "row_blocker_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "policy_blocked",
+        "authority_boundary",
+        "freshness_gate",
+        "provider_unavailable",
+        "redaction_required",
+        "destructive_review_required"
+      ]
+    },
+    "cell_action_class": {
+      "type": "string",
+      "enum": [
+        "copy_cell",
+        "open_cell_detail",
+        "explain_cell_cue",
+        "reveal_lineage",
+        "open_provider",
+        "no_cell_action"
+      ]
+    },
+    "row_action_class": {
+      "type": "string",
+      "enum": [
+        "open_row",
+        "review_row",
+        "apply_to_row",
+        "export_row",
+        "copy_row",
+        "no_row_action"
+      ]
+    },
+    "keyboard_navigation_model": {
+      "type": "string",
+      "enum": [
+        "grid_cell_navigation",
+        "row_navigation_with_cell_actions",
+        "read_only_table_navigation"
+      ]
+    },
+    "copy_export_review_class": {
+      "type": "string",
+      "enum": [
+        "no_review_required_current_cell",
+        "no_review_required_visible_rows",
+        "review_required_for_selected_or_wider",
+        "review_required_for_remote_destructive_or_share",
+        "blocked_until_policy_allows"
+      ]
+    },
+    "survival_state_class": {
+      "type": "string",
+      "enum": [
+        "survives_reopen",
+        "survives_handoff",
+        "survives_export",
+        "local_only_not_exported",
+        "not_persisted",
+        "denied_by_policy"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "table_view_state_rendered",
+        "table_column_preset_restored",
+        "table_column_visibility_changed",
+        "table_selection_scope_reviewed",
+        "table_export_reviewed",
+        "table_copy_performed",
+        "table_cell_truth_cue_disclosed",
+        "table_view_state_reopen_drift_disclosed",
+        "table_view_state_denial_emitted"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "select_all_scope_label_missing",
+        "range_anchor_must_use_stable_identity",
+        "cell_cue_must_not_hide_row_blocker",
+        "export_scope_must_name_row_and_column_scope",
+        "redacted_cell_raw_export_forbidden",
+        "policy_hidden_cell_raw_export_forbidden",
+        "stale_or_approximate_cell_export_requires_cue",
+        "sticky_header_context_required_for_large_grid",
+        "remote_or_share_widening_requires_review",
+        "reopen_drift_requires_review_or_denial"
+      ]
+    },
+    "column_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "column_id_ref",
+        "label",
+        "semantic_role",
+        "data_type_class",
+        "visibility_state",
+        "frozen_state",
+        "width_class",
+        "resize_authority",
+        "collapse_priority",
+        "export_inclusion",
+        "redaction_class"
+      ],
+      "properties": {
+        "column_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "semantic_role": { "$ref": "#/$defs/column_semantic_role" },
+        "data_type_class": { "$ref": "#/$defs/column_data_type_class" },
+        "visibility_state": { "$ref": "#/$defs/column_visibility_state" },
+        "visibility_reason_label": { "$ref": "#/$defs/reviewable_label" },
+        "frozen_state": { "$ref": "#/$defs/frozen_column_state" },
+        "width_class": { "$ref": "#/$defs/width_class" },
+        "min_width_px": { "type": "integer", "minimum": 0 },
+        "current_width_px": { "type": "integer", "minimum": 0 },
+        "max_width_px": { "type": "integer", "minimum": 0 },
+        "resize_authority": { "$ref": "#/$defs/resize_authority_class" },
+        "collapse_priority": { "type": "integer", "minimum": 0 },
+        "sort_key_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "filter_field_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_inclusion": { "$ref": "#/$defs/column_export_inclusion_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "copy_allowed": { "type": "boolean" },
+        "cell_detail_action_id_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "sort_term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sort_key_ref",
+        "direction",
+        "priority",
+        "source",
+        "stability",
+        "null_placement_label"
+      ],
+      "properties": {
+        "sort_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "column_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "direction": { "$ref": "#/$defs/sort_direction" },
+        "priority": { "type": "integer", "minimum": 1 },
+        "source": { "$ref": "#/$defs/sort_source_class" },
+        "stability": { "$ref": "#/$defs/sort_stability_class" },
+        "null_placement_label": { "$ref": "#/$defs/reviewable_label" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" }
+      }
+    },
+    "filter_chip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chip_id_ref",
+        "label",
+        "source",
+        "state",
+        "removable"
+      ],
+      "properties": {
+        "chip_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "source": { "$ref": "#/$defs/filter_chip_source_class" },
+        "state": { "$ref": "#/$defs/filter_chip_state_class" },
+        "removable": { "type": "boolean" },
+        "count_impact": { "$ref": "#/$defs/row_population_count" },
+        "explain_action_id_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "column_preset_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset_id_ref",
+        "label",
+        "owner",
+        "drift_state",
+        "captures",
+        "reset_action_id_ref"
+      ],
+      "properties": {
+        "preset_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "owner": { "$ref": "#/$defs/preset_owner_class" },
+        "drift_state": { "$ref": "#/$defs/preset_drift_state" },
+        "captures": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "column_order",
+              "hidden_columns",
+              "frozen_columns",
+              "widths",
+              "collapse_priorities",
+              "sort_basis",
+              "filter_refs",
+              "density",
+              "copy_export_policy"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "reset_action_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "unavailable_column_id_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "policy_hidden_column_id_refs": { "$ref": "#/$defs/opaque_id_array" }
+      }
+    },
+    "viewport_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_virtualization",
+        "column_virtualization",
+        "sticky_header_context",
+        "sticky_headers_enabled",
+        "frozen_columns_preserved",
+        "range_anchor_row_id_ref",
+        "viewport_anchor_row_id_ref",
+        "visible_row_window",
+        "visible_column_window"
+      ],
+      "properties": {
+        "row_virtualization": { "$ref": "#/$defs/row_virtualization_class" },
+        "column_virtualization": { "$ref": "#/$defs/column_virtualization_class" },
+        "sticky_header_context": { "$ref": "#/$defs/sticky_header_context_class" },
+        "sticky_headers_enabled": { "type": "boolean" },
+        "frozen_columns_preserved": { "type": "boolean" },
+        "range_anchor_row_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "viewport_anchor_row_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "current_cell": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["row_id_ref", "column_id_ref"],
+          "properties": {
+            "row_id_ref": { "$ref": "#/$defs/opaque_id" },
+            "column_id_ref": { "$ref": "#/$defs/opaque_id" }
+          }
+        },
+        "visible_row_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start_ordinal", "row_count"],
+          "properties": {
+            "start_ordinal": { "type": "integer", "minimum": 0 },
+            "row_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "visible_column_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start_ordinal", "column_count"],
+          "properties": {
+            "start_ordinal": { "type": "integer", "minimum": 0 },
+            "column_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "screen_reader_count_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "selection_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_state_id_ref",
+        "select_all_scope",
+        "select_all_label",
+        "position_based_selection_forbidden",
+        "counts",
+        "scope_broadened_requires_review"
+      ],
+      "properties": {
+        "selection_state_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "select_all_scope": { "$ref": "#/$defs/select_all_scope_class" },
+        "select_all_label": { "$ref": "#/$defs/reviewable_label" },
+        "position_based_selection_forbidden": { "type": "boolean" },
+        "counts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/row_population_count" },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "term": { "const": "visible_rows" } },
+                "required": ["term"]
+              }
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "term": { "const": "loaded_rows" } },
+                "required": ["term"]
+              }
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "term": { "const": "selected_rows" } },
+                "required": ["term"]
+              }
+            }
+          ]
+        },
+        "hidden_selected_disclosure_label": { "$ref": "#/$defs/reviewable_label" },
+        "scope_broadened_requires_review": { "type": "boolean" },
+        "batch_review_packet_id_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "cell_truth_cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id_ref",
+        "column_id_ref",
+        "cue_class",
+        "label",
+        "export_behavior",
+        "row_blocker_promoted"
+      ],
+      "properties": {
+        "row_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "column_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "cue_class": { "$ref": "#/$defs/cell_truth_cue_class" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "export_behavior": { "$ref": "#/$defs/cell_export_behavior_class" },
+        "copy_behavior_label": { "$ref": "#/$defs/reviewable_label" },
+        "row_blocker_class": { "$ref": "#/$defs/row_blocker_class" },
+        "row_blocker_promoted": {
+          "type": "boolean",
+          "description": "True when a row-level blocker remains visible outside the cell cue and in selection/export summaries."
+        },
+        "provider_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" }
+      }
+    },
+    "action_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keyboard_navigation",
+        "row_selection_separate_from_cell_focus",
+        "space_key_behavior_label",
+        "enter_key_behavior_label",
+        "row_actions",
+        "cell_actions"
+      ],
+      "properties": {
+        "keyboard_navigation": { "$ref": "#/$defs/keyboard_navigation_model" },
+        "row_selection_separate_from_cell_focus": { "type": "boolean" },
+        "space_key_behavior_label": { "$ref": "#/$defs/reviewable_label" },
+        "enter_key_behavior_label": { "$ref": "#/$defs/reviewable_label" },
+        "row_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action_id_ref", "action_class", "label"],
+            "properties": {
+              "action_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "action_class": { "$ref": "#/$defs/row_action_class" },
+              "label": { "$ref": "#/$defs/reviewable_label" }
+            }
+          }
+        },
+        "cell_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action_id_ref", "action_class", "label"],
+            "properties": {
+              "action_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "action_class": { "$ref": "#/$defs/cell_action_class" },
+              "label": { "$ref": "#/$defs/reviewable_label" }
+            }
+          }
+        }
+      }
+    },
+    "copy_export_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_copy_row_scope",
+        "default_copy_column_scope",
+        "export_row_scope",
+        "export_column_scope",
+        "review_class",
+        "filter_refs_preserved",
+        "sort_refs_preserved",
+        "preset_ref_preserved",
+        "redaction_preserved",
+        "cell_cues_preserved",
+        "hidden_columns_treatment_label",
+        "blocked_rows_treatment_label"
+      ],
+      "properties": {
+        "default_copy_row_scope": { "$ref": "#/$defs/row_scope_class" },
+        "default_copy_column_scope": { "$ref": "#/$defs/column_scope_class" },
+        "export_row_scope": { "$ref": "#/$defs/row_scope_class" },
+        "export_column_scope": { "$ref": "#/$defs/column_scope_class" },
+        "review_class": { "$ref": "#/$defs/copy_export_review_class" },
+        "filter_refs_preserved": { "type": "boolean" },
+        "sort_refs_preserved": { "type": "boolean" },
+        "preset_ref_preserved": { "type": "boolean" },
+        "redaction_preserved": { "type": "boolean" },
+        "cell_cues_preserved": { "type": "boolean" },
+        "hidden_columns_treatment_label": { "$ref": "#/$defs/reviewable_label" },
+        "blocked_rows_treatment_label": { "$ref": "#/$defs/reviewable_label" },
+        "export_review_packet_id_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "accessibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "table_role_exposed",
+        "row_and_column_counts_announced",
+        "cell_focus_and_row_selection_announced_separately",
+        "range_anchor_announced",
+        "cell_truth_cues_have_text",
+        "column_resize_keyboard_reachable",
+        "sticky_header_not_duplicated_in_accessibility_tree"
+      ],
+      "properties": {
+        "table_role_exposed": { "type": "boolean" },
+        "row_and_column_counts_announced": { "type": "boolean" },
+        "cell_focus_and_row_selection_announced_separately": { "type": "boolean" },
+        "range_anchor_announced": { "type": "boolean" },
+        "cell_truth_cues_have_text": { "type": "boolean" },
+        "column_resize_keyboard_reachable": { "type": "boolean" },
+        "sticky_header_not_duplicated_in_accessibility_tree": { "type": "boolean" },
+        "screen_reader_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "persistence_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "column_state_survival",
+        "sort_filter_survival",
+        "selection_identity_survival",
+        "range_anchor_survival",
+        "viewport_survival",
+        "cell_value_survival",
+        "reopen_drift_review_required"
+      ],
+      "properties": {
+        "column_state_survival": { "$ref": "#/$defs/survival_state_class" },
+        "sort_filter_survival": { "$ref": "#/$defs/survival_state_class" },
+        "selection_identity_survival": { "$ref": "#/$defs/survival_state_class" },
+        "range_anchor_survival": { "$ref": "#/$defs/survival_state_class" },
+        "viewport_survival": { "$ref": "#/$defs/survival_state_class" },
+        "cell_value_survival": { "$ref": "#/$defs/survival_state_class" },
+        "reopen_drift_review_required": { "type": "boolean" },
+        "handoff_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "table_view_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "table_view_state_schema_version",
+        "table_view_state_id",
+        "table_family",
+        "collection_surface_class",
+        "dataset_posture",
+        "collection_instance_id_ref",
+        "columns",
+        "active_column_preset",
+        "sort_basis",
+        "filter_chips",
+        "viewport",
+        "selection_summary",
+        "cell_truth_cues",
+        "row_blocker_counts",
+        "action_model",
+        "copy_export",
+        "accessibility",
+        "persistence",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "table_view_state_record" },
+        "table_view_state_schema_version": { "$ref": "#/$defs/table_view_state_schema_version" },
+        "table_view_state_id": { "$ref": "#/$defs/opaque_id" },
+        "table_family": { "$ref": "#/$defs/table_family_class" },
+        "collection_surface_class": { "$ref": "#/$defs/collection_surface_class" },
+        "dataset_posture": { "$ref": "#/$defs/dataset_posture_class" },
+        "collection_instance_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "selection_state_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "saved_view_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "filter_ast_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "batch_review_packet_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "output_viewer_object_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "live_set_state_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "view_freshness_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/column_state" }
+        },
+        "active_column_preset": { "$ref": "#/$defs/column_preset_state" },
+        "sort_basis": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sort_term" }
+        },
+        "filter_chips": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filter_chip" }
+        },
+        "viewport": { "$ref": "#/$defs/viewport_state" },
+        "selection_summary": { "$ref": "#/$defs/selection_summary" },
+        "cell_truth_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cell_truth_cue" }
+        },
+        "row_blocker_counts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_population_count" },
+          "contains": {
+            "type": "object",
+            "properties": { "term": { "const": "blocked_rows" } },
+            "required": ["term"]
+          }
+        },
+        "action_model": { "$ref": "#/$defs/action_model" },
+        "copy_export": { "$ref": "#/$defs/copy_export_contract" },
+        "accessibility": { "$ref": "#/$defs/accessibility_contract" },
+        "persistence": { "$ref": "#/$defs/persistence_contract" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "table_view_state_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "table_view_state_schema_version",
+        "audit_event_id",
+        "audit_event_record_id",
+        "table_view_state_id_ref",
+        "occurred_at",
+        "outcome",
+        "client_scope",
+        "policy_context"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "table_view_state_audit_event_record" },
+        "table_view_state_schema_version": { "$ref": "#/$defs/table_view_state_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "table_view_state_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "outcome": {
+          "type": "string",
+          "enum": ["accepted", "denied", "cancelled", "informational"]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      }
+    }
+  }
+}
