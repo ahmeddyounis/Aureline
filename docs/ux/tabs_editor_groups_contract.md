@@ -15,6 +15,16 @@ Companion artifacts:
   contains seed cases for overflow, dirty / generated state, restore,
   move / split / merge identity, shared / followed groups, and compare
   width fallback.
+- [`/docs/ux/editor_document_state_contract.md`](./editor_document_state_contract.md)
+  owns the reusable document-state badge vocabulary projected through
+  tabs, document headers, breadcrumbs/context rows, status surfaces,
+  compare sheets, preview sheets, support bundles, accessibility labels,
+  and docs screenshots.
+- [`/schemas/editor/document_state_badge.schema.json`](../../schemas/editor/document_state_badge.schema.json)
+  and
+  [`/fixtures/editor/document_state_cases/`](../../fixtures/editor/document_state_cases/)
+  publish the document-state badge schema and worked cases for recovered
+  read-only, generated stale, and compare dirty-source combinations.
 
 Normative sources projected here:
 
@@ -39,6 +49,11 @@ Normative sources projected here:
 - [`/docs/design/design_token_component_state_vocabulary.md`](../design/design_token_component_state_vocabulary.md)
   owns shared component states such as `read_only`, `degraded`,
   `stale`, `restored`, `restricted`, and `policy_blocked`.
+- [`/docs/ux/editor_document_state_contract.md`](./editor_document_state_contract.md)
+  owns the stable badge-class names and canonical actions that tab
+  records project when dirty, pinned, compare, recovered, generated,
+  imported, read-only, mirrored, policy-locked, live-preview, conflict,
+  or stale document states are active.
 
 ## 1. Boundary
 
@@ -373,4 +388,3 @@ A fixture, implementation, or support-export packet conforms when:
    visible in overflow and restored layouts.
 10. Missing dependencies produce placeholders in the same pane / tab
     slots with safe actions and retained evidence refs.
-

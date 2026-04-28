@@ -14,6 +14,15 @@ Companion artifacts:
 - [`/fixtures/ux/editor_layer_cases/`](../../fixtures/ux/editor_layer_cases/)
   contains worked cases for canonical layer ownership, stable text
   column behavior, state placement, and large-file degradation.
+- [`/docs/ux/editor_document_state_contract.md`](./editor_document_state_contract.md)
+  owns the document-state badge vocabulary used by tabs, document
+  headers, context rows, status surfaces, compare sheets, preview
+  sheets, support bundles, accessibility labels, and docs screenshots.
+- [`/schemas/editor/document_state_badge.schema.json`](../../schemas/editor/document_state_badge.schema.json)
+  and
+  [`/fixtures/editor/document_state_cases/`](../../fixtures/editor/document_state_cases/)
+  publish the machine-readable document-state badge contract and worked
+  cases.
 - [`/docs/ux/editor_gutter_contract.md`](./editor_gutter_contract.md)
   owns detailed gutter lane admission, precedence, hit-target,
   accessibility-label, narrow-width fallback, and no-jitter rules.
@@ -54,6 +63,11 @@ Normative sources projected here:
 - [`/docs/ux/tabs_editor_groups_contract.md`](./tabs_editor_groups_contract.md)
   owns tab and editor-group identity, compare fallback, restored state,
   generated/read-only tab posture, live-preview truth, and overflow.
+- [`/docs/ux/editor_document_state_contract.md`](./editor_document_state_contract.md)
+  owns the reusable state names, badge classes, canonical recovery
+  actions, and screenshot / accessibility labels for dirty, pinned,
+  compare, recovered, generated, imported, read-only, mirrored,
+  policy-locked, live-preview, conflict, and stale document states.
 - [`/docs/ux/decoration_precedence_contract.md`](./decoration_precedence_contract.md)
   owns shared decoration precedence for editor gutter and inline
   projection.

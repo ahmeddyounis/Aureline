@@ -515,6 +515,19 @@ code.
   [`/schemas/ux/editor_layer.schema.json`](../schemas/ux/editor_layer.schema.json);
   worked fixtures in
   [`/fixtures/ux/editor_layer_cases/`](../fixtures/ux/editor_layer_cases/).
+- [`ux/editor_document_state_contract.md`](./ux/editor_document_state_contract.md)
+  — editor document-state badge contract for dirty, pinned, compare,
+  recovered-snapshot, generated-output, imported-patch, read-only,
+  mirrored, policy-locked, live-preview, conflict, and stale states.
+  Freezes required placement across tabs, document headers,
+  breadcrumbs/context, status surfaces, compare sheets, preview sheets,
+  support bundles, accessibility labels, and docs screenshots; also
+  freezes canonical recovery/source actions and identity-preservation
+  rules across splits, restores, compare mode, and preview promotion.
+  Boundary schema in
+  [`/schemas/editor/document_state_badge.schema.json`](../schemas/editor/document_state_badge.schema.json);
+  worked fixtures in
+  [`/fixtures/editor/document_state_cases/`](../fixtures/editor/document_state_cases/).
 - [`ux/editor_gutter_contract.md`](./ux/editor_gutter_contract.md)
   — editor gutter lane, precedence, hit-target, accessibility, and
   no-jitter contract for line numbers, execution/debug markers,
