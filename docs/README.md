@@ -528,6 +528,18 @@ code.
   [`/schemas/editor/document_state_badge.schema.json`](../schemas/editor/document_state_badge.schema.json);
   worked fixtures in
   [`/fixtures/editor/document_state_cases/`](../fixtures/editor/document_state_cases/).
+- [`ux/editor_external_change_contract.md`](./ux/editor_external_change_contract.md)
+  — editor external-change contract for recovery-safe handling when a
+  file changes outside Aureline, watcher/root state is uncertain, an
+  alias path changes, or save would overwrite newer external content.
+  Freezes compare-or-reload state classes, stale-buffer disclosure,
+  save-blocked surfacing, checkpoint/undo expectations, special
+  removable-volume/case-only-rename/symlink/remote-root rules, and the
+  review-choice matrix for compare, overwrite, merge, cancel, reload,
+  and retry. Boundary schema in
+  [`/schemas/editor/external_change_event.schema.json`](../schemas/editor/external_change_event.schema.json);
+  worked fixtures in
+  [`/fixtures/editor/external_change_cases/`](../fixtures/editor/external_change_cases/).
 - [`ux/editor_gutter_contract.md`](./ux/editor_gutter_contract.md)
   — editor gutter lane, precedence, hit-target, accessibility, and
   no-jitter contract for line numbers, execution/debug markers,
