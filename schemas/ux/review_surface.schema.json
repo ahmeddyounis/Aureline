@@ -1,0 +1,1052 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/review_surface.schema.json",
+  "title": "Aureline dialog, sheet, and review-surface selection contract",
+  "description": "Boundary schema for one review_surface_record frozen in docs/ux/dialog_sheet_contract.md. The record explains why a flow uses a modal dialog, sheet, dedicated review surface, full-surface takeover, or platform-owned auth/file-picker overlay. It preserves invoking origin, target scope, consequence-block visibility, action-label specificity, explicit close/discard behavior, focus return, nested-overlay policy, and long-running handoff into durable job rows, history rows, mutation journals, or inspected object state. Raw file paths, URLs, prompts, credentials, secret values, provider payloads, and user-authored content never cross this boundary; rows carry opaque refs, typed vocabulary, and short review-safe labels. Adding enum values or optional fields is additive-minor with a review_surface_schema_version bump when payload semantics change; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/review_surface_record",
+  "$defs": {
+    "review_surface_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this review-surface vocabulary export."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "review_surface_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for manifests, support bundles, journals, and automation traces. Raw paths, URLs, prompts, provider payloads, identities, credentials, and file bodies never appear here."
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 220,
+      "description": "Short review-safe text. It may name a product verb or class, but must not embed raw paths, URLs, secrets, provider payloads, prompts, or file bodies."
+    },
+    "action_label": {
+      "allOf": [
+        { "$ref": "#/$defs/short_label" },
+        {
+          "not": {
+            "enum": ["Yes", "No", "OK", "Continue", "Apply", "Accept", "Submit"]
+          }
+        }
+      ],
+      "description": "Specific rendered action label. Product-native consequential actions must name the verb and scope rather than using generic confirmation labels."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "admission_state": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "pending_review",
+        "denied",
+        "platform_host_owned"
+      ],
+      "description": "Whether the surface selection is admitted, blocked for review, denied as non-conforming, or delegated to a host-owned platform overlay."
+    },
+    "decision_need_class": {
+      "type": "string",
+      "enum": [
+        "binary_destructive_confirm",
+        "structured_permission_review",
+        "dense_evidence_or_diff_review",
+        "multi_step_setup",
+        "conflict_resolution",
+        "inspectable_detail",
+        "platform_mandated_auth",
+        "platform_mandated_file_picker"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "modal_dialog",
+        "window_attached_sheet",
+        "side_sheet",
+        "full_sheet",
+        "dedicated_review_surface",
+        "full_surface_takeover",
+        "platform_auth_dialog",
+        "platform_file_picker_dialog"
+      ]
+    },
+    "surface_size_class": {
+      "type": "string",
+      "enum": ["small", "medium", "large", "full"]
+    },
+    "matrix_outcome_class": {
+      "type": "string",
+      "enum": [
+        "modal_dialog_selected",
+        "sheet_selected",
+        "dedicated_takeover_selected",
+        "platform_overlay_exception_selected",
+        "nested_product_overlay_denied"
+      ]
+    },
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "reversible_local",
+        "recoverable_durable",
+        "external_shared",
+        "irreversible_high_blast"
+      ]
+    },
+    "boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "workspace_boundary",
+        "remote_boundary",
+        "provider_boundary",
+        "policy_or_admin_boundary",
+        "secret_or_identity_boundary",
+        "external_shared_boundary"
+      ]
+    },
+    "origin_preservation_class": {
+      "type": "string",
+      "enum": [
+        "title_and_subtitle",
+        "breadcrumb_and_title_context",
+        "provenance_row",
+        "platform_host_explained",
+        "denied_no_origin"
+      ]
+    },
+    "required_visible_field_class": {
+      "type": "string",
+      "enum": [
+        "target_identity",
+        "actor_identity",
+        "requester_identity",
+        "origin_identity",
+        "authority_class_label",
+        "consequence_block",
+        "consequence_class_label",
+        "scope_statement",
+        "recovery_or_rollback",
+        "policy_source_label",
+        "expiry_or_revocation_claim",
+        "blocked_or_hidden_member_count",
+        "basis_snapshot_freshness",
+        "partial_failure_behavior",
+        "draft_discard_state",
+        "durable_handoff_destination"
+      ]
+    },
+    "consequence_block_state": {
+      "type": "string",
+      "enum": [
+        "not_required_low_risk",
+        "visible_with_primary_action",
+        "visible_in_sticky_region",
+        "blocked_missing_consequence_block",
+        "platform_host_supplemental_explanation"
+      ]
+    },
+    "action_role": {
+      "type": "string",
+      "enum": [
+        "primary_confirm",
+        "safe_cancel",
+        "safer_alternative",
+        "discard_draft",
+        "save_draft",
+        "open_details",
+        "open_durable_job",
+        "retry",
+        "revalidate"
+      ]
+    },
+    "action_specificity_class": {
+      "type": "string",
+      "enum": [
+        "specific_product_label",
+        "platform_mandated_generic_with_explanation",
+        "generic_label_denied"
+      ]
+    },
+    "resulting_state_class": {
+      "type": "string",
+      "enum": [
+        "no_state_change",
+        "review_admitted",
+        "review_dismissed_no_apply",
+        "draft_saved",
+        "draft_discarded",
+        "durable_job_started",
+        "handoff_opened",
+        "platform_host_continues",
+        "denied"
+      ]
+    },
+    "close_behavior_class": {
+      "type": "string",
+      "enum": [
+        "explicit_cancel_no_state_change",
+        "explicit_discard_required",
+        "save_draft_or_discard_required",
+        "blocked_until_decision_or_handoff",
+        "platform_host_owned",
+        "denied_no_close"
+      ]
+    },
+    "esc_behavior_class": {
+      "type": "string",
+      "enum": [
+        "same_as_cancel_no_state_change",
+        "opens_discard_review",
+        "saves_draft_or_returns_to_review",
+        "ignored_while_required_step_pending",
+        "platform_host_owned",
+        "denied_silent_close"
+      ]
+    },
+    "discard_path_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "cancel_no_state_change",
+        "discard_draft_explicit",
+        "save_draft_available",
+        "review_dismissed_no_apply",
+        "platform_host_cancel_explained",
+        "denied_missing_explicit_discard"
+      ]
+    },
+    "focus_return_state": {
+      "type": "string",
+      "enum": [
+        "returned_exact",
+        "returned_nearest_safe_ancestor",
+        "returned_current_batch_or_detail_owner",
+        "returned_placeholder_announced",
+        "focus_loss_denied",
+        "focus_not_applicable_non_interactive"
+      ]
+    },
+    "overlay_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_parent_surface",
+        "replace_or_update_parent_surface",
+        "platform_auth_exception",
+        "platform_file_picker_exception",
+        "product_nested_overlay_denied"
+      ]
+    },
+    "platform_exception_kind": {
+      "type": "string",
+      "enum": ["none", "auth", "file_picker"]
+    },
+    "overlay_denial_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "product_owned_nested_overlay_forbidden",
+        "origin_not_preserved",
+        "consequence_block_not_visible_with_action",
+        "generic_action_label_on_consequential_flow",
+        "silent_discard_or_close",
+        "long_job_handoff_missing",
+        "dense_review_crammed_into_modal"
+      ]
+    },
+    "long_running_action_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "build",
+        "test",
+        "debug_session",
+        "task_run",
+        "indexer_pass",
+        "save_or_sync",
+        "update_install",
+        "restore_or_recovery",
+        "download_or_upload",
+        "notebook_execution",
+        "ai_apply_execution",
+        "review_apply_execution",
+        "provider_handoff",
+        "remote_attach",
+        "collaboration_session",
+        "admin_policy_refresh",
+        "setup_or_bootstrap"
+      ]
+    },
+    "handoff_target_kind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "durable_job_row",
+        "history_lane_row",
+        "activity_center_item",
+        "inspected_object_state",
+        "mutation_journal_entry"
+      ]
+    },
+    "spinner_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_spinner_needed",
+        "spinner_only_short_indeterminate",
+        "labeled_progress_before_handoff",
+        "durable_handoff_minted_before_close",
+        "denied_vanishing_spinner"
+      ]
+    },
+    "closure_policy_class": {
+      "type": "string",
+      "enum": [
+        "stays_open_until_complete",
+        "closes_after_handoff_minted",
+        "remains_open_with_progress_and_reopen_target",
+        "denied_close_without_handoff"
+      ]
+    },
+    "durable_status_field_class": {
+      "type": "string",
+      "enum": [
+        "label",
+        "actor_or_subsystem",
+        "progress_state",
+        "current_phase",
+        "cancel_action",
+        "retry_action",
+        "open_details_action",
+        "evidence_link",
+        "cost_policy_trust_impact"
+      ]
+    },
+    "surface_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_need_class",
+        "surface_class",
+        "surface_size_class",
+        "matrix_outcome_class",
+        "dedicated_takeover_required",
+        "selection_reason_label"
+      ],
+      "properties": {
+        "decision_need_class": { "$ref": "#/$defs/decision_need_class" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_size_class": { "$ref": "#/$defs/surface_size_class" },
+        "matrix_outcome_class": { "$ref": "#/$defs/matrix_outcome_class" },
+        "dedicated_takeover_required": { "type": "boolean" },
+        "selection_reason_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_surface_ref",
+        "invoking_command_id_ref",
+        "invoking_object_ref",
+        "owning_window_ref",
+        "workspace_scope_ref",
+        "target_object_ref",
+        "origin_preservation_class",
+        "title_origin_visible",
+        "breadcrumb_or_context_visible",
+        "return_target_ref"
+      ],
+      "properties": {
+        "source_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "invoking_command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "invoking_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "owning_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "origin_preservation_class": { "$ref": "#/$defs/origin_preservation_class" },
+        "title_origin_visible": { "type": "boolean" },
+        "breadcrumb_or_context_visible": { "type": "boolean" },
+        "return_target_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "consequence_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consequence_block_state",
+        "visible_fields",
+        "action_row_visible_with_consequence_block",
+        "required_fields_hidden_by_chrome",
+        "safe_default_focus_action_ref"
+      ],
+      "properties": {
+        "consequence_block_state": { "$ref": "#/$defs/consequence_block_state" },
+        "visible_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_visible_field_class" },
+          "uniqueItems": true
+        },
+        "action_row_visible_with_consequence_block": { "type": "boolean" },
+        "required_fields_hidden_by_chrome": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_visible_field_class" },
+          "uniqueItems": true
+        },
+        "safe_default_focus_action_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "action_role",
+        "specificity_class",
+        "focus_default",
+        "platform_mandated_host_flow",
+        "resulting_state_class",
+        "product_explanatory_label"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/action_label" },
+        "action_role": { "$ref": "#/$defs/action_role" },
+        "specificity_class": { "$ref": "#/$defs/action_specificity_class" },
+        "focus_default": { "type": "boolean" },
+        "platform_mandated_host_flow": { "type": "boolean" },
+        "resulting_state_class": { "$ref": "#/$defs/resulting_state_class" },
+        "product_explanatory_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "focus_return": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_return_state",
+        "invoker_identity_ref",
+        "return_target_identity_ref",
+        "announcement_label"
+      ],
+      "properties": {
+        "focus_return_state": { "$ref": "#/$defs/focus_return_state" },
+        "invoker_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "return_target_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "announcement_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "dismissal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "has_unsaved_input",
+        "has_meaningful_review_state",
+        "close_behavior_class",
+        "esc_behavior_class",
+        "discard_path_class",
+        "preserve_scroll_and_disclosure_on_reopen",
+        "dismissal_audit_ref",
+        "focus_return"
+      ],
+      "properties": {
+        "has_unsaved_input": { "type": "boolean" },
+        "has_meaningful_review_state": { "type": "boolean" },
+        "close_behavior_class": { "$ref": "#/$defs/close_behavior_class" },
+        "esc_behavior_class": { "$ref": "#/$defs/esc_behavior_class" },
+        "discard_path_class": { "$ref": "#/$defs/discard_path_class" },
+        "preserve_scroll_and_disclosure_on_reopen": { "type": "boolean" },
+        "dismissal_audit_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "focus_return": { "$ref": "#/$defs/focus_return" }
+      }
+    },
+    "overlay_stack_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_surface_ref",
+        "child_overlay_requested",
+        "child_overlay_allowed",
+        "overlay_policy_class",
+        "platform_exception_kind",
+        "denial_reason"
+      ],
+      "properties": {
+        "parent_surface_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "child_overlay_requested": { "type": "boolean" },
+        "child_overlay_allowed": { "type": "boolean" },
+        "overlay_policy_class": { "$ref": "#/$defs/overlay_policy_class" },
+        "platform_exception_kind": { "$ref": "#/$defs/platform_exception_kind" },
+        "denial_reason": { "$ref": "#/$defs/overlay_denial_reason" }
+      }
+    },
+    "long_job_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "long_running_action_class",
+        "handoff_required",
+        "handoff_target_kind",
+        "handoff_target_ref",
+        "spinner_policy_class",
+        "closure_policy_class",
+        "durable_status_fields",
+        "evidence_or_history_refs"
+      ],
+      "properties": {
+        "long_running_action_class": { "$ref": "#/$defs/long_running_action_class" },
+        "handoff_required": { "type": "boolean" },
+        "handoff_target_kind": { "$ref": "#/$defs/handoff_target_kind" },
+        "handoff_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "spinner_policy_class": { "$ref": "#/$defs/spinner_policy_class" },
+        "closure_policy_class": { "$ref": "#/$defs/closure_policy_class" },
+        "durable_status_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/durable_status_field_class" },
+          "uniqueItems": true
+        },
+        "evidence_or_history_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/short_label" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_label" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "review_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_surface_schema_version",
+        "review_surface_id",
+        "admission_state",
+        "consequence_class",
+        "boundary_classes",
+        "surface_selection",
+        "origin",
+        "consequence_visibility",
+        "action_rows",
+        "dismissal",
+        "overlay_stack_policy",
+        "long_job_handoff",
+        "client_scope",
+        "redaction_class",
+        "policy_context",
+        "opened_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "review_surface_schema_version": { "$ref": "#/$defs/review_surface_schema_version" },
+        "review_surface_id": { "$ref": "#/$defs/opaque_id" },
+        "admission_state": { "$ref": "#/$defs/admission_state" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "boundary_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "surface_selection": { "$ref": "#/$defs/surface_selection" },
+        "origin": { "$ref": "#/$defs/origin" },
+        "consequence_visibility": { "$ref": "#/$defs/consequence_visibility" },
+        "action_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_row" },
+          "minItems": 1
+        },
+        "dismissal": { "$ref": "#/$defs/dismissal" },
+        "overlay_stack_policy": { "$ref": "#/$defs/overlay_stack_policy" },
+        "long_job_handoff": { "$ref": "#/$defs/long_job_handoff" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["policy_epoch", "trust_state"],
+          "properties": {
+            "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+            "trust_state": { "$ref": "#/$defs/short_label" }
+          }
+        },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "admission_state": { "const": "admitted" },
+              "surface_selection": {
+                "properties": {
+                  "decision_need_class": { "const": "binary_destructive_confirm" }
+                },
+                "required": ["decision_need_class"]
+              }
+            },
+            "required": ["admission_state", "surface_selection"]
+          },
+          "then": {
+            "properties": {
+              "surface_selection": {
+                "properties": {
+                  "surface_class": { "const": "modal_dialog" },
+                  "surface_size_class": { "const": "small" },
+                  "matrix_outcome_class": { "const": "modal_dialog_selected" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "admission_state": { "const": "admitted" },
+              "surface_selection": {
+                "properties": {
+                  "decision_need_class": { "const": "structured_permission_review" }
+                },
+                "required": ["decision_need_class"]
+              }
+            },
+            "required": ["admission_state", "surface_selection"]
+          },
+          "then": {
+            "properties": {
+              "surface_selection": {
+                "properties": {
+                  "surface_class": {
+                    "enum": ["window_attached_sheet", "side_sheet", "full_sheet"]
+                  },
+                  "matrix_outcome_class": { "const": "sheet_selected" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "admission_state": { "const": "admitted" },
+              "surface_selection": {
+                "properties": {
+                  "decision_need_class": { "const": "dense_evidence_or_diff_review" }
+                },
+                "required": ["decision_need_class"]
+              }
+            },
+            "required": ["admission_state", "surface_selection"]
+          },
+          "then": {
+            "properties": {
+              "surface_selection": {
+                "properties": {
+                  "surface_class": {
+                    "enum": [
+                      "full_sheet",
+                      "dedicated_review_surface",
+                      "full_surface_takeover"
+                    ]
+                  },
+                  "matrix_outcome_class": {
+                    "enum": ["sheet_selected", "dedicated_takeover_selected"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "admission_state": { "const": "admitted" },
+              "surface_selection": {
+                "properties": {
+                  "decision_need_class": { "const": "multi_step_setup" }
+                },
+                "required": ["decision_need_class"]
+              }
+            },
+            "required": ["admission_state", "surface_selection"]
+          },
+          "then": {
+            "properties": {
+              "surface_selection": {
+                "properties": {
+                  "surface_class": {
+                    "enum": ["window_attached_sheet", "full_sheet", "full_surface_takeover"]
+                  },
+                  "matrix_outcome_class": {
+                    "enum": ["sheet_selected", "dedicated_takeover_selected"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "admission_state": { "const": "admitted" },
+              "surface_selection": {
+                "properties": {
+                  "dedicated_takeover_required": { "const": true }
+                },
+                "required": ["dedicated_takeover_required"]
+              }
+            },
+            "required": ["admission_state", "surface_selection"]
+          },
+          "then": {
+            "properties": {
+              "surface_selection": {
+                "properties": {
+                  "surface_class": {
+                    "enum": ["dedicated_review_surface", "full_surface_takeover"]
+                  },
+                  "matrix_outcome_class": { "const": "dedicated_takeover_selected" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "admission_state": { "const": "admitted" },
+              "consequence_class": {
+                "enum": ["external_shared", "irreversible_high_blast"]
+              }
+            },
+            "required": ["admission_state", "consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "consequence_visibility": {
+                "properties": {
+                  "consequence_block_state": {
+                    "enum": ["visible_with_primary_action", "visible_in_sticky_region"]
+                  },
+                  "action_row_visible_with_consequence_block": { "const": true },
+                  "required_fields_hidden_by_chrome": { "maxItems": 0 },
+                  "visible_fields": {
+                    "allOf": [
+                      { "contains": { "const": "target_identity" } },
+                      { "contains": { "const": "consequence_block" } },
+                      { "contains": { "const": "scope_statement" } },
+                      { "contains": { "const": "recovery_or_rollback" } }
+                    ]
+                  }
+                }
+              },
+              "action_rows": {
+                "items": {
+                  "not": {
+                    "properties": {
+                      "specificity_class": { "const": "generic_label_denied" }
+                    },
+                    "required": ["specificity_class"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dismissal": {
+                "properties": {
+                  "has_unsaved_input": { "const": true }
+                },
+                "required": ["has_unsaved_input"]
+              }
+            },
+            "required": ["dismissal"]
+          },
+          "then": {
+            "properties": {
+              "dismissal": {
+                "properties": {
+                  "close_behavior_class": {
+                    "enum": [
+                      "explicit_discard_required",
+                      "save_draft_or_discard_required",
+                      "blocked_until_decision_or_handoff"
+                    ]
+                  },
+                  "esc_behavior_class": {
+                    "enum": [
+                      "opens_discard_review",
+                      "saves_draft_or_returns_to_review",
+                      "ignored_while_required_step_pending"
+                    ]
+                  },
+                  "discard_path_class": {
+                    "enum": ["discard_draft_explicit", "save_draft_available"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dismissal": {
+                "properties": {
+                  "has_meaningful_review_state": { "const": true }
+                },
+                "required": ["has_meaningful_review_state"]
+              }
+            },
+            "required": ["dismissal"]
+          },
+          "then": {
+            "properties": {
+              "dismissal": {
+                "properties": {
+                  "preserve_scroll_and_disclosure_on_reopen": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "admission_state": { "const": "admitted" },
+              "long_job_handoff": {
+                "properties": {
+                  "long_running_action_class": {
+                    "not": { "const": "none" }
+                  }
+                },
+                "required": ["long_running_action_class"]
+              }
+            },
+            "required": ["admission_state", "long_job_handoff"]
+          },
+          "then": {
+            "properties": {
+              "long_job_handoff": {
+                "properties": {
+                  "handoff_required": { "const": true },
+                  "handoff_target_kind": {
+                    "not": { "const": "none" }
+                  },
+                  "handoff_target_ref": {
+                    "not": { "type": "null" }
+                  },
+                  "spinner_policy_class": {
+                    "enum": [
+                      "labeled_progress_before_handoff",
+                      "durable_handoff_minted_before_close"
+                    ]
+                  },
+                  "closure_policy_class": {
+                    "enum": [
+                      "closes_after_handoff_minted",
+                      "remains_open_with_progress_and_reopen_target"
+                    ]
+                  },
+                  "durable_status_fields": {
+                    "allOf": [
+                      { "contains": { "const": "label" } },
+                      { "contains": { "const": "actor_or_subsystem" } },
+                      { "contains": { "const": "progress_state" } },
+                      { "contains": { "const": "current_phase" } },
+                      { "contains": { "const": "open_details_action" } }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "overlay_stack_policy": {
+                "properties": {
+                  "child_overlay_requested": { "const": true },
+                  "platform_exception_kind": { "const": "none" }
+                },
+                "required": ["child_overlay_requested", "platform_exception_kind"]
+              }
+            },
+            "required": ["overlay_stack_policy"]
+          },
+          "then": {
+            "properties": {
+              "overlay_stack_policy": {
+                "properties": {
+                  "child_overlay_allowed": { "const": false },
+                  "overlay_policy_class": { "const": "product_nested_overlay_denied" },
+                  "denial_reason": { "const": "product_owned_nested_overlay_forbidden" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "overlay_stack_policy": {
+                "properties": {
+                  "child_overlay_allowed": { "const": true }
+                },
+                "required": ["child_overlay_allowed"]
+              }
+            },
+            "required": ["overlay_stack_policy"]
+          },
+          "then": {
+            "properties": {
+              "overlay_stack_policy": {
+                "properties": {
+                  "platform_exception_kind": {
+                    "enum": ["auth", "file_picker"]
+                  },
+                  "overlay_policy_class": {
+                    "enum": ["platform_auth_exception", "platform_file_picker_exception"]
+                  },
+                  "denial_reason": { "const": "none" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "surface_selection": {
+                "properties": {
+                  "decision_need_class": { "const": "platform_mandated_auth" }
+                },
+                "required": ["decision_need_class"]
+              }
+            },
+            "required": ["surface_selection"]
+          },
+          "then": {
+            "properties": {
+              "admission_state": { "const": "platform_host_owned" },
+              "surface_selection": {
+                "properties": {
+                  "surface_class": { "const": "platform_auth_dialog" },
+                  "matrix_outcome_class": { "const": "platform_overlay_exception_selected" }
+                }
+              },
+              "overlay_stack_policy": {
+                "properties": {
+                  "child_overlay_allowed": { "const": true },
+                  "overlay_policy_class": { "const": "platform_auth_exception" },
+                  "platform_exception_kind": { "const": "auth" },
+                  "denial_reason": { "const": "none" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "surface_selection": {
+                "properties": {
+                  "decision_need_class": { "const": "platform_mandated_file_picker" }
+                },
+                "required": ["decision_need_class"]
+              }
+            },
+            "required": ["surface_selection"]
+          },
+          "then": {
+            "properties": {
+              "admission_state": { "const": "platform_host_owned" },
+              "surface_selection": {
+                "properties": {
+                  "surface_class": { "const": "platform_file_picker_dialog" },
+                  "matrix_outcome_class": { "const": "platform_overlay_exception_selected" }
+                }
+              },
+              "overlay_stack_policy": {
+                "properties": {
+                  "child_overlay_allowed": { "const": true },
+                  "overlay_policy_class": { "const": "platform_file_picker_exception" },
+                  "platform_exception_kind": { "const": "file_picker" },
+                  "denial_reason": { "const": "none" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
