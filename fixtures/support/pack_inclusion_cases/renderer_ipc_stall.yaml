@@ -1,0 +1,148 @@
+# yaml-language-server: $schema=../../../schemas/support/support_pack_item.schema.json
+schema_version: 1
+record_kind: support_pack_inclusion_case
+case_id: support.pack.case.renderer.ipc_stall
+title: Renderer and IPC stall support pack
+scenario_class: renderer_failure
+matrix_ref: artifacts/support/support_evidence_pack_matrix.yaml
+active_redaction_profile_ref: support.redaction.local_first_default
+assembly_intent: >
+  Explain a renderer or IPC stall with exact-build identity, renderer
+  component state, and a local-only trace manifest while avoiding raw
+  trace payloads, LSP or DAP message bodies, secrets, and shell history.
+requested_item_ids:
+  - support.item.build_identity
+  - support.item.execution_context_summary
+  - support.item.runtime_traces
+  - support.item.raw_secrets
+  - support.item.full_shell_history
+included_items:
+  - item_id: support.item.build_identity
+    artifact_kind_class: exact_build_identity_manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_by_default
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_exact_build_truth
+    manifest_ref: artifact_manifest:renderer_ipc_stall.exact_build
+    exact_build_identity_refs:
+      - build-id:aureline:nightly:renderer-ipc-stall
+    source_refs:
+      - docs/build/exact_build_identity_model.md
+    redaction_summary_ref: redaction_summary:renderer_ipc_stall
+    opt_in_selection_ref: null
+    notes: >
+      Exact-build identity lets support compare renderer binaries,
+      source maps, and known rendering limits.
+  - item_id: support.item.execution_context_summary
+    artifact_kind_class: execution_context_summary
+    data_class: environment_adjacent
+    redaction_class: operator_only_restricted
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_route_truth
+    manifest_ref: artifact_manifest:renderer_ipc_stall.execution_context
+    exact_build_identity_refs:
+      - build-id:aureline:nightly:renderer-ipc-stall
+    source_refs:
+      - execution-context:renderer.main
+      - ipc-channel:workspace.knowledge.worker
+    redaction_summary_ref: redaction_summary:renderer_ipc_stall
+    opt_in_selection_ref: null
+    notes: >
+      The summary includes renderer process class, IPC channel class,
+      frame pacing state, and degraded-state reason.
+  - item_id: support.item.runtime_traces
+    artifact_kind_class: trace_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: opt_in_only
+    storage_mode: local_only_copy_retained
+    embedding_state: omitted
+    decision_reason_class: retained_local_only_by_policy
+    manifest_ref: artifact_manifest:renderer_ipc_stall.trace_manifest
+    exact_build_identity_refs:
+      - build-id:aureline:nightly:renderer-ipc-stall
+    source_refs:
+      - trace-manifest:renderer.ipc.stall.0004
+      - local-trace-store:renderer.ipc.stall.0004
+    redaction_summary_ref: redaction_summary:renderer_ipc_stall
+    opt_in_selection_ref: opt-in:renderer_ipc_stall.trace_payload
+    notes: >
+      The exported pack includes only the trace manifest, time window,
+      correlation ids, truncation state, and local retention ref.
+omitted_items:
+  - item_id: support.item.raw_secrets
+    artifact_kind_class: raw_secret_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:renderer_ipc_stall.raw_secrets
+    exact_build_identity_refs: []
+    source_refs:
+      - redaction-check:renderer_ipc_stall
+    redaction_summary_ref: redaction_summary:renderer_ipc_stall
+    opt_in_selection_ref: null
+    notes: >
+      Trace redaction ran before persistence and bundle packaging; raw
+      secret values remain absent.
+  - item_id: support.item.full_shell_history
+    artifact_kind_class: full_shell_history_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:renderer_ipc_stall.shell_history
+    exact_build_identity_refs: []
+    source_refs:
+      - support.redaction.local_first_default.exclude_shell_history
+    redaction_summary_ref: redaction_summary:renderer_ipc_stall
+    opt_in_selection_ref: null
+    notes: >
+      Shell history is unrelated to the renderer stall and remains
+      outside the support pack.
+opt_in_selections:
+  - selection_id: opt-in:renderer_ipc_stall.trace_payload
+    item_id: support.item.runtime_traces
+    consent_class: trace_export_opt_in
+    decision: deferred
+    surface: support_center_preview
+    high_friction_steps:
+      - preview_trace_window
+      - show_payload_classes_and_redaction_markers
+      - require_explicit_trace_slice_selection
+    notes: >
+      The trace body stayed local-only pending a later, narrower slice
+      review.
+redaction_summary:
+  summary_id: redaction_summary:renderer_ipc_stall
+  privacy_classes_present:
+    - metadata_only
+    - environment_adjacent
+    - high_risk
+  secret_surface_refs:
+    - traces_local
+    - support_bundle
+  prohibited_items_confirmed_absent:
+    - support.item.raw_secrets
+    - support.item.full_shell_history
+  notes: >
+    The pack preserves trace existence and locality without exporting
+    raw IPC, LSP, DAP, or renderer payload bodies.
+assertions:
+  - renderer_trace_manifest_included_without_trace_body
+  - trace_payload_requires_explicit_slice_selection
+  - raw_secrets_confirmed_absent
+  - full_shell_history_confirmed_absent
+  - no_blanket_artifact_capture
+notes: >
+  The case demonstrates that performance diagnosis can start from
+  exact-build and trace manifests before any raw trace payload leaves
+  the device.

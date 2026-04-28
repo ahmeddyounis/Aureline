@@ -1,0 +1,740 @@
+# yaml-language-server: $schema=../../schemas/support/support_pack_item.schema.json
+schema_version: 1
+record_kind: support_pack_item_matrix
+matrix_id: support.evidence_pack.matrix.v1
+title: Diagnostic support evidence pack item matrix
+governing_refs:
+  - docs/support/diagnostic_artifact_matrix.md
+  - docs/support/support_bundle_contract.md
+  - docs/governance/telemetry_and_support_schema_registry.md
+  - artifacts/security/secret_class_rows.yaml
+  - artifacts/security/redaction_posture_matrix.yaml
+  - artifacts/governance/record_class_registry.yaml
+vocabulary_bindings:
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  secret_class_schema_ref: schemas/security/secret_class_rows.schema.json
+  secret_redaction_matrix_ref: artifacts/security/redaction_posture_matrix.yaml
+  telemetry_registry_ref: docs/governance/telemetry_and_support_schema_registry.md
+  record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+reference_contract:
+  support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+  exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+  redaction_summary_field: redaction_summary.items[].item_id
+  opt_in_selection_field: opt_in_selections[].item_id
+  privacy_class_field: artifact_manifest[].data_class
+
+item_rows:
+  - item_id: support.item.build_identity
+    title: Build, version, and channel metadata
+    artifact_kind_classes:
+      - exact_build_identity_manifest
+      - install_profile_card
+    diagnostic_data_class: metadata_only
+    privacy_class: metadata_only
+    signal_class_binding: install_update_active_version_counts
+    collection_path_class: included_by_default_on_user_export
+    support_bundle_redaction_class: metadata_safe_default
+    secret_redaction_surfaces:
+      - support_bundle
+    support_export_posture: included_by_default
+    default_storage_mode: embedded_export_copy
+    default_embedding_state: embedded
+    consent_class: not_required_metadata_export
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 65536
+      max_retained_bytes: 65536
+      truncation_action: embed_full_if_under_limit
+      notes: >
+        Exact-build and install metadata should stay small enough to
+        embed fully; overflow is a schema bug, not a capture decision.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - exact_build_identity_ref
+      - product_version
+      - release_channel_class
+      - platform_class
+      - install_mode_class
+      - updater_owner_class
+      - docs_version_match_state
+    excluded_fields:
+      - raw_hostnames
+      - local_user_identifiers
+      - full_install_logs
+    high_risk_rule_ref: null
+    notes: >
+      Build identity is the root join for crash, symbol, docs, policy,
+      and release evidence and is safe to embed as metadata.
+
+  - item_id: support.item.extension_inventory
+    title: Enabled extension list and effective permissions
+    artifact_kind_classes:
+      - extension_inventory_manifest
+    diagnostic_data_class: metadata_only
+    privacy_class: metadata_only
+    signal_class_binding: feature_usage_counters
+    collection_path_class: included_by_default_on_user_export
+    support_bundle_redaction_class: metadata_safe_default
+    secret_redaction_surfaces:
+      - support_bundle
+    support_export_posture: included_metadata_only
+    default_storage_mode: embedded_export_copy
+    default_embedding_state: embedded
+    consent_class: not_required_metadata_export
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 262144
+      max_retained_bytes: 262144
+      truncation_action: truncate_with_digest
+      notes: >
+        Inventories embed summaries and digests; oversized permission
+        lists truncate by extension row with a row digest.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - extension_id_or_hash
+      - publisher_trust_class
+      - version
+      - enablement_state
+      - permission_classes
+      - quarantine_or_budget_state
+    excluded_fields:
+      - extension_private_storage_bodies
+      - marketplace_response_bodies
+      - extension_settings_payloads
+    high_risk_rule_ref: null
+    notes: >
+      The row explains compatibility and crash-loop state without
+      copying extension-owned private data or marketplace payloads.
+
+  - item_id: support.item.docs_inventory
+    title: Docs and knowledge-pack inventory
+    artifact_kind_classes:
+      - docs_inventory_manifest
+    diagnostic_data_class: metadata_only
+    privacy_class: metadata_only
+    signal_class_binding: local_diagnostic_signal
+    collection_path_class: included_by_default_on_user_export
+    support_bundle_redaction_class: metadata_safe_default
+    secret_redaction_surfaces:
+      - support_bundle
+    support_export_posture: included_metadata_only
+    default_storage_mode: embedded_export_copy
+    default_embedding_state: embedded
+    consent_class: not_required_metadata_export
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 131072
+      max_retained_bytes: 131072
+      truncation_action: truncate_with_digest
+      notes: >
+        Pack identity, revision, mirror state, and digest rows embed;
+        pack bodies stay in the docs cache.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - pack_id
+      - pack_revision
+      - exact_build_identity_ref
+      - mirror_freshness_state
+      - content_digest
+      - late_copy_review_state
+    excluded_fields:
+      - docs_pack_bodies
+      - private_docs_notes
+      - search_query_history
+    high_risk_rule_ref: null
+    notes: >
+      Support can identify a docs or knowledge-pack mismatch without
+      embedding the pack content or local search history.
+
+  - item_id: support.item.connection_profiles
+    title: Connection profile classes
+    artifact_kind_classes:
+      - action_route_truth_packet
+      - execution_context_summary
+    diagnostic_data_class: environment_adjacent
+    privacy_class: environment_adjacent
+    signal_class_binding: local_diagnostic_signal
+    collection_path_class: metadata_only_default
+    support_bundle_redaction_class: operator_only_restricted
+    secret_redaction_surfaces:
+      - support_bundle
+      - logs_local
+      - traces_local
+    support_export_posture: included_metadata_only
+    default_storage_mode: embedded_export_copy
+    default_embedding_state: embedded
+    consent_class: bundle_preview_reviewed
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 131072
+      max_retained_bytes: 131072
+      truncation_action: truncate_with_digest
+      notes: >
+        Endpoint identity stays classed or hashed; raw hostnames,
+        DSNs, headers, and credentials are never embedded.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - connection_class
+      - engine_family
+      - driver_version
+      - proxy_or_tunnel_posture
+      - profile_id_digest
+      - auth_source_class
+      - route_boundary_class
+    excluded_fields:
+      - raw_dsn
+      - raw_hostnames
+      - request_headers
+      - query_or_row_data
+      - credential_values
+    high_risk_rule_ref: null
+    notes: >
+      The row is for network, data, remote, and browser-runtime support
+      and keeps provider secrets and target names out by default.
+
+  - item_id: support.item.secret_broker_state
+    title: Secret broker and vault adapter state
+    artifact_kind_classes:
+      - secret_broker_state
+    diagnostic_data_class: metadata_only
+    privacy_class: metadata_only
+    signal_class_binding: local_diagnostic_signal
+    collection_path_class: metadata_only_default
+    support_bundle_redaction_class: operator_only_restricted
+    secret_redaction_surfaces:
+      - support_bundle
+      - logs_local
+      - traces_local
+      - crash_dump
+    support_export_posture: included_metadata_only
+    default_storage_mode: embedded_export_copy
+    default_embedding_state: redacted
+    consent_class: bundle_preview_reviewed
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 65536
+      max_retained_bytes: 65536
+      truncation_action: truncate_with_digest
+      notes: >
+        Broker state embeds class, alias, health, and failure counts
+        only; raw handles and values are outside every support path.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - active_trust_store_class
+      - active_unlock_state
+      - secret_class_counts
+      - alias_only_inventory
+      - denial_reason_counts
+      - projection_mode_counts
+      - vault_adapter_health
+    excluded_fields:
+      - raw_secret_values
+      - raw_handle_ids
+      - raw_environment_variable_values
+      - private_keys
+      - client_certificates
+      - projection_outputs
+    high_risk_rule_ref: null
+    notes: >
+      This row quotes the secret-class matrix: support gets state and
+      typed failures, never raw secret material or raw broker handles.
+
+  - item_id: support.item.policy_trust_state
+    title: Policy fingerprint and workspace trust state
+    artifact_kind_classes:
+      - policy_fingerprint_summary
+    diagnostic_data_class: metadata_only
+    privacy_class: metadata_only
+    signal_class_binding: local_diagnostic_signal
+    collection_path_class: included_by_default_on_user_export
+    support_bundle_redaction_class: metadata_safe_default
+    secret_redaction_surfaces:
+      - support_bundle
+    support_export_posture: included_metadata_only
+    default_storage_mode: embedded_export_copy
+    default_embedding_state: embedded
+    consent_class: not_required_metadata_export
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 65536
+      max_retained_bytes: 65536
+      truncation_action: embed_full_if_under_limit
+      notes: >
+        Policy summaries are intentionally compact: fingerprint,
+        epoch, signer, trust state, and lock decisions only.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - policy_bundle_digest
+      - policy_epoch
+      - signer_or_source_class
+      - workspace_trust_state
+      - restricted_mode_reason
+      - locked_setting_counts
+    excluded_fields:
+      - raw_policy_secret_fields
+      - full_policy_bundle_body
+      - user_identifier_values
+    high_risk_rule_ref: null
+    notes: >
+      The row is enough to prove which policy and trust posture governed
+      the failure without exporting the entire policy body.
+
+  - item_id: support.item.execution_context_summary
+    title: Toolchain and execution-context summary
+    artifact_kind_classes:
+      - execution_context_summary
+    diagnostic_data_class: environment_adjacent
+    privacy_class: environment_adjacent
+    signal_class_binding: local_diagnostic_signal
+    collection_path_class: metadata_only_default
+    support_bundle_redaction_class: operator_only_restricted
+    secret_redaction_surfaces:
+      - support_bundle
+      - logs_local
+      - traces_local
+    support_export_posture: included_metadata_only
+    default_storage_mode: embedded_export_copy
+    default_embedding_state: embedded
+    consent_class: bundle_preview_reviewed
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 262144
+      max_retained_bytes: 262144
+      truncation_action: truncate_with_digest
+      notes: >
+        Resolver summaries embed versions and classed resolution
+        reasons; long environment, PATH, or argument bodies are digests.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - toolchain_family
+      - toolchain_version
+      - package_manager_version
+      - target_class
+      - resolver_confidence
+      - activator_class
+      - cache_reuse_state
+      - degraded_reason_class
+    excluded_fields:
+      - raw_environment_variables
+      - full_path_values
+      - shell_command_arguments
+      - workspace_file_contents
+    high_risk_rule_ref: null
+    notes: >
+      The summary is support-safe by default and points at raw trace or
+      log artifacts only by reviewed item id.
+
+  - item_id: support.item.runtime_traces
+    title: Renderer, IPC, LSP, and DAP traces
+    artifact_kind_classes:
+      - trace_capture
+      - log_capture
+    diagnostic_data_class: high_risk
+    privacy_class: high_risk
+    signal_class_binding: performance_metrics
+    collection_path_class: local_only_retained
+    support_bundle_redaction_class: internal_support_restricted
+    secret_redaction_surfaces:
+      - traces_local
+      - support_bundle
+    support_export_posture: opt_in_only
+    default_storage_mode: local_only_copy_retained
+    default_embedding_state: omitted
+    consent_class: trace_export_opt_in
+    retention_class: local_rotation_7_days
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 67108864
+      truncation_action: retain_local_only
+      notes: >
+        Raw traces are retained locally by default with a manifest row;
+        redacted trace slices require explicit export review.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - trace_manifest_ref
+      - time_window
+      - component_classes
+      - truncation_state
+      - correlation_ids
+      - redaction_marker_counts
+    excluded_fields:
+      - raw_trace_payload_by_default
+      - raw_lsp_messages
+      - raw_dap_variables
+      - raw_ipc_payloads
+      - command_arguments
+      - file_contents
+    high_risk_rule_ref: support.rule.runtime_trace_raw
+    notes: >
+      Runtime traces are useful but commonly code-adjacent. The default
+      bundle records that a trace exists and where it is retained.
+
+  - item_id: support.item.crash_dump_or_core
+    title: Crash dumps and native core files
+    artifact_kind_classes:
+      - crash_dump_payload
+      - crash_dump_manifest
+      - crash_envelope
+    diagnostic_data_class: high_risk
+    privacy_class: high_risk
+    signal_class_binding: crash_panic_reports
+    collection_path_class: manual_support_upload
+    support_bundle_redaction_class: internal_support_restricted
+    secret_redaction_surfaces:
+      - crash_dump
+      - support_bundle
+    support_export_posture: opt_in_only
+    default_storage_mode: optional_upload_candidate
+    default_embedding_state: omitted
+    consent_class: crash_dump_export_opt_in
+    retention_class: local_user_controlled_until_delete
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 268435456
+      truncation_action: manifest_only
+      notes: >
+        Raw dump or core bytes never embed in the ordinary bundle; the
+        manifest and optional upload ticket carry the evidence join.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - crash_envelope_ref
+      - dump_manifest_ref
+      - exact_build_identity_ref
+      - module_build_ids
+      - minidump_or_core_format
+      - optional_upload_ticket_ref
+      - redaction_scan_result
+    excluded_fields:
+      - raw_dump_bytes_by_default
+      - memory_pages
+      - heap_strings
+      - raw_stack_memory
+      - secrets_or_token_material
+    high_risk_rule_ref: support.rule.crash_dump_core
+    notes: >
+      Crash metadata can support exact-build symbolication; raw memory
+      artifacts need separate, high-friction consent or policy.
+
+  - item_id: support.item.user_selected_code
+    title: User-selected code snippets and notebook cells
+    artifact_kind_classes:
+      - code_snippet_attachment
+      - notebook_cell_attachment
+      - mutation_journal_excerpt
+    diagnostic_data_class: code_adjacent
+    privacy_class: code_adjacent
+    signal_class_binding: manual_support_evidence
+    collection_path_class: manual_support_upload
+    support_bundle_redaction_class: internal_support_restricted
+    secret_redaction_surfaces:
+      - support_bundle
+      - evidence_packet
+      - ai_context_capture
+    support_export_posture: excluded_by_default
+    default_storage_mode: intentionally_excluded
+    default_embedding_state: omitted
+    consent_class: code_adjacent_export_opt_in
+    retention_class: bundle_case_or_30_days
+    size_policy:
+      max_embedded_bytes: 32768
+      max_retained_bytes: 32768
+      truncation_action: truncate_with_digest
+      notes: >
+        Snippets are bounded to explicit user selections and include
+        source refs, hashes, and redaction markers.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - user_selected_range
+      - user_selected_cell_id
+      - content_digest
+      - redaction_marker_offsets
+      - truncation_state
+      - explicit_opt_in_ref
+    excluded_fields:
+      - surrounding_file_context
+      - unselected_notebook_cells
+      - notebook_outputs_by_default
+      - workspace_wide_code_capture
+    high_risk_rule_ref: support.rule.code_adjacent_manual_selection
+    notes: >
+      Code-adjacent evidence exists only when the user selects it in
+      preview; support-pack assembly cannot widen from one selection to
+      a file or workspace.
+
+  - item_id: support.item.raw_secrets
+    title: Raw secrets, tokens, key material, and credential values
+    artifact_kind_classes:
+      - raw_secret_capture
+    diagnostic_data_class: high_risk
+    privacy_class: high_risk
+    signal_class_binding: forbidden_secret_bearing_artifact
+    collection_path_class: forbidden_never_export
+    support_bundle_redaction_class: internal_support_restricted
+    secret_redaction_surfaces:
+      - logs_local
+      - traces_local
+      - support_bundle
+      - crash_dump
+      - terminal_transcript
+      - clipboard_projection
+    support_export_posture: excluded_always
+    default_storage_mode: intentionally_excluded
+    default_embedding_state: omitted
+    consent_class: forbidden_no_consent_path
+    retention_class: prohibited
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 0
+      truncation_action: exclude_always
+      notes: >
+        There is no support-pack consent flow for raw secret values.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - omission_reason_class
+      - secret_class_label_when_detected
+      - redaction_marker
+    excluded_fields:
+      - raw_secret_bytes
+      - tokens
+      - passwords
+      - private_keys
+      - client_certificate_bodies
+      - refresh_credentials
+      - raw_handle_ids
+    high_risk_rule_ref: support.rule.raw_secret_never_export
+    notes: >
+      The support exporter may record that raw secret material was
+      detected and removed, but no item row can carry the value.
+
+  - item_id: support.item.full_shell_history
+    title: Full shell history or terminal transcript capture
+    artifact_kind_classes:
+      - full_shell_history_capture
+    diagnostic_data_class: high_risk
+    privacy_class: high_risk
+    signal_class_binding: forbidden_secret_bearing_artifact
+    collection_path_class: forbidden_never_export
+    support_bundle_redaction_class: internal_support_restricted
+    secret_redaction_surfaces:
+      - terminal_transcript
+      - support_bundle
+    support_export_posture: excluded_always
+    default_storage_mode: intentionally_excluded
+    default_embedding_state: omitted
+    consent_class: forbidden_no_consent_path
+    retention_class: prohibited
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 0
+      truncation_action: exclude_always
+      notes: >
+        Full shell history is not a support-pack artifact. Narrow
+        command metadata or user-selected excerpts must use another row.
+    manifest_reference_contract:
+      support_bundle_manifest_field: artifact_manifest[].support_pack_item_id
+      exact_build_identity_field: artifact_manifest[].exact_build_identity_refs[]
+      redaction_summary_field: redaction_summary.items[].item_id
+      opt_in_selection_field: opt_in_selections[].item_id
+      privacy_class_field: artifact_manifest[].data_class
+    included_fields:
+      - omission_reason_class
+      - transcript_excerpt_policy_ref
+    excluded_fields:
+      - full_terminal_scrollback
+      - full_shell_history_files
+      - raw_command_transcripts
+      - clipboard_payloads
+      - environment_variable_values
+    high_risk_rule_ref: support.rule.full_shell_history_never_export
+    notes: >
+      Existing bundle redaction profiles already exclude full shell
+      history; this row gives reviewers the stable item id for that
+      prohibition.
+
+high_risk_rules:
+  - rule_id: support.rule.crash_dump_core
+    title: Crash dump and core inclusion gate
+    applies_to_item_ids:
+      - support.item.crash_dump_or_core
+    default_handling: opt_in_high_friction
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 268435456
+      truncation_action: manifest_only
+      notes: >
+        Bundle exports carry the crash envelope and dump manifest; raw
+        bytes move only through an optional upload ticket.
+    retention_rule: >
+      Local dumps remain user-controlled; uploaded dumps follow support
+      case close, a 30-day diagnostic floor, or a stricter policy hold.
+    consent_requirement: crash_dump_export_opt_in
+    required_manifest_markers:
+      - support_pack_item_id
+      - exact_build_identity_refs
+      - redaction_scan_result
+      - optional_upload_ticket_ref
+      - omission_reason_class
+    notes: >
+      The user or admin must review exact-build identity, size, memory
+      risk, redaction scan status, and destination before upload.
+
+  - rule_id: support.rule.runtime_trace_raw
+    title: Raw renderer, IPC, LSP, and DAP trace gate
+    applies_to_item_ids:
+      - support.item.runtime_traces
+    default_handling: local_only_retained
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 67108864
+      truncation_action: retain_local_only
+      notes: >
+        Trace bodies rotate locally and export only as redacted slices
+        after review.
+    retention_rule: >
+      Raw trace captures rotate after seven days unless pinned to a
+      support case or explicitly deleted earlier by the user.
+    consent_requirement: trace_export_opt_in
+    required_manifest_markers:
+      - support_pack_item_id
+      - trace_manifest_ref
+      - time_window
+      - redaction_marker_counts
+      - truncation_state
+    notes: >
+      Default support packs record the trace manifest, not payload
+      bodies. A redacted trace slice is a separate reviewed selection.
+
+  - rule_id: support.rule.code_adjacent_manual_selection
+    title: User-selected code-adjacent evidence gate
+    applies_to_item_ids:
+      - support.item.user_selected_code
+    default_handling: excluded_by_default
+    size_policy:
+      max_embedded_bytes: 32768
+      max_retained_bytes: 32768
+      truncation_action: truncate_with_digest
+      notes: >
+        Each selected code or notebook cell artifact is bounded and
+        hashed; no neighboring context is inferred.
+    retention_rule: >
+      Selected snippets follow bundle retention and must be purgeable
+      with the support packet unless a case hold explicitly applies.
+    consent_requirement: code_adjacent_export_opt_in
+    required_manifest_markers:
+      - support_pack_item_id
+      - explicit_opt_in_ref
+      - user_selected_range_or_cell_id
+      - content_digest
+      - redaction_summary_ref
+    notes: >
+      Selection is item-level and source-visible. A support flow cannot
+      convert a selected range into a file, notebook, or workspace dump.
+
+  - rule_id: support.rule.raw_secret_never_export
+    title: Raw secret never-export rule
+    applies_to_item_ids:
+      - support.item.raw_secrets
+    default_handling: forbidden_never_export
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 0
+      truncation_action: exclude_always
+      notes: >
+        Raw secret values are removed before persistence or export; the
+        artifact records only redaction markers and secret classes.
+    retention_rule: >
+      Raw values are not retained in support-pack storage.
+    consent_requirement: forbidden_no_consent_path
+    required_manifest_markers:
+      - support_pack_item_id
+      - omission_reason_class
+      - secret_class_label_when_detected
+      - redaction_marker
+    notes: >
+      This rule aligns support bundles, traces, logs, crash dumps,
+      terminal transcripts, and clipboard projection to the secret
+      broker redaction vocabulary.
+
+  - rule_id: support.rule.full_shell_history_never_export
+    title: Full shell history never-export rule
+    applies_to_item_ids:
+      - support.item.full_shell_history
+    default_handling: forbidden_never_export
+    size_policy:
+      max_embedded_bytes: 0
+      max_retained_bytes: 0
+      truncation_action: exclude_always
+      notes: >
+        Full terminal scrollback or shell history files are outside the
+        support-pack contract.
+    retention_rule: >
+      Support-pack assembly does not retain full shell history.
+    consent_requirement: forbidden_no_consent_path
+    required_manifest_markers:
+      - support_pack_item_id
+      - omission_reason_class
+      - transcript_excerpt_policy_ref
+    notes: >
+      Narrow terminal metadata or a user-selected excerpt must use a
+      more specific reviewed item row; the full-history row is only a
+      prohibition marker.
+
+notes: >
+  The matrix is the contract support, release, and privacy reviewers
+  audit. Support-pack assembly reads item ids and classes from this
+  file instead of deciding capture behavior from scattered feature code.

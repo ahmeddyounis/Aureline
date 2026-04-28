@@ -1,0 +1,166 @@
+# yaml-language-server: $schema=../../../schemas/support/support_pack_item.schema.json
+schema_version: 1
+record_kind: support_pack_inclusion_case
+case_id: support.pack.case.network.proxy_failure
+title: Network proxy and credential-boundary support pack
+scenario_class: network_failure
+matrix_ref: artifacts/support/support_evidence_pack_matrix.yaml
+active_redaction_profile_ref: support.redaction.local_first_default
+assembly_intent: >
+  Explain a failed remote or service connection through connection
+  classes, policy state, and secret-broker posture without exporting raw
+  endpoints, headers, DSNs, tokens, or shell history.
+requested_item_ids:
+  - support.item.build_identity
+  - support.item.connection_profiles
+  - support.item.secret_broker_state
+  - support.item.policy_trust_state
+  - support.item.raw_secrets
+  - support.item.full_shell_history
+included_items:
+  - item_id: support.item.build_identity
+    artifact_kind_class: exact_build_identity_manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_by_default
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_exact_build_truth
+    manifest_ref: artifact_manifest:network_proxy_failure.exact_build
+    exact_build_identity_refs:
+      - build-id:aureline:managed:network-proxy-failure
+    source_refs:
+      - docs/build/exact_build_identity_model.md
+    redaction_summary_ref: redaction_summary:network_proxy_failure
+    opt_in_selection_ref: null
+    notes: >
+      Exact-build identity confirms the transport-governance schema and
+      support-pack matrix version.
+  - item_id: support.item.connection_profiles
+    artifact_kind_class: action_route_truth_packet
+    data_class: environment_adjacent
+    redaction_class: operator_only_restricted
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_route_truth
+    manifest_ref: artifact_manifest:network_proxy_failure.connection_profiles
+    exact_build_identity_refs:
+      - build-id:aureline:managed:network-proxy-failure
+    source_refs:
+      - route-packet:managed.remote.proxy.0003
+      - connection-profile:managed.proxy.digest.0003
+    redaction_summary_ref: redaction_summary:network_proxy_failure
+    opt_in_selection_ref: null
+    notes: >
+      The pack includes connection class, proxy posture, auth source
+      class, driver family, and route boundary labels only.
+  - item_id: support.item.secret_broker_state
+    artifact_kind_class: secret_broker_state
+    data_class: metadata_only
+    redaction_class: operator_only_restricted
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: redacted
+    decision_reason_class: required_core_metadata
+    manifest_ref: artifact_manifest:network_proxy_failure.secret_broker
+    exact_build_identity_refs:
+      - build-id:aureline:managed:network-proxy-failure
+    source_refs:
+      - secret-broker:health.managed.proxy.0003
+      - vault-adapter:enterprise_vault_adapter
+    redaction_summary_ref: redaction_summary:network_proxy_failure
+    opt_in_selection_ref: null
+    notes: >
+      The row includes trust-store class, unlock state, alias-only
+      counts, and projection failure reason counts.
+  - item_id: support.item.policy_trust_state
+    artifact_kind_class: policy_fingerprint_summary
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_core_metadata
+    manifest_ref: artifact_manifest:network_proxy_failure.policy_trust
+    exact_build_identity_refs:
+      - build-id:aureline:managed:network-proxy-failure
+    source_refs:
+      - policy-fingerprint:managed.network.010
+      - trust-state:managed_admin
+    redaction_summary_ref: redaction_summary:network_proxy_failure
+    opt_in_selection_ref: null
+    notes: >
+      Policy state explains the endpoint class and why managed policy
+      denied raw network capture.
+omitted_items:
+  - item_id: support.item.raw_secrets
+    artifact_kind_class: raw_secret_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:network_proxy_failure.raw_secrets
+    exact_build_identity_refs: []
+    source_refs:
+      - redaction-check:network_proxy_failure
+      - secret_export_redaction_applied
+    redaction_summary_ref: redaction_summary:network_proxy_failure
+    opt_in_selection_ref: null
+    notes: >
+      Raw proxy headers, bearer tokens, DSNs, and vault outputs are
+      excluded; only secret class labels and failure codes remain.
+  - item_id: support.item.full_shell_history
+    artifact_kind_class: full_shell_history_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:network_proxy_failure.shell_history
+    exact_build_identity_refs: []
+    source_refs:
+      - support.redaction.local_first_default.exclude_shell_history
+    redaction_summary_ref: redaction_summary:network_proxy_failure
+    opt_in_selection_ref: null
+    notes: >
+      No shell history is needed because connection and broker classes
+      explain the failure.
+opt_in_selections:
+  - selection_id: opt-in:network_proxy_failure.none
+    item_id: support.item.runtime_traces
+    consent_class: trace_export_opt_in
+    decision: not_requested
+    surface: support_center_preview
+    high_friction_steps: []
+    notes: >
+      Raw network traces were not requested; the route truth and broker
+      metadata were sufficient.
+redaction_summary:
+  summary_id: redaction_summary:network_proxy_failure
+  privacy_classes_present:
+    - metadata_only
+    - environment_adjacent
+    - high_risk
+  secret_surface_refs:
+    - support_bundle
+    - logs_local
+    - traces_local
+  prohibited_items_confirmed_absent:
+    - support.item.raw_secrets
+    - support.item.full_shell_history
+  notes: >
+    The support pack explains the network failure through governed
+    classes and redaction markers, not raw packets or credentials.
+assertions:
+  - connection_classes_replace_raw_endpoint_capture
+  - secret_broker_state_uses_aliases_and_failure_codes_only
+  - raw_headers_and_tokens_confirmed_absent
+  - full_shell_history_confirmed_absent
+  - no_blanket_artifact_capture
+notes: >
+  The case demonstrates managed network triage with classed route truth
+  and broker state instead of packet, header, or credential capture.

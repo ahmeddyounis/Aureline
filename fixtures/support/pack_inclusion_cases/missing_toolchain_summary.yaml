@@ -1,0 +1,143 @@
+# yaml-language-server: $schema=../../../schemas/support/support_pack_item.schema.json
+schema_version: 1
+record_kind: support_pack_inclusion_case
+case_id: support.pack.case.toolchain.missing_component
+title: Missing toolchain component support pack
+scenario_class: toolchain_failure
+matrix_ref: artifacts/support/support_evidence_pack_matrix.yaml
+active_redaction_profile_ref: support.redaction.local_first_default
+assembly_intent: >
+  Explain a failed run because a declared toolchain component is missing
+  while omitting raw environment variables, full PATH values, command
+  transcripts, secrets, and shell history.
+requested_item_ids:
+  - support.item.build_identity
+  - support.item.execution_context_summary
+  - support.item.policy_trust_state
+  - support.item.raw_secrets
+  - support.item.full_shell_history
+included_items:
+  - item_id: support.item.build_identity
+    artifact_kind_class: exact_build_identity_manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_by_default
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_exact_build_truth
+    manifest_ref: artifact_manifest:missing_toolchain.exact_build
+    exact_build_identity_refs:
+      - build-id:aureline:stable:toolchain-missing-component
+    source_refs:
+      - docs/build/exact_build_identity_model.md
+    redaction_summary_ref: redaction_summary:missing_toolchain
+    opt_in_selection_ref: null
+    notes: >
+      Exact-build identity is present so support can match the resolver
+      version and support-pack schema.
+  - item_id: support.item.execution_context_summary
+    artifact_kind_class: execution_context_summary
+    data_class: environment_adjacent
+    redaction_class: operator_only_restricted
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_route_truth
+    manifest_ref: artifact_manifest:missing_toolchain.execution_context
+    exact_build_identity_refs:
+      - build-id:aureline:stable:toolchain-missing-component
+    source_refs:
+      - execution-context:workspace.default.rust
+      - doctor.finding.toolchain_missing_required_component
+    redaction_summary_ref: redaction_summary:missing_toolchain
+    opt_in_selection_ref: null
+    notes: >
+      The summary includes resolver confidence, declared target class,
+      toolchain family, missing component, and PATH-basis digests.
+  - item_id: support.item.policy_trust_state
+    artifact_kind_class: policy_fingerprint_summary
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_core_metadata
+    manifest_ref: artifact_manifest:missing_toolchain.policy_trust
+    exact_build_identity_refs:
+      - build-id:aureline:stable:toolchain-missing-component
+    source_refs:
+      - policy-fingerprint:local.default.001
+      - trust-state:trusted
+    redaction_summary_ref: redaction_summary:missing_toolchain
+    opt_in_selection_ref: null
+    notes: >
+      Policy state shows that the toolchain repair was previewable and
+      not blocked by workspace trust.
+omitted_items:
+  - item_id: support.item.raw_secrets
+    artifact_kind_class: raw_secret_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:missing_toolchain.raw_secrets
+    exact_build_identity_refs: []
+    source_refs:
+      - redaction-check:missing_toolchain
+    redaction_summary_ref: redaction_summary:missing_toolchain
+    opt_in_selection_ref: null
+    notes: >
+      Environment variables known to hold credentials are named only by
+      class and have no values in the pack.
+  - item_id: support.item.full_shell_history
+    artifact_kind_class: full_shell_history_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:missing_toolchain.shell_history
+    exact_build_identity_refs: []
+    source_refs:
+      - support.redaction.local_first_default.exclude_shell_history
+    redaction_summary_ref: redaction_summary:missing_toolchain
+    opt_in_selection_ref: null
+    notes: >
+      The failing command is represented by a command id and resolver
+      outcome, not by full terminal history.
+opt_in_selections:
+  - selection_id: opt-in:missing_toolchain.none
+    item_id: support.item.user_selected_code
+    consent_class: code_adjacent_export_opt_in
+    decision: not_requested
+    surface: support_center_preview
+    high_friction_steps: []
+    notes: >
+      No code-adjacent artifact was needed for this missing toolchain
+      diagnosis.
+redaction_summary:
+  summary_id: redaction_summary:missing_toolchain
+  privacy_classes_present:
+    - metadata_only
+    - environment_adjacent
+    - high_risk
+  secret_surface_refs:
+    - support_bundle
+    - logs_local
+  prohibited_items_confirmed_absent:
+    - support.item.raw_secrets
+    - support.item.full_shell_history
+  notes: >
+    The pack keeps environment-adjacent resolver facts but excludes raw
+    env values, full PATH, command transcripts, and secrets.
+assertions:
+  - execution_context_summary_replaces_raw_env_dump
+  - no_shell_history_required_for_toolchain_diagnosis
+  - raw_secrets_confirmed_absent
+  - no_blanket_artifact_capture
+notes: >
+  Support can reason about the missing component and repair posture from
+  resolver metadata alone.

@@ -1,0 +1,167 @@
+# yaml-language-server: $schema=../../../schemas/support/support_pack_item.schema.json
+schema_version: 1
+record_kind: support_pack_inclusion_case
+case_id: support.pack.case.extension.crash_loop
+title: Extension host crash loop support pack
+scenario_class: extension_failure
+matrix_ref: artifacts/support/support_evidence_pack_matrix.yaml
+active_redaction_profile_ref: support.redaction.local_first_default
+assembly_intent: >
+  Explain an extension-host crash loop in safe mode while keeping raw
+  dumps, extension private storage, secrets, and shell history out of
+  the exported pack.
+requested_item_ids:
+  - support.item.build_identity
+  - support.item.extension_inventory
+  - support.item.policy_trust_state
+  - support.item.crash_dump_or_core
+  - support.item.raw_secrets
+  - support.item.full_shell_history
+included_items:
+  - item_id: support.item.build_identity
+    artifact_kind_class: exact_build_identity_manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_by_default
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_exact_build_truth
+    manifest_ref: artifact_manifest:extension_crash_loop.exact_build
+    exact_build_identity_refs:
+      - build-id:aureline:preview:extension-crash-loop
+    source_refs:
+      - docs/build/exact_build_identity_model.md
+    redaction_summary_ref: redaction_summary:extension_crash_loop
+    opt_in_selection_ref: null
+    notes: >
+      Exact-build identity is embedded so the crash envelope, extension
+      host, and release artifacts join to one build tuple.
+  - item_id: support.item.extension_inventory
+    artifact_kind_class: extension_inventory_manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_fault_domain_truth
+    manifest_ref: artifact_manifest:extension_crash_loop.extension_inventory
+    exact_build_identity_refs:
+      - build-id:aureline:preview:extension-crash-loop
+    source_refs:
+      - extension-host:sample.crash_loop_host
+      - fault-domain:extension_and_tool_hosts
+    redaction_summary_ref: redaction_summary:extension_crash_loop
+    opt_in_selection_ref: null
+    notes: >
+      The pack includes extension id, version, permission classes,
+      enablement state, and quarantine state only.
+  - item_id: support.item.policy_trust_state
+    artifact_kind_class: policy_fingerprint_summary
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_export_posture: included_metadata_only
+    storage_mode: embedded_export_copy
+    embedding_state: embedded
+    decision_reason_class: required_core_metadata
+    manifest_ref: artifact_manifest:extension_crash_loop.policy_trust
+    exact_build_identity_refs:
+      - build-id:aureline:preview:extension-crash-loop
+    source_refs:
+      - policy-fingerprint:workspace.preview.002
+      - trust-state:restricted
+    redaction_summary_ref: redaction_summary:extension_crash_loop
+    opt_in_selection_ref: null
+    notes: >
+      Policy and trust state explain why the host stayed quarantined
+      without embedding the full policy bundle body.
+omitted_items:
+  - item_id: support.item.crash_dump_or_core
+    artifact_kind_class: crash_dump_payload
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: opt_in_only
+    storage_mode: optional_upload_candidate
+    embedding_state: omitted
+    decision_reason_class: optional_upload_requires_review
+    manifest_ref: artifact_manifest:extension_crash_loop.raw_dump
+    exact_build_identity_refs:
+      - build-id:aureline:preview:extension-crash-loop
+    source_refs:
+      - crash-envelope:extension-host:0007
+      - upload-ticket:crash-dump:extension-host:0007
+    redaction_summary_ref: redaction_summary:extension_crash_loop
+    opt_in_selection_ref: opt-in:extension_crash_loop.raw_dump
+    notes: >
+      The raw dump remains an optional upload candidate after the user
+      denied high-risk export; the manifest still preserves the join.
+  - item_id: support.item.raw_secrets
+    artifact_kind_class: raw_secret_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:extension_crash_loop.raw_secrets
+    exact_build_identity_refs: []
+    source_refs:
+      - redaction-check:extension_crash_loop
+    redaction_summary_ref: redaction_summary:extension_crash_loop
+    opt_in_selection_ref: null
+    notes: >
+      Redaction markers prove no raw token, key, or broker handle value
+      was exported.
+  - item_id: support.item.full_shell_history
+    artifact_kind_class: full_shell_history_capture
+    data_class: high_risk
+    redaction_class: internal_support_restricted
+    support_export_posture: excluded_always
+    storage_mode: intentionally_excluded
+    embedding_state: omitted
+    decision_reason_class: omitted_by_policy
+    manifest_ref: artifact_manifest:extension_crash_loop.shell_history
+    exact_build_identity_refs: []
+    source_refs:
+      - support.redaction.local_first_default.exclude_shell_history
+    redaction_summary_ref: redaction_summary:extension_crash_loop
+    opt_in_selection_ref: null
+    notes: >
+      Full shell history is explicitly absent; no terminal transcript is
+      needed to diagnose this extension crash loop.
+opt_in_selections:
+  - selection_id: opt-in:extension_crash_loop.raw_dump
+    item_id: support.item.crash_dump_or_core
+    consent_class: crash_dump_export_opt_in
+    decision: denied
+    surface: support_center_preview
+    high_friction_steps:
+      - preview_size_and_memory_risk
+      - show_destination_and_retention
+      - require_explicit_upload_confirmation
+    notes: >
+      The user declined raw dump export, so only crash metadata and the
+      optional-upload ticket remain visible.
+redaction_summary:
+  summary_id: redaction_summary:extension_crash_loop
+  privacy_classes_present:
+    - metadata_only
+    - high_risk
+  secret_surface_refs:
+    - support_bundle
+    - crash_dump
+  prohibited_items_confirmed_absent:
+    - support.item.raw_secrets
+    - support.item.full_shell_history
+  notes: >
+    The export contains metadata rows and omission markers only for
+    high-risk rows; no extension private storage or shell history is
+    captured.
+assertions:
+  - extension_diagnosis_uses_extension_inventory_not_extension_storage
+  - raw_crash_dump_requires_high_friction_opt_in
+  - raw_secrets_confirmed_absent
+  - full_shell_history_confirmed_absent
+  - no_blanket_artifact_capture
+notes: >
+  The pack is sufficient for safe-mode and quarantine triage without
+  collecting raw crash memory or terminal history.

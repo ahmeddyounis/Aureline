@@ -10,6 +10,12 @@ Companion artifacts:
 - [`/schemas/support/support_bundle.schema.json`](../../schemas/support/support_bundle.schema.json)
   — machine-readable boundary for the bundle record and the bundle
   redaction-profile record.
+- [`/docs/support/diagnostic_artifact_matrix.md`](./diagnostic_artifact_matrix.md),
+  [`/artifacts/support/support_evidence_pack_matrix.yaml`](../../artifacts/support/support_evidence_pack_matrix.yaml),
+  and
+  [`/schemas/support/support_pack_item.schema.json`](../../schemas/support/support_pack_item.schema.json)
+  — item-level inclusion matrix shared by support-bundle manifests,
+  exact-build joins, redaction summaries, and opt-in selections.
 - [`/docs/support/support_center_concept.md`](./support_center_concept.md)
   — product-facing concept note for bundle preview, Project Doctor,
   recovery ladders, repair preview, and issue handoff.
@@ -162,6 +168,9 @@ The artifact manifest is the core of the contract. Every row names:
 - `data_class` and `redaction_class` separately;
 - `support_export_posture` so the row preserves the default collection
   rule it came from;
+- optional `support_pack_item_id` so row-level inclusion, redaction,
+  exact-build joins, and opt-in decisions can cite the diagnostic
+  artifact matrix without copying its policy text into every bundle;
 - `storage_mode` so the user/tool can see whether the body is embedded,
   kept locally, represented by a managed ref, available only through a
   later high-friction upload, or intentionally excluded;
