@@ -43,6 +43,11 @@ code.
   — normative policy for experiments, feature flags, Labs inventory,
   rollout rows, policy disables, and kill switches before a runtime
   control plane exists.
+- [`policy/admin_policy_and_bundle_cache_contract.md`](./policy/admin_policy_and_bundle_cache_contract.md)
+  — local admin-policy artifact, signed bundle-cache, precedence,
+  safe-default, and explain/export contract. Boundary schemas live in
+  [`/schemas/policy/`](../schemas/policy/); worked examples live in
+  [`/fixtures/policy/explain_and_diff_cases/`](../fixtures/policy/explain_and_diff_cases/).
 - [`governance/decision_backlog.md`](./governance/decision_backlog.md)
   — seeded architecture decisions with freeze dates and default
   narrowing postures.

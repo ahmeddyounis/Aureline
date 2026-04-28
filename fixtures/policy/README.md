@@ -16,6 +16,10 @@ Files:
   — reviewer-facing chronology-bar rows preserving effective time,
   display timezone, actor identity, and ordering keys for later support
   and export packets.
+- [`explain_and_diff_cases/`](./explain_and_diff_cases/)
+  — admin-policy artifact and signed bundle-cache examples covering
+  offline continuity, expired-bundle safe-default degrade, mirror import,
+  and local policy-decision reconstruction.
 
 Companion documentation:
 
@@ -24,3 +28,6 @@ Companion documentation:
   severity labels, dashboard joins, and chronology-bar requirements.
 - [`/artifacts/policy/waiver_expiry_dashboard_contract.yaml`](../../artifacts/policy/waiver_expiry_dashboard_contract.yaml)
   — dashboard field registry and drift-detection contract.
+- [`/docs/policy/admin_policy_and_bundle_cache_contract.md`](../../docs/policy/admin_policy_and_bundle_cache_contract.md)
+  — local admin-policy artifact, signed bundle-cache, precedence,
+  safe-default, and explain/export contract.

@@ -33,6 +33,11 @@ admin handoff all answer the same questions with the same terms:
 - [`/schemas/identity/admin_audit_packet.schema.json`](../../schemas/identity/admin_audit_packet.schema.json)
   - upstream audit/export packet vocabulary for actor, target, tenant
   scope, and admin event classes.
+- [`/docs/policy/admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md)
+  and [`/schemas/policy/`](../../schemas/policy/)
+  - local `aureline.policy.json` artifact and signed bundle-cache
+  vocabulary for precedence, last-known-good, emergency-disable,
+  refresh-history, and local reconstruction evidence.
 - [`/schemas/settings/effective_setting.schema.json`](../../schemas/settings/effective_setting.schema.json)
   - upstream effective-setting and lock vocabulary consumed by settings
   rows and by "why is this locked" explanations.

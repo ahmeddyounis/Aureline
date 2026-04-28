@@ -20,6 +20,10 @@ Companion artifacts:
 - [`./feature_flag_policy.md`](./feature_flag_policy.md)
   — normative policy for experiments, feature flags, Labs inventory,
   rollouts, policy disables, and kill switches.
+- [`../policy/admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md)
+  — local admin-policy artifact and signed bundle-cache contract,
+  including precedence, safe-default, last-known-good, emergency-disable,
+  and explain/export rules.
 - [`/artifacts/governance/experiments_register.yaml`](../../artifacts/governance/experiments_register.yaml)
   — canonical register for every control row, including hidden
   developer toggles and reserved control-stack bindings.

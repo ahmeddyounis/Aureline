@@ -26,6 +26,11 @@ same change):
 - [`/schemas/governance/policy_decision_explain.schema.json`](../../schemas/governance/policy_decision_explain.schema.json)
   — boundary schema for the typed explain packet a policy-decision
   site emits instead of an opaque allow/deny string.
+- [`/docs/policy/admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md)
+  and [`/schemas/policy/`](../../schemas/policy/)
+  — local admin-policy artifact and signed bundle-cache boundary for
+  reviewable policy files, last-known-good cache entries, refresh
+  history, emergency disables, and export-safe local reconstruction.
 - [`./feature_flag_policy.md`](./feature_flag_policy.md) — the
   per-row control policy (ownership, lifecycle, kill switches,
   artifact dependencies). The stack note scopes the **technology

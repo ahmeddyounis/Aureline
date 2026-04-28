@@ -1,0 +1,767 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/policy/policy_bundle_cache_entry.schema.json",
+  "title": "Aureline signed policy bundle-cache entry",
+  "description": "Boundary schema for one local signed policy bundle-cache entry under $AURELINE_STATE/policy/. Entries preserve signed bundle metadata, validation state, refresh history, last-known-good selection, emergency-disable records, effective configuration sources, and local decision reconstruction evidence. Raw policy rule bodies, raw signatures, raw URLs, raw hostnames, raw paths, raw user identifiers, raw tenant names, raw provider payloads, tokens, and secret material never cross this boundary.",
+  "$ref": "#/$defs/policy_bundle_cache_entry",
+  "$defs": {
+    "policy_bundle_cache_entry_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bundle_version_ref": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*@[0-9]+(\\.[0-9]+){2}(-[a-z0-9_.]+)?$"
+    },
+    "policy_epoch_ref": {
+      "type": "string",
+      "pattern": "^policy_epoch(\\.[a-z0-9_]+)+$"
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_origin",
+        "signed_local_admin_bundle",
+        "customer_managed_mirror",
+        "approved_private_mirror",
+        "manual_file_import",
+        "offline_transfer_snapshot",
+        "runtime_preload",
+        "managed_push",
+        "managed_pull"
+      ]
+    },
+    "path_class": {
+      "type": "string",
+      "enum": [
+        "managed_push",
+        "managed_pull",
+        "mirror_sync",
+        "file_import",
+        "offline_transfer",
+        "local_cache_projection",
+        "runtime_preload"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "mirrored_current",
+        "mirrored_stale_within_grace",
+        "mirrored_stale_past_grace",
+        "manual_snapshot_current",
+        "manual_snapshot_stale",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "runtime_preload",
+        "unknown"
+      ]
+    },
+    "validation_state": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_but_stale_within_grace",
+        "verified_but_stale_past_grace",
+        "verification_failed",
+        "pending_review",
+        "cached_without_revalidation"
+      ]
+    },
+    "active_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive_superseded",
+        "last_known_good",
+        "expired_safe_defaults",
+        "revoked_blocked",
+        "verification_failed_quarantined",
+        "imported_pending_review"
+      ]
+    },
+    "refresh_result_class": {
+      "type": "string",
+      "enum": [
+        "success_activated",
+        "success_cached_not_active",
+        "failed_unreachable",
+        "failed_signature_verification",
+        "failed_scope_mismatch",
+        "failed_expired",
+        "failed_revoked",
+        "skipped_offline"
+      ]
+    },
+    "precedence_layer_class": {
+      "type": "string",
+      "enum": [
+        "embedded_product_defaults",
+        "signed_local_admin_bundle",
+        "user_workspace_configuration",
+        "optional_managed_override",
+        "emergency_disable"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "setting",
+        "command",
+        "action",
+        "feature_flag",
+        "mirror_route",
+        "endpoint",
+        "provider_route",
+        "extension",
+        "update_channel",
+        "support_export",
+        "data_retention",
+        "ai_provider"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny",
+        "narrow",
+        "force_disable",
+        "defer_pending_refresh",
+        "continue_local_only",
+        "degrade_to_safe_default",
+        "mirror_selected",
+        "emergency_disable_applied"
+      ]
+    },
+    "decision_outcome_class": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "denied",
+        "narrowed",
+        "disabled",
+        "paused_until_refresh",
+        "continued_local_only",
+        "degraded_to_fallback",
+        "held_for_admin_confirmation"
+      ]
+    },
+    "fallback_path_class": {
+      "type": "string",
+      "enum": [
+        "local_safe_default",
+        "last_known_good_signed",
+        "offline_only",
+        "read_only_continuation",
+        "repair_hook_visible",
+        "no_fallback_emergency_disable",
+        "unavailable_with_reason"
+      ]
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": [ "sha256", "sha512", "blake3" ]
+    },
+    "signature_verification_state": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_with_rotation_statement",
+        "pending_review",
+        "verification_failed",
+        "revoked",
+        "not_applicable_runtime_preload"
+      ]
+    },
+    "tenant_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_mode",
+        "tenant_or_org_ref",
+        "scope_label",
+        "deployment_profile_scope",
+        "install_profile_refs",
+        "workspace_refs",
+        "scope_note"
+      ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "tenant_or_org_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/export_safe_label" },
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "install_profile_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "workspace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "scope_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "payload_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest_algorithm",
+        "digest_ref",
+        "payload_class",
+        "redaction_note"
+      ],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "payload_class": {
+          "type": "string",
+          "enum": [
+            "policy_bundle_manifest",
+            "policy_bundle_payload",
+            "detached_signature",
+            "emergency_disable_payload",
+            "mirror_import_receipt"
+          ]
+        },
+        "redaction_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "signature_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signer_ref",
+        "signer_authority_class",
+        "signed_payload_digest_ref",
+        "signature_ref",
+        "transparency_log_refs",
+        "verified_at",
+        "verification_state",
+        "verification_note"
+      ],
+      "properties": {
+        "signer_ref": { "$ref": "#/$defs/opaque_id" },
+        "signer_authority_class": {
+          "type": "string",
+          "enum": [
+            "customer_operated_trust_root",
+            "vendor_operated_trust_root",
+            "cross_signed_transition_root",
+            "managed_admin_delegated_signer",
+            "build_preload_signer"
+          ]
+        },
+        "signed_payload_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "transparency_log_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "verified_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "verification_state": { "$ref": "#/$defs/signature_verification_state" },
+        "verification_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "refresh_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "refresh_attempt_id",
+        "attempted_at",
+        "source_class",
+        "path_class",
+        "result_class",
+        "previous_active_entry_ref",
+        "candidate_entry_ref",
+        "receipt_ref",
+        "policy_epoch",
+        "freshness_class",
+        "validation_state",
+        "summary"
+      ],
+      "properties": {
+        "refresh_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "attempted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "path_class": { "$ref": "#/$defs/path_class" },
+        "result_class": { "$ref": "#/$defs/refresh_result_class" },
+        "previous_active_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "candidate_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "validation_state": { "$ref": "#/$defs/validation_state" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "last_known_good_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_last_known_good",
+        "last_known_good_entry_ref",
+        "last_known_good_bundle_ref",
+        "last_known_good_bundle_version",
+        "last_known_good_policy_epoch",
+        "last_verified_at",
+        "selected_at",
+        "max_age_class",
+        "fallback_path",
+        "local_core_posture",
+        "managed_action_posture",
+        "summary"
+      ],
+      "properties": {
+        "is_last_known_good": { "type": "boolean" },
+        "last_known_good_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "last_known_good_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "last_known_good_bundle_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bundle_version_ref" }
+          ]
+        },
+        "last_known_good_policy_epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/policy_epoch_ref" }
+          ]
+        },
+        "last_verified_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "selected_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "max_age_class": {
+          "type": "string",
+          "enum": [
+            "not_applicable_first_entry",
+            "within_signed_window",
+            "within_grace_window",
+            "past_grace_uses_safe_defaults",
+            "expired_fail_closed_for_managed_only"
+          ]
+        },
+        "fallback_path": { "$ref": "#/$defs/fallback_path_class" },
+        "local_core_posture": { "$ref": "#/$defs/reviewable_sentence" },
+        "managed_action_posture": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "emergency_disable_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emergency_disable_id",
+        "target_class",
+        "target_ref",
+        "issued_at",
+        "expires_at",
+        "source_class",
+        "action_class",
+        "ratchets_current_session",
+        "supersedes_refs",
+        "revokes_refs",
+        "decision_explain_ref",
+        "summary"
+      ],
+      "properties": {
+        "emergency_disable_id": { "$ref": "#/$defs/opaque_id" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "action_class": {
+          "type": "string",
+          "enum": [
+            "block",
+            "force_disable",
+            "channel_freeze",
+            "provider_disable",
+            "mirror_disable",
+            "endpoint_disable"
+          ]
+        },
+        "ratchets_current_session": { "type": "boolean" },
+        "supersedes_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "revokes_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "decision_explain_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "effective_configuration_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layer_class",
+        "rank_low_to_high",
+        "source_ref",
+        "policy_epoch",
+        "value_projection",
+        "applied_effect",
+        "summary"
+      ],
+      "properties": {
+        "layer_class": { "$ref": "#/$defs/precedence_layer_class" },
+        "rank_low_to_high": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "value_projection": { "$ref": "#/$defs/reviewable_sentence" },
+        "applied_effect": { "$ref": "#/$defs/decision_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "decision_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "target_ref",
+        "target_label"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/export_safe_label" }
+      }
+    },
+    "local_reconstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reconstruction_id",
+        "reconstructed_at",
+        "decision_ref",
+        "target",
+        "decision_class",
+        "decision_outcome",
+        "fallback_path",
+        "source_chain_refs",
+        "refresh_attempt_refs",
+        "diff_refs",
+        "explain_packet_ref",
+        "audit_event_ref",
+        "proof_note"
+      ],
+      "properties": {
+        "reconstruction_id": { "$ref": "#/$defs/opaque_id" },
+        "reconstructed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "decision_ref": { "$ref": "#/$defs/opaque_id" },
+        "target": { "$ref": "#/$defs/decision_target" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "decision_outcome": { "$ref": "#/$defs/decision_outcome_class" },
+        "fallback_path": { "$ref": "#/$defs/fallback_path_class" },
+        "source_chain_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "refresh_attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "diff_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "explain_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "proof_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "local_parity_class": {
+      "type": "string",
+      "enum": [
+        "complete_local_reconstruction",
+        "local_reconstruction_with_signed_evidence",
+        "vendor_console_has_additional_detail",
+        "vendor_console_gap_acknowledged"
+      ]
+    },
+    "export_explainability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_scope",
+        "policy_epoch",
+        "local_parity_class",
+        "export_allowed_data_classes",
+        "export_forbidden_data_classes",
+        "vendor_console_handoff_notes",
+        "browser_handoff_notes",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "tenant_scope": { "$ref": "#/$defs/tenant_scope" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "local_parity_class": { "$ref": "#/$defs/local_parity_class" },
+        "export_allowed_data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "export_forbidden_data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "vendor_console_handoff_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "browser_handoff_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name", "scenario" ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "policy_bundle_cache_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "policy_bundle_cache_entry_schema_version",
+        "cache_entry_id",
+        "bundle_ref",
+        "bundle_version",
+        "policy_epoch",
+        "cache_location_ref",
+        "tenant_scope",
+        "source_class",
+        "path_class",
+        "active_state",
+        "freshness_class",
+        "validation_state",
+        "payload_digests",
+        "signature_metadata",
+        "received_at",
+        "effective_at",
+        "expires_at",
+        "refresh_history",
+        "last_known_good",
+        "emergency_disable_records",
+        "effective_configuration_sources",
+        "local_reconstruction",
+        "export_explainability",
+        "redaction_class"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "policy_bundle_cache_entry" },
+        "policy_bundle_cache_entry_schema_version": { "$ref": "#/$defs/policy_bundle_cache_entry_schema_version" },
+        "cache_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_version": { "$ref": "#/$defs/bundle_version_ref" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "cache_location_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_scope": { "$ref": "#/$defs/tenant_scope" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "path_class": { "$ref": "#/$defs/path_class" },
+        "active_state": { "$ref": "#/$defs/active_state_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "validation_state": { "$ref": "#/$defs/validation_state" },
+        "payload_digests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/payload_digest" }
+        },
+        "signature_metadata": { "$ref": "#/$defs/signature_metadata" },
+        "received_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "effective_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "refresh_history": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/refresh_history_entry" }
+        },
+        "last_known_good": { "$ref": "#/$defs/last_known_good_record" },
+        "emergency_disable_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/emergency_disable_record" }
+        },
+        "effective_configuration_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/effective_configuration_source" }
+        },
+        "local_reconstruction": { "$ref": "#/$defs/local_reconstruction" },
+        "export_explainability": { "$ref": "#/$defs/export_explainability" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Entries marked expired_safe_defaults must use a safe-default fallback.",
+          "if": {
+            "properties": { "active_state": { "const": "expired_safe_defaults" } },
+            "required": [ "active_state" ]
+          },
+          "then": {
+            "properties": {
+              "last_known_good": {
+                "properties": {
+                  "fallback_path": { "const": "local_safe_default" },
+                  "max_age_class": { "const": "past_grace_uses_safe_defaults" }
+                },
+                "required": [ "fallback_path", "max_age_class" ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A last_known_good active entry must have is_last_known_good true.",
+          "if": {
+            "properties": { "active_state": { "const": "last_known_good" } },
+            "required": [ "active_state" ]
+          },
+          "then": {
+            "properties": {
+              "last_known_good": {
+                "properties": {
+                  "is_last_known_good": { "const": true }
+                },
+                "required": [ "is_last_known_good" ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Authoritative live freshness must be verified or pending review, never failed.",
+          "if": {
+            "properties": { "freshness_class": { "const": "authoritative_live" } },
+            "required": [ "freshness_class" ]
+          },
+          "then": {
+            "properties": {
+              "validation_state": {
+                "enum": [ "verified_current", "pending_review" ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
