@@ -54,6 +54,14 @@ Cross-linked artifacts already in the repository:
   — state-root, update-marker, recent-item, file-association, and
   protocol-handler ownership rows the side-by-side admission matrix
   cites by stable id.
+- [`/docs/release/packaging_installation_matrix.md`](./packaging_installation_matrix.md),
+  [`/artifacts/release/install_artifact_families.yaml`](../../artifacts/release/install_artifact_families.yaml),
+  and
+  [`/artifacts/release/channel_identity_and_state_roots.yaml`](../../artifacts/release/channel_identity_and_state_roots.yaml)
+  — package-family and channel-identity matrix that binds channel rows
+  to concrete installer/helper families, durable roots, update markers,
+  recent items, file associations, protocol handlers, mirror posture,
+  and rollback requirements.
 - [`/docs/release/ring_progression_policy.md`](./ring_progression_policy.md)
   and
   [`/artifacts/release/ring_matrix.yaml`](../../artifacts/release/ring_matrix.yaml)

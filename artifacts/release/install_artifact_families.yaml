@@ -1,0 +1,772 @@
+# Packaging and installation artifact-family matrix.
+#
+# Machine-readable companion to docs/release/packaging_installation_matrix.md.
+# This file freezes the desktop and helper package families before
+# installer code lands. It names acquisition paths, updater ownership,
+# state-root refs, update-marker refs, handler posture, mirror posture,
+# and rollback expectations for every claimed package family.
+
+schema_version: 1
+matrix_id: aureline.install_artifact_families
+status: seeded
+
+contract_doc_ref: docs/release/packaging_installation_matrix.md
+channel_identity_state_roots_ref: artifacts/release/channel_identity_and_state_roots.yaml
+install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+state_root_map_ref: artifacts/release/state_root_map.yaml
+channel_matrix_ref: artifacts/release/channel_matrix.yaml
+silent_deployment_seed_ref: artifacts/release/silent_deployment_seed.yaml
+exact_build_identity_schema_ref: schemas/build/exact_build_identity.schema.json
+fixtures_ref: fixtures/release/install_matrix_cases
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§9.11 Packaging, installation, and rollback matrix"
+      - "§9.12 Native OS integration and desktop management requirements"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§5.2.3 Packaging and install posture"
+      - "Appendix M deployment, packaging, and rollout matrix"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Appendix BA install, portable-mode, and fleet-rollout matrix"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.7 Platform, architecture, and packaging contract"
+      - "§6.18 Install topology truth"
+
+artifact_family_class_vocabulary:
+  - windows_msi
+  - windows_msix
+  - windows_signed_portable_zip
+  - macos_pkg
+  - macos_notarized_dmg
+  - macos_signed_app_zip
+  - linux_deb
+  - linux_rpm
+  - linux_appimage
+  - linux_tarball
+  - remote_agent_tarball
+  - remote_helper_tarball
+  - remote_agent_image_layer_bundle
+
+platform_class_vocabulary:
+  - windows
+  - macos
+  - linux
+  - remote_linux_target
+  - remote_container_target
+
+managed_install_path_class_vocabulary:
+  - intune_gpo_enterprise_distribution
+  - enterprise_msix_distribution
+  - mdm_jamf_munki_pkg
+  - mdm_jamf_munki_dmg
+  - signed_archive_file_share
+  - native_repo_private_mirror
+  - config_management_extraction
+  - golden_vm_or_container_image
+  - private_registry_image_layer
+  - not_applicable
+
+self_serve_path_class_vocabulary:
+  - winget_or_signed_installer
+  - signed_msix_or_store_like_package
+  - direct_signed_zip_download
+  - homebrew_cask_or_dmg
+  - direct_pkg_download
+  - direct_app_zip_download
+  - package_manager_repository
+  - direct_appimage_download
+  - direct_tarball_download
+  - on_demand_signed_helper_download
+  - internal_registry_or_mirror_pull
+  - not_applicable
+
+portable_support_class_vocabulary:
+  - not_portable
+  - portable_state_colocated
+  - portable_like_unpacked_app_no_host_integration
+  - side_by_side_by_extract_root
+  - side_by_side_by_content_addressed_root
+
+side_by_side_support_class_vocabulary:
+  - channel_suffixed_package_identity
+  - channel_suffixed_bundle_identity
+  - channel_suffixed_desktop_entry
+  - extract_root_is_identity
+  - content_addressed_runtime_identity
+  - not_side_by_side_claimed
+
+updater_owner_class_vocabulary:
+  - user
+  - admin
+  - external_package_manager
+  - managed_fleet
+  - none
+
+handler_posture_class_vocabulary:
+  - candidate_handler_user_or_admin_default
+  - admin_default_handler
+  - suppressed
+  - not_applicable
+
+rollback_posture_class_vocabulary:
+  - previous_build_same_channel_with_state_backup
+  - package_manager_or_admin_rollback_with_state_journal
+  - portable_extract_replace_with_colocated_backup
+  - helper_runtime_verified_replace
+  - image_layer_digest_rollback
+  - unsupported_without_admin_or_package_manager
+
+mirror_offline_posture_class_vocabulary:
+  - online_vendor_primary
+  - mirror_supported_when_claimed
+  - mirror_or_air_gap_required
+  - not_applicable
+
+rules:
+  - id: package_family_explicit_for_every_claimed_lane
+    description: >
+      Every claimed desktop or helper lane resolves to one artifact
+      family row. Generic "desktop installer" or "remote helper"
+      labels are not admissible in release evidence.
+  - id: package_family_reads_channel_identity
+    description: >
+      Every artifact family points at one or more channel identity rows
+      and state-root refs. Channel, state, update-marker, and handler
+      ownership are not inferred from package filenames.
+  - id: portable_families_do_not_mutate_host_integrations
+    description: >
+      Portable ZIP, app ZIP, AppImage portable, and tarball portable
+      rows suppress host-wide file associations, protocol handlers,
+      services, shell hooks, machine-global recent items, and
+      machine-global update markers unless a future opt-in row
+      explicitly allows one integration.
+  - id: external_package_manager_owns_package_update
+    description: >
+      DEB, RPM, and package-manager acquired DMG/MSIX rows suppress
+      in-product package replacement. Aureline still reports install
+      topology and owns per-channel user state roots.
+  - id: rollback_preserves_user_authored_state
+    description: >
+      Any rollback or downgrade that touches user-authored durable
+      state requires a backup snapshot, migration journal, or repair
+      flow. Destructive support advice is non-conforming.
+
+artifact_family_rows:
+  - id: artifact_family.windows.msi
+    artifact_family_class: windows_msi
+    platform_class: windows
+    package_format_class: msi
+    managed_install_path_class: intune_gpo_enterprise_distribution
+    self_serve_path_class: winget_or_signed_installer
+    portable_support_class: not_portable
+    side_by_side_support_class: channel_suffixed_package_identity
+    admitted_updater_owner_classes: [user, admin, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.lts
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_configuration_root.lts
+      - state.per_user_recovery_root.stable
+      - state.per_user_recovery_root.preview
+      - state.per_user_recovery_root.lts
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_derived_cache_root.lts
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_shared_data_root.lts
+      - state.per_machine_admin_policy_root.stable
+      - state.per_machine_admin_policy_root.lts
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+      - update_marker.lts
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+      - recent_items.lts
+    file_association_posture_class: candidate_handler_user_or_admin_default
+    protocol_handler_posture_class: candidate_handler_user_or_admin_default
+    rollback_posture_class: previous_build_same_channel_with_state_backup
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.windows.x86_64.per_machine_installed.lts
+      - card.windows.x86_64.managed_deployed.stable
+      - card.windows.x86_64.side_by_side_preview.preview
+    platform_notes: >
+      MSI rows support per-user and per-machine install modes. Stable,
+      Preview, and long-support packages must use distinct product and
+      upgrade-code namespaces so side-by-side rows do not collide.
+    enterprise_expectations:
+      - silent_install_uninstall_update_and_rollback
+      - intune_gpo_return_codes_from_silent_deployment_seed
+      - managed_package_report_for_fleet_rows
+    status: proposed
+
+  - id: artifact_family.windows.msix
+    artifact_family_class: windows_msix
+    platform_class: windows
+    package_format_class: msix
+    managed_install_path_class: enterprise_msix_distribution
+    self_serve_path_class: signed_msix_or_store_like_package
+    portable_support_class: not_portable
+    side_by_side_support_class: channel_suffixed_package_identity
+    admitted_updater_owner_classes: [admin, external_package_manager, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.lts
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_configuration_root.lts
+      - state.per_user_recovery_root.stable
+      - state.per_user_recovery_root.preview
+      - state.per_user_recovery_root.lts
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_derived_cache_root.lts
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_shared_data_root.lts
+      - state.per_machine_admin_policy_root.stable
+      - state.per_machine_admin_policy_root.lts
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+      - update_marker.lts
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+      - recent_items.lts
+    file_association_posture_class: candidate_handler_user_or_admin_default
+    protocol_handler_posture_class: candidate_handler_user_or_admin_default
+    rollback_posture_class: package_manager_or_admin_rollback_with_state_journal
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.windows.x86_64.managed_deployed.stable
+    platform_notes: >
+      MSIX package identity must be channel-suffixed. In-product update
+      controls disclose package-manager ownership whenever the MSIX
+      transport owns replacement.
+    enterprise_expectations:
+      - intune_enterprise_distribution
+      - package_identity_and_capability_list_exported
+      - admin_rollback_or_repair_path
+    status: proposed
+
+  - id: artifact_family.windows.signed_portable_zip
+    artifact_family_class: windows_signed_portable_zip
+    platform_class: windows
+    package_format_class: signed_zip
+    managed_install_path_class: signed_archive_file_share
+    self_serve_path_class: direct_signed_zip_download
+    portable_support_class: portable_state_colocated
+    side_by_side_support_class: extract_root_is_identity
+    admitted_updater_owner_classes: [user, none]
+    admitted_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    durable_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+      - state.portable_colocated_root.portable_preview
+    update_marker_refs:
+      - update_marker.portable_stable
+      - update_marker.portable_preview
+    recent_item_registration_refs:
+      - recent_items.portable_stable
+      - recent_items.portable_preview
+    file_association_posture_class: suppressed
+    protocol_handler_posture_class: suppressed
+    rollback_posture_class: portable_extract_replace_with_colocated_backup
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+    platform_notes: >
+      The portable ZIP keeps all durable state, update markers, and
+      recent-item state under the portable root. It registers no host
+      file association, protocol handler, service, or shell hook.
+    enterprise_expectations:
+      - no_admin_install_path
+      - portable_state_audit
+      - extract_replace_rollback
+    status: proposed
+
+  - id: artifact_family.macos.pkg
+    artifact_family_class: macos_pkg
+    platform_class: macos
+    package_format_class: pkg
+    managed_install_path_class: mdm_jamf_munki_pkg
+    self_serve_path_class: direct_pkg_download
+    portable_support_class: not_portable
+    side_by_side_support_class: channel_suffixed_bundle_identity
+    admitted_updater_owner_classes: [admin, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.lts
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_configuration_root.lts
+      - state.per_user_recovery_root.stable
+      - state.per_user_recovery_root.preview
+      - state.per_user_recovery_root.lts
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_derived_cache_root.lts
+      - state.per_user_keychain_or_secret_store.stable
+      - state.per_user_keychain_or_secret_store.preview
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_shared_data_root.lts
+      - state.per_machine_admin_policy_root.stable
+      - state.per_machine_admin_policy_root.lts
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+      - update_marker.lts
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+      - recent_items.lts
+    file_association_posture_class: candidate_handler_user_or_admin_default
+    protocol_handler_posture_class: candidate_handler_user_or_admin_default
+    rollback_posture_class: package_manager_or_admin_rollback_with_state_journal
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.macos.universal_binary.per_machine_installed.stable
+      - card.macos.universal_binary.managed_deployed.stable
+    platform_notes: >
+      PKG rows are the managed macOS path. Stable and Preview use
+      distinct bundle/update identities and channel-suffixed keychain
+      service names.
+    enterprise_expectations:
+      - mdm_jamf_munki_install_remove
+      - notarization_and_signature_evidence
+      - rollback_journal_before_state_migration
+    status: proposed
+
+  - id: artifact_family.macos.notarized_dmg
+    artifact_family_class: macos_notarized_dmg
+    platform_class: macos
+    package_format_class: notarized_dmg
+    managed_install_path_class: mdm_jamf_munki_dmg
+    self_serve_path_class: homebrew_cask_or_dmg
+    portable_support_class: not_portable
+    side_by_side_support_class: channel_suffixed_bundle_identity
+    admitted_updater_owner_classes: [user, external_package_manager, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.stable
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_keychain_or_secret_store.stable
+      - state.per_user_keychain_or_secret_store.preview
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+    file_association_posture_class: candidate_handler_user_or_admin_default
+    protocol_handler_posture_class: candidate_handler_user_or_admin_default
+    rollback_posture_class: previous_build_same_channel_with_state_backup
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.macos.universal_binary.per_user_installed.stable
+      - card.macos.universal_binary.side_by_side_preview.preview
+      - card.macos.universal_binary.external_package_manager.stable
+    platform_notes: >
+      DMG rows are notarized and signed. User drag-install and
+      cask-style acquisition preserve the same channel state-root
+      separation and handler default rules as managed rows.
+    enterprise_expectations:
+      - notarization_ticket_visible_in_release_evidence
+      - cask_or_dmg_channel_identity_preserved
+    status: proposed
+
+  - id: artifact_family.macos.signed_app_zip
+    artifact_family_class: macos_signed_app_zip
+    platform_class: macos
+    package_format_class: signed_app_zip
+    managed_install_path_class: signed_archive_file_share
+    self_serve_path_class: direct_app_zip_download
+    portable_support_class: portable_like_unpacked_app_no_host_integration
+    side_by_side_support_class: extract_root_is_identity
+    admitted_updater_owner_classes: [user, none]
+    admitted_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    durable_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+      - state.portable_colocated_root.portable_preview
+    update_marker_refs:
+      - update_marker.portable_stable
+      - update_marker.portable_preview
+    recent_item_registration_refs:
+      - recent_items.portable_stable
+      - recent_items.portable_preview
+    file_association_posture_class: suppressed
+    protocol_handler_posture_class: suppressed
+    rollback_posture_class: portable_extract_replace_with_colocated_backup
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.macos.universal_binary.portable.portable_stable
+    platform_notes: >
+      Signed app ZIP rows are portable-like. They may be useful for
+      developer, no-admin, and internal archive distribution, but they
+      cannot claim host integrations unless a later opt-in row is added.
+    enterprise_expectations:
+      - signature_verification
+      - portable_state_diagnostics
+    status: proposed
+
+  - id: artifact_family.linux.deb
+    artifact_family_class: linux_deb
+    platform_class: linux
+    package_format_class: deb
+    managed_install_path_class: native_repo_private_mirror
+    self_serve_path_class: package_manager_repository
+    portable_support_class: not_portable
+    side_by_side_support_class: channel_suffixed_desktop_entry
+    admitted_updater_owner_classes: [external_package_manager, admin, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.lts
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_configuration_root.lts
+      - state.per_user_recovery_root.stable
+      - state.per_user_recovery_root.preview
+      - state.per_user_recovery_root.lts
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_derived_cache_root.lts
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_shared_data_root.lts
+      - state.per_machine_admin_policy_root.stable
+      - state.per_machine_admin_policy_root.lts
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+      - update_marker.lts
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+      - recent_items.lts
+    file_association_posture_class: candidate_handler_user_or_admin_default
+    protocol_handler_posture_class: candidate_handler_user_or_admin_default
+    rollback_posture_class: package_manager_or_admin_rollback_with_state_journal
+    mirror_offline_posture_class: mirror_or_air_gap_required
+    install_topology_card_refs:
+      - card.linux.x86_64.external_package_manager.stable
+      - card.linux.x86_64.managed_deployed.stable
+      - card.linux.x86_64.customer_managed_mirror.stable
+    platform_notes: >
+      DEB rows use channel-specific package identities, desktop files,
+      and repository metadata. In-product update does not compete with
+      the package manager.
+    enterprise_expectations:
+      - apt_repository_or_private_mirror
+      - package_manager_rollback_or_admin_pin
+      - xdg_state_root_audit
+    status: proposed
+
+  - id: artifact_family.linux.rpm
+    artifact_family_class: linux_rpm
+    platform_class: linux
+    package_format_class: rpm
+    managed_install_path_class: native_repo_private_mirror
+    self_serve_path_class: package_manager_repository
+    portable_support_class: not_portable
+    side_by_side_support_class: channel_suffixed_desktop_entry
+    admitted_updater_owner_classes: [external_package_manager, admin, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.lts
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_configuration_root.lts
+      - state.per_user_recovery_root.stable
+      - state.per_user_recovery_root.preview
+      - state.per_user_recovery_root.lts
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_derived_cache_root.lts
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_shared_data_root.lts
+      - state.per_machine_admin_policy_root.stable
+      - state.per_machine_admin_policy_root.lts
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+      - update_marker.lts
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+      - recent_items.lts
+    file_association_posture_class: candidate_handler_user_or_admin_default
+    protocol_handler_posture_class: candidate_handler_user_or_admin_default
+    rollback_posture_class: package_manager_or_admin_rollback_with_state_journal
+    mirror_offline_posture_class: mirror_or_air_gap_required
+    install_topology_card_refs:
+      - card.linux.x86_64.external_package_manager.stable
+      - card.linux.x86_64.managed_deployed.stable
+      - card.linux.x86_64.customer_managed_mirror.stable
+    platform_notes: >
+      RPM rows mirror the DEB posture for Fedora/RHEL-family package
+      managers: package identity and desktop entry names are channel-
+      suffixed, and default handlers are explicit choices.
+    enterprise_expectations:
+      - dnf_yum_repository_or_private_mirror
+      - package_manager_rollback_or_admin_pin
+      - xdg_state_root_audit
+    status: proposed
+
+  - id: artifact_family.linux.appimage
+    artifact_family_class: linux_appimage
+    platform_class: linux
+    package_format_class: appimage
+    managed_install_path_class: signed_archive_file_share
+    self_serve_path_class: direct_appimage_download
+    portable_support_class: side_by_side_by_extract_root
+    side_by_side_support_class: extract_root_is_identity
+    admitted_updater_owner_classes: [user, none]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.preview
+      - state.portable_colocated_root.portable_stable
+      - state.portable_colocated_root.portable_preview
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+      - update_marker.portable_stable
+      - update_marker.portable_preview
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+      - recent_items.portable_stable
+      - recent_items.portable_preview
+    file_association_posture_class: suppressed
+    protocol_handler_posture_class: suppressed
+    rollback_posture_class: portable_extract_replace_with_colocated_backup
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.linux.x86_64.per_user_installed.stable
+      - card.linux.x86_64.portable.portable_stable
+    platform_notes: >
+      AppImage is supported first as a self-serve and portable-friendly
+      Linux family. If a future integrated desktop entry is claimed, it
+      must use channel-suffixed handler identity and an explicit
+      user/admin default.
+    enterprise_expectations:
+      - signature_verification
+      - appimage_path_and_state_root_diagnostics
+    status: proposed
+
+  - id: artifact_family.linux.tarball
+    artifact_family_class: linux_tarball
+    platform_class: linux
+    package_format_class: tarball
+    managed_install_path_class: config_management_extraction
+    self_serve_path_class: direct_tarball_download
+    portable_support_class: side_by_side_by_extract_root
+    side_by_side_support_class: extract_root_is_identity
+    admitted_updater_owner_classes: [user, admin, none]
+    admitted_channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.preview
+      - state.portable_colocated_root.portable_stable
+      - state.portable_colocated_root.portable_preview
+    update_marker_refs:
+      - update_marker.stable
+      - update_marker.preview
+      - update_marker.portable_stable
+      - update_marker.portable_preview
+    recent_item_registration_refs:
+      - recent_items.stable
+      - recent_items.preview
+      - recent_items.portable_stable
+      - recent_items.portable_preview
+    file_association_posture_class: suppressed
+    protocol_handler_posture_class: suppressed
+    rollback_posture_class: portable_extract_replace_with_colocated_backup
+    mirror_offline_posture_class: mirror_supported_when_claimed
+    install_topology_card_refs:
+      - card.linux.x86_64.per_user_installed.stable
+      - card.linux.x86_64.portable.portable_stable
+      - card.linux.x86_64.offline_bundle.stable
+    platform_notes: >
+      Tarball rows are direct-extract roots. Side-by-side identity is
+      the extract root, and portable mode keeps state and update
+      markers under that root.
+    enterprise_expectations:
+      - config_management_can_pin_extract_root
+      - mirror_import_signature_verification
+    status: proposed
+
+  - id: artifact_family.remote.agent_tarball
+    artifact_family_class: remote_agent_tarball
+    platform_class: remote_linux_target
+    package_format_class: tarball
+    managed_install_path_class: golden_vm_or_container_image
+    self_serve_path_class: on_demand_signed_helper_download
+    portable_support_class: side_by_side_by_content_addressed_root
+    side_by_side_support_class: content_addressed_runtime_identity
+    admitted_updater_owner_classes: [user, admin, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.remote_agent_runtime
+    durable_state_root_refs:
+      - remote_state.agent_runtime_root
+      - remote_state.agent_capability_cache
+    update_marker_refs:
+      - update_marker.remote_agent_runtime
+    recent_item_registration_refs: []
+    file_association_posture_class: not_applicable
+    protocol_handler_posture_class: not_applicable
+    rollback_posture_class: helper_runtime_verified_replace
+    mirror_offline_posture_class: mirror_or_air_gap_required
+    install_topology_card_refs: []
+    platform_notes: >
+      Remote agent tarballs are signed runtime peers. They are installed
+      by image baking, bootstrap, or on-demand download and must pass
+      capability negotiation before the desktop client assumes support.
+    enterprise_expectations:
+      - content_addressed_runtime_root
+      - capability_negotiation_required
+      - mirror_import_and_admin_pin_supported
+    status: proposed
+
+  - id: artifact_family.remote.helper_tarball
+    artifact_family_class: remote_helper_tarball
+    platform_class: remote_linux_target
+    package_format_class: tarball
+    managed_install_path_class: golden_vm_or_container_image
+    self_serve_path_class: on_demand_signed_helper_download
+    portable_support_class: side_by_side_by_content_addressed_root
+    side_by_side_support_class: content_addressed_runtime_identity
+    admitted_updater_owner_classes: [user, admin, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.remote_helper_runtime
+    durable_state_root_refs:
+      - remote_state.helper_runtime_root
+      - remote_state.helper_session_cache
+    update_marker_refs:
+      - update_marker.remote_helper_runtime
+    recent_item_registration_refs: []
+    file_association_posture_class: not_applicable
+    protocol_handler_posture_class: not_applicable
+    rollback_posture_class: helper_runtime_verified_replace
+    mirror_offline_posture_class: mirror_or_air_gap_required
+    install_topology_card_refs: []
+    platform_notes: >
+      Remote helper tarballs are session-scoped helper payloads. They
+      never register local desktop handlers and never own local recent-
+      item state.
+    enterprise_expectations:
+      - scoped_helper_authorization
+      - verified_replace_or_pin
+      - attach_review_on_skew
+    status: proposed
+
+  - id: artifact_family.remote.agent_image_layer_bundle
+    artifact_family_class: remote_agent_image_layer_bundle
+    platform_class: remote_container_target
+    package_format_class: image_layer_bundle
+    managed_install_path_class: private_registry_image_layer
+    self_serve_path_class: internal_registry_or_mirror_pull
+    portable_support_class: side_by_side_by_content_addressed_root
+    side_by_side_support_class: content_addressed_runtime_identity
+    admitted_updater_owner_classes: [admin, managed_fleet]
+    admitted_channel_identity_refs:
+      - channel_identity.remote_agent_runtime
+    durable_state_root_refs:
+      - remote_state.agent_image_layer_root
+      - remote_state.agent_capability_cache
+    update_marker_refs:
+      - update_marker.remote_agent_runtime
+    recent_item_registration_refs: []
+    file_association_posture_class: not_applicable
+    protocol_handler_posture_class: not_applicable
+    rollback_posture_class: image_layer_digest_rollback
+    mirror_offline_posture_class: mirror_or_air_gap_required
+    install_topology_card_refs: []
+    platform_notes: >
+      Image-layer bundles are versioned by digest and belong to the
+      managed workspace, VM, or container-image lane. Rollback replaces
+      the layer only after digest and signature verification.
+    enterprise_expectations:
+      - private_registry_or_air_gap_bundle
+      - digest_pinned_runtime
+      - capability_negotiation_required
+    status: proposed
+
+coverage:
+  windows:
+    required_families:
+      - artifact_family.windows.msi
+      - artifact_family.windows.msix
+      - artifact_family.windows.signed_portable_zip
+    coexistence_rule_refs:
+      - coexistence_rule.stable_preview_no_shared_state
+      - coexistence_rule.installed_portable_no_host_mutation
+  macos:
+    required_families:
+      - artifact_family.macos.pkg
+      - artifact_family.macos.notarized_dmg
+      - artifact_family.macos.signed_app_zip
+    coexistence_rule_refs:
+      - coexistence_rule.stable_preview_no_shared_state
+      - coexistence_rule.installed_portable_no_host_mutation
+  linux:
+    required_families:
+      - artifact_family.linux.deb
+      - artifact_family.linux.rpm
+      - artifact_family.linux.appimage
+      - artifact_family.linux.tarball
+    coexistence_rule_refs:
+      - coexistence_rule.package_manager_owns_package_update
+      - coexistence_rule.installed_portable_no_host_mutation
+  remote_helpers:
+    required_families:
+      - artifact_family.remote.agent_tarball
+      - artifact_family.remote.helper_tarball
+      - artifact_family.remote.agent_image_layer_bundle
+    coexistence_rule_refs:
+      - coexistence_rule.remote_helpers_no_desktop_handlers
+      - coexistence_rule.remote_runtime_capability_negotiation

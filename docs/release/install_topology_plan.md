@@ -26,6 +26,16 @@ Companion artifacts:
   for state roots, update markers, recent-item registration, file
   associations, deep-link / protocol-handler ownership, and
   scriptability / diagnostics / repair expectations.
+- [`/docs/release/packaging_installation_matrix.md`](./packaging_installation_matrix.md),
+  [`/artifacts/release/install_artifact_families.yaml`](../../artifacts/release/install_artifact_families.yaml),
+  and
+  [`/artifacts/release/channel_identity_and_state_roots.yaml`](../../artifacts/release/channel_identity_and_state_roots.yaml)
+  — package-family, channel-identity, helper-runtime, and
+  state-root/handler ownership layer over this install topology. These
+  files name concrete desktop and helper artifact families (MSI, MSIX,
+  portable ZIP, PKG, DMG, app ZIP, DEB, RPM, AppImage, tarball, remote
+  tarball, and image-layer bundle) and bind them to the state-root and
+  channel rows here.
 - [`/artifacts/release/silent_deployment_seed.yaml`](../../artifacts/release/silent_deployment_seed.yaml)
   — machine-readable return-code family seed plus worked
   `unattended_deployment_result_record` fixtures covering install,

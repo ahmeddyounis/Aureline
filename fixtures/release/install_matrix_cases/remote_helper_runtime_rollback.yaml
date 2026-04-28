@@ -1,0 +1,58 @@
+schema_version: 1
+record_kind: install_matrix_case_record
+case_id: install_matrix_case:remote.helper_runtime_rollback
+case_class: remote_runtime_verified_rollback
+scenario_summary: >
+  A remote agent tarball, helper tarball, or image-layer bundle regresses
+  after deployment. The rollback target is verified by signature and
+  digest, the runtime update marker moves under the content-addressed
+  runtime root, and attach resumes only after capability negotiation.
+artifact_family_refs:
+  - artifact_family.remote.agent_tarball
+  - artifact_family.remote.helper_tarball
+  - artifact_family.remote.agent_image_layer_bundle
+channel_identity_refs:
+  - channel_identity.remote_agent_runtime
+  - channel_identity.remote_helper_runtime
+state_root_refs:
+  - remote_state.agent_runtime_root
+  - remote_state.agent_capability_cache
+  - remote_state.agent_image_layer_root
+  - remote_state.helper_runtime_root
+  - remote_state.helper_session_cache
+update_marker_refs:
+  - update_marker.remote_agent_runtime
+  - update_marker.remote_helper_runtime
+handler_refs: []
+coexistence_rule_refs:
+  - coexistence_rule.remote_helpers_no_desktop_handlers
+  - coexistence_rule.remote_runtime_capability_negotiation
+rollback_requirement_refs:
+  - rollback_requirement.remote_runtime_verified_replace
+  - rollback_requirement.remote_capability_renegotiation_after_rollback
+expected_result: repair_required
+blocked_if:
+  - rollback_target_digest_missing
+  - signature_verification_missing
+  - attach_resumes_without_capability_negotiation
+  - remote_helper_claims_desktop_protocol_handler
+  - image_layer_replaced_without_digest_pin
+required_operator_choices:
+  - approve_verified_runtime_rollback
+  - choose_reattach_or_review_only_if_capability_narrows
+release_summary: >
+  Remote agent/helper rollback is not a desktop handler operation. It
+  verifies the target runtime, updates runtime markers, and renegotiates
+  capability before attach resumes.
+support_summary: >
+  Support packets must include runtime digest refs, capability envelope
+  refs, and attach-session impact without embedding credentials.
+enterprise_summary: >
+  Air-gap and private-registry deployments must carry enough signed
+  metadata to verify and roll back the runtime without vendor network
+  reachability.
+evidence_refs:
+  - artifacts/release/install_artifact_families.yaml#artifact_family.remote.agent_tarball
+  - artifacts/release/install_artifact_families.yaml#artifact_family.remote.agent_image_layer_bundle
+  - fixtures/support/repair_cases/remote_agent_rollback.yaml
+status: proposed

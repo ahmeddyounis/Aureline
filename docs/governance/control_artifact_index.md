@@ -460,6 +460,9 @@ and scopes.
 - The `release_artifact_graph`, `release_evidence`,
   `shiproom_runbook`, `shiproom_dashboard_seed`,
   `release_posture_adr`, `release_artifact_family_map`,
+  `packaging_installation_matrix`,
+  `install_artifact_family_matrix`,
+  `channel_identity_state_root_contract`,
   `release_promotion_gate_map`,
   `compatibility_qualification_seed`,
   `release_notice_seed`, `maintainer_coverage_policy`,
@@ -545,6 +548,17 @@ and scopes.
   membership, same-change-set release bundles, waiver and late-proof
   policy, emergency mirror/manual-import transport, and the gates that
   still block stable-facing promotion after a successful build.
+- Packaging and installation artifact families are now explicit
+  release-bearing rows rather than installer folklore. The narrative
+  matrix and machine-readable companions live in
+  [`docs/release/packaging_installation_matrix.md`](../release/packaging_installation_matrix.md),
+  [`artifacts/release/install_artifact_families.yaml`](../../artifacts/release/install_artifact_families.yaml),
+  and
+  [`artifacts/release/channel_identity_and_state_roots.yaml`](../../artifacts/release/channel_identity_and_state_roots.yaml).
+  They bind MSI, MSIX, portable ZIP, PKG, DMG, app ZIP, DEB, RPM,
+  AppImage, tarball, remote-helper tarball, and image-layer bundle rows
+  to channel identity, state roots, update markers, recent items, file
+  associations, protocol handlers, mirror posture, and rollback rules.
 - Validation-ring widening is no longer implied by rollout folklore.
   The canonical policy, machine-readable matrix, and ring-history packet
   contract now live in

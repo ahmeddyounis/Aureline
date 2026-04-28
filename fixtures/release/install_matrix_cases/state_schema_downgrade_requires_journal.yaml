@@ -1,0 +1,59 @@
+schema_version: 1
+record_kind: install_matrix_case_record
+case_id: install_matrix_case:rollback.state_schema_downgrade_requires_journal
+case_class: downgrade_requires_backup_or_repair
+scenario_summary: >
+  A user or administrator attempts to downgrade to an older build after
+  the newer build wrote user-authored profile/settings state. The
+  downgrade is blocked until a backup snapshot, migration journal, or
+  repair flow can preserve user-authored state and explain any
+  incompatible fields.
+artifact_family_refs:
+  - artifact_family.windows.msi
+  - artifact_family.macos.pkg
+  - artifact_family.linux.deb
+  - artifact_family.linux.rpm
+  - artifact_family.windows.signed_portable_zip
+  - artifact_family.linux.tarball
+channel_identity_refs:
+  - channel_identity.stable
+  - channel_identity.preview
+  - channel_identity.portable_stable
+  - channel_identity.lts
+state_root_refs:
+  - state.per_user_configuration_root.stable
+  - state.per_user_configuration_root.preview
+  - state.per_user_recovery_root.stable
+  - state.portable_colocated_root.portable_stable
+rollback_requirement_refs:
+  - rollback_requirement.backup_before_user_state_migration
+  - rollback_requirement.migration_journal_for_schema_change
+  - rollback_requirement.repair_flow_before_destructive_support
+  - rollback_requirement.admin_pinned_floor_requires_state_journal
+coexistence_rule_refs:
+  - coexistence_rule.stable_preview_no_shared_state
+  - coexistence_rule.package_manager_owns_package_update
+expected_result: block
+blocked_if:
+  - backup_snapshot_ref_missing
+  - migration_journal_ref_missing
+  - repair_transaction_ref_missing
+  - support_advice_says_delete_user_config
+  - downgrade_target_cannot_read_state_schema
+required_operator_choices:
+  - choose_backup_restore_repair_or_export_path
+  - approve_admin_pinned_floor_when_managed
+release_summary: >
+  Downgrade is blocked rather than destructive when the target build
+  cannot prove it can read or repair newer user-authored state.
+support_summary: >
+  Support guidance must route to backup, migration journal, repair, or
+  export. It may not prescribe deleting configuration as the primary
+  recovery path.
+enterprise_summary: >
+  Admin-pinned rollback must preserve a state journal and produce an
+  auditable rollback approval ref before touching user-authored state.
+evidence_refs:
+  - artifacts/release/channel_identity_and_state_roots.yaml#rollback_requirements
+  - fixtures/release/skew_cases/state_migration_new_to_old_blocked.yaml
+status: proposed
