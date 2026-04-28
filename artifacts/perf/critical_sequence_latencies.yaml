@@ -1,0 +1,1328 @@
+# Critical protected-journey latency allocation pack.
+#
+# This pack names the cross-subsystem stage boundaries used by the
+# critical sequence diagrams, benchmark review, support trace
+# reconstruction, and failure-injection fixtures. Stage ids are stable
+# review handles; labels may change, ids do not.
+
+schema_version: 1
+pack_id: aureline.critical_sequence_latencies
+pack_revision: 1
+status: seeded
+
+narrative_document: docs/architecture/critical_sequence_diagrams.md
+review_checklist: fixtures/architecture/sequence_review_checklist.md
+protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+warm_path_budget_ledger_ref: artifacts/perf/warm_path_budget_ledger.yaml
+journey_segment_register_ref: artifacts/benchmarks/journey_segment_ids.yaml
+support_reconstruction_checklist_ref: artifacts/support/reconstruction_checklist.yaml
+
+source_documents:
+  - ref: .t2/docs/Aureline_PRD.md
+    sections:
+      - "5.53 Critical sequence diagrams and latency allocation"
+      - "Appendix K Success-critical user journeys and latency budgets"
+  - ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+    sections:
+      - "Appendix T Critical Sequence Diagrams"
+      - "Architecture fitness functions"
+  - ref: .t2/docs/Aureline_Technical_Design_Document.md
+    sections:
+      - "Appendix C Representative critical sequences"
+
+stage_posture_vocabulary:
+  - protected
+  - backgroundable
+  - optional
+  - forbidden_on_hot_path
+
+truth_contract_vocabulary:
+  - fresh_authoritative
+  - stale_labeled
+  - degraded_labeled
+  - missing_provider_labeled
+  - blocked_until_reapproval
+  - local_only_continuation
+  - unavailable_actionable
+
+budget_status_vocabulary:
+  - published
+  - seeded_allocation
+  - provisional_until_calibrated
+  - contract_gate_only
+
+change_control:
+  protected_sequence_contract_change_requires:
+    - update_docs_architecture_critical_sequence_diagrams
+    - update_this_latency_pack
+    - update_or_add_failure_injection_case
+    - update_support_reconstruction_hook
+    - update_reviewer_checklist_if_review_rule_changed
+    - update_benchmark_or_fitness_refs_if_stage_boundary_changed
+  forbidden_change:
+    - renaming_stage_id_without_alias_or_migration_note
+    - changing_budget_without_source_ref_or_review_authority
+    - deleting_failure_or_support_link_when_sequence_still_exists
+
+sequences:
+  - sequence_id: seq.warm_start.first_edit
+    title: Warm startup to first edit
+    status: seeded
+    aggregate_budgets:
+      - budget_id: agg.seq.warm_start.first_paint
+        comparator: "<="
+        target_ms: 150
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Latency and responsiveness allocations"
+      - budget_id: agg.seq.warm_start.palette_ready
+        comparator: "<="
+        target_ms: 400
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Latency and responsiveness allocations"
+      - budget_id: agg.seq.warm_start.first_interactive_editor
+        comparator: "<="
+        target_ms: 700
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Latency and responsiveness allocations"
+      - budget_id: agg.seq.warm_start.key_to_paint_p95
+        comparator: "<="
+        target_ms: 8
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md Appendix K
+    protected_path_refs:
+      - path.shell.launch
+      - path.shell.first_useful_chrome
+      - path.command_palette.open
+      - path.editor.placeholder_open
+      - path.editor.first_useful_edit
+    benchmark_and_fitness_refs:
+      benchmark_rows:
+        - ff.warm_start_to_first_paint
+        - ff.first_paint
+        - ff.input_to_paint
+        - ff.buffer_operations
+        - ff.command_parity
+      architecture_fitness_rows:
+        - FIT-PERF-001
+        - FIT-PERF-002
+        - FIT-JOUR-001
+    allowed_degraded_modes:
+      - truth_contract: stale_labeled
+        condition: restore target missing or hot metadata warm cache is stale
+        user_truth: Restore level and stale source are visible before interaction.
+      - truth_contract: local_only_continuation
+        condition: AI, collaboration, sync, or managed service unavailable during launch
+        user_truth: Local editing, file open, and command entry remain available.
+    failure_injection_links:
+      - case_class: startup_crash_loop_safe_mode
+        fixture_refs:
+          - fixtures/support/recovery_ladder_cases/crash_loop_safe_mode.yaml
+          - artifacts/support/recovery_examples/safe_mode_crash_loop_entry.json
+      - case_class: credential_store_locked_on_launch
+        fixture_refs:
+          - fixtures/auth/callback_and_lock_state_cases/credential_store_locked_on_launch.json
+    support_reconstruction_hooks:
+      - hook_id: support_hook.warm_start.first_edit
+        scenario_class: local_only_action
+        required_axes:
+          - exact_build_identity
+          - command
+          - docs_version_applicability
+          - claim_row
+          - known_limit_note
+        packet_or_schema_refs:
+          - schemas/traces/journey_trace.schema.json
+          - schemas/support/support_bundle.schema.json
+          - artifacts/support/reconstruction_checklist.yaml
+    stages:
+      - stage_id: seq_stage.warm_start.launch_policy
+        span_name: warm_start.launch_policy
+        posture: protected
+        budget:
+          allocation_ms: 80
+          deadline_ms_from_sequence_start: 80
+          budget_status: seeded_allocation
+          source_refs:
+            - artifacts/perf/warm_path_budget_ledger.yaml#budget.warm_path.process_startup_and_config_load
+        trace_refs:
+          trace_event_class: startup
+          journey_segment_refs:
+            - seg.startup.ui_dispatch.boot
+            - seg.startup.service_hop.runtime_init
+        evidence_refs:
+          budget_refs:
+            - budget.path.shell.launch
+          fitness_refs:
+            - ff.warm_start_to_first_paint
+        cancellation:
+          point: before first shell surface is committed
+          authority: user_close_or_supervisor_crash_loop
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: safe mode or credential-lock recovery ladder
+        forbidden_on_hot_path:
+          - network_fetch
+          - support_bundle_generation
+          - third_party_extension_activation
+
+      - stage_id: seq_stage.warm_start.first_paint
+        span_name: warm_start.first_paint
+        posture: protected
+        budget:
+          allocation_ms: 120
+          deadline_ms_from_sequence_start: 150
+          budget_status: published
+          source_refs:
+            - artifacts/perf/warm_path_budget_ledger.yaml#budget.warm_path.renderer_bootstrap_and_font_atlas
+            - artifacts/perf/warm_path_budget_ledger.yaml#budget.warm_path.first_paint_aggregate
+        trace_refs:
+          trace_event_class: first_paint
+          journey_segment_refs:
+            - seg.startup.renderer_work.first_paint_compose
+            - seg.first_paint.renderer_work.compose
+            - seg.first_paint.renderer_work.submit
+        evidence_refs:
+          budget_refs:
+            - budget.path.shell.launch
+          fitness_refs:
+            - ff.warm_start_to_first_paint
+            - ff.first_paint
+        cancellation:
+          point: stale launch surface is cancelled by newer window/session launch
+          authority: shell_supervisor
+        fallback:
+          truth_contract: local_only_continuation
+          allowed: first paint omits nonessential panels and fills them later
+        forbidden_on_hot_path:
+          - full_index_rebuild
+          - git_full_status
+          - provider_call
+
+      - stage_id: seq_stage.warm_start.restore_snapshot
+        span_name: warm_start.restore_snapshot
+        posture: backgroundable
+        budget:
+          allocation_ms: 120
+          deadline_ms_from_sequence_start: 700
+          budget_status: seeded_allocation
+          source_refs:
+            - artifacts/perf/warm_path_budget_ledger.yaml#budget.warm_path.workspace_snapshot_restore
+        trace_refs:
+          trace_event_class: restore
+          journey_segment_refs:
+            - seg.restore.recovery_replay.journal_replay
+        evidence_refs:
+          budget_refs:
+            - budget.path.workspace.restore
+          fitness_refs:
+            - ff.restore_fidelity
+        cancellation:
+          point: user chooses open without restore or workspace changes
+          authority: user_or_restore_supervisor
+        fallback:
+          truth_contract: stale_labeled
+          allowed: layout-only or compatible restore with recovery note
+        forbidden_on_hot_path:
+          - blocking_restore_replay_before_first_paint
+
+      - stage_id: seq_stage.warm_start.command_entry_ready
+        span_name: warm_start.command_entry_ready
+        posture: protected
+        budget:
+          allocation_ms: 40
+          deadline_ms_from_sequence_start: 400
+          budget_status: published
+          source_refs:
+            - artifacts/perf/warm_path_budget_ledger.yaml#budget.warm_path.built_in_activation
+            - artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.first_useful_chrome
+        trace_refs:
+          trace_event_class: startup
+          journey_segment_refs:
+            - seg.startup.ui_dispatch.first_useful_chrome_ready
+            - seg.quick_open.ui_dispatch.invoke
+        evidence_refs:
+          budget_refs:
+            - budget.path.shell.first_useful_chrome
+            - budget.path.command_palette.open
+          fitness_refs:
+            - ff.command_parity
+        cancellation:
+          point: stale cache hydration or palette query is replaced by newer input
+          authority: shell_command_system
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: built-in commands only with partial readiness marker
+        forbidden_on_hot_path:
+          - extension_provided_command_activation_without_startup_essential_flag
+
+      - stage_id: seq_stage.warm_start.quick_open_buffer
+        span_name: warm_start.quick_open_buffer
+        posture: protected
+        budget:
+          allocation_ms: 90
+          deadline_ms_from_sequence_start: 700
+          budget_status: published
+          source_refs:
+            - artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.placeholder_open
+        trace_refs:
+          trace_event_class: quick_open
+          journey_segment_refs:
+            - seg.quick_open.service_hop.rank_candidates
+            - seg.quick_open.ui_dispatch.commit_selection
+        evidence_refs:
+          budget_refs:
+            - budget.path.editor.placeholder_open
+          fitness_refs:
+            - ff.buffer_operations
+        cancellation:
+          point: query changes or selected file changes before buffer commit
+          authority: user_input
+        fallback:
+          truth_contract: stale_labeled
+          allowed: ranked fallback and editable buffer before semantics
+        forbidden_on_hot_path:
+          - semantic_index_wait
+          - language_server_cold_start_wait
+
+      - stage_id: seq_stage.warm_start.first_edit_paint
+        span_name: warm_start.first_edit_paint
+        posture: protected
+        budget:
+          p95_ms: 8
+          deadline_ms_from_prior_stage: 8
+          budget_status: published
+          source_refs:
+            - artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.first_useful_edit
+        trace_refs:
+          trace_event_class: input_to_paint
+          journey_segment_refs:
+            - seg.input_to_paint.ui_dispatch.event_admitted
+            - seg.input_to_paint.renderer_work.repaint
+        evidence_refs:
+          budget_refs:
+            - budget.path.editor.first_useful_edit
+          fitness_refs:
+            - ff.input_to_paint
+            - ff.buffer_operations
+        cancellation:
+          point: undo or superseding input batch
+          authority: editor_buffer
+        fallback:
+          truth_contract: fresh_authoritative
+          allowed: local edit paints before diagnostics or semantic services
+        forbidden_on_hot_path:
+          - diagnostics_recompute
+          - ai_completion_request
+
+  - sequence_id: seq.large_repo.first_navigation
+    title: Open large repository to first useful navigation
+    status: seeded
+    aggregate_budgets:
+      - budget_id: agg.seq.large_repo.partial_tree
+        comparator: "<="
+        target_ms: 800
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Latency and responsiveness allocations"
+      - budget_id: agg.seq.large_repo.first_search_result
+        comparator: "<="
+        target_ms: 150
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Latency and responsiveness allocations"
+      - budget_id: agg.seq.large_repo.first_symbol_jump
+        comparator: "<="
+        target_ms: 300
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Latency and responsiveness allocations"
+    protected_path_refs:
+      - path.shell.first_useful_chrome
+      - path.command_palette.open
+      - path.editor.placeholder_open
+    benchmark_and_fitness_refs:
+      benchmark_rows:
+        - ff.command_parity
+        - ff.benchmark_lab_health
+      architecture_fitness_rows:
+        - FIT-PERF-003
+        - FIT-GRAPH-001
+        - FIT-JOUR-001
+    allowed_degraded_modes:
+      - truth_contract: stale_labeled
+        condition: warm index exists but full semantic index is incomplete
+        user_truth: Result rows name cache, fallback scan, or graph freshness.
+      - truth_contract: degraded_labeled
+        condition: watcher, language provider, or tooling is unavailable
+        user_truth: Navigation falls back to file/text results with Doctor hint.
+    failure_injection_links:
+      - case_class: watcher_stalled_or_lost
+        fixture_refs:
+          - fixtures/support/escalation_packet_completeness_cases/broken_watcher_stalled_no_events.yaml
+      - case_class: stale_semantic_graph
+        fixture_refs:
+          - fixtures/editor/refactor_cases/partial_rename_stale_graph.yaml
+          - fixtures/editor/viewport_summary_cases/degraded_semantics_partial_markers.json
+    support_reconstruction_hooks:
+      - hook_id: support_hook.large_repo.first_navigation
+        scenario_class: wrong_target_or_degraded_state_action
+        required_axes:
+          - command
+          - exact_build_identity
+          - route_target_origin_exposure
+          - docs_version_applicability
+        packet_or_schema_refs:
+          - schemas/traces/trace_event.schema.json
+          - schemas/support/support_bundle.schema.json
+    stages:
+      - stage_id: seq_stage.large_repo.open_admitted
+        span_name: large_repo.open_admitted
+        posture: protected
+        budget:
+          allocation_ms: 50
+          deadline_ms_from_sequence_start: 50
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/architecture/service_topology_and_process_placement.md
+        trace_refs:
+          trace_event_class: startup
+          journey_segment_refs:
+            - seg.startup.ui_dispatch.boot
+        evidence_refs:
+          budget_refs:
+            - budget.path.shell.first_useful_chrome
+          fitness_refs:
+            - ff.command_parity
+        cancellation:
+          point: workspace open is superseded by close or alternate root
+          authority: workspace_manager
+        fallback:
+          truth_contract: fresh_authoritative
+          allowed: shell acknowledges open before root work completes
+        forbidden_on_hot_path:
+          - root_scan_before_acknowledgement
+
+      - stage_id: seq_stage.large_repo.root_enumeration_kick
+        span_name: large_repo.root_enumeration_kick
+        posture: protected
+        budget:
+          allocation_ms: 100
+          deadline_ms_from_sequence_start: 150
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - artifacts/benchmarks/journey_segment_ids.yaml#seg.startup.adapter_layer.vfs_root_enumeration
+        trace_refs:
+          trace_event_class: startup
+          journey_segment_refs:
+            - seg.startup.adapter_layer.vfs_root_enumeration
+            - seg.quick_open.adapter_layer.vfs_root_enumeration
+        evidence_refs:
+          budget_refs:
+            - budget.path.shell.launch
+          fitness_refs:
+            - ff.benchmark_lab_health
+        cancellation:
+          point: workspace close or trust downgrade
+          authority: workspace_manager
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: partial root list with missing or ignored scope marker
+        forbidden_on_hot_path:
+          - full_repository_walk
+          - package_manager_install
+
+      - stage_id: seq_stage.large_repo.partial_tree_visible
+        span_name: large_repo.partial_tree_visible
+        posture: protected
+        budget:
+          deadline_ms_from_sequence_start: 800
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Large repo open"
+        trace_refs:
+          trace_event_class: quick_open
+          journey_segment_refs:
+            - seg.quick_open.adapter_layer.vfs_root_enumeration
+        evidence_refs:
+          budget_refs:
+            - budget.path.shell.first_useful_chrome
+          fitness_refs:
+            - ff.benchmark_lab_health
+        cancellation:
+          point: file tree projection is replaced by newer root snapshot
+          authority: vfs_watchers
+        fallback:
+          truth_contract: stale_labeled
+          allowed: partial tree with root freshness and watcher state
+        forbidden_on_hot_path:
+          - git_full_status
+          - full_index_completion
+
+      - stage_id: seq_stage.large_repo.hot_index_ready
+        span_name: large_repo.hot_index_ready
+        posture: backgroundable
+        budget:
+          deadline_ms_from_sequence_start: 800
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/benchmarks/fixture_classes.md
+        trace_refs:
+          trace_event_class: quick_open
+          journey_segment_refs:
+            - seg.quick_open.service_hop.rank_candidates
+        evidence_refs:
+          budget_refs:
+            - budget.path.command_palette.open
+          fitness_refs:
+            - ff.command_parity
+        cancellation:
+          point: newer query, index epoch, or workspace close
+          authority: index_search
+        fallback:
+          truth_contract: stale_labeled
+          allowed: hot files, changed files, open tabs, fallback scanner
+        forbidden_on_hot_path:
+          - semantic_graph_full_rebuild
+
+      - stage_id: seq_stage.large_repo.first_results
+        span_name: large_repo.first_results
+        posture: protected
+        budget:
+          deadline_ms_from_stage_start: 150
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Large repo open"
+        trace_refs:
+          trace_event_class: quick_open
+          journey_segment_refs:
+            - seg.quick_open.service_hop.rank_candidates
+        evidence_refs:
+          budget_refs:
+            - budget.path.command_palette.open
+          fitness_refs:
+            - ff.command_parity
+        cancellation:
+          point: query changes or user dismisses search
+          authority: user_input
+        fallback:
+          truth_contract: stale_labeled
+          allowed: cached or scanner-backed results with source labels
+        forbidden_on_hot_path:
+          - wait_for_all_shards
+
+      - stage_id: seq_stage.large_repo.symbol_jump
+        span_name: large_repo.symbol_jump
+        posture: protected
+        budget:
+          deadline_ms_from_stage_start: 300
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Large repo open"
+        trace_refs:
+          trace_event_class: quick_open
+          journey_segment_refs:
+            - seg.quick_open.service_hop.rank_candidates
+            - seg.quick_open.ui_dispatch.commit_selection
+        evidence_refs:
+          budget_refs:
+            - budget.path.command_palette.open
+            - budget.path.editor.placeholder_open
+          fitness_refs:
+            - ff.benchmark_lab_health
+        cancellation:
+          point: destination request superseded by another navigation intent
+          authority: search_navigation_graph
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: text or file navigation fallback when graph or provider is unavailable
+        forbidden_on_hot_path:
+          - language_server_cold_start_wait_without_timeout
+
+  - sequence_id: seq.ai.multi_file_change_approval
+    title: AI-assisted multi-file change with approval
+    status: seeded
+    aggregate_budgets:
+      - budget_id: agg.seq.ai.context_resolution
+        comparator: "<="
+        target_ms: 300
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "AI multi-file change"
+      - budget_id: agg.seq.ai.first_model_token_median
+        comparator: "<="
+        target_ms: 1500
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "AI multi-file change"
+      - budget_id: agg.seq.ai.diff_render
+        comparator: "<="
+        target_ms: 200
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "AI multi-file change"
+    protected_path_refs:
+      - path.editor.first_useful_edit
+      - path.editor.save
+    benchmark_and_fitness_refs:
+      benchmark_rows:
+        - ff.buffer_operations
+        - ff.vfs_save_conflict_handling
+      architecture_fitness_rows:
+        - FIT-AI-TOOLS-001
+        - FIT-AI-EVAL-001
+        - FIT-REF-001
+        - FIT-JOUR-001
+    allowed_degraded_modes:
+      - truth_contract: missing_provider_labeled
+        condition: configured provider or model is unavailable
+        user_truth: Local diagnostics and evidence remain visible; apply is disabled until reviewable patch exists.
+      - truth_contract: stale_labeled
+        condition: context graph, diagnostics, or tests are stale
+        user_truth: Stale context labels travel into the review surface and replay packet.
+    failure_injection_links:
+      - case_class: provider_unavailable_partial_replay
+        fixture_refs:
+          - fixtures/ai/replay_cases/partial_replay_provider_unavailable.json
+      - case_class: tainted_retrieved_context
+        fixture_refs:
+          - fixtures/ai/context_assembly_cases/composer_turn_with_tainted_retrieved_document.yaml
+      - case_class: non_replayable_raw_byte_dependency
+        fixture_refs:
+          - fixtures/ai/replay_cases/non_replayable_raw_byte_dependent.json
+    support_reconstruction_hooks:
+      - hook_id: support_hook.ai.multi_file_change
+        scenario_class: provider_bearing_action
+        required_axes:
+          - command
+          - route_target_origin_exposure
+          - exact_build_identity
+          - claim_row
+          - known_limit_note
+        packet_or_schema_refs:
+          - schemas/ai/context_assembly.schema.json
+          - schemas/ai/evidence_packet.schema.json
+          - schemas/ai/evidence_replay_packet.schema.json
+          - schemas/workspace/mutation_journal.schema.json
+    stages:
+      - stage_id: seq_stage.ai.request_admitted
+        span_name: ai.request_admitted
+        posture: protected
+        budget:
+          allocation_ms: 50
+          deadline_ms_from_sequence_start: 50
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/ai/context_assembly_contract.md
+        trace_refs:
+          trace_event_class: ai_turn
+          journey_segment_refs:
+            - seg.ai_turn.ui_dispatch.compose
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-AI-TOOLS-001
+        cancellation:
+          point: before context assembly dispatch
+          authority: user_input
+        fallback:
+          truth_contract: local_only_continuation
+          allowed: request is not dispatched; editor remains local
+        forbidden_on_hot_path:
+          - background_branch_start_without_run_record
+
+      - stage_id: seq_stage.ai.context_resolution
+        span_name: ai.context_resolution
+        posture: protected
+        budget:
+          deadline_ms_from_sequence_start: 300
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "AI multi-file change"
+        trace_refs:
+          trace_event_class: ai_turn
+          journey_segment_refs:
+            - seg.ai_turn.ui_dispatch.compose
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-AI-EVAL-001
+        cancellation:
+          point: workset, policy epoch, or user request changes
+          authority: ai_context_runtime
+        fallback:
+          truth_contract: stale_labeled
+          allowed: omitted, redacted, policy-blocked, and tainted context segments remain explicit
+        forbidden_on_hot_path:
+          - raw_secret_read
+          - unbounded_graph_walk
+
+      - stage_id: seq_stage.ai.policy_route_gate
+        span_name: ai.policy_route_gate
+        posture: protected
+        budget:
+          allocation_ms: 100
+          deadline_ms_from_sequence_start: 300
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/ai/context_assembly_contract.md
+        trace_refs:
+          trace_event_class: ai_turn
+          journey_segment_refs:
+            - seg.ai_turn.ai_broker_roundtrip.request
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-AI-TOOLS-001
+        cancellation:
+          point: provider, spend, trust, or tool permission denied
+          authority: policy_engine
+        fallback:
+          truth_contract: missing_provider_labeled
+          allowed: disabled AI action with local diagnostics and no provider egress
+        forbidden_on_hot_path:
+          - provider_egress_before_policy
+          - hidden_tool_permission_widening
+
+      - stage_id: seq_stage.ai.first_model_token
+        span_name: ai.first_model_token
+        posture: optional
+        budget:
+          median_ms: 1500
+          deadline_ms_from_stage_start: 1500
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "AI multi-file change"
+        trace_refs:
+          trace_event_class: ai_turn
+          journey_segment_refs:
+            - seg.ai_turn.ai_broker_roundtrip.request
+            - seg.ai_turn.managed_call_optional.broker_egress
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-AI-EVAL-001
+        cancellation:
+          point: user cancel, provider timeout, or spend ceiling
+          authority: ai_control_plane
+        fallback:
+          truth_contract: missing_provider_labeled
+          allowed: provider-unavailable replay packet and no mutation
+        forbidden_on_hot_path:
+          - blocking_editor_input_on_model_response
+
+      - stage_id: seq_stage.ai.diff_render
+        span_name: ai.diff_render
+        posture: protected
+        budget:
+          deadline_ms_from_stage_start: 200
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "AI multi-file change"
+        trace_refs:
+          trace_event_class: tool_use
+          journey_segment_refs:
+            - seg.tool_use.ui_dispatch.result_admit
+        evidence_refs:
+          budget_refs:
+            - path.editor.first_useful_edit
+          fitness_refs:
+            - ff.buffer_operations
+        cancellation:
+          point: newer patch candidate supersedes rendered diff
+          authority: diff_engine
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: patch remains reviewable with protected/generated/read-only labels
+        forbidden_on_hot_path:
+          - auto_apply_without_review
+
+      - stage_id: seq_stage.ai.approval_checkpoint_apply
+        span_name: ai.approval_checkpoint_apply
+        posture: protected
+        budget:
+          allocation_ms: 400
+          deadline_ms_from_stage_start: 400
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/ai/evidence_replayability_contract.md
+            - artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.save
+        trace_refs:
+          trace_event_class: save
+          journey_segment_refs:
+            - seg.save.service_hop.recovery_journal_write
+            - seg.save.filesystem_io.vfs_write
+        evidence_refs:
+          budget_refs:
+            - budget.path.editor.save
+          fitness_refs:
+            - ff.vfs_save_conflict_handling
+        cancellation:
+          point: before approved patch is committed to mutation journal
+          authority: user_review
+        fallback:
+          truth_contract: blocked_until_reapproval
+          allowed: reject, amend, or rerun context; checkpoint remains inspectable
+        forbidden_on_hot_path:
+          - uncheckpointed_multi_file_write
+
+      - stage_id: seq_stage.ai.validation_stream
+        span_name: ai.validation_stream
+        posture: backgroundable
+        budget:
+          deadline_ms_from_stage_start: 1000
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/execution/run_and_attempt_contract.md
+        trace_refs:
+          trace_event_class: tool_use
+          journey_segment_refs:
+            - seg.tool_use.tooling_invocation.dispatch
+            - seg.tool_use.ui_dispatch.result_admit
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-RUN-001
+        cancellation:
+          point: user cancels validation run or policy revokes execution
+          authority: run_attempt_contract
+        fallback:
+          truth_contract: stale_labeled
+          allowed: validation result may be failed, partial, stale, skipped, or unavailable
+        forbidden_on_hot_path:
+          - blocking_review_close_on_validation_completion
+
+  - sequence_id: seq.remote.attach_run_test
+    title: Remote attach and run targeted test
+    status: seeded
+    aggregate_budgets:
+      - budget_id: agg.seq.remote.shell_or_failure
+        comparator: "<="
+        target_ms: 5000
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Remote attach"
+      - budget_id: agg.seq.remote.task_metadata_stream
+        comparator: "<="
+        target_ms: 1000
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Remote attach"
+      - budget_id: agg.seq.remote.test_dispatch_p95
+        comparator: "<="
+        target_ms: 400
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md Appendix K "Rerun last task or test"
+    protected_path_refs:
+      - path.observability.none
+    benchmark_and_fitness_refs:
+      benchmark_rows:
+        - ff.benchmark_lab_health
+      architecture_fitness_rows:
+        - FIT-REMOTE-001
+        - FIT-EXEC-001
+        - FIT-RUN-001
+        - FIT-JOUR-001
+    allowed_degraded_modes:
+      - truth_contract: blocked_until_reapproval
+        condition: target identity witness changed
+        user_truth: Attach and endpoint remain blocked until target is selected or authority is reissued.
+      - truth_contract: missing_provider_labeled
+        condition: route or managed provider unavailable
+        user_truth: Local continuation and cached read-only state are visible; no live route claim is made.
+      - truth_contract: degraded_labeled
+        condition: reconnect inside window loses mutation authority
+        user_truth: Read-only state may remain; mutations are cancelled or require reapproval.
+    failure_injection_links:
+      - case_class: provider_unavailable_browser_handoff
+        fixture_refs:
+          - fixtures/remote/attach_cases/provider_unavailable_browser_handoff.yaml
+      - case_class: stale_target_retarget_collision
+        fixture_refs:
+          - fixtures/remote/attach_cases/stale_target_retarget_collision.yaml
+      - case_class: reconnect_degraded_read_only
+        fixture_refs:
+          - fixtures/remote/attach_cases/reconnect_degraded_read_only.yaml
+      - case_class: wrong_target_remote_attach_corrected
+        fixture_refs:
+          - fixtures/support/reconstruction_cases/wrong_target_remote_attach_corrected.yaml
+    support_reconstruction_hooks:
+      - hook_id: support_hook.remote.attach_run_test
+        scenario_class: provider_bearing_action
+        required_axes:
+          - command
+          - route_target_origin_exposure
+          - exact_build_identity
+          - claim_row
+          - known_limit_note
+        packet_or_schema_refs:
+          - schemas/runtime/execution_context.schema.json
+          - schemas/execution/run.schema.json
+          - schemas/remote/attach_session.schema.json
+      - hook_id: support_hook.remote.attach_wrong_target
+        scenario_class: wrong_target_or_degraded_state_action
+        required_axes:
+          - route_target_origin_exposure
+          - exact_build_identity
+          - claim_row
+          - known_limit_note
+        packet_or_schema_refs:
+          - schemas/support/object_handoff_packet.schema.json
+          - artifacts/support/reconstruction_checklist.yaml
+    stages:
+      - stage_id: seq_stage.remote.attach_intent
+        span_name: remote.attach_intent
+        posture: protected
+        budget:
+          allocation_ms: 100
+          deadline_ms_from_sequence_start: 100
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/adr/0020-remote-agent-contract.md
+        trace_refs:
+          trace_event_class: reconnect
+          journey_segment_refs:
+            - seg.reconnect.ui_dispatch.notify
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-REMOTE-001
+        cancellation:
+          point: before credential handle or attach ticket is consumed
+          authority: user_input
+        fallback:
+          truth_contract: local_only_continuation
+          allowed: local workspace remains active
+        forbidden_on_hot_path:
+          - raw_secret_prompt_without_broker
+
+      - stage_id: seq_stage.remote.policy_auth
+        span_name: remote.policy_auth
+        posture: protected
+        budget:
+          allocation_ms: 1000
+          deadline_ms_from_sequence_start: 1000
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/adr/0020-remote-agent-contract.md
+            - docs/runtime/execution_context_vocabulary.md
+        trace_refs:
+          trace_event_class: reconnect
+          journey_segment_refs:
+            - seg.reconnect.ui_dispatch.notify
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-EXEC-001
+        cancellation:
+          point: auth timeout, policy denial, or user cancel
+          authority: identity_policy
+        fallback:
+          truth_contract: unavailable_actionable
+          allowed: actionable auth failure with no remote mutation
+        forbidden_on_hot_path:
+          - credential_material_export
+          - silent_policy_widening
+
+      - stage_id: seq_stage.remote.agent_hello
+        span_name: remote.agent_hello
+        posture: protected
+        budget:
+          allocation_ms: 1500
+          deadline_ms_from_sequence_start: 2500
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Remote attach"
+            - docs/adr/0020-remote-agent-contract.md
+        trace_refs:
+          trace_event_class: reconnect
+          journey_segment_refs:
+            - seg.reconnect.remote_transport.session_resume
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-REMOTE-001
+        cancellation:
+          point: missed heartbeat, skew denial, or target witness mismatch
+          authority: remote_supervisor
+        fallback:
+          truth_contract: blocked_until_reapproval
+          allowed: admitted_read_only or denied with narrowing reasons
+        forbidden_on_hot_path:
+          - capability_widening_after_hello
+          - silent_target_rebind
+
+      - stage_id: seq_stage.remote.environment_facts
+        span_name: remote.environment_facts
+        posture: protected
+        budget:
+          deadline_ms_from_sequence_start: 5000
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Remote attach"
+        trace_refs:
+          trace_event_class: reconnect
+          journey_segment_refs:
+            - seg.reconnect.remote_transport.session_resume
+            - seg.reconnect.ui_dispatch.resumed_paint
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-REMOTE-001
+        cancellation:
+          point: attach window expires or provider reports unavailable
+          authority: remote_manager
+        fallback:
+          truth_contract: missing_provider_labeled
+          allowed: cached read-only state or actionable failure by 5 seconds
+        forbidden_on_hot_path:
+          - hidden_retry_loop_past_deadline
+
+      - stage_id: seq_stage.remote.execution_context
+        span_name: remote.execution_context
+        posture: protected
+        budget:
+          p95_ms: 400
+          deadline_ms_from_stage_start: 400
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md Appendix K "Rerun last task or test"
+            - docs/runtime/execution_context_vocabulary.md
+        trace_refs:
+          trace_event_class: rerun_task
+          journey_segment_refs:
+            - seg.rerun_task.service_hop.environment_diff
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-EXEC-001
+        cancellation:
+          point: target, toolchain, trust, or workset drift before dispatch
+          authority: execution_context_resolver
+        fallback:
+          truth_contract: blocked_until_reapproval
+          allowed: rerun intent confirmation or unsupported-on-this-host result
+        forbidden_on_hot_path:
+          - ambient_unscoped_execution
+
+      - stage_id: seq_stage.remote.test_stream
+        span_name: remote.test_stream
+        posture: protected
+        budget:
+          deadline_ms_from_stage_start: 1000
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Remote attach"
+            - docs/execution/run_and_attempt_contract.md
+        trace_refs:
+          trace_event_class: rerun_task
+          journey_segment_refs:
+            - seg.rerun_task.adapter_layer.runtime_reattach
+            - seg.rerun_task.renderer_work.output_paint
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-RUN-001
+        cancellation:
+          point: user cancel, policy revocation, supervisor quarantine, or disconnect
+          authority: run_attempt_contract
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: partial, stale, failed, cancelled, or unsupported test outcome
+        forbidden_on_hot_path:
+          - raw_remote_log_payload_without_redaction_class
+
+      - stage_id: seq_stage.remote.preview_routes
+        span_name: remote.preview_routes
+        posture: optional
+        budget:
+          deadline_ms_from_sequence_start: 5000
+          budget_status: contract_gate_only
+          source_refs:
+            - fixtures/remote/attach_cases/README.md
+        trace_refs:
+          trace_event_class: reconnect
+          journey_segment_refs:
+            - seg.reconnect.remote_transport.session_resume
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-REMOTE-002
+        cancellation:
+          point: provider unavailable, public tunnel policy denial, or approval expiry
+          authority: remote_route_governor
+        fallback:
+          truth_contract: missing_provider_labeled
+          allowed: suspended route with no traffic and local-only continuation
+        forbidden_on_hot_path:
+          - public_tunnel_publish_before_policy
+          - browser_open_without_handoff_packet
+
+  - sequence_id: seq.collab.shared_debug_follow
+    title: Join collaboration session and follow shared debug moment
+    status: seeded
+    aggregate_budgets:
+      - budget_id: agg.seq.collab.presence_join
+        comparator: "<="
+        target_ms: 2000
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Collaboration join"
+      - budget_id: agg.seq.collab.presence_update_p95
+        comparator: "<="
+        target_ms: 200
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Collaboration join"
+      - budget_id: agg.seq.collab.degrade_local_mode
+        comparator: "must_hold"
+        target: true
+        budget_status: published
+        source_ref: .t2/docs/Aureline_PRD.md "Collaboration join"
+    protected_path_refs:
+      - path.observability.none
+    benchmark_and_fitness_refs:
+      benchmark_rows:
+        - ff.benchmark_lab_health
+      architecture_fitness_rows:
+        - FIT-COLLAB-001
+        - FIT-COLLAB-002
+        - FIT-COLLAB-003
+        - FIT-JOUR-001
+    allowed_degraded_modes:
+      - truth_contract: degraded_labeled
+        condition: relay loss or participant transport drop
+        user_truth: Session transitions to degraded while local editing remains unfrozen.
+      - truth_contract: stale_labeled
+        condition: live follow/debug metadata is unavailable
+        user_truth: Follow summary or local-view-only state replaces live projection.
+      - truth_contract: blocked_until_reapproval
+        condition: control grant revoked or trust narrowed
+        user_truth: Mutating debug actions are blocked until a new grant is minted.
+    failure_injection_links:
+      - case_class: relay_loss_local_editing_continues
+        fixture_refs:
+          - fixtures/collaboration/session_cases/relay_loss_local_editing_continues.yaml
+      - case_class: degraded_follow_no_input_injection
+        fixture_refs:
+          - fixtures/collaboration/shared_control/degraded_follow_no_input_injection.yaml
+      - case_class: debug_grant_revoked
+        fixture_refs:
+          - fixtures/collaboration/shared_control/debug_grant_admin_signed_retained.yaml
+      - case_class: shared_debug_inspect_only
+        fixture_refs:
+          - fixtures/execution/debug_cases/shared_debug_overlay.yaml
+    support_reconstruction_hooks:
+      - hook_id: support_hook.collab.shared_debug_follow
+        scenario_class: wrong_target_or_degraded_state_action
+        required_axes:
+          - exact_build_identity
+          - command
+          - route_target_origin_exposure
+          - claim_row
+          - known_limit_note
+        packet_or_schema_refs:
+          - schemas/collaboration/session_state.schema.json
+          - schemas/collaboration/control_grant.schema.json
+          - schemas/execution/debug_session.schema.json
+          - schemas/support/support_bundle.schema.json
+    stages:
+      - stage_id: seq_stage.collab.publish_envelope
+        span_name: collab.publish_envelope
+        posture: protected
+        budget:
+          allocation_ms: 500
+          deadline_ms_from_sequence_start: 500
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/collaboration/session_authority_contract.md
+        trace_refs:
+          trace_event_class: observability
+          journey_segment_refs: []
+          stage_span_ref: seq_stage.collab.publish_envelope
+          segment_register_status: pending_dedicated_collaboration_segment
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-COLLAB-002
+        cancellation:
+          point: owner cancels before relay admission
+          authority: session_owner
+        fallback:
+          truth_contract: local_only_continuation
+          allowed: return to solo without remote authority
+        forbidden_on_hot_path:
+          - full_payload_retention_without_session_policy
+
+      - stage_id: seq_stage.collab.join_presence
+        span_name: collab.join_presence
+        posture: protected
+        budget:
+          median_ms: 2000
+          deadline_ms_from_sequence_start: 2000
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Collaboration join"
+        trace_refs:
+          trace_event_class: observability
+          journey_segment_refs: []
+          stage_span_ref: seq_stage.collab.join_presence
+          segment_register_status: pending_dedicated_collaboration_segment
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-COLLAB-002
+        cancellation:
+          point: guest cancels join before admitted session row
+          authority: guest_user
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: local view only or invitation/handoff fallback
+        forbidden_on_hot_path:
+          - local_buffer_freeze_on_join_failure
+
+      - stage_id: seq_stage.collab.presence_update
+        span_name: collab.presence_update
+        posture: protected
+        budget:
+          p95_ms: 200
+          deadline_ms_from_stage_start: 200
+          budget_status: published
+          source_refs:
+            - .t2/docs/Aureline_PRD.md "Collaboration join"
+        trace_refs:
+          trace_event_class: observability
+          journey_segment_refs: []
+          stage_span_ref: seq_stage.collab.presence_update
+          segment_register_status: pending_dedicated_collaboration_segment
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-COLLAB-002
+        cancellation:
+          point: observer pauses follow or relay drops
+          authority: follow_presenter_state
+        fallback:
+          truth_contract: stale_labeled
+          allowed: summary readout or local-view-only state
+        forbidden_on_hot_path:
+          - hidden_input_injection_during_degraded_follow
+
+      - stage_id: seq_stage.collab.debug_metadata
+        span_name: collab.debug_metadata
+        posture: protected
+        budget:
+          p95_ms: 200
+          deadline_ms_from_stage_start: 200
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/execution/debug_truth_contract.md
+            - docs/collaboration/shared_control_contract.md
+        trace_refs:
+          trace_event_class: observability
+          journey_segment_refs: []
+          stage_span_ref: seq_stage.collab.debug_metadata
+          segment_register_status: pending_dedicated_collaboration_segment
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-COLLAB-001
+        cancellation:
+          point: debug session ends or observer exits follow
+          authority: debugger_or_observer
+        fallback:
+          truth_contract: stale_labeled
+          allowed: inspect-only stale debug summary with no live control
+        forbidden_on_hot_path:
+          - control_inferred_from_presenter_or_presence
+
+      - stage_id: seq_stage.collab.follow_projection
+        span_name: collab.follow_projection
+        posture: protected
+        budget:
+          allocation_ms: 300
+          deadline_ms_from_stage_start: 300
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/collaboration/shared_control_contract.md
+        trace_refs:
+          trace_event_class: observability
+          journey_segment_refs: []
+          stage_span_ref: seq_stage.collab.follow_projection
+          segment_register_status: pending_dedicated_collaboration_segment
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-COLLAB-001
+        cancellation:
+          point: observer pauses follow, presenter handoff changes, or session degrades
+          authority: follow_presenter_state
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: follow-only summary or local-view-only state
+        forbidden_on_hot_path:
+          - shell_input_replay_on_join
+
+      - stage_id: seq_stage.collab.control_grant
+        span_name: collab.control_grant
+        posture: optional
+        budget:
+          allocation_ms: 500
+          deadline_ms_from_stage_start: 500
+          budget_status: provisional_until_calibrated
+          source_refs:
+            - docs/collaboration/shared_control_contract.md
+        trace_refs:
+          trace_event_class: observability
+          journey_segment_refs: []
+          stage_span_ref: seq_stage.collab.control_grant
+          segment_register_status: pending_dedicated_collaboration_segment
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-COLLAB-001
+        cancellation:
+          point: policy revokes, grant expires, or trust narrows
+          authority: control_grant_record
+        fallback:
+          truth_contract: blocked_until_reapproval
+          allowed: inspect-only debug state until a new grant is minted
+        forbidden_on_hot_path:
+          - mutating_debug_action_without_control_grant
+
+      - stage_id: seq_stage.collab.audit_refs
+        span_name: collab.audit_refs
+        posture: backgroundable
+        budget:
+          allocation_ms: 500
+          deadline_ms_from_stage_start: 500
+          budget_status: contract_gate_only
+          source_refs:
+            - docs/collaboration/session_authority_contract.md
+            - docs/collaboration/consent_retention_contract.md
+        trace_refs:
+          trace_event_class: observability
+          journey_segment_refs: []
+          stage_span_ref: seq_stage.collab.audit_refs
+          segment_register_status: pending_dedicated_collaboration_segment
+        evidence_refs:
+          budget_refs:
+            - path.observability.none
+          fitness_refs:
+            - FIT-COLLAB-003
+        cancellation:
+          point: archive seal cancelled before terminal state
+          authority: session_owner_or_policy
+        fallback:
+          truth_contract: degraded_labeled
+          allowed: metadata-only audit refs with omitted payload reasons
+        forbidden_on_hot_path:
+          - raw_terminal_or_debug_payload_retention_by_default
