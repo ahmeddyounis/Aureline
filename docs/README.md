@@ -572,6 +572,15 @@ code.
   worked fixtures (destructive core path, publish-capable /
   externally-mutating path, responsive-fallback denial) in
   [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
+- [`ux/splitter_contract.md`](./ux/splitter_contract.md)
+  — splitter and resizable-pane contract covering visible line versus
+  hit target, hover/focus reinforcement, keyboard fine and coarse
+  resize, reset/equalize behavior, screen-reader controlled-region
+  naming, recoverable collapse, no-silent-collapse barriers, and
+  proportional or preset-based persistence. Boundary schema in
+  [`/schemas/ux/splitter_state.schema.json`](../schemas/ux/splitter_state.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/splitter_cases/`](../fixtures/ux/splitter_cases/).
 - [`ux/status_bar_contract.md`](./ux/status_bar_contract.md)
   — status bar priority, stable-slot, compact overflow, search/menu
   parity, extension contribution budget, and anti-jitter contract for

@@ -1,0 +1,799 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/splitter_state.schema.json",
+  "title": "Aureline splitter and resizable-pane state contract",
+  "description": "Boundary schema for the splitter and resizable-pane contract frozen in docs/ux/splitter_contract.md. The schema exports splitter_control_record, pane_collapse_decision_record, and splitter_persistence_record so shell, renderer, restore, support export, accessibility, and command surfaces share one vocabulary for visible line versus hit target, hover and focus reinforcement, keyboard fine/coarse resize, reset/equalize actions, screen-reader naming, recoverable collapsed panes, no-silent-collapse guardrails, and proportional or preset-based persistence. Raw paths, raw logs, raw command lines, raw provider payloads, raw credentials, live authority handles, and task/planning identifiers never cross this boundary; records carry opaque refs, bounded labels, typed state, and redaction-aware support evidence only. Adding a new record kind, region role, command class, recovery affordance, collapse barrier, persistence mode, preset, topology-change class, or denial/outcome value is additive-minor and bumps splitter_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/splitter_control_record" },
+    { "$ref": "#/$defs/pane_collapse_decision_record" },
+    { "$ref": "#/$defs/splitter_persistence_record" }
+  ],
+  "$defs": {
+    "splitter_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for splitter controls, collapse decisions, and persistence decisions. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "record_kinds_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, safe on RPC, safe in manifests, and safe in support bundles. Raw paths, raw payloads, raw commands, and capability tickets never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp emitted by the producer."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded redaction-aware display or support text. Raw absolute paths, raw logs, raw commands, raw provider payloads, and secret material must not appear."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 140,
+      "description": "Short redaction-aware label suitable for accessibility names, command rows, and visible recovery affordances."
+    },
+    "unit_interval": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Normalized fraction between 0 and 1."
+    },
+    "percent_value": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Percentage value between 0 and 100."
+    },
+    "logical_px": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Logical pixel count after OS and app scaling facts are accounted for by the producer."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "splitter_control_record",
+        "pane_collapse_decision_record",
+        "splitter_persistence_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "splitter_orientation": {
+      "type": "string",
+      "enum": [
+        "vertical_handle_resizes_horizontal_regions",
+        "horizontal_handle_resizes_vertical_regions"
+      ],
+      "description": "Orientation of the visible handle and the axis of the controlled regions."
+    },
+    "region_role": {
+      "type": "string",
+      "enum": [
+        "title_context_bar",
+        "activity_rail",
+        "left_sidebar",
+        "main_workspace",
+        "right_inspector",
+        "bottom_panel",
+        "status_bar",
+        "transient_overlay",
+        "editor_group",
+        "terminal_panel",
+        "problems_panel",
+        "debug_panel",
+        "notebook_panel",
+        "search_panel",
+        "compare_source",
+        "compare_target",
+        "extension_view",
+        "placeholder"
+      ],
+      "description": "Redaction-safe controlled region role. Shell-zone values re-export the shell-zone contract; panel and compare values refine pane contents without minting authority."
+    },
+    "interaction_state": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "hovered",
+        "focused",
+        "dragging",
+        "keyboard_resizing",
+        "disabled",
+        "degraded"
+      ]
+    },
+    "reinforcement_kind": {
+      "type": "string",
+      "enum": [
+        "contrast_only",
+        "contrast_and_thickness",
+        "local_handle_marks",
+        "focus_ring_and_value_popover",
+        "not_applicable"
+      ],
+      "description": "How hover, drag, or keyboard focus reinforces the splitter without heavy chrome."
+    },
+    "keyboard_command_class": {
+      "type": "string",
+      "enum": [
+        "fine_decrease",
+        "fine_increase",
+        "coarse_decrease",
+        "coarse_increase",
+        "reset_to_default",
+        "equalize_siblings",
+        "collapse_focused_side",
+        "restore_collapsed_side"
+      ],
+      "description": "Semantic splitter command. Concrete keybindings are resolved elsewhere."
+    },
+    "disabled_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_disabled",
+        "minimum_width_reached",
+        "policy_locked",
+        "dirty_recovery_visible_elsewhere_required",
+        "durable_job_visible_elsewhere_required",
+        "missing_recovery_route",
+        "unsupported_embedded_surface",
+        "unknown_pending_probe"
+      ]
+    },
+    "collapse_request_source": {
+      "type": "string",
+      "enum": [
+        "user_invoked",
+        "keyboard_command",
+        "pointer_double_click",
+        "adaptive_layout",
+        "neighbor_requested_space",
+        "restore_reflow",
+        "density_or_zoom_change",
+        "display_topology_change"
+      ]
+    },
+    "collapse_outcome": {
+      "type": "string",
+      "enum": [
+        "collapse_allowed",
+        "collapse_denied",
+        "collapse_staged_for_review",
+        "collapsed_to_visible_summary",
+        "sheeted_instead",
+        "overflowed_instead",
+        "placeholder_preserved"
+      ]
+    },
+    "collapse_barrier_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "durable_job",
+        "blocking_problem",
+        "active_debug_session",
+        "dirty_recovery_or_unsaved_journal",
+        "policy_critical_state",
+        "trust_or_reauth_required",
+        "remote_reconnect_required",
+        "collaboration_or_follow_control_state",
+        "minimum_useful_size_violation",
+        "missing_recovery_route"
+      ],
+      "description": "State that prevents silent collapse or requires visible summary routes."
+    },
+    "recovery_affordance_class": {
+      "type": "string",
+      "enum": [
+        "visible_splitter_stub",
+        "zone_toggle",
+        "panel_tab",
+        "status_item",
+        "placeholder_card",
+        "overflow_menu_row",
+        "command_palette_entry",
+        "menu_entry",
+        "restore_provenance_detail"
+      ],
+      "description": "Recovery route for a collapsed, sheeted, overflowed, placeholder, or evidence-only pane."
+    },
+    "command_route_kind": {
+      "type": "string",
+      "enum": [
+        "resize",
+        "reset",
+        "equalize",
+        "collapse",
+        "restore",
+        "open_details",
+        "reveal_status",
+        "export_evidence"
+      ]
+    },
+    "persistence_mode": {
+      "type": "string",
+      "enum": [
+        "proportional_intent",
+        "named_preset",
+        "explicit_user_override",
+        "temporary_session_only"
+      ]
+    },
+    "named_preset": {
+      "type": "string",
+      "enum": [
+        "none",
+        "default_shell",
+        "equalized",
+        "editor_dominant",
+        "terminal_tall",
+        "inspector_narrow",
+        "sidebar_standard",
+        "presentation_review"
+      ]
+    },
+    "adaptive_class": {
+      "type": "string",
+      "enum": [
+        "compact_desktop",
+        "standard_desktop",
+        "expanded_desktop",
+        "split_heavy_desktop",
+        "multi_window_desktop"
+      ]
+    },
+    "density_mode": {
+      "type": "string",
+      "enum": ["compact", "standard", "comfortable"]
+    },
+    "platform_class": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux", "browser_companion", "unknown"]
+    },
+    "scale_bucket": {
+      "type": "string",
+      "enum": [
+        "scale_1x",
+        "scale_fractional",
+        "scale_2x_or_higher",
+        "mixed_dpi",
+        "unknown"
+      ]
+    },
+    "topology_change_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "monitor_detached",
+        "monitor_attached",
+        "safe_bounds_remap",
+        "zoom_changed",
+        "density_changed",
+        "platform_chrome_changed",
+        "split_sibling_added",
+        "split_sibling_removed"
+      ]
+    },
+    "restoration_outcome": {
+      "type": "string",
+      "enum": [
+        "restored_exact_intent",
+        "restored_with_clamp",
+        "restored_as_named_preset",
+        "restored_with_sheet_fallback",
+        "restored_with_overflow_fallback",
+        "restored_with_visible_summary",
+        "not_restored_review_required"
+      ]
+    },
+    "clamp_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "minimum_useful_width",
+        "minimum_useful_height",
+        "hit_target_floor",
+        "policy_barrier",
+        "display_safe_bounds",
+        "zoom_or_density_floor",
+        "main_workspace_dominance"
+      ]
+    },
+    "controlled_region_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region_id",
+        "pane_id_ref",
+        "region_role",
+        "accessible_label",
+        "current_size_ratio",
+        "minimum_size_px",
+        "is_collapsed"
+      ],
+      "properties": {
+        "region_id": { "$ref": "#/$defs/opaque_id" },
+        "pane_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "region_role": { "$ref": "#/$defs/region_role" },
+        "accessible_label": { "$ref": "#/$defs/short_label_text" },
+        "current_size_ratio": { "$ref": "#/$defs/unit_interval" },
+        "minimum_size_px": { "$ref": "#/$defs/logical_px" },
+        "is_collapsed": { "type": "boolean" },
+        "state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "description": "One region controlled by a splitter."
+    },
+    "visual_hit_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_line_px",
+        "hit_target_px",
+        "minimum_hit_target_px",
+        "preferred_hit_target_min_px",
+        "preferred_hit_target_max_px",
+        "hit_target_exceeds_visible_line",
+        "density_floor_preserved",
+        "hover_reinforcement",
+        "focus_reinforcement",
+        "no_layout_shift_on_reinforcement"
+      ],
+      "properties": {
+        "visible_line_px": { "$ref": "#/$defs/logical_px" },
+        "hit_target_px": { "$ref": "#/$defs/logical_px" },
+        "minimum_hit_target_px": { "$ref": "#/$defs/logical_px" },
+        "preferred_hit_target_min_px": { "$ref": "#/$defs/logical_px" },
+        "preferred_hit_target_max_px": { "$ref": "#/$defs/logical_px" },
+        "hit_target_exceeds_visible_line": { "type": "boolean" },
+        "density_floor_preserved": { "type": "boolean" },
+        "hover_reinforcement": { "$ref": "#/$defs/reinforcement_kind" },
+        "focus_reinforcement": { "$ref": "#/$defs/reinforcement_kind" },
+        "no_layout_shift_on_reinforcement": { "type": "boolean" }
+      },
+      "description": "Visible splitter line versus logical hit target and reinforcement behavior."
+    },
+    "keyboard_resize_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focusable",
+        "fine_step_percent",
+        "coarse_step_percent",
+        "commands_available",
+        "reset_available",
+        "equalize_available",
+        "bounds_clamp_announced",
+        "same_engine_as_pointer_drag"
+      ],
+      "properties": {
+        "focusable": { "type": "boolean" },
+        "fine_step_percent": { "$ref": "#/$defs/percent_value" },
+        "coarse_step_percent": { "$ref": "#/$defs/percent_value" },
+        "commands_available": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/keyboard_command_class" }
+        },
+        "reset_available": { "type": "boolean" },
+        "equalize_available": { "type": "boolean" },
+        "bounds_clamp_announced": { "type": "boolean" },
+        "same_engine_as_pointer_drag": { "type": "boolean" },
+        "disabled_reason": { "$ref": "#/$defs/disabled_reason_class" }
+      },
+      "description": "Keyboard and command model for an adjustable splitter."
+    },
+    "accessibility_publication_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "screen_reader_name",
+        "orientation",
+        "value_now_percent",
+        "value_min_percent",
+        "value_max_percent",
+        "controlled_region_refs",
+        "controlled_region_labels",
+        "anonymous_separator_forbidden",
+        "current_state_announced"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["adjustable_separator"]
+        },
+        "screen_reader_name": { "$ref": "#/$defs/short_label_text" },
+        "orientation": { "$ref": "#/$defs/splitter_orientation" },
+        "value_now_percent": { "$ref": "#/$defs/percent_value" },
+        "value_min_percent": { "$ref": "#/$defs/percent_value" },
+        "value_max_percent": { "$ref": "#/$defs/percent_value" },
+        "controlled_region_refs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "controlled_region_labels": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/short_label_text" }
+        },
+        "anonymous_separator_forbidden": { "type": "boolean" },
+        "current_state_announced": { "type": "boolean" },
+        "description": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Accessibility-tree projection for a splitter."
+    },
+    "command_route_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_kind",
+        "command_ref",
+        "visible_label",
+        "focus_return_target_ref",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "route_kind": { "$ref": "#/$defs/command_route_kind" },
+        "command_ref": { "$ref": "#/$defs/opaque_id" },
+        "visible_label": { "$ref": "#/$defs/short_label_text" },
+        "focus_return_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "keyboard_reachable": { "type": "boolean" },
+        "disabled_reason": { "$ref": "#/$defs/disabled_reason_class" }
+      },
+      "description": "Command-backed route for resize, collapse, restore, or details."
+    },
+    "recovery_route_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affordance_class",
+        "route_visible",
+        "keyboard_reachable",
+        "accessible_label",
+        "command_route"
+      ],
+      "properties": {
+        "affordance_class": { "$ref": "#/$defs/recovery_affordance_class" },
+        "route_visible": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean" },
+        "accessible_label": { "$ref": "#/$defs/short_label_text" },
+        "command_route": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/command_route_record" }
+          ]
+        }
+      },
+      "description": "Visible or command-backed route that recovers a collapsed or degraded pane."
+    },
+    "collapse_guardrail_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_id_preserved",
+        "recovery_route_registered",
+        "barrier_state_summarized",
+        "focus_return_recorded",
+        "no_silent_collapse_prevented",
+        "workspace_authority_not_mutated"
+      ],
+      "properties": {
+        "pane_id_preserved": { "type": "boolean" },
+        "recovery_route_registered": { "type": "boolean" },
+        "barrier_state_summarized": { "type": "boolean" },
+        "focus_return_recorded": { "type": "boolean" },
+        "no_silent_collapse_prevented": { "type": "boolean" },
+        "workspace_authority_not_mutated": { "type": "boolean" }
+      },
+      "description": "Booleans proving the collapse decision preserved layout truth and protected state."
+    },
+    "region_weight_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id_ref", "weight"],
+      "properties": {
+        "region_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "weight": { "$ref": "#/$defs/unit_interval" }
+      },
+      "description": "Normalized persisted or restored splitter weight for one region."
+    },
+    "topology_context_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adaptive_class",
+        "density_mode",
+        "zoom_percent",
+        "platform_class",
+        "scale_bucket",
+        "available_span_px"
+      ],
+      "properties": {
+        "adaptive_class": { "$ref": "#/$defs/adaptive_class" },
+        "density_mode": { "$ref": "#/$defs/density_mode" },
+        "zoom_percent": { "type": "integer", "minimum": 25, "maximum": 500 },
+        "platform_class": { "$ref": "#/$defs/platform_class" },
+        "scale_bucket": { "$ref": "#/$defs/scale_bucket" },
+        "available_span_px": { "$ref": "#/$defs/logical_px" }
+      },
+      "description": "Topology and presentation context used to restore splitter intent."
+    },
+    "persistence_invariant_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_pixels_not_durable_authority",
+        "proportional_or_preset_applied",
+        "minimums_respected_after_clamp",
+        "focus_visible_after_restore",
+        "recovery_routes_preserved",
+        "adaptive_fallback_not_written_as_preference",
+        "hit_target_floor_preserved"
+      ],
+      "properties": {
+        "raw_pixels_not_durable_authority": { "type": "boolean" },
+        "proportional_or_preset_applied": { "type": "boolean" },
+        "minimums_respected_after_clamp": { "type": "boolean" },
+        "focus_visible_after_restore": { "type": "boolean" },
+        "recovery_routes_preserved": { "type": "boolean" },
+        "adaptive_fallback_not_written_as_preference": { "type": "boolean" },
+        "hit_target_floor_preserved": { "type": "boolean" }
+      },
+      "description": "Booleans proving a persistence restore preserved intent rather than stale pixels."
+    },
+    "splitter_control_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "splitter_state_schema_version",
+        "splitter_id",
+        "split_id_ref",
+        "window_id_ref",
+        "orientation",
+        "controlled_regions",
+        "visual_hit_target",
+        "keyboard_resize",
+        "accessibility",
+        "interaction_states_supported",
+        "command_routes",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "splitter_control_record" },
+        "splitter_state_schema_version": { "$ref": "#/$defs/splitter_state_schema_version" },
+        "splitter_id": { "$ref": "#/$defs/opaque_id" },
+        "split_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "orientation": { "$ref": "#/$defs/splitter_orientation" },
+        "controlled_regions": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/controlled_region_record" }
+        },
+        "visual_hit_target": { "$ref": "#/$defs/visual_hit_target_record" },
+        "keyboard_resize": { "$ref": "#/$defs/keyboard_resize_model" },
+        "accessibility": { "$ref": "#/$defs/accessibility_publication_record" },
+        "interaction_states_supported": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/interaction_state" }
+        },
+        "command_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_route_record" }
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_text" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One interactive splitter control and its accessibility / keyboard contract."
+    },
+    "pane_collapse_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "splitter_state_schema_version",
+        "decision_id",
+        "request_source",
+        "requested_by_ref",
+        "target_splitter_ref",
+        "target_region",
+        "target_pane_ref",
+        "barrier_classes",
+        "protected_state_refs",
+        "outcome",
+        "visible_explanation_required",
+        "user_visible_reason_label",
+        "recovery_routes",
+        "command_backed_reopen_paths",
+        "guardrail_checks",
+        "focus_return_target_ref",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "pane_collapse_decision_record" },
+        "splitter_state_schema_version": { "$ref": "#/$defs/splitter_state_schema_version" },
+        "decision_id": { "$ref": "#/$defs/opaque_id" },
+        "request_source": { "$ref": "#/$defs/collapse_request_source" },
+        "requested_by_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_splitter_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_region": { "$ref": "#/$defs/controlled_region_record" },
+        "target_pane_ref": { "$ref": "#/$defs/opaque_id" },
+        "barrier_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/collapse_barrier_class" }
+        },
+        "protected_state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "outcome": { "$ref": "#/$defs/collapse_outcome" },
+        "visible_explanation_required": { "type": "boolean" },
+        "user_visible_reason_label": { "$ref": "#/$defs/short_label_text" },
+        "recovery_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_route_record" }
+        },
+        "command_backed_reopen_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_route_record" }
+        },
+        "guardrail_checks": { "$ref": "#/$defs/collapse_guardrail_checks" },
+        "focus_return_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_text" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One decision about whether a pane may collapse, sheet, overflow, or remain visible."
+    },
+    "splitter_persistence_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "splitter_state_schema_version",
+        "persistence_id",
+        "splitter_id_ref",
+        "split_id_ref",
+        "window_id_ref",
+        "mode",
+        "named_preset",
+        "saved_region_weights",
+        "restored_region_weights",
+        "previous_context",
+        "current_context",
+        "topology_changes",
+        "restoration_outcome",
+        "clamp_reasons",
+        "pixel_snapshot_authority",
+        "recovery_routes",
+        "invariant_checks",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "splitter_persistence_record" },
+        "splitter_state_schema_version": { "$ref": "#/$defs/splitter_state_schema_version" },
+        "persistence_id": { "$ref": "#/$defs/opaque_id" },
+        "splitter_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "split_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "mode": { "$ref": "#/$defs/persistence_mode" },
+        "named_preset": { "$ref": "#/$defs/named_preset" },
+        "saved_region_weights": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/region_weight_record" }
+        },
+        "restored_region_weights": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/region_weight_record" }
+        },
+        "previous_context": { "$ref": "#/$defs/topology_context_record" },
+        "current_context": { "$ref": "#/$defs/topology_context_record" },
+        "topology_changes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/topology_change_class" }
+        },
+        "restoration_outcome": { "$ref": "#/$defs/restoration_outcome" },
+        "clamp_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/clamp_reason_class" }
+        },
+        "pixel_snapshot_authority": {
+          "type": "string",
+          "const": "diagnostic_hint_only_not_durable_authority"
+        },
+        "recovery_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_route_record" }
+        },
+        "invariant_checks": { "$ref": "#/$defs/persistence_invariant_checks" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_text" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One persisted splitter intent or restore decision after topology, zoom, density, or platform change."
+    }
+  }
+}
