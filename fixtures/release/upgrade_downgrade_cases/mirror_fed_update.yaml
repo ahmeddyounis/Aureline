@@ -1,0 +1,107 @@
+schema_version: 1
+record_kind: upgrade_downgrade_case_record
+case_id: release.update.mirror_fed.signature_preserved
+case_class: mirror_fed_update
+scenario_summary: >
+  An air-gapped enterprise imports an update from a customer-managed
+  mirror. The manifest preserves origin digest, origin signature,
+  revocation snapshot, trust-root continuity, mirror lineage, manual
+  import receipt, staged rollout state, and rollback target.
+schema_refs:
+  update_manifest: schemas/release/update_manifest.schema.json
+  helper_negotiation: schemas/release/helper_version_negotiation.schema.json
+
+update_manifest_summary:
+  manifest_id: update_manifest:stable.mirror.2026-04
+  channel_class: stable
+  source_class: customer_managed_mirror
+  feed_ref: mirror_feed:customer-a.stable
+  mirror_lineage_ref: mirror_lineage:customer-a.2026-04
+  manual_import_receipt_ref: manual_import:customer-a.2026-04
+  trust_root_ref: trust_root:release.cross_signed.customer-a
+  requested_action_class: publish
+  publish_target_class: mirror_air_gap_bundle
+  promotion_stage_class: pilot
+  staged_rollout_ref: rollout:customer-a.pilot.2026-04
+  rollback_stop_ref: null
+
+artifacts:
+  - artifact_id: artifact:ide.linux.tarball.stable.2026-04
+    artifact_family_class: linux_tarball
+    artifact_family_ref: artifact_family.linux.tarball
+    exact_build_identity_ref: exact_build:ide_binary.linux.x86_64.2026-04
+    build_id: build:release.2026-04.01
+    digest_ref: cas:release/ide/linux/1.4.0
+    signature_ref: signature:origin.release.2026-04.linux
+    signature_state: verified
+    platform_trust_class: enterprise_mirror_signature_verified
+    platform_receipt_ref: mirror_receipt:customer-a.2026-04.linux
+    revocation_ref: revocation_snapshot:customer-a.2026-04
+    rollback_atom_member: true
+  - artifact_id: artifact:remote_agent.linux.2026-04
+    artifact_family_class: remote_agent_tarball
+    artifact_family_ref: artifact_family.remote.agent_tarball
+    exact_build_identity_ref: exact_build:remote_agent.linux.x86_64.2026-04
+    build_id: build:release.2026-04.01
+    digest_ref: cas:release/agent/linux/1.4.0
+    signature_ref: signature:origin.release.2026-04.agent
+    signature_state: verified
+    platform_trust_class: enterprise_mirror_signature_verified
+    platform_receipt_ref: mirror_receipt:customer-a.2026-04.agent
+    revocation_ref: revocation_snapshot:customer-a.2026-04
+    rollback_atom_member: true
+
+downgrade_policy:
+  eligibility_state: eligible_with_review
+  backup_required: true
+  backup_snapshot_ref: backup:customer-a.profile.2026-04
+  migration_journal_required: true
+  migration_journal_ref: migration_journal:customer-a.profile.2026-04
+  manual_review_reason_classes:
+    - mirror_lineage_incomplete
+  blocked_reason_classes: []
+  support_summary: >
+    Update can apply after operator review confirms mirror lineage,
+    manual-import receipt, and revocation snapshot freshness.
+
+helper_negotiation:
+  packet_id: helper_negotiation:customer-a.mirror_import.agent
+  surface_class: mirror_import_preflight
+  operation_class: mirror_import
+  version_window_state: compatible
+  decision_class: allow
+  unsupported_behavior_class: not_applicable
+  selected_contract_version: agent@2026-04
+  negotiated_capabilities:
+    - file_attach
+    - review_only_attach
+    - mutating_attach
+  evidence_refs:
+    - manual_import:customer-a.2026-04
+    - mirror_lineage:customer-a.2026-04
+    - signature:origin.release.2026-04.agent
+
+support_reconstruction:
+  exact_build_identity_refs:
+    - exact_build:ide_binary.linux.x86_64.2026-04
+    - exact_build:remote_agent.linux.x86_64.2026-04
+  signature_evidence_refs:
+    - signature:origin.release.2026-04.linux
+    - signature:origin.release.2026-04.agent
+  platform_trust_refs:
+    - mirror_receipt:customer-a.2026-04.linux
+    - mirror_receipt:customer-a.2026-04.agent
+  manifest_evidence_refs:
+    - update_manifest:stable.mirror.2026-04
+  support_packet_refs:
+    - support_packet:customer-a.mirror_import.2026-04
+  reconstruction_summary: >
+    Enterprise validation reconstructs the mirror import from origin
+    digest and signature refs plus mirror lineage and manual-import
+    receipt.
+
+expected_result:
+  update_state: manual_review_before_apply
+  downgrade_eligibility_state: eligible_with_review
+  helper_decision: allow
+  release_summary: Mirror transport narrows publication until operator review confirms lineage and freshness.

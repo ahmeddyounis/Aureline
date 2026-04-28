@@ -1,0 +1,105 @@
+schema_version: 1
+record_kind: upgrade_downgrade_case_record
+case_id: release.downgrade.blocked_missing_journal
+case_class: blocked_downgrade
+scenario_summary: >
+  An administrator attempts to pin a stable fleet back to an older
+  build after the newer build wrote user-authored profile state. The
+  target build cannot prove it can read the newer schema and no
+  migration journal is present, so the manifest blocks automatic
+  downgrade and routes to manual repair review.
+schema_refs:
+  update_manifest: schemas/release/update_manifest.schema.json
+  helper_negotiation: schemas/release/helper_version_negotiation.schema.json
+
+update_manifest_ref: update_manifest:stable.rollback.blocked_missing_journal
+source_build_ref: exact_build:ide_binary.windows.x86_64.2026-04
+target_build_ref: exact_build:ide_binary.windows.x86_64.2026-03
+channel_class: stable
+source_class: managed_fleet_feed
+requested_action_class: rollback
+publication:
+  publish_target_class: managed_fleet
+  promotion_stage_class: rollback_staged
+  release_center_event_ref: release_center:stable.rollback.requested
+  headless_command_ref: fleetctl:rollback.requested
+  break_glass_active: false
+
+downgrade_policy:
+  eligibility_state: blocked
+  backup_required: true
+  backup_snapshot_ref: backup:profile.2026-04.partial
+  migration_journal_required: true
+  migration_journal_ref: null
+  manual_review_reason_classes:
+    - migration_journal_missing
+    - state_schema_meaning_changed
+    - admin_pinned_floor_requires_approval
+  blocked_reason_classes:
+    - target_cannot_read_or_repair_state
+  preserved_state_root_refs:
+    - state.per_user_configuration_root.stable
+    - state.per_user_recovery_root.stable
+  repair_transaction_ref: repair:profile.rollback.manual_review
+  support_summary: >
+    Automatic downgrade is blocked because the target build cannot
+    prove it can read the newer state schema and the migration journal
+    required for schema downgrade is missing.
+
+rollback_repair_links:
+  - link_id: review:rollback.profile_schema_changed
+    link_class: manual_review_ticket
+    target_manifest_ref: update_manifest:stable.2026-03.last_known_good
+    required: true
+    summary: Reviewer must choose repair, export, or abort before state is touched.
+  - link_id: repair:profile.rollback.manual_review
+    link_class: repair_transaction
+    target_manifest_ref: null
+    required: true
+    summary: Repair transaction must preserve user-authored state before any rollback apply.
+
+helper_negotiation:
+  packet_id: helper_negotiation:stable.rollback.preflight.blocked_missing_journal
+  surface_class: rollback_repair_preflight
+  operation_class: rollback
+  version_window_state: compatible_degraded
+  decision_class: manual_review
+  unsupported_behavior_class: require_manual_repair
+  selected_contract_version: agent@2026-03
+  negotiated_capabilities:
+    - file_attach
+    - review_only_attach
+  dropped_capabilities:
+    - capability: mutating_attach
+      reason_class: schema_epoch_mismatch
+      reason_note: Mutating attach is denied until the state repair plan is approved.
+  compatibility_row_ref: compat_row:remote.attach_envelope_and_drift
+  skew_window_ref: skew_window:desktop_cli_and_remote_agent.declared_adjacent_window
+  version_skew_register_ref: skew_register:remote.attach_envelope_and_drift
+
+support_reconstruction:
+  exact_build_identity_refs:
+    - exact_build:ide_binary.windows.x86_64.2026-04
+    - exact_build:ide_binary.windows.x86_64.2026-03
+  signature_evidence_refs:
+    - signature:release.2026-04.ide.windows
+    - signature:release.2026-03.ide.windows
+  migration_journal_refs: []
+  backup_snapshot_refs:
+    - backup:profile.2026-04.partial
+  repair_transaction_refs:
+    - repair:profile.rollback.manual_review
+  support_packet_refs:
+    - support_packet:rollback.blocked_missing_journal
+  reconstruction_summary: >
+    Support can reconstruct why the rollback was requested and why it
+    stopped, but cannot reconstruct a safe state downgrade without the
+    missing migration journal.
+
+expected_result:
+  update_state: blocked
+  downgrade_eligibility_state: blocked
+  helper_decision: manual_review
+  release_summary: >
+    No automatic rollback occurs. The fleet remains on the newer build
+    until an operator approves repair, export, or abort.

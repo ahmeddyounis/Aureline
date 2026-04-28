@@ -1,0 +1,646 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/update_manifest.schema.json",
+  "title": "Aureline update manifest, rollback, and release action contract",
+  "description": "Boundary schema for update_manifest_record, update_manifest_artifact_record, and update_manifest_action_record frozen in docs/release/update_and_rollback_contract.md. The object family binds release channel, source, artifact family, exact-build identity, build id, digest, signature, platform trust or notarization refs, staged rollout, rollback or repair refs, downgrade eligibility, helper-negotiation refs, publish target, promotion stage, and break-glass reconciliation fields. Raw binaries, raw signing material, raw installer logs, raw platform receipts, raw user state, raw support bundle bodies, and raw mirror URLs never appear; records carry refs, stable ids, typed states, and summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/update_manifest_record" },
+    { "$ref": "#/$defs/update_manifest_artifact_record" },
+    { "$ref": "#/$defs/update_manifest_action_record" }
+  ],
+  "$defs": {
+    "update_manifest_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix",
+        "portable_stable",
+        "portable_preview",
+        "remote_agent_runtime",
+        "remote_helper_runtime"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "official_update_feed",
+        "customer_managed_mirror",
+        "offline_air_gap_bundle",
+        "manual_import_receipt",
+        "managed_fleet_feed",
+        "external_package_manager_feed",
+        "portable_self_update_index",
+        "emergency_mirror_only_feed"
+      ]
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "ide_debug_symbols",
+        "cli_binary",
+        "cli_debug_symbols",
+        "sdk_library",
+        "source_map_bundle",
+        "docs_pack",
+        "schema_export",
+        "reference_pack",
+        "sbom_document",
+        "signed_attestation",
+        "source_bundle",
+        "crash_symbols_archive",
+        "reproducibility_pack",
+        "support_runbook_bundle",
+        "release_evidence_packet",
+        "windows_msi",
+        "windows_msix",
+        "windows_signed_portable_zip",
+        "macos_pkg",
+        "macos_notarized_dmg",
+        "macos_signed_app_zip",
+        "linux_deb",
+        "linux_rpm",
+        "linux_appimage",
+        "linux_tarball",
+        "remote_agent_tarball",
+        "remote_helper_tarball",
+        "remote_agent_image_layer_bundle",
+        "update_metadata",
+        "revocation_manifest",
+        "policy_bundle"
+      ]
+    },
+    "platform_class": {
+      "type": "string",
+      "enum": [
+        "windows",
+        "macos",
+        "linux",
+        "remote_linux_target",
+        "remote_container_target",
+        "air_gap_bundle_target",
+        "platform_agnostic"
+      ]
+    },
+    "architecture_class": {
+      "type": "string",
+      "enum": [
+        "x86_64",
+        "aarch64",
+        "universal_binary",
+        "platform_native_any",
+        "cpu_agnostic"
+      ]
+    },
+    "hash_algorithm_class": {
+      "type": "string",
+      "enum": ["sha256_content", "blake3_content"]
+    },
+    "signature_state": {
+      "type": "string",
+      "enum": [
+        "missing",
+        "present_unverified",
+        "verified",
+        "revoked",
+        "superseded"
+      ]
+    },
+    "platform_trust_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "macos_notarized",
+        "macos_notarization_pending",
+        "windows_authenticode_verified",
+        "windows_smart_app_control_ready",
+        "linux_repo_signature_verified",
+        "linux_package_signature_verified",
+        "enterprise_mirror_signature_verified",
+        "manual_import_receipt_verified",
+        "platform_trust_failed"
+      ]
+    },
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "publish",
+        "promote",
+        "rollback",
+        "revoke",
+        "yank",
+        "repair",
+        "reconstruct"
+      ]
+    },
+    "publish_target_class": {
+      "type": "string",
+      "enum": [
+        "channel",
+        "registry_marketplace",
+        "mirror_air_gap_bundle",
+        "docs_claim_publication",
+        "managed_fleet",
+        "external_package_index",
+        "support_packet"
+      ]
+    },
+    "promotion_stage_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "canary",
+        "pilot",
+        "broad",
+        "stable",
+        "lts",
+        "hotfix",
+        "rollback_staged",
+        "rollback_applied",
+        "revoked",
+        "yanked",
+        "paused"
+      ]
+    },
+    "rollout_status_class": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "staged",
+        "paused",
+        "broadening",
+        "rollback_stop",
+        "completed"
+      ]
+    },
+    "downgrade_eligibility_state": {
+      "type": "string",
+      "enum": [
+        "auto_eligible",
+        "eligible_with_review",
+        "manual_review_required",
+        "blocked",
+        "unsupported"
+      ]
+    },
+    "review_reason_class": {
+      "type": "string",
+      "enum": [
+        "backup_snapshot_incomplete",
+        "migration_journal_missing",
+        "state_schema_meaning_changed",
+        "helper_negotiation_degraded",
+        "mirror_lineage_incomplete",
+        "admin_pinned_floor_requires_approval",
+        "support_reconstruction_incomplete"
+      ]
+    },
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "signature_or_digest_unverified",
+        "platform_trust_failed",
+        "revoked_or_superseded_target",
+        "forced_minimum_version_active",
+        "rollback_atom_incomplete",
+        "target_cannot_read_or_repair_state",
+        "helper_skew_unsupported",
+        "mirror_lineage_broken",
+        "destructive_state_clear_requested"
+      ]
+    },
+    "rollback_repair_link_class": {
+      "type": "string",
+      "enum": [
+        "previous_build",
+        "last_known_good",
+        "lts_floor",
+        "admin_pinned_target",
+        "repair_transaction",
+        "migration_journal",
+        "backup_snapshot",
+        "support_packet",
+        "manual_review_ticket"
+      ]
+    },
+    "artifact_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value", "content_address_ref"],
+      "properties": {
+        "algorithm": { "$ref": "#/$defs/hash_algorithm_class" },
+        "value": { "$ref": "#/$defs/non_empty_string" },
+        "content_address_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "signature_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signature_state",
+        "signature_ref",
+        "signer_identity_ref",
+        "trust_root_ref",
+        "revocation_ref",
+        "transparency_log_ref"
+      ],
+      "properties": {
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "signature_ref": { "$ref": "#/$defs/nullable_string" },
+        "signer_identity_ref": { "$ref": "#/$defs/nullable_string" },
+        "trust_root_ref": { "$ref": "#/$defs/nullable_string" },
+        "revocation_ref": { "$ref": "#/$defs/nullable_string" },
+        "transparency_log_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "platform_trust_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform_trust_class",
+        "notarization_ticket_ref",
+        "platform_receipt_ref",
+        "notes"
+      ],
+      "properties": {
+        "platform_trust_class": { "$ref": "#/$defs/platform_trust_class" },
+        "notarization_ticket_ref": { "$ref": "#/$defs/nullable_string" },
+        "platform_receipt_ref": { "$ref": "#/$defs/nullable_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "break_glass_reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "reason_ref",
+        "approval_ref",
+        "reconciliation_target_ref",
+        "followup_packet_ref",
+        "reconcile_by",
+        "notes"
+      ],
+      "properties": {
+        "active": { "type": "boolean" },
+        "reason_ref": { "$ref": "#/$defs/nullable_string" },
+        "approval_ref": { "$ref": "#/$defs/nullable_string" },
+        "reconciliation_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "followup_packet_ref": { "$ref": "#/$defs/nullable_string" },
+        "reconcile_by": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publication_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publish_target_class",
+        "promotion_stage_class",
+        "release_center_event_ref",
+        "headless_command_ref",
+        "approval_refs",
+        "break_glass_reconciliation"
+      ],
+      "properties": {
+        "publish_target_class": { "$ref": "#/$defs/publish_target_class" },
+        "promotion_stage_class": { "$ref": "#/$defs/promotion_stage_class" },
+        "release_center_event_ref": { "$ref": "#/$defs/nullable_string" },
+        "headless_command_ref": { "$ref": "#/$defs/nullable_string" },
+        "approval_refs": { "$ref": "#/$defs/ref_array" },
+        "break_glass_reconciliation": { "$ref": "#/$defs/break_glass_reconciliation" }
+      }
+    },
+    "source_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "feed_ref",
+        "mirror_lineage_ref",
+        "manual_import_receipt_ref",
+        "freshness_ref",
+        "trust_root_ref"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "feed_ref": { "$ref": "#/$defs/nullable_string" },
+        "mirror_lineage_ref": { "$ref": "#/$defs/nullable_string" },
+        "manual_import_receipt_ref": { "$ref": "#/$defs/nullable_string" },
+        "freshness_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_root_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "staged_rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollout_status_class",
+        "rollout_ring_ref",
+        "percentage_basis_points",
+        "staged_rollout_ref",
+        "cohort_policy_ref",
+        "pause_or_rollback_stop_ref",
+        "expires_at",
+        "notes"
+      ],
+      "properties": {
+        "rollout_status_class": { "$ref": "#/$defs/rollout_status_class" },
+        "rollout_ring_ref": { "$ref": "#/$defs/non_empty_string" },
+        "percentage_basis_points": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "staged_rollout_ref": { "$ref": "#/$defs/nullable_string" },
+        "cohort_policy_ref": { "$ref": "#/$defs/nullable_string" },
+        "pause_or_rollback_stop_ref": { "$ref": "#/$defs/nullable_string" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligibility_state",
+        "source_build_ref",
+        "target_build_ref",
+        "source_schema_epoch",
+        "target_schema_epoch",
+        "backup_required",
+        "backup_snapshot_ref",
+        "migration_journal_required",
+        "migration_journal_ref",
+        "manual_review_reason_classes",
+        "blocked_reason_classes",
+        "preserved_state_root_refs",
+        "repair_transaction_ref",
+        "support_summary"
+      ],
+      "properties": {
+        "eligibility_state": { "$ref": "#/$defs/downgrade_eligibility_state" },
+        "source_build_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_build_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "target_schema_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "backup_required": { "type": "boolean" },
+        "backup_snapshot_ref": { "$ref": "#/$defs/nullable_string" },
+        "migration_journal_required": { "type": "boolean" },
+        "migration_journal_ref": { "$ref": "#/$defs/nullable_string" },
+        "manual_review_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_reason_class" },
+          "uniqueItems": true
+        },
+        "blocked_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason_class" },
+          "uniqueItems": true
+        },
+        "preserved_state_root_refs": { "$ref": "#/$defs/ref_array" },
+        "repair_transaction_ref": { "$ref": "#/$defs/nullable_string" },
+        "support_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rollback_repair_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_id",
+        "link_class",
+        "target_manifest_ref",
+        "target_exact_build_identity_refs",
+        "repair_transaction_ref",
+        "migration_journal_ref",
+        "backup_snapshot_ref",
+        "required",
+        "summary"
+      ],
+      "properties": {
+        "link_id": { "$ref": "#/$defs/non_empty_string" },
+        "link_class": { "$ref": "#/$defs/rollback_repair_link_class" },
+        "target_manifest_ref": { "$ref": "#/$defs/nullable_string" },
+        "target_exact_build_identity_refs": { "$ref": "#/$defs/ref_array" },
+        "repair_transaction_ref": { "$ref": "#/$defs/nullable_string" },
+        "migration_journal_ref": { "$ref": "#/$defs/nullable_string" },
+        "backup_snapshot_ref": { "$ref": "#/$defs/nullable_string" },
+        "required": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_reconstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_refs",
+        "manifest_evidence_refs",
+        "signature_evidence_refs",
+        "platform_trust_refs",
+        "helper_negotiation_refs",
+        "migration_journal_refs",
+        "backup_snapshot_refs",
+        "repair_transaction_refs",
+        "support_packet_refs",
+        "reconstruction_summary"
+      ],
+      "properties": {
+        "exact_build_identity_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "manifest_evidence_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "signature_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "platform_trust_refs": { "$ref": "#/$defs/ref_array" },
+        "helper_negotiation_refs": { "$ref": "#/$defs/ref_array" },
+        "migration_journal_refs": { "$ref": "#/$defs/ref_array" },
+        "backup_snapshot_refs": { "$ref": "#/$defs/ref_array" },
+        "repair_transaction_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "update_manifest_artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "update_manifest_schema_version",
+        "record_kind",
+        "artifact_id",
+        "artifact_family_class",
+        "artifact_family_ref",
+        "exact_build_identity_ref",
+        "build_id",
+        "version",
+        "platform_class",
+        "architecture_class",
+        "digest",
+        "signature",
+        "platform_trust",
+        "provenance_refs",
+        "support_refs",
+        "rollback_atom_member"
+      ],
+      "properties": {
+        "update_manifest_schema_version": { "$ref": "#/$defs/update_manifest_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "update_manifest_artifact_record"
+        },
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "artifact_family_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "build_id": { "$ref": "#/$defs/non_empty_string" },
+        "version": { "$ref": "#/$defs/non_empty_string" },
+        "platform_class": { "$ref": "#/$defs/platform_class" },
+        "architecture_class": { "$ref": "#/$defs/architecture_class" },
+        "digest": { "$ref": "#/$defs/artifact_digest" },
+        "signature": { "$ref": "#/$defs/signature_ref" },
+        "platform_trust": { "$ref": "#/$defs/platform_trust_ref" },
+        "provenance_refs": { "$ref": "#/$defs/ref_array" },
+        "support_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_atom_member": { "type": "boolean" }
+      }
+    },
+    "update_manifest_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "update_manifest_schema_version",
+        "record_kind",
+        "action_id",
+        "requested_action_class",
+        "publication",
+        "manifest_ref",
+        "affected_artifact_refs",
+        "rollback_repair_links",
+        "decided_at",
+        "notes"
+      ],
+      "properties": {
+        "update_manifest_schema_version": { "$ref": "#/$defs/update_manifest_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "update_manifest_action_record"
+        },
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "requested_action_class": { "$ref": "#/$defs/requested_action_class" },
+        "publication": { "$ref": "#/$defs/publication_block" },
+        "manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "affected_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "rollback_repair_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rollback_repair_link" }
+        },
+        "decided_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "update_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "update_manifest_schema_version",
+        "record_kind",
+        "manifest_id",
+        "manifest_version",
+        "created_at",
+        "channel_class",
+        "source",
+        "requested_action_class",
+        "publication",
+        "artifacts",
+        "staged_rollout",
+        "downgrade_policy",
+        "rollback_repair_links",
+        "helper_negotiation_refs",
+        "support_reconstruction",
+        "reserved_release_center_fields",
+        "notes"
+      ],
+      "properties": {
+        "update_manifest_schema_version": { "$ref": "#/$defs/update_manifest_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "update_manifest_record"
+        },
+        "manifest_id": { "$ref": "#/$defs/non_empty_string" },
+        "manifest_version": { "$ref": "#/$defs/non_empty_string" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "source": { "$ref": "#/$defs/source_block" },
+        "requested_action_class": { "$ref": "#/$defs/requested_action_class" },
+        "publication": { "$ref": "#/$defs/publication_block" },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/update_manifest_artifact_record" }
+        },
+        "staged_rollout": { "$ref": "#/$defs/staged_rollout" },
+        "downgrade_policy": { "$ref": "#/$defs/downgrade_policy" },
+        "rollback_repair_links": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rollback_repair_link" }
+        },
+        "helper_negotiation_refs": { "$ref": "#/$defs/ref_array" },
+        "support_reconstruction": { "$ref": "#/$defs/support_reconstruction" },
+        "reserved_release_center_fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "publish_target_class",
+            "promotion_stage_class",
+            "break_glass_reconciliation"
+          ],
+          "properties": {
+            "publish_target_class": { "$ref": "#/$defs/publish_target_class" },
+            "promotion_stage_class": { "$ref": "#/$defs/promotion_stage_class" },
+            "break_glass_reconciliation": { "$ref": "#/$defs/break_glass_reconciliation" }
+          }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

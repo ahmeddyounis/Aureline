@@ -1,0 +1,77 @@
+schema_version: 1
+record_kind: upgrade_downgrade_case_record
+case_id: release.reconstruction.exact_build_from_support
+case_class: exact_build_reconstruction
+scenario_summary: >
+  Support receives a user report after a rollback. The support packet
+  contains the update manifest id, exact-build identity refs, signature
+  refs, platform trust refs, helper negotiation packet, migration
+  journal, backup snapshot, and repair transaction. The update and
+  rollback state can be reconstructed without inspecting installer code.
+schema_refs:
+  update_manifest: schemas/release/update_manifest.schema.json
+  helper_negotiation: schemas/release/helper_version_negotiation.schema.json
+
+support_evidence:
+  support_packet_ref: support_packet:case.2026-04.rollback_reconstruction
+  update_manifest_ref: update_manifest:stable.2026-04.rollback_applied
+  release_center_event_ref: release_center:stable.rollback.applied.2026-04
+  headless_command_ref: headless_publish:stable.rollback.2026-04
+  exact_build_identity_refs:
+    before_rollback:
+      - exact_build:ide_binary.macos.universal.2026-04
+      - exact_build:docs_pack.2026-04
+      - exact_build:release_evidence_packet.2026-04
+    after_rollback:
+      - exact_build:ide_binary.macos.universal.2026-03
+      - exact_build:docs_pack.2026-03
+      - exact_build:release_evidence_packet.2026-03
+  signature_evidence_refs:
+    - signature:release.2026-04.ide.macos
+    - signature:release.2026-03.ide.macos
+  platform_trust_refs:
+    - notarization:macos.2026-04.ide
+    - notarization:macos.2026-03.ide
+  helper_negotiation_refs:
+    - helper_negotiation:stable.rollback.preflight.2026-04
+  migration_journal_refs:
+    - migration_journal:profile.rollback.2026-04-to-2026-03
+  backup_snapshot_refs:
+    - backup:profile.2026-04.before_rollback
+  repair_transaction_refs:
+    - repair:rollback.2026-04.applied
+
+reconstruction_steps:
+  - step_id: reconstruction.step.manifest
+    input_refs:
+      - update_manifest:stable.2026-04.rollback_applied
+    result: Manifest identifies rollback action, channel, source, staged rollout state, and rollback target.
+  - step_id: reconstruction.step.build_identity
+    input_refs:
+      - exact_build:ide_binary.macos.universal.2026-04
+      - exact_build:ide_binary.macos.universal.2026-03
+    result: Exact-build identities prove which build was active before and after rollback.
+  - step_id: reconstruction.step.trust
+    input_refs:
+      - signature:release.2026-04.ide.macos
+      - signature:release.2026-03.ide.macos
+      - notarization:macos.2026-04.ide
+      - notarization:macos.2026-03.ide
+    result: Signature and platform trust refs explain why both source and target were admissible.
+  - step_id: reconstruction.step.helper
+    input_refs:
+      - helper_negotiation:stable.rollback.preflight.2026-04
+    result: Helper negotiation proves rollback repair checked capabilities before mutation.
+  - step_id: reconstruction.step.state
+    input_refs:
+      - migration_journal:profile.rollback.2026-04-to-2026-03
+      - backup:profile.2026-04.before_rollback
+      - repair:rollback.2026-04.applied
+    result: Migration journal, backup, and repair transaction explain state preservation.
+
+expected_result:
+  reconstruction_state: complete
+  update_state: rollback_applied
+  downgrade_eligibility_state: auto_eligible
+  helper_decision: allow
+  release_summary: Support reconstructs update and rollback truth from manifest and evidence refs alone.

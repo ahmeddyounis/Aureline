@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/helper_version_negotiation.schema.json",
+  "title": "Aureline helper and remote-agent version negotiation packet",
+  "description": "Boundary schema for helper_version_negotiation_packet_record frozen in docs/release/update_and_rollback_contract.md. The packet records helper, local sidecar, and remote-agent version and capability checks before upgrade, attach, side-by-side reuse, rollback repair, or mirror import. Unsupported skew resolves into explicit block, manual-review, replacement, reattach, file-only, or review-only states rather than ambiguous failure. Raw helper binaries, raw transport frames, raw credentials, raw policy bundles, raw signing material, raw support bundle bodies, and raw installer logs never appear; records carry refs and typed decisions only.",
+  "type": "object",
+  "$ref": "#/$defs/helper_version_negotiation_packet_record",
+  "$defs": {
+    "helper_version_negotiation_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "negotiation_surface_class": {
+      "type": "string",
+      "enum": [
+        "upgrade_preflight",
+        "attach_preflight",
+        "side_by_side_reuse_preflight",
+        "rollback_repair_preflight",
+        "mirror_import_preflight"
+      ]
+    },
+    "operation_class": {
+      "type": "string",
+      "enum": [
+        "upgrade",
+        "attach",
+        "side_by_side_reuse",
+        "rollback",
+        "repair",
+        "reconstruct",
+        "mirror_import"
+      ]
+    },
+    "participant_role": {
+      "type": "string",
+      "enum": [
+        "initiator",
+        "client",
+        "helper",
+        "remote_agent",
+        "local_sidecar",
+        "managed_control_plane"
+      ]
+    },
+    "component_family": {
+      "type": "string",
+      "enum": [
+        "desktop_client",
+        "cli_client",
+        "launcher",
+        "local_helper",
+        "local_sidecar",
+        "remote_agent",
+        "remote_helper",
+        "helper_bridge",
+        "managed_control_plane"
+      ]
+    },
+    "version_window_state": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "compatible_degraded",
+        "upgrade_required",
+        "downgrade_required",
+        "manual_review_required",
+        "blocked_unsupported_skew",
+        "unknown_requires_probe"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "allow_degraded_review_only",
+        "allow_file_only",
+        "block",
+        "manual_review",
+        "replace_helper_before_continue",
+        "reattach_required"
+      ]
+    },
+    "unsupported_behavior_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "refuse_upgrade",
+        "refuse_attach",
+        "refuse_side_by_side_reuse",
+        "degrade_review_only",
+        "require_helper_replace",
+        "require_manual_repair",
+        "require_probe"
+      ]
+    },
+    "dropped_capability_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_in_client_set",
+        "not_in_helper_set",
+        "outside_support_window",
+        "schema_epoch_mismatch",
+        "policy_denied",
+        "trust_not_verified",
+        "mirror_receipt_missing",
+        "unknown_requires_probe"
+      ]
+    },
+    "participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participant_id",
+        "role",
+        "component_family",
+        "version",
+        "contract_version",
+        "schema_epoch",
+        "min_supported_version",
+        "max_tested_version",
+        "build_identity_ref",
+        "artifact_digest_ref",
+        "signature_ref",
+        "capability_set"
+      ],
+      "properties": {
+        "participant_id": { "$ref": "#/$defs/non_empty_string" },
+        "role": { "$ref": "#/$defs/participant_role" },
+        "component_family": { "$ref": "#/$defs/component_family" },
+        "version": { "$ref": "#/$defs/non_empty_string" },
+        "contract_version": { "$ref": "#/$defs/non_empty_string" },
+        "schema_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "min_supported_version": { "$ref": "#/$defs/non_empty_string" },
+        "max_tested_version": { "$ref": "#/$defs/non_empty_string" },
+        "build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "artifact_digest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "signature_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "capability_set": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "dropped_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "reason_class", "reason_note"],
+      "properties": {
+        "capability": { "$ref": "#/$defs/non_empty_string" },
+        "reason_class": { "$ref": "#/$defs/dropped_capability_reason_class" },
+        "reason_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "preflight_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checked_before_upgrade",
+        "checked_before_attach",
+        "checked_before_side_by_side_reuse",
+        "checked_before_rollback",
+        "policy_epoch_ref",
+        "update_manifest_ref",
+        "mixed_version_envelope_ref",
+        "skew_window_ref",
+        "version_skew_register_ref",
+        "compatibility_row_ref"
+      ],
+      "properties": {
+        "checked_before_upgrade": { "type": "boolean" },
+        "checked_before_attach": { "type": "boolean" },
+        "checked_before_side_by_side_reuse": { "type": "boolean" },
+        "checked_before_rollback": { "type": "boolean" },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_string" },
+        "update_manifest_ref": { "$ref": "#/$defs/nullable_string" },
+        "mixed_version_envelope_ref": { "$ref": "#/$defs/nullable_string" },
+        "skew_window_ref": { "$ref": "#/$defs/non_empty_string" },
+        "version_skew_register_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_row_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "negotiation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_window_state",
+        "decision_class",
+        "unsupported_behavior_class",
+        "selected_contract_version",
+        "required_capabilities",
+        "offered_capabilities",
+        "negotiated_capabilities",
+        "dropped_capabilities",
+        "visible_reason"
+      ],
+      "properties": {
+        "version_window_state": { "$ref": "#/$defs/version_window_state" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "unsupported_behavior_class": { "$ref": "#/$defs/unsupported_behavior_class" },
+        "selected_contract_version": { "$ref": "#/$defs/non_empty_string" },
+        "required_capabilities": { "$ref": "#/$defs/non_empty_ref_array" },
+        "offered_capabilities": { "$ref": "#/$defs/non_empty_ref_array" },
+        "negotiated_capabilities": { "$ref": "#/$defs/ref_array" },
+        "dropped_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dropped_capability" }
+        },
+        "visible_reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "update_manifest_ref",
+        "exact_build_identity_refs",
+        "signature_refs",
+        "platform_trust_refs",
+        "migration_journal_refs",
+        "backup_snapshot_refs",
+        "repair_transaction_refs",
+        "support_packet_refs"
+      ],
+      "properties": {
+        "update_manifest_ref": { "$ref": "#/$defs/nullable_string" },
+        "exact_build_identity_refs": { "$ref": "#/$defs/ref_array" },
+        "signature_refs": { "$ref": "#/$defs/ref_array" },
+        "platform_trust_refs": { "$ref": "#/$defs/ref_array" },
+        "migration_journal_refs": { "$ref": "#/$defs/ref_array" },
+        "backup_snapshot_refs": { "$ref": "#/$defs/ref_array" },
+        "repair_transaction_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_packet_family_refs",
+        "redaction_class",
+        "reconstruction_summary"
+      ],
+      "properties": {
+        "support_packet_family_refs": { "$ref": "#/$defs/ref_array" },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "release_public",
+            "support_export_only",
+            "enterprise_admin_only",
+            "internal_restricted"
+          ]
+        },
+        "reconstruction_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "helper_version_negotiation_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "helper_version_negotiation_schema_version",
+        "record_kind",
+        "packet_id",
+        "emitted_at",
+        "surface_class",
+        "operation_class",
+        "client",
+        "helper_or_agent",
+        "preflight_gate",
+        "negotiation",
+        "evidence_links",
+        "support_export",
+        "notes"
+      ],
+      "properties": {
+        "helper_version_negotiation_schema_version": { "$ref": "#/$defs/helper_version_negotiation_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "helper_version_negotiation_packet_record"
+        },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "surface_class": { "$ref": "#/$defs/negotiation_surface_class" },
+        "operation_class": { "$ref": "#/$defs/operation_class" },
+        "client": { "$ref": "#/$defs/participant" },
+        "helper_or_agent": { "$ref": "#/$defs/participant" },
+        "preflight_gate": { "$ref": "#/$defs/preflight_gate" },
+        "negotiation": { "$ref": "#/$defs/negotiation_result" },
+        "evidence_links": { "$ref": "#/$defs/evidence_links" },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

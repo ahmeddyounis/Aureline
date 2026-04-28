@@ -179,6 +179,15 @@ code.
 - [`release/release_artifact_graph.md`](./release/release_artifact_graph.md)
   — publishable release-artifact graph, bundle-completeness rules, and
   contract-surface index.
+- [`release/update_and_rollback_contract.md`](./release/update_and_rollback_contract.md)
+  — update manifest, rollback, downgrade, helper-version negotiation,
+  mirror import, exact-build reconstruction, publish-target, promotion
+  stage, and break-glass reconciliation contract. Boundary schemas in
+  [`/schemas/release/update_manifest.schema.json`](../schemas/release/update_manifest.schema.json)
+  and
+  [`/schemas/release/helper_version_negotiation.schema.json`](../schemas/release/helper_version_negotiation.schema.json);
+  worked flow fixtures in
+  [`/fixtures/release/upgrade_downgrade_cases/`](../fixtures/release/upgrade_downgrade_cases/).
 - [`release/release_evidence_packet_template.md`](./release/release_evidence_packet_template.md)
   — release-truth packet template and waiver-aware shiproom structure.
 - [`release/ring_progression_policy.md`](./release/ring_progression_policy.md)

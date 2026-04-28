@@ -99,6 +99,13 @@ Companion artifacts:
   mirror-continuity, trust-root-rotation, and exception-policy posture
   for release, update, extension, policy, docs, model, symbol, support,
   and release-control artifact families.
+- [`/docs/release/update_and_rollback_contract.md`](./update_and_rollback_contract.md),
+  [`/schemas/release/update_manifest.schema.json`](../../schemas/release/update_manifest.schema.json),
+  and
+  [`/schemas/release/helper_version_negotiation.schema.json`](../../schemas/release/helper_version_negotiation.schema.json)
+  — update-manifest, rollback, downgrade, mirror import, helper-version
+  negotiation, exact-build reconstruction, release-center action, and
+  break-glass reconciliation contract.
 
 Normative sources this graph projects from:
 
