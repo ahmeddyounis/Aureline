@@ -1,0 +1,618 @@
+# Requirement lifecycle-state catalog.
+#
+# Machine-readable companion to docs/governance/normative_requirement_policy.md.
+# Requirement rows, waiver packets, verification packets, scorecards, and
+# signoff automation consume these family and lifecycle ids rather than
+# reinterpreting source-document prose.
+
+schema_version: 1
+catalog_id: aureline.requirement_lifecycle_states
+status: seeded
+
+policy_doc_ref: docs/governance/normative_requirement_policy.md
+requirement_register_ref: artifacts/governance/requirement_register_seed.yaml
+verification_class_catalog_ref: artifacts/governance/verification_classes.yaml
+mandatory_review_artifact_catalog_ref: artifacts/governance/mandatory_review_artifacts.yaml
+evidence_freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+waiver_template_ref: docs/governance/templates/waiver_template.md
+forum_matrix_ref: artifacts/governance/forum_matrix.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+
+source_specs:
+  - .t2/docs/Aureline_PRD.md
+  - .t2/docs/Aureline_Milestones_Document.md
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - .t2/docs/Aureline_Technical_Design_Document.md
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md
+
+source_precedence:
+  - precedence_rank: 1
+    source_class: canonical_requirement_row_or_active_waiver
+    binding_effect: >
+      Approved canonical requirement rows and active approved waivers are
+      the first machine-readable control point for release, scorecard,
+      waiver, and signoff decisions.
+  - precedence_rank: 2
+    source_class: approved_adr_or_accepted_rfc
+    binding_effect: >
+      Decisions refine implementation and interface posture for cited
+      requirement ids, but they do not silently replace the canonical row.
+  - precedence_rank: 3
+    source_class: technical_architecture_or_design_rule
+    binding_effect: >
+      Architecture and technical design rules bind implementation when
+      they do not conflict with higher-precedence requirement rows,
+      waivers, or decisions.
+  - precedence_rank: 4
+    source_class: ux_spec_or_design_system_contract
+    binding_effect: >
+      UX contracts bind affected user surfaces, interaction behavior,
+      accessibility, and token/component semantics when not contradicted
+      by higher-precedence artifacts.
+  - precedence_rank: 5
+    source_class: template_example_or_guidance
+    binding_effect: Advisory or illustrative unless promoted by a schema, catalog, requirement row, or accepted decision.
+  - precedence_rank: 6
+    source_class: implementation_convenience
+    binding_effect: Never overrides a higher-precedence control artifact.
+
+classification_vocabulary:
+  - classification_id: normative
+    release_effect: >
+      Can block merge, milestone close, release promotion, signoff, or
+      claim publication when the row is binding for the affected scope.
+    row_rule: >
+      Canonical requirement ids, uppercase BCP 14 statements in approved
+      source artifacts, required schema/catalog fields, active waivers,
+      and accepted review outcomes are normative.
+  - classification_id: advisory
+    release_effect: >
+      Can justify review questions and follow-up work, but does not block
+      release by itself.
+    row_rule: >
+      Strategy, rationale, lower-case recommendations, and implementation
+      guidance without a requirement id or accepted decision are advisory.
+  - classification_id: illustrative
+    release_effect: No direct release force.
+    row_rule: >
+      Examples, placeholders, mock packets, sample values, and diagrams
+      are illustrative unless another control artifact promotes them.
+
+normalization_rules:
+  requirement_id_pattern: "<CLASS>-<DOMAIN>-<NNN>"
+  lifecycle_state_field: status
+  state_id_case: lower_snake_case
+  display_label_case: title_case
+  canonical_states:
+    - proposed
+    - approved
+    - in_progress
+    - implemented
+    - verified
+    - waived
+    - deprecated
+    - removed
+  compatibility_state_aliases:
+    - source_state: draft
+      normalize_to: proposed
+      rule: >
+        Draft is legacy source wording for an unapproved candidate
+        obligation. It is not a separate release-gating state.
+    - source_state: replaced
+      normalize_to: removed
+      rule: >
+        Replaced is supersession bookkeeping. For release gating, the
+        old row is historical unless a current replacement requirement
+        row is explicitly cited.
+
+row_accountability_contract:
+  required_on_promotion_grade_rows:
+    - requirement_id
+    - requirement_class
+    - status
+    - primary_owner
+    - evidence_owner
+    - verification_classes
+    - source_anchors
+  waiver_authority_resolution_order:
+    - requirement_family.default_waiver_authority_forum
+    - requirement_family.escalation_forum_refs
+    - requirement_register.owners.approving_forums
+  owner_rules:
+    - primary_owner owns the requirement outcome and any claim narrowing.
+    - evidence_owner owns proof freshness, reruns, and evidence joins.
+    - waiver_authority owns accepted risk only within the waiver scope and expiry.
+    - Missing owner, evidence owner, or waiver authority fails closed for signoff and release use.
+  family_id_rule: >
+    Fitness ids, dashboard rows, packet-local labels, and milestone exit
+    labels are not requirement-family ids. They must resolve through the
+    requirement register or alias crosswalk before appearing in waivers,
+    release packets, or signoff automation.
+
+requirement_families:
+  - family_id: FR
+    label: Functional requirement
+    scope: End-user functional capabilities and user-visible workflows.
+    default_verification_classes:
+      - CONF
+      - UXVAL
+    default_waiver_authority_forum: product_scope_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: LANG
+    label: Language and framework requirement
+    scope: Language, framework, analyzer, debugger, and reference-workspace support promises.
+    default_verification_classes:
+      - CONF
+      - DOCVAL
+    default_waiver_authority_forum: compatibility_ecosystem_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: PERF
+    label: Performance requirement
+    scope: Latency, memory, throughput, indexing, startup, energy, and protected fitness budgets.
+    default_verification_classes:
+      - BENCH
+    default_waiver_authority_forum: performance_council
+    escalation_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    release_blocker_when_designated: true
+    heightened_waiver_controls: true
+
+  - family_id: REL
+    label: Reliability requirement
+    scope: Durability, crash recovery, correctness, rollback, and operability.
+    default_verification_classes:
+      - RELTEST
+      - OPSVAL
+    default_waiver_authority_forum: release_council
+    escalation_forum_refs:
+      - shiproom_executive_scope_review
+    release_blocker_when_designated: true
+    heightened_waiver_controls: true
+
+  - family_id: SEC
+    label: Security and privacy requirement
+    scope: Security, privacy, trust, permissions, credentials, egress, and supply chain.
+    default_verification_classes:
+      - SECREV
+    default_waiver_authority_forum: security_trust_review
+    escalation_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    release_blocker_when_designated: true
+    heightened_waiver_controls: true
+
+  - family_id: A11Y
+    label: Accessibility requirement
+    scope: Accessibility, localization, keyboard, focus, IME, contrast, motion, and text/input correctness.
+    default_verification_classes:
+      - A11YTEST
+      - UXVAL
+    default_waiver_authority_forum: accessibility_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+    heightened_waiver_controls: true
+
+  - family_id: ECOS
+    label: Ecosystem requirement
+    scope: Extension SDK, registry, marketplace, migration, compatibility, and bridge rules.
+    default_verification_classes:
+      - CONF
+      - DOCVAL
+    default_waiver_authority_forum: compatibility_ecosystem_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: AI
+    label: AI requirement
+    scope: AI policy, context, evidence, model routing, approval, review, and apply trust.
+    default_verification_classes:
+      - SECREV
+      - UXVAL
+      - OPSVAL
+    default_waiver_authority_forum: security_trust_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: OPS
+    label: Operations and supportability requirement
+    scope: Packaging, deployment, supportability, optional managed services, outage posture, and release operation.
+    default_verification_classes:
+      - OPSVAL
+      - DOCVAL
+    default_waiver_authority_forum: release_council
+    escalation_forum_refs:
+      - shiproom_executive_scope_review
+    release_blocker_when_designated: true
+
+  - family_id: GOV
+    label: Governance requirement
+    scope: Governance, licensing, sustainability, public truth, portability, data ownership, and commercial boundaries.
+    default_verification_classes:
+      - DOCVAL
+      - OPSVAL
+    default_waiver_authority_forum: product_scope_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: ARCH
+    label: Architecture requirement
+    scope: Architecture invariants, process placement, service contracts, dependency rules, and protected-lane boundaries.
+    default_verification_classes:
+      - CONF
+      - SECREV
+      - BENCH
+    default_waiver_authority_forum: architecture_council
+    escalation_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    release_blocker_when_designated: true
+    heightened_waiver_controls: true
+
+  - family_id: TOOL
+    label: Tooling requirement
+    scope: Execution context, build, test, debug, CLI, automation, shell, and task contracts.
+    default_verification_classes:
+      - CONF
+      - RELTEST
+    default_waiver_authority_forum: architecture_council
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: CERT
+    label: Certification requirement
+    scope: Compatibility, certification, support-class, and reference-workspace claims.
+    default_verification_classes:
+      - CONF
+      - OPSVAL
+      - DOCVAL
+    default_waiver_authority_forum: compatibility_ecosystem_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: ENT
+    label: Enterprise requirement
+    scope: Enterprise identity, administration, policy distribution, fleet deployment, and managed-governance rules.
+    default_verification_classes:
+      - SECREV
+      - OPSVAL
+      - CONF
+    default_waiver_authority_forum: security_trust_review
+    escalation_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    release_blocker_when_designated: true
+
+  - family_id: REPO
+    label: Repository requirement
+    scope: Repository ownership, merge controls, branch rules, review policy, and release controls.
+    default_verification_classes:
+      - CONF
+      - DOCVAL
+    default_waiver_authority_forum: architecture_council
+    escalation_forum_refs:
+      - product_scope_review
+      - release_council
+    release_blocker_when_designated: true
+
+  - family_id: COMP
+    label: Portability and standards compatibility requirement
+    scope: Import, export, open standards, portability, and mirrorability surfaces.
+    default_verification_classes:
+      - CONF
+      - DOCVAL
+    default_waiver_authority_forum: compatibility_ecosystem_review
+    escalation_forum_refs:
+      - release_council
+    release_blocker_when_designated: true
+
+lifecycle_states:
+  - state_id: proposed
+    label: Proposed
+    binding_posture: non_binding_candidate
+    meaning: Candidate obligation or design control under discussion.
+    entry_criteria:
+      - A source section, decision row, or packet proposes the obligation.
+      - The row has enough owner context to review whether it should become binding.
+    required_metadata:
+      - summary
+      - requirement_class
+      - proposed_owner
+      - source_anchor_or_decision_ref
+    allowed_next_states:
+      - approved
+      - removed
+    review_effect: >
+      Not release-blocking unless another approved requirement already
+      depends on the proposed row.
+    stale_after_change_behavior: >
+      Source changes keep the row proposed until the approving forum
+      accepts a stable requirement id and proof path.
+
+  - state_id: approved
+    label: Approved
+    binding_posture: binding_planning_and_design_requirement
+    meaning: Binding requirement for planning, design, and implementation.
+    entry_criteria:
+      - Product and engineering approval exists.
+      - Primary owner, evidence owner, verification classes, and waiver authority resolve.
+    required_metadata:
+      - requirement_id
+      - requirement_class
+      - primary_owner
+      - evidence_owner
+      - verification_classes
+      - source_anchors
+    allowed_next_states:
+      - in_progress
+      - implemented
+      - waived
+      - deprecated
+      - removed
+    review_effect: >
+      Blocks claimed scope unless the row moves to implemented plus a
+      verification plan, verified, or waived by the authorized forum.
+    stale_after_change_behavior: >
+      If the source meaning changes before implementation starts, keep
+      the row approved only after re-approval; otherwise return it to
+      proposed or remove it with history.
+
+  - state_id: in_progress
+    label: In Progress
+    binding_posture: binding_but_not_yet_implemented
+    meaning: Active implementation, rollout, or content work is underway.
+    entry_criteria:
+      - Work is scheduled or underway.
+      - The verification path and evidence owner are known.
+    required_metadata:
+      - requirement_id
+      - primary_owner
+      - evidence_owner
+      - verification_classes
+      - work_or_packet_ref
+    allowed_next_states:
+      - implemented
+      - waived
+      - deprecated
+      - removed
+    review_effect: Not sufficient for milestone close, release, or public claims.
+    stale_after_change_behavior: >
+      Scope or source changes require the owner to restate the work item
+      and verification plan before the row can advance.
+
+  - state_id: implemented
+    label: Implemented
+    binding_posture: implemented_without_accepted_current_proof
+    meaning: Code, content, or process exists, but proof is incomplete, missing, or stale.
+    entry_criteria:
+      - The implementation or artifact exists.
+      - Required verification has not yet passed, has not been reviewed, or has gone stale.
+    required_metadata:
+      - requirement_id
+      - implementation_or_artifact_ref
+      - evidence_owner
+      - verification_classes
+    allowed_next_states:
+      - verified
+      - in_progress
+      - waived
+      - deprecated
+      - removed
+    review_effect: >
+      Blocks release-bearing claims unless fresh verification is accepted
+      or an active waiver covers the exact gap.
+    stale_after_change_behavior: >
+      A stale verified row is treated as implemented for signoff until
+      fresh proof is accepted. If the implementation no longer matches
+      the approved requirement, move to in_progress or approved review.
+
+  - state_id: verified
+    label: Verified
+    binding_posture: claim_bearing_current_proof
+    meaning: The requirement is met with accepted evidence that is fresh for the current scope.
+    entry_criteria:
+      - Required verification classes are satisfied.
+      - Mandatory review artifacts are accepted by the authorized forum.
+      - Evidence freshness metadata is current.
+    required_metadata:
+      - requirement_id
+      - accepted_evidence_refs
+      - evidence_owner
+      - verification_classes
+      - reviewed_on
+      - freshness_or_rerun_trigger_refs
+    allowed_next_states:
+      - implemented
+      - in_progress
+      - waived
+      - deprecated
+      - removed
+    review_effect: May support milestone close, release readiness, and public claims.
+    stale_after_change_behavior: >
+      Evidence expiry, rerun-trigger mismatch, incident contradiction,
+      protected interface change, corpus change, or scope change removes
+      release-usable verified posture. Treat as implemented until fresh
+      proof lands, or as approved/in_progress when rework is required.
+
+  - state_id: waived
+    label: Waived
+    binding_posture: scoped_time_bounded_exception
+    meaning: The requirement is temporarily not met, with explicit accepted risk.
+    entry_criteria:
+      - A waiver cites canonical requirement ids and exact scope.
+      - Risk, mitigation, owner, expiry, planned exit, and approving forum are recorded.
+    required_metadata:
+      - waiver_id
+      - requirement_ids
+      - scope
+      - risk
+      - mitigation
+      - owner
+      - approver_or_forum
+      - expires_on
+      - planned_exit
+    allowed_next_states:
+      - approved
+      - in_progress
+      - implemented
+      - verified
+      - deprecated
+      - removed
+    review_effect: >
+      May pass only inside the waiver scope before expiry. Expired,
+      missing, or out-of-scope waivers fail closed.
+    stale_after_change_behavior: >
+      A source, scope, or risk change invalidates the waiver unless the
+      approving forum renews it with the updated scope. Expiry blocks
+      release readiness until closed, renewed, or replaced by proof.
+
+  - state_id: deprecated
+    label: Deprecated
+    binding_posture: still_supported_but_retiring
+    meaning: The requirement or surface remains supported but is scheduled for retirement or replacement.
+    entry_criteria:
+      - Deprecation or retirement decision is accepted.
+      - Support window, migration posture, and replacement truth are recorded.
+    required_metadata:
+      - requirement_id
+      - deprecation_decision_ref
+      - support_window
+      - migration_or_replacement_ref
+      - evidence_owner
+    allowed_next_states:
+      - approved
+      - verified
+      - removed
+    review_effect: >
+      Release packets must not present deprecated rows as current
+      supported breadth without support-window and migration truth.
+    stale_after_change_behavior: >
+      If migration or support-window evidence goes stale, claim-bearing
+      surfaces narrow to the last current supported truth.
+
+  - state_id: removed
+    label: Removed
+    binding_posture: historical_record_only
+    meaning: The requirement is no longer shipped or no longer normative.
+    entry_criteria:
+      - Removal, rejection, or supersession is recorded.
+      - Historical alias or replacement mapping is retained when needed.
+    required_metadata:
+      - requirement_id_or_alias
+      - removal_reason
+      - decision_or_source_ref
+    allowed_next_states:
+      - proposed
+      - approved
+    review_effect: >
+      Does not satisfy current release, milestone, or public-claim
+      obligations. Reintroducing the promise requires a new approval path.
+    stale_after_change_behavior: Historical rows do not become stale, but their replacement links can.
+
+stale_after_change_triggers:
+  - trigger_id: evidence_packet_expired
+    applies_to_states:
+      - verified
+    resulting_release_interpretation: implemented
+    release_blocker_when_designated: true
+  - trigger_id: rerun_trigger_mismatch
+    applies_to_states:
+      - verified
+    resulting_release_interpretation: implemented
+    release_blocker_when_designated: true
+  - trigger_id: requirement_scope_changed
+    applies_to_states:
+      - approved
+      - in_progress
+      - implemented
+      - verified
+      - waived
+    resulting_release_interpretation: approved
+    requires_forum_reapproval: true
+  - trigger_id: protected_interface_or_contract_changed
+    applies_to_states:
+      - implemented
+      - verified
+    resulting_release_interpretation: implemented
+    requires_fresh_verification: true
+  - trigger_id: incident_or_regression_contradicts_evidence
+    applies_to_states:
+      - verified
+    resulting_release_interpretation: implemented
+    release_blocker_when_designated: true
+  - trigger_id: waiver_expired_or_out_of_scope
+    applies_to_states:
+      - waived
+    resulting_release_interpretation: approved
+    release_blocker_when_designated: true
+
+waiver_interpretation_rules:
+  required_fields:
+    - waiver_id
+    - requirement_ids
+    - exact_scope
+    - reason
+    - justification
+    - risk
+    - risk_classification
+    - mitigation
+    - owner
+    - waiver_authority
+    - approver_or_forum
+    - expires_on
+    - planned_exit
+    - escalation_path
+  conditional_required_fields:
+    - field: evidence_owner
+      required_when: Waiver closure depends on refreshing, replacing, or accepting evidence.
+    - field: public_disclosure_posture
+      required_when: Waiver affects user-facing behavior, enterprise claims, public support truth, or release notes.
+    - field: affected_evidence_refs
+      required_when: Waiver bypasses stale, missing, or failed verification evidence.
+  invalid_when:
+    - missing_canonical_requirement_id
+    - missing_exact_scope
+    - expired
+    - out_of_scope
+    - approving_forum_does_not_match_waiver_authority
+    - risk_or_mitigation_missing
+    - planned_exit_missing
+  invalid_release_effect: >
+    Ignore the waiver for release-readiness and evaluate the underlying
+    requirement in its non-waived state. If the row is release-blocking,
+    the release or milestone packet is blocked or must narrow claims.
+  heightened_families:
+    - SEC
+    - REL
+    - PERF
+    - A11Y
+    - ARCH
+  heightened_controls:
+    maximum_duration_without_escalation: P90D
+    maximum_release_trains_without_escalation: 1
+    escalation_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    repeated_waiver_threshold: 2
+    repeated_waiver_required_outcomes:
+      - close_with_fresh_proof
+      - narrow_claim
+      - rebaseline_scope
+      - open_explicit_correction_work
+  expiry_effects:
+    - Expired waivers are ignored for release-readiness.
+    - A release-blocking requirement with an expired waiver blocks promotion.
+    - Renewal requires the same or higher authority and a refreshed risk statement.
+    - Public or enterprise-relevant waived rows remain visible in release evidence and notes while the waiver is active.

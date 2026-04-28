@@ -1,0 +1,353 @@
+# Verification-class catalog.
+#
+# Canonical class ids for requirement rows, verification packets,
+# benchmark packets, compatibility reports, scorecards, waiver review, and
+# signoff automation.
+
+schema_version: 1
+catalog_id: aureline.verification_classes
+status: seeded
+
+policy_doc_ref: docs/governance/normative_requirement_policy.md
+requirement_lifecycle_catalog_ref: artifacts/governance/requirement_lifecycle_states.yaml
+mandatory_review_artifact_catalog_ref: artifacts/governance/mandatory_review_artifacts.yaml
+evidence_freshness_slo_catalog_ref: artifacts/governance/evidence_freshness_slos.yaml
+evidence_rerun_trigger_catalog_ref: artifacts/governance/evidence_rerun_triggers.yaml
+verification_packet_template_ref: docs/governance/verification_packet_template.md
+
+source_specs:
+  - .t2/docs/Aureline_PRD.md
+  - .t2/docs/Aureline_Milestones_Document.md
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - .t2/docs/Aureline_Technical_Design_Document.md
+
+evaluation_contract:
+  field_name: verification_classes
+  value_case: uppercase_token
+  row_rule: >
+    Requirement rows, verification packets, release packets, waiver
+    packets, and scorecards cite these class ids directly. Local labels
+    may appear only when normalized through source_label_normalization.
+  missing_value_effect: >
+    A claim-bearing requirement or packet without at least one
+    verification class is not promotion-grade proof.
+  substitution_rule: >
+    A weaker or unrelated class cannot substitute for the required class
+    unless an active waiver cites the affected requirement id and scope.
+  stale_value_effect: >
+    A class remains listed on the row, but stale or invalid evidence no
+    longer satisfies that class for release, scorecard, signoff, or
+    claim-bearing use.
+  multi_class_rule: >
+    Rows that make multiple kinds of claims list every applicable class.
+    For example, a public SDK compatibility claim may require CONF,
+    DOCVAL, and OPSVAL evidence rather than choosing only one label.
+
+verification_classes:
+  - class_id: BENCH
+    label: Benchmark and protected fitness proof
+    source_label_aliases:
+      - benchmark_fitness
+      - benchmark_report
+      - benchmark / fitness
+      - fitness_function
+      - protected_fitness
+      - performance_lab_output
+      - protected_metric
+    proves: >
+      Performance, latency, throughput, memory, energy, startup, indexing,
+      and protected fitness claims on stated corpora and hardware.
+    minimum_evidence:
+      - exact command or harness ref
+      - corpus or fixture revision
+      - hardware and power profile
+      - threshold or budget ref
+      - current result and regression comparison
+      - freshness metadata and rerun-trigger refs
+      - approved waivers, if any
+    mandatory_review_artifact_classes:
+      - benchmark_report
+      - verification_packet
+    default_requirement_families:
+      - PERF
+      - ARCH
+    stale_effect: >
+      Stale BENCH proof removes release-usable performance claims and
+      holds protected-metric promotion unless an active waiver covers the
+      exact metric, scope, and release window.
+
+  - class_id: CONF
+    label: Conformance, contract, and interoperability proof
+    source_label_aliases:
+      - automated_functional
+      - automated functional test
+      - conformance_suite
+      - interoperability_suite
+      - contract_suite
+      - schema_validation
+    proves: >
+      Functional behavior, schema compatibility, protocol compliance,
+      SDK/API conformance, adapter compatibility, and cross-surface
+      contract integrity.
+    minimum_evidence:
+      - suite or validator ref
+      - exact build or artifact ref when applicable
+      - input matrix or compatibility target
+      - pass/fail summary
+      - failure exclusions and waivers
+      - freshness metadata and rerun-trigger refs
+    mandatory_review_artifact_classes:
+      - verification_packet
+      - compatibility_report
+    default_requirement_families:
+      - FR
+      - LANG
+      - ECOS
+      - TOOL
+      - CERT
+      - ENT
+      - REPO
+    stale_effect: >
+      Stale CONF proof downgrades compatibility, contract, and supported
+      workflow claims to retest pending or blocks them when release-
+      blocking.
+
+  - class_id: RELTEST
+    label: Failure, recovery, and reliability proof
+    source_label_aliases:
+      - failure_recovery_drill
+      - failure / recovery drill
+      - reliability_drill
+      - fault_injection
+      - rollback_test
+      - crash_recovery
+    proves: >
+      Recovery, durability, corruption handling, rollback, reconnect,
+      offline continuity, cache rebuild, and incident-regression
+      prevention claims.
+    minimum_evidence:
+      - failure mode or drill id
+      - injected condition or reproduced incident
+      - expected recovery path
+      - observed recovery result
+      - data-loss or integrity outcome
+      - rollback or repair evidence
+      - freshness metadata and rerun-trigger refs
+    mandatory_review_artifact_classes:
+      - verification_packet
+    default_requirement_families:
+      - REL
+      - TOOL
+      - OPS
+    stale_effect: >
+      Stale RELTEST proof blocks reliability or recovery claims that are
+      release-bearing and forces re-verification after relevant incidents
+      or recovery-path changes.
+
+  - class_id: SECREV
+    label: Security and privacy review proof
+    source_label_aliases:
+      - security_privacy_review
+      - security / privacy review
+      - threat_model_delta
+      - red_team
+      - fuzzing
+      - policy_validation
+      - redaction_check
+    proves: >
+      Security, privacy, trust-boundary, permission, credential, egress,
+      update, provenance, redaction, and supply-chain claims.
+    minimum_evidence:
+      - threat model or security review ref
+      - affected trust boundary or policy surface
+      - test, fuzzing, audit, or red-team result
+      - mitigation and residual risk statement
+      - disclosure or private-record posture when applicable
+      - freshness metadata and rerun-trigger refs
+      - approved security waivers, if any
+    mandatory_review_artifact_classes:
+      - adr
+      - verification_packet
+      - waiver_packet
+    default_requirement_families:
+      - SEC
+      - AI
+      - ENT
+      - ARCH
+    stale_effect: >
+      Stale SECREV proof fails closed for release-bearing trust,
+      security, privacy, credential, egress, or update claims.
+
+  - class_id: A11YTEST
+    label: Accessibility and text/input proof
+    source_label_aliases:
+      - accessibility_validation
+      - accessibility validation
+      - assistive_tech_suite
+      - keyboard_audit
+      - ime_unicode_correctness
+      - contrast_motion_review
+    proves: >
+      Keyboard access, screen reader behavior, focus order, IME and
+      Unicode correctness, localization-sensitive behavior, contrast, and
+      reduced-motion claims.
+    minimum_evidence:
+      - affected surface or workflow
+      - keyboard path result
+      - assistive-tech or platform matrix
+      - focus, IME, contrast, and motion notes when applicable
+      - known gaps and waiver refs
+      - freshness metadata and rerun-trigger refs
+    mandatory_review_artifact_classes:
+      - design_packet
+      - verification_packet
+      - waiver_packet
+    default_requirement_families:
+      - A11Y
+      - FR
+    stale_effect: >
+      Stale A11YTEST proof blocks launch-critical accessibility claims
+      or narrows public/support truth until refreshed.
+
+  - class_id: UXVAL
+    label: Design QA and workflow validation proof
+    source_label_aliases:
+      - design_qa_ux_validation
+      - design QA / UX validation
+      - usability_study
+      - design_partner_signoff
+      - workflow_validation
+      - component_state_checklist
+    proves: >
+      UX workflow completeness, state coverage, degraded path honesty,
+      design QA, launch-critical surface readiness, and design-partner
+      validation.
+    minimum_evidence:
+      - flow or surface refs
+      - state and degraded-path coverage
+      - annotated screenshots or design evidence refs when applicable
+      - keyboard and accessibility notes or linked A11YTEST packet
+      - requirement mapping
+      - reviewer signoff and known gaps
+    mandatory_review_artifact_classes:
+      - design_packet
+      - verification_packet
+    default_requirement_families:
+      - FR
+      - A11Y
+      - AI
+    stale_effect: >
+      Stale UXVAL proof prevents a UX row from supporting release or
+      launch-readiness claims until the affected surface is reviewed
+      again.
+
+  - class_id: OPSVAL
+    label: Operational, supportability, and release evidence proof
+    source_label_aliases:
+      - release_evidence_review
+      - release evidence review
+      - outage_drill
+      - supportability_packet
+      - field_recovery
+      - release_packet
+    proves: >
+      Operational readiness, outage handling, support export,
+      shiproom/release evidence, field recovery, channel widening,
+      rollback, and support-window claims.
+    minimum_evidence:
+      - release, support, outage, or operational packet ref
+      - affected deployment and channel context
+      - rollback or recovery posture
+      - active waivers and expiry
+      - signoff roster or forum outcome
+      - freshness metadata and rerun-trigger refs
+    mandatory_review_artifact_classes:
+      - verification_packet
+      - compatibility_report
+      - waiver_packet
+    default_requirement_families:
+      - OPS
+      - REL
+      - CERT
+      - GOV
+      - AI
+    stale_effect: >
+      Stale OPSVAL proof holds release readiness or narrows operational
+      and support claims. Stable supportability rows block when stale.
+
+  - class_id: DOCVAL
+    label: Documentation, schema, and migration proof
+    source_label_aliases:
+      - documentation_validation
+      - schema_publication
+      - migration_notes
+      - sample_assets
+      - sdk_docs
+    proves: >
+      Documentation truth, schema publication, migration notes, known
+      limits, sample assets, SDK docs, and public/support claim wording.
+    minimum_evidence:
+      - docs, schema, migration, or sample refs
+      - affected requirement ids or claim rows
+      - compatibility or migration impact when applicable
+      - reviewed public/support wording
+      - freshness metadata and rerun-trigger refs
+    mandatory_review_artifact_classes:
+      - verification_packet
+      - compatibility_report
+    default_requirement_families:
+      - GOV
+      - ECOS
+      - CERT
+      - LANG
+      - OPS
+    stale_effect: >
+      Stale DOCVAL proof narrows docs, help, support, migration, and
+      compatibility wording. Public truth must not remain broader than
+      current proof.
+
+source_label_normalization:
+  - source_label_id: automated_functional
+    canonical_class_ids:
+      - CONF
+    note: >
+      Use RELTEST instead when the suite primarily proves crash,
+      rollback, corruption, or recovery behavior.
+  - source_label_id: benchmark_fitness
+    canonical_class_ids:
+      - BENCH
+  - source_label_id: design_qa_ux_validation
+    canonical_class_ids:
+      - UXVAL
+  - source_label_id: accessibility_validation
+    canonical_class_ids:
+      - A11YTEST
+  - source_label_id: security_privacy_review
+    canonical_class_ids:
+      - SECREV
+  - source_label_id: failure_recovery_drill
+    canonical_class_ids:
+      - RELTEST
+  - source_label_id: release_evidence_review
+    canonical_class_ids:
+      - OPSVAL
+      - DOCVAL
+    note: >
+      Release packets often need OPSVAL for operational readiness and
+      DOCVAL for public/support wording. Packets should list both when
+      both claims are being made.
+
+packet_rules:
+  - rule_id: claim_bearing_packet_uses_canonical_ids
+    rule: >
+      Any claim-bearing packet lists verification_classes using the
+      class_id values above. Free-text labels may appear in narrative
+      only after the canonical id is present.
+  - rule_id: stale_proof_not_verified
+    rule: >
+      A packet outside its freshness window or invalidated by a rerun
+      trigger cannot keep a requirement in verified release posture.
+  - rule_id: waivers_do_not_replace_evidence
+    rule: >
+      A waiver can permit a scoped exception, but it is not evidence for
+      the original verification class and must not be counted as proof.

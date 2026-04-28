@@ -18,6 +18,7 @@ narrative must be updated in the same change.
 - **Covered lanes / decisions:** list of lane ids and / or decision ids
 - **Accepted by:** `@handle`
 - **Forum:** architecture_council | performance_council | security_trust_review | accessibility_review | compatibility_ecosystem_review | product_scope_review | release_council | shiproom_executive_scope_review
+- **Policy refs:** `docs/governance/normative_requirement_policy.md` and `artifacts/governance/requirement_lifecycle_states.yaml`
 
 ## Reason
 
@@ -53,6 +54,13 @@ lane triggers the `Recurring waiver` row in the blocker-aging table in
 `dri_map.md` and MUST be converted into a tracked correction program.
 Record each renewal with a new `opened_on` / `expires_on` pair and the
 `forum` that approved the renewal; do not overwrite earlier history.
+
+Waivers for `SEC`, `REL`, `PERF`, `A11Y`, or architecture-invariant
+rows that last longer than 90 days, cross more than one release train,
+or repeat on the same protected path escalate under
+[`/docs/governance/normative_requirement_policy.md`](../normative_requirement_policy.md).
+Expired waivers fail closed for release-readiness until renewed or
+closed by the authorized forum.
 
 ## Linked artifacts
 

@@ -9,6 +9,8 @@ conventions live in artifacts/governance/evidence_id_conventions.md.
 Freshness ceilings and rerun-trigger ids live in
 artifacts/governance/evidence_freshness_slos.yaml and
 artifacts/governance/evidence_rerun_triggers.yaml.
+Canonical verification class ids live in
+artifacts/governance/verification_classes.yaml.
 
 This template is the reviewer-facing narrative companion. It extends the
 minimum Appendix-Y verification packet in the technical architecture
@@ -152,9 +154,9 @@ Rules:
 
 ## Verification method
 
-- **Verification classes used:** benchmark, fixture replay, schema
-  validation, design review, support drill, exact-build audit,
-  compatibility row, or other classes actually exercised
+- **Verification classes used:** canonical ids from
+  `artifacts/governance/verification_classes.yaml` (`BENCH`, `CONF`,
+  `RELTEST`, `SECREV`, `A11YTEST`, `UXVAL`, `OPSVAL`, `DOCVAL`)
 - **Procedure summary:** concise description of what was checked
 - **Automation refs:** validators, scripts, or CI workflows that backed
   the result

@@ -29,6 +29,21 @@ Companion artifacts:
 - [`/artifacts/governance/requirement_register_seed.yaml`](../../artifacts/governance/requirement_register_seed.yaml)
   — machine-readable canonical requirement register consumed by
   scorecards, packets, waivers, and release evidence.
+- [`./normative_requirement_policy.md`](./normative_requirement_policy.md)
+  — interpretation policy for requirement IDs, BCP 14 keyword language,
+  advisory prose, illustrative examples, document precedence, waiver
+  expiry, stale verified requirements, and mandatory review artifacts.
+- [`/artifacts/governance/requirement_lifecycle_states.yaml`](../../artifacts/governance/requirement_lifecycle_states.yaml)
+  — machine-readable requirement-family and lifecycle-state vocabulary
+  consumed by requirement rows, waivers, verification packets, and
+  signoff automation.
+- [`/artifacts/governance/verification_classes.yaml`](../../artifacts/governance/verification_classes.yaml)
+  — canonical verification-class ids for evidence packets, scorecards,
+  benchmark reports, compatibility reports, and release review.
+- [`/artifacts/governance/mandatory_review_artifacts.yaml`](../../artifacts/governance/mandatory_review_artifacts.yaml)
+  — when ADRs, RFCs, design packets, verification packets,
+  compatibility reports, benchmark reports, and waiver packets are
+  mandatory, plus their minimum contents.
 - [`/artifacts/governance/stable_surface_inventory.yaml`](../../artifacts/governance/stable_surface_inventory.yaml)
   — machine-readable stable-surface and future stable-surface
   inventory. Compatibility, docs, migration, and deprecation work cite
