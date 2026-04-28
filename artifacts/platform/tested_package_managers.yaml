@@ -1,0 +1,494 @@
+# Tested package-manager and fleet-tool disclosure matrix.
+#
+# Machine-readable companion to
+# docs/platform/deployment_and_unsupported_path_matrix.md. This file
+# records the package-manager, repository, and fleet-tool lanes that
+# install guides, diagnostics, support bundles, and field triage may
+# name. A row does not become claim-bearing unless it cites the platform
+# profile, install/deployment rows, artifact families, and fixtures that
+# prove the lane.
+
+schema_version: 1
+matrix_id: aureline.platform.tested_package_managers
+record_kind: tested_package_manager_matrix
+status: seeded
+
+contract_doc_ref: docs/platform/deployment_and_unsupported_path_matrix.md
+desktop_management_contract_ref: docs/platform/desktop_management_contract.md
+desktop_conformance_doc_ref: docs/platform/desktop_platform_conformance_matrix.md
+claimed_desktop_profiles_ref: artifacts/platform/claimed_desktop_profiles.yaml
+deployment_patterns_ref: artifacts/platform/deployment_patterns.yaml
+managed_controls_matrix_ref: artifacts/platform/managed_controls_matrix.yaml
+install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+install_artifact_families_ref: artifacts/release/install_artifact_families.yaml
+channel_identity_state_roots_ref: artifacts/release/channel_identity_and_state_roots.yaml
+unsupported_paths_ref: artifacts/platform/unsupported_paths.yaml
+fixtures_ref: fixtures/platform/deployment_path_examples/
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "Packaging, installation, and rollback matrix"
+      - "Native OS integration and desktop management requirements"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Appendix AA Desktop-Platform Conformance Matrix"
+      - "Appendix BA Install, Portable-Mode, and Fleet-Rollout Matrix"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "Integrated package manager, manifest scope, registry auth, and lockfile safety"
+      - "Appendix M Deployment, packaging, and rollout matrix"
+
+lane_kind_vocabulary:
+  - package_manager
+  - repository_format
+  - fleet_tool_family
+  - mirror_or_registry
+  - helper_runtime_distribution
+
+support_status_vocabulary:
+  - claim_bearing
+  - claim_bearing_narrow
+  - best_effort_delegated
+  - unsupported
+  - future_work
+
+evidence_status_vocabulary:
+  - seeded_pending_execution
+  - fixture_seeded
+  - blocked_pending_install_card
+  - blocked_pending_profile
+  - not_planned
+
+tool_authority_vocabulary:
+  - aureline
+  - operating_system
+  - external_package_manager
+  - admin_or_fleet
+  - managed_fleet
+  - customer_mirror
+  - remote_runtime_manager
+
+disclosure_surface_vocabulary:
+  - install_guide
+  - docs_compatibility
+  - help_center
+  - about_update_surface
+  - project_doctor_ui
+  - project_doctor_headless
+  - support_bundle
+  - field_triage
+  - release_notes
+
+rules:
+  - id: package_manager_row_required_before_naming
+    description: >
+      Any user-facing or support-facing mention of a package manager,
+      repository format, fleet-tool family, mirror, registry, or helper
+      runtime distribution must resolve to one row in this file.
+  - id: delegated_does_not_widen_product_update
+    description: >
+      A delegated or best-effort row may explain the detected source,
+      but it does not widen product-owned update, uninstall, rollback,
+      channel-pinning, file-handler, or protocol-handler claims.
+  - id: linux_rows_name_profile_display_and_secret_store
+    description: >
+      Linux package-manager rows must name the exact desktop profile,
+      display stack, and secret-store assumption before they can be
+      claim-bearing.
+  - id: fleet_tool_family_not_console_certification
+    description: >
+      Fleet-tool rows name the automation contract a family of tools can
+      drive. They do not certify vendor-specific console UX, smart
+      groups, detection rules, or recipes unless a later row says so.
+  - id: helper_runtime_distribution_not_desktop_install
+    description: >
+      Remote helper and agent package rows never own desktop file
+      associations, protocol handlers, recent items, or local desktop
+      update markers.
+
+package_manager_rows:
+  - row_id: pkgmgr.macos.homebrew_cask
+    lane_kind: package_manager
+    platform_profile_refs:
+      - macos_15_plus_universal
+    platform_class: macos
+    tool_label: Homebrew cask
+    tool_authority: external_package_manager
+    support_status: best_effort_delegated
+    evidence_status: fixture_seeded
+    deployment_pattern_refs:
+      - desktop_management.pattern.macos.external_package_manager
+    artifact_family_refs:
+      - artifact_family.macos.notarized_dmg
+    install_topology_card_refs:
+      - card.macos.universal_binary.external_package_manager.stable
+    tested_assumptions:
+      - Homebrew owns package acquisition, update, and removal.
+      - Aureline reports install topology and user state roots only.
+      - Default-handler and protocol ownership do not widen beyond the direct install row.
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+      - in_product_package_update
+    unsupported_path_refs:
+      - unsupported_path.macos.homebrew_update_ownership
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/macos_mdm_homebrew_boundary.yaml
+    disclosure_surfaces:
+      - install_guide
+      - help_center
+      - project_doctor_ui
+      - project_doctor_headless
+      - support_bundle
+      - field_triage
+    support_copy: >
+      Homebrew/cask acquisition may be detected and explained, but
+      Homebrew owns update and removal. This path is not an Aureline
+      silent-install, channel-pinning, or handler-ownership claim.
+    status: seeded
+
+  - row_id: pkgmgr.macos.mdm_jamf_munki_pkg
+    lane_kind: fleet_tool_family
+    platform_profile_refs:
+      - macos_15_plus_universal
+    platform_class: macos
+    tool_label: MDM/Jamf/Munki-style PKG deployment
+    tool_authority: managed_fleet
+    support_status: claim_bearing
+    evidence_status: fixture_seeded
+    deployment_pattern_refs:
+      - desktop_management.pattern.macos.managed
+    artifact_family_refs:
+      - artifact_family.macos.pkg
+    install_topology_card_refs:
+      - card.macos.universal_binary.managed_deployed.stable
+    tested_assumptions:
+      - The claim is the signed PKG, policy root, unattended result record, and managed package report slot.
+      - Vendor-specific console objects and recipes are outside the claim.
+      - Admin channel pinning binds to the Stable channel identity row.
+    unsupported_controls: []
+    unsupported_path_refs:
+      - unsupported_path.fleet.vendor_specific_console_adapters
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/macos_mdm_homebrew_boundary.yaml
+      - fixtures/platform/scriptable_install_cases/macos_mdm_update_deferral.yaml
+    disclosure_surfaces:
+      - install_guide
+      - docs_compatibility
+      - about_update_surface
+      - project_doctor_ui
+      - support_bundle
+      - field_triage
+    support_copy: >
+      Managed macOS support covers the PKG automation contract and
+      result records. It does not certify vendor-specific MDM console
+      recipes or smart groups.
+    status: seeded
+
+  - row_id: pkgmgr.windows.winget
+    lane_kind: package_manager
+    platform_profile_refs:
+      - windows_11_23h2_plus_x86_64
+    platform_class: windows
+    tool_label: winget
+    tool_authority: external_package_manager
+    support_status: future_work
+    evidence_status: blocked_pending_install_card
+    deployment_pattern_refs:
+      - desktop_management.pattern.windows.external_package_manager
+    artifact_family_refs:
+      - artifact_family.windows.msi
+      - artifact_family.windows.msix
+    install_topology_card_refs: []
+    tested_assumptions:
+      - The current Windows claim is MSI/MSIX direct, managed, portable ZIP, and offline bundle.
+      - winget install, update, uninstall, and pinning need a dedicated external-package-manager card before they can be claimed.
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+      - package_manager_owned_update
+    unsupported_path_refs:
+      - unsupported_path.windows.winget
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/windows_per_user_per_machine_winget_gap.yaml
+      - fixtures/platform/scriptable_install_cases/unsupported_package_manager_gap.yaml
+    disclosure_surfaces:
+      - install_guide
+      - docs_compatibility
+      - help_center
+      - project_doctor_ui
+      - project_doctor_headless
+      - support_bundle
+      - release_notes
+    support_copy: >
+      winget is not a supported Windows deployment lane yet. Use the
+      signed installer, managed MSI/MSIX, portable ZIP, or offline
+      bundle rows that match the intended authority.
+    status: seeded
+
+  - row_id: pkgmgr.windows.intune_gpo_msi_msix
+    lane_kind: fleet_tool_family
+    platform_profile_refs:
+      - windows_11_23h2_plus_x86_64
+    platform_class: windows
+    tool_label: Intune/GPO/enterprise MSI-MSIX deployment
+    tool_authority: managed_fleet
+    support_status: claim_bearing
+    evidence_status: fixture_seeded
+    deployment_pattern_refs:
+      - desktop_management.pattern.windows.managed
+    artifact_family_refs:
+      - artifact_family.windows.msi
+      - artifact_family.windows.msix
+    install_topology_card_refs:
+      - card.windows.x86_64.managed_deployed.stable
+    tested_assumptions:
+      - Per-machine managed install owns package registration and managed package reports.
+      - Per-user state persists across managed uninstall unless clear-data is separately requested.
+      - GPO policy injection narrows or pins behavior but cannot widen trust or endpoint reachability.
+    unsupported_controls: []
+    unsupported_path_refs:
+      - unsupported_path.fleet.vendor_specific_console_adapters
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/windows_per_user_per_machine_winget_gap.yaml
+      - fixtures/platform/scriptable_install_cases/windows_managed_channel_pin.yaml
+    disclosure_surfaces:
+      - install_guide
+      - docs_compatibility
+      - about_update_surface
+      - project_doctor_ui
+      - support_bundle
+      - field_triage
+    support_copy: >
+      Windows managed support covers the MSI/MSIX package contract,
+      GPO or enterprise policy root, managed package result, and
+      preservation of user-authored state. It does not claim winget.
+    status: seeded
+
+  - row_id: pkgmgr.linux.ubuntu_wayland.apt_deb_mirror
+    lane_kind: repository_format
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+    platform_class: linux
+    tool_label: APT/DEB private mirror on Ubuntu GNOME Wayland
+    tool_authority: customer_mirror
+    support_status: claim_bearing_narrow
+    evidence_status: fixture_seeded
+    deployment_pattern_refs:
+      - desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_wayland.managed
+    artifact_family_refs:
+      - artifact_family.linux.deb
+      - artifact_family.linux.tarball
+    install_topology_card_refs:
+      - card.linux.x86_64.offline_bundle.stable
+      - card.linux.x86_64.customer_managed_mirror.stable
+      - card.linux.x86_64.managed_deployed.stable
+    tested_assumptions:
+      - The claim is tied to Ubuntu 24.04 GNOME Wayland, xdg-desktop-portal, Secret Service via libsecret/GNOME Keyring, and IBus.
+      - Mirror metadata, policy roots, and unattended result records are required.
+      - Package-manager pins remain package-manager-owned unless joined to a channel identity row.
+    unsupported_controls: []
+    unsupported_path_refs:
+      - unsupported_path.linux.managed_outside_ubuntu_wayland
+      - unsupported_path.linux.non_gnome_desktop_environment
+      - unsupported_path.linux.unnamed_display_stack
+      - unsupported_path.linux.kwallet_secret_store
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/linux_ubuntu_wayland_apt_mirror_disclosure.yaml
+      - fixtures/platform/scriptable_install_cases/linux_ubuntu_wayland_mirror_policy.yaml
+    disclosure_surfaces:
+      - install_guide
+      - docs_compatibility
+      - help_center
+      - project_doctor_ui
+      - project_doctor_headless
+      - support_bundle
+      - field_triage
+    support_copy: >
+      The Linux managed/mirror package-manager claim is narrow: Ubuntu
+      24.04 GNOME Wayland, declared display stack, declared secret
+      store, mirror metadata, and policy result records are part of the
+      claim.
+    status: seeded
+
+  - row_id: pkgmgr.linux.fedora_wayland.dnf_rpm
+    lane_kind: package_manager
+    platform_profile_refs:
+      - linux_fedora_current_gnome_wayland_x86_64
+    platform_class: linux
+    tool_label: DNF/RPM on Fedora GNOME Wayland
+    tool_authority: external_package_manager
+    support_status: best_effort_delegated
+    evidence_status: fixture_seeded
+    deployment_pattern_refs:
+      - desktop_management.pattern.linux_fedora_wayland.external_package_manager
+    artifact_family_refs:
+      - artifact_family.linux.rpm
+    install_topology_card_refs:
+      - card.linux.x86_64.external_package_manager.stable
+    tested_assumptions:
+      - Direct local use is the claim-bearing Fedora row.
+      - DNF/RPM acquisition and removal are package-manager-owned.
+      - Managed, offline, and customer-mirror widening are unsupported on this profile.
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+      - managed_widening
+    unsupported_path_refs:
+      - unsupported_path.linux.managed_outside_ubuntu_wayland
+      - unsupported_path.linux.unnamed_display_stack
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/linux_ubuntu_wayland_apt_mirror_disclosure.yaml
+      - fixtures/platform/scriptable_install_cases/unsupported_package_manager_gap.yaml
+    disclosure_surfaces:
+      - install_guide
+      - help_center
+      - project_doctor_ui
+      - support_bundle
+      - field_triage
+    support_copy: >
+      Fedora DNF/RPM acquisition may be detected and explained, but it
+      is not a managed, offline, or customer-mirror support claim.
+    status: seeded
+
+  - row_id: pkgmgr.linux.debian_x11.apt_deb
+    lane_kind: package_manager
+    platform_profile_refs:
+      - linux_debian_stable_gnome_x11_x86_64
+    platform_class: linux
+    tool_label: APT/DEB on Debian stable GNOME X11
+    tool_authority: external_package_manager
+    support_status: best_effort_delegated
+    evidence_status: fixture_seeded
+    deployment_pattern_refs:
+      - desktop_management.pattern.linux_debian_x11.external_package_manager
+    artifact_family_refs:
+      - artifact_family.linux.deb
+    install_topology_card_refs:
+      - card.linux.x86_64.external_package_manager.stable
+    tested_assumptions:
+      - Debian stable is a tarball direct local-use claim.
+      - APT/DEB package-manager acquisition is delegated.
+      - Portable, managed, offline, and mirror widening are unsupported.
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+      - portable_widening
+      - managed_widening
+    unsupported_path_refs:
+      - unsupported_path.linux.managed_outside_ubuntu_wayland
+      - unsupported_path.linux.debian_portable_widening
+      - unsupported_path.linux.unnamed_display_stack
+    fixture_refs:
+      - fixtures/platform/scriptable_install_cases/unsupported_package_manager_gap.yaml
+    disclosure_surfaces:
+      - install_guide
+      - help_center
+      - project_doctor_ui
+      - support_bundle
+      - field_triage
+    support_copy: >
+      Debian stable is the narrow Linux claim. APT/DEB acquisition is
+      delegated and does not create portable, managed, offline, or
+      mirror support.
+    status: seeded
+
+  - row_id: pkgmgr.linux.flatpak_snap_nix
+    lane_kind: package_manager
+    platform_profile_refs: []
+    platform_class: linux
+    tool_label: Flatpak, Snap, and Nix package lanes
+    tool_authority: external_package_manager
+    support_status: unsupported
+    evidence_status: not_planned
+    deployment_pattern_refs: []
+    artifact_family_refs: []
+    install_topology_card_refs: []
+    tested_assumptions:
+      - These package managers have no current install-profile cards or desktop conformance rows.
+      - Sandbox, secret-store, portal, update, and handler behavior are not claim-bearing.
+    unsupported_controls:
+      - install_claim
+      - update_claim
+      - uninstall_claim
+      - channel_pinning
+      - handler_ownership
+    unsupported_path_refs:
+      - unsupported_path.linux.flatpak_snap_nix
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/linux_ubuntu_wayland_apt_mirror_disclosure.yaml
+    disclosure_surfaces:
+      - install_guide
+      - docs_compatibility
+      - help_center
+      - project_doctor_ui
+      - project_doctor_headless
+      - support_bundle
+      - release_notes
+    support_copy: >
+      Flatpak, Snap, and Nix package lanes are not currently supported
+      deployment paths.
+    status: seeded
+
+  - row_id: pkgmgr.remote.agent_helper_distribution
+    lane_kind: helper_runtime_distribution
+    platform_profile_refs:
+      - remote_linux_target
+      - remote_container_target
+    platform_class: remote_linux_target
+    tool_label: Remote agent/helper signed runtime distribution
+    tool_authority: remote_runtime_manager
+    support_status: claim_bearing_narrow
+    evidence_status: fixture_seeded
+    deployment_pattern_refs: []
+    artifact_family_refs:
+      - artifact_family.remote.agent_tarball
+      - artifact_family.remote.helper_tarball
+      - artifact_family.remote.agent_image_layer_bundle
+    install_topology_card_refs: []
+    tested_assumptions:
+      - Agent/helper payloads are signed and versioned by runtime identity or image digest.
+      - Capability negotiation is required before attach or execution claims.
+      - Helper artifacts never own local desktop file associations, protocol handlers, recent items, or desktop update markers.
+    unsupported_controls:
+      - desktop_file_association
+      - desktop_protocol_handler
+      - local_recent_item_registration
+      - unmanaged_helper_skew_bypass
+    unsupported_path_refs:
+      - unsupported_path.remote_helper.desktop_handler_ownership
+      - unsupported_path.remote_helper.unnegotiated_runtime_skew
+    fixture_refs:
+      - fixtures/platform/deployment_path_examples/remote_helper_agent_runtime_disclosure.yaml
+    disclosure_surfaces:
+      - install_guide
+      - docs_compatibility
+      - project_doctor_ui
+      - project_doctor_headless
+      - support_bundle
+      - field_triage
+    support_copy: >
+      Remote helper and agent support is runtime-scoped. It depends on
+      signed payloads, mirror/source posture, and capability
+      negotiation, and it never widens desktop handler ownership.
+    status: seeded
+
+coverage:
+  claim_bearing_rows:
+    - pkgmgr.macos.mdm_jamf_munki_pkg
+    - pkgmgr.windows.intune_gpo_msi_msix
+    - pkgmgr.linux.ubuntu_wayland.apt_deb_mirror
+    - pkgmgr.remote.agent_helper_distribution
+  delegated_or_best_effort_rows:
+    - pkgmgr.macos.homebrew_cask
+    - pkgmgr.linux.fedora_wayland.dnf_rpm
+    - pkgmgr.linux.debian_x11.apt_deb
+  unsupported_or_future_work_rows:
+    - pkgmgr.windows.winget
+    - pkgmgr.linux.flatpak_snap_nix

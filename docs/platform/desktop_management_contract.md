@@ -18,7 +18,13 @@ The machine-readable companions are:
 - [`/artifacts/platform/deployment_patterns.yaml`](../../artifacts/platform/deployment_patterns.yaml)
   for platform/profile deployment-pattern rows;
 - [`/artifacts/platform/managed_controls_matrix.yaml`](../../artifacts/platform/managed_controls_matrix.yaml)
-  for managed-control definitions and support rollups; and
+  for managed-control definitions and support rollups;
+- [`/docs/platform/deployment_and_unsupported_path_matrix.md`](./deployment_and_unsupported_path_matrix.md),
+  [`/artifacts/platform/tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml),
+  and
+  [`/artifacts/platform/unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml)
+  for tested package-manager, fleet-tool, helper/agent, and unsupported
+  path disclosure rows; and
 - [`/fixtures/platform/scriptable_install_cases/`](../../fixtures/platform/scriptable_install_cases/)
   for worked cases that join controls to installer families, release
   channels, state roots, and policy artifacts.
@@ -40,6 +46,7 @@ truth.
 | Which installer artifact families are eligible? | [`install_artifact_families.yaml`](../../artifacts/release/install_artifact_families.yaml) |
 | Which channel identity and state roots are touched? | [`channel_identity_and_state_roots.yaml`](../../artifacts/release/channel_identity_and_state_roots.yaml) and [`state_root_map.yaml`](../../artifacts/release/state_root_map.yaml) |
 | Which unattended result classes and exit-code families are allowed? | [`silent_deployment_seed.yaml`](../../artifacts/release/silent_deployment_seed.yaml) |
+| Which package-manager, fleet-tool, helper/agent, and unsupported paths may be named? | [`deployment_and_unsupported_path_matrix.md`](./deployment_and_unsupported_path_matrix.md), [`tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml), and [`unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml) |
 | Which policy artifact carries admin controls? | [`admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md) |
 | Which extension mirror vocabulary is reused? | [`channel_promotion_rows.yaml`](../../artifacts/extensions/channel_promotion_rows.yaml) |
 | Which proxy and transport vocabulary is reused? | [`admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md) and the transport-governance source sections in `.t2/docs/` |
@@ -70,7 +77,11 @@ claimed platform has a concrete answer for those procurement questions.
 The rows below summarize
 [`deployment_patterns.yaml`](../../artifacts/platform/deployment_patterns.yaml).
 They are profile-specific. "Linux" without the named profile row is not
-a supported platform claim.
+a supported platform claim. Package-manager and fleet-tool names in this
+table are disclosure summaries; their source rows live in
+[`tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml),
+and unsupported adjacent paths live in
+[`unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml).
 
 | Platform profile | Individual install | Managed install | Portable install | Offline bundle / customer mirror | External package manager |
 |---|---|---|---|---|---|
@@ -150,6 +161,11 @@ The following are visible gaps, not hidden support assumptions:
   vendor-specific MDM UI flows. The current claim is the package,
   control, result, policy, and inventory contract those systems can
   automate against.
+
+The machine-readable disclosure source for these gaps is
+[`unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml).
+Support, Help, diagnostics, and field triage must cite those row ids
+instead of inferring support from the broader deployment-pattern table.
 
 ## Change Control
 

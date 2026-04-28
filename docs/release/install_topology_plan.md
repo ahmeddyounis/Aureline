@@ -40,6 +40,13 @@ Companion artifacts:
   — machine-readable return-code family seed plus worked
   `unattended_deployment_result_record` fixtures covering install,
   update, rollback, uninstall, and verify-failed outcomes.
+- [`/docs/platform/deployment_and_unsupported_path_matrix.md`](../platform/deployment_and_unsupported_path_matrix.md),
+  [`/artifacts/platform/tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml),
+  and
+  [`/artifacts/platform/unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml)
+  — package-manager, fleet-tool, helper/agent, and unsupported-path
+  disclosure rows that install-profile cards and support summaries use
+  before naming deployment support.
 - [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
   — shared continuity, mirror/offline, and impairment drill catalog
   seed the install-profile cards, rollout evidence, and support/export

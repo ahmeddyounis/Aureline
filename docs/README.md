@@ -235,6 +235,14 @@ code.
   accessibility, and compatibility packets cite.
   Machine-readable companion in
   [`/artifacts/platform/claimed_desktop_profiles.yaml`](../artifacts/platform/claimed_desktop_profiles.yaml).
+- [`platform/deployment_and_unsupported_path_matrix.md`](./platform/deployment_and_unsupported_path_matrix.md)
+  — shared disclosure matrix for tested package-manager, fleet-tool,
+  helper/agent, and unsupported paths so install guides, diagnostics,
+  Help, support bundles, and field triage do not infer broad platform
+  claims from generic OS labels. Machine-readable companions in
+  [`/artifacts/platform/tested_package_managers.yaml`](../artifacts/platform/tested_package_managers.yaml)
+  and
+  [`/artifacts/platform/unsupported_paths.yaml`](../artifacts/platform/unsupported_paths.yaml).
 - [`ux/desktop_affordance_contract.md`](./ux/desktop_affordance_contract.md)
   — cross-surface OS affordance contract for file associations,
   open-with, reveal-in-system-shell, dock / taskbar entries,

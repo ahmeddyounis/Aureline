@@ -24,6 +24,13 @@ Companion artifacts:
   and
   [`/docs/release/ring_progression_policy.md`](./ring_progression_policy.md)
   — channel, rollback, and evidence-widening context.
+- [`/docs/platform/deployment_and_unsupported_path_matrix.md`](../platform/deployment_and_unsupported_path_matrix.md),
+  [`/artifacts/platform/tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml),
+  and
+  [`/artifacts/platform/unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml)
+  — platform disclosure rows for package-manager, fleet-tool,
+  helper/agent, and unsupported paths that install-profile cards and
+  support summaries must not infer from generic OS labels.
 
 Normative source anchors:
 

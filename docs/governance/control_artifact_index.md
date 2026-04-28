@@ -494,6 +494,13 @@ and scopes.
   controls, extension mirrors, proxy posture, policy bundle location,
   and documented uninstall behavior. Enterprise rollout guidance should
   cite those rows rather than relying on installer folklore.
+- The deployment and unsupported-path disclosure matrix now sits between
+  desktop conformance, desktop management, and install-profile cards.
+  Package-manager, fleet-tool, helper/agent, desktop-environment,
+  display-stack, and secret-store limitations should cite
+  [`/docs/platform/deployment_and_unsupported_path_matrix.md`](../platform/deployment_and_unsupported_path_matrix.md)
+  and its machine-readable companions rather than relying on hidden
+  support notes.
 - The window display behavior contract now lives in
   [`/docs/ux/window_display_contract.md`](../ux/window_display_contract.md)
   with boundary schema

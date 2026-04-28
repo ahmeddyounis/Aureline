@@ -24,6 +24,13 @@ Companion artifacts:
   managed-control support matrix for silent install/uninstall, channel
   pinning, update controls, mirrors, proxy posture, policy bundles, and
   uninstall behavior on the claimed desktop profiles.
+- [`/docs/platform/deployment_and_unsupported_path_matrix.md`](./deployment_and_unsupported_path_matrix.md),
+  [`/artifacts/platform/tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml),
+  and
+  [`/artifacts/platform/unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml)
+  — shared disclosure matrix for tested package-manager, fleet-tool,
+  helper/agent, and unsupported paths that install guides, diagnostics,
+  support bundles, and field triage cite.
 - [`/artifacts/qa/window_display_matrix.yaml`](../../artifacts/qa/window_display_matrix.yaml)
   — seeded scenario and drill ids for multi-window, monitor-topology,
   mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen
@@ -205,6 +212,11 @@ generally.
 | Install/update/rollback and deployment hooks | direct tarball/AppImage rows on the named profiles; managed/offline/customer-mirror widening only on Ubuntu 24.04 Wayland | `release_evidence / @ahmeddyounis` | packaging-lane report plus install/update/rollback drill | `release_candidate_blocker` | Distro-native package managers are best-effort only; KDE/KWallet, ARM64 Linux, and unnamed desktop environments remain outside the claim. |
 
 ## Explicitly unclaimed or degraded lanes
+
+The machine-readable disclosure source for package-manager,
+fleet-tool, helper/agent, desktop-environment, display-stack, and
+secret-store gaps is
+[`/artifacts/platform/unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml).
 
 - Windows ARM64 and Linux ARM64 remain unclaimed until install-profile
   cards and per-OS conformance rows exist for them.

@@ -36,6 +36,13 @@ Companion artifacts:
   [`/artifacts/release/channel_matrix.yaml`](../../artifacts/release/channel_matrix.yaml)
   remain the channel, branch, downgrade, and side-by-side admission
   sources.
+- [`/docs/platform/deployment_and_unsupported_path_matrix.md`](../platform/deployment_and_unsupported_path_matrix.md),
+  [`/artifacts/platform/tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml),
+  and
+  [`/artifacts/platform/unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml)
+  remain the disclosure source for package-manager, fleet-tool,
+  helper/agent, and unsupported paths that package-family rows must not
+  infer from artifact names alone.
 
 Normative source anchors:
 
