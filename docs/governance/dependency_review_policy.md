@@ -35,6 +35,10 @@ Companion artifacts:
 - [`/docs/governance/provenance_and_compliance_baseline.md`](./provenance_and_compliance_baseline.md)
   — the broader DCO, REUSE/SPDX, and placeholder SBOM/provenance
   baseline this policy composes with.
+- [`/docs/governance/provenance_badge_contract.md`](./provenance_badge_contract.md)
+  — shared badge and row vocabulary dependency/import review surfaces
+  use when they project provenance, license, notice, upstream health,
+  support, freshness, advisory, and mirror/offline state.
 
 ## 1. One dependency row, one import row, one source id
 

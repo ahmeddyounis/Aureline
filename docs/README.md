@@ -87,6 +87,14 @@ code.
 - [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
   — IP, provenance, and supply-chain baseline that pairs with
   [`/CONTRIBUTING.md`](../CONTRIBUTING.md).
+- [`governance/provenance_badge_contract.md`](./governance/provenance_badge_contract.md)
+  — provenance-badge, license-row, notice-row, and supply-chain-status
+  contract shared by release publication, install review, dependency
+  review, About / update surfaces, support exports, public-proof
+  packets, and mirror/offline review. Boundary schema in
+  [`/schemas/governance/provenance_badge.schema.json`](../schemas/governance/provenance_badge.schema.json);
+  worked fixtures in
+  [`/fixtures/governance/provenance_badge_cases/`](../fixtures/governance/provenance_badge_cases/).
 - [`architecture/build_vs_buy_register.md`](./architecture/build_vs_buy_register.md)
   — canonical launch-critical build-vs-buy register, scoring rubric,
   and dependency traceability for protected-path selections.

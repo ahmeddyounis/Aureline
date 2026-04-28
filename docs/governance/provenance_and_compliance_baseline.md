@@ -19,6 +19,10 @@ Companion artifacts:
   — lightweight admission policy for third-party dependencies,
   imported bytes, build-vs-buy linkage, automation posture, and
   notice/SBOM/provenance flow.
+- [`/docs/governance/provenance_badge_contract.md`](./provenance_badge_contract.md)
+  — reusable provenance-badge, license-row, notice-row, and supply-
+  chain-status vocabulary for release, install, dependency review,
+  mirror/offline, support, and public-proof surfaces.
 - [`/artifacts/governance/dependency_register.yaml`](../../artifacts/governance/dependency_register.yaml)
   — canonical register of selected and admitted third-party
   dependencies.

@@ -115,6 +115,7 @@ the decision dependency register, the build-vs-buy register, the fork-review pol
 dependency and import registers, the critical-upstream health
 scorecard, the maintainer-coverage policy, the signing-quorum matrix,
 the experiment/Labs control registers, the release-notice seed, the
+provenance-badge contract, the
 release-artifact graph, release evidence, docs and help truth, route
 and build-truth artifacts, accessibility review packets,
 surface-traceability artifacts, and frozen-surface manifests —
