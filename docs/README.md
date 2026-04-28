@@ -589,6 +589,17 @@ code.
   [`/schemas/ux/status_item.schema.json`](../schemas/ux/status_item.schema.json);
   worked fixtures in
   [`/fixtures/ux/status_items/`](../fixtures/ux/status_items/).
+- [`ux/status_strip_family_contract.md`](./ux/status_strip_family_contract.md)
+  — shared top-of-surface status-strip and readiness-banner family for
+  workspace, environment, provider, graph, and framework surfaces.
+  Freezes one seven-value readiness vocabulary, shared scope/count/action
+  anatomy, hidden-scope and partial/stale top-level disclosure,
+  surface-specific variant blocks, and export/screenshot-safe rules for
+  live, cached, provider-backed, partial, stale, degraded, blocked, and
+  ready states. Boundary schema in
+  [`/schemas/ux/status_strip.schema.json`](../schemas/ux/status_strip.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/status_strips/`](../fixtures/ux/status_strips/).
 - [`ux/live_update_review_contract.md`](./ux/live_update_review_contract.md)
   — shared live-update review contract covering pause/freeze,
   buffered-vs-stale honesty, anchor stability, batch-membership drift,
