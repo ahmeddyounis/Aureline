@@ -14,6 +14,13 @@ Companion artifacts:
 - [`/fixtures/ux/editor_layer_cases/`](../../fixtures/ux/editor_layer_cases/)
   contains worked cases for canonical layer ownership, stable text
   column behavior, state placement, and large-file degradation.
+- [`/docs/ux/editor_gutter_contract.md`](./editor_gutter_contract.md)
+  owns detailed gutter lane admission, precedence, hit-target,
+  accessibility-label, narrow-width fallback, and no-jitter rules.
+- [`/schemas/ux/editor_gutter_lane.schema.json`](../../schemas/ux/editor_gutter_lane.schema.json)
+  and [`/fixtures/ux/gutter_cases/`](../../fixtures/ux/gutter_cases/)
+  publish the gutter-specific machine-readable contract and worked
+  cases.
 
 Normative sources projected here:
 
@@ -34,6 +41,9 @@ Normative sources projected here:
 - [`/docs/ux/decoration_precedence_contract.md`](./decoration_precedence_contract.md)
   owns shared decoration precedence for editor gutter and inline
   projection.
+- [`/docs/ux/editor_gutter_contract.md`](./editor_gutter_contract.md)
+  owns the detailed gutter lane contract underneath this layer-level
+  assignment.
 - [`/docs/ux/editor_selection_contract.md`](./editor_selection_contract.md)
   owns primary caret, active selection, selection anchor, multi-cursor,
   column-selection, line-selection, IME-composition, and editor

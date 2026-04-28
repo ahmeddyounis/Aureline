@@ -515,6 +515,16 @@ code.
   [`/schemas/ux/editor_layer.schema.json`](../schemas/ux/editor_layer.schema.json);
   worked fixtures in
   [`/fixtures/ux/editor_layer_cases/`](../fixtures/ux/editor_layer_cases/).
+- [`ux/editor_gutter_contract.md`](./ux/editor_gutter_contract.md)
+  — editor gutter lane, precedence, hit-target, accessibility, and
+  no-jitter contract for line numbers, execution/debug markers,
+  diagnostics, changes/review, fold controls, and supplemental cues.
+  Freezes signal admission/rejection, breakpoint-versus-diagnostic,
+  fold-versus-execution, high-severity precedence, keyboard-equivalent
+  rules, and narrow-width fallback. Boundary schema in
+  [`/schemas/ux/editor_gutter_lane.schema.json`](../schemas/ux/editor_gutter_lane.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/gutter_cases/`](../fixtures/ux/gutter_cases/).
 - [`ux/editor_selection_contract.md`](./ux/editor_selection_contract.md)
   — source-editor selection, caret, multi-cursor, column-selection,
   line-selection, structural/semantic selection, IME composition, and

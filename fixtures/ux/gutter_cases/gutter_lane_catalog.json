@@ -1,0 +1,301 @@
+{
+  "$schema": "../../../schemas/ux/editor_gutter_lane.schema.json",
+  "__fixture__": {
+    "name": "gutter_lane_catalog",
+    "scenario": "The editor gutter publishes canonical lanes, signal admission, precedence, hit-target, accessibility, and no-jitter rules before feature implementations add markers.",
+    "record_kinds_exercised": ["gutter_lane_catalog_record"],
+    "contract_sections": [
+      "2. Canonical Lanes",
+      "3. Signal Admission",
+      "4. Precedence",
+      "5. Interaction Contract",
+      "6. No-Jitter Layout"
+    ],
+    "exercised_axes": {
+      "canonical_lanes": 6,
+      "accepted_signal_families": true,
+      "ambient_signal_rejection": true,
+      "hit_target_min_logical_px": 28,
+      "no_jitter": true
+    }
+  },
+  "record_kind": "gutter_lane_catalog_record",
+  "editor_gutter_lane_schema_version": 1,
+  "catalog_id": "editor-gutter-lane-catalog-0001",
+  "lane_definitions": [
+    {
+      "lane": "line_number",
+      "order": 0,
+      "owns_summary": "Line position, current-line orientation, and stable digit reserve.",
+      "must_never_own": "Breakpoint toggles, diagnostic severity, or semantic truth.",
+      "eligible_signal_classes": ["line_number", "current_line"],
+      "reserves_width_at_viewport_level": true,
+      "collapses_before_lanes": ["execution_debug", "diagnostic"],
+      "required_non_color_channels": ["text", "position", "accessible_name"]
+    },
+    {
+      "lane": "execution_debug",
+      "order": 1,
+      "owns_summary": "Breakpoints, logpoints, disabled breakpoint state, current frame, stopped frame, and debug execution cues.",
+      "must_never_own": "Diagnostic severity, quick-fix application, or fold disclosure.",
+      "eligible_signal_classes": [
+        "breakpoint_enabled",
+        "breakpoint_disabled",
+        "conditional_breakpoint",
+        "logpoint",
+        "debug_current_frame",
+        "debug_paused_frame"
+      ],
+      "reserves_width_at_viewport_level": true,
+      "collapses_before_lanes": [],
+      "required_non_color_channels": ["glyph", "shape", "position", "accessible_name", "focus_ring"]
+    },
+    {
+      "lane": "diagnostic",
+      "order": 2,
+      "owns_summary": "Diagnostic severity markers, clustered problem counts, freshness disclosure, and line-local diagnostic detail entry.",
+      "must_never_own": "Breakpoint hit targets or diagnostic-provider truth.",
+      "eligible_signal_classes": [
+        "diagnostic_error",
+        "diagnostic_warning",
+        "diagnostic_info",
+        "diagnostic_hint"
+      ],
+      "reserves_width_at_viewport_level": true,
+      "collapses_before_lanes": [],
+      "required_non_color_channels": ["glyph", "shape", "position", "accessible_name", "border"]
+    },
+    {
+      "lane": "change_review",
+      "order": 3,
+      "owns_summary": "VCS change bars, merge/conflict markers, review anchors, comment anchors, and change-family summaries.",
+      "must_never_own": "Diagnostic severity or current-frame execution state.",
+      "eligible_signal_classes": ["git_added", "git_modified", "git_deleted", "merge_conflict", "review_thread"],
+      "reserves_width_at_viewport_level": true,
+      "collapses_before_lanes": ["execution_debug", "diagnostic"],
+      "required_non_color_channels": ["position", "glyph", "accessible_name"]
+    },
+    {
+      "lane": "fold_control",
+      "order": 4,
+      "owns_summary": "Fold availability, collapsed fold affordances, and hidden-range summaries.",
+      "must_never_own": "The only disclosure for hidden diagnostics, conflicts, review anchors, or execution state.",
+      "eligible_signal_classes": ["fold_available", "fold_collapsed", "fold_hidden_range_summary"],
+      "reserves_width_at_viewport_level": true,
+      "collapses_before_lanes": ["execution_debug", "diagnostic", "change_review"],
+      "required_non_color_channels": ["glyph", "shape", "position", "accessible_name", "focus_ring"]
+    },
+    {
+      "lane": "supplemental",
+      "order": 5,
+      "owns_summary": "Blame, coverage, test, collaboration, generated-lineage, freshness, and other low-urgency context cues.",
+      "must_never_own": "Primary execution, diagnostic, change, fold, or stable text-column budget.",
+      "eligible_signal_classes": [
+        "coverage_pass",
+        "coverage_miss",
+        "test_pass",
+        "test_fail",
+        "blame_author",
+        "collaboration_presence",
+        "generated_lineage",
+        "freshness_stale"
+      ],
+      "reserves_width_at_viewport_level": true,
+      "collapses_before_lanes": ["execution_debug", "diagnostic", "change_review", "fold_control"],
+      "required_non_color_channels": ["glyph", "accessible_name"]
+    }
+  ],
+  "signal_admission_rules": [
+    {
+      "signal_class": "line_number",
+      "default_lane": "line_number",
+      "source_family": "buffer_position",
+      "actionability": "none",
+      "accepted_when": "Line numbers are enabled for the viewport and digit reserve is computed at viewport or document scope.",
+      "rejected_when": "Line numbers are disabled by user or renderer policy.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "current_line",
+      "default_lane": "line_number",
+      "source_family": "buffer_position",
+      "actionability": "none",
+      "accepted_when": "The cue orients the active line without overpowering diagnostics or selection.",
+      "rejected_when": "The cue would hide diagnostic, selection, or execution state.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "breakpoint_enabled",
+      "default_lane": "execution_debug",
+      "source_family": "debug_session",
+      "actionability": "toggle_state",
+      "accepted_when": "A breakpoint authority ref and toggle command are available.",
+      "rejected_when": "The marker lacks debug authority or cannot be reached by keyboard.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "debug_current_frame",
+      "default_lane": "execution_debug",
+      "source_family": "debug_session",
+      "actionability": "inspect_detail",
+      "accepted_when": "The debug session reports a stopped current frame mapped to this line.",
+      "rejected_when": "The frame mapping is unknown and no inspectable fallback label is available.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "diagnostic_error",
+      "default_lane": "diagnostic",
+      "source_family": "diagnostic_cluster",
+      "actionability": "inspect_detail",
+      "accepted_when": "A diagnostic cluster or producer ref exists and severity/freshness can be announced.",
+      "rejected_when": "The marker cannot cite diagnostic authority or severity.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "diagnostic_warning",
+      "default_lane": "diagnostic",
+      "source_family": "diagnostic_cluster",
+      "actionability": "inspect_detail",
+      "accepted_when": "A diagnostic cluster or producer ref exists and severity/freshness can be announced.",
+      "rejected_when": "The marker cannot cite diagnostic authority or severity.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "git_modified",
+      "default_lane": "change_review",
+      "source_family": "vcs_change",
+      "actionability": "inspect_detail",
+      "accepted_when": "A VCS or diff authority ref exists.",
+      "rejected_when": "The marker is decorative only or cannot cite change authority.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "review_thread",
+      "default_lane": "change_review",
+      "source_family": "review_anchor",
+      "actionability": "open_review",
+      "accepted_when": "A review/comment anchor ref exists and opens through the review route.",
+      "rejected_when": "The marker cannot cite a review anchor or reachable route.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "fold_collapsed",
+      "default_lane": "fold_control",
+      "source_family": "folding_model",
+      "actionability": "toggle_state",
+      "accepted_when": "The folding model owns the range and hidden high-severity state can be summarized.",
+      "rejected_when": "The fold range is stale or cannot disclose hidden diagnostics/conflicts.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "coverage_miss",
+      "default_lane": "supplemental",
+      "source_family": "coverage_result",
+      "actionability": "inspect_detail",
+      "accepted_when": "Coverage result has a detail route and does not displace higher-priority lanes.",
+      "rejected_when": "Coverage cannot preserve detail after collapse.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "test_fail",
+      "default_lane": "supplemental",
+      "source_family": "test_result",
+      "actionability": "inspect_detail",
+      "accepted_when": "A test result ref exists and a line detail route can preserve it.",
+      "rejected_when": "The marker would hide execution, diagnostic, change, or fold state.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "blame_author",
+      "default_lane": "supplemental",
+      "source_family": "blame_provider",
+      "actionability": "inspect_detail",
+      "accepted_when": "Blame detail exists and collapses before primary lanes are harmed.",
+      "rejected_when": "Blame is the only cue and adds no actionable or interpretive value in the current mode.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    },
+    {
+      "signal_class": "ambient_line_decoration",
+      "default_lane": null,
+      "source_family": "renderer_policy",
+      "actionability": "none",
+      "accepted_when": "Never by default; it must first be restated as a known signal family with user value.",
+      "rejected_when": "The cue is ornamental, color-only, lacks authority, or cannot preserve no-jitter behavior.",
+      "keyboard_or_detail_route_required_when_actionable": true
+    }
+  ],
+  "precedence_rules": [
+    {
+      "rule_id": "gutter-precedence-breakpoint-diagnostic-0001",
+      "when_signals_compete": "A breakpoint, logpoint, or current-frame cue and one or more diagnostics appear on the same line.",
+      "winning_lane_or_signal": "Execution/debug owns its lane and diagnostics own the diagnostic lane; a current frame wins the primary execution slot over an ordinary breakpoint.",
+      "losing_signal_handling": "No losing family disappears. Same-line compact fallback preserves both in the accessible name and line detail.",
+      "accessible_name_requirement": "The line name lists execution state first, then breakpoint/logpoint state, then dominant diagnostic severity and count.",
+      "forbidden_outcomes": [
+        "breakpoint_displaces_diagnostic",
+        "diagnostic_quick_fix_uses_breakpoint_target",
+        "compact_line_drops_error_label"
+      ]
+    },
+    {
+      "rule_id": "gutter-precedence-fold-execution-0001",
+      "when_signals_compete": "A fold affordance and execution/debug signal appear on the same line.",
+      "winning_lane_or_signal": "Execution/debug remains the primary interactive lane; fold remains separate when width permits.",
+      "losing_signal_handling": "If the fold target hides for width, the fold state moves to line detail and keyboard fold commands while staying in the accessible name.",
+      "accessible_name_requirement": "The line name includes current frame or breakpoint state plus expanded/collapsed fold state.",
+      "forbidden_outcomes": [
+        "fold_target_covers_current_frame",
+        "collapsed_fold_hides_breakpoint_without_summary",
+        "fold_workflow_hover_only"
+      ]
+    },
+    {
+      "rule_id": "gutter-precedence-high-severity-over-supplemental-0001",
+      "when_signals_compete": "Diagnostic, execution, conflict, review, or fold state competes with blame, coverage, test, collaboration, generated, or freshness cues.",
+      "winning_lane_or_signal": "High-severity or action-bearing lanes stay visible; supplemental cues collapse first.",
+      "losing_signal_handling": "Collapsed supplemental cues preserve family names and source refs in line detail.",
+      "accessible_name_requirement": "The line name includes hidden supplemental families when they affect interpretation.",
+      "forbidden_outcomes": [
+        "coverage_displaces_error",
+        "blame_displaces_breakpoint",
+        "supplemental_count_unlabelled"
+      ]
+    }
+  ],
+  "hit_target_contract": {
+    "min_logical_width_px": 28,
+    "min_logical_height_px": 28,
+    "pointer_precision_required": false,
+    "hover_only_forbidden_for_core_workflows": true,
+    "keyboard_equivalent_required_for_actions": true,
+    "focus_order_stable": true,
+    "keyboard_command_refs": [
+      "cmd:debug.toggle_breakpoint",
+      "cmd:debug.open_current_frame",
+      "cmd:editor.diagnostic.inspect_line",
+      "cmd:editor.fold_toggle",
+      "cmd:editor.gutter.inspect_line"
+    ]
+  },
+  "no_jitter_policy": {
+    "gutter_width_reserved_at_viewport_level": true,
+    "per_line_text_start_changes_forbidden": true,
+    "column_shift_px_max": 0,
+    "allowed_reflow_reasons": [
+      "font_or_zoom_change",
+      "density_change",
+      "explicit_user_layout_change",
+      "line_count_digit_reserve_crossed",
+      "viewport_resize"
+    ],
+    "lane_additions_collapse_before_reflow": true
+  },
+  "forbidden_outcomes_verified_absent": [
+    "per_line_left_padding_growth",
+    "hover_only_breakpoint_or_fold",
+    "color_only_diagnostic_state",
+    "folded_error_hidden_without_summary",
+    "supplemental_cue_displaces_primary_lane"
+  ],
+  "emitted_at": "2026-04-28T20:10:00Z"
+}

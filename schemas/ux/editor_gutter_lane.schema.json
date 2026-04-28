@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/editor_gutter_lane.schema.json",
+  "title": "Aureline editor gutter lane, precedence, hit-target, and no-jitter contract",
+  "description": "Boundary schema for the editor gutter contract frozen in docs/ux/editor_gutter_contract.md. The schema exports a gutter_lane_catalog_record and gutter_line_case_record so renderer, accessibility, language, debug, VCS, review, test, coverage, collaboration, and support/export tooling share one vocabulary for lane admission, same-line precedence, hit targets, keyboard equivalents, accessible labels, high-contrast non-color channels, and no-jitter text-column behavior. Records carry opaque refs, bounded labels, typed state, and measured layout facts only; raw file bodies, raw paths, raw provider payloads, debug adapter payloads, credentials, and raw terminal output never cross this boundary. Adding a lane, signal class, precedence reason, or reflow reason is breaking and requires a schema-family decision; adding optional metadata is additive-minor.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/gutter_lane_catalog_record" },
+    { "$ref": "#/$defs/gutter_line_case_record" }
+  ],
+  "$defs": {
+    "editor_gutter_lane_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for editor gutter lane payloads. Current value is 1."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "record_kinds_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque stable id safe to log, safe on RPC, safe in manifests, and safe in support bundles."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display text. Raw absolute paths, raw logs, raw preview DOM, raw provider payloads, and secret material must not appear."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Short redaction-aware label suitable for compact gutter chrome."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced by the emitting subsystem."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["gutter_lane_catalog_record", "gutter_line_case_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "gutter_lane_class": {
+      "type": "string",
+      "enum": [
+        "line_number",
+        "execution_debug",
+        "diagnostic",
+        "change_review",
+        "fold_control",
+        "supplemental"
+      ],
+      "description": "Canonical editor gutter lane. Unknown lanes are non-conforming."
+    },
+    "gutter_signal_class": {
+      "type": "string",
+      "enum": [
+        "line_number",
+        "current_line",
+        "breakpoint_enabled",
+        "breakpoint_disabled",
+        "conditional_breakpoint",
+        "logpoint",
+        "debug_current_frame",
+        "debug_paused_frame",
+        "diagnostic_error",
+        "diagnostic_warning",
+        "diagnostic_info",
+        "diagnostic_hint",
+        "git_added",
+        "git_modified",
+        "git_deleted",
+        "merge_conflict",
+        "review_thread",
+        "fold_available",
+        "fold_collapsed",
+        "fold_hidden_range_summary",
+        "coverage_pass",
+        "coverage_miss",
+        "test_pass",
+        "test_fail",
+        "blame_author",
+        "collaboration_presence",
+        "generated_lineage",
+        "freshness_stale",
+        "ambient_line_decoration"
+      ],
+      "description": "Closed set of launch-bearing gutter signal classes."
+    },
+    "source_family": {
+      "type": "string",
+      "enum": [
+        "buffer_position",
+        "debug_session",
+        "diagnostic_cluster",
+        "vcs_change",
+        "review_anchor",
+        "folding_model",
+        "test_result",
+        "coverage_result",
+        "blame_provider",
+        "collaboration_session",
+        "generated_lineage",
+        "freshness_state",
+        "renderer_policy"
+      ],
+      "description": "Subsystem family whose authority produced or admitted the gutter signal."
+    },
+    "actionability_class": {
+      "type": "string",
+      "enum": ["none", "inspect_detail", "toggle_state", "navigate", "open_review", "open_quick_fix"],
+      "description": "Whether the gutter signal is purely annotative or can invoke a command."
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["none", "error", "warning", "info", "hint"],
+      "description": "Diagnostic-like severity used only for precedence; source truth remains with the owning diagnostic record."
+    },
+    "visibility_class": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "visible_compact",
+        "collapsed_to_summary",
+        "hidden_with_detail_route",
+        "rejected"
+      ],
+      "description": "Expected rendering posture for one signal or lane after precedence and width resolution."
+    },
+    "suppression_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "higher_priority_lane",
+        "higher_severity_same_lane",
+        "narrow_width_fallback",
+        "fold_summary_owns_hidden_range",
+        "supplemental_budget_exhausted",
+        "ambient_noise_rejected",
+        "missing_authority_ref",
+        "missing_keyboard_or_detail_route",
+        "no_jitter_budget_protection"
+      ],
+      "description": "Reason a signal collapsed, hid with detail, or was rejected."
+    },
+    "reflow_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "font_or_zoom_change",
+        "density_change",
+        "explicit_user_layout_change",
+        "line_count_digit_reserve_crossed",
+        "viewport_resize"
+      ],
+      "description": "Closed set of reasons that may intentionally recompute the stable text column."
+    },
+    "non_color_channel": {
+      "type": "string",
+      "enum": ["shape", "glyph", "border", "position", "text", "accessible_name", "focus_ring"],
+      "description": "Non-hue channel required for high-contrast, forced-colors, screenshot, and screen-reader parity."
+    },
+    "viewport_width_class": {
+      "type": "string",
+      "enum": ["wide", "standard", "compact", "narrow", "high_zoom"],
+      "description": "Renderer width/density posture for a concrete case."
+    },
+    "lane_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "order",
+        "owns_summary",
+        "must_never_own",
+        "eligible_signal_classes",
+        "reserves_width_at_viewport_level",
+        "collapses_before_lanes",
+        "required_non_color_channels"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/gutter_lane_class" },
+        "order": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "owns_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "must_never_own": { "$ref": "#/$defs/redaction_aware_text" },
+        "eligible_signal_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/gutter_signal_class" }
+        },
+        "reserves_width_at_viewport_level": { "type": "boolean", "const": true },
+        "collapses_before_lanes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/gutter_lane_class" }
+        },
+        "required_non_color_channels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_color_channel" }
+        }
+      },
+      "description": "One canonical gutter lane definition."
+    },
+    "signal_admission_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_class",
+        "default_lane",
+        "source_family",
+        "actionability",
+        "accepted_when",
+        "rejected_when",
+        "keyboard_or_detail_route_required_when_actionable"
+      ],
+      "properties": {
+        "signal_class": { "$ref": "#/$defs/gutter_signal_class" },
+        "default_lane": {
+          "oneOf": [
+            { "$ref": "#/$defs/gutter_lane_class" },
+            { "type": "null" }
+          ]
+        },
+        "source_family": { "$ref": "#/$defs/source_family" },
+        "actionability": { "$ref": "#/$defs/actionability_class" },
+        "accepted_when": { "$ref": "#/$defs/redaction_aware_text" },
+        "rejected_when": { "$ref": "#/$defs/redaction_aware_text" },
+        "keyboard_or_detail_route_required_when_actionable": { "type": "boolean", "const": true }
+      },
+      "description": "Admission rule for one gutter signal class."
+    },
+    "precedence_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "when_signals_compete",
+        "winning_lane_or_signal",
+        "losing_signal_handling",
+        "accessible_name_requirement",
+        "forbidden_outcomes"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/opaque_id" },
+        "when_signals_compete": { "$ref": "#/$defs/redaction_aware_text" },
+        "winning_lane_or_signal": { "$ref": "#/$defs/redaction_aware_text" },
+        "losing_signal_handling": { "$ref": "#/$defs/redaction_aware_text" },
+        "accessible_name_requirement": { "$ref": "#/$defs/redaction_aware_text" },
+        "forbidden_outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/short_label_text" }
+        }
+      },
+      "description": "Normative conflict-resolution rule."
+    },
+    "hit_target_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_logical_width_px",
+        "min_logical_height_px",
+        "pointer_precision_required",
+        "hover_only_forbidden_for_core_workflows",
+        "keyboard_equivalent_required_for_actions",
+        "focus_order_stable"
+      ],
+      "properties": {
+        "min_logical_width_px": { "type": "integer", "minimum": 28 },
+        "min_logical_height_px": { "type": "integer", "minimum": 28 },
+        "pointer_precision_required": { "type": "boolean", "const": false },
+        "hover_only_forbidden_for_core_workflows": { "type": "boolean", "const": true },
+        "keyboard_equivalent_required_for_actions": { "type": "boolean", "const": true },
+        "focus_order_stable": { "type": "boolean", "const": true },
+        "keyboard_command_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "description": "Minimum target and keyboard-equivalence contract for a lane or case."
+    },
+    "no_jitter_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gutter_width_reserved_at_viewport_level",
+        "per_line_text_start_changes_forbidden",
+        "column_shift_px_max",
+        "allowed_reflow_reasons",
+        "lane_additions_collapse_before_reflow"
+      ],
+      "properties": {
+        "gutter_width_reserved_at_viewport_level": { "type": "boolean", "const": true },
+        "per_line_text_start_changes_forbidden": { "type": "boolean", "const": true },
+        "column_shift_px_max": { "type": "integer", "const": 0 },
+        "allowed_reflow_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reflow_reason_class" }
+        },
+        "lane_additions_collapse_before_reflow": { "type": "boolean", "const": true }
+      },
+      "description": "Stable source-text column policy for the gutter."
+    },
+    "gutter_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_id",
+        "signal_class",
+        "lane",
+        "source_family",
+        "actionability",
+        "severity",
+        "label",
+        "source_ref"
+      ],
+      "properties": {
+        "signal_id": { "$ref": "#/$defs/opaque_id" },
+        "signal_class": { "$ref": "#/$defs/gutter_signal_class" },
+        "lane": {
+          "oneOf": [
+            { "$ref": "#/$defs/gutter_lane_class" },
+            { "type": "null" }
+          ]
+        },
+        "source_family": { "$ref": "#/$defs/source_family" },
+        "actionability": { "$ref": "#/$defs/actionability_class" },
+        "severity": { "$ref": "#/$defs/severity_class" },
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "exact_anchor_available": { "type": "boolean" }
+      },
+      "description": "One input gutter signal on a line."
+    },
+    "suppressed_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signal_ref", "visibility", "suppression_reason", "detail_preserved"],
+      "properties": {
+        "signal_ref": { "$ref": "#/$defs/opaque_id" },
+        "visibility": { "$ref": "#/$defs/visibility_class" },
+        "suppression_reason": { "$ref": "#/$defs/suppression_reason_class" },
+        "detail_preserved": { "type": "boolean", "const": true }
+      },
+      "description": "A signal that lost visible priority but remains inspectable."
+    },
+    "lane_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line_ref",
+        "lane",
+        "visibility",
+        "visible_signal_refs",
+        "collapsed_or_hidden_signals",
+        "rejected_signal_refs",
+        "precedence_reason",
+        "accessible_name_parts",
+        "non_color_channels",
+        "hit_target",
+        "detail_route_ref"
+      ],
+      "properties": {
+        "line_ref": { "$ref": "#/$defs/opaque_id" },
+        "lane": { "$ref": "#/$defs/gutter_lane_class" },
+        "visibility": { "$ref": "#/$defs/visibility_class" },
+        "visible_signal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "collapsed_or_hidden_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppressed_signal" }
+        },
+        "rejected_signal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "precedence_reason": { "$ref": "#/$defs/redaction_aware_text" },
+        "accessible_name_parts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_label_text" }
+        },
+        "non_color_channels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_color_channel" }
+        },
+        "hit_target": { "$ref": "#/$defs/hit_target_contract" },
+        "detail_route_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Expected resolution for one lane on one line after precedence and width fallback."
+    },
+    "text_column_measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "measurement_id",
+        "text_column_x_px_before",
+        "text_column_x_px_after",
+        "column_shift_px",
+        "reflow_reason",
+        "gutter_width_reserved_at_viewport_level",
+        "per_line_text_start_changes_forbidden"
+      ],
+      "properties": {
+        "measurement_id": { "$ref": "#/$defs/opaque_id" },
+        "text_column_x_px_before": { "type": "integer", "minimum": 0 },
+        "text_column_x_px_after": { "type": "integer", "minimum": 0 },
+        "column_shift_px": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "reflow_reason": { "$ref": "#/$defs/reflow_reason_class" },
+        "gutter_width_reserved_at_viewport_level": { "type": "boolean", "const": true },
+        "per_line_text_start_changes_forbidden": { "type": "boolean", "const": true },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Measured source-text column before and after gutter signal resolution."
+    },
+    "viewport_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width_class", "density_class", "high_contrast", "screen_reader_flow"],
+      "properties": {
+        "width_class": { "$ref": "#/$defs/viewport_width_class" },
+        "density_class": {
+          "type": "string",
+          "enum": ["compact", "standard", "comfortable"]
+        },
+        "high_contrast": { "type": "boolean" },
+        "screen_reader_flow": { "type": "boolean" }
+      },
+      "description": "Viewport and accessibility posture for a gutter line case."
+    },
+    "gutter_case_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_accepted_signals_have_known_lanes",
+        "rejected_signals_have_reasons",
+        "breakpoint_state_perceivable_when_present",
+        "folded_state_perceivable_when_present",
+        "diagnostic_state_perceivable_when_present",
+        "high_contrast_not_color_only",
+        "screen_reader_labels_present",
+        "keyboard_equivalents_present_for_actions",
+        "source_text_column_stable"
+      ],
+      "properties": {
+        "all_accepted_signals_have_known_lanes": { "type": "boolean", "const": true },
+        "rejected_signals_have_reasons": { "type": "boolean", "const": true },
+        "breakpoint_state_perceivable_when_present": { "type": "boolean", "const": true },
+        "folded_state_perceivable_when_present": { "type": "boolean", "const": true },
+        "diagnostic_state_perceivable_when_present": { "type": "boolean", "const": true },
+        "high_contrast_not_color_only": { "type": "boolean", "const": true },
+        "screen_reader_labels_present": { "type": "boolean", "const": true },
+        "keyboard_equivalents_present_for_actions": { "type": "boolean", "const": true },
+        "source_text_column_stable": { "type": "boolean", "const": true }
+      },
+      "description": "Boolean acceptance assertions for worked gutter fixtures."
+    },
+    "gutter_lane_catalog_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "editor_gutter_lane_schema_version",
+        "catalog_id",
+        "lane_definitions",
+        "signal_admission_rules",
+        "precedence_rules",
+        "hit_target_contract",
+        "no_jitter_policy",
+        "forbidden_outcomes_verified_absent",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "gutter_lane_catalog_record" },
+        "editor_gutter_lane_schema_version": { "$ref": "#/$defs/editor_gutter_lane_schema_version" },
+        "catalog_id": { "$ref": "#/$defs/opaque_id" },
+        "lane_definitions": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/lane_definition" }
+        },
+        "signal_admission_rules": {
+          "type": "array",
+          "minItems": 10,
+          "items": { "$ref": "#/$defs/signal_admission_rule" }
+        },
+        "precedence_rules": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/precedence_rule" }
+        },
+        "hit_target_contract": { "$ref": "#/$defs/hit_target_contract" },
+        "no_jitter_policy": { "$ref": "#/$defs/no_jitter_policy" },
+        "forbidden_outcomes_verified_absent": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/short_label_text" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Canonical catalog record for gutter lanes, signal admission, precedence, interaction, and layout stability."
+    },
+    "gutter_line_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "editor_gutter_lane_schema_version",
+        "case_id",
+        "scenario",
+        "viewport_context",
+        "line_ref",
+        "input_signals",
+        "expected_lane_resolutions",
+        "text_column_measurement",
+        "assertions",
+        "forbidden_outcomes_verified_absent",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "gutter_line_case_record" },
+        "editor_gutter_lane_schema_version": { "$ref": "#/$defs/editor_gutter_lane_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/redaction_aware_text" },
+        "viewport_context": { "$ref": "#/$defs/viewport_context" },
+        "line_ref": { "$ref": "#/$defs/opaque_id" },
+        "input_signals": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/gutter_signal" }
+        },
+        "expected_lane_resolutions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/lane_resolution" }
+        },
+        "text_column_measurement": { "$ref": "#/$defs/text_column_measurement" },
+        "assertions": { "$ref": "#/$defs/gutter_case_assertions" },
+        "support_export_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "forbidden_outcomes_verified_absent": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/short_label_text" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Concrete same-line gutter case used by renderer, accessibility, support/export, and contract tests."
+    }
+  }
+}

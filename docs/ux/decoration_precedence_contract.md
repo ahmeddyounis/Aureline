@@ -26,6 +26,7 @@ This contract composes with, and does not replace:
   for high-contrast and forced-colors state conveyance.
 - [`/docs/ux/status_bar_contract.md`](./status_bar_contract.md),
   [`/docs/ux/status_strip_family_contract.md`](./status_strip_family_contract.md),
+  [`/docs/ux/editor_gutter_contract.md`](./editor_gutter_contract.md),
   [`/docs/ux/tabs_editor_groups_contract.md`](./tabs_editor_groups_contract.md),
   [`/docs/ux/tree_row_contract.md`](./tree_row_contract.md), and
   [`/docs/ux/collection_view_contract.md`](./collection_view_contract.md)
