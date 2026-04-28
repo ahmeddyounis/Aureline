@@ -1,0 +1,119 @@
+record_kind: path_map_selector_example
+schema_version: 1
+example_id: portability_selector
+tool_flow: profile_workspace_and_tenant_export
+source_map_ref: artifacts/state/path_level_seed_map.yaml
+description: >
+  An export surface prepares three packages: a portable profile, a
+  workspace export, and an enterprise offboarding packet. Each package
+  uses the same path rows but narrows by portability class and
+  exportability rather than path names.
+
+selector:
+  selector_fields:
+    - path_row_id
+    - portability_class
+    - exportability
+    - secret_posture
+  portable_profile_include_when:
+    portability_class:
+      - portable
+    exportability:
+      - portable_profile_default
+  workspace_export_include_when:
+    portability_class:
+      - shared_workspace_only
+    exportability:
+      - workspace_export_default
+  tenant_offboarding_include_when:
+    exportability:
+      - tenant_offboarding_packet
+      - evidence_export_default
+  exclude_when:
+    exportability:
+      - excluded_always
+    secret_posture:
+      - raw_secret_external_store_only
+
+packages:
+  portable_profile:
+    included_rows:
+      - user_global_settings
+      - keybindings
+      - snippets
+      - themes_and_design_tokens
+      - command_aliases
+      - terminal_preferences
+      - profile_export
+      - profile_library
+      - extension_selection_inventory
+    metadata_or_addendum_rows:
+      - machine_specific_settings
+    excluded_rows:
+      - sync_metadata
+      - conflict_journal
+      - terminal_scrollback_restore
+      - dirty_buffer_recovery_journal
+      - local_history
+      - admin_policy
+      - policy_bundle_cache
+      - trust_approvals
+      - auth_session_secrets
+      - long_lived_credentials
+  workspace_export:
+    included_rows:
+      - workspace_manifest
+      - workset_manifest
+      - tasks_and_launch_configs
+      - extension_recommendations
+      - extension_lockfile
+    metadata_only_rows:
+      - execution_context_cache
+    excluded_rows:
+      - auth_session_secrets
+      - long_lived_credentials
+      - policy_bundle_cache
+  tenant_offboarding_packet:
+    included_rows:
+      - tenant_entitlement_snapshot
+      - admin_audit_log
+      - support_bundles
+      - crash_envelopes
+      - review_packets
+      - incident_bundles
+      - benchmark_results
+      - release_evidence_packs
+    metadata_only_rows:
+      - admin_policy
+      - policy_bundle_cache
+    excluded_rows:
+      - auth_session_secrets
+      - long_lived_credentials
+
+protections:
+  profile_export_names_secret_gap:
+    rows:
+      - auth_session_secrets
+      - long_lived_credentials
+    emitted_disclosure: excluded_secret_refs_reauth_required
+  machine_addendum_not_default_sync:
+    rows:
+      - machine_specific_settings
+    emitted_disclosure: machine_local_addendum_available_not_synced
+  workspace_export_does_not_capture_recovery_journals:
+    rows:
+      - dirty_buffer_recovery_journal
+      - local_history
+      - deferred_intent_outbox
+    emitted_disclosure: local_recovery_state_excluded
+  tenant_control_uses_signed_or_offboarding_path:
+    rows:
+      - tenant_entitlement_snapshot
+      - admin_audit_log
+      - policy_bundle_cache
+    emitted_disclosure: tenant_control_not_user_profile_payload
+
+expected_invariants:
+  - portable_profile_does_not_include_recovery_or_control_state
+  - workspace_export_uses_workspace_shared_rows_only
+  - tenant_export_keeps_credentials_excluded

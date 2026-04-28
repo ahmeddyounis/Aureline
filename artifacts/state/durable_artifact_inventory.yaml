@@ -1,0 +1,262 @@
+# Durable artifact inventory and class-level delete/export safeguards.
+#
+# Companion to docs/state/config_and_state_path_map.md and
+# artifacts/state/path_level_seed_map.yaml. This file groups path rows
+# into the operational classes used by backup, restore, clear-data,
+# low-disk, support, and portability selectors.
+
+schema_version: 1
+artifact_id: aureline.state.durable_artifact_inventory
+record_kind: durable_artifact_inventory
+title: Durable artifact inventory and class-level safeguards
+contract_source: docs/state/config_and_state_path_map.md
+
+source_maps:
+  path_level_seed_map: artifacts/state/path_level_seed_map.yaml
+  state_object_inventory: artifacts/state/state_objects.yaml
+  profile_and_state_map: docs/state/profile_and_state_map.md
+
+artifact_classes:
+  - class_id: user_authored_durable_truth
+    display_name: User-authored durable truth
+    authority_owner: user_authored_durable_truth
+    definition: >
+      State the user, workspace, or accepted import explicitly authored.
+      This class is primary truth and must survive cache repair, low-disk
+      reclamation, generic reset, and schema migration.
+    default_backup_posture: backup_by_default
+    default_exportability: portable_profile_default
+    default_clear_class: clear_requires_preview_and_rollback
+    low_disk_rule: never_evict_silently
+    class_confusion_guardrail: >
+      Do not infer these rows from derived caches or use generated
+      state as a replacement for the authored artifact.
+    path_row_ids:
+      - user_global_settings
+      - keybindings
+      - snippets
+      - themes_and_design_tokens
+      - command_aliases
+      - terminal_preferences
+      - machine_specific_settings
+      - profile_export
+      - profile_library
+      - workspace_manifest
+      - workset_manifest
+      - tasks_and_launch_configs
+      - extension_selection_inventory
+      - extension_recommendations
+      - extension_lockfile
+
+  - class_id: user_owned_recovery_state
+    display_name: User-owned recovery state
+    authority_owner: user_owned_recovery_state
+    definition: >
+      Product-held state that preserves user continuity after crash,
+      restart, reconnect, conflict, or deferred reconciliation. It is
+      local by default but remains user-owned and cannot be silently
+      discarded as cache.
+    default_backup_posture: backup_if_recovery_selected
+    default_exportability: support_metadata_default
+    default_clear_class: clear_requires_preview
+    low_disk_rule: evict_only_after_preview
+    class_confusion_guardrail: >
+      Local history, dirty-buffer recovery, terminal restore, sync
+      conflict decisions, and deferred intents are never ordinary
+      derived cache even when bounded by quota.
+    path_row_ids:
+      - sync_metadata
+      - conflict_journal
+      - terminal_scrollback_restore
+      - session_restore_state
+      - dirty_buffer_recovery_journal
+      - local_history
+      - ai_memory_cache_metadata
+      - deferred_intent_outbox
+
+  - class_id: admin_or_tenant_control_artifact
+    display_name: Admin or tenant control artifact
+    authority_owner: admin_or_control_artifact
+    definition: >
+      Signed policy, entitlement, trust, credential-handle, or audit
+      state controlled by admin, tenant, platform credential store, or
+      another live authority. These rows narrow or explain behavior but
+      are not user preferences.
+    default_backup_posture: backup_governed_by_authority
+    default_exportability: admin_bundle_only
+    default_clear_class: clear_denied_admin_owned
+    low_disk_rule: authority_managed_not_evictable
+    class_confusion_guardrail: >
+      Last-known-good policy, entitlement, trust approvals, and audit
+      continuity must not be deleted by cache repair or reset flows.
+      Credential-store rows never export raw material.
+    path_row_ids:
+      - admin_policy
+      - policy_bundle_cache
+      - tenant_entitlement_snapshot
+      - admin_audit_log
+      - trust_approvals
+      - auth_session_secrets
+      - long_lived_credentials
+
+  - class_id: disposable_derived_state
+    display_name: Disposable derived state
+    authority_owner: disposable_derived_cache
+    definition: >
+      Regenerable state derived from durable truth, live inspection, or
+      signed authority. It may speed startup or offline inspection but
+      may not become the source of record for user edits, policy, or
+      side effects.
+    default_backup_posture: backup_excluded_rebuildable
+    default_exportability: excluded_by_default
+    default_clear_class: clear_allowed_rebuildable
+    low_disk_rule: evict_allowed_when_rebuildable
+    class_confusion_guardrail: >
+      A derived row can be cleared, rebuilt, or marked stale, but its
+      presence is never proof that source truth or an external effect
+      exists.
+    path_row_ids:
+      - execution_context_cache
+      - index_cache_store
+      - knowledge_cache
+      - prebuild_environment_cache
+      - shared_object_store
+      - logs_and_traces
+
+  - class_id: evidence_bundle
+    display_name: Evidence bundle
+    authority_owner: user_owned_recovery_state
+    secondary_authority_hint: admin_or_control_artifact
+    definition: >
+      Immutable or append-only support, crash, incident, review,
+      benchmark, or release evidence retained for diagnosis, public
+      proof, support, compliance, or promotion decisions.
+    default_backup_posture: backup_if_evidence_retained
+    default_exportability: evidence_export_default
+    default_clear_class: clear_denied_evidence_or_hold
+    low_disk_rule: evict_after_retention_window
+    class_confusion_guardrail: >
+      Content-addressed evidence is not ordinary cache while a support
+      case, legal hold, release decision, benchmark comparison, or
+      incident workflow references it.
+    path_row_ids:
+      - support_bundles
+      - crash_envelopes
+      - review_packets
+      - incident_bundles
+      - benchmark_results
+      - release_evidence_packs
+
+never_safe_to_delete_silently:
+  user_authored_durable_truth:
+    reason: >
+      These rows are source truth. Silent deletion loses user or
+      workspace authored state.
+    path_row_ids:
+      - user_global_settings
+      - keybindings
+      - snippets
+      - themes_and_design_tokens
+      - command_aliases
+      - terminal_preferences
+      - machine_specific_settings
+      - profile_export
+      - profile_library
+      - workspace_manifest
+      - workset_manifest
+      - tasks_and_launch_configs
+      - extension_selection_inventory
+      - extension_recommendations
+      - extension_lockfile
+  user_owned_recovery_state:
+    reason: >
+      These rows preserve unsaved work, continuity, conflict decisions,
+      terminal restore, local history, AI memory class metadata, or
+      deferred user intent. Treating them as cache loses recovery truth.
+    path_row_ids:
+      - sync_metadata
+      - conflict_journal
+      - terminal_scrollback_restore
+      - session_restore_state
+      - dirty_buffer_recovery_journal
+      - local_history
+      - ai_memory_cache_metadata
+      - deferred_intent_outbox
+  admin_or_tenant_control_artifact:
+    reason: >
+      These rows are signed, credential-store, trust, entitlement, or
+      audit control artifacts. They can be refreshed or revoked only by
+      their authority-specific flow.
+    path_row_ids:
+      - admin_policy
+      - policy_bundle_cache
+      - tenant_entitlement_snapshot
+      - admin_audit_log
+      - trust_approvals
+      - auth_session_secrets
+      - long_lived_credentials
+  evidence_bundle:
+    reason: >
+      Active evidence may be required for support, incident, release,
+      compliance, benchmark, or retained-evidence decisions.
+    path_row_ids:
+      - support_bundles
+      - crash_envelopes
+      - review_packets
+      - incident_bundles
+      - benchmark_results
+      - release_evidence_packs
+
+tool_selector_contract:
+  support_bundle:
+    selector_fields:
+      - path_row_id
+      - supportability
+      - secret_posture
+      - exportability
+    rule: >
+      Include metadata-only rows by default, require opt-in redaction
+      for sensitive bodies, and exclude raw secrets always.
+  backup:
+    selector_fields:
+      - path_row_id
+      - artifact_class
+      - backup_posture
+      - never_delete_silently
+    rule: >
+      Back up durable truth by default, recovery state when selected,
+      evidence while retained, and omit rebuildable derived caches.
+  clear_data:
+    selector_fields:
+      - path_row_id
+      - artifact_class
+      - clear_class
+      - low_disk_posture
+    rule: >
+      Generic cache clear targets only clear_allowed_rebuildable rows.
+      Protected rows route through preview or authority-specific flows.
+  portability:
+    selector_fields:
+      - path_row_id
+      - portability_class
+      - exportability
+      - secret_posture
+    rule: >
+      Portable profiles include portable user-authored rows, workspace
+      exports include shared workspace rows, admin/tenant artifacts use
+      signed or offboarding paths, and raw credentials are excluded.
+
+invariants:
+  - id: class_membership_matches_path_map
+    description: >
+      Every path_row_id listed here MUST exist exactly once in
+      artifacts/state/path_level_seed_map.yaml.
+  - id: protected_rows_have_silent_delete_guard
+    description: >
+      Every path row under never_safe_to_delete_silently MUST declare
+      never_delete_silently = true in the path-level seed map.
+  - id: disposable_rows_not_in_protected_delete_list
+    description: >
+      disposable_derived_state rows are omitted from
+      never_safe_to_delete_silently unless a future retained-evidence
+      pin creates a separate evidence row.

@@ -1,0 +1,95 @@
+record_kind: path_map_selector_example
+schema_version: 1
+example_id: backup_selector
+tool_flow: backup_restore
+source_map_ref: artifacts/state/path_level_seed_map.yaml
+description: >
+  A local backup job creates a restorable state package for the current
+  profile and workspace. It includes user-authored durable truth by
+  default, includes selected recovery state for continuity, retains
+  active evidence, and excludes rebuildable caches and raw secrets.
+
+selector:
+  selector_fields:
+    - path_row_id
+    - artifact_class
+    - backup_posture
+    - never_delete_silently
+  include_when:
+    backup_posture:
+      - backup_by_default
+      - backup_if_profile_library_selected
+      - backup_if_workspace_selected
+  include_when_requested:
+    backup_posture:
+      - backup_if_recovery_selected
+      - backup_if_evidence_retained
+      - backup_metadata_only
+  exclude_when:
+    backup_posture:
+      - backup_excluded_rebuildable
+      - backup_excluded_secret
+
+selected_rows:
+  durable_profile_truth:
+    - user_global_settings
+    - keybindings
+    - snippets
+    - themes_and_design_tokens
+    - command_aliases
+    - terminal_preferences
+    - machine_specific_settings
+    - profile_library
+    - extension_selection_inventory
+  durable_workspace_truth:
+    - workspace_manifest
+    - workset_manifest
+    - tasks_and_launch_configs
+    - extension_recommendations
+    - extension_lockfile
+  selected_recovery_state:
+    - sync_metadata
+    - conflict_journal
+    - terminal_scrollback_restore
+    - session_restore_state
+    - dirty_buffer_recovery_journal
+    - local_history
+    - deferred_intent_outbox
+  retained_evidence:
+    - support_bundles
+    - crash_envelopes
+  excluded_rebuildable:
+    - execution_context_cache
+    - index_cache_store
+    - knowledge_cache
+    - prebuild_environment_cache
+    - shared_object_store
+  excluded_secret:
+    - auth_session_secrets
+    - long_lived_credentials
+
+protections:
+  rollback_required_before_destructive_restore:
+    rows:
+      - user_global_settings
+      - keybindings
+      - workspace_manifest
+      - tasks_and_launch_configs
+      - extension_lockfile
+    required_action: preserve_prior_artifact_ref
+  recovery_state_restore_preview_required:
+    rows:
+      - dirty_buffer_recovery_journal
+      - local_history
+      - deferred_intent_outbox
+    required_action: preview_replay_or_discard_before_apply
+  credentials_are_reauth_not_backup_payload:
+    rows:
+      - auth_session_secrets
+      - long_lived_credentials
+    required_action: emit_missing_secret_ref
+
+expected_invariants:
+  - backup_never_uses_cache_as_source_truth
+  - protected_rows_have_explicit_restore_preview
+  - raw_credentials_excluded_with_disclosure

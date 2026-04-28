@@ -45,6 +45,11 @@ non-conforming.
 - [`/docs/state/profile_and_state_map.md`](./profile_and_state_map.md)
   — portable-profile contract and Appendix-F-style state-map rows this
   inventory quotes rather than renames.
+- [`/docs/state/config_and_state_path_map.md`](./config_and_state_path_map.md)
+  and
+  [`/artifacts/state/path_level_seed_map.yaml`](../../artifacts/state/path_level_seed_map.yaml)
+  — path-level selectors for support, backup, clear-data,
+  portability, low-disk, and policy tooling.
 - [`/docs/state/migration_and_restore_playbook.md`](./migration_and_restore_playbook.md)
   — shared state migration / restore playbook and the fidelity-label
   vocabulary this inventory re-exports.

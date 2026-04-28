@@ -33,6 +33,12 @@ at:
 
 - [`/docs/state/migration_and_restore_playbook.md`](./migration_and_restore_playbook.md)
 
+The path-level configuration and state map that support, backup,
+clear-data, and portability selectors read lives at:
+
+- [`/docs/state/config_and_state_path_map.md`](./config_and_state_path_map.md)
+- [`/artifacts/state/path_level_seed_map.yaml`](../../artifacts/state/path_level_seed_map.yaml)
+
 This contract is normative. Where it disagrees with the PRD, TAD, TDD,
 or UI/UX spec quotations cited in §9, those documents win and this
 document MUST be updated in the same change. Where this document

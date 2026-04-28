@@ -1,0 +1,92 @@
+record_kind: path_map_selector_example
+schema_version: 1
+example_id: clear_data_selector
+tool_flow: clear_data_and_low_disk
+source_map_ref: artifacts/state/path_level_seed_map.yaml
+description: >
+  A user runs a cache reset while the machine is in low-disk mode.
+  The selector clears only rebuildable derived rows, leaves recovery
+  and control rows untouched, and emits preview-required rows for
+  user-owned state instead of deleting them.
+
+selector:
+  selector_fields:
+    - path_row_id
+    - artifact_class
+    - clear_class
+    - low_disk_posture
+  clear_immediately_when:
+    clear_class:
+      - clear_allowed_rebuildable
+    low_disk_posture:
+      - evict_allowed_when_rebuildable
+  preview_required_when:
+    clear_class:
+      - clear_requires_preview
+      - clear_requires_preview_and_rollback
+  deny_when:
+    clear_class:
+      - clear_denied_admin_owned
+      - clear_denied_platform_credential_store_only
+      - clear_denied_live_authority
+      - clear_denied_evidence_or_hold
+
+selected_rows:
+  clear_immediately:
+    - execution_context_cache
+    - index_cache_store
+    - knowledge_cache
+    - prebuild_environment_cache
+    - shared_object_store
+  retention_rolloff_only:
+    - logs_and_traces
+  preview_required_not_cleared_by_generic_reset:
+    - user_global_settings
+    - keybindings
+    - workspace_manifest
+    - tasks_and_launch_configs
+    - sync_metadata
+    - conflict_journal
+    - terminal_scrollback_restore
+    - dirty_buffer_recovery_journal
+    - local_history
+    - ai_memory_cache_metadata
+    - deferred_intent_outbox
+  denied_authority_path:
+    - admin_policy
+    - policy_bundle_cache
+    - tenant_entitlement_snapshot
+    - admin_audit_log
+    - trust_approvals
+    - auth_session_secrets
+    - long_lived_credentials
+  denied_evidence_or_hold:
+    - support_bundles
+    - crash_envelopes
+    - review_packets
+    - incident_bundles
+    - benchmark_results
+    - release_evidence_packs
+
+protections:
+  local_history_is_not_cache:
+    rows:
+      - local_history
+    clear_result: denied_from_generic_cache_reset_preview_required
+  last_known_good_policy_is_not_cache:
+    rows:
+      - policy_bundle_cache
+    clear_result: denied_signed_authority_refresh_required
+  terminal_restore_not_auto_rerun_state:
+    rows:
+      - terminal_scrollback_restore
+    clear_result: preview_required_and_restore_no_rerun_attestation_preserved
+  derived_reset_does_not_touch_launch_truth:
+    rows:
+      - execution_context_cache
+    clear_result: cleared_and_rebuild_scheduled_without_editing_tasks_or_launch_configs
+
+expected_invariants:
+  - generic_cache_reset_selects_only_rebuildable_rows
+  - low_disk_does_not_delete_recovery_state_silently
+  - policy_and_credential_rows_route_to_authority_specific_paths

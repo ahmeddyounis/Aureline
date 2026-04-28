@@ -1,0 +1,89 @@
+record_kind: path_map_selector_example
+schema_version: 1
+example_id: support_bundle_selector
+tool_flow: support_bundle
+source_map_ref: artifacts/state/path_level_seed_map.yaml
+description: >
+  A local support-bundle composer collects diagnostics for a broken
+  task launch and stale policy warning. It selects row ids by
+  supportability and secret posture, includes metadata by default,
+  requires opt-in redaction for sensitive bodies, and excludes raw
+  credential material.
+
+selector:
+  selector_fields:
+    - path_row_id
+    - supportability
+    - secret_posture
+    - exportability
+  include_when:
+    supportability:
+      - support_metadata_default
+      - evidence_export_default
+    exportability:
+      - support_metadata_default
+      - evidence_export_default
+      - admin_bundle_only
+  include_with_opt_in_redaction_when:
+    supportability:
+      - support_opt_in_redacted
+  exclude_when:
+    exportability:
+      - excluded_always
+    secret_posture:
+      - raw_secret_external_store_only
+
+selected_rows:
+  metadata_default:
+    - user_global_settings
+    - keybindings
+    - workspace_manifest
+    - tasks_and_launch_configs
+    - extension_lockfile
+    - sync_metadata
+    - conflict_journal
+    - session_restore_state
+    - ai_memory_cache_metadata
+    - deferred_intent_outbox
+    - admin_policy
+    - policy_bundle_cache
+    - tenant_entitlement_snapshot
+    - admin_audit_log
+    - execution_context_cache
+    - index_cache_store
+  opt_in_redacted:
+    - terminal_scrollback_restore
+    - dirty_buffer_recovery_journal
+    - local_history
+    - logs_and_traces
+  evidence_default:
+    - support_bundles
+    - crash_envelopes
+  excluded:
+    - auth_session_secrets
+    - long_lived_credentials
+
+protections:
+  raw_secret_export_forbidden:
+    rows:
+      - auth_session_secrets
+      - long_lived_credentials
+    emitted_disclosure: missing_secret_refs_named_for_reauth
+  recovery_state_body_requires_opt_in:
+    rows:
+      - dirty_buffer_recovery_journal
+      - local_history
+      - terminal_scrollback_restore
+    emitted_disclosure: recovery_metadata_included_body_omitted
+  admin_control_metadata_only:
+    rows:
+      - admin_policy
+      - policy_bundle_cache
+      - tenant_entitlement_snapshot
+    emitted_disclosure: signed_epoch_and_freshness_included_rules_omitted
+
+expected_invariants:
+  - support_bundle_uses_path_row_ids_only
+  - raw_secret_material_not_exported
+  - local_history_not_collapsed_into_logs
+  - policy_cache_not_treated_as_disposable_cache
