@@ -45,6 +45,16 @@ Companion artifacts:
   checkpoint scope, availability, cleanup posture, partial-apply
   disclosure, preserved prior artifacts, and support-export linkage
   for each rollback outcome class.
+- [`/docs/migration/source_ecosystem_coverage_matrix.md`](../migration/source_ecosystem_coverage_matrix.md)
+  — governed source ecosystem coverage matrix and non-claimed source
+  policy for marketed migration lanes.
+- [`/artifacts/migration/source_ecosystem_rows.yaml`](../../artifacts/migration/source_ecosystem_rows.yaml)
+  — source row ids, import targets, caveats, proof burdens, and
+  downstream evidence refs for the governed migration lanes.
+- [`/artifacts/migration/quality_bar_rubric.yaml`](../../artifacts/migration/quality_bar_rubric.yaml)
+  — quality-bar vocabulary reused by row-level migration claims.
+- [`/fixtures/migration/source_profile_examples/`](../../fixtures/migration/source_profile_examples/)
+  — source profile examples for every governed source ecosystem row.
 - [`/docs/migration/migration_center_object_model.md`](../migration/migration_center_object_model.md)
   — canonical `migration_session_record`,
   `importer_outcome_row_record`, `importer_outcome_packet_record`,
@@ -160,6 +170,7 @@ artifact_links:
     - evidence.verification.migration_and_profile.import_diff_manifest
     - evidence.verification.migration_and_profile.portability_and_temp_profile_cases
     - evidence.verification.migration_and_profile.rollback_checkpoint_examples
+    - evidence.migration.source_ecosystem_rows
     - evidence.migration.migration_center_object_model
     - evidence.state.migration_and_restore_playbook
     - evidence.state.profile_and_state_map
@@ -167,6 +178,7 @@ artifact_links:
   exact_build_identity_refs: []
   fixture_refs:
     - fixtures/migration/import_diff_manifest.yaml
+    - fixtures/migration/source_profile_examples/
     - fixtures/profiles/portability_and_temp_profile_cases/portable_profile_plain_cross_machine.json
     - fixtures/profiles/portability_and_temp_profile_cases/portable_profile_with_machine_addendum.json
     - fixtures/profiles/portability_and_temp_profile_cases/managed_sync_profile_roaming.json
@@ -178,6 +190,9 @@ artifact_links:
     - fixtures/state/migration_cases/support_bundle_manual_review_workspace_conflict.json
   archetype_refs: []
   source_anchor_refs:
+    - docs/migration/source_ecosystem_coverage_matrix.md
+    - artifacts/migration/source_ecosystem_rows.yaml
+    - artifacts/migration/quality_bar_rubric.yaml
     - docs/migration/migration_center_object_model.md
     - docs/state/migration_and_restore_playbook.md
     - docs/state/profile_and_state_map.md
@@ -188,7 +203,9 @@ artifact_links:
     - schemas/state/restore_provenance.schema.json
   waiver_refs: []
   known_limit_refs: []
-  migration_packet_refs: []
+  migration_packet_refs:
+    - artifacts/migration/source_ecosystem_rows.yaml
+    - artifacts/migration/quality_bar_rubric.yaml
 ```
 
 ## Summary
@@ -647,6 +664,7 @@ one minted by the authoritative surface above.
 | `evidence.verification.migration_and_profile.import_diff_manifest` | `verification_corpus` | Defines the case roster every import-diff row cites. | current | `fixtures/migration/import_diff_manifest.yaml` |
 | `evidence.verification.migration_and_profile.portability_and_temp_profile_cases` | `verification_corpus` | Defines the portability / temporary-profile fixtures every profile-library and migration surface cites. | current | `fixtures/profiles/portability_and_temp_profile_cases/` |
 | `evidence.verification.migration_and_profile.rollback_checkpoint_examples` | `verification_corpus` | Defines the rollback-checkpoint examples every migration-restore-record projection cites. | current | `artifacts/migration/rollback_checkpoint_examples/` |
+| `evidence.migration.source_ecosystem_rows` | `source_anchor` | Defines the governed migration source rows, quality bars, caveats, and fixture-profile refs every source-specific migration claim cites. | current | `artifacts/migration/source_ecosystem_rows.yaml` |
 | `evidence.migration.migration_center_object_model` | `source_anchor` | Canonical migration-center / importer-outcome / restore-record vocabulary this packet projects. | current | `docs/migration/migration_center_object_model.md` |
 | `evidence.state.migration_and_restore_playbook` | `source_anchor` | Canonical state-plane / fidelity-label / downgrade-reason vocabulary this packet projects. | current | `docs/state/migration_and_restore_playbook.md` |
 | `evidence.state.profile_and_state_map` | `source_anchor` | Canonical portable-profile, state-map row, export-manifest, and restore-provenance vocabulary this packet reuses. | current | `docs/state/profile_and_state_map.md` |

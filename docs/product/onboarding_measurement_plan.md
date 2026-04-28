@@ -25,6 +25,11 @@ Companion artifacts:
   — scoreboard seed for account-free local work, service-opt-in
   boundary outcomes, and intentionally narrowed startup / import
   capability.
+- [`/artifacts/migration/source_ecosystem_rows.yaml`](../../artifacts/migration/source_ecosystem_rows.yaml)
+  — governed source ecosystem row ids and quality-bar refs that
+  migration-review task-success scenarios cite.
+- [`/artifacts/migration/quality_bar_rubric.yaml`](../../artifacts/migration/quality_bar_rubric.yaml)
+  — governed quality-bar vocabulary used by migration-review evidence.
 
 This document is normative for the measurement shape. Where it
 disagrees with the PRD, TAD, TDD, UI/UX spec, or the milestone

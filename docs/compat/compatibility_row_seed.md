@@ -101,6 +101,7 @@ collapsed into one vague "not ideal" state.
 | `compat_row:command_plane.command_descriptor_schema` | `boundary.commands.command_descriptor` | Keeps palette, CLI, menu, AI-tool, and invocation-session consumers on one command contract. | `fail_closed` |
 | `compat_row:release_identity.exact_build_propagation` | `boundary.build.exact_build_identity_propagation` | Keeps binaries, symbols, docs/help, support bundles, and release evidence on one build identity. | `fail_closed` |
 | `compat_row:state.profile_layout_schema` | `boundary.profile.portable_profile_and_layout_restore` | Makes profile/schema drift explicit across restore, layout, and support/export surfaces. | `degraded` |
+| `compat_row:migration.source_ecosystem_coverage` | `boundary.migration.source_ecosystem_coverage` | Keeps marketed migration lanes, source-row caveats, quality bars, and proof burden on one row vocabulary. | `degraded` |
 | `compat_row:extension_host.sdk_wit_permission_window` | `boundary.extensions.host_contract_and_permission_vocab` | Seeds WIT, SDK/runtime, permission-vocabulary, bridge, and helper-family compatibility rows. | `explicitly_unsupported` |
 | `compat_row:launcher.local_helper_contracts` | `boundary.runtime.launcher_local_sidecars` | Seeds local helper or sidecar compatibility before helper lanes land. | `fail_closed` |
 | `compat_row:remote.attach_envelope_and_drift` | `boundary.remote.agent_attach_envelope` | Seeds remote-agent attach, reconnect, and staged-upgrade truth. | `degraded` |

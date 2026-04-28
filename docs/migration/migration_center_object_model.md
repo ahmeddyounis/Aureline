@@ -21,6 +21,16 @@ Companion artifacts:
 - [`/schemas/migration/importer_outcome.schema.json`](../../schemas/migration/importer_outcome.schema.json)
   — machine-readable schema for `importer_outcome_row_record` and
   `importer_outcome_packet_record`.
+- [`/docs/migration/source_ecosystem_coverage_matrix.md`](./source_ecosystem_coverage_matrix.md)
+  — governed source ecosystem coverage matrix for the marketed migration
+  lanes and their non-claimed source policy.
+- [`/artifacts/migration/source_ecosystem_rows.yaml`](../../artifacts/migration/source_ecosystem_rows.yaml)
+  — canonical source ecosystem row ids, import targets, caveats, owner
+  allocation, proof burden, and downstream evidence refs.
+- [`/artifacts/migration/quality_bar_rubric.yaml`](../../artifacts/migration/quality_bar_rubric.yaml)
+  — canonical quality-bar vocabulary for migration lane claims.
+- [`/fixtures/migration/source_profile_examples/`](../../fixtures/migration/source_profile_examples/)
+  — source profile examples for the governed source ecosystem rows.
 - [`/schemas/commands/keybinding_resolver.schema.json`](../../schemas/commands/keybinding_resolver.schema.json)
   — keybinding-resolution, import-bridge fidelity, leader-overlay, and
   high-frequency shortcut-diff contract reused by the shortcut digest.
