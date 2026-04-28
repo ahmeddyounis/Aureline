@@ -595,6 +595,14 @@ field-for-field equality across the `parity_surface_set`.
   covers surfaces the shareability record does not: the editor
   context menu, the command-diagnostics panel, the support
   export).
+- **Disabled-reason grammar.** Rendered reason classes, alternate-route
+  microcopy, freshness wording, and quantitative scope phrases are
+  governed by
+  [`/docs/ux/disabled_reason_grammar.md`](./disabled_reason_grammar.md)
+  and
+  [`/artifacts/ux/disabled_reason_classes.yaml`](../../artifacts/ux/disabled_reason_classes.yaml).
+  Diagnostics rows carry the typed reason and refs; rendering surfaces
+  consume the grammar instead of authoring prose from the machine code.
 - **Shell interaction safety.** `permission_grant_scope`,
   `authority_class`, and `representation_class` are re-exported
   from
@@ -667,6 +675,9 @@ milestone; this mirrors ADR-0004 through ADR-0014.
 - [`docs/commands/command_parity_diff.md`](../commands/command_parity_diff.md)
   — the seed parity-diff corpus that consumes the
   `parity_surface_set` field mechanically.
+- [`docs/ux/disabled_reason_grammar.md`](./disabled_reason_grammar.md)
+  — the rendered disabled-reason, alternate-route, freshness, and
+  translation-safe microcopy grammar consumed by diagnostics surfaces.
 - [`docs/ux/keybinding_resolver_contract.md`](./keybinding_resolver_contract.md)
   — the keybinding resolver row whose opaque id the
   keybinding-help pivot pins.

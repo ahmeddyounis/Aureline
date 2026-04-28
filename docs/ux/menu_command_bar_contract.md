@@ -265,6 +265,12 @@ Disabled or hidden-with-reason rows must answer:
   diagnostics route exists; and
 - whether the command remains reachable through another surface.
 
+Rendered reason chips, why-unavailable lines, alternate-route copy, and
+count/scope phrases are governed by
+[`/docs/ux/disabled_reason_grammar.md`](./disabled_reason_grammar.md).
+Menus and command bars carry the canonical reason class and message refs;
+they do not author compact synonyms such as "not here" or "not allowed".
+
 Rows may be hidden in novice or compact contexts only when another
 discoverability route can explain the reason. A context menu or inline
 toolbar must not hide the only route to a critical command.
@@ -323,3 +329,6 @@ native OS menu integration.
 - [`docs/ux/command_diagnostics_contract.md`](./command_diagnostics_contract.md)
   — disabled-reason, remediation, target/origin badge, and
   why-unavailable projection.
+- [`docs/ux/disabled_reason_grammar.md`](./disabled_reason_grammar.md)
+  — reason-class grammar, alternate-route copy, and translation-safe
+  scope/count wording.

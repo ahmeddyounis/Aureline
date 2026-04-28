@@ -144,6 +144,12 @@ that cannot run must still answer:
 - whether copy, docs/help, settings, or why-unavailable inspection
   remains allowed.
 
+Rendered disabled-reason copy, alternate-route wording, and quantitative
+scope phrases are governed by
+[`/docs/ux/disabled_reason_grammar.md`](../ux/disabled_reason_grammar.md)
+and its class catalog. The palette consumes those message/template refs;
+it does not mint row-local "unavailable" prose.
+
 Policy-blocked rows may be narrowed or hidden from novice-oriented
 contexts, but they must not disappear from support, migration,
 settings, or admin explainability surfaces. There is no support-only

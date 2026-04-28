@@ -1,0 +1,537 @@
+# Canonical disabled-reason classes, alternate-route rules, and
+# why-unavailable microcopy templates.
+#
+# Machine-readable companion to docs/ux/disabled_reason_grammar.md.
+# This file groups command descriptor disabled_reason_code values and
+# degraded-state causes into user-facing reason classes. UI surfaces read
+# these records by reason_class_id; they do not author local disabled
+# strings.
+
+disabled_reason_class_catalog_schema_version: 1
+
+sources:
+  grammar_doc_ref: docs/ux/disabled_reason_grammar.md
+  command_descriptor_contract_ref: docs/commands/command_descriptor_contract.md
+  command_diagnostics_contract_ref: docs/ux/command_diagnostics_contract.md
+  palette_row_contract_ref: docs/commands/palette_row_contract.md
+  menu_command_bar_contract_ref: docs/ux/menu_command_bar_contract.md
+  state_recovery_taxonomy_ref: docs/ux/state_and_recovery_taxonomy.md
+  degraded_mode_pattern_ref: docs/ux/degraded_mode_pattern.md
+  localization_contract_ref: docs/ux/localization_and_locale_pack_contract.md
+  fixture_corpus_ref: fixtures/commands/why_unavailable_cases/
+
+required_explanation_fields:
+  - reason_class_id
+  - action_label
+  - current_cause
+  - safe_next_step
+  - alternate_route
+  - explanation_freshness
+  - docs_help_anchor_ref
+  - surface_projection
+  - message_template_refs
+  - placeholder_values
+
+surface_classes:
+  - command_palette
+  - global_application_menu
+  - context_menu
+  - inline_toolbar
+  - command_bar
+  - status_item
+  - status_strip
+  - contextual_banner
+  - command_diagnostics
+  - docs_help
+  - support_export
+  - accessibility_narration
+
+explanation_freshness_classes:
+  - freshness_id: live_evaluated
+    compact_phrase: null
+    rule: Live explanations may omit freshness in compact slots.
+  - freshness_id: cached_snapshot
+    compact_phrase: Cached
+    rule: Render age or source in short/detail slots.
+  - freshness_id: stale_snapshot
+    compact_phrase: Refresh required
+    rule: Render invalidation cause and a refresh or re-preview step.
+
+placeholder_kinds:
+  - action_label
+  - command_id_token
+  - count
+  - scope_label
+  - target_class
+  - dependency_label
+  - policy_owner
+  - host_class
+  - budget_name
+  - relative_time
+  - docs_anchor
+  - enumerated_state_token
+  - freeform_string
+
+translation_rules:
+  stable_message_ids_required: true
+  placeholders_are_typed: true
+  plural_select_required_for_counts: true
+  command_ids_locale_neutral: true
+  raw_private_values_forbidden:
+    - raw_absolute_path
+    - raw_url
+    - raw_hostname
+    - raw_account_handle
+    - raw_tenant_id
+    - raw_secret
+    - raw_prompt_or_completion
+  controlled_count_terms:
+    - matching
+    - selected
+    - included
+    - excluded
+    - blocked
+    - hidden by policy
+    - hidden by filter
+    - current workset
+    - workspace
+  forbidden_generic_copy:
+    - Disabled
+    - Unavailable
+    - Error
+    - Not allowed
+    - Try again
+    - See settings
+    - Check docs
+    - Use fallback
+
+alternate_route_rules:
+  concrete_route_required: true
+  route_must_name_command_or_surface: true
+  must_not_widen_authority_or_scope: true
+  must_revalidate_gates: true
+  null_route_requires_reason: true
+  permitted_route_kinds:
+    - command
+    - detail_surface
+    - read_only_surface
+    - local_only_route
+    - cached_route
+    - external_handoff
+    - docs_help_anchor
+    - none
+
+message_template_slots:
+  compact_chip:
+    max_words: 4
+    template_shape: "{controlled_chip}"
+  short_line:
+    template_shape: "{action_label} {availability_verb} because {current_cause}."
+  detail_line:
+    template_shape: "{action_label}: {current_cause}. {safe_next_step}. {alternate_route_or_null}. {freshness_if_not_live}"
+  status_or_banner:
+    template_shape: "{controlled_chip}: {current_cause}. {safe_next_step}."
+  diagnostics:
+    template_shape: "class + command refs + machine reason refs + remediation + alternate route + freshness"
+  docs_help:
+    template_shape: "same class, cause, safe next step, alternate route, and freshness, with citations"
+
+reason_classes:
+  - reason_class_id: policy_blocked
+    controlled_chip: Policy blocked
+    availability_verb: is blocked
+    definition: >
+      Admin, organization, trust, publisher, kill-switch, or managed
+      policy blocks the action in the current context.
+    maps_from_disabled_reason_codes:
+      - workspace_trust_restricted
+      - capability_disabled_by_policy
+      - kill_switch_tripped
+      - publisher_not_permitted
+      - policy_blocked_in_context
+    maps_from_state_tokens:
+      - PolicyBlocked
+      - policy_blocked
+      - policy_locked
+    cause_owner_classes:
+      - admin_policy
+      - organization_policy
+      - workspace_trust
+      - extension_publisher_policy
+      - kill_switch
+    safe_next_step_policy: >
+      Open policy detail, request the named policy review path when the
+      viewer can act, or continue through an explicitly allowed local or
+      read-only route.
+    alternate_route_policy: >
+      Alternate routes must name the allowed scope, such as local-only,
+      read-only, metadata-only, or approved mirror. If policy forbids all
+      routes, render a null alternate with the policy source.
+    source_templates:
+      compact: Policy blocked
+      short: "{action_label} is blocked by {policy_owner} for {scope_label}."
+      next_step: "Open {policy_owner} details."
+      no_alternate: "No alternate route is available under {policy_owner}."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/policy_blocked_share_preview.yaml
+
+  - reason_class_id: dependency_missing
+    controlled_chip: Dependency missing
+    availability_verb: requires {dependency_label}
+    definition: >
+      A provider, credential, runtime, language pack, tool, extension,
+      or capability required by the command is absent, disconnected,
+      unlinked, or below the required state.
+    maps_from_disabled_reason_codes:
+      - required_provider_unlinked
+      - required_credential_missing
+      - execution_context_unavailable
+      - dependency_state_below_command_ceiling
+      - required_argument_unresolved
+    maps_from_state_tokens:
+      - Limited
+      - Unsupported
+      - unavailable
+      - install_required
+    cause_owner_classes:
+      - local_dependency
+      - provider_dependency
+      - credential_dependency
+      - runtime_dependency
+      - extension_dependency
+    safe_next_step_policy: >
+      Name the dependency and offer the first safe setup, connect,
+      authenticate, install, or select action.
+    alternate_route_policy: >
+      If a lower-fidelity route exists, name the lost capability. Do not
+      say "install dependencies" without naming the dependency class.
+    source_templates:
+      compact: Dependency missing
+      short: "{action_label} requires {dependency_label}."
+      next_step: "Connect {dependency_label}."
+      no_alternate: "No alternate route can provide {dependency_label}."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/dependency_missing_rename_symbol.yaml
+
+  - reason_class_id: degraded_index
+    controlled_chip: Index degraded
+    availability_verb: is limited
+    definition: >
+      A semantic, project, graph, search, diagnostic, or provider index
+      is warming, partial, stale, unavailable, or below the freshness
+      floor needed by the ideal command.
+    maps_from_disabled_reason_codes:
+      - freshness_floor_unmet
+      - dependency_state_below_command_ceiling
+      - execution_context_unavailable
+    maps_from_state_tokens:
+      - Warming
+      - Partial
+      - Stale
+      - RetestPending
+      - degraded
+    cause_owner_classes:
+      - semantic_index
+      - project_graph
+      - diagnostic_index
+      - provider_index
+      - search_index
+    safe_next_step_policy: >
+      Offer text search, current-file scope, open index status, or wait
+      for the named index to become current.
+    alternate_route_policy: >
+      Alternate routes must say which semantics are lost, such as
+      whole-workspace rename, project-wide references, or semantic rank.
+    source_templates:
+      compact: Index degraded
+      short: "{action_label} is limited because {dependency_label} is not current for {scope_label}."
+      next_step: "Use text search in {scope_label}."
+      no_alternate: "No semantic route is available until {dependency_label} is current."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/degraded_index_semantic_rename.yaml
+
+  - reason_class_id: wrong_target
+    controlled_chip: Wrong target
+    availability_verb: needs {target_class}
+    definition: >
+      The focused surface, selection, target class, argument, client
+      scope, issuing surface, or authority class cannot host the command.
+    maps_from_disabled_reason_codes:
+      - client_scope_excludes_surface
+      - required_argument_unresolved
+      - authority_class_unresolved
+      - issuing_surface_unresolved
+      - scope_class_drifted_from_descriptor
+    maps_from_state_tokens:
+      - unsupported_on_this_surface
+      - scope_unavailable
+    cause_owner_classes:
+      - focus_context
+      - selected_target
+      - client_scope
+      - issuing_surface
+      - argument_resolver
+    safe_next_step_policy: >
+      Name the required target class and route to the nearest safe focus,
+      selection, or supported surface.
+    alternate_route_policy: >
+      Alternate routes may move focus or open a supported surface; they
+      must not invoke against an inferred target.
+    source_templates:
+      compact: Wrong target
+      short: "{action_label} needs {target_class}."
+      next_step: "Select {target_class} to continue."
+      no_alternate: "No alternate route can infer {target_class} safely."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/wrong_target_apply_refactor.yaml
+
+  - reason_class_id: read_only
+    controlled_chip: Read-only
+    availability_verb: is read-only here
+    definition: >
+      Inspection, copy, or export remains possible, but mutation is
+      blocked by snapshot, restore, trust, recovery, write authority, or
+      read-only host state.
+    maps_from_disabled_reason_codes:
+      - workspace_trust_restricted
+      - capability_disabled_by_policy
+      - execution_context_unavailable
+      - preview_denial_no_safe_preview
+    maps_from_state_tokens:
+      - read_only_degraded
+      - read_only
+      - cached
+      - snapshot
+    cause_owner_classes:
+      - recovered_snapshot
+      - read_only_host
+      - trust_state
+      - write_authority
+      - generated_artifact_policy
+    safe_next_step_policy: >
+      Keep inspection available and route writes to live source, write
+      authority review, or a safe copy/export path.
+    alternate_route_policy: >
+      Alternate routes may be inspect, copy, export metadata, or open
+      live source. They must not queue hidden writes.
+    source_templates:
+      compact: Read-only
+      short: "{action_label} is read-only here because {current_cause}."
+      next_step: "Open live source."
+      no_alternate: "No write route is available from this read-only state."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/read_only_snapshot_edit.yaml
+
+  - reason_class_id: host_unavailable
+    controlled_chip: Host unavailable
+    availability_verb: cannot reach {host_class}
+    definition: >
+      The local, remote, container, provider, browser, credential, or
+      managed host needed to execute the command is disconnected,
+      expired, unreachable, or not responding.
+    maps_from_disabled_reason_codes:
+      - execution_context_unavailable
+      - required_provider_unlinked
+      - required_credential_missing
+      - freshness_floor_unmet
+    maps_from_state_tokens:
+      - Offline
+      - unavailable
+      - reconnecting
+      - provider_unavailable
+    cause_owner_classes:
+      - remote_host
+      - container_host
+      - browser_runtime
+      - managed_workspace
+      - provider_service
+    safe_next_step_policy: >
+      Offer reconnect, reauthenticate, open host details, continue
+      locally, or open cached read-only data where safe.
+    alternate_route_policy: >
+      Alternate routes must name whether they are local-only, cached, or
+      read-only and must not imply live host authority.
+    source_templates:
+      compact: Host unavailable
+      short: "{action_label} cannot reach {host_class}."
+      next_step: "Reconnect {host_class}."
+      no_alternate: "No live route is available until {host_class} reconnects."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/host_unavailable_remote_task.yaml
+
+  - reason_class_id: unsupported_current_mode
+    controlled_chip: Unsupported here
+    availability_verb: is not supported here
+    definition: >
+      The current mode, client, lifecycle state, release channel,
+      platform, command version, or command retirement state excludes
+      the action.
+    maps_from_disabled_reason_codes:
+      - client_scope_excludes_surface
+      - managed_only_channel_required
+      - capability_lifecycle_retired
+      - command_deprecated_within_window
+      - command_retired
+      - command_version_unknown
+    maps_from_state_tokens:
+      - Unsupported
+      - unsupported_on_this_surface
+      - lifecycle_disabled
+    cause_owner_classes:
+      - current_mode
+      - current_client
+      - release_channel
+      - platform_support
+      - command_lifecycle
+    safe_next_step_policy: >
+      Name the supported mode, client, surface, channel, or replacement
+      route. Retired commands render read-only guidance.
+    alternate_route_policy: >
+      Alternate routes must be a supported command or surface, not a
+      hidden invocation of the unsupported command.
+    source_templates:
+      compact: Unsupported here
+      short: "{action_label} is not supported in {scope_label}."
+      next_step: "Switch to {target_class}."
+      no_alternate: "No supported route exists in {scope_label}."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/unsupported_mode_voice_command.yaml
+
+  - reason_class_id: quota_or_budget_exhausted
+    controlled_chip: Budget exhausted
+    availability_verb: is paused
+    definition: >
+      A quota, spend cap, rate limit, activation budget, compute budget,
+      extension budget, or managed allowance is exhausted or frozen.
+    maps_from_disabled_reason_codes: []
+    maps_from_state_tokens:
+      - Limited
+      - policy_blocked
+      - budget_exhausted
+      - quota_exhausted
+      - rate_limited
+    cause_owner_classes:
+      - workspace_budget
+      - organization_budget
+      - provider_quota
+      - activation_budget
+      - managed_service_allowance
+    safe_next_step_policy: >
+      Name the budget, what remains unaffected, and a safe route such as
+      reduce scope, wait for refresh, open budget detail, or continue
+      manually/local-only.
+    alternate_route_policy: >
+      Alternate routes must avoid the exhausted budget class and must say
+      what automation, provider, or managed capability is lost.
+    source_templates:
+      compact: Budget exhausted
+      short: "{action_label} is paused because {budget_name} is exhausted."
+      next_step: "Open {budget_name} details."
+      no_alternate: "No managed route is available until {budget_name} refreshes."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/budget_exhausted_ai_apply.yaml
+
+  - reason_class_id: preview_only
+    controlled_chip: Preview required
+    availability_verb: needs preview first
+    definition: >
+      The command can inspect, preview, or export a plan, but cannot
+      apply until preview/review is shown, or no safe apply path exists.
+    maps_from_disabled_reason_codes:
+      - preview_required_not_shown
+      - preview_denial_no_safe_preview
+      - approval_denial_no_approval_path
+    maps_from_state_tokens:
+      - preview_required
+      - review_required
+      - preview_only
+    cause_owner_classes:
+      - preview_contract
+      - approval_contract
+      - safety_review
+      - redaction_policy
+    safe_next_step_policy: >
+      Open the named preview or review surface. If apply is denied, name
+      the export or inspect-only path.
+    alternate_route_policy: >
+      Alternate routes may be export preview, copy command id, copy CLI
+      skeleton, or inspect docs. They must not imply apply is available.
+    source_templates:
+      compact: Preview required
+      short: "{action_label} needs preview before apply."
+      next_step: "Open command preview."
+      no_alternate: "Apply remains unavailable until preview is complete."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/preview_only_restore_checkpoint.yaml
+
+  - reason_class_id: stale_context
+    controlled_chip: Context changed
+    availability_verb: needs refresh
+    definition: >
+      A cached explanation, basis snapshot, provider result, target,
+      policy epoch, trust state, or execution context changed after the
+      row or preview was generated.
+    maps_from_disabled_reason_codes:
+      - basis_snapshot_drifted
+      - freshness_floor_unmet
+      - command_version_unknown
+    maps_from_state_tokens:
+      - Stale
+      - stale_evidence
+      - cached
+      - drifted
+    cause_owner_classes:
+      - basis_snapshot
+      - target_snapshot
+      - policy_epoch
+      - provider_result
+      - execution_context
+    safe_next_step_policy: >
+      Refresh, re-preview, or re-run against the current context before
+      any mutation.
+    alternate_route_policy: >
+      Alternate routes may inspect cached data or open current context,
+      but must not apply against stale basis.
+    source_templates:
+      compact: Context changed
+      short: "{action_label} needs refresh because {scope_label} changed."
+      next_step: "Refresh current context."
+      no_alternate: "No apply route is available from stale context."
+    fixture_refs:
+      - fixtures/commands/why_unavailable_cases/stale_cached_context_repreview.yaml
+
+disabled_reason_code_mapping:
+  workspace_trust_restricted: policy_blocked
+  capability_lifecycle_retired: unsupported_current_mode
+  capability_disabled_by_policy: policy_blocked
+  kill_switch_tripped: policy_blocked
+  client_scope_excludes_surface: wrong_target
+  freshness_floor_unmet: stale_context
+  required_provider_unlinked: dependency_missing
+  required_credential_missing: dependency_missing
+  required_argument_unresolved: wrong_target
+  execution_context_unavailable: host_unavailable
+  managed_only_channel_required: unsupported_current_mode
+  dependency_state_below_command_ceiling: dependency_missing
+  command_deprecated_within_window: unsupported_current_mode
+  command_retired: unsupported_current_mode
+  command_version_unknown: stale_context
+  preview_denial_no_safe_preview: preview_only
+  approval_denial_no_approval_path: preview_only
+  publisher_not_permitted: policy_blocked
+  policy_blocked_in_context: policy_blocked
+  authority_class_unresolved: wrong_target
+  issuing_surface_unresolved: wrong_target
+  scope_class_drifted_from_descriptor: wrong_target
+  preview_required_not_shown: preview_only
+  basis_snapshot_drifted: stale_context
+
+count_and_scope_phrasebook:
+  blocked_subset: "{blocked_count, plural, one {# blocked} other {# blocked}} by {cause_owner}"
+  hidden_by_policy: "{hidden_count, plural, one {# hidden by policy} other {# hidden by policy}}"
+  narrowed_scope: "{scope_label} only"
+  missing_target: "Select {target_class} to continue"
+  dependency_missing: "Connect {dependency_label}"
+  cached_explanation: "Last checked {relative_time}"
+  stale_context: "Refresh current context"
+  no_alternate: "No alternate route is available under {cause_owner}"
