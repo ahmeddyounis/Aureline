@@ -33,6 +33,12 @@ lives in
 [`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json),
 and
 [`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/).
+The governed projection for application menus, context menus, inline
+toolbars, command bars, and overflow menus now lives in
+[`/docs/ux/menu_command_bar_contract.md`](../ux/menu_command_bar_contract.md),
+[`/schemas/commands/menu_item.schema.json`](../../schemas/commands/menu_item.schema.json),
+and
+[`/fixtures/commands/menu_cases/`](../../fixtures/commands/menu_cases/).
 The governed modal / sequence discoverability projection for mode
 strips, leader overlays, sequence-help rows, shortcut-teaching rows, and
 colon-style command parity lives in
@@ -493,6 +499,10 @@ keybinding / shortcut help, CLI help, and AI-tool surfaces:
   `global_application_menu` / `*_context_menu` (including
   `menu_path_refs`), `accessibility_label_path`,
   `shortcut_narration_hint`, and the enablement decision.
+  Row anatomy, destructive grouping, provider-backed disclosure,
+  target-freshness invalidation, inline-toolbar parity, and command-bar
+  overflow rules are frozen by
+  [`/docs/ux/menu_command_bar_contract.md`](../ux/menu_command_bar_contract.md).
 - **Keybinding / shortcut help** reads `shortcut_narration_hint`,
   `accessibility_label_path.keyboard_shortcut_narration_ref`,
   `docs_help_anchor_ref`, and the `ui_slot_hint` whose

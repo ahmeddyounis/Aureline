@@ -54,6 +54,15 @@ Companion artifacts:
   contract that renders command rows in palette, docs/help, settings,
   keybinding help, migration guidance, automation explainers, and
   support export from the same registry/shareability records.
+- [`/docs/ux/menu_command_bar_contract.md`](../ux/menu_command_bar_contract.md),
+  [`/schemas/commands/menu_item.schema.json`](../../schemas/commands/menu_item.schema.json),
+  and
+  [`/fixtures/commands/menu_cases/`](../../fixtures/commands/menu_cases/)
+  — the governed menu, context-menu, inline-toolbar, command-bar, and
+  overflow-menu projection contract that keeps compact pointer-invoked
+  rows tied to the same command ID, label, shortcut hint, disabled
+  reason, target snapshot, and side-effect cue as palette and help
+  surfaces.
 - [`/docs/commands/sequence_and_modal_discoverability_contract.md`](./sequence_and_modal_discoverability_contract.md),
   [`/schemas/commands/leader_overlay.schema.json`](../../schemas/commands/leader_overlay.schema.json),
   and
