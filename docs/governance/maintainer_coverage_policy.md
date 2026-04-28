@@ -16,6 +16,12 @@ Companion artifacts:
 - [`/artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml)
   — action matrix for protected release, policy, emergency, and
   security-sensitive approvals.
+- [`/docs/governance/merge_control_policy.md`](./merge_control_policy.md)
+  and
+  [`/artifacts/governance/protected_merge_classes.yaml`](../../artifacts/governance/protected_merge_classes.yaml)
+  — merge-control classes that turn reviewer depth, protected-path
+  ownership, public-surface controls, and release-bearing approval
+  policy into per-change gates.
 - [`/artifacts/governance/upstream_health_scorecard.yaml`](../../artifacts/governance/upstream_health_scorecard.yaml)
   — critical-upstream health scorecard keyed by dependency row id.
 - [`/artifacts/governance/dependency_register.yaml`](../../artifacts/governance/dependency_register.yaml)

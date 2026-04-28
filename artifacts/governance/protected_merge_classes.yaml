@@ -1,0 +1,367 @@
+# Protected merge-control classes.
+#
+# Machine-readable companion to docs/governance/merge_control_policy.md.
+# This file defines the merge-control classes reviewers and future
+# repository-host rulesets use to decide required approvers, packets,
+# checks, and emergency posture. It does not implement a host ruleset.
+
+schema_version: 1
+catalog_id: aureline.protected_merge_classes
+status: seeded
+
+policy_doc_ref: docs/governance/merge_control_policy.md
+branch_protection_seed_ref: artifacts/governance/branch_protection_seed.yaml
+public_surface_change_controls_ref: artifacts/governance/public_surface_change_controls.yaml
+
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+codeowners_ref: CODEOWNERS
+package_inventory_ref: artifacts/governance/package_inventory.yaml
+subsystem_contract_cards_ref: artifacts/architecture/subsystem_contract_cards/
+stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+compatibility_surface_inventory_ref: artifacts/governance/compatibility_surfaces.yaml
+mandatory_review_artifacts_ref: artifacts/governance/mandatory_review_artifacts.yaml
+signing_quorum_ref: artifacts/governance/signing_quorum.yaml
+frozen_surface_manifest_ref: artifacts/contracts/frozen_surface_manifest.yaml
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - repository rules for protected paths and branch protections
+      - public API moves, storage-format moves, migration notes, and compatibility impact
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - review workspace and merge queue architecture
+      - ownership signals and protected branch rules
+      - public interface versioning and compatibility rules
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - public interface governance
+      - release-center publication and emergency action rules
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - maintainer coverage and publication readiness
+      - release-line and emergency-response rules
+
+class_resolution_order:
+  strongest_first:
+    - release_bearing_artifact_change
+    - public_or_stable_interface_change
+    - launch_critical_surface_change
+    - protected_path_change
+    - ordinary_change
+  multiple_matches_rule: Use the strongest matching class for required gates.
+  unclassified_protected_scope_rule: >
+    A changed path that looks protected or public but cannot resolve to
+    CODEOWNERS, the ownership matrix, package inventory, a subsystem
+    card, or a surface inventory row is treated as protected_path_change
+    until the missing row lands.
+
+approver_role_vocabulary:
+  - author
+  - codeowners_reviewer
+  - owner_lane_reviewer
+  - backup_owner_or_active_waiver
+  - subsystem_owner
+  - design_or_accessibility_reviewer
+  - compatibility_reviewer
+  - docs_public_truth_reviewer
+  - evidence_owner
+  - release_operator
+  - security_operator
+  - quorum_profile_ref
+
+packet_class_refs:
+  adr: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.adr
+  rfc: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.rfc
+  design_packet: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.design_packet
+  verification_packet: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.verification_packet
+  compatibility_report: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.compatibility_report
+  benchmark_report: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.benchmark_report
+  waiver_packet: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.waiver_packet
+  exception_packet: docs/governance/templates/exception_packet_template.md
+  release_evidence_packet: docs/release/release_evidence_packet_template.md
+  emergency_action_record: docs/security/emergency_action_model.md
+  break_glass_event_record: docs/security/high_risk_control_quorum.md
+
+ci_check_catalog:
+  - check_id: check.contract_artifact_validation
+    command_ref: ./ci/contract_validation.sh --out-dir target/contract-validation
+    applies_to:
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    current_status: implemented
+
+  - check_id: check.protected_dependency_validation
+    command_ref: python3 tools/check_protected_dependencies.py --repo-root . --report target/contract-validation/protected_dependency_report.json
+    applies_to:
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    current_status: implemented
+
+  - check_id: check.frozen_surface_validation
+    command_ref: python3 tools/check_frozen_surfaces.py --repo-root . --report target/contract-validation/frozen_surface_report.json
+    applies_to:
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    current_status: implemented
+
+  - check_id: check.build_lane
+    command_ref: ./ci/build.sh
+    applies_to:
+      - ordinary_change
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    current_status: seeded
+    notes: >
+      Required once the touched path has buildable source or release
+      payload bytes. Pre-implementation governance-only changes may
+      record not_applicable in the review evidence.
+
+  - check_id: check.cleanroom_rebuild_lane
+    command_ref: ./ci/cleanroom_rebuild.sh --out-dir target/cleanroom-rebuild
+    applies_to:
+      - release_bearing_artifact_change
+    current_status: implemented
+    notes: >
+      Required for release candidates, exact-build identity changes, and
+      release-bearing artifact families when the clean checkout
+      precondition can be met.
+
+merge_control_classes:
+  - class_id: ordinary_change
+    label: Ordinary change
+    summary: >
+      Unprotected code, docs, fixtures, or maintenance that does not
+      touch a protected package, launch-critical contract, public
+      interface, or release-bearing control artifact.
+    match_rules:
+      - default when no stronger class matches
+      - path may still be CODEOWNERS-routed
+    required_approver_roles:
+      - codeowners_reviewer
+    backup_owner_rule: not_required_unless_codeowners_or_ownership_matrix_marks_scope_protected
+    required_packet_refs: []
+    minimum_ci_check_refs:
+      - check.build_lane
+    waiver_policy: >
+      Ordinary changes may carry normal review waivers only if the
+      repository host supports them and the waiver does not bypass a
+      stronger class.
+    emergency_posture: ordinary_repair
+
+  - class_id: protected_path_change
+    label: Protected path change
+    summary: >
+      Protected crates, protected package dependency posture,
+      ownership-routing files, governance packets, or protected support
+      lanes whose drift can undermine release readiness.
+    match_rules:
+      - package_inventory.packages[].protected_path == true
+      - ownership_matrix.governance_lanes[].protected == true
+      - CODEOWNERS rows under governance, schemas, release, support, fixtures, or protected crates
+      - dependency or package topology files that affect protected lanes
+    required_approver_roles:
+      - owner_lane_reviewer
+      - backup_owner_or_active_waiver
+    required_packet_refs:
+      - exception_packet
+      - waiver_packet
+    packet_required_when:
+      - protected-path rule changes after a freeze or scope lock
+      - package inventory, ownership matrix, or CODEOWNERS routing changes
+      - required reviewer depth is missing or waiver coverage changes
+    minimum_ci_check_refs:
+      - check.contract_artifact_validation
+      - check.protected_dependency_validation
+      - check.build_lane
+    linkage_required:
+      - codeowners_ref
+      - ownership_matrix_ref
+      - package_inventory_ref
+    backup_owner_rule: >
+      Protected scope must name a backup owner or cite an active waiver
+      in ownership_matrix.yaml. The waiver may permit seed changes, but
+      it does not permit stable or release claims to proceed as if
+      backup depth exists.
+    emergency_posture: ordinary_emergency_repair_allowed_when_no_public_or_release_surface_changes
+
+  - class_id: launch_critical_surface_change
+    label: Launch-critical surface change
+    summary: >
+      User-visible or cross-subsystem contract changes that affect the
+      shell, editor, command, trust, accessibility, restore, remote,
+      runtime, or other launch-critical surfaces.
+    match_rules:
+      - subsystem contract cards under artifacts/architecture/subsystem_contract_cards/
+      - contracts, fixtures, or docs cited by subsystem cards
+      - frozen-surface manifest monitored paths
+      - docs or artifacts naming launch-critical shell, editor, command, restore, accessibility, trust, or remote behavior
+    required_approver_roles:
+      - owner_lane_reviewer
+      - subsystem_owner
+      - design_or_accessibility_reviewer
+      - backup_owner_or_active_waiver
+    required_packet_refs:
+      - design_packet
+      - verification_packet
+      - benchmark_report
+      - exception_packet
+    packet_required_when:
+      - user-visible flow, state, accessibility, or degraded-mode behavior changes
+      - protected performance, launch, accessibility, or trust claim changes
+      - frozen-surface manifest indicates same-train obligations
+    minimum_ci_check_refs:
+      - check.contract_artifact_validation
+      - check.protected_dependency_validation
+      - check.frozen_surface_validation
+      - check.build_lane
+    linkage_required:
+      - subsystem_contract_cards_ref
+      - mandatory_review_artifacts_ref
+      - frozen_surface_manifest_ref
+    backup_owner_rule: protected_path_floor_applies
+    emergency_posture: emergency_repair_reopens_verification_when_behavior_or_claim_changes
+
+  - class_id: public_or_stable_interface_change
+    label: Public or stable interface change
+    summary: >
+      Stable, beta, or compatibility-bearing machine-readable surfaces
+      that downstream consumers, support, release, docs, automation, or
+      extensions can depend on.
+    match_rules:
+      - stable_surface_inventory.rows[]
+      - compatibility_surface_inventory.rows[]
+      - schema_families, docs-pack schemas, CLI JSON, WIT worlds, SDK contracts, managed APIs, policy bundles, evidence or support packet schemas
+      - claim-bearing docs or public-truth rows that quote compatibility, support, security, release, or benchmark posture
+    required_approver_roles:
+      - owner_lane_reviewer
+      - compatibility_reviewer
+      - docs_public_truth_reviewer
+      - backup_owner_or_active_waiver
+    required_packet_refs:
+      - compatibility_report
+      - adr
+      - rfc
+      - verification_packet
+      - waiver_packet
+    packet_required_when:
+      - public schema or field meaning changes
+      - stable id, version, compatibility window, support window, deprecation, or migration behavior changes
+      - CLI JSON, WIT, SDK, service API, policy file, docs-pack schema, or claim-bearing docs change
+      - public-truth copy would quote a new or changed claim
+    minimum_ci_check_refs:
+      - check.contract_artifact_validation
+      - check.frozen_surface_validation
+      - check.protected_dependency_validation
+      - check.build_lane
+    linkage_required:
+      - stable_surface_inventory_ref
+      - compatibility_surface_inventory_ref
+      - public_surface_change_controls_ref
+      - mandatory_review_artifacts_ref
+    backup_owner_rule: protected_path_floor_applies
+    emergency_posture: emergency_must_reopen_compatibility_docs_or_release_evidence_when_surface_truth_changes
+
+  - class_id: release_bearing_artifact_change
+    label: Release-bearing artifact change
+    summary: >
+      Release, policy, signing, branch, emergency, advisory, revocation,
+      clean-room, provenance, claim, or public evidence artifacts whose
+      drift can change what is publishable or trustworthy.
+    match_rules:
+      - docs/release/
+      - artifacts/release/
+      - docs/security/emergency_action_model.md
+      - docs/security/high_risk_control_quorum.md
+      - artifacts/security/
+      - artifacts/governance/signing_quorum.yaml
+      - artifacts/governance/branch_protection_seed.yaml
+      - artifacts/governance/protected_merge_classes.yaml
+      - artifacts/governance/public_surface_change_controls.yaml
+      - docs/governance/merge_control_policy.md
+      - claim manifests, release evidence, assurance claim, provenance, SBOM, clean-room, advisory, revocation, and emergency bundle records
+    required_approver_roles:
+      - evidence_owner
+      - release_operator
+      - quorum_profile_ref
+      - security_operator
+      - backup_owner_or_active_waiver
+    required_packet_refs:
+      - release_evidence_packet
+      - emergency_action_record
+      - break_glass_event_record
+      - compatibility_report
+      - waiver_packet
+    packet_required_when:
+      - release or claim evidence changes
+      - branch, tag, freeze, quorum, signing, advisory, revocation, policy, or emergency behavior changes
+      - public release notes, known limits, support windows, or trusted distribution posture changes
+    minimum_ci_check_refs:
+      - check.contract_artifact_validation
+      - check.frozen_surface_validation
+      - check.cleanroom_rebuild_lane
+      - check.build_lane
+    linkage_required:
+      - signing_quorum_ref
+      - branch_protection_seed_ref
+      - mandatory_review_artifacts_ref
+    backup_owner_rule: >
+      Release-bearing actions may be seeded under an active backup-owner
+      waiver, but live promotion, revocation, trust-root, emergency, or
+      stable-claim actions must follow signing_quorum.yaml and any
+      break-glass closure requirements.
+    emergency_posture: break_glass_containment_only
+
+mapping_sources:
+  protected_packages:
+    source_ref: artifacts/governance/package_inventory.yaml#packages
+    selector: protected_path == true
+    maps_to_class: protected_path_change
+  protected_governance_lanes:
+    source_ref: artifacts/governance/ownership_matrix.yaml#governance_lanes
+    selector: protected == true
+    maps_to_class: protected_path_change
+  launch_critical_subsystems:
+    source_ref: artifacts/architecture/subsystem_contract_cards/
+    selector: any card or cited contract touched
+    maps_to_class: launch_critical_surface_change
+  stable_surface_rows:
+    source_ref: artifacts/governance/stable_surface_inventory.yaml#rows
+    selector: any row, publication artifact, schema directory, or docs touchpoint touched
+    maps_to_class: public_or_stable_interface_change
+  compatibility_surface_rows:
+    source_ref: artifacts/governance/compatibility_surfaces.yaml#rows
+    selector: any row, publication artifact, schema directory, or docs touchpoint touched
+    maps_to_class: public_or_stable_interface_change
+  release_and_emergency_artifacts:
+    source_refs:
+      - docs/release/
+      - artifacts/release/
+      - docs/security/
+      - artifacts/security/
+      - artifacts/governance/signing_quorum.yaml
+      - artifacts/governance/branch_protection_seed.yaml
+    selector: release, policy, signing, emergency, advisory, revocation, claim, or provenance behavior touched
+    maps_to_class: release_bearing_artifact_change
+
+failure_rules:
+  - failure_id: missing_owner_mapping
+    condition: protected-looking or public-looking path has no CODEOWNERS, ownership, package, card, or inventory row
+    effect: block protected or release-bearing merge until row lands
+  - failure_id: missing_required_packet
+    condition: class requires a packet and no packet, active waiver, or explicit not_applicable reason exists
+    effect: block merge for protected refs
+  - failure_id: stale_evidence
+    condition: evidence packet is outside freshness window or invalidated by rerun trigger
+    effect: block release-bearing merge or narrow public claim
+  - failure_id: emergency_used_for_scope_widening
+    condition: emergency or break-glass path attempts stable promotion, permanent trust-root change, or claim widening
+    effect: deny action and require quorum or narrowed scope
+

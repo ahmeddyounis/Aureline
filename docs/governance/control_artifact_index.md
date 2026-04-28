@@ -100,6 +100,15 @@ Companion artifacts:
   — manifest-driven CI policy and machine-readable row set for the M0
   frozen surfaces that already require same-train diff metadata and
   companion updates.
+- [`./merge_control_policy.md`](./merge_control_policy.md),
+  [`/artifacts/governance/protected_merge_classes.yaml`](../../artifacts/governance/protected_merge_classes.yaml),
+  [`/artifacts/governance/public_surface_change_controls.yaml`](../../artifacts/governance/public_surface_change_controls.yaml),
+  and
+  [`/artifacts/governance/branch_protection_seed.yaml`](../../artifacts/governance/branch_protection_seed.yaml)
+  — merge-control, public-surface change, branch-protection, bypass,
+  and emergency reconstruction policy that projects CODEOWNERS,
+  ownership, subsystem cards, compatibility rows, required review
+  artifacts, and signing quorum into one review vocabulary.
 - [`./contract_packet_template.md`](./contract_packet_template.md) —
   surface-contract packet template backed by
   `schemas/governance/contract_packet.schema.json`.
@@ -137,6 +146,8 @@ compatibility qualification seed, the canonical requirement register,
 the decision dependency register, the build-vs-buy register, the fork-review policy, the supply-chain
 dependency and import registers, the critical-upstream health
 scorecard, the maintainer-coverage policy, the signing-quorum matrix,
+the merge-control policy, protected merge class catalog, branch-protection
+seed, public-surface change-control matrix,
 the experiment/Labs control registers, the release-notice seed, the
 provenance-badge contract, the
 release-artifact graph, release evidence, docs and help truth, route
@@ -221,6 +232,12 @@ and scopes.
   `maintainer_coverage_policy`, `signing_quorum`, and
   `fork_review_policy`. Do not keep build-vs-buy posture, bus-factor
   risk, or quorum expectations only in an ADR or PR comment.
+- Merge-control and protected-ref policy now routes through
+  `merge_control_policy`, `protected_merge_class_catalog`,
+  `public_surface_change_control_matrix`, and `branch_protection_seed`.
+  Do not treat repository-host green checks as sufficient for
+  protected, public-surface, release-bearing, or emergency changes when
+  the required packet or concurrence is missing.
 - Program blocker ids, blocker-aging SLAs, and forced correction
   responses now route through `program_dependency_ledger`,
   `blocker_aging_sla_table`, and `correction_trigger_table`. Do not
@@ -278,7 +295,9 @@ and scopes.
   `correction_trigger_table`,
   `build_vs_buy_register`, `critical_dependency_register`,
   `critical_upstream_health_scorecard`, `maintainer_coverage_policy`,
-  `fork_review_policy`, `feature_flag_policy`, and
+  `fork_review_policy`, `merge_control_policy`,
+  `protected_merge_class_catalog`, `public_surface_change_control_matrix`,
+  `branch_protection_seed`, `feature_flag_policy`, and
   `experiments_register` rows are the anchor points for quality work.
   New fitness functions, benchmark corpora, and qualification gates
   land under the lanes named by those rows. Protected speed and
@@ -418,7 +437,9 @@ and scopes.
   `release_promotion_gate_map`,
   `compatibility_qualification_seed`,
   `release_notice_seed`, `maintainer_coverage_policy`,
-  `signing_quorum`, `frozen_surface_manifests`, `route_build_truth`,
+  `signing_quorum`, `merge_control_policy`,
+  `protected_merge_class_catalog`, `branch_protection_seed`,
+  `public_surface_change_control_matrix`, `frozen_surface_manifests`, `route_build_truth`,
   and `cleanroom_rebuild_lane` rows are the anchor points for release
   assembly.
   `review_cadence: each_release` means the release-engineer DRI MUST
@@ -531,6 +552,12 @@ and scopes.
   [`artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml)
   for the action ids that governed promotion, freeze, revocation, or
   break-glass handling.
+- Merge-control and branch-protection evidence are likewise explicit.
+  Protected and release-bearing merges now cite
+  [`docs/governance/merge_control_policy.md`](./merge_control_policy.md),
+  the protected merge-class catalog, public-surface change-control
+  matrix, and branch-protection seed for required approvers, packets,
+  status checks, bypass authority, and reconstruction obligations.
 - The clean-room rebuild lane now has a canonical command
   ([`ci/cleanroom_rebuild.sh`](../../ci/cleanroom_rebuild.sh)), a public
   contract document

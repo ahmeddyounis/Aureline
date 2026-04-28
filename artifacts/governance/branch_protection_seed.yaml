@@ -1,0 +1,352 @@
+# Branch and tag protection seed.
+#
+# Machine-readable companion to docs/governance/merge_control_policy.md.
+# These rows define host-neutral expectations for protected refs, tags,
+# freeze windows, bypass authority, and emergency reconstruction. A
+# repository-host ruleset may project from this file later; this file is
+# not itself an enforcement integration.
+
+schema_version: 1
+catalog_id: aureline.branch_protection_seed
+status: seeded
+
+policy_doc_ref: docs/governance/merge_control_policy.md
+protected_merge_classes_ref: artifacts/governance/protected_merge_classes.yaml
+channel_matrix_ref: artifacts/release/channel_matrix.yaml
+pipeline_lane_rules_ref: artifacts/release/pipeline_lane_rules.yaml
+signing_quorum_ref: artifacts/governance/signing_quorum.yaml
+maintainer_coverage_policy_ref: docs/governance/maintainer_coverage_policy.md
+emergency_action_model_ref: docs/security/emergency_action_model.md
+high_risk_control_quorum_ref: docs/security/high_risk_control_quorum.md
+release_evidence_template_ref: docs/release/release_evidence_packet_template.md
+shiproom_runbook_ref: docs/release/shiproom_runbook.md
+
+ref_class_vocabulary:
+  - mainline
+  - release_train
+  - patch_or_backport
+  - emergency_or_hotfix
+  - contributor_or_fork
+  - protected_tag
+
+required_status_check_refs:
+  check.contract_artifact_validation: artifacts/governance/protected_merge_classes.yaml#ci_check_catalog.check.contract_artifact_validation
+  check.protected_dependency_validation: artifacts/governance/protected_merge_classes.yaml#ci_check_catalog.check.protected_dependency_validation
+  check.frozen_surface_validation: artifacts/governance/protected_merge_classes.yaml#ci_check_catalog.check.frozen_surface_validation
+  check.build_lane: artifacts/governance/protected_merge_classes.yaml#ci_check_catalog.check.build_lane
+  check.cleanroom_rebuild_lane: artifacts/governance/protected_merge_classes.yaml#ci_check_catalog.check.cleanroom_rebuild_lane
+
+bypass_authority_vocabulary:
+  - none
+  - release_council_quorum
+  - security_release_cross_forum_quorum
+  - audited_single_responder_containment
+  - repository_administrator_for_ruleset_repair_only
+
+common_protected_ref_rules:
+  direct_push_policy: forbidden
+  background_agent_direct_push_policy: forbidden
+  force_push_policy: forbidden
+  delete_ref_policy: forbidden
+  stale_review_policy: dismiss_or_reapprove_when_base_or_head_changes
+  required_owner_source_order:
+    - CODEOWNERS
+    - artifacts/governance/ownership_matrix.yaml
+    - artifacts/governance/package_inventory.yaml
+  missing_owner_effect: block_merge
+  required_signed_commits_policy: required_where_repository_host_supports_it
+  required_linear_history_policy: required_for_release_bearing_refs
+  required_conversation_resolution_policy: required_where_repository_host_supports_it
+  bypass_audit_rule: >
+    Any admitted bypass must cite a signing_quorum action id or a
+    ruleset repair note. Generic administrator override is not accepted
+    as review evidence.
+
+protected_ref_classes:
+  - ref_class_id: mainline
+    branch_class_ref: artifacts/release/channel_matrix.yaml#branch_posture_register.mainline_protected_ref
+    example_patterns:
+      - main
+    purpose: >
+      Protected integration branch. Feature work lands here before
+      release trains take stabilisation snapshots.
+    admitted_merge_control_classes:
+      - ordinary_change
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    required_status_checks:
+      - check.contract_artifact_validation
+      - check.protected_dependency_validation
+      - check.frozen_surface_validation
+      - check.build_lane
+    required_reviews:
+      min_non_author_reviews: 1
+      codeowners_required: true
+      owner_lane_required_for_classes:
+        - protected_path_change
+        - launch_critical_surface_change
+        - public_or_stable_interface_change
+        - release_bearing_artifact_change
+      backup_owner_or_active_waiver_required_for_protected_classes: true
+    bypass_authority: repository_administrator_for_ruleset_repair_only
+    bypass_limits:
+      - may repair a broken host ruleset or stuck protection configuration
+      - may not substitute for owner review, compatibility report, release evidence, or quorum action
+    reconstruction_required_after_bypass: true
+
+  - ref_class_id: release_train
+    branch_class_refs:
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.nightly_train_ref
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.preview_train_ref
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.beta_train_ref
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.stable_train_ref
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.lts_train_ref
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.portable_train_ref
+    example_patterns:
+      - release/*
+      - train/*
+      - channel/*
+    purpose: >
+      Stabilisation branches for channel-bound coordinated artifact
+      families. Release branches are not feature-invention lanes.
+    admitted_merge_control_classes:
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    forbidden_change_classes:
+      - unreviewed_feature_invention
+      - public_claim_widening_without_release_evidence
+      - breaking_surface_change_without_compatibility_report
+    required_status_checks:
+      - check.contract_artifact_validation
+      - check.protected_dependency_validation
+      - check.frozen_surface_validation
+      - check.build_lane
+      - check.cleanroom_rebuild_lane
+    required_reviews:
+      min_non_author_reviews: 2
+      codeowners_required: true
+      release_evidence_owner_required: true
+      compatibility_reviewer_required_for_public_surfaces: true
+      quorum_profile_required_for_release_bearing_actions: true
+    bypass_authority: release_council_quorum
+    bypass_limits:
+      - only scoped release-lane unblock or correction work
+      - no stable or LTS promotion without signing_quorum action id
+      - no feature invention unless a release decision explicitly narrows or rebaselines the branch scope
+    reconstruction_required_after_bypass: true
+
+  - ref_class_id: patch_or_backport
+    branch_class_refs:
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.patch_lane_ref
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.backport_lane_ref
+    example_patterns:
+      - patch/*
+      - backport/*
+    purpose: >
+      Forward-port and backport correction lanes. They carry selected
+      fixes, compatibility notes, and support-window evidence across
+      supported lines.
+    admitted_merge_control_classes:
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    forbidden_change_classes:
+      - unscoped_feature_work
+      - support_window_change_without_release_notice
+      - schema_or_sdk_change_without_compatibility_report
+    required_status_checks:
+      - check.contract_artifact_validation
+      - check.protected_dependency_validation
+      - check.frozen_surface_validation
+      - check.build_lane
+    required_reviews:
+      min_non_author_reviews: 1
+      codeowners_required: true
+      compatibility_reviewer_required_when_surface_changes: true
+      release_owner_required_when_supported_line_changes: true
+    bypass_authority: release_council_quorum
+    bypass_limits:
+      - correction only
+      - must name source branch, target branch, rollback target, and rerun evidence
+    reconstruction_required_after_bypass: true
+
+  - ref_class_id: emergency_or_hotfix
+    branch_class_refs:
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.hotfix_train_ref
+      - artifacts/release/channel_matrix.yaml#branch_posture_register.emergency_freeze_isolation_ref
+    example_patterns:
+      - hotfix/*
+      - emergency/*
+      - security/*
+    purpose: >
+      Bounded emergency, hotfix, freeze, revocation, or security
+      containment lane. Admitted only for scoped correction or
+      containment work.
+    admitted_merge_control_classes:
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    forbidden_change_classes:
+      - stable_or_lts_promotion_by_break_glass
+      - claim_widening
+      - permanent_signer_roster_change
+      - audit_history_mutation
+    required_status_checks:
+      - check.contract_artifact_validation
+      - check.protected_dependency_validation
+      - check.frozen_surface_validation
+      - check.build_lane
+      - check.cleanroom_rebuild_lane
+    required_reviews:
+      min_non_author_reviews: 2
+      codeowners_required: true
+      security_release_cross_forum_required: true
+      retrospective_quorum_required_after_break_glass: true
+    bypass_authority: audited_single_responder_containment
+    bypass_limits:
+      - containment only
+      - max_duration_hours is inherited from signing_quorum.yaml
+      - must not widen public, release, support, or trust scope
+    reconstruction_required_after_bypass: true
+
+  - ref_class_id: contributor_or_fork
+    example_patterns:
+      - pull-request branches
+      - fork branches
+      - contributor/* 
+    purpose: >
+      Untrusted contribution lane. It never carries release-bearing
+      publishing rights and cannot write protected refs directly.
+    admitted_merge_control_classes:
+      - ordinary_change
+      - protected_path_change
+      - launch_critical_surface_change
+      - public_or_stable_interface_change
+      - release_bearing_artifact_change
+    required_status_checks:
+      - check.contract_artifact_validation
+      - check.protected_dependency_validation
+      - check.frozen_surface_validation
+      - check.build_lane
+    required_reviews:
+      min_non_author_reviews: 1
+      codeowners_required: true
+    bypass_authority: none
+    reconstruction_required_after_bypass: false
+
+protected_tag_classes:
+  - tag_class_id: release_version_tag
+    example_patterns:
+      - v*
+      - release/*
+    purpose: Signed release identity and published artifact set pointer.
+    creation_authority: release_council_quorum
+    required_artifacts:
+      - release_evidence_packet_ref
+      - exact_build_identity_ref
+      - signing_quorum_action_ref
+      - artifact_digest_manifest_ref
+    move_policy: forbidden
+    delete_policy: forbidden
+    supersedence_policy: supersede_by_new_tag_plus_revocation_or_release_note
+
+  - tag_class_id: provenance_or_sbom_tag
+    example_patterns:
+      - provenance/*
+      - sbom/*
+    purpose: Provenance, SBOM, and exact-build evidence pointer.
+    creation_authority: release_council_quorum
+    required_artifacts:
+      - exact_build_identity_ref
+      - provenance_summary_ref
+      - sbom_ref
+    move_policy: forbidden
+    delete_policy: forbidden
+    supersedence_policy: supersede_by_new_evidence_ref
+
+  - tag_class_id: advisory_or_emergency_tag
+    example_patterns:
+      - advisory/*
+      - emergency/*
+      - revocation/*
+    purpose: Advisory, emergency action, or revocation publication pointer.
+    creation_authority: security_release_cross_forum_quorum
+    required_artifacts:
+      - advisory_or_emergency_action_ref
+      - affected_install_assessment_ref
+      - signer_continuity_ref
+    move_policy: forbidden
+    delete_policy: forbidden
+    supersedence_policy: supersede_by_emergency_action_record
+
+freeze_window_rules:
+  - freeze_posture_class: normal_open
+    source_ref: artifacts/release/channel_matrix.yaml#freeze_posture_admission_matrix.normal_open
+    default_merge_posture: class_rules_apply
+
+  - freeze_posture_class: soft_freeze_release_lane_only
+    source_ref: artifacts/release/channel_matrix.yaml#freeze_posture_admission_matrix.soft_freeze_release_lane_only
+    default_merge_posture: block_nightly_and_new_feature_work
+    additional_required_evidence:
+      - release_lane_scope_note
+      - affected_claim_review
+
+  - freeze_posture_class: hard_freeze_security_only
+    source_ref: artifacts/release/channel_matrix.yaml#freeze_posture_admission_matrix.hard_freeze_security_only
+    default_merge_posture: admit_security_and_containment_only
+    additional_required_evidence:
+      - security_or_advisory_ref
+      - emergency_action_or_hotfix_scope_ref
+      - compatibility_and_docs_reopen_if_public_surface_changes
+
+  - freeze_posture_class: cold_chain_mirror_only
+    source_ref: artifacts/release/channel_matrix.yaml#freeze_posture_admission_matrix.cold_chain_mirror_only
+    default_merge_posture: online_publication_paused
+    additional_required_evidence:
+      - mirror_or_offline_transport_ref
+      - signer_continuity_ref
+      - manual_import_or_offline_verification_ref
+
+  - freeze_posture_class: publication_paused
+    source_ref: artifacts/release/channel_matrix.yaml#freeze_posture_admission_matrix.publication_paused
+    default_merge_posture: block_all_publication
+    additional_required_evidence:
+      - emergency_action_record_ref
+      - retrospective_quorum_ref
+
+emergency_reconstruction_policy:
+  required_after_bypass: true
+  max_initial_reconstruction_window_hours: 24
+  required_reconstruction_items:
+    - original_bypass_action_or_break_glass_event_ref
+    - affected_ref_and_tag_refs
+    - final_reviewed_change_ref
+    - CODEOWNERS_and_owner_lane_review_refs
+    - missing_status_check_rerun_or_waiver_ref
+    - compatibility_report_ref_when_public_surface_changed
+    - migration_or_release_note_ref_when_consumer_action_changed
+    - release_evidence_or_advisory_update_ref_when_release_truth_changed
+    - retrospective_quorum_ref_when_break_glass_used
+  closure_rule: >
+    The emergency is not closed until the reconstructed evidence lands
+    on the protected line and any missed public-surface, docs, release,
+    or trust evidence has been updated or explicitly narrowed.
+
+host_projection_notes:
+  repository_host_defaults_are_not_sufficient: true
+  projection_rule: >
+    Host rulesets should project required reviews, checks, tag
+    immutability, bypass roles, and branch patterns from this file, but
+    the review evidence still resolves through the policy and companion
+    governance artifacts.
+  unsupported_host_capability_rule: >
+    If a repository host cannot express a rule, the rule remains a
+    review requirement and must be visible in the merge packet or
+    release evidence.
+

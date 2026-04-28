@@ -1,0 +1,406 @@
+# Public-surface change controls.
+#
+# Machine-readable companion to docs/governance/merge_control_policy.md.
+# This file maps public and stable surface families to required
+# compatibility, migration, ADR/RFC, docs, evidence, and release-note
+# obligations.
+
+schema_version: 1
+catalog_id: aureline.public_surface_change_controls
+status: seeded
+
+policy_doc_ref: docs/governance/merge_control_policy.md
+protected_merge_classes_ref: artifacts/governance/protected_merge_classes.yaml
+
+stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+compatibility_surface_inventory_ref: artifacts/governance/compatibility_surfaces.yaml
+schema_families_ref: artifacts/governance/schema_families.yaml
+interface_lifecycle_policy_ref: docs/governance/interface_lifecycle_policy.md
+mandatory_review_artifacts_ref: artifacts/governance/mandatory_review_artifacts.yaml
+public_truth_parity_matrix_ref: artifacts/governance/public_truth_parity_matrix.yaml
+claim_manifest_ref: artifacts/governance/claim_manifest_seed.yaml
+release_notice_seed_ref: artifacts/governance/release_notice_seed.yaml
+
+change_semantics_vocabulary:
+  - additive_metadata_only
+  - additive_consumer_visible
+  - meaning_change
+  - breaking_change
+  - deprecation_or_removal
+  - support_window_or_claim_change
+  - emergency_narrowing
+
+required_control_vocabulary:
+  - inventory_row_current
+  - compatibility_report
+  - migration_note
+  - adr_or_rfc
+  - deprecation_metadata
+  - docs_public_truth_update
+  - release_note_or_known_limit_update
+  - verification_or_conformance_packet
+  - claim_manifest_update
+  - waiver_or_exception_packet
+
+default_rules:
+  inventory_row_required: >
+    Every public or beta/stable-facing machine-readable surface must
+    resolve to compatibility_surfaces.yaml before it can claim
+    stability. Surfaces with full packet semantics also resolve to
+    stable_surface_inventory.yaml.
+  additive_change_rule: >
+    Additive public-surface changes require the inventory row and docs
+    touchpoints to remain current. Additive schema fields are not
+    exempt from public-truth and conformance visibility.
+  meaning_or_breaking_change_rule: >
+    Meaning-changing, breaking, removal, or support-window changes
+    require a compatibility report, migration guidance, and ADR or RFC
+    link before merge into a protected or release-bearing ref.
+  claim_rule: >
+    Claim-bearing docs and release copy must bind to current evidence
+    or explicitly narrow the claim. A docs-only edit is public-surface
+    controlled when it changes support, compatibility, security,
+    release, benchmark, or managed-service truth.
+  emergency_rule: >
+    Emergency fixes that change a public surface reopen the same
+    compatibility, migration, docs, release, or claim evidence path as a
+    routine public-surface change.
+
+surface_families:
+  - family_id: stable_schema_family
+    label: Stable schema family
+    examples:
+      - settings and profile JSON schemas
+      - workspace, state, support, evidence, release, governance, and security schemas
+      - record-class registries and packet envelopes
+    canonical_sources:
+      - artifacts/governance/stable_surface_inventory.yaml
+      - artifacts/governance/compatibility_surfaces.yaml
+      - artifacts/governance/schema_families.yaml
+      - schemas/
+    match_rules:
+      - changed file under schemas/ with public, beta, stable, support, release, governance, or security posture
+      - changed schema family row or packet envelope
+      - changed stable field meaning, requiredness, enum, default, or retention behavior
+    required_controls_by_change:
+      additive_metadata_only:
+        - inventory_row_current
+      additive_consumer_visible:
+        - inventory_row_current
+        - docs_public_truth_update
+        - verification_or_conformance_packet
+      meaning_change:
+        - compatibility_report
+        - migration_note
+        - docs_public_truth_update
+        - verification_or_conformance_packet
+      breaking_change:
+        - compatibility_report
+        - migration_note
+        - adr_or_rfc
+        - docs_public_truth_update
+        - release_note_or_known_limit_update
+        - verification_or_conformance_packet
+      deprecation_or_removal:
+        - compatibility_report
+        - migration_note
+        - adr_or_rfc
+        - deprecation_metadata
+        - release_note_or_known_limit_update
+    minimum_approver_roles:
+      - owner_lane_reviewer
+      - compatibility_reviewer
+
+  - family_id: cli_json_surface
+    label: CLI structured JSON
+    examples:
+      - command descriptors
+      - command invocation session packets
+      - task, test, debug, provider, review, and support JSON outputs
+    canonical_sources:
+      - docs/automation/cli_surface_contract.md
+      - docs/commands/command_descriptor_contract.md
+      - artifacts/governance/compatibility_surfaces.yaml
+      - schemas/commands/
+      - schemas/tooling/
+    match_rules:
+      - changed structured CLI output envelope or registry
+      - changed command id, JSON field, enum, or output version semantics
+    stable_text_rule: >
+      Human-readable CLI text is not the stable automation contract.
+      JSON output and machine-readable schema versions are controlled.
+    required_controls_by_change:
+      additive_metadata_only:
+        - inventory_row_current
+      additive_consumer_visible:
+        - inventory_row_current
+        - docs_public_truth_update
+      meaning_change:
+        - compatibility_report
+        - migration_note
+        - verification_or_conformance_packet
+      breaking_change:
+        - compatibility_report
+        - migration_note
+        - adr_or_rfc
+        - release_note_or_known_limit_update
+      support_window_or_claim_change:
+        - compatibility_report
+        - claim_manifest_update
+        - docs_public_truth_update
+    minimum_approver_roles:
+      - owner_lane_reviewer
+      - compatibility_reviewer
+      - docs_public_truth_reviewer
+
+  - family_id: extension_wit_or_sdk_surface
+    label: Extension WIT, SDK, or capability surface
+    examples:
+      - WIT worlds under wit/
+      - extension host contracts
+      - SDK publication bundles
+      - capability permissions and marketplace metadata contracts
+    canonical_sources:
+      - wit/
+      - docs/extensions/
+      - artifacts/governance/compatibility_surfaces.yaml
+      - docs/governance/interface_lifecycle_policy.md
+    match_rules:
+      - changed WIT interface, world, permission class, SDK artifact, generated binding contract, or extension-facing docs
+      - changed compatibility promise for extension authors
+    required_controls_by_change:
+      additive_metadata_only:
+        - inventory_row_current
+      additive_consumer_visible:
+        - inventory_row_current
+        - docs_public_truth_update
+        - verification_or_conformance_packet
+      meaning_change:
+        - compatibility_report
+        - migration_note
+        - docs_public_truth_update
+      breaking_change:
+        - compatibility_report
+        - migration_note
+        - adr_or_rfc
+        - release_note_or_known_limit_update
+        - verification_or_conformance_packet
+      deprecation_or_removal:
+        - compatibility_report
+        - deprecation_metadata
+        - migration_note
+    minimum_approver_roles:
+      - owner_lane_reviewer
+      - compatibility_reviewer
+      - security_operator
+
+  - family_id: managed_service_api_surface
+    label: Managed-service API
+    examples:
+      - managed-service request or response contracts
+      - OpenAPI families
+      - entitlement, metering, offboarding, and policy APIs
+      - support or admin export APIs
+    canonical_sources:
+      - docs/service/
+      - docs/managed/
+      - docs/api/
+      - artifacts/governance/compatibility_surfaces.yaml
+      - schemas/integration/
+      - schemas/identity/
+    match_rules:
+      - changed public or enterprise service API shape
+      - changed offline, self-hosted, mirror, managed, entitlement, usage, or admin-policy boundary behavior
+    required_controls_by_change:
+      additive_metadata_only:
+        - inventory_row_current
+      additive_consumer_visible:
+        - inventory_row_current
+        - docs_public_truth_update
+        - verification_or_conformance_packet
+      meaning_change:
+        - compatibility_report
+        - migration_note
+        - docs_public_truth_update
+        - claim_manifest_update
+      breaking_change:
+        - compatibility_report
+        - migration_note
+        - adr_or_rfc
+        - release_note_or_known_limit_update
+        - verification_or_conformance_packet
+      emergency_narrowing:
+        - compatibility_report
+        - release_note_or_known_limit_update
+        - waiver_or_exception_packet
+    minimum_approver_roles:
+      - owner_lane_reviewer
+      - compatibility_reviewer
+      - security_operator
+      - release_operator
+
+  - family_id: policy_file_or_bundle_surface
+    label: Policy file or bundle
+    examples:
+      - admin policy bundles
+      - feature flags, Labs, rollout, kill-switch, and emergency disable rows
+      - policy simulation and decision-history schemas
+      - transport, network, trust, and entitlement policy files
+    canonical_sources:
+      - docs/governance/policy_flag_schema_stack.md
+      - docs/governance/feature_flag_policy.md
+      - artifacts/governance/feature_flag_provider_chain.yaml
+      - artifacts/governance/experiments_register.yaml
+      - artifacts/governance/labs_register.yaml
+      - schemas/identity/
+      - schemas/governance/
+    match_rules:
+      - changed effective policy semantics, precedence, disable behavior, emergency bundle shape, or policy-file schema
+      - changed managed or offline policy distribution posture
+    required_controls_by_change:
+      additive_metadata_only:
+        - inventory_row_current
+      additive_consumer_visible:
+        - inventory_row_current
+        - docs_public_truth_update
+      meaning_change:
+        - compatibility_report
+        - migration_note
+        - verification_or_conformance_packet
+      breaking_change:
+        - compatibility_report
+        - migration_note
+        - adr_or_rfc
+        - release_note_or_known_limit_update
+      emergency_narrowing:
+        - waiver_or_exception_packet
+        - release_note_or_known_limit_update
+        - verification_or_conformance_packet
+    minimum_approver_roles:
+      - owner_lane_reviewer
+      - security_operator
+      - release_operator
+
+  - family_id: docs_pack_schema_surface
+    label: Docs-pack schema
+    examples:
+      - docs pack manifest
+      - reviewed-pack and late-copy policy
+      - help, About, service-health, migration notice, and support destination manifests
+    canonical_sources:
+      - docs/docs/
+      - docs/docs_integrity/
+      - docs/governance/public_surface_truth_map.md
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - schemas/docs/
+    match_rules:
+      - changed docs-pack manifest schema or docs publication packet
+      - changed public-truth channel vocabulary or docs version-match behavior
+    required_controls_by_change:
+      additive_metadata_only:
+        - inventory_row_current
+      additive_consumer_visible:
+        - inventory_row_current
+        - docs_public_truth_update
+      meaning_change:
+        - compatibility_report
+        - migration_note
+        - docs_public_truth_update
+      breaking_change:
+        - compatibility_report
+        - migration_note
+        - adr_or_rfc
+        - release_note_or_known_limit_update
+      support_window_or_claim_change:
+        - claim_manifest_update
+        - release_note_or_known_limit_update
+    minimum_approver_roles:
+      - owner_lane_reviewer
+      - docs_public_truth_reviewer
+      - compatibility_reviewer
+
+  - family_id: claim_bearing_docs_surface
+    label: Claim-bearing docs
+    examples:
+      - release notes
+      - known limits
+      - support-window statements
+      - benchmark or performance claims
+      - security, compliance, compatibility, migration, and managed-service claims
+    canonical_sources:
+      - docs/product/
+      - docs/release/
+      - docs/governance/public_surface_truth_map.md
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - artifacts/governance/public_proof_coverage_report.md
+    match_rules:
+      - changed wording that widens, narrows, or changes a public support, compatibility, release, security, performance, benchmark, or managed-service claim
+      - changed evidence ref, known limit, or public-proof coverage row
+    required_controls_by_change:
+      additive_metadata_only:
+        - inventory_row_current
+      additive_consumer_visible:
+        - docs_public_truth_update
+        - claim_manifest_update
+      meaning_change:
+        - claim_manifest_update
+        - verification_or_conformance_packet
+        - release_note_or_known_limit_update
+      breaking_change:
+        - claim_manifest_update
+        - compatibility_report
+        - migration_note
+        - release_note_or_known_limit_update
+      support_window_or_claim_change:
+        - claim_manifest_update
+        - docs_public_truth_update
+        - release_note_or_known_limit_update
+    minimum_approver_roles:
+      - docs_public_truth_reviewer
+      - evidence_owner
+      - release_operator
+
+control_resolution_rules:
+  - rule_id: inventory_row_current
+    reviewable_when: >
+      The changed surface resolves to a current row in
+      compatibility_surfaces.yaml and, when applicable,
+      stable_surface_inventory.yaml.
+    missing_effect: block public or stable claim; treat change as protected until row lands
+
+  - rule_id: compatibility_report
+    reviewable_when: >
+      A report cites affected surface ids, diff summary, compatibility
+      matrix or target set, deprecation posture, migration guidance,
+      retained support window, known limits, evidence refs, and active
+      waivers.
+    missing_effect: block protected or release-bearing merge for semantic public-surface changes
+
+  - rule_id: migration_note
+    reviewable_when: >
+      A consumer can identify whether they must act, which source and
+      target versions apply, what fallback or alias exists, and what
+      support window remains.
+    missing_effect: block meaning-changing, breaking, deprecation, removal, or support-window changes
+
+  - rule_id: adr_or_rfc
+    reviewable_when: >
+      The decision record names the public surface, why the change is
+      compatible or breaking, the migration path, alternatives, and
+      release or support consequences.
+    missing_effect: block breaking or meaning-changing protected-surface merge
+
+  - rule_id: docs_public_truth_update
+    reviewable_when: >
+      Docs, help, support exports, release notes, known limits, or
+      public-truth parity rows quote the new surface truth or explicitly
+      say no public wording changed.
+    missing_effect: block public claim widening; narrow claim when docs lag
+
+  - rule_id: claim_manifest_update
+    reviewable_when: >
+      Claim rows cite current evidence, known limits, support window,
+      and source anchors for the exact claim being changed.
+    missing_effect: public claim may not widen
+
