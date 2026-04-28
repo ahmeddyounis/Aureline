@@ -1,0 +1,272 @@
+# Supportability diagnosis, escalation, and release-candidate target catalog.
+#
+# This catalog binds scenario families, measurement events, owner lanes,
+# release-gate behavior, and drill coverage to concrete targets. It is
+# the numeric target source for docs/support/supportability_slo_and_pack_contract.md
+# and complements artifacts/support/diagnosis_latency_scoreboard.yaml.
+
+schema_version: 1
+catalog_id: support.diagnosis_slo_targets.v1
+status: seeded
+
+governing_doc_ref: docs/support/supportability_slo_and_pack_contract.md
+project_doctor_packet_ref: docs/support/project_doctor_packet.md
+scoreboard_ref: artifacts/support/diagnosis_latency_scoreboard.yaml
+redaction_check_ref: artifacts/support/redaction_accuracy_checks.yaml
+drill_scenarios_dir: fixtures/support/drill_scenarios
+claimed_profile_source: artifacts/platform/claimed_desktop_profiles.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+evidence_freshness_ref: artifacts/governance/evidence_freshness_slos.yaml
+release_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+
+owner_lane: support_export
+freshness_class_ref: support_scenario_quality_proof
+
+measurement_event_vocabulary:
+  - support_scenario_started
+  - probe_run_started
+  - probe_first_actionable_diagnosis_emitted
+  - probe_first_finding_emitted
+  - repair_preview_opened
+  - escalation_packet_exported_complete
+  - redaction_preview_manifest_created
+  - reopen_manifest_verified
+
+measurement_surface_vocabulary:
+  - desktop_support_center
+  - safe_mode_support_center
+  - cli_headless_doctor
+  - inspector_local
+  - managed_profile_headless
+
+gate_state_vocabulary:
+  - green_current
+  - yellow_over_target_or_aging
+  - red_block_release_candidate
+
+pack_class_vocabulary:
+  - baseline_metadata_pack
+  - diagnosis_context_pack
+  - trace_escalation_pack
+  - crash_symbolication_pack
+  - user_selected_context_pack
+  - absence_proof_manifest
+
+target_rows:
+  - target_id: support.slo.first_actionable_diagnosis.common.p90_10m
+    title: Common support failures first actionable diagnosis
+    metric_family: first_actionable_diagnosis_latency
+    scenario_families:
+      - extension_regression
+      - stale_toolchain_context
+      - proxy_certificate_failure
+    measurement_start_event: probe_run_started
+    measurement_stop_event: probe_first_actionable_diagnosis_emitted
+    percentile: p90
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    minimum_sample_count_per_profile: 5
+    required_surfaces:
+      - desktop_support_center
+      - cli_headless_doctor
+    pack_classes_required:
+      - diagnosis_context_pack
+      - absence_proof_manifest
+    owner_lane: support_export
+    co_review_lanes:
+      - release_evidence
+    release_gate_behavior: red_block_release_candidate
+    waiver_policy:
+      max_expiry_days: 14
+      must_name_claim_narrowing: true
+      forbidden_waiver_scopes:
+        - raw_secret_redaction_failure
+        - missing_reopen_manifest
+    notes: >
+      This is the headline supportability target for the common extension,
+      toolchain, and network families.
+
+  - target_id: support.slo.first_actionable_diagnosis.extension.p90_10m
+    title: Extension regression first actionable diagnosis
+    metric_family: first_actionable_diagnosis_latency
+    scenario_families:
+      - extension_regression
+    measurement_start_event: probe_run_started
+    measurement_stop_event: probe_first_actionable_diagnosis_emitted
+    percentile: p90
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    minimum_sample_count_per_profile: 5
+    required_surfaces:
+      - desktop_support_center
+      - safe_mode_support_center
+      - cli_headless_doctor
+    pack_classes_required:
+      - diagnosis_context_pack
+      - absence_proof_manifest
+    owner_lane: compatibility_ecosystem_review
+    co_review_lanes:
+      - support_export
+    release_gate_behavior: red_block_release_candidate
+
+  - target_id: support.slo.first_actionable_diagnosis.toolchain.p90_10m
+    title: Toolchain and execution-context first actionable diagnosis
+    metric_family: first_actionable_diagnosis_latency
+    scenario_families:
+      - missing_toolchain
+      - stale_toolchain_context
+    measurement_start_event: probe_run_started
+    measurement_stop_event: probe_first_actionable_diagnosis_emitted
+    percentile: p90
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    minimum_sample_count_per_profile: 5
+    required_surfaces:
+      - desktop_support_center
+      - cli_headless_doctor
+    pack_classes_required:
+      - diagnosis_context_pack
+      - absence_proof_manifest
+    owner_lane: support_export
+    co_review_lanes:
+      - product_scope_review
+    release_gate_behavior: red_block_release_candidate
+
+  - target_id: support.slo.first_actionable_diagnosis.network.p90_10m
+    title: Proxy, certificate, and egress first actionable diagnosis
+    metric_family: first_actionable_diagnosis_latency
+    scenario_families:
+      - proxy_certificate_failure
+    measurement_start_event: probe_run_started
+    measurement_stop_event: probe_first_actionable_diagnosis_emitted
+    percentile: p90
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    minimum_sample_count_per_profile: 5
+    required_surfaces:
+      - desktop_support_center
+      - cli_headless_doctor
+      - managed_profile_headless
+    pack_classes_required:
+      - diagnosis_context_pack
+      - absence_proof_manifest
+    owner_lane: security_trust_review
+    co_review_lanes:
+      - support_export
+    release_gate_behavior: red_block_release_candidate
+
+  - target_id: support.slo.trace_escalation.first_actionable_route.p90_15m
+    title: Renderer or trace-capture escalation first actionable route
+    metric_family: first_actionable_escalation_latency
+    scenario_families:
+      - renderer_trace_escalation
+    measurement_start_event: probe_run_started
+    measurement_stop_event: escalation_packet_exported_complete
+    percentile: p90
+    target_seconds: 900
+    yellow_seconds: 1080
+    red_seconds: 1350
+    minimum_sample_count_per_profile: 3
+    required_surfaces:
+      - desktop_support_center
+      - safe_mode_support_center
+      - cli_headless_doctor
+    pack_classes_required:
+      - trace_escalation_pack
+      - absence_proof_manifest
+    owner_lane: support_export
+    co_review_lanes:
+      - release_evidence
+    release_gate_behavior: red_block_release_candidate
+
+  - target_id: support.slo.diagnosis_accuracy.claimed_corpus
+    title: Seeded support-scenario diagnosis accuracy
+    metric_family: diagnosis_accuracy
+    scenario_families:
+      - extension_regression
+      - stale_toolchain_context
+      - proxy_certificate_failure
+      - renderer_trace_escalation
+    measurement_start_event: probe_run_started
+    measurement_stop_event: probe_first_actionable_diagnosis_emitted
+    target_percent: 100
+    allowed_false_safe_repairs: 0
+    allowed_silent_unsupported_state_omissions: 0
+    required_surfaces:
+      - desktop_support_center
+      - cli_headless_doctor
+    pack_classes_required:
+      - diagnosis_context_pack
+    owner_lane: support_export
+    co_review_lanes:
+      - release_evidence
+    release_gate_behavior: red_block_release_candidate
+
+  - target_id: support.slo.escalation_packet_completeness
+    title: Support escalation packet completeness
+    metric_family: escalation_packet_completeness
+    scenario_families:
+      - extension_regression
+      - stale_toolchain_context
+      - proxy_certificate_failure
+      - renderer_trace_escalation
+    measurement_start_event: support_scenario_started
+    measurement_stop_event: escalation_packet_exported_complete
+    target_percent: 100
+    allowed_missing_required_fields: 0
+    allowed_redaction_widening_without_consent: 0
+    required_surfaces:
+      - desktop_support_center
+      - cli_headless_doctor
+    pack_classes_required:
+      - diagnosis_context_pack
+      - absence_proof_manifest
+    owner_lane: support_export
+    co_review_lanes:
+      - release_evidence
+    release_gate_behavior: red_block_release_candidate
+
+release_candidate_drill_expectations:
+  expectation_id: support.release_candidate.drill_coverage_per_claimed_profile
+  claimed_profile_source: artifacts/platform/claimed_desktop_profiles.yaml
+  minimum_per_claimed_os_profile: 1
+  required_scenario_families_per_candidate_set:
+    - extension_regression
+    - stale_toolchain_context
+    - proxy_certificate_failure
+    - renderer_trace_escalation
+  required_surface_mix:
+    - at_least_one_safe_mode_support_center_drill_per_claimed_os_profile
+    - at_least_one_cli_headless_doctor_drill_per_claimed_os_profile
+  freshness:
+    max_stale_after: P7D
+    stale_after_support_packet_or_redaction_contract_change: true
+  failure_response:
+    missing_profile_drill: red_block_release_candidate
+    stale_profile_drill: red_block_release_candidate
+    missing_surface_mix: yellow_over_target_or_aging
+    missing_required_family: red_block_release_candidate
+
+waiver_contract:
+  waiver_schema_ref: schemas/release/waiver_packet.schema.json
+  required_fields:
+    - target_id
+    - affected_scenario_family
+    - affected_claimed_profile
+    - owner_lane
+    - expiry
+    - claim_narrowing
+    - compensating_evidence_ref
+    - rerun_trigger_ref
+  forbidden_waiver_classes:
+    - raw_seeded_secret_leak
+    - missing_absence_proof_manifest
+    - unpreviewed_durable_state_repair
+    - incomplete_escalation_packet_for_human_handoff
+  notes: >
+    Waivers are temporary narrowing records. They do not expand support
+    pack collection, weaken redaction, or relabel unsafe repair paths.

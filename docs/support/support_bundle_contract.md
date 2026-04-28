@@ -19,6 +19,13 @@ Companion artifacts:
 - [`/docs/support/support_center_concept.md`](./support_center_concept.md)
   — product-facing concept note for bundle preview, Project Doctor,
   recovery ladders, repair preview, and issue handoff.
+- [`/docs/support/supportability_slo_and_pack_contract.md`](./supportability_slo_and_pack_contract.md),
+  [`/artifacts/support/diagnosis_slo_targets.yaml`](../../artifacts/support/diagnosis_slo_targets.yaml),
+  and
+  [`/artifacts/support/redaction_accuracy_checks.yaml`](../../artifacts/support/redaction_accuracy_checks.yaml)
+  — measurable supportability targets, evidence-pack classes,
+  redaction-quality checks, release-candidate drill expectations, and
+  waiver behavior for support exports.
 - [`/docs/support/object_handoff_packet.md`](./object_handoff_packet.md)
   and
   [`/schemas/support/object_handoff_packet.schema.json`](../../schemas/support/object_handoff_packet.schema.json)

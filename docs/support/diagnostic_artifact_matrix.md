@@ -15,6 +15,9 @@ Companion artifacts:
 - [`/fixtures/support/pack_inclusion_cases/`](../../fixtures/support/pack_inclusion_cases/)
   - seeded assembly cases for extension, toolchain, renderer, and
   network failures.
+- [`/docs/support/supportability_slo_and_pack_contract.md`](./supportability_slo_and_pack_contract.md)
+  - pack-class, preview-manifest, reopen-manifest, SLO, drill, and
+  waiver contract that consumes these item rows.
 - [`/docs/support/support_bundle_contract.md`](./support_bundle_contract.md)
   and
   [`/schemas/support/support_bundle.schema.json`](../../schemas/support/support_bundle.schema.json)

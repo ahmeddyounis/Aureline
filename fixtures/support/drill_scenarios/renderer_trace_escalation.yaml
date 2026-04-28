@@ -1,0 +1,115 @@
+# Renderer and trace-capture escalation drill covering local trace
+# retention, explicit opt-in, and complete escalation handoff.
+
+schema_version: 1
+record_kind: support_drill_scenario
+scenario_id: support.drill.renderer_trace_escalation
+scenario_family: renderer_trace_escalation
+title: Renderer stall requiring trace-capture escalation
+status: seeded
+
+governing_doc_ref: docs/support/supportability_slo_and_pack_contract.md
+slo_target_refs:
+  - support.slo.trace_escalation.first_actionable_route.p90_15m
+  - support.slo.escalation_packet_completeness
+redaction_check_refs:
+  - redaction.check.trace_payload_local_only_until_opt_in
+  - redaction.check.full_shell_history_never_exported
+pack_class_refs:
+  - trace_escalation_pack
+  - absence_proof_manifest
+support_item_ids:
+  included_by_default:
+    - support.item.build_identity
+    - support.item.runtime_traces
+    - support.item.policy_trust_state
+  retained_or_referenced:
+    - support.item.runtime_traces
+  prohibited_absence_markers:
+    - support.item.raw_secrets
+    - support.item.full_shell_history
+
+drill_owner:
+  primary_lane: support_export
+  co_review_lanes:
+    - release_evidence
+    - product_scope_review
+
+trigger:
+  start_event: probe_run_started
+  symptoms:
+    - renderer_frame_stall
+    - ipc_roundtrip_budget_exceeded
+    - trace_capture_needed_for_escalation
+  fixture_refs:
+    - fixtures/support/pack_inclusion_cases/renderer_ipc_stall.yaml
+    - docs/support/exact_build_symbolication_smoke.md
+
+expected_first_actionable_diagnosis:
+  finding_code: doctor.finding.renderer_trace_capture_required
+  actionability_class: trace_manifest_escalation_packet
+  target_seconds_p90: 900
+  required_fields:
+    - exact_build_identity_ref
+    - component_classes
+    - trace_manifest_ref
+    - time_window
+    - truncation_state
+    - redaction_marker_counts
+    - escalation_packet_ref
+  no_touch_boundary_set:
+    - user_authored_files
+    - credential_store
+    - managed_policy_overrides
+
+pack_expectations:
+  preview_manifest_required: true
+  reopen_manifest_required: true
+  exact_build_refs_required: true
+  allowed_raw_payloads_by_default: []
+  optional_upload_candidates:
+    - redacted_trace_slice
+  consent_steps_required_for_optional_upload:
+    - show_time_window_and_components
+    - show_redaction_marker_summary
+    - disclose_destination_and_retention
+    - require_explicit_trace_export_confirmation
+  escalation_packet_minimum:
+    - finding_code
+    - exact_build_identity_ref
+    - trace_manifest_ref
+    - retained_local_copy_ref
+    - redaction_marker_counts
+    - omitted_payload_reason
+    - reopen_manifest_ref
+
+claimed_profile_expectations:
+  profile_source: artifacts/platform/claimed_desktop_profiles.yaml
+  coverage_rule: >
+    Run at least once per claimed operating-system profile because
+    renderer and IPC behavior are platform-sensitive. The trace payload
+    remains local unless the opt-in path is exercised intentionally.
+  required_surfaces:
+    - safe_mode_support_center
+    - cli_headless_doctor
+
+release_gate:
+  missing_drill: red_block_release_candidate
+  p90_over_900_seconds: yellow_over_target_or_aging
+  p90_over_1350_seconds: red_block_release_candidate
+  trace_payload_exported_without_opt_in: red_block_release_candidate
+  missing_reopen_manifest: red_block_release_candidate
+
+waiver_path:
+  waiver_required: true
+  max_expiry_days: 14
+  must_narrow_claim: true
+  forbidden_for:
+    - raw_seeded_secret_leak
+    - trace_payload_exported_without_opt_in
+    - incomplete_escalation_packet_for_human_handoff
+
+notes: >
+  The drill proves renderer escalation can be actionable with a trace
+  manifest and local retention ref before any trace payload leaves the
+  machine.

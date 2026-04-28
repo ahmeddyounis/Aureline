@@ -1,0 +1,112 @@
+# Extension regression drill covering safe-mode diagnosis, quarantine,
+# redaction review, and post-export reconstruction.
+
+schema_version: 1
+record_kind: support_drill_scenario
+scenario_id: support.drill.extension_regression_crash_loop
+scenario_family: extension_regression
+title: Extension host crash loop with quarantine candidate
+status: seeded
+
+governing_doc_ref: docs/support/supportability_slo_and_pack_contract.md
+slo_target_refs:
+  - support.slo.first_actionable_diagnosis.common.p90_10m
+  - support.slo.first_actionable_diagnosis.extension.p90_10m
+redaction_check_refs:
+  - redaction.check.crash_dump_manifest_only_by_default
+  - redaction.check.full_shell_history_never_exported
+pack_class_refs:
+  - diagnosis_context_pack
+  - crash_symbolication_pack
+  - absence_proof_manifest
+support_item_ids:
+  included_by_default:
+    - support.item.build_identity
+    - support.item.extension_inventory
+    - support.item.policy_trust_state
+  retained_or_referenced:
+    - support.item.crash_dump_or_core
+  prohibited_absence_markers:
+    - support.item.raw_secrets
+    - support.item.full_shell_history
+
+drill_owner:
+  primary_lane: compatibility_ecosystem_review
+  support_lane: support_export
+  release_gate_lane: release_evidence
+
+trigger:
+  start_event: probe_run_started
+  symptoms:
+    - repeated_extension_host_restart
+    - startup_degraded_to_safe_mode
+    - extension_budget_or_crash_marker_present
+  fixture_refs:
+    - fixtures/support/pack_inclusion_cases/extension_crash_loop.yaml
+    - fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+
+expected_first_actionable_diagnosis:
+  finding_code: doctor.finding.extension_regression_crash_loop
+  actionability_class: quarantine_or_bisect_candidate
+  target_seconds_p90: 600
+  required_fields:
+    - exact_build_identity_ref
+    - extension_id_or_hash
+    - extension_version
+    - host_health_state
+    - quarantine_or_budget_state
+    - recovery_rung_class
+    - redaction_summary_ref
+  no_touch_boundary_set:
+    - user_authored_files
+    - credential_store
+    - installed_extension_marketplace_state
+
+pack_expectations:
+  preview_manifest_required: true
+  reopen_manifest_required: true
+  exact_build_refs_required: true
+  allowed_raw_payloads_by_default: []
+  optional_upload_candidates:
+    - crash_dump_payload
+  consent_steps_required_for_optional_upload:
+    - preview_size_and_memory_risk
+    - show_destination_and_retention
+    - require_explicit_upload_confirmation
+  escalation_packet_minimum:
+    - finding_code
+    - extension_inventory_manifest_ref
+    - crash_envelope_ref
+    - quarantine_or_bisect_history_ref
+    - redaction_summary_ref
+    - exact_build_identity_ref
+
+claimed_profile_expectations:
+  profile_source: artifacts/platform/claimed_desktop_profiles.yaml
+  coverage_rule: >
+    Run once per claimed operating-system profile in safe mode or
+    headless mode before release-candidate promotion.
+  required_surfaces:
+    - safe_mode_support_center
+    - cli_headless_doctor
+
+release_gate:
+  missing_drill: red_block_release_candidate
+  p90_over_600_seconds: yellow_over_target_or_aging
+  p90_over_900_seconds: red_block_release_candidate
+  raw_seeded_secret_leak: red_block_release_candidate
+  missing_reopen_manifest: red_block_release_candidate
+
+waiver_path:
+  waiver_required: true
+  max_expiry_days: 14
+  must_narrow_claim: true
+  forbidden_for:
+    - raw_seeded_secret_leak
+    - unpreviewed_quarantine_or_reenable
+    - missing_reopen_manifest
+
+notes: >
+  The drill proves extension triage can identify a narrowed candidate,
+  preserve exact-build and crash-envelope joins, and keep raw dump bytes
+  optional rather than bundled by default.

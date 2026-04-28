@@ -1,0 +1,301 @@
+# Supportability redaction-accuracy check catalog.
+#
+# Seeded fake secret fixtures are intentionally non-sensitive canaries.
+# They exist to prove redaction recall, omission manifests, preview
+# parity, and reopen-manifest reconstruction across support pack classes.
+
+schema_version: 1
+catalog_id: support.redaction_accuracy_checks.v1
+status: seeded
+
+governing_doc_ref: docs/support/supportability_slo_and_pack_contract.md
+support_pack_matrix_ref: artifacts/support/support_evidence_pack_matrix.yaml
+support_bundle_contract_ref: docs/support/support_bundle_contract.md
+redaction_profile_dir: fixtures/support/redaction_profiles
+pack_inclusion_cases_dir: fixtures/support/pack_inclusion_cases
+drill_scenarios_dir: fixtures/support/drill_scenarios
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+
+owner_lane: support_export
+co_review_lanes:
+  - security_trust_review
+  - release_evidence
+
+accuracy_targets:
+  raw_seeded_secret_leaks_allowed: 0
+  seeded_secret_detection_recall_percent: 100
+  prohibited_item_absence_manifest_percent: 100
+  preview_reopen_manifest_parity_percent: 100
+  redaction_marker_manifest_coverage_percent: 100
+  max_non_secret_overmask_review_rate_percent: 2
+
+seed_fixture_vocabulary:
+  - fake_token_value
+  - fake_private_key_block
+  - fake_client_certificate
+  - fake_password_assignment
+  - fake_bearer_header
+  - fake_database_dsn
+  - fake_local_username_path
+  - fake_hostname
+  - fake_shell_history_line
+  - fake_clipboard_payload
+
+artifact_class_vocabulary:
+  - exact_build_identity_manifest
+  - extension_inventory_manifest
+  - execution_context_summary
+  - connection_profile_summary
+  - policy_fingerprint_summary
+  - trace_capture_manifest
+  - trace_capture_payload
+  - crash_dump_manifest
+  - crash_dump_payload
+  - user_selected_code_attachment
+  - full_shell_history_capture
+  - raw_secret_capture
+  - preview_manifest
+  - reopen_manifest
+
+seeded_secret_fixtures:
+  - fixture_id: redaction.fixture.fake_token.header
+    fixture_class: fake_bearer_header
+    canary_label: AURELINE_FAKE_SECRET_TOKEN_HEADER
+    example_shape: "Authorization: Bearer aureline_fake_token_000000"
+    expected_marker_class: secret_token_redacted
+    must_not_appear_in_exports: true
+
+  - fixture_id: redaction.fixture.fake_private_key.block
+    fixture_class: fake_private_key_block
+    canary_label: AURELINE_FAKE_SECRET_PRIVATE_KEY
+    example_shape: "-----BEGIN AURELINE FAKE PRIVATE KEY-----"
+    expected_marker_class: private_key_redacted
+    must_not_appear_in_exports: true
+
+  - fixture_id: redaction.fixture.fake_client_cert.block
+    fixture_class: fake_client_certificate
+    canary_label: AURELINE_FAKE_CLIENT_CERTIFICATE
+    example_shape: "-----BEGIN AURELINE FAKE CLIENT CERTIFICATE-----"
+    expected_marker_class: client_certificate_redacted
+    must_not_appear_in_exports: true
+
+  - fixture_id: redaction.fixture.fake_password.env
+    fixture_class: fake_password_assignment
+    canary_label: AURELINE_FAKE_PASSWORD_ENV
+    example_shape: "PASSWORD=aureline_fake_password_000000"
+    expected_marker_class: password_redacted
+    must_not_appear_in_exports: true
+
+  - fixture_id: redaction.fixture.fake_database.dsn
+    fixture_class: fake_database_dsn
+    canary_label: AURELINE_FAKE_DATABASE_DSN
+    example_shape: "postgres://user:aureline_fake_password_000000@example.invalid/db"
+    expected_marker_class: dsn_secret_redacted
+    must_not_appear_in_exports: true
+
+  - fixture_id: redaction.fixture.fake_username.path
+    fixture_class: fake_local_username_path
+    canary_label: AURELINE_FAKE_LOCAL_USERNAME_PATH
+    example_shape: "/Users/aureline_fake_user/private-project"
+    expected_marker_class: local_identity_redacted_or_hashed
+    must_not_appear_in_exports: true
+
+  - fixture_id: redaction.fixture.fake_hostname
+    fixture_class: fake_hostname
+    canary_label: AURELINE_FAKE_HOSTNAME
+    example_shape: "build-host-aureline-fake.internal"
+    expected_marker_class: hostname_redacted_or_hashed
+    must_not_appear_in_exports: true
+
+  - fixture_id: redaction.fixture.fake_shell_history.line
+    fixture_class: fake_shell_history_line
+    canary_label: AURELINE_FAKE_SHELL_HISTORY_SECRET
+    example_shape: "export API_TOKEN=aureline_fake_token_000000"
+    expected_marker_class: full_shell_history_omitted
+    must_not_appear_in_exports: true
+
+check_rows:
+  - check_id: redaction.check.execution_context_no_raw_env
+    title: Execution-context summaries omit raw environment and path secrets
+    applies_to_item_ids:
+      - support.item.execution_context_summary
+      - support.item.raw_secrets
+    artifact_classes:
+      - execution_context_summary
+      - preview_manifest
+      - reopen_manifest
+    seeded_fixture_refs:
+      - redaction.fixture.fake_password.env
+      - redaction.fixture.fake_username.path
+    required_redaction_markers:
+      - password_redacted
+      - local_identity_redacted_or_hashed
+    required_absence_markers:
+      - support.item.raw_secrets
+    pass_criteria:
+      raw_seeded_secret_leaks_allowed: 0
+      seeded_secret_detection_recall_percent: 100
+      preview_reopen_manifest_parity_percent: 100
+    owner_lane: support_export
+    co_review_lanes:
+      - security_trust_review
+
+  - check_id: redaction.check.connection_profiles_no_dsn_headers
+    title: Connection profile summaries omit DSNs, headers, and hostnames
+    applies_to_item_ids:
+      - support.item.connection_profiles
+      - support.item.secret_broker_state
+      - support.item.raw_secrets
+    artifact_classes:
+      - connection_profile_summary
+      - preview_manifest
+      - reopen_manifest
+    seeded_fixture_refs:
+      - redaction.fixture.fake_database.dsn
+      - redaction.fixture.fake_token.header
+      - redaction.fixture.fake_hostname
+    required_redaction_markers:
+      - dsn_secret_redacted
+      - secret_token_redacted
+      - hostname_redacted_or_hashed
+    required_absence_markers:
+      - support.item.raw_secrets
+    pass_criteria:
+      raw_seeded_secret_leaks_allowed: 0
+      seeded_secret_detection_recall_percent: 100
+      redaction_marker_manifest_coverage_percent: 100
+    owner_lane: security_trust_review
+    co_review_lanes:
+      - support_export
+
+  - check_id: redaction.check.trace_payload_local_only_until_opt_in
+    title: Runtime trace payloads stay local-only unless reviewed
+    applies_to_item_ids:
+      - support.item.runtime_traces
+      - support.item.raw_secrets
+    artifact_classes:
+      - trace_capture_manifest
+      - trace_capture_payload
+      - preview_manifest
+      - reopen_manifest
+    seeded_fixture_refs:
+      - redaction.fixture.fake_token.header
+      - redaction.fixture.fake_username.path
+    required_redaction_markers:
+      - secret_token_redacted
+      - local_identity_redacted_or_hashed
+    required_absence_markers:
+      - raw_trace_payload_omitted_until_trace_export_opt_in
+      - support.item.raw_secrets
+    pass_criteria:
+      raw_seeded_secret_leaks_allowed: 0
+      prohibited_item_absence_manifest_percent: 100
+      preview_reopen_manifest_parity_percent: 100
+    owner_lane: support_export
+    co_review_lanes:
+      - release_evidence
+
+  - check_id: redaction.check.crash_dump_manifest_only_by_default
+    title: Crash dump bytes do not enter the default support pack
+    applies_to_item_ids:
+      - support.item.crash_dump_or_core
+      - support.item.raw_secrets
+    artifact_classes:
+      - crash_dump_manifest
+      - crash_dump_payload
+      - preview_manifest
+      - reopen_manifest
+    seeded_fixture_refs:
+      - redaction.fixture.fake_private_key.block
+      - redaction.fixture.fake_client_cert.block
+    required_redaction_markers:
+      - private_key_redacted
+      - client_certificate_redacted
+    required_absence_markers:
+      - raw_dump_bytes_omitted_until_crash_dump_export_opt_in
+      - support.item.raw_secrets
+    pass_criteria:
+      raw_seeded_secret_leaks_allowed: 0
+      prohibited_item_absence_manifest_percent: 100
+      preview_reopen_manifest_parity_percent: 100
+    owner_lane: support_export
+    co_review_lanes:
+      - security_trust_review
+      - release_evidence
+
+  - check_id: redaction.check.user_selected_code_bounded
+    title: User-selected code context remains bounded to selected ranges
+    applies_to_item_ids:
+      - support.item.user_selected_code
+      - support.item.raw_secrets
+    artifact_classes:
+      - user_selected_code_attachment
+      - preview_manifest
+      - reopen_manifest
+    seeded_fixture_refs:
+      - redaction.fixture.fake_token.header
+      - redaction.fixture.fake_password.env
+    required_redaction_markers:
+      - secret_token_redacted
+      - password_redacted
+    required_absence_markers:
+      - surrounding_file_context_omitted
+      - workspace_wide_code_capture_absent
+    pass_criteria:
+      raw_seeded_secret_leaks_allowed: 0
+      seeded_secret_detection_recall_percent: 100
+      preview_reopen_manifest_parity_percent: 100
+    owner_lane: support_export
+    co_review_lanes:
+      - security_trust_review
+
+  - check_id: redaction.check.full_shell_history_never_exported
+    title: Full shell history has no support-pack export path
+    applies_to_item_ids:
+      - support.item.full_shell_history
+      - support.item.raw_secrets
+    artifact_classes:
+      - full_shell_history_capture
+      - preview_manifest
+      - reopen_manifest
+    seeded_fixture_refs:
+      - redaction.fixture.fake_shell_history.line
+      - redaction.fixture.fake_token.header
+    required_redaction_markers:
+      - full_shell_history_omitted
+      - secret_token_redacted
+    required_absence_markers:
+      - support.item.full_shell_history
+      - support.item.raw_secrets
+    pass_criteria:
+      raw_seeded_secret_leaks_allowed: 0
+      prohibited_item_absence_manifest_percent: 100
+      preview_reopen_manifest_parity_percent: 100
+    owner_lane: support_export
+    co_review_lanes:
+      - security_trust_review
+
+release_gate_behavior:
+  any_raw_seeded_secret_leak: red_block_release_candidate
+  missing_prohibited_item_absence_marker: red_block_release_candidate
+  preview_reopen_manifest_parity_miss: red_block_release_candidate
+  detection_recall_below_target: red_block_release_candidate
+  overmask_review_rate_above_target: yellow_over_target_or_aging
+
+waiver_policy:
+  waiver_schema_ref: schemas/release/waiver_packet.schema.json
+  forbidden_waiver_conditions:
+    - any_raw_seeded_secret_leak
+    - missing_prohibited_item_absence_marker
+    - preview_manifest_missing
+    - reopen_manifest_missing
+  waiver_required_fields:
+    - check_id
+    - affected_artifact_class
+    - owner_lane
+    - expiry
+    - narrowed_export_behavior
+    - rerun_trigger_ref
+  notes: >
+    Redaction waivers can narrow exports or disable a pack class. They
+    cannot permit raw seeded secret leakage or skip omission proof.

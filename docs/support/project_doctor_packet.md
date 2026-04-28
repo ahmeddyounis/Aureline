@@ -31,8 +31,15 @@ Companion artifacts:
 - [`/artifacts/support/diagnosis_latency_scoreboard.yaml`](../../artifacts/support/diagnosis_latency_scoreboard.yaml)
   — scoreboard contract binding each seeded scenario to thresholds for
   time-to-first-diagnosis, finding accuracy, false-safe-repair rate,
-  and escalation-packet completeness. Threshold values are reserved to
-  the benchmark council; only the row shape is frozen here.
+  and escalation-packet completeness. Rows remain the scoreboard
+  registry; current numeric targets live in the SLO target catalog.
+- [`/artifacts/support/diagnosis_slo_targets.yaml`](../../artifacts/support/diagnosis_slo_targets.yaml)
+  — current numeric SLO target catalog for first actionable diagnosis,
+  escalation completeness, release-candidate drill coverage, and waiver
+  behavior.
+- [`/fixtures/support/drill_scenarios/`](../../fixtures/support/drill_scenarios/)
+  — drill packets covering extension regression, stale toolchain
+  context, proxy or certificate failure, and renderer/trace escalation.
 - [`/fixtures/support/escalation_packet_completeness_cases/`](../../fixtures/support/escalation_packet_completeness_cases/)
   — one completeness case per scenario family showing which exact-
   build, route/boundary, redaction, and fixture-id fields an exported
@@ -384,16 +391,17 @@ matrix, one `measurement_surface_class`
 - `must_not_claim_exact_rollback_without_evidence`
 - `must_export_complete_escalation_packet`
 
-All scoreboard rows in this seed carry
-`threshold_state = to_be_set_by_benchmark_council` until the benchmark
-council ratifies numeric budgets, matching the promotion pattern
-already used by the task-success and no-account-switching scoreboards.
-Widening a threshold opens a new decision row in
-`artifacts/governance/decision_index.yaml`.
+The scoreboard remains the per-scenario row registry. Current release
+targets for first actionable diagnosis, drill coverage, escalation
+completeness, and waiver behavior live in
+[`diagnosis_slo_targets.yaml`](../../artifacts/support/diagnosis_slo_targets.yaml).
+Rows not bound by that target catalog remain shape-only until the
+benchmark council ratifies their threshold state. Widening a threshold
+opens a new decision row in `artifacts/governance/decision_index.yaml`.
 
 Rule: a scoreboard row may move off
-`to_be_set_by_benchmark_council` only through the benchmark council.
-A false-safe-repair row may move only to
+`to_be_set_by_benchmark_council` only through the benchmark council or
+an explicit target-catalog binding. A false-safe-repair row may move only to
 `must_not_claim_exact_rollback_without_evidence` or stricter; it may
 not move sideways to a latency or completeness threshold.
 
@@ -491,8 +499,9 @@ covers diagnosis-only outcomes alongside repair-candidate outcomes.
 - No live Project Doctor implementation is wired up. The matrix, the
   scoreboard, and the escalation-packet cases are reviewable objects
   only.
-- No numeric latency or accuracy budget is committed. Thresholds
-  remain `to_be_set_by_benchmark_council`.
+- No live measurement result is claimed. Numeric targets are contract
+  budgets in the SLO target catalog, not proof that a runtime already
+  meets them.
 - No production telemetry pipeline, live support portal, or hosted
   ticket system is in scope.
 - No schema changes to `support_bundle.schema.json` or
