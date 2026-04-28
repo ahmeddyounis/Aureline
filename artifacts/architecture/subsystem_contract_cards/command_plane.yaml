@@ -1,0 +1,88 @@
+schema_version: 1
+card_id: command_plane
+title: Command descriptors, invocation sessions, and command-surface parity
+freeze_status: frozen
+purpose: >
+  Maintain one command truth for palette, menus, keybindings, CLI/headless
+  projections, automation, AI tools, docs/help, and invocation evidence.
+owned_objects:
+  - stable command ids, aliases, revisions, lifecycle states, labels, help anchors, and disabled reasons
+  - command descriptors, registry entries, palette projections, menu rows, and invocation-session packets
+  - high-risk preview classes, approval posture, side-effect class, and result contract fields
+  - command parity diff and seed registry rows
+non_owned_objects:
+  - implementation of the target action after dispatch
+  - route execution, provider calls, filesystem writes, or task launch authority
+  - user-facing docs publication outside the docs/public-truth lane
+entry_points:
+  command_entry_points:
+    - all stable-bearing UI, CLI, AI-tool, automation, menu, palette, and keybinding actions
+  event_entry_points:
+    - invocation session created, preview prepared, approval requested, command completed, command denied
+  schema_or_packet_refs:
+    - schemas/commands/command_descriptor.schema.json
+    - schemas/commands/command_registry_entry.schema.json
+    - schemas/commands/palette_result.schema.json
+    - artifacts/commands/command_registry_seed.yaml
+dependencies:
+  allowed_direct:
+    - card:settings_effective_configuration
+    - card:execution_context_tooling
+    - card:security_policy_support
+    - card:governance_ownership_lifecycle
+  routed_through:
+    shell_rendering: card:shell_renderer
+    file_mutation: card:workspace_vfs_persistence
+    task_terminal_debug_git_execution: card:execution_context_tooling
+    ai_tool_calls: card:ai_context_runtime
+    docs_help_projection: card:docs_public_truth
+  forbidden_shortcuts:
+    - action ids minted privately by feature surfaces
+    - UI, CLI, AI, or recipe routes with different command identity
+    - hidden enablement state without a typed disabled reason
+    - deprecating command ids without lifecycle metadata and parity review
+budgets:
+  - budget_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.command_palette.open
+    obligation: command palette open and first ranked results stay within the protected command-entry budget.
+  - budget_ref: docs/commands/command_parity_diff.md
+    obligation: parity changes remain reviewable across UI, CLI, AI, docs, and automation surfaces.
+failure_modes:
+  - mode: command_unavailable
+    required_behavior: render a typed disabled reason, required capability, or degraded route state.
+  - mode: command_deprecated_or_renamed
+    required_behavior: provide alias/migration metadata before the old id stops resolving.
+  - mode: high_risk_preview_missing
+    required_behavior: deny or require approval; do not execute blind.
+proof_packets:
+  - docs/commands/command_descriptor_contract.md
+  - docs/commands/palette_row_contract.md
+  - docs/commands/sequence_and_modal_discoverability_contract.md
+  - artifacts/commands/command_registry_seed.yaml
+  - artifacts/commands/command_parity_seed.yaml
+  - artifacts/contracts/frozen_surface_manifest.yaml#command_plane.command_descriptor_and_invocation_session
+owners:
+  owner_dri: "@ahmeddyounis"
+  owning_lanes:
+    - shell_command_system
+  protected_packages: []
+  backup_owner: null
+  backup_waiver: single-maintainer-backup
+  review_forums:
+    - architecture_council
+    - accessibility_review
+shared_contract_refs:
+  settings_ids: card:settings_effective_configuration
+  route_truth: card:execution_context_tooling
+  lifecycle_deprecation: card:governance_ownership_lifecycle
+  record_classes: card:record_class_governance
+freeze_basis_refs:
+  - artifacts/governance/interface_freeze_matrix.yaml#command_descriptor_and_invocation_schema
+  - artifacts/governance/stable_surface_inventory.yaml#command_plane.command_descriptor_and_invocation_session
+explicit_gaps:
+  - gap_id: keyboard_complete_graph
+    status: open
+    impact: keyboard-complete claims remain narrowed even though descriptor identity is frozen.
+  - gap_id: runtime_cli_parity
+    status: seed_only
+    impact: stable CLI/headless runtime parity is not yet claim-bearing.
+

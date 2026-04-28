@@ -1,0 +1,106 @@
+schema_version: 1
+card_id: shell_renderer
+title: Shell, renderer, and hot interaction path
+freeze_status: provisional
+purpose: >
+  Preserve a local-first, latency-first shell and rendering path where
+  command entry, focus, layout, visible editor state, and first paint never
+  wait on filesystem, network, provider, update, support, or long-running
+  worker activity.
+owned_objects:
+  - desktop windows, panes, focus, shell layout, status surfaces
+  - renderer scene composition, damage classes, frame-submit hooks
+  - visible text-layout inputs on protected edit paths
+  - hot-path trace markers for first paint, command entry, and visible edits
+non_owned_objects:
+  - file identity, watcher state, and save commits
+  - task, terminal, debug, Git, remote, AI, update, or support execution
+  - command descriptor identity, except as a consumer of command-plane records
+entry_points:
+  command_entry_points:
+    - command palette open and command-dispatch entry from the canonical command registry
+    - shell layout, focus, and view-state commands routed through command descriptors
+  event_entry_points:
+    - input events, focus transitions, damage invalidations, frame timing hooks
+    - subscription frames that carry stale or degraded state from worker-owned services
+  schema_or_packet_refs:
+    - docs/commands/command_descriptor_contract.md
+    - schemas/traces/spike_timing.schema.json
+    - schemas/runtime/subscription_envelope.schema.json
+dependencies:
+  allowed_direct:
+    - card:command_plane
+    - card:editor_buffer_text
+    - card:settings_effective_configuration
+    - card:rpc_reactive_truth
+    - card:design_attention_embedded
+    - card:quality_benchmark_claims
+  routed_through:
+    workspace_file_and_save_work: card:workspace_vfs_persistence
+    search_and_index_work: card:search_navigation_graph
+    task_terminal_debug_git_work: card:execution_context_tooling
+    ai_provider_or_tool_work: card:ai_context_runtime
+    remote_or_collaboration_work: card:remote_collaboration_runtime
+    update_release_or_support_export_work: card:release_build_identity
+  forbidden_shortcuts:
+    - raw filesystem I/O on the input or render path
+    - raw network I/O or provider calls from shell/renderer code
+    - process launch, blocking wait, or workspace scan on the protected hot path
+    - private command paths that bypass command descriptors
+budgets:
+  - budget_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.launch
+    obligation: warm first paint target stays at or below 150 ms on the seeded warm path.
+  - budget_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.first_useful_chrome
+    obligation: command entry remains available while indexing or workers are partial.
+  - budget_ref: artifacts/perf/warm_path_budget_ledger.yaml
+    obligation: stage-level regressions are visible even when the aggregate remains green.
+failure_modes:
+  - mode: worker_or_index_unavailable
+    required_behavior: keep shell interactive and render stale or unavailable state explicitly.
+  - mode: renderer_budget_miss
+    required_behavior: defer non-critical panes/effects before harming edit latency.
+  - mode: command_target_degraded
+    required_behavior: show typed disabled or stale reason from command and route truth.
+  - mode: native_window_or_platform_bridge_gap
+    required_behavior: keep the row provisional and do not claim platform-complete shell readiness.
+proof_packets:
+  - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+  - artifacts/render/spike_capabilities.json
+  - artifacts/render/spike_trace_samples/full_scene.json
+  - artifacts/perf/protected_path_ledger.yaml
+  - artifacts/perf/latency_budget_ledger.yaml
+  - artifacts/architecture/process_placement_map.yaml
+  - tools/check_protected_dependencies.py
+owners:
+  owner_dri: "@ahmeddyounis"
+  owning_lanes:
+    - shell_command_system
+  protected_packages:
+    - aureline-render
+    - aureline-text
+  backup_owner: null
+  backup_waiver: single-maintainer-backup
+  review_forums:
+    - architecture_council
+    - performance_council
+shared_contract_refs:
+  command_ids: card:command_plane
+  route_truth: card:execution_context_tooling
+  settings_ids: card:settings_effective_configuration
+  lifecycle_deprecation: card:governance_ownership_lifecycle
+  rpc_subscription: card:rpc_reactive_truth
+freeze_basis_refs:
+  - artifacts/governance/interface_freeze_matrix.yaml#renderer_text_model
+  - artifacts/governance/interface_freeze_matrix.yaml#repo_topology_and_work_package_ownership
+  - docs/architecture/service_topology_and_process_placement.md
+explicit_gaps:
+  - gap_id: permanent_shell_home
+    status: open
+    impact: shell lane remains narrowed to the spike-hosted posture.
+  - gap_id: keyboard_complete_graph
+    status: open
+    impact: keyboard-complete launch claims cannot widen yet.
+  - gap_id: native_window_closure
+    status: open
+    impact: renderer proof is headless-seeded and not full platform closure.
+

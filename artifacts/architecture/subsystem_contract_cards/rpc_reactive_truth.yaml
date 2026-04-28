@@ -1,0 +1,79 @@
+schema_version: 1
+card_id: rpc_reactive_truth
+title: Typed RPC, event envelopes, subscription invalidation, and reactive truth
+freeze_status: frozen
+purpose: >
+  Keep cross-service requests, responses, events, cancellations, trace ids,
+  deadlines, and subscription invalidation semantics shared instead of
+  letting each service invent packet-local transport truth.
+owned_objects:
+  - typed request, response, error, cancellation, trace, and deadline envelopes
+  - subscription envelope with freshness, completeness, authority, delta sequence, and invalidation states
+  - schema-toolchain posture for cross-process and cross-tool payloads
+  - resync and fail-closed behavior for mixed-version or lost-continuity frames
+non_owned_objects:
+  - service-specific payload schemas carried inside envelopes
+  - command descriptor identity or UI enablement
+  - persistence, support, release, or record-retention policy
+entry_points:
+  command_entry_points:
+    - none owned; command dispatch enters services through command_plane and then typed RPC where needed
+  event_entry_points:
+    - request sent, response received, event emitted, cancellation requested, deadline exceeded
+    - subscription snapshot, delta, invalidation, gap detected, resync required
+  schema_or_packet_refs:
+    - schemas/rpc/envelope.schema.json
+    - schemas/runtime/subscription_envelope.schema.json
+dependencies:
+  allowed_direct:
+    - card:governance_ownership_lifecycle
+    - card:quality_benchmark_claims
+  routed_through:
+    command_dispatch: card:command_plane
+    route_context: card:execution_context_tooling
+    support_export: card:security_policy_support
+  forbidden_shortcuts:
+    - hidden shared mutable state across service boundaries
+    - untyped event envelopes for frozen surfaces
+    - dropping trace ids, cancellation, deadline, freshness, or authority fields at a boundary
+budgets:
+  - budget_ref: artifacts/architecture/rpc_tradeoff_rows.yaml
+    obligation: transport choices remain bounded by latency, cancellation, and schema-toolchain tradeoffs.
+  - budget_ref: artifacts/architecture/subscription_tradeoff_rows.yaml
+    obligation: reactive consumers preserve freshness and completeness truth.
+failure_modes:
+  - mode: lost_delta_continuity
+    required_behavior: gap-detect and resync; do not keep applying ambiguous deltas.
+  - mode: deadline_or_cancellation
+    required_behavior: propagate cancellation/deadline and surface typed outcome.
+  - mode: incompatible_schema_epoch
+    required_behavior: fail closed or negotiate a supported compatibility path.
+proof_packets:
+  - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+  - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+  - schemas/rpc/envelope.schema.json
+  - schemas/runtime/subscription_envelope.schema.json
+  - artifacts/architecture/rpc_tradeoff_rows.yaml
+  - artifacts/architecture/subscription_tradeoff_rows.yaml
+owners:
+  owner_dri: "@ahmeddyounis"
+  owning_lanes:
+    - governance_packets
+  protected_packages:
+    - aureline-rpc
+  backup_owner: null
+  backup_waiver: single-maintainer-backup
+  review_forums:
+    - architecture_council
+shared_contract_refs:
+  command_ids: card:command_plane
+  route_truth: card:execution_context_tooling
+  lifecycle_deprecation: card:governance_ownership_lifecycle
+freeze_basis_refs:
+  - artifacts/governance/interface_freeze_matrix.yaml#ipc_event_and_reactive_truth
+  - artifacts/governance/stable_surface_inventory.yaml#runtime.subscription_envelope
+explicit_gaps:
+  - gap_id: production_transport_implementation
+    status: implementation_pending
+    impact: implementation may vary, but envelope semantics are frozen.
+

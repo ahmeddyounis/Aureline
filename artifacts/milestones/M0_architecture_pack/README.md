@@ -28,6 +28,8 @@ Packet tree
 - `packet_index.yaml` - review index, accepted ADR set, renderer and benchmark summaries, freeze calendar, open-issue table, requirement/assumption/decision/dependency slices, and M0 to M1 cutline.
 - `canonical_matrices.yaml` - architecture-driver matrix, principle-enforcement matrix, scheduling and worker-class contract, language/router contract set, late-M0 class matrices, and reserved attach points for later release-control work.
 - `coverage_and_freeze_exceptions.yaml` - explicit cross-pack family coverage and every named freeze exception required to keep M1 from inventing missing contracts in code.
+- `../../../docs/architecture/subsystem_contract_cards.md` and `../../architecture/subsystem_contract_cards/*.yaml` - reviewer guide and machine-readable subsystem cards for launch-critical ownership, dependencies, budgets, failure modes, proof packets, freeze status, and explicit gaps.
+- `../../../docs/architecture/subsystem_dependency_overview.md` - cross-card dependency and failure-containment overview.
 - `../M0_scorecard.yaml` - lane-by-lane review surface keyed to the ownership matrix.
 - `../M0_risk_register.yaml` - named risks, explicit mitigations, and carry-forward owners.
 - `../../governance/dependency_ledger.yaml` - canonical dependency ids, latest safe decision points, and explicit `none required` coverage for M0 lanes and M1 workstreams.
@@ -41,11 +43,12 @@ Top-down review order
 
 1. Read `packet_index.yaml` for the review posture, accepted ADR set, and the M0 to M1 cutline.
 2. Read `canonical_matrices.yaml` to confirm the driver, principle, scheduler, route, and truth matrices that M1 must inherit.
-3. Read `coverage_and_freeze_exceptions.yaml` before approving any M1 breadth so missing contract families stay explicit.
-4. Read `../M0_scorecard.yaml`, `../M0_risk_register.yaml`, `../../governance/dependency_ledger.yaml`, and `../../governance/correction_trigger_table.yaml` together; they now share the lane, risk, and dependency ids that drive narrowing or correction decisions.
-5. Read `../../governance/evidence_id_conventions.md` and `../../../schemas/governance/evidence_packet_header.schema.json` before reviewing any packet that aggregates proof across design, benchmark, or signoff surfaces.
-6. Read `../M0_signoff_packet.md` for the reviewer-facing exit checklist, required signoffs, freshness blockers, and shared packet sections.
-7. Use `../M0_design_evidence_index.yaml` as the evidence lookup table instead of reconstructing provenance from handoffs or git history.
+3. Read `../../../docs/architecture/subsystem_contract_cards.md` and the matching card YAML before approving implementation breadth; the cards expose owned objects, allowed dependencies, proof packets, and explicit gaps without replacing ADRs or schemas.
+4. Read `coverage_and_freeze_exceptions.yaml` before approving any M1 breadth so missing contract families stay explicit.
+5. Read `../M0_scorecard.yaml`, `../M0_risk_register.yaml`, `../../governance/dependency_ledger.yaml`, and `../../governance/correction_trigger_table.yaml` together; they now share the lane, risk, and dependency ids that drive narrowing or correction decisions.
+6. Read `../../governance/evidence_id_conventions.md` and `../../../schemas/governance/evidence_packet_header.schema.json` before reviewing any packet that aggregates proof across design, benchmark, or signoff surfaces.
+7. Read `../M0_signoff_packet.md` for the reviewer-facing exit checklist, required signoffs, freshness blockers, and shared packet sections.
+8. Use `../M0_design_evidence_index.yaml` as the evidence lookup table instead of reconstructing provenance from handoffs or git history.
 
 M0 to M1 cutline
 

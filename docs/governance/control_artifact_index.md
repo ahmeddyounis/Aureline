@@ -72,6 +72,14 @@ Companion artifacts:
   canonical implementation-broadening freeze matrix and the short
   downstream citation guide that points task specs, ADRs, and packet
   updates at stable row ids instead of repeating contract prose.
+- [`/docs/architecture/subsystem_contract_cards.md`](../architecture/subsystem_contract_cards.md)
+  and
+  [`/artifacts/architecture/subsystem_contract_cards/`](../../artifacts/architecture/subsystem_contract_cards/)
+  — reviewer guide and machine-readable cards for launch-critical
+  subsystem contracts. Cards summarize owned objects, allowed
+  dependencies, budgets, failure modes, proof packets, owners, freeze
+  status, and explicit gaps; ADRs, schemas, scorecards, and proof
+  packets remain authoritative for detail.
 - [`./frozen_surface_ci_policy.md`](./frozen_surface_ci_policy.md) and
   [`/artifacts/contracts/frozen_surface_manifest.yaml`](../../artifacts/contracts/frozen_surface_manifest.yaml)
   — manifest-driven CI policy and machine-readable row set for the M0
@@ -117,7 +125,8 @@ scorecard, the maintainer-coverage policy, the signing-quorum matrix,
 the experiment/Labs control registers, the release-notice seed, the
 provenance-badge contract, the
 release-artifact graph, release evidence, docs and help truth, route
-and build-truth artifacts, accessibility review packets,
+and build-truth artifacts, subsystem contract cards,
+accessibility review packets,
 surface-traceability artifacts, and frozen-surface manifests —
 appears as exactly one row in the index file. If two documents describe
 the same asset, the index names only the canonical one and the other is
@@ -154,6 +163,13 @@ and scopes.
   attention, embedded-boundary, AI/provider, collaboration, review, or
   companion contract prose in per-task handoffs once a freeze row
   already exists.
+- Subsystem handoff now routes through
+  `docs/architecture/subsystem_contract_cards.md` and the card YAML
+  directory. Use a card for owned objects, allowed dependencies,
+  failure/degraded modes, proof packets, and explicit gaps before
+  broadening implementation. Do not treat the card as a replacement for
+  the ADR, schema, benchmark packet, scorecard, or frozen-surface row it
+  references.
 - Stable ids, alias ids, schema families, and record-class ids that
   leave experimental state now route through
   `interface_lifecycle_policy.md` and

@@ -1,0 +1,90 @@
+schema_version: 1
+card_id: editor_buffer_text
+title: Editor buffer, text primitives, undo, and source fidelity
+freeze_status: frozen
+purpose: >
+  Own the lossless visible-edit core: text primitives, buffer mutations,
+  selections, undo/redo, large-file behavior, source fidelity, and the
+  evidence seams that prevent corruption, silent rewrite, or hidden recovery
+  degradation.
+owned_objects:
+  - text primitive library and visible buffer mutation model
+  - piece-tree or piece-table buffer behavior and undo classes
+  - selection and multi-cursor mutation grouping
+  - source-fidelity rules for encodings, line endings, generated/read-only files, and whole-file rewrites
+  - large-file fallback labels and reduced-decoration posture
+non_owned_objects:
+  - filesystem identity, save authority, watcher truth, and external-change resolution
+  - language-provider diagnostics, semantic refactors, Git, task execution, AI, or remote transport
+  - public command identity except for editor command descriptors owned by the command plane
+entry_points:
+  command_entry_points:
+    - editor mutation commands from the canonical command registry
+    - save-intent and recovery commands routed to VFS/persistence instead of direct writes
+  event_entry_points:
+    - buffer edit operations, selection updates, undo/redo group boundaries
+    - VFS save results and external-change events consumed as typed outcomes
+  schema_or_packet_refs:
+    - docs/adr/0003-buffer-undo-large-file.md
+    - artifacts/architecture/undo_class_rows.yaml
+    - schemas/workspace/mutation_journal.schema.json
+dependencies:
+  allowed_direct:
+    - card:shell_renderer
+    - card:workspace_vfs_persistence
+    - card:command_plane
+    - card:quality_benchmark_claims
+  routed_through:
+    search_index_or_graph_updates: card:search_navigation_graph
+    task_git_language_or_ai_work: card:execution_context_tooling
+    remote_file_semantics: card:remote_collaboration_runtime
+  forbidden_shortcuts:
+    - direct provider, VCS, build, test, AI, or network calls
+    - direct filesystem save commits outside the VFS/save envelope
+    - source-fidelity fallback that is not recorded in undo/recovery proof
+budgets:
+  - budget_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.placeholder_open
+    obligation: visible editable buffer appears within the protected file-open budget.
+  - budget_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.first_useful_edit
+    obligation: first accepted edit remains within the protected input-to-paint budget.
+  - budget_ref: artifacts/bench/protected_metrics.yaml
+    obligation: source-fidelity and latency metrics remain claim-bearing only with current evidence.
+failure_modes:
+  - mode: complex_undo_or_grapheme_corruption_risk
+    required_behavior: fail closed or require recovery proof before stable claims widen.
+  - mode: large_file_or_generated_file
+    required_behavior: use explicit large-file, generated, read-only, or rewrite-fallback labels.
+  - mode: save_target_conflict
+    required_behavior: hand off to VFS/save coordination; do not overwrite from buffer code.
+proof_packets:
+  - docs/adr/0003-buffer-undo-large-file.md
+  - artifacts/architecture/undo_class_rows.yaml
+  - artifacts/buffer/README.md
+  - artifacts/io/undo_recovery_examples/README.md
+  - fixtures/text/buffer_decision_cases/
+  - schemas/workspace/mutation_journal.schema.json
+owners:
+  owner_dri: "@ahmeddyounis"
+  owning_lanes:
+    - package:aureline-buffer
+  protected_packages:
+    - aureline-buffer
+    - aureline-text
+  backup_owner: null
+  backup_waiver: single-maintainer-backup
+  review_forums:
+    - architecture_council
+    - performance_council
+shared_contract_refs:
+  command_ids: card:command_plane
+  record_classes: card:record_class_governance
+  lifecycle_deprecation: card:governance_ownership_lifecycle
+  route_truth: card:execution_context_tooling
+freeze_basis_refs:
+  - artifacts/governance/interface_freeze_matrix.yaml#buffer_strategy_and_source_fidelity
+  - artifacts/governance/interface_freeze_matrix.yaml#workspace_identity_save_recovery_lineage
+explicit_gaps:
+  - gap_id: compare_restore_product_surface
+    status: later_scope
+    impact: local-history product surfaces are not claim-bearing proof for this frozen core.
+

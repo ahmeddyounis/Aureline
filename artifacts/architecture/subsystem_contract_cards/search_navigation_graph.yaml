@@ -1,0 +1,84 @@
+schema_version: 1
+card_id: search_navigation_graph
+title: Search, navigation, indexing, and semantic graph truth
+freeze_status: frozen
+purpose: >
+  Provide truthful first-useful search/navigation answers, then refine with
+  indexed and semantic knowledge while preserving scope, ranking reason,
+  freshness, confidence, and provenance across shell, AI, docs, review, and
+  support consumers.
+owned_objects:
+  - lexical search, symbol search, quick-open ranking, ranking reasons, hidden-scope labels
+  - semantic graph query families, index shard readiness, graph freshness, and confidence labels
+  - result truth labels such as exact, imported, heuristic, hybrid, stale, and fallback
+  - deep-link drift and search readiness vocabulary
+non_owned_objects:
+  - shell rendering and command-entry surface composition
+  - VFS path authority and save semantics
+  - language-provider arbitration not already covered by the frozen search-truth vocabulary
+entry_points:
+  command_entry_points:
+    - quick open, symbol search, global search, search result explain-why, navigation commands
+  event_entry_points:
+    - index shard warmed, graph slice stale, search result emitted, ranking reason requested
+    - deep-link drift detected and remap result emitted
+  schema_or_packet_refs:
+    - docs/adr/0014-search-readiness-ranking-result-truth.md
+    - artifacts/search/result_truth_labels.yaml
+    - artifacts/search/shard_rows.yaml
+dependencies:
+  allowed_direct:
+    - card:workspace_vfs_persistence
+    - card:rpc_reactive_truth
+    - card:docs_public_truth
+    - card:quality_benchmark_claims
+  routed_through:
+    shell_projection: card:shell_renderer
+    command_invocation: card:command_plane
+    execution_or_target_truth: card:execution_context_tooling
+    ai_context_consumption: card:ai_context_runtime
+  forbidden_shortcuts:
+    - direct UI mutation from index/search workers
+    - language-server-owned ranking without product result-truth labels
+    - exactness claims from imported, stale, heuristic, or partial evidence
+budgets:
+  - budget_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.command_palette.open
+    obligation: first useful results appear fast enough for command/search entry.
+  - budget_ref: artifacts/bench/fitness_function_catalog.yaml
+    obligation: search and graph fitness rows remain tied to protected corpora before claims widen.
+failure_modes:
+  - mode: index_partial_or_warming
+    required_behavior: return truthful partial/stale labels and refine without blocking shell input.
+  - mode: contradictory_result_fusion
+    required_behavior: expose source, confidence, and ranking reason instead of silently choosing.
+  - mode: deep_link_drift
+    required_behavior: remap with drift state or deny exact navigation.
+proof_packets:
+  - docs/adr/0014-search-readiness-ranking-result-truth.md
+  - docs/search/search_readiness_vocabulary.md
+  - artifacts/search/result_truth_labels.yaml
+  - artifacts/search/shard_rows.yaml
+  - docs/graph/project_graph_and_indexing_seed.md
+  - docs/navigation/navigation_and_saved_query_contract.md
+owners:
+  owner_dri: "@ahmeddyounis"
+  owning_lanes:
+    - governance_packets
+  protected_packages: []
+  backup_owner: null
+  backup_waiver: single-maintainer-backup
+  review_forums:
+    - architecture_council
+    - performance_council
+shared_contract_refs:
+  command_ids: card:command_plane
+  route_truth: card:execution_context_tooling
+  rpc_subscription: card:rpc_reactive_truth
+  lifecycle_deprecation: card:governance_ownership_lifecycle
+freeze_basis_refs:
+  - artifacts/governance/interface_freeze_matrix.yaml#operator_truth_search_safety_and_install_review
+explicit_gaps:
+  - gap_id: graph_implementation_and_relevance_evidence
+    status: implementation_pending
+    impact: vocabulary is frozen, but full graph/index implementation evidence remains future work.
+

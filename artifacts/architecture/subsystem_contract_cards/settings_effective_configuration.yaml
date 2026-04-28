@@ -1,0 +1,81 @@
+schema_version: 1
+card_id: settings_effective_configuration
+title: Setting ids, precedence, effective configuration, and policy locks
+freeze_status: frozen
+purpose: >
+  Preserve one inspectable configuration model across shell, CLI, support,
+  policy, profile import/export, experiments, and extension behavior so
+  settings cannot silently widen authority or drift by surface.
+owned_objects:
+  - stable setting ids, setting definitions, aliases, schema epochs, and effective-setting records
+  - scope precedence, shadow chains, locked writes, constraints, restart posture, and denial reasons
+  - settings migration, resolver behavior, and support/export explanation fields
+  - experiment/labs state only where it narrows through governed setting and flag rows
+non_owned_objects:
+  - shell UI controls and command presentation
+  - policy packet authoring and emergency/security decisions
+  - extension-specific capabilities beyond effective permission consumption
+entry_points:
+  command_entry_points:
+    - settings inspect, settings write, profile import/export, policy explain, and setting migration commands
+  event_entry_points:
+    - setting definition registered, effective value resolved, locked write denied, alias applied
+    - profile or policy scope changed, restart required, migration note emitted
+  schema_or_packet_refs:
+    - schemas/settings/setting_definition.schema.json
+    - schemas/settings/effective_setting.schema.json
+    - artifacts/settings/scope_precedence_rows.yaml
+dependencies:
+  allowed_direct:
+    - card:command_plane
+    - card:security_policy_support
+    - card:record_class_governance
+    - card:governance_ownership_lifecycle
+  routed_through:
+    shell_ui: card:shell_renderer
+    docs_help: card:docs_public_truth
+    support_export: card:security_policy_support
+    extension_runtime_effects: card:extension_ecosystem_lifecycle
+  forbidden_shortcuts:
+    - repurposing an existing setting id
+    - user or workspace settings widening admin or emergency policy
+    - dropping unknown user-authored settings where round trip must preserve them
+budgets:
+  - budget_ref: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+    obligation: effective-value resolution stays deterministic and support-explainable.
+failure_modes:
+  - mode: locked_or_policy_denied_write
+    required_behavior: deny with typed reason and explainable source scope.
+  - mode: setting_alias_or_migration_required
+    required_behavior: use alias/migration tables; never reuse an id with new meaning.
+  - mode: incompatible_schema_epoch
+    required_behavior: fail closed or degrade with migration guidance.
+proof_packets:
+  - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+  - artifacts/architecture/settings_tradeoff_rows.yaml
+  - artifacts/settings/scope_precedence_rows.yaml
+  - schemas/settings/setting_definition.schema.json
+  - schemas/settings/effective_setting.schema.json
+  - artifacts/governance/stable_surface_inventory.yaml#settings.setting_ids_and_effective_values
+owners:
+  owner_dri: "@ahmeddyounis"
+  owning_lanes:
+    - governance_packets
+  protected_packages: []
+  backup_owner: null
+  backup_waiver: single-maintainer-backup
+  review_forums:
+    - architecture_council
+    - security_trust_review
+shared_contract_refs:
+  command_ids: card:command_plane
+  record_classes: card:record_class_governance
+  lifecycle_deprecation: card:governance_ownership_lifecycle
+freeze_basis_refs:
+  - artifacts/governance/interface_freeze_matrix.yaml#settings_ids_and_effective_configuration
+  - artifacts/governance/stable_surface_inventory.yaml#settings.setting_ids_and_effective_values
+explicit_gaps:
+  - gap_id: implementation_projection
+    status: implementation_pending
+    impact: UI, CLI, and support surfaces must still implement the frozen resolver contract.
+
