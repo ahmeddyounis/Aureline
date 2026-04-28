@@ -1,0 +1,47 @@
+record_kind: artifact_fidelity_example
+schema_version: 1
+case_id: artifact_fidelity.case.read_only_inspector.native_symbol_mismatch
+artifact_family: native_symbol_artifact
+fidelity_row_ref: artifact_fidelity:native_symbol_artifact
+merge_resolution_policy_ref: merge_policy:native_symbol_artifact
+
+scenario: >
+  A native symbol artifact is found in the local resolver cache, but its
+  module build id and debug id do not match the running binary. The
+  debugger must not use it for frames or source navigation.
+
+expected_open_decision:
+  default_open_mode: read_only_inspector
+  first_class_view: native_symbol_inspector
+  interaction_posture: read_only
+  raw_fallback_policy: raw_payload_hidden_by_default
+
+provenance_inputs:
+  debug_artifact_ref: debug_artifact:example:native_symbol_mismatch
+  artifact_class: native_symbol_dsym
+  resolution_state: unresolved_mismatch
+  mismatch_reason_classes:
+    - mismatch_module_build_id
+    - mismatch_module_uuid
+  target_triple: target_triple:example:apple
+  artifact_digest_ref: digest:sha256:example_symbol
+
+required_surface_cues:
+  - resolution_state_visible
+  - mismatch_reason_visible
+  - target_triple_visible
+  - raw_symbol_export_excluded_by_default
+
+denied_actions:
+  - use_same_version_symbols_without_identity_match
+  - edit_symbol_bytes
+  - include_raw_symbols_in_default_support_export
+
+linked_contract_refs:
+  - docs/debug/artifact_resolution_seed.md
+  - docs/support/exact_build_symbolication_smoke.md
+  - artifacts/artifacts/debug_fidelity_rows.yaml#artifact_fidelity:native_symbol_artifact
+
+expected_result: >
+  Open the read-only symbol inspector. The row remains unresolved with
+  explicit mismatch tokens and cannot satisfy debug navigation.

@@ -1,0 +1,47 @@
+record_kind: artifact_fidelity_example
+schema_version: 1
+case_id: artifact_fidelity.case.compare_view.source_map_stale_mapping
+artifact_family: source_map
+fidelity_row_ref: artifact_fidelity:source_map
+merge_resolution_policy_ref: merge_policy:source_map
+
+scenario: >
+  A JavaScript source map is present and its digest is known, but the
+  bundle revision has drifted since the map was generated. The surface
+  should validate and compare mapping quality, not offer an edit.
+
+expected_open_decision:
+  default_open_mode: compare_view
+  first_class_view: source_map_inspector
+  interaction_posture: compare_only
+  raw_fallback_policy: raw_payload_hidden_by_default
+
+provenance_inputs:
+  debug_artifact_ref: debug_artifact:example:source_map_js_stale
+  generated_bundle_ref: bundle:example:renderer_main
+  source_map_digest: digest:sha256:example_source_map
+  mapping_quality_state: resolved_degraded_quality
+  degraded_quality_reason_class: stale_source_map_mapping
+  generator_owner_class: web_bundler
+  bundler_version_ref: bundler:example:v1
+
+required_surface_cues:
+  - source_map_digest_visible
+  - bundle_revision_visible
+  - stale_mapping_reason_visible
+  - exact_vs_partial_mapping_state_visible
+
+denied_actions:
+  - edit_source_map_body
+  - claim_exact_mapping_on_stale_digest
+  - inline_raw_source_map_in_default_support_export
+
+linked_contract_refs:
+  - docs/debug/artifact_resolution_seed.md
+  - docs/execution/debug_truth_contract.md
+  - artifacts/artifacts/debug_fidelity_rows.yaml#artifact_fidelity:source_map
+
+expected_result: >
+  Open in source-map compare/validation view. The stale mapping state is
+  explicit, and the repair path is regeneration from the bundle inputs,
+  not direct source-map editing.

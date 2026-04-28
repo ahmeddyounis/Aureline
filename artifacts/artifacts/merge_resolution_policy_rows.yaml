@@ -1,0 +1,379 @@
+# Structured-artifact merge and debug-artifact resolution policy rows.
+#
+# Machine-readable companion to
+# docs/artifacts/structured_artifact_and_debug_fidelity_matrix.md and
+# artifacts/artifacts/debug_fidelity_rows.yaml. Each row states how the
+# artifact family resolves conflicts, mapping, symbolication, or compare
+# posture before any specialized implementation exists.
+
+merge_resolution_policy_schema_version: 1
+matrix_id: aureline.artifact_merge_resolution_policy_matrix
+status: seeded
+
+docs_ref: docs/artifacts/structured_artifact_and_debug_fidelity_matrix.md
+fidelity_rows_ref: artifacts/artifacts/debug_fidelity_rows.yaml
+fixtures_ref: fixtures/artifacts/fidelity_examples
+
+merge_resolution_posture_vocabulary:
+  - semantic_merge_where_safe
+  - regenerate_or_review
+  - read_only_resolve_by_identity
+  - compare_only_validate_mapping
+  - compare_only_evidence
+  - read_only_symbolication_report
+
+resolution_surface_class_vocabulary:
+  - notebook_cell_aware_compare_viewer
+  - structured_config_semantic_compare_viewer
+  - package_regenerate_review_flow
+  - native_symbol_identity_inspector
+  - source_map_validation_compare
+  - crash_symbolication_report_viewer
+  - coverage_profile_compare_viewer
+
+raw_fallback_policy_vocabulary:
+  - raw_fallback_allowed_with_loss_warning
+  - raw_fallback_read_only
+  - raw_fallback_forbidden
+  - raw_payload_hidden_by_default
+
+policy_rows:
+  - policy_id: merge_policy:jupyter_notebook
+    artifact_family: jupyter_notebook
+    fidelity_row_ref: artifact_fidelity:jupyter_notebook
+    default_open_mode: semantic_view
+    merge_resolution_posture: semantic_merge_where_safe
+    resolution_surface_class: notebook_cell_aware_compare_viewer
+    interaction_posture: editable
+    allowed_actions:
+      - edit_cells
+      - reorder_cells_with_stable_cell_ids
+      - semantic_merge_cells_when_round_trip_corpus_passes
+      - include_outputs_by_explicit_review
+      - open_raw_json_read_only_fallback
+    denied_actions:
+      - execute_on_open
+      - strip_unknown_metadata_silently
+      - promote_paired_text_export_to_canonical_source
+      - auto_merge_outputs_without_review
+    provenance_gates:
+      - stable_cell_ids_required
+      - notebook_document_trust_state_visible
+      - output_lineage_refs_required_for_output_changes
+      - metadata_survival_report_required_on_save
+    build_or_tool_gates:
+      - jupyter_nbformat_version_recorded
+      - kernelspec_and_environment_fingerprint_recorded_when_available
+    raw_fallback_policy: raw_fallback_read_only
+    linked_policy_refs:
+      - docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+      - docs/notebooks/output_viewer_truth_contract.md
+      - artifacts/review/structured_artifact_classes.yaml#review.surface.jupyter_notebook
+    summary: >
+      Notebook merge is cell-aware and metadata-preserving; outputs are
+      excluded by default and any unresolved cell or output conflict must
+      stay explicit.
+
+  - policy_id: merge_policy:structured_config_json
+    artifact_family: structured_config_json
+    fidelity_row_ref: artifact_fidelity:structured_config_json
+    default_open_mode: semantic_view
+    merge_resolution_posture: semantic_merge_where_safe
+    resolution_surface_class: structured_config_semantic_compare_viewer
+    interaction_posture: editable
+    allowed_actions:
+      - semantic_merge_known_keys
+      - preserve_unknown_members
+      - redact_sensitive_values_in_review
+      - open_raw_text_fallback_with_loss_warning
+    denied_actions:
+      - drop_unknown_members_silently
+      - reorder_or_normalize_without_preview
+      - auto_merge_when_schema_missing
+    provenance_gates:
+      - schema_or_validator_ref_required
+      - unknown_key_survival_report_required
+      - redaction_class_required
+    build_or_tool_gates:
+      - parser_version_recorded
+      - schema_or_validator_version_recorded
+    raw_fallback_policy: raw_fallback_allowed_with_loss_warning
+    linked_policy_refs:
+      - docs/review/structured_artifact_review_seed.md
+      - artifacts/review/structured_artifact_classes.yaml#review.surface.structured_config_json
+      - docs/config/human_edited_artifact_contract.md
+    summary: >
+      JSON config merge is semantic only when schema-backed key meaning
+      and unknown-member survival are both proven.
+
+  - policy_id: merge_policy:structured_config_yaml
+    artifact_family: structured_config_yaml
+    fidelity_row_ref: artifact_fidelity:structured_config_yaml
+    default_open_mode: semantic_view
+    merge_resolution_posture: semantic_merge_where_safe
+    resolution_surface_class: structured_config_semantic_compare_viewer
+    interaction_posture: editable
+    allowed_actions:
+      - semantic_merge_known_keys
+      - structure_aware_conflict_for_unknown_sections
+      - preserve_comments_and_order
+      - open_raw_text_fallback_with_loss_warning
+    denied_actions:
+      - discard_comments_or_anchors_silently
+      - auto_merge_undocumented_sections
+      - expose_secret_values_in_review_rows
+    provenance_gates:
+      - schema_or_validator_ref_required
+      - unknown_key_survival_report_required
+      - comment_and_order_preservation_report_required
+      - redaction_class_required
+    build_or_tool_gates:
+      - yaml_parser_version_recorded
+      - formatter_version_recorded_when_applied
+    raw_fallback_policy: raw_fallback_allowed_with_loss_warning
+    linked_policy_refs:
+      - docs/review/structured_artifact_review_seed.md
+      - artifacts/review/structured_artifact_classes.yaml#review.surface.structured_config_yaml
+      - docs/config/human_edited_artifact_contract.md
+    summary: >
+      YAML config merge may resolve documented keys but unknown sections
+      and formatting-sensitive constructs remain visible conflicts.
+
+  - policy_id: merge_policy:structured_config_toml
+    artifact_family: structured_config_toml
+    fidelity_row_ref: artifact_fidelity:structured_config_toml
+    default_open_mode: semantic_view
+    merge_resolution_posture: semantic_merge_where_safe
+    resolution_surface_class: structured_config_semantic_compare_viewer
+    interaction_posture: editable
+    allowed_actions:
+      - semantic_merge_known_tables
+      - preserve_unknown_tables
+      - preserve_comments_and_order
+      - open_raw_text_fallback_with_loss_warning
+    denied_actions:
+      - normalize_tables_without_preview
+      - auto_merge_unknown_tables_without_schema
+      - expose_secret_values_in_review_rows
+    provenance_gates:
+      - schema_or_validator_ref_required
+      - unknown_table_survival_report_required
+      - comment_and_order_preservation_report_required
+      - redaction_class_required
+    build_or_tool_gates:
+      - toml_parser_version_recorded
+      - package_or_build_tool_version_recorded_when_manifest_bearing
+    raw_fallback_policy: raw_fallback_allowed_with_loss_warning
+    linked_policy_refs:
+      - docs/review/structured_artifact_review_seed.md
+      - artifacts/review/structured_artifact_classes.yaml#review.surface.structured_config_toml
+      - docs/config/human_edited_artifact_contract.md
+    summary: >
+      TOML config merge is table-aware where documented and falls back to
+      explicit structure-aware conflict for unproven tables.
+
+  - policy_id: merge_policy:lockfile_or_dependency_manifest
+    artifact_family: lockfile_or_dependency_manifest
+    fidelity_row_ref: artifact_fidelity:lockfile_or_dependency_manifest
+    default_open_mode: regenerate_review_flow
+    merge_resolution_posture: regenerate_or_review
+    resolution_surface_class: package_regenerate_review_flow
+    interaction_posture: regenerate_first
+    allowed_actions:
+      - compare_package_graph
+      - pin_canonical_manifest_inputs
+      - regenerate_with_recorded_resolver
+      - review_direct_and_transitive_impact
+      - open_raw_text_read_only_for_expert_review
+    denied_actions:
+      - byte_level_auto_merge
+      - normalize_solver_output_without_regeneration
+      - hide_private_registry_redaction_state
+    provenance_gates:
+      - canonical_manifest_refs_required
+      - resolver_state_ref_required
+      - dependency_graph_hash_required
+      - integrity_hashes_recorded_when_available
+    build_or_tool_gates:
+      - package_manager_version_required
+      - resolver_or_lockfile_format_version_required
+      - platform_and_environment_factors_recorded_when_relevant
+    raw_fallback_policy: raw_fallback_read_only
+    linked_policy_refs:
+      - docs/review/structured_artifact_review_seed.md
+      - artifacts/review/structured_artifact_classes.yaml#review.surface.lockfile_or_dependency_manifest
+      - docs/package/package_action_contract.md
+      - docs/architecture/generated_artifact_safe_edit_policy.md
+    summary: >
+      Lockfile conflicts resolve by regenerating from pinned manifests
+      with the recorded resolver, or by explicit human review; silent
+      text merge is forbidden.
+
+  - policy_id: merge_policy:native_symbol_artifact
+    artifact_family: native_symbol_artifact
+    fidelity_row_ref: artifact_fidelity:native_symbol_artifact
+    default_open_mode: read_only_inspector
+    merge_resolution_posture: read_only_resolve_by_identity
+    resolution_surface_class: native_symbol_identity_inspector
+    interaction_posture: read_only
+    allowed_actions:
+      - inspect_symbol_identity
+      - resolve_against_exact_build_identity
+      - clear_or_reload_cache_entry
+      - attach_metadata_ref_to_support_bundle
+    denied_actions:
+      - edit_symbol_bytes
+      - merge_symbol_artifacts
+      - use_same_version_symbols_without_identity_match
+      - include_raw_symbols_in_default_support_export
+    provenance_gates:
+      - debug_artifact_ref_required
+      - module_identity_required
+      - artifact_digest_required
+      - resolution_state_required
+    build_or_tool_gates:
+      - exact_build_identity_required_when_release_bearing
+      - compiler_or_debug_format_recorded_when_known
+      - target_triple_required
+    raw_fallback_policy: raw_payload_hidden_by_default
+    linked_policy_refs:
+      - docs/debug/artifact_resolution_seed.md
+      - docs/execution/debug_truth_contract.md
+      - docs/support/exact_build_symbolication_smoke.md
+    summary: >
+      Native symbols resolve by exact identity and remain read-only; any
+      mismatch blocks symbol use rather than degrading to best effort.
+
+  - policy_id: merge_policy:source_map
+    artifact_family: source_map
+    fidelity_row_ref: artifact_fidelity:source_map
+    default_open_mode: compare_view
+    merge_resolution_posture: compare_only_validate_mapping
+    resolution_surface_class: source_map_validation_compare
+    interaction_posture: compare_only
+    allowed_actions:
+      - validate_bundle_to_source_map_binding
+      - compare_mapping_quality
+      - open_generated_or_canonical_source_refs
+      - attach_mapping_summary_to_support_bundle
+    denied_actions:
+      - edit_source_map_body
+      - auto_merge_source_maps
+      - claim_exact_mapping_on_stale_digest
+      - inline_raw_source_map_in_default_support_export
+    provenance_gates:
+      - debug_artifact_ref_required
+      - source_map_digest_required
+      - generated_bundle_ref_required
+      - mapping_quality_state_required
+    build_or_tool_gates:
+      - bundler_or_transpiler_version_recorded_when_known
+      - generator_command_digest_recorded_when_resolved
+      - exact_build_identity_recorded_when_release_bearing
+    raw_fallback_policy: raw_payload_hidden_by_default
+    linked_policy_refs:
+      - docs/debug/artifact_resolution_seed.md
+      - docs/execution/debug_truth_contract.md
+      - artifacts/review/structured_artifact_classes.yaml#review.surface.source_map_or_debug_sidecar
+    summary: >
+      Source maps are compare-only mapping evidence; stale or partial
+      mapping remains visible and never becomes an editable repair path.
+
+  - policy_id: merge_policy:crash_dump_or_core
+    artifact_family: crash_dump_or_core
+    fidelity_row_ref: artifact_fidelity:crash_dump_or_core
+    default_open_mode: read_only_inspector
+    merge_resolution_posture: read_only_symbolication_report
+    resolution_surface_class: crash_symbolication_report_viewer
+    interaction_posture: read_only
+    allowed_actions:
+      - inspect_crash_envelope
+      - run_or_reopen_symbolication_report
+      - compare_crash_artifact_summaries
+      - export_redacted_manifest_with_consent
+    denied_actions:
+      - edit_dump_bytes
+      - merge_dump_artifacts
+      - upload_raw_dump_without_consent_or_policy
+      - symbolize_with_mismatched_symbols
+    provenance_gates:
+      - crash_id_required
+      - dump_format_required
+      - module_list_summary_required
+      - redaction_class_required
+      - support_export_posture_required
+    build_or_tool_gates:
+      - module_build_identity_required_for_symbolication
+      - symbol_manifest_ref_required_when_symbolicated
+      - dump_format_version_recorded
+    raw_fallback_policy: raw_payload_hidden_by_default
+    linked_policy_refs:
+      - docs/debug/artifact_resolution_seed.md
+      - docs/support/exact_build_symbolication_smoke.md
+      - artifacts/support/crash_artifact_retention_seed.json
+      - docs/execution/debug_truth_contract.md
+    summary: >
+      Crash dumps and cores open as read-only forensics; the default
+      support path is manifest plus symbolication report, not raw bytes.
+
+  - policy_id: merge_policy:coverage_profile_artifact
+    artifact_family: coverage_profile_artifact
+    fidelity_row_ref: artifact_fidelity:coverage_profile_artifact
+    default_open_mode: compare_view
+    merge_resolution_posture: compare_only_evidence
+    resolution_surface_class: coverage_profile_compare_viewer
+    interaction_posture: compare_only
+    allowed_actions:
+      - compare_runs_or_baselines
+      - aggregate_declared_run_set_for_analysis
+      - exclude_stale_or_incompatible_runs_with_reason
+      - attach_summary_to_support_bundle
+    denied_actions:
+      - edit_raw_capture
+      - auto_merge_profile_or_coverage_payloads_in_vcs
+      - hide_branch_or_sample_degradation
+      - claim_current_mapping_without_build_or_run_identity
+    provenance_gates:
+      - run_context_ref_required
+      - target_ref_required
+      - execution_context_ref_required
+      - capture_source_class_required
+      - freshness_class_required
+    build_or_tool_gates:
+      - capture_tool_version_required
+      - build_or_commit_identity_recorded_when_available
+      - sample_or_branch_availability_recorded_when_relevant
+    raw_fallback_policy: raw_payload_hidden_by_default
+    linked_policy_refs:
+      - docs/debug/artifact_resolution_seed.md
+      - artifacts/review/structured_artifact_classes.yaml#review.surface.coverage_profile_artifact
+      - docs/execution/test_truth_contract.md
+      - docs/perf/self_capture_parity.md
+    summary: >
+      Coverage/profile artifacts compare by run set and tool version;
+      aggregation is a reviewable analysis operation, not raw artifact
+      mutation or silent merge.
+
+matrix_invariants:
+  - id: inv.merge_policy.policy_for_every_fidelity_row
+    statement: >
+      Every fidelity row in artifacts/artifacts/debug_fidelity_rows.yaml
+      has exactly one matching policy row here.
+  - id: inv.merge_policy.read_only_rows_forbid_writes
+    statement: >
+      Rows with interaction_posture = read_only deny edits, raw-byte
+      mutation, and default raw payload export.
+  - id: inv.merge_policy.compare_only_rows_forbid_vcs_auto_merge
+    statement: >
+      Rows with interaction_posture = compare_only may compare or
+      aggregate evidence, but they deny VCS auto-merge and raw payload
+      write-back.
+  - id: inv.merge_policy.regenerate_rows_pin_canonical_inputs
+    statement: >
+      Rows with interaction_posture = regenerate_first must name
+      canonical inputs and tool or resolver version before regeneration.
+  - id: inv.merge_policy.semantic_rows_need_survival_evidence
+    statement: >
+      Rows with merge_resolution_posture = semantic_merge_where_safe must
+      preserve unknown fields or metadata and record schema or trust
+      evidence before write-back.
