@@ -1,0 +1,613 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/extension_lockfile.schema.json",
+  "title": "Aureline extension lockfile continuity contract",
+  "description": "Boundary schema for .aureline/extensions.lock.json and lockfile-shaped review projections. The lockfile is generated, deterministic, reviewable resolution output that links recommendation intent to selected or blocked extensions, publisher continuity, signatures or attestations, permission manifests, registry or mirror policy, compatibility path, imported workflow scorecards, and export/offboarding posture. Recommendation sets remain the authoritative edit surface; direct lockfile edits are rejected except for explicit emergency pins that are folded back into recommendations on the next regeneration. Raw artifact bytes, raw signing-key material, raw attestation bundles, raw policy bundles, raw mirror-cache bodies, raw local paths, and raw secrets MUST NOT appear in this artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_kind",
+    "lockfile_schema_version",
+    "lockfile_path",
+    "lockfile_scope",
+    "lockfile_id",
+    "generated_by",
+    "generated_at",
+    "source_recommendation_set_refs",
+    "resolution_inputs_digest",
+    "deterministic_format",
+    "manual_edit_policy",
+    "rows"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional schema URI for editor and validation tooling."
+    },
+    "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+    "lockfile_schema_version": { "$ref": "#/$defs/lockfile_schema_version" },
+    "lockfile_path": {
+      "type": "string",
+      "const": ".aureline/extensions.lock.json",
+      "description": "Canonical workspace path for extension lockfiles. Profile and review projections may embed this schema elsewhere but preserve this path value when representing the workspace lock."
+    },
+    "lockfile_scope": { "$ref": "#/$defs/lockfile_scope" },
+    "lockfile_id": { "$ref": "#/$defs/opaque_id" },
+    "generated_by": { "$ref": "#/$defs/opaque_id" },
+    "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "source_recommendation_set_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Refs to the recommendation sets whose authoritative choices fed this lockfile."
+    },
+    "policy_epoch_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Policy epoch that participated in resolution. Null when no policy lane was in scope."
+    },
+    "registry_snapshot_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Registry or mirror snapshot ref used for deterministic resolution."
+    },
+    "resolution_inputs_digest": { "$ref": "#/$defs/digest_ref" },
+    "deterministic_format": { "$ref": "#/$defs/deterministic_format" },
+    "manual_edit_policy": { "$ref": "#/$defs/manual_edit_policy" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/extension_lock_row" }
+    }
+  },
+  "$defs": {
+    "artifact_kind": {
+      "type": "string",
+      "const": "extension_lockfile"
+    },
+    "lockfile_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the extension lockfile continuity contract."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, review packets, support bundles, profile exports, and offboarding packets."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Canonical Aureline extension id of the form publisher_id/extension_id. Never reused after retirement."
+    },
+    "source_extension_identity": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Source-tool extension identity for imported rows. Kept distinct from the canonical Aureline extension identity."
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "digest_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        }
+      }
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32,
+          "description": "Lowercase hex digest of the artifact bytes. The pair of digest_algorithm and digest_hex is the selected artifact identity."
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "lockfile_scope": {
+      "type": "string",
+      "enum": ["workspace", "profile", "admin_policy_projection", "import_preview"],
+      "description": "Where this lockfile-shaped artifact is authoritative. Workspace and profile scopes are durable lockfiles; admin_policy_projection and import_preview are review artifacts."
+    },
+    "source_owner_lane": {
+      "type": "string",
+      "enum": [
+        "workspace_owned",
+        "profile_owned",
+        "imported",
+        "admin_suggested",
+        "dependency_closure",
+        "mirror_policy"
+      ]
+    },
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ]
+    },
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "publisher_signature",
+        "attestation_bundle",
+        "dual_signed_publisher_and_attestation",
+        "unsigned_requires_out_of_band_verification",
+        "unsigned_denied_on_policy"
+      ]
+    },
+    "compatibility_state": {
+      "type": "string",
+      "enum": ["native", "compatibility_bridge", "blocked", "manual_review_required"],
+      "description": "Closed continuity state vocabulary. Bridge-backed rows must not render as native; blocked and manual-review rows remain reviewable lock rows even when no artifact is selected."
+    },
+    "compatibility_path_class": {
+      "type": "string",
+      "enum": [
+        "native_aureline",
+        "compatibility_bridge",
+        "blocked_by_policy",
+        "blocked_by_revocation",
+        "blocked_by_missing_bridge",
+        "blocked_by_missing_native_mapping",
+        "blocked_by_permission_review",
+        "manual_mapping_review",
+        "manual_publisher_review"
+      ]
+    },
+    "resolution_state": {
+      "type": "string",
+      "enum": ["selected", "blocked", "manual_review_required"]
+    },
+    "selection_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_pin",
+        "range_resolution",
+        "imported_equivalence",
+        "workflow_bundle_member",
+        "admin_suggestion",
+        "dependency_closure",
+        "mirror_policy_floor",
+        "last_known_good_pin",
+        "blocked_by_policy",
+        "blocked_by_missing_native_or_bridge",
+        "manual_review_required"
+      ]
+    },
+    "row_role": {
+      "type": "string",
+      "enum": [
+        "direct_recommendation",
+        "transitive_dependency",
+        "bridge_runtime_dependency",
+        "blocked_placeholder",
+        "admin_required"
+      ]
+    },
+    "permission_review_state": {
+      "type": "string",
+      "enum": ["unchanged", "narrowed", "step_up_required", "denied", "pending_review"]
+    },
+    "review_state": {
+      "type": "string",
+      "enum": ["clean", "changed", "requires_review", "blocked", "removed"]
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "policy_pack_denies_extension",
+        "policy_pack_denies_permission_scope",
+        "publisher_quarantined",
+        "publisher_lineage_transfer_pending",
+        "registry_digest_mismatch",
+        "registry_signature_mismatch",
+        "mirror_continuity_broken",
+        "mirror_narrowing_attempted_widening",
+        "offline_bundle_restore_refused_lockfile_drift",
+        "offline_bundle_restore_refused_revocation_snapshot_stale",
+        "compatibility_bridge_required_not_present",
+        "native_mapping_not_available",
+        "manual_review_required",
+        "review_disclosure_incomplete"
+      ]
+    },
+    "deterministic_format": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sort_order", "whitespace", "line_endings", "unknown_field_policy"],
+      "properties": {
+        "sort_order": {
+          "type": "string",
+          "const": "generated_order_key_then_extension_identity_then_row_id"
+        },
+        "whitespace": {
+          "type": "string",
+          "const": "canonical_json_two_space_indent"
+        },
+        "line_endings": {
+          "type": "string",
+          "const": "lf"
+        },
+        "unknown_field_policy": {
+          "type": "string",
+          "const": "reject_in_generated_lockfile"
+        }
+      }
+    },
+    "manual_edit_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative_inputs",
+        "generated_output_policy",
+        "direct_lockfile_edit_policy",
+        "emergency_override_policy"
+      ],
+      "properties": {
+        "authoritative_inputs": {
+          "type": "string",
+          "const": "extension_recommendation_sets"
+        },
+        "generated_output_policy": {
+          "type": "string",
+          "const": "regenerate_from_recommendations_policy_registry_and_import_refs"
+        },
+        "direct_lockfile_edit_policy": {
+          "type": "string",
+          "const": "rejected_except_recorded_emergency_pin"
+        },
+        "emergency_override_policy": {
+          "type": "string",
+          "const": "must_be_projected_back_to_authoritative_recommendation_set"
+        }
+      }
+    },
+    "version_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_requirement",
+        "selected_version",
+        "resolution_state",
+        "selection_reason_class",
+        "row_role"
+      ],
+      "properties": {
+        "requested_requirement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Requested version, range, tag, imported equivalence, or policy floor."
+        },
+        "selected_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "resolution_state": { "$ref": "#/$defs/resolution_state" },
+        "selection_reason_class": { "$ref": "#/$defs/selection_reason_class" },
+        "row_role": { "$ref": "#/$defs/row_role" },
+        "dependency_parent_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "recommendation_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "source_kind",
+        "source_ref",
+        "recommendation_item_ref",
+        "authoritative_choice_ref"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/source_owner_lane" },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "workspace_recommendation_set",
+            "profile_recommendation_set",
+            "imported_recommendation_set",
+            "admin_suggestion_set",
+            "workflow_bundle",
+            "registry_dependency",
+            "mirror_policy"
+          ]
+        },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "recommendation_item_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "authoritative_choice_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "selected_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_address",
+        "registry_source_class",
+        "signature_class",
+        "signature_ref",
+        "publisher_continuity_ref",
+        "permission_manifest_ref",
+        "declared_permissions_digest",
+        "permission_review_state"
+      ],
+      "properties": {
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "registry_manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mirror_continuity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "offline_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "revocation_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "permission_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "declared_permissions_digest": { "$ref": "#/$defs/digest_ref" },
+        "effective_permission_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "permission_review_state": { "$ref": "#/$defs/permission_review_state" }
+      }
+    },
+    "compatibility_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatibility_state",
+        "path_class",
+        "source_extension_identity",
+        "bridge_profile_ref",
+        "compatibility_scorecard_ref",
+        "imported_workflow_scorecard_ref",
+        "denial_reason",
+        "limitations"
+      ],
+      "properties": {
+        "compatibility_state": { "$ref": "#/$defs/compatibility_state" },
+        "path_class": { "$ref": "#/$defs/compatibility_path_class" },
+        "source_extension_identity": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/source_extension_identity" }
+          ]
+        },
+        "bridge_profile_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "compatibility_scorecard_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "imported_workflow_scorecard_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "compatibility_state": { "const": "compatibility_bridge" } },
+            "required": ["compatibility_state"]
+          },
+          "then": {
+            "properties": {
+              "bridge_profile_ref": { "not": { "type": "null" } }
+            },
+            "required": ["bridge_profile_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "compatibility_state": { "const": "blocked" } },
+            "required": ["compatibility_state"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "not": { "type": "null" } }
+            },
+            "required": ["denial_reason"]
+          }
+        }
+      ]
+    },
+    "policy_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admin_policy_refs",
+        "registry_policy_refs",
+        "mirror_policy_refs",
+        "publisher_continuity_policy_refs"
+      ],
+      "properties": {
+        "admin_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "registry_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "mirror_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "publisher_continuity_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "review_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_state", "review_reason_refs", "diff_key", "human_review_summary"],
+      "properties": {
+        "review_state": { "$ref": "#/$defs/review_state" },
+        "review_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "diff_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable key used by review tools to match rows across regeneration."
+        },
+        "human_review_summary": {
+          "type": "string",
+          "description": "Short review-safe summary. Raw secrets, local paths, artifact bytes, and policy bodies are forbidden."
+        }
+      }
+    },
+    "export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_export", "profile_export", "support_bundle", "offboarding_package"],
+      "properties": {
+        "workspace_export": {
+          "type": "string",
+          "enum": ["included_by_default", "included_metadata_only", "excluded_by_policy"]
+        },
+        "profile_export": {
+          "type": "string",
+          "enum": ["included_by_default", "workspace_only", "admin_only", "excluded_by_policy"]
+        },
+        "support_bundle": {
+          "type": "string",
+          "enum": ["included_metadata_only", "included_by_default", "redacted_ref_only", "excluded_by_policy"]
+        },
+        "offboarding_package": {
+          "type": "string",
+          "enum": ["included_by_default", "included_metadata_only", "admin_export_only", "excluded_by_policy"]
+        }
+      }
+    },
+    "generated_row_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generated_order_key", "row_inputs_digest", "row_digest"],
+      "properties": {
+        "generated_order_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "row_inputs_digest": { "$ref": "#/$defs/digest_ref" },
+        "row_digest": { "$ref": "#/$defs/digest_ref" }
+      }
+    },
+    "extension_lock_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "extension_identity",
+        "version_selection",
+        "recommendation_source",
+        "selected_artifact",
+        "compatibility_path",
+        "policy_links",
+        "review_projection",
+        "export_posture",
+        "generated"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "version_selection": { "$ref": "#/$defs/version_selection" },
+        "recommendation_source": { "$ref": "#/$defs/recommendation_source" },
+        "selected_artifact": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/selected_artifact" }
+          ]
+        },
+        "compatibility_path": { "$ref": "#/$defs/compatibility_path" },
+        "policy_links": { "$ref": "#/$defs/policy_links" },
+        "review_projection": { "$ref": "#/$defs/review_projection" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "generated": { "$ref": "#/$defs/generated_row_metadata" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "version_selection": {
+                "properties": {
+                  "resolution_state": { "const": "selected" }
+                },
+                "required": ["resolution_state"]
+              }
+            },
+            "required": ["version_selection"]
+          },
+          "then": {
+            "properties": {
+              "selected_artifact": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "version_selection": {
+                "properties": {
+                  "resolution_state": { "const": "blocked" }
+                },
+                "required": ["resolution_state"]
+              }
+            },
+            "required": ["version_selection"]
+          },
+          "then": {
+            "properties": {
+              "selected_artifact": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/extension_recommendation_set.schema.json",
+  "title": "Aureline extension recommendation set continuity contract",
+  "description": "Boundary schema for workspace-owned, profile-owned, imported, and admin-suggested extension recommendation groups. Recommendation sets are the authoritative edit surface for desired extension continuity; lockfiles are generated resolution output. This schema freezes lanes, intent, native/bridge/blocked/manual-review states, source provenance, registry preferences, permission-review expectations, importer scorecard refs, and lockfile regeneration behavior so workspace review, profile export, import preview, admin policy, mirror restore, and offboarding use one continuity model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_kind",
+    "recommendation_set_schema_version",
+    "set_id",
+    "set_scope",
+    "owner_lane",
+    "authored_at",
+    "authored_by_ref",
+    "edit_model",
+    "groups",
+    "determinism",
+    "export_posture"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional schema URI for editor and validation tooling."
+    },
+    "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+    "recommendation_set_schema_version": { "$ref": "#/$defs/recommendation_set_schema_version" },
+    "set_id": { "$ref": "#/$defs/opaque_id" },
+    "set_scope": { "$ref": "#/$defs/set_scope" },
+    "owner_lane": { "$ref": "#/$defs/recommendation_lane" },
+    "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "authored_by_ref": { "$ref": "#/$defs/opaque_id" },
+    "edit_model": { "$ref": "#/$defs/edit_model" },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/recommendation_group" }
+    },
+    "determinism": { "$ref": "#/$defs/determinism" },
+    "export_posture": { "$ref": "#/$defs/export_posture" }
+  },
+  "$defs": {
+    "artifact_kind": {
+      "type": "string",
+      "const": "extension_recommendation_set"
+    },
+    "recommendation_set_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the extension recommendation set continuity contract."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, review packets, support bundles, profile exports, and offboarding packets."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+    },
+    "source_extension_identity": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Source-tool extension identity for imported recommendations."
+    },
+    "recommendation_lane": {
+      "type": "string",
+      "enum": ["workspace_owned", "profile_owned", "imported", "admin_suggested"]
+    },
+    "recommendation_state": {
+      "type": "string",
+      "enum": ["native", "compatibility_bridge", "blocked", "manual_review_required"],
+      "description": "Requested continuity state. The lockfile records the resolved continuity state."
+    },
+    "intent_class": {
+      "type": "string",
+      "enum": ["required", "recommended", "optional", "discouraged", "blocked"]
+    },
+    "source_tool_family": {
+      "type": "string",
+      "enum": [
+        "vscode",
+        "code_oss",
+        "jetbrains_family",
+        "vim_neovim",
+        "emacs",
+        "sublime_text",
+        "textmate",
+        "other"
+      ]
+    },
+    "permission_review_expectation": {
+      "type": "string",
+      "enum": [
+        "accept_declared_permissions",
+        "require_effective_permission_review",
+        "deny_requested_permission_scope",
+        "pending_review"
+      ]
+    },
+    "block_reason": {
+      "type": "string",
+      "enum": [
+        "policy_denied",
+        "publisher_quarantined",
+        "permission_scope_denied",
+        "native_mapping_unavailable",
+        "bridge_profile_unavailable",
+        "revocation_snapshot_stale",
+        "manual_review_required"
+      ]
+    },
+    "set_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "target_ref"],
+      "properties": {
+        "target_kind": {
+          "type": "string",
+          "enum": ["workspace", "profile", "import_preview", "admin_policy", "workflow_bundle"]
+        },
+        "target_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "edit_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative_fields",
+        "generated_fields",
+        "lockfile_regeneration_policy",
+        "manual_lockfile_edit_policy"
+      ],
+      "properties": {
+        "authoritative_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "groups.items.intent_class",
+              "groups.items.recommendation_state",
+              "groups.items.version_requirement",
+              "groups.items.registry_preferences",
+              "groups.items.block_reason",
+              "groups.items.manual_review_reason_refs"
+            ]
+          }
+        },
+        "generated_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["derived_lockfile_rows", "resolved_versions", "effective_permissions", "mirror_continuity"]
+          }
+        },
+        "lockfile_regeneration_policy": {
+          "type": "string",
+          "const": "regenerate_lockfile_after_authoritative_recommendation_change"
+        },
+        "manual_lockfile_edit_policy": {
+          "type": "string",
+          "const": "lockfile_is_generated_review_output"
+        }
+      }
+    },
+    "version_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_kind", "requirement_value"],
+      "properties": {
+        "requirement_kind": {
+          "type": "string",
+          "enum": ["exact", "range", "latest_compatible", "mirror_policy_floor", "imported_equivalence"]
+        },
+        "requirement_value": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "source_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "source_ref", "authoritative_choice_class"],
+      "properties": {
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "direct_user_choice",
+            "workspace_manifest",
+            "profile_library",
+            "import_session",
+            "admin_policy",
+            "workflow_bundle",
+            "migration_handoff",
+            "mirror_policy"
+          ]
+        },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "authoritative_choice_class": {
+          "type": "string",
+          "enum": [
+            "authoritative_user_choice",
+            "imported_candidate",
+            "admin_suggestion",
+            "generated_dependency"
+          ]
+        },
+        "imported_source": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/imported_source" }
+          ]
+        }
+      }
+    },
+    "imported_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_tool_family",
+        "source_extension_identity",
+        "importer_outcome_ref",
+        "equivalence_map_ref",
+        "workflow_scorecard_ref"
+      ],
+      "properties": {
+        "source_tool_family": { "$ref": "#/$defs/source_tool_family" },
+        "source_extension_identity": { "$ref": "#/$defs/source_extension_identity" },
+        "importer_outcome_ref": { "$ref": "#/$defs/opaque_id" },
+        "equivalence_map_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "workflow_scorecard_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "registry_preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_registry_refs", "preferred_mirror_refs", "offline_bundle_refs"],
+      "properties": {
+        "allowed_registry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "preferred_mirror_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "offline_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "review_hints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manual_review_reason_refs",
+        "known_caveat_labels",
+        "compatibility_bridge_profile_ref",
+        "block_reason"
+      ],
+      "properties": {
+        "manual_review_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "known_caveat_labels": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "compatibility_bridge_profile_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "block_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/block_reason" }
+          ]
+        }
+      }
+    },
+    "recommendation_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "extension_identity",
+        "intent_class",
+        "recommendation_state",
+        "version_requirement",
+        "source_provenance",
+        "permission_review_expectation",
+        "registry_preferences",
+        "review_hints"
+      ],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "intent_class": { "$ref": "#/$defs/intent_class" },
+        "recommendation_state": { "$ref": "#/$defs/recommendation_state" },
+        "version_requirement": { "$ref": "#/$defs/version_requirement" },
+        "source_provenance": { "$ref": "#/$defs/source_provenance" },
+        "permission_review_expectation": { "$ref": "#/$defs/permission_review_expectation" },
+        "registry_preferences": { "$ref": "#/$defs/registry_preferences" },
+        "review_hints": { "$ref": "#/$defs/review_hints" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "recommendation_state": { "const": "compatibility_bridge" } },
+            "required": ["recommendation_state"]
+          },
+          "then": {
+            "properties": {
+              "review_hints": {
+                "properties": {
+                  "compatibility_bridge_profile_ref": { "not": { "type": "null" } }
+                },
+                "required": ["compatibility_bridge_profile_ref"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "recommendation_state": { "const": "blocked" } },
+            "required": ["recommendation_state"]
+          },
+          "then": {
+            "properties": {
+              "review_hints": {
+                "properties": {
+                  "block_reason": { "not": { "type": "null" } }
+                },
+                "required": ["block_reason"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "recommendation_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "lane", "owner_ref", "precedence", "items"],
+      "properties": {
+        "group_id": { "$ref": "#/$defs/opaque_id" },
+        "lane": { "$ref": "#/$defs/recommendation_lane" },
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "precedence": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Lower values are applied first. Later groups may narrow only when policy allows."
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recommendation_item" }
+        }
+      }
+    },
+    "determinism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sort_order", "duplicate_identity_policy", "lockfile_projection"],
+      "properties": {
+        "sort_order": {
+          "type": "string",
+          "const": "group_precedence_then_lane_then_extension_identity_then_item_id"
+        },
+        "duplicate_identity_policy": {
+          "type": "string",
+          "enum": [
+            "strongest_required_intent_wins",
+            "blocked_intent_wins",
+            "manual_review_on_conflict"
+          ]
+        },
+        "lockfile_projection": {
+          "type": "string",
+          "const": "project_to_extension_lockfile_rows"
+        }
+      }
+    },
+    "export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_review", "profile_export", "support_bundle", "offboarding_package"],
+      "properties": {
+        "workspace_review": {
+          "type": "string",
+          "enum": ["included_by_default", "included_metadata_only", "excluded_by_policy"]
+        },
+        "profile_export": {
+          "type": "string",
+          "enum": ["included_by_default", "workspace_only", "admin_only", "excluded_by_policy"]
+        },
+        "support_bundle": {
+          "type": "string",
+          "enum": ["included_metadata_only", "included_by_default", "redacted_ref_only", "excluded_by_policy"]
+        },
+        "offboarding_package": {
+          "type": "string",
+          "enum": ["included_by_default", "included_metadata_only", "admin_export_only", "excluded_by_policy"]
+        }
+      }
+    }
+  }
+}
+
