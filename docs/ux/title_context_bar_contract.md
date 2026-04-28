@@ -26,6 +26,10 @@ This contract composes with, and does not replace:
   for trust-state vocabulary and restricted-mode guarantees.
 - [`/docs/runtime/origin_target_route_taxonomy.md`](../runtime/origin_target_route_taxonomy.md)
   for route truth and authority-delta rules.
+- [`/docs/ux/host_identity_contract.md`](./host_identity_contract.md)
+  for the detailed host identity chip, path-truth presentation,
+  boundary-change banner, copy-path/run-here labels, and host lineage
+  that project into this tuple's `host_identity` group.
 - [`/docs/governance/truth_and_degraded_state_vocabulary.md`](../governance/truth_and_degraded_state_vocabulary.md)
   for degraded-state tokens.
 - [`/docs/support/support_bundle_contract.md`](../support/support_bundle_contract.md)
