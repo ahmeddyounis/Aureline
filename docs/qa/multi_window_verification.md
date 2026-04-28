@@ -12,6 +12,12 @@ this document must update in the same change.
 
 Companion artifacts:
 
+- [`/docs/ux/window_display_contract.md`](../ux/window_display_contract.md)
+  and
+  [`/schemas/platform/window_state.schema.json`](../../schemas/platform/window_state.schema.json)
+  — adapter-facing window-state, native-control, display-topology,
+  restore-history, focus-return, and presentation-mode vocabulary this
+  verification seed projects into scenarios.
 - [`/artifacts/qa/window_display_matrix.yaml`](../../artifacts/qa/window_display_matrix.yaml)
   — machine-readable scenario rows, drill ids, claimed-profile notes,
   and cadence guidance.
@@ -36,6 +42,10 @@ Normative sources projected here:
 - [`/docs/adr/0016-shell-windowing-input-accessibility-boundary.md`](../adr/0016-shell-windowing-input-accessibility-boundary.md)
   focus-chain ownership, adaptive-collapse order, and restore-vs-rebind
   rules.
+- [`/docs/ux/window_display_contract.md`](../ux/window_display_contract.md)
+  native titlebar/control projection, fullscreen/zoom/snapped/tiled
+  mode names, restore-history event classes, owned-prompt recentering,
+  cross-window transfer continuity, and presentation fallback rules.
 - [`/docs/platform/desktop_platform_conformance_matrix.md`](../platform/desktop_platform_conformance_matrix.md)
   windowing/DPI and wake/display-reconnect rows.
 
@@ -43,7 +53,8 @@ Normative sources projected here:
 
 - one stable scenario-id family for split layouts, detached windows,
   display detach/dock, mixed-DPI reflow, fullscreen or snapped restore,
-  off-screen recovery, suspend/resume, and restart/reopen;
+  presentation-mode fallback, off-screen recovery, suspend/resume, and
+  restart/reopen;
 - one required drill list for focus routing, dialog ownership,
   placeholder hydration, restore provenance, and no-hidden-rerun
   behavior;
@@ -75,7 +86,7 @@ support exports will cite.
 | `split_layout_detached_auxiliary_focus` | split layout + detached window | `no_restore` | re-docking preserves split identity, detached-window role, and visible focus without warping into a background pane |
 | `display_detach_dock_safe_bounds` | display detach/dock + off-screen recovery | `no_restore` with topology-adjustment note | windows snap into reachable bounds and keep the working pane visible |
 | `mixed_dpi_cross_monitor_reflow` | mixed-DPI and scale-bucket changes | `no_restore` with topology-adjustment note | readable scale, reachable sheets, and inspector ownership survive per-monitor DPI changes |
-| `fullscreen_snapped_restore_intent` | fullscreen/spaces/snap restore | `compatible_restore` | dominant work mode intent survives even if the OS rewrites stale window-manager state |
+| `fullscreen_snapped_restore_intent` | fullscreen/spaces/snap restore plus presentation-target fallback | `compatible_restore` | dominant work or presentation intent survives even if the OS rewrites stale window-manager state |
 | `offscreen_dialog_owner_recenter` | off-screen dialog/sheet recovery | `no_restore` with topology-adjustment note | orphaned prompts recenter on the owning window and focus returns there |
 | `suspend_resume_remote_rebind` | suspend/resume + display reconnect | `compatible_restore` | local context survives wake, but remote/debug/callback authority rebinding stays explicit |
 | `restart_reopen_live_surface_rebind` | restart/reopen of live surfaces | `compatible_restore` | transcripts, lineage, and layout reopen without hidden reruns or silent control-channel reuse |
@@ -86,9 +97,9 @@ support exports will cite.
 | Drill id | Must prove | Typical scenario rows |
 |---|---|---|
 | `focus_routing_visible_return` | focus never lands in a hidden or unreachable pane; the next useful keyboard target remains visible after reflow or reopen | every row |
-| `dialog_ownership_window_local` | dialogs and sheets stay attached to the owning window across moves, scale changes, and reconnects | detached-window, topology-change, mixed-DPI, fullscreen/snap, off-screen rows |
+| `dialog_ownership_window_local` | dialogs and sheets stay attached to the owning window across moves, scale changes, and reconnects | detached-window, topology-change, mixed-DPI, fullscreen/snap, presentation, off-screen rows |
 | `placeholder_hydration_preserves_topology` | only the unavailable pane degrades; pane ids, tab order, and split structure remain intact | suspend/resume and restart/reopen missing-surface rows |
-| `restore_provenance_visible_after_reopen` | continuity level, topology remaps, and missing-target states stay visible after wake or reopen | display-topology, mixed-DPI, fullscreen/snap, suspend/resume, restart/reopen rows |
+| `restore_provenance_visible_after_reopen` | continuity level, topology remaps, and missing-target states stay visible after wake or reopen | display-topology, mixed-DPI, fullscreen/snap, presentation, suspend/resume, restart/reopen rows |
 | `no_hidden_rerun_live_surfaces` | terminals, tasks, debuggers, notebooks, previews, AI, and remote panes disclose truthful postures instead of replaying hidden work | suspend/resume and restart/reopen live-surface rows |
 
 ## Claimed profile notes

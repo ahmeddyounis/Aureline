@@ -1,18 +1,43 @@
 {
+  "$schema": "../../../schemas/platform/window_state.schema.json",
   "record_kind": "window_display_verification_case",
-  "schema_version": 1,
+  "window_state_schema_version": 1,
+  "case_id": "platform:window-display:split-layout-detached-auxiliary-focus:01",
   "__fixture__": {
     "scenario_id": "split_layout_detached_auxiliary_focus",
     "summary": "A main workspace window with an editor split detaches a secondary preview or inspector window. Re-docking preserves pane identity, detached-window role, and visible focus without warping into a background pane.",
     "matrix_ref": "artifacts/qa/window_display_matrix.yaml",
-    "doc_sections": ["Scenario matrix", "Required drills"]
+    "contract_sections": [
+      "docs/ux/window_display_contract.md#7-secondary-windows-and-cross-window-transfers",
+      "docs/qa/multi_window_verification.md#scenario-matrix"
+    ]
   },
   "scenario_classes": ["split_layout", "detached_window"],
   "claimed_profile_scope": "all_claimed_desktop_profiles",
   "topology": {
     "starting_arrangement": "main window with editor split plus detached auxiliary preview window",
     "change_event": "detach_then_redock_auxiliary_window",
-    "display_context": "same_monitor_topology"
+    "display_context": "same_monitor_topology",
+    "topology_change_classes": ["window_detached", "window_docked"],
+    "starting_window_modes": ["normal"],
+    "resulting_window_modes": ["normal"]
+  },
+  "native_affordance_contract": {
+    "titlebar_mode": "custom_titlebar_native_controls",
+    "required_controls": [
+      "close",
+      "minimize",
+      "maximize_or_zoom",
+      "fullscreen_toggle",
+      "system_menu",
+      "window_drag_region",
+      "resize_border"
+    ],
+    "control_projection_rule": "native_controls_project_canonical_commands",
+    "must_not_happen": [
+      "detached window close bypasses the shell close/reopen contract",
+      "auxiliary titlebar controls drop canonical disabled reasons"
+    ]
   },
   "layout_intent_contract": {
     "preserve": [
@@ -27,11 +52,40 @@
   },
   "focus_and_dialog_contract": {
     "focus_visibility_rule": "preserve_primary_focus_visible",
+    "active_window_identity_rule": "preserve_active_window_until_explicit_switch",
+    "dialog_ownership_rule": "owned_prompts_attach_to_origin_window",
+    "focus_return_order": [
+      "recorded_focus_target",
+      "owning_surface",
+      "adjacent_visible_pane",
+      "main_workspace"
+    ],
     "must_not_happen": [
       "focus jumps to a background window after re-dock",
       "focus lands on a hidden pane or document body",
       "closing the auxiliary window steals focus from the active editor"
     ]
+  },
+  "restore_history_contract": {
+    "must_record_when": [
+      "no_restore_history_required"
+    ],
+    "adjustment_classes": [
+      "none"
+    ],
+    "history_visibility_rule": "not_required_for_live_rearrange_only"
+  },
+  "continuity_cues_contract": {
+    "preserved_cues": [
+      "workspace_identity",
+      "trust_state",
+      "host_remote_state",
+      "profile_identity",
+      "recovery_cues",
+      "window_role_badge"
+    ],
+    "cross_window_transfer_rule": "transfer_preserves_workspace_identity_and_trust_cues",
+    "secondary_window_rule": "secondary_window_keeps_role_badge_and_safe_close_path"
   },
   "live_surface_contract": {
     "restorable_context": [
@@ -53,5 +107,9 @@
   "required_drills": [
     "focus_routing_visible_return",
     "dialog_ownership_window_local"
+  ],
+  "evidence_hooks": [
+    "docs/ux/window_display_contract.md#7-secondary-windows-and-cross-window-transfers",
+    "artifacts/qa/window_display_matrix.yaml#split_layout_detached_auxiliary_focus"
   ]
 }

@@ -62,6 +62,12 @@ already frozen in:
   [`/fixtures/platform/window_display_cases/`](../../fixtures/platform/window_display_cases/)
   - display topology, mixed-DPI, wake / resume, off-screen recovery,
   and restart / reopen continuity drills.
+- [`/docs/ux/window_display_contract.md`](./window_display_contract.md)
+  and
+  [`/schemas/platform/window_state.schema.json`](../../schemas/platform/window_state.schema.json)
+  - native titlebar/control projection, fullscreen and snapped or tiled
+  placement, virtual-desktop fallback, owned-prompt recentering, focus
+  return, presentation-mode fallback, and restore-history vocabulary.
 
 ## Who reads this document
 

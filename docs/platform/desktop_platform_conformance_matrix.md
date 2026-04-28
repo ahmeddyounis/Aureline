@@ -20,6 +20,12 @@ Companion artifacts:
   — seeded scenario and drill ids for multi-window, monitor-topology,
   mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen
   continuity on claimed desktop rows.
+- [`/docs/ux/window_display_contract.md`](../ux/window_display_contract.md)
+  and
+  [`/schemas/platform/window_state.schema.json`](../../schemas/platform/window_state.schema.json)
+  — platform-neutral window-state, native-titlebar/control,
+  fullscreen, snapped/tiled, virtual-desktop, presentation, focus-return,
+  and restore-history vocabulary the conformance rows must map to.
 - [`/artifacts/release/install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml)
   — install-profile card and updater/deployment vocabulary the platform
   rows compose over.

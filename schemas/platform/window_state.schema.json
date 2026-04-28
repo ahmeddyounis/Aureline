@@ -1,0 +1,831 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/window_state.schema.json",
+  "title": "Aureline window state, display topology, and restore placement contract",
+  "description": "Boundary schema for docs/ux/window_display_contract.md. It exports platform-neutral window state snapshots, restore-history events, and verification cases for fullscreen, maximize or zoom, native titlebar controls, snapped or tiled placement, virtual desktops or Spaces, display topology changes, mixed DPI, presentation mode, dialog ownership, focus return, and safe restore fallback. Raw OS window handles, raw monitor serials, raw screen coordinates treated as durable truth, raw credentials, live authority tokens, customer-owned identifiers, and planning identifiers never cross this boundary. Records carry opaque refs, typed vocabulary, safe bounds hints, continuity cues, and inspectable recovery actions only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/window_state_snapshot_record" },
+    { "$ref": "#/$defs/window_restore_history_record" },
+    { "$ref": "#/$defs/window_display_verification_case" }
+  ],
+  "$defs": {
+    "window_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for window state and display-topology boundary records."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried by fixtures."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "window_state_snapshot_record",
+        "window_restore_history_record",
+        "window_display_verification_case"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, manifests, diagnostics, and support export."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short redaction-aware text safe for review packets and support export."
+    },
+    "safe_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1400,
+      "description": "Bounded redaction-aware summary safe for fixtures, diagnostics, and support export."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp emitted by the producer."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["scenario_id", "summary", "matrix_ref", "contract_sections"],
+      "properties": {
+        "scenario_id": { "$ref": "#/$defs/scenario_id" },
+        "summary": { "$ref": "#/$defs/safe_summary" },
+        "matrix_ref": { "$ref": "#/$defs/opaque_id" },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_text" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "scenario_id": {
+      "type": "string",
+      "enum": [
+        "split_layout_detached_auxiliary_focus",
+        "display_detach_dock_safe_bounds",
+        "mixed_dpi_cross_monitor_reflow",
+        "fullscreen_snapped_restore_intent",
+        "offscreen_dialog_owner_recenter",
+        "suspend_resume_remote_rebind",
+        "restart_reopen_live_surface_rebind",
+        "restart_reopen_missing_dependency_placeholder"
+      ]
+    },
+    "scenario_class": {
+      "type": "string",
+      "enum": [
+        "split_layout",
+        "detached_window",
+        "display_topology_change",
+        "mixed_dpi",
+        "fullscreen_or_snapped_restore",
+        "offscreen_recovery",
+        "suspend_resume",
+        "restart_reopen",
+        "presentation_mode_interaction"
+      ]
+    },
+    "claimed_profile_scope": {
+      "type": "string",
+      "enum": ["all_claimed_desktop_profiles"]
+    },
+    "window_role": {
+      "type": "string",
+      "enum": [
+        "primary_workspace",
+        "secondary_workspace",
+        "auxiliary",
+        "presentation",
+        "review",
+        "companion"
+      ]
+    },
+    "window_mode": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "maximized_or_zoomed",
+        "fullscreen",
+        "presentation_fullscreen",
+        "minimized"
+      ]
+    },
+    "placement_kind": {
+      "type": "string",
+      "enum": [
+        "freeform",
+        "maximized_or_zoomed",
+        "fullscreen_space_or_desktop",
+        "snapped_or_tiled",
+        "presentation_target",
+        "safe_bounds_fallback"
+      ]
+    },
+    "virtual_desktop_affinity": {
+      "type": "string",
+      "enum": [
+        "none",
+        "prefer_original_virtual_desktop",
+        "current_virtual_desktop",
+        "fallback_current_virtual_desktop",
+        "unknown_best_effort"
+      ]
+    },
+    "titlebar_mode": {
+      "type": "string",
+      "enum": [
+        "native_titlebar",
+        "custom_titlebar_native_controls",
+        "custom_chrome_projected_controls",
+        "fullscreen_chrome_hidden_by_os",
+        "platform_constrained_degraded"
+      ]
+    },
+    "native_window_control": {
+      "type": "string",
+      "enum": [
+        "close",
+        "minimize",
+        "maximize_or_zoom",
+        "fullscreen_toggle",
+        "system_menu",
+        "window_drag_region",
+        "resize_border"
+      ]
+    },
+    "native_control_projection": {
+      "type": "string",
+      "enum": [
+        "available_native",
+        "mirrored_command",
+        "hidden_by_fullscreen_or_presentation",
+        "disabled_with_reason",
+        "degraded_unavailable"
+      ]
+    },
+    "scale_bucket": {
+      "type": "string",
+      "enum": ["1x", "1_25x", "1_5x", "2x", "other"]
+    },
+    "display_class": {
+      "type": "string",
+      "enum": [
+        "internal_panel",
+        "external_monitor",
+        "virtual_display",
+        "projector_or_presentation",
+        "unknown"
+      ]
+    },
+    "bounds_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height", "best_effort_only"],
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "best_effort_only": { "type": "boolean", "const": true }
+      }
+    },
+    "topology_change_class": {
+      "type": "string",
+      "enum": [
+        "display_added",
+        "display_removed",
+        "display_reordered",
+        "display_moved",
+        "safe_bounds_changed",
+        "scale_changed",
+        "virtual_desktop_changed",
+        "fullscreen_state_rewritten",
+        "snap_or_tile_state_rewritten",
+        "presentation_target_changed",
+        "wake_display_reconnect",
+        "app_reopen",
+        "window_detached",
+        "window_docked",
+        "dependency_missing",
+        "unsupported_display_topology",
+        "unknown_topology_change"
+      ]
+    },
+    "raw_coordinate_policy": {
+      "type": "string",
+      "enum": ["safe_bounds_and_focus_visibility_over_pixels"]
+    },
+    "continuity_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "evidence_only",
+        "no_restore"
+      ]
+    },
+    "restore_provenance_expectation": {
+      "type": "string",
+      "enum": [
+        "not_required_live_change",
+        "topology_adjustment_note_required",
+        "visible_after_reopen"
+      ]
+    },
+    "focus_visibility_rule": {
+      "type": "string",
+      "enum": [
+        "preserve_primary_focus_visible",
+        "return_to_dialog_owner_visible",
+        "keep_recovery_actions_keyboard_reachable"
+      ]
+    },
+    "active_window_identity_rule": {
+      "type": "string",
+      "enum": [
+        "preserve_active_window_until_explicit_switch",
+        "activate_owner_window_for_prompt",
+        "restore_last_active_visible_window",
+        "fallback_to_primary_window_with_visible_recovery"
+      ]
+    },
+    "dialog_ownership_rule": {
+      "type": "string",
+      "enum": [
+        "owned_prompts_attach_to_origin_window",
+        "owned_prompt_recentered_with_owner",
+        "owner_unavailable_routes_to_recovery_card"
+      ]
+    },
+    "focus_return_target": {
+      "type": "string",
+      "enum": [
+        "recorded_focus_target",
+        "owning_surface",
+        "adjacent_visible_pane",
+        "main_workspace",
+        "visible_recovery_card"
+      ]
+    },
+    "restore_history_event_class": {
+      "type": "string",
+      "enum": [
+        "display_topology_changed",
+        "scale_bucket_changed",
+        "window_moved_to_safe_bounds",
+        "fullscreen_or_space_unsupported",
+        "snap_or_tile_unsupported",
+        "presentation_target_unavailable",
+        "dialog_owner_recentered",
+        "focus_target_fallback_applied",
+        "window_role_changed",
+        "window_role_collapsed",
+        "missing_surface_placeholder_inserted",
+        "authority_rebind_required",
+        "live_surface_no_rerun_enforced",
+        "no_restore_history_required"
+      ]
+    },
+    "restore_adjustment_class": {
+      "type": "string",
+      "enum": [
+        "snapped_to_safe_bounds",
+        "moved_to_primary_display",
+        "scale_normalized",
+        "fullscreen_cleared",
+        "snapped_layout_cleared",
+        "tile_group_broken",
+        "virtual_desktop_fallback",
+        "presentation_mode_cleared",
+        "dialog_recentered_to_owner",
+        "native_chrome_reprojected",
+        "stacking_repaired",
+        "window_role_collapsed_to_primary",
+        "placeholder_inserted",
+        "authority_rebind_deferred",
+        "none"
+      ]
+    },
+    "continuity_cue": {
+      "type": "string",
+      "enum": [
+        "workspace_identity",
+        "trust_state",
+        "host_remote_state",
+        "profile_identity",
+        "recovery_cues",
+        "window_role_badge",
+        "presentation_state",
+        "collaboration_role_badges"
+      ]
+    },
+    "transfer_action_class": {
+      "type": "string",
+      "enum": [
+        "move_pane",
+        "copy_view",
+        "detach_window",
+        "dock_window",
+        "promote_to_presentation",
+        "collapse_to_primary",
+        "open_secondary_window"
+      ]
+    },
+    "authority_rebind_posture": {
+      "type": "string",
+      "enum": [
+        "no_live_authority_rebind_needed",
+        "live_authority_rebind_required",
+        "evidence_only_until_reauthorized"
+      ]
+    },
+    "session_execution_posture": {
+      "type": "string",
+      "enum": [
+        "transcript_restored_not_rerun",
+        "session_ended",
+        "reconnect_available",
+        "rerun_required",
+        "context_unavailable",
+        "live_session_continued"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "terminal_pane",
+        "task_runner",
+        "debug_session",
+        "preview_route",
+        "notebook_pane",
+        "collaboration_session",
+        "extension_view",
+        "remote_shell"
+      ]
+    },
+    "placement_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_mode",
+        "placement_kind",
+        "virtual_desktop_affinity",
+        "scale_bucket",
+        "safe_bounds_hint"
+      ],
+      "properties": {
+        "window_mode": { "$ref": "#/$defs/window_mode" },
+        "placement_kind": { "$ref": "#/$defs/placement_kind" },
+        "virtual_desktop_affinity": { "$ref": "#/$defs/virtual_desktop_affinity" },
+        "scale_bucket": { "$ref": "#/$defs/scale_bucket" },
+        "display_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "display_class": { "$ref": "#/$defs/display_class" },
+        "safe_bounds_hint": { "$ref": "#/$defs/bounds_hint" }
+      }
+    },
+    "native_chrome_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titlebar_mode", "controls"],
+      "properties": {
+        "titlebar_mode": { "$ref": "#/$defs/titlebar_mode" },
+        "controls": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["control", "projection"],
+            "properties": {
+              "control": { "$ref": "#/$defs/native_window_control" },
+              "projection": { "$ref": "#/$defs/native_control_projection" },
+              "disabled_reason_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+            }
+          }
+        }
+      }
+    },
+    "focus_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active_window_token", "focus_visibility_rule", "return_order"],
+      "properties": {
+        "active_window_token": { "$ref": "#/$defs/opaque_id" },
+        "focus_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "owning_window_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "focus_visibility_rule": { "$ref": "#/$defs/focus_visibility_rule" },
+        "return_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/focus_return_target" }
+        }
+      }
+    },
+    "continuity_cues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_cues",
+        "workspace_identity_visible",
+        "trust_state_visible",
+        "host_remote_state_visible",
+        "profile_visible",
+        "recovery_cues_visible"
+      ],
+      "properties": {
+        "preserved_cues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_cue" },
+          "uniqueItems": true
+        },
+        "workspace_identity_visible": { "type": "boolean" },
+        "trust_state_visible": { "type": "boolean" },
+        "host_remote_state_visible": { "type": "boolean" },
+        "profile_visible": { "type": "boolean" },
+        "recovery_cues_visible": { "type": "boolean" }
+      }
+    },
+    "topology_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "starting_arrangement",
+        "change_event",
+        "display_context",
+        "topology_change_classes",
+        "starting_window_modes",
+        "resulting_window_modes"
+      ],
+      "properties": {
+        "starting_arrangement": { "$ref": "#/$defs/safe_summary" },
+        "change_event": { "$ref": "#/$defs/opaque_id" },
+        "display_context": { "$ref": "#/$defs/opaque_id" },
+        "topology_change_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/topology_change_class" },
+          "uniqueItems": true
+        },
+        "starting_window_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/window_mode" },
+          "uniqueItems": true
+        },
+        "resulting_window_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/window_mode" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "native_affordance_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "titlebar_mode",
+        "required_controls",
+        "control_projection_rule",
+        "must_not_happen"
+      ],
+      "properties": {
+        "titlebar_mode": { "$ref": "#/$defs/titlebar_mode" },
+        "required_controls": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/native_window_control" },
+          "uniqueItems": true
+        },
+        "control_projection_rule": {
+          "type": "string",
+          "enum": [
+            "native_controls_project_canonical_commands",
+            "fullscreen_controls_remain_command_reachable",
+            "degraded_controls_expose_disabled_reason"
+          ]
+        },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_summary" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "layout_intent_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserve",
+        "raw_coordinate_policy",
+        "continuity_level_expectation",
+        "restore_provenance_expectation"
+      ],
+      "properties": {
+        "preserve": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_text" },
+          "uniqueItems": true
+        },
+        "raw_coordinate_policy": { "$ref": "#/$defs/raw_coordinate_policy" },
+        "continuity_level_expectation": { "$ref": "#/$defs/continuity_level" },
+        "restore_provenance_expectation": { "$ref": "#/$defs/restore_provenance_expectation" }
+      }
+    },
+    "focus_and_dialog_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_visibility_rule",
+        "active_window_identity_rule",
+        "dialog_ownership_rule",
+        "focus_return_order",
+        "must_not_happen"
+      ],
+      "properties": {
+        "focus_visibility_rule": { "$ref": "#/$defs/focus_visibility_rule" },
+        "active_window_identity_rule": { "$ref": "#/$defs/active_window_identity_rule" },
+        "dialog_ownership_rule": { "$ref": "#/$defs/dialog_ownership_rule" },
+        "focus_return_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/focus_return_target" }
+        },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_summary" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "restore_history_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "must_record_when",
+        "adjustment_classes",
+        "history_visibility_rule"
+      ],
+      "properties": {
+        "must_record_when": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/restore_history_event_class" },
+          "uniqueItems": true
+        },
+        "adjustment_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/restore_adjustment_class" },
+          "uniqueItems": true
+        },
+        "history_visibility_rule": {
+          "type": "string",
+          "enum": [
+            "visible_in_restore_provenance_and_support_export",
+            "not_required_for_live_rearrange_only"
+          ]
+        }
+      }
+    },
+    "continuity_cues_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_cues",
+        "cross_window_transfer_rule",
+        "secondary_window_rule"
+      ],
+      "properties": {
+        "preserved_cues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_cue" },
+          "uniqueItems": true
+        },
+        "cross_window_transfer_rule": {
+          "type": "string",
+          "enum": [
+            "transfer_preserves_workspace_identity_and_trust_cues",
+            "transfer_requires_explicit_verb_before_commit",
+            "no_cross_window_transfer_in_case"
+          ]
+        },
+        "secondary_window_rule": {
+          "type": "string",
+          "enum": [
+            "secondary_window_keeps_role_badge_and_safe_close_path",
+            "secondary_window_can_collapse_to_primary_with_history",
+            "primary_window_remains_visible_owner",
+            "not_applicable_single_window"
+          ]
+        }
+      }
+    },
+    "live_surface_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restorable_context",
+        "live_authority_requires_reauthorization",
+        "must_not_happen"
+      ],
+      "properties": {
+        "restorable_context": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_text" },
+          "uniqueItems": true
+        },
+        "live_authority_requires_reauthorization": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_text" },
+          "uniqueItems": true
+        },
+        "expected_missing_target_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "session_execution_postures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["surface_class", "posture"],
+            "properties": {
+              "surface_class": { "$ref": "#/$defs/surface_class" },
+              "posture": { "$ref": "#/$defs/session_execution_posture" }
+            }
+          }
+        },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_summary" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "window_state_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "window_state_schema_version",
+        "window_ref",
+        "window_family_ref",
+        "workspace_authority_ref",
+        "profile_ref",
+        "window_role",
+        "placement_state",
+        "native_chrome_state",
+        "focus_state",
+        "continuity_cues"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "record_kind": { "const": "window_state_snapshot_record" },
+        "window_state_schema_version": { "$ref": "#/$defs/window_state_schema_version" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "window_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_family_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_role": { "$ref": "#/$defs/window_role" },
+        "placement_state": { "$ref": "#/$defs/placement_state" },
+        "native_chrome_state": { "$ref": "#/$defs/native_chrome_state" },
+        "focus_state": { "$ref": "#/$defs/focus_state" },
+        "continuity_cues": { "$ref": "#/$defs/continuity_cues" }
+      }
+    },
+    "window_restore_history_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "window_state_schema_version",
+        "restore_event_ref",
+        "source_snapshot_ref",
+        "window_ref",
+        "event_classes",
+        "adjustment_classes",
+        "prior_placement_state",
+        "resulting_placement_state",
+        "continuity_level",
+        "focus_return_target",
+        "authority_rebind_posture",
+        "safe_recovery_actions",
+        "visible_to_user"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "record_kind": { "const": "window_restore_history_record" },
+        "window_state_schema_version": { "$ref": "#/$defs/window_state_schema_version" },
+        "restore_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_ref": { "$ref": "#/$defs/opaque_id" },
+        "event_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/restore_history_event_class" },
+          "uniqueItems": true
+        },
+        "adjustment_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/restore_adjustment_class" },
+          "uniqueItems": true
+        },
+        "prior_placement_state": { "$ref": "#/$defs/placement_state" },
+        "resulting_placement_state": { "$ref": "#/$defs/placement_state" },
+        "continuity_level": { "$ref": "#/$defs/continuity_level" },
+        "focus_return_target": { "$ref": "#/$defs/focus_return_target" },
+        "authority_rebind_posture": { "$ref": "#/$defs/authority_rebind_posture" },
+        "safe_recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_text" },
+          "uniqueItems": true
+        },
+        "visible_to_user": { "type": "boolean", "const": true }
+      }
+    },
+    "window_display_verification_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "window_state_schema_version",
+        "case_id",
+        "__fixture__",
+        "scenario_classes",
+        "claimed_profile_scope",
+        "topology",
+        "native_affordance_contract",
+        "layout_intent_contract",
+        "focus_and_dialog_contract",
+        "restore_history_contract",
+        "continuity_cues_contract",
+        "live_surface_contract",
+        "safe_recovery_actions",
+        "required_drills",
+        "evidence_hooks"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "record_kind": { "const": "window_display_verification_case" },
+        "window_state_schema_version": { "$ref": "#/$defs/window_state_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "scenario_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scenario_class" },
+          "uniqueItems": true
+        },
+        "claimed_profile_scope": { "$ref": "#/$defs/claimed_profile_scope" },
+        "topology": { "$ref": "#/$defs/topology_case" },
+        "native_affordance_contract": { "$ref": "#/$defs/native_affordance_contract" },
+        "layout_intent_contract": { "$ref": "#/$defs/layout_intent_contract" },
+        "focus_and_dialog_contract": { "$ref": "#/$defs/focus_and_dialog_contract" },
+        "restore_history_contract": { "$ref": "#/$defs/restore_history_contract" },
+        "continuity_cues_contract": { "$ref": "#/$defs/continuity_cues_contract" },
+        "live_surface_contract": { "$ref": "#/$defs/live_surface_contract" },
+        "safe_recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_text" },
+          "uniqueItems": true
+        },
+        "required_drills": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

@@ -1,18 +1,48 @@
 {
+  "$schema": "../../../schemas/platform/window_state.schema.json",
   "record_kind": "window_display_verification_case",
-  "schema_version": 1,
+  "window_state_schema_version": 1,
+  "case_id": "platform:window-display:mixed-dpi-cross-monitor-reflow:01",
   "__fixture__": {
     "scenario_id": "mixed_dpi_cross_monitor_reflow",
     "summary": "A window crosses between displays with different scale factors or the OS changes the per-monitor DPI bucket. Aureline preserves readable scale, sheet ownership, and keyboard-visible recovery instead of trusting stale rectangles.",
     "matrix_ref": "artifacts/qa/window_display_matrix.yaml",
-    "doc_sections": ["Scenario matrix", "Claimed profile notes"]
+    "contract_sections": [
+      "docs/ux/window_display_contract.md#4-topology-change-handling",
+      "docs/ux/window_display_contract.md#6-focus-active-window-and-owned-prompts",
+      "docs/qa/multi_window_verification.md#claimed-profile-notes"
+    ]
   },
   "scenario_classes": ["mixed_dpi", "display_topology_change"],
   "claimed_profile_scope": "all_claimed_desktop_profiles",
   "topology": {
     "starting_arrangement": "window straddling or moving between high-scale and low-scale displays",
     "change_event": "per_monitor_dpi_or_scale_bucket_change",
-    "display_context": "mixed_dpi_multi_monitor"
+    "display_context": "mixed_dpi_multi_monitor",
+    "topology_change_classes": [
+      "display_moved",
+      "scale_changed",
+      "safe_bounds_changed"
+    ],
+    "starting_window_modes": ["normal"],
+    "resulting_window_modes": ["normal"]
+  },
+  "native_affordance_contract": {
+    "titlebar_mode": "custom_titlebar_native_controls",
+    "required_controls": [
+      "close",
+      "minimize",
+      "maximize_or_zoom",
+      "fullscreen_toggle",
+      "system_menu",
+      "window_drag_region",
+      "resize_border"
+    ],
+    "control_projection_rule": "native_controls_project_canonical_commands",
+    "must_not_happen": [
+      "titlebar hit targets use the old scale bucket after crossing displays",
+      "native resize leaves controls clipped outside the safe bounds"
+    ]
   },
   "layout_intent_contract": {
     "preserve": [
@@ -26,11 +56,46 @@
   },
   "focus_and_dialog_contract": {
     "focus_visibility_rule": "keep_recovery_actions_keyboard_reachable",
+    "active_window_identity_rule": "preserve_active_window_until_explicit_switch",
+    "dialog_ownership_rule": "owned_prompt_recentered_with_owner",
+    "focus_return_order": [
+      "recorded_focus_target",
+      "owning_surface",
+      "adjacent_visible_pane",
+      "main_workspace",
+      "visible_recovery_card"
+    ],
     "must_not_happen": [
       "a sheet appears between displays with no visible controls",
       "focus lands on a clipped target outside the safe bounds",
       "mixed-DPI reflow hides the primary recovery action"
     ]
+  },
+  "restore_history_contract": {
+    "must_record_when": [
+      "display_topology_changed",
+      "scale_bucket_changed",
+      "focus_target_fallback_applied"
+    ],
+    "adjustment_classes": [
+      "scale_normalized",
+      "snapped_to_safe_bounds",
+      "dialog_recentered_to_owner",
+      "native_chrome_reprojected"
+    ],
+    "history_visibility_rule": "visible_in_restore_provenance_and_support_export"
+  },
+  "continuity_cues_contract": {
+    "preserved_cues": [
+      "workspace_identity",
+      "trust_state",
+      "host_remote_state",
+      "profile_identity",
+      "recovery_cues",
+      "window_role_badge"
+    ],
+    "cross_window_transfer_rule": "no_cross_window_transfer_in_case",
+    "secondary_window_rule": "primary_window_remains_visible_owner"
   },
   "live_surface_contract": {
     "restorable_context": [
@@ -53,5 +118,10 @@
     "focus_routing_visible_return",
     "dialog_ownership_window_local",
     "restore_provenance_visible_after_reopen"
+  ],
+  "evidence_hooks": [
+    "docs/ux/window_display_contract.md#4-topology-change-handling",
+    "docs/ux/window_display_contract.md#6-focus-active-window-and-owned-prompts",
+    "artifacts/qa/window_display_matrix.yaml#mixed_dpi_cross_monitor_reflow"
   ]
 }

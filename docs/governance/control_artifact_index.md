@@ -423,6 +423,14 @@ and scopes.
   validation methods, and explicitly unclaimed lanes. Release and
   support wording should cite those rows rather than saying
   "desktop-supported" generically.
+- The window display behavior contract now lives in
+  [`/docs/ux/window_display_contract.md`](../ux/window_display_contract.md)
+  with boundary schema
+  [`/schemas/platform/window_state.schema.json`](../../schemas/platform/window_state.schema.json).
+  Platform adapters and support/export readers should use those
+  fullscreen, snapped/tiled, native-control, display-topology,
+  restore-history, focus-return, owned-prompt, secondary-window, and
+  presentation fallback fields rather than minting OS-local state names.
 - The window/display verification matrix seed lives under
   [`/artifacts/qa/window_display_matrix.yaml`](../../artifacts/qa/window_display_matrix.yaml)
   with narrative guidance in

@@ -230,6 +230,15 @@ code.
   [`/schemas/platform/deep_link_intent.schema.json`](../schemas/platform/deep_link_intent.schema.json);
   worked fixtures in
   [`/fixtures/platform/system_affordance_cases/`](../fixtures/platform/system_affordance_cases/).
+- [`ux/window_display_contract.md`](./ux/window_display_contract.md)
+  — adapter-facing contract for native window controls, fullscreen,
+  maximize/zoom, snapped or tiled placement, virtual desktops,
+  display-topology drift, restore history, focus return, owned prompts,
+  secondary windows, cross-window transfers, and presentation fallback.
+  Boundary schema in
+  [`/schemas/platform/window_state.schema.json`](../schemas/platform/window_state.schema.json);
+  worked fixtures in
+  [`/fixtures/platform/window_display_cases/`](../fixtures/platform/window_display_cases/).
 - [`qa/multi_window_verification.md`](./qa/multi_window_verification.md)
   — seeded verification matrix for multi-window, monitor-topology,
   mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen

@@ -1,18 +1,48 @@
 {
+  "$schema": "../../../schemas/platform/window_state.schema.json",
   "record_kind": "window_display_verification_case",
-  "schema_version": 1,
+  "window_state_schema_version": 1,
+  "case_id": "platform:window-display:restart-reopen-live-surface-rebind:01",
   "__fixture__": {
     "scenario_id": "restart_reopen_live_surface_rebind",
     "summary": "Aureline reopens a prior session that included terminal, task, debug, notebook, and collaboration surfaces. Layout and evidence return, but live surfaces stay truthful about reconnect, rerun, or ended-session posture.",
     "matrix_ref": "artifacts/qa/window_display_matrix.yaml",
-    "doc_sections": ["Scenario matrix", "Shared rules"]
+    "contract_sections": [
+      "docs/ux/window_display_contract.md#5-restore-history",
+      "docs/ux/window_display_contract.md#7-secondary-windows-and-cross-window-transfers",
+      "docs/workspace/layout_serialization_contract.md#6-live-surface-no-rerun-rules"
+    ]
   },
   "scenario_classes": ["restart_reopen", "split_layout"],
   "claimed_profile_scope": "all_claimed_desktop_profiles",
   "topology": {
     "starting_arrangement": "main window plus detached support window with terminal, task, debug, and notebook panes",
     "change_event": "app_restart_reopen_after_update_or_crash_recovery",
-    "display_context": "same_or_changed_monitor_topology"
+    "display_context": "same_or_changed_monitor_topology",
+    "topology_change_classes": [
+      "app_reopen",
+      "display_reordered",
+      "safe_bounds_changed"
+    ],
+    "starting_window_modes": ["normal"],
+    "resulting_window_modes": ["normal"]
+  },
+  "native_affordance_contract": {
+    "titlebar_mode": "custom_titlebar_native_controls",
+    "required_controls": [
+      "close",
+      "minimize",
+      "maximize_or_zoom",
+      "fullscreen_toggle",
+      "system_menu",
+      "window_drag_region",
+      "resize_border"
+    ],
+    "control_projection_rule": "native_controls_project_canonical_commands",
+    "must_not_happen": [
+      "native reopen activates a live pane before no-rerun posture is visible",
+      "system menu rerun or reconnect actions bypass restore provenance"
+    ]
   },
   "layout_intent_contract": {
     "preserve": [
@@ -26,11 +56,46 @@
   },
   "focus_and_dialog_contract": {
     "focus_visibility_rule": "preserve_primary_focus_visible",
+    "active_window_identity_rule": "restore_last_active_visible_window",
+    "dialog_ownership_rule": "owned_prompts_attach_to_origin_window",
+    "focus_return_order": [
+      "recorded_focus_target",
+      "owning_surface",
+      "adjacent_visible_pane",
+      "main_workspace",
+      "visible_recovery_card"
+    ],
     "must_not_happen": [
       "reopen restores focus to a background or hidden pane",
       "layout recovery hides the only rerun or reconnect action",
       "detached-window role becomes ambiguous after reopen"
     ]
+  },
+  "restore_history_contract": {
+    "must_record_when": [
+      "authority_rebind_required",
+      "live_surface_no_rerun_enforced",
+      "focus_target_fallback_applied"
+    ],
+    "adjustment_classes": [
+      "authority_rebind_deferred",
+      "placeholder_inserted",
+      "stacking_repaired"
+    ],
+    "history_visibility_rule": "visible_in_restore_provenance_and_support_export"
+  },
+  "continuity_cues_contract": {
+    "preserved_cues": [
+      "workspace_identity",
+      "trust_state",
+      "host_remote_state",
+      "profile_identity",
+      "recovery_cues",
+      "window_role_badge",
+      "collaboration_role_badges"
+    ],
+    "cross_window_transfer_rule": "transfer_preserves_workspace_identity_and_trust_cues",
+    "secondary_window_rule": "secondary_window_keeps_role_badge_and_safe_close_path"
   },
   "live_surface_contract": {
     "restorable_context": [
@@ -72,5 +137,10 @@
     "focus_routing_visible_return",
     "restore_provenance_visible_after_reopen",
     "no_hidden_rerun_live_surfaces"
+  ],
+  "evidence_hooks": [
+    "docs/ux/window_display_contract.md#5-restore-history",
+    "docs/ux/window_display_contract.md#7-secondary-windows-and-cross-window-transfers",
+    "artifacts/qa/window_display_matrix.yaml#restart_reopen_live_surface_rebind"
   ]
 }

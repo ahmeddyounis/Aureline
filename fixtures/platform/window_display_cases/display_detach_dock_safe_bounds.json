@@ -1,18 +1,48 @@
 {
+  "$schema": "../../../schemas/platform/window_state.schema.json",
   "record_kind": "window_display_verification_case",
-  "schema_version": 1,
+  "window_state_schema_version": 1,
+  "case_id": "platform:window-display:display-detach-dock-safe-bounds:01",
   "__fixture__": {
     "scenario_id": "display_detach_dock_safe_bounds",
     "summary": "A monitor is removed or reattached while Aureline has windows across both displays. Every affected window moves into reachable bounds, preserves its role, and keeps the primary working pane visible.",
     "matrix_ref": "artifacts/qa/window_display_matrix.yaml",
-    "doc_sections": ["Scenario matrix", "Required drills"]
+    "contract_sections": [
+      "docs/ux/window_display_contract.md#4-topology-change-handling",
+      "docs/ux/window_display_contract.md#5-restore-history",
+      "docs/qa/multi_window_verification.md#scenario-matrix"
+    ]
   },
   "scenario_classes": ["display_topology_change", "offscreen_recovery"],
   "claimed_profile_scope": "all_claimed_desktop_profiles",
   "topology": {
     "starting_arrangement": "dual-monitor workspace with one detached window on the secondary display",
     "change_event": "secondary_monitor_removed_then_redocked",
-    "display_context": "monitor_topology_changed"
+    "display_context": "monitor_topology_changed",
+    "topology_change_classes": [
+      "display_removed",
+      "display_added",
+      "safe_bounds_changed"
+    ],
+    "starting_window_modes": ["normal"],
+    "resulting_window_modes": ["normal"]
+  },
+  "native_affordance_contract": {
+    "titlebar_mode": "custom_titlebar_native_controls",
+    "required_controls": [
+      "close",
+      "minimize",
+      "maximize_or_zoom",
+      "fullscreen_toggle",
+      "system_menu",
+      "window_drag_region",
+      "resize_border"
+    ],
+    "control_projection_rule": "native_controls_project_canonical_commands",
+    "must_not_happen": [
+      "native close or minimize strands recovery actions on the removed display",
+      "safe-bounds fallback hides titlebar drag or resize affordances"
+    ]
   },
   "layout_intent_contract": {
     "preserve": [
@@ -26,11 +56,47 @@
   },
   "focus_and_dialog_contract": {
     "focus_visibility_rule": "preserve_primary_focus_visible",
+    "active_window_identity_rule": "restore_last_active_visible_window",
+    "dialog_ownership_rule": "owned_prompt_recentered_with_owner",
+    "focus_return_order": [
+      "recorded_focus_target",
+      "owning_surface",
+      "adjacent_visible_pane",
+      "main_workspace",
+      "visible_recovery_card"
+    ],
     "must_not_happen": [
       "a window remains completely off-screen",
       "focus stays on a removed-monitor target",
       "a sheet remains attached to an unreachable window"
     ]
+  },
+  "restore_history_contract": {
+    "must_record_when": [
+      "display_topology_changed",
+      "window_moved_to_safe_bounds",
+      "dialog_owner_recentered",
+      "focus_target_fallback_applied"
+    ],
+    "adjustment_classes": [
+      "moved_to_primary_display",
+      "snapped_to_safe_bounds",
+      "dialog_recentered_to_owner",
+      "stacking_repaired"
+    ],
+    "history_visibility_rule": "visible_in_restore_provenance_and_support_export"
+  },
+  "continuity_cues_contract": {
+    "preserved_cues": [
+      "workspace_identity",
+      "trust_state",
+      "host_remote_state",
+      "profile_identity",
+      "recovery_cues",
+      "window_role_badge"
+    ],
+    "cross_window_transfer_rule": "no_cross_window_transfer_in_case",
+    "secondary_window_rule": "secondary_window_can_collapse_to_primary_with_history"
   },
   "live_surface_contract": {
     "restorable_context": [
@@ -53,5 +119,10 @@
     "focus_routing_visible_return",
     "dialog_ownership_window_local",
     "restore_provenance_visible_after_reopen"
+  ],
+  "evidence_hooks": [
+    "docs/ux/window_display_contract.md#4-topology-change-handling",
+    "docs/ux/window_display_contract.md#5-restore-history",
+    "artifacts/qa/window_display_matrix.yaml#display_detach_dock_safe_bounds"
   ]
 }

@@ -1,18 +1,61 @@
 {
+  "$schema": "../../../schemas/platform/window_state.schema.json",
   "record_kind": "window_display_verification_case",
-  "schema_version": 1,
+  "window_state_schema_version": 1,
+  "case_id": "platform:window-display:fullscreen-snapped-restore-intent:01",
   "__fixture__": {
     "scenario_id": "fullscreen_snapped_restore_intent",
     "summary": "Aureline reopens after the OS narrowed or rewrote a prior fullscreen, snapped, or desktop-space arrangement. The working intent returns without off-screen stranding or hidden focus loss.",
     "matrix_ref": "artifacts/qa/window_display_matrix.yaml",
-    "doc_sections": ["Scenario matrix", "Shared rules"]
+    "contract_sections": [
+      "docs/ux/window_display_contract.md#3-frozen-vocabulary",
+      "docs/ux/window_display_contract.md#8-presentation-mode",
+      "docs/qa/multi_window_verification.md#scenario-matrix"
+    ]
   },
-  "scenario_classes": ["fullscreen_or_snapped_restore", "restart_reopen"],
+  "scenario_classes": [
+    "fullscreen_or_snapped_restore",
+    "restart_reopen",
+    "presentation_mode_interaction"
+  ],
   "claimed_profile_scope": "all_claimed_desktop_profiles",
   "topology": {
     "starting_arrangement": "main window fullscreen or snapped with a sibling support window",
     "change_event": "app_reopen_after_window_manager_state_changed",
-    "display_context": "fullscreen_or_snap_state_narrowed"
+    "display_context": "fullscreen_or_snap_state_narrowed",
+    "topology_change_classes": [
+      "app_reopen",
+      "fullscreen_state_rewritten",
+      "snap_or_tile_state_rewritten",
+      "virtual_desktop_changed",
+      "presentation_target_changed"
+    ],
+    "starting_window_modes": [
+      "fullscreen",
+      "presentation_fullscreen"
+    ],
+    "resulting_window_modes": [
+      "fullscreen",
+      "maximized_or_zoomed",
+      "normal"
+    ]
+  },
+  "native_affordance_contract": {
+    "titlebar_mode": "fullscreen_chrome_hidden_by_os",
+    "required_controls": [
+      "close",
+      "minimize",
+      "maximize_or_zoom",
+      "fullscreen_toggle",
+      "system_menu",
+      "window_drag_region",
+      "resize_border"
+    ],
+    "control_projection_rule": "fullscreen_controls_remain_command_reachable",
+    "must_not_happen": [
+      "fullscreen hides the only route to exit or recover layout",
+      "snapped restore creates a platform-only titlebar state with no command equivalent"
+    ]
   },
   "layout_intent_contract": {
     "preserve": [
@@ -26,17 +69,58 @@
   },
   "focus_and_dialog_contract": {
     "focus_visibility_rule": "preserve_primary_focus_visible",
+    "active_window_identity_rule": "restore_last_active_visible_window",
+    "dialog_ownership_rule": "owned_prompts_attach_to_origin_window",
+    "focus_return_order": [
+      "recorded_focus_target",
+      "owning_surface",
+      "adjacent_visible_pane",
+      "main_workspace",
+      "visible_recovery_card"
+    ],
     "must_not_happen": [
       "fullscreen restore strands the active pane off-screen",
       "snapped restore creates an unreachable dialog owner",
       "reopen steals focus repeatedly while the user is recovering layout"
     ]
   },
+  "restore_history_contract": {
+    "must_record_when": [
+      "fullscreen_or_space_unsupported",
+      "snap_or_tile_unsupported",
+      "presentation_target_unavailable",
+      "window_moved_to_safe_bounds",
+      "focus_target_fallback_applied"
+    ],
+    "adjustment_classes": [
+      "fullscreen_cleared",
+      "snapped_layout_cleared",
+      "tile_group_broken",
+      "virtual_desktop_fallback",
+      "presentation_mode_cleared",
+      "snapped_to_safe_bounds"
+    ],
+    "history_visibility_rule": "visible_in_restore_provenance_and_support_export"
+  },
+  "continuity_cues_contract": {
+    "preserved_cues": [
+      "workspace_identity",
+      "trust_state",
+      "host_remote_state",
+      "profile_identity",
+      "recovery_cues",
+      "window_role_badge",
+      "presentation_state"
+    ],
+    "cross_window_transfer_rule": "no_cross_window_transfer_in_case",
+    "secondary_window_rule": "secondary_window_can_collapse_to_primary_with_history"
+  },
   "live_surface_contract": {
     "restorable_context": [
       "window role and dominant pane",
       "visible inspector state",
-      "focus chain"
+      "focus chain",
+      "presentation or follow intent"
     ],
     "live_authority_requires_reauthorization": [],
     "must_not_happen": [
@@ -53,5 +137,10 @@
     "focus_routing_visible_return",
     "dialog_ownership_window_local",
     "restore_provenance_visible_after_reopen"
+  ],
+  "evidence_hooks": [
+    "docs/ux/window_display_contract.md#3-frozen-vocabulary",
+    "docs/ux/window_display_contract.md#8-presentation-mode",
+    "artifacts/qa/window_display_matrix.yaml#fullscreen_snapped_restore_intent"
   ]
 }

@@ -1,18 +1,48 @@
 {
+  "$schema": "../../../schemas/platform/window_state.schema.json",
   "record_kind": "window_display_verification_case",
-  "schema_version": 1,
+  "window_state_schema_version": 1,
+  "case_id": "platform:window-display:restart-reopen-missing-dependency-placeholder:01",
   "__fixture__": {
     "scenario_id": "restart_reopen_missing_dependency_placeholder",
     "summary": "Aureline reopens after an extension host disappeared, a remote target is unavailable, or authority was revoked for a live pane. Missing panes become placeholders or evidence-only cards without collapsing the surrounding layout.",
     "matrix_ref": "artifacts/qa/window_display_matrix.yaml",
-    "doc_sections": ["Scenario matrix", "Required drills"]
+    "contract_sections": [
+      "docs/ux/window_display_contract.md#5-restore-history",
+      "docs/workspace/layout_serialization_contract.md#5-placeholder-and-degradation-rules",
+      "docs/qa/multi_window_verification.md#required-drills"
+    ]
   },
   "scenario_classes": ["restart_reopen", "detached_window"],
   "claimed_profile_scope": "all_claimed_desktop_profiles",
   "topology": {
     "starting_arrangement": "split workspace with detached notebook or extension window plus remote pane",
     "change_event": "app_restart_reopen_with_missing_dependency_or_revoked_authority",
-    "display_context": "same_or_changed_monitor_topology"
+    "display_context": "same_or_changed_monitor_topology",
+    "topology_change_classes": [
+      "app_reopen",
+      "dependency_missing",
+      "unsupported_display_topology"
+    ],
+    "starting_window_modes": ["normal"],
+    "resulting_window_modes": ["normal"]
+  },
+  "native_affordance_contract": {
+    "titlebar_mode": "custom_titlebar_native_controls",
+    "required_controls": [
+      "close",
+      "minimize",
+      "maximize_or_zoom",
+      "fullscreen_toggle",
+      "system_menu",
+      "window_drag_region",
+      "resize_border"
+    ],
+    "control_projection_rule": "degraded_controls_expose_disabled_reason",
+    "must_not_happen": [
+      "native close removes a placeholder without preserving recovery details",
+      "degraded window controls imply the missing pane is healthy"
+    ]
   },
   "layout_intent_contract": {
     "preserve": [
@@ -26,11 +56,46 @@
   },
   "focus_and_dialog_contract": {
     "focus_visibility_rule": "keep_recovery_actions_keyboard_reachable",
+    "active_window_identity_rule": "fallback_to_primary_window_with_visible_recovery",
+    "dialog_ownership_rule": "owner_unavailable_routes_to_recovery_card",
+    "focus_return_order": [
+      "visible_recovery_card",
+      "owning_surface",
+      "adjacent_visible_pane",
+      "main_workspace"
+    ],
     "must_not_happen": [
       "placeholder hydration deletes a pane from the tree",
       "focus lands on an unavailable pane with no visible action",
       "a dialog still targets a pane whose authority was revoked"
     ]
+  },
+  "restore_history_contract": {
+    "must_record_when": [
+      "missing_surface_placeholder_inserted",
+      "authority_rebind_required",
+      "window_role_collapsed",
+      "focus_target_fallback_applied"
+    ],
+    "adjustment_classes": [
+      "placeholder_inserted",
+      "authority_rebind_deferred",
+      "window_role_collapsed_to_primary",
+      "stacking_repaired"
+    ],
+    "history_visibility_rule": "visible_in_restore_provenance_and_support_export"
+  },
+  "continuity_cues_contract": {
+    "preserved_cues": [
+      "workspace_identity",
+      "trust_state",
+      "host_remote_state",
+      "profile_identity",
+      "recovery_cues",
+      "window_role_badge"
+    ],
+    "cross_window_transfer_rule": "transfer_requires_explicit_verb_before_commit",
+    "secondary_window_rule": "secondary_window_can_collapse_to_primary_with_history"
   },
   "live_surface_contract": {
     "restorable_context": [
@@ -72,5 +137,10 @@
     "placeholder_hydration_preserves_topology",
     "restore_provenance_visible_after_reopen",
     "no_hidden_rerun_live_surfaces"
+  ],
+  "evidence_hooks": [
+    "docs/ux/window_display_contract.md#5-restore-history",
+    "docs/workspace/layout_serialization_contract.md#5-placeholder-and-degradation-rules",
+    "artifacts/qa/window_display_matrix.yaml#restart_reopen_missing_dependency_placeholder"
   ]
 }
