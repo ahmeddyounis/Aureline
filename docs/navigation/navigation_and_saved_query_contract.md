@@ -31,6 +31,13 @@ The companion artifacts are:
   `navigation_history_entry_record`,
   `navigation_peek_context_record`, and
   `navigation_artifact_audit_event_record` shapes.
+- [`/schemas/navigation/breadcrumb_segment.schema.json`](../../schemas/navigation/breadcrumb_segment.schema.json)
+  — renderer-facing breadcrumb projection schema layered over
+  `navigation_breadcrumb_trail_record`. It freezes local segment
+  anatomy, current-leaf emphasis, overflow, keyboard reachability,
+  command-backed actions, stale / unavailable disclosure, and
+  cursor-driven symbol update policy without replacing the durable
+  navigation trail.
 - [`/schemas/search/saved_query_bundle.schema.json`](../../schemas/search/saved_query_bundle.schema.json)
   — boundary schema for the `saved_query_bundle_record`,
   `search_collection_snapshot_record`, and
@@ -44,6 +51,10 @@ The companion artifacts are:
   — worked-example corpus covering breadcrumb / outline /
   bookmark-drift / navigation-history / peek / saved-query-bundle /
   collection-snapshot rows.
+- [`/fixtures/navigation/breadcrumb_examples/`](../../fixtures/navigation/breadcrumb_examples/)
+  — renderer-facing breadcrumb projection fixtures for path-only,
+  mixed path-plus-symbol overflow, and stale or unavailable symbol
+  states.
 
 This contract **composes with and does not replace** vocabularies
 already frozen in:

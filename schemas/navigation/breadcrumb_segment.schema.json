@@ -1,0 +1,861 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/navigation/breadcrumb_segment.schema.json",
+  "title": "Aureline breadcrumb segment projection contract",
+  "description": "Boundary schema for renderer-facing breadcrumb projection records. The durable source of truth remains navigation_breadcrumb_trail_record in schemas/navigation/navigation_artifacts.schema.json; this schema freezes segment anatomy, visible state, overflow, keyboard reachability, command-backed segment actions, and cursor-driven symbol update policy. Raw absolute paths, raw symbol bodies, raw provider payloads, and raw URLs do not appear in these records.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/breadcrumb_projection_record" }
+  ],
+  "$defs": {
+    "breadcrumb_segment_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for breadcrumb projection records. Additive optional fields or enum values bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["breadcrumb_projection_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, and safe in support bundles. Raw absolute paths, raw symbol bodies, raw provider payloads, and raw URLs do not appear here."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware display label or compact summary. This may be a localized or shortened presentation label, never raw private payload."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "docs",
+        "notebook",
+        "review",
+        "graph_overlay",
+        "search",
+        "terminal_zone",
+        "output_viewer",
+        "support_export"
+      ]
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "unset_pending_decision"]
+        }
+      }
+    },
+    "navigation_target_kind": {
+      "type": "string",
+      "enum": [
+        "file_path_target",
+        "symbol_declaration_target",
+        "docs_anchor_target",
+        "notebook_cell_target",
+        "review_diff_hunk_target",
+        "graph_node_target",
+        "search_result_packet_target",
+        "terminal_zone_target",
+        "output_viewer_object_target"
+      ]
+    },
+    "navigation_target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["navigation_target_kind", "target_id_ref"],
+      "properties": {
+        "navigation_target_kind": { "$ref": "#/$defs/navigation_target_kind" },
+        "target_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "secondary_target_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "breadcrumb_mode_class": {
+      "type": "string",
+      "enum": [
+        "file_path",
+        "symbol_path",
+        "mixed_path_plus_symbol"
+      ],
+      "description": "Projection mode. file_path shows root/folder/file ancestry; symbol_path emphasizes file-local symbol ancestry while directory ancestry may be condensed; mixed_path_plus_symbol shows root/folders/file/symbol ancestry when space permits."
+    },
+    "breadcrumb_segment_type": {
+      "type": "string",
+      "enum": [
+        "workspace_root",
+        "folder_path",
+        "file",
+        "symbol_container",
+        "symbol_leaf"
+      ]
+    },
+    "navigation_breadcrumb_segment_class": {
+      "type": "string",
+      "enum": [
+        "workspace_root_segment",
+        "folder_segment",
+        "file_segment",
+        "container_symbol_segment",
+        "leaf_symbol_segment"
+      ],
+      "description": "Segment class from navigation_artifacts.schema.json re-exported for renderer projection."
+    },
+    "breadcrumb_truncation_class": {
+      "type": "string",
+      "enum": [
+        "not_truncated",
+        "start_elided",
+        "middle_elided",
+        "end_elided",
+        "root_badge_only",
+        "overflow_menu_only"
+      ]
+    },
+    "emphasis_class": {
+      "type": "string",
+      "enum": [
+        "current_leaf_strong",
+        "active_context",
+        "ancestor_normal",
+        "deemphasized_overflow",
+        "state_chip_only"
+      ]
+    },
+    "keyboard_reachability_class": {
+      "type": "string",
+      "enum": [
+        "primary_trail_stop",
+        "overflow_menu_stop"
+      ]
+    },
+    "resolution_state": {
+      "type": "string",
+      "enum": [
+        "resolved_current",
+        "resolved_stale",
+        "provider_partial",
+        "provider_unavailable",
+        "target_unavailable",
+        "scope_unavailable",
+        "policy_blocked"
+      ]
+    },
+    "safe_next_action": {
+      "type": "string",
+      "enum": [
+        "retry_now",
+        "wait",
+        "refresh_input_digests",
+        "widen_scope",
+        "open_offline_details",
+        "open_support_bundle",
+        "open_alias_details",
+        "cancel",
+        "no_action_required"
+      ]
+    },
+    "state_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_label_ref",
+        "freshness_class",
+        "safe_next_action",
+        "detail_command_id_ref"
+      ],
+      "properties": {
+        "state_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "not_ready_reason_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "safe_next_action": { "$ref": "#/$defs/safe_next_action" },
+        "detail_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "human_readable_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ]
+        }
+      }
+    },
+    "segment_display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_label",
+        "label_opaque_ref",
+        "full_label_opaque_ref",
+        "truncation_class",
+        "emphasis_class",
+        "state_chip_refs",
+        "tooltip_label_ref"
+      ],
+      "properties": {
+        "visible_label": { "$ref": "#/$defs/reviewable_label" },
+        "label_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "full_label_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "root_badge_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "truncation_class": { "$ref": "#/$defs/breadcrumb_truncation_class" },
+        "emphasis_class": { "$ref": "#/$defs/emphasis_class" },
+        "state_chip_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "tooltip_label_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "segment_action_type": {
+      "type": "string",
+      "enum": [
+        "open_target",
+        "reveal_in_sidebar",
+        "copy_presentation_path",
+        "copy_canonical_target_id",
+        "open_containing_folder",
+        "navigate_sibling",
+        "inspect_structure_state",
+        "open_provider_target"
+      ]
+    },
+    "route_id": {
+      "type": "string",
+      "enum": [
+        "route.breadcrumbs",
+        "route.sidebar",
+        "route.quick_open",
+        "route.context_menu",
+        "route.inspector_link",
+        "route.deep_link_or_protocol"
+      ]
+    },
+    "action_availability_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_selectable",
+        "hidden_by_policy",
+        "provider_unavailable",
+        "target_unresolved"
+      ]
+    },
+    "copy_payload_class": {
+      "type": "string",
+      "enum": [
+        "presentation_path",
+        "canonical_target_id",
+        "symbol_anchor_id",
+        "command_id",
+        "none"
+      ]
+    },
+    "sibling_scope_class": {
+      "type": "string",
+      "enum": [
+        "same_folder",
+        "same_symbol_container",
+        "same_file_outline",
+        "not_applicable"
+      ]
+    },
+    "segment_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_type",
+        "command_id_ref",
+        "command_label_ref",
+        "route_id",
+        "availability_class",
+        "copy_payload_class",
+        "sibling_scope_class"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_type": { "$ref": "#/$defs/segment_action_type" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "route_id": { "$ref": "#/$defs/route_id" },
+        "availability_class": { "$ref": "#/$defs/action_availability_class" },
+        "target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/navigation_target_ref" }
+          ]
+        },
+        "copy_payload_class": { "$ref": "#/$defs/copy_payload_class" },
+        "sibling_scope_class": { "$ref": "#/$defs/sibling_scope_class" },
+        "disabled_reason_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "focus_return_token_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "segment_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_current_leaf",
+        "resolution_state",
+        "freshness_class",
+        "keyboard_reachability_class",
+        "state_disclosure"
+      ],
+      "properties": {
+        "is_current_leaf": { "type": "boolean" },
+        "resolution_state": { "$ref": "#/$defs/resolution_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "keyboard_reachability_class": { "$ref": "#/$defs/keyboard_reachability_class" },
+        "state_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/state_disclosure" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every non-current resolution state must disclose the state to users and support/export consumers.",
+          "if": {
+            "properties": {
+              "resolution_state": {
+                "not": { "const": "resolved_current" }
+              }
+            },
+            "required": ["resolution_state"]
+          },
+          "then": {
+            "properties": {
+              "state_disclosure": { "$ref": "#/$defs/state_disclosure" }
+            }
+          }
+        }
+      ]
+    },
+    "breadcrumb_segment_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_id",
+        "segment_index",
+        "segment_type",
+        "navigation_breadcrumb_segment_class",
+        "navigation_target_ref",
+        "display",
+        "segment_state",
+        "actions"
+      ],
+      "properties": {
+        "segment_id": { "$ref": "#/$defs/opaque_id" },
+        "segment_index": { "type": "integer", "minimum": 0 },
+        "segment_type": { "$ref": "#/$defs/breadcrumb_segment_type" },
+        "navigation_breadcrumb_segment_class": { "$ref": "#/$defs/navigation_breadcrumb_segment_class" },
+        "navigation_target_ref": { "$ref": "#/$defs/navigation_target_ref" },
+        "display": { "$ref": "#/$defs/segment_display" },
+        "segment_state": { "$ref": "#/$defs/segment_state" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/segment_action" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "segment_type": { "const": "workspace_root" } },
+            "required": ["segment_type"]
+          },
+          "then": {
+            "properties": {
+              "navigation_breadcrumb_segment_class": { "const": "workspace_root_segment" },
+              "navigation_target_ref": {
+                "properties": { "navigation_target_kind": { "const": "file_path_target" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "segment_type": { "const": "folder_path" } },
+            "required": ["segment_type"]
+          },
+          "then": {
+            "properties": {
+              "navigation_breadcrumb_segment_class": { "const": "folder_segment" },
+              "navigation_target_ref": {
+                "properties": { "navigation_target_kind": { "const": "file_path_target" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "segment_type": { "const": "file" } },
+            "required": ["segment_type"]
+          },
+          "then": {
+            "properties": {
+              "navigation_breadcrumb_segment_class": { "const": "file_segment" },
+              "navigation_target_ref": {
+                "properties": { "navigation_target_kind": { "const": "file_path_target" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "segment_type": { "const": "symbol_container" } },
+            "required": ["segment_type"]
+          },
+          "then": {
+            "properties": {
+              "navigation_breadcrumb_segment_class": { "const": "container_symbol_segment" },
+              "navigation_target_ref": {
+                "properties": { "navigation_target_kind": { "const": "symbol_declaration_target" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "segment_type": { "const": "symbol_leaf" } },
+            "required": ["segment_type"]
+          },
+          "then": {
+            "properties": {
+              "navigation_breadcrumb_segment_class": { "const": "leaf_symbol_segment" },
+              "navigation_target_ref": {
+                "properties": { "navigation_target_kind": { "const": "symbol_declaration_target" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "The current leaf must stay visible in the primary trail and carry strongest emphasis.",
+          "if": {
+            "properties": {
+              "segment_state": {
+                "properties": {
+                  "is_current_leaf": { "const": true }
+                },
+                "required": ["is_current_leaf"]
+              }
+            },
+            "required": ["segment_state"]
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "properties": {
+                  "emphasis_class": { "const": "current_leaf_strong" },
+                  "truncation_class": {
+                    "enum": [
+                      "not_truncated",
+                      "start_elided",
+                      "middle_elided",
+                      "end_elided"
+                    ]
+                  }
+                }
+              },
+              "segment_state": {
+                "properties": {
+                  "keyboard_reachability_class": { "const": "primary_trail_stop" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "overflow_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overflow_strategy",
+        "hidden_segment_count",
+        "hidden_segment_id_refs",
+        "leaf_preserved",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "overflow_strategy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "collapse_middle_folders",
+            "ellipsis_menu",
+            "horizontal_scroll",
+            "folder_then_symbol_menus"
+          ]
+        },
+        "hidden_segment_count": { "type": "integer", "minimum": 0 },
+        "hidden_segment_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "overflow_control_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "leaf_preserved": { "const": true },
+        "keyboard_reachable": { "const": true }
+      }
+    },
+    "keyboard_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role_class",
+        "navigation_model",
+        "activation_key_refs",
+        "menu_key_refs",
+        "all_segments_reachable",
+        "overflow_menu_reachable",
+        "focus_return_token_ref"
+      ],
+      "properties": {
+        "role_class": {
+          "type": "string",
+          "enum": ["breadcrumb_navigation"]
+        },
+        "navigation_model": {
+          "type": "string",
+          "enum": ["roving_tabindex_arrow_keys"]
+        },
+        "activation_key_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "menu_key_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "all_segments_reachable": { "const": true },
+        "overflow_menu_reachable": { "const": true },
+        "focus_return_token_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "symbol_update_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "update_trigger_classes",
+        "min_debounce_ms",
+        "max_truth_lag_ms",
+        "cursor_move_commit_policy",
+        "cursor_move_history_policy",
+        "stale_while_revalidating"
+      ],
+      "properties": {
+        "update_trigger_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "cursor_move",
+              "selection_change",
+              "file_open",
+              "file_switch",
+              "explicit_symbol_navigation",
+              "navigation_history_replay",
+              "symbol_provider_delta",
+              "workspace_scope_change"
+            ]
+          }
+        },
+        "min_debounce_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "max_truth_lag_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "cursor_move_commit_policy": {
+          "type": "string",
+          "enum": [
+            "debounced_current_symbol_after_parser_settles",
+            "immediate_only_after_explicit_navigation",
+            "file_leaf_until_symbol_provider_resolves"
+          ]
+        },
+        "cursor_move_history_policy": {
+          "type": "string",
+          "enum": ["does_not_append_navigation_history"]
+        },
+        "stale_while_revalidating": { "type": "boolean" }
+      }
+    },
+    "source_record_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "navigation_breadcrumb_trail_id_ref",
+        "navigation_artifacts_schema_ref"
+      ],
+      "properties": {
+        "navigation_breadcrumb_trail_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "navigation_artifacts_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "path_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "symbol_provider_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "structure_provider_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "quick_open_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "breadcrumb_projection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "breadcrumb_segment_schema_version",
+        "breadcrumb_projection_id",
+        "surface_class",
+        "breadcrumb_mode_class",
+        "current_leaf_segment_id_ref",
+        "source_record_refs",
+        "segments",
+        "overflow",
+        "keyboard_contract",
+        "symbol_update_policy",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "minted_at",
+        "last_refreshed_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string", "minLength": 1 },
+        "record_kind": { "const": "breadcrumb_projection_record" },
+        "breadcrumb_segment_schema_version": { "$ref": "#/$defs/breadcrumb_segment_schema_version" },
+        "breadcrumb_projection_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "breadcrumb_mode_class": { "$ref": "#/$defs/breadcrumb_mode_class" },
+        "current_leaf_segment_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_record_refs": { "$ref": "#/$defs/source_record_refs" },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/breadcrumb_segment_projection" }
+        },
+        "overflow": { "$ref": "#/$defs/overflow_policy" },
+        "keyboard_contract": { "$ref": "#/$defs/keyboard_contract" },
+        "symbol_update_policy": { "$ref": "#/$defs/symbol_update_policy" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "fixture_metadata": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Path-only mode must not include symbol segments.",
+          "if": {
+            "properties": { "breadcrumb_mode_class": { "const": "file_path" } },
+            "required": ["breadcrumb_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "segments": {
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "segment_type": {
+                        "enum": ["symbol_container", "symbol_leaf"]
+                      }
+                    },
+                    "required": ["segment_type"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Mixed mode must carry both the current file and a symbol leaf.",
+          "if": {
+            "properties": { "breadcrumb_mode_class": { "const": "mixed_path_plus_symbol" } },
+            "required": ["breadcrumb_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "segments": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "segment_type": { "const": "file" } },
+                      "required": ["segment_type"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "segment_type": { "const": "symbol_leaf" } },
+                      "required": ["segment_type"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Symbol mode must carry a file identity and a symbol leaf, even if folder ancestry is overflowed or condensed.",
+          "if": {
+            "properties": { "breadcrumb_mode_class": { "const": "symbol_path" } },
+            "required": ["breadcrumb_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "segments": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "segment_type": { "const": "file" } },
+                      "required": ["segment_type"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "segment_type": { "const": "symbol_leaf" } },
+                      "required": ["segment_type"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

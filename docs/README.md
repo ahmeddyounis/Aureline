@@ -460,6 +460,13 @@ code.
   [`/schemas/search/quick_open_explanation.schema.json`](../schemas/search/quick_open_explanation.schema.json);
   worked fixtures in
   [`/fixtures/search/quick_open_rows/`](../fixtures/search/quick_open_rows/).
+- [`ux/breadcrumb_contract.md`](./ux/breadcrumb_contract.md)
+  — renderer-facing breadcrumb segment, overflow, keyboard, action,
+  stale-state, and cursor-driven symbol update contract layered over the
+  durable navigation trail. Boundary schema in
+  [`/schemas/navigation/breadcrumb_segment.schema.json`](../schemas/navigation/breadcrumb_segment.schema.json);
+  worked fixtures in
+  [`/fixtures/navigation/breadcrumb_examples/`](../fixtures/navigation/breadcrumb_examples/).
 - [`architecture/language_protocol_router_adr.md`](./architecture/language_protocol_router_adr.md)
   — typed language protocol-router ADR seed for LSP, DAP, formatter,
   linter, test, build, framework, native analyzer, project graph,
