@@ -715,6 +715,16 @@ code.
   [`/schemas/ux/view_freshness.schema.json`](../schemas/ux/view_freshness.schema.json);
   worked fixtures in
   [`/fixtures/ux/view_freshness_cases/`](../fixtures/ux/view_freshness_cases/).
+- [`ux/empty_loading_placeholder_contract.md`](./ux/empty_loading_placeholder_contract.md)
+  — cross-surface empty, loading, skeleton, progressive hydration,
+  missing-provider, partial-data, and stale-cached placeholder-honesty
+  contract. Freezes shared readiness language and the rule that
+  placeholder surfaces cannot present ready/green state while the
+  underlying scope is probing, partial, blocked, degraded, stale, or
+  provider-limited. Boundary schema in
+  [`/schemas/ux/placeholder_state.schema.json`](../schemas/ux/placeholder_state.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/placeholder_cases/`](../fixtures/ux/placeholder_cases/).
 - [`ux/tree_row_contract.md`](./ux/tree_row_contract.md)
   — shared structural tree row contract for file trees, outlines,
   component/runtime trees, route and dependency trees, write-scope
