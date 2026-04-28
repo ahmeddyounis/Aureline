@@ -1,0 +1,169 @@
+{
+  "__fixture__": {
+    "name": "editor_inline_precedence_conflict",
+    "scenario": "One editor line has a current debug frame, an error diagnostic, a review diff marker, a coverage miss, an inlay hint, and a generated-file qualifier. Editor lanes and inline metadata must suppress lower-priority cues without losing inspectable detail.",
+    "exercised_axes": {
+      "surface_families": [
+        "editor_gutter",
+        "editor_inline"
+      ],
+      "inline_precedence": true,
+      "gutter_lane_precedence": true,
+      "suppression_reason_recorded": true
+    },
+    "contract_sections": [
+      "Surface Projection Rules",
+      "Detail View Requirements"
+    ],
+    "linked_docs": [
+      "docs/ux/decoration_precedence_contract.md",
+      "docs/language/completion_and_inline_hint_contract.md"
+    ]
+  },
+  "record_kind": "decoration_conflict_case",
+  "decoration_case_schema_version": 1,
+  "case_id": "decor.case.editor.inline.precedence_conflict",
+  "object_ref": "object:editor.line.src.lib.rs:128",
+  "surface_family": "editor_inline",
+  "input_states": [
+    {
+      "family": "danger_severity",
+      "state": "error",
+      "precedence_band": "diagnostic_or_debug",
+      "source_ref": "diagnostic:borrow_check.error",
+      "label": "Error",
+      "consequence": "Compilation is blocked for this source line."
+    },
+    {
+      "family": "execution_test",
+      "state": "debug_current_frame",
+      "precedence_band": "diagnostic_or_debug",
+      "source_ref": "debug:thread.current_frame",
+      "label": "Current frame",
+      "consequence": "Debugger is stopped at this line."
+    },
+    {
+      "family": "review_conflict",
+      "state": "review_anchor",
+      "precedence_band": "merge_diff_review",
+      "source_ref": "review:thread.42",
+      "label": "Review thread",
+      "consequence": "A review comment is anchored to this line."
+    },
+    {
+      "family": "execution_test",
+      "state": "coverage_state",
+      "precedence_band": "test_coverage_execution",
+      "source_ref": "coverage:run.77",
+      "label": "Coverage miss",
+      "consequence": "Latest coverage run did not cover this line."
+    },
+    {
+      "family": "inline_metadata",
+      "state": "inlay_hint",
+      "precedence_band": "code_lens_or_inlay",
+      "source_ref": "hint:type.provider",
+      "label": "Type hint",
+      "consequence": "Advisory metadata only."
+    },
+    {
+      "family": "generated",
+      "state": "generated_editable_with_lineage",
+      "precedence_band": "generated_derived",
+      "source_ref": "lineage:codegen.source",
+      "label": "Generated with lineage",
+      "consequence": "Refactor actions must respect generated lineage."
+    }
+  ],
+  "expected_resolution": {
+    "primary_visual_state": {
+      "family": "execution_test",
+      "state": "debug_current_frame",
+      "precedence_band": "diagnostic_or_debug",
+      "label": "Current frame",
+      "required_channels": [
+        "gutter_lane",
+        "accessible_line_detail"
+      ],
+      "reason": "The active debug frame and diagnostic share the highest editor band; the current execution point owns the leading gutter lane while the error diagnostic remains visible in the diagnostics lane."
+    },
+    "secondary_visible_states": [
+      {
+        "family": "danger_severity",
+        "state": "error",
+        "label": "Error"
+      },
+      {
+        "family": "review_conflict",
+        "state": "review_anchor",
+        "label": "Review thread"
+      }
+    ],
+    "suppressed_states": [
+      {
+        "family": "execution_test",
+        "state": "coverage_state",
+        "suppression_reason": "higher_priority_decoration"
+      },
+      {
+        "family": "inline_metadata",
+        "state": "inlay_hint",
+        "suppression_reason": "higher_priority_decoration"
+      },
+      {
+        "family": "generated",
+        "state": "generated_editable_with_lineage",
+        "suppression_reason": "higher_priority_decoration"
+      }
+    ],
+    "accessible_name_must_include": [
+      "Current frame",
+      "Error",
+      "Review thread",
+      "Coverage miss hidden by precedence",
+      "Type hint hidden by precedence",
+      "Generated with lineage hidden by precedence"
+    ],
+    "detail_sections": [
+      "primary_state_reason",
+      "severity_and_review",
+      "generated_and_lineage",
+      "hidden_by_precedence"
+    ],
+    "forbidden_renderings": [
+      "inlay_hint_obscures_error",
+      "coverage_badge_displaces_current_frame",
+      "generated_qualifier_removes_review_anchor",
+      "hidden_hint_has_no_suppression_reason"
+    ]
+  },
+  "surface_projection": {
+    "editor_gutter": {
+      "ordered_lanes": [
+        "breakpoint_or_execution: Current frame",
+        "diagnostics: Error",
+        "change_markers: Review thread",
+        "supplemental_cues: Coverage miss collapsed"
+      ],
+      "keyboard_line_detail_command_id": "cmd:editor.decoration.inspect_line"
+    },
+    "editor_inline": {
+      "visible_inline_metadata": [],
+      "hidden_by_precedence": [
+        "Coverage miss",
+        "Type hint",
+        "Generated with lineage"
+      ]
+    }
+  },
+  "assertions": {
+    "caret_and_code_readability_preserved": true,
+    "suppressed_metadata_has_reason": true,
+    "line_detail_keyboard_reachable": true,
+    "lower_priority_decorations_do_not_obscure_error": true
+  },
+  "narrative_refs": [
+    "docs/ux/decoration_precedence_contract.md",
+    "docs/language/completion_and_inline_hint_contract.md"
+  ]
+}
