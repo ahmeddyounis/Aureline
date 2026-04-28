@@ -1,0 +1,1056 @@
+# Shared network permission-class and audit-requirement matrix.
+#
+# Machine-readable companion to docs/network/transport_permission_matrix.md.
+# This file publishes the permission-class rows that every network-capable
+# surface resolves through before selecting a route, proxy, trust source,
+# mirror, offline posture, or retry behavior.
+#
+# Lower-level enum source: artifacts/network/egress_classes.yaml.
+# Decision packet source: docs/network/transport_governance_packet_seed.md.
+# Audit fixture source: fixtures/network/audit_event_examples/.
+#
+# Rules:
+#   - permission_class values MUST be drawn from
+#     artifacts/network/egress_classes.yaml#network_permission_class_vocabulary.
+#   - Every permission row MUST name default posture, mirror/offline support,
+#     audit requirements, and no-bypass expectations.
+#   - Every source-doc network-capable surface MUST resolve to at least one
+#     permission class in surface_permission_map.
+#   - Exception handling requires both an exception packet and an unexpired
+#     waiver ref on the emitted decision or audit event.
+#   - Planning slugs MUST NOT appear in ids, event names, or descriptions.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/network/transport_permission_matrix.md
+egress_matrix_source: artifacts/network/egress_classes.yaml
+mirror_offline_matrix_source: artifacts/network/mirror_offline_matrix.yaml
+transport_decision_source: docs/network/transport_governance_packet_seed.md
+network_attribution_schema_source: schemas/network/network_attribution_record.schema.json
+transport_decision_schema_source: schemas/network/transport_decision.schema.json
+audit_fixture_source: fixtures/network/audit_event_examples/
+
+owner_dri: "@ahmeddyounis"
+owning_decision_forum: security_trust_review
+review_cadence: each_transport_or_permission_change
+visibility_class: public
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "5.42 Network, proxy, certificates, and transport-governance architecture"
+      - "10.20 Network egress, proxy governance, and transport audit"
+      - "Appendix AA Network and transport policy matrix"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Appendix G Network and Transport Policy Matrix"
+      - "22.7 Unified network, proxy, and transport control plane"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "7.11.5 Network and transport governance"
+      - "9.54 Transport policy, proxy resolution, and egress-decision contract"
+      - "9.56 Network event, inspector snapshot, and mirror-route contract"
+      - "Appendix CX Transport governance, proxy resolution, and egress-class matrix"
+      - "Appendix CZ Network inspector, allow/deny event, and mirror/offline continuity matrix"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "18.14 Network, proxy, certificate, and policy explainability"
+      - "Appendix BS Transport, proxy, certificate, and mirror-state templates"
+
+source_spelling_aliases:
+  core-update: core_update
+  registry-read: registry_read
+  registry-write: registry_write
+  ai-context-egress: ai_context_egress
+  ai-tool-egress: ai_tool_egress
+  docs-fetch: docs_fetch
+  remote-connect: remote_connect
+  vcs-network: vcs_network
+  extension-network: extension_network
+
+permission_class_vocabulary:
+  - core_update
+  - registry_read
+  - registry_write
+  - ai_context_egress
+  - ai_tool_egress
+  - docs_fetch
+  - remote_connect
+  - vcs_network
+  - extension_network
+  - policy_refresh
+  - telemetry_send
+  - tunnel_publish
+  - provider_callback_inbound
+  - mirror_refresh
+  - browser_handoff_launch
+  - api_client_request
+
+audit_field_vocabulary:
+  common_transport_spine:
+    - event_id
+    - event_name
+    - event_captured_at
+    - invocation_session_ref
+    - component_class
+    - permission_class
+    - origin_scope
+    - endpoint_class
+    - target_class
+    - target_identity_ref
+    - active_deployment_profile
+    - active_identity_mode
+    - active_policy_bundle_ref
+    - policy_epoch_ref
+    - egress_class
+    - route_class
+    - proxy_resolution_mode
+    - trust_store_source
+    - mirror_route_class
+    - offline_or_deny_all_state
+    - transport_decision_code
+    - outcome_class
+    - redaction_class
+    - export_safe
+  artifact_identity_fields:
+    - artifact_ref
+    - artifact_digest_ref
+    - channel_ref
+    - pack_revision_ref
+    - bundle_ref
+    - mirror_snapshot_ref
+  publisher_provider_fields:
+    - publisher_identity_ref
+    - provider_entry_ref
+    - model_entry_ref
+    - tool_entry_ref
+    - provider_actor_class
+  remote_route_fields:
+    - broker_class
+    - target_witness_ref
+    - host_proof_ref
+    - client_certificate_handle_ref
+    - route_exposure_class
+  operation_fields:
+    - operation_class
+    - remote_class
+    - api_surface_class
+    - request_document_ref
+  denial_failure_fields:
+    - deny_reason_detail_class
+    - failure_reason_class
+    - policy_rule_ref
+    - user_setting_ref
+    - trust_failure_state
+    - proxy_failure_state
+    - mirror_freshness_class
+    - failure_sentence
+
+audit_requirement_rows:
+  - requirement_ref: audit.network.common_transport_event
+    title: Common network transport event
+    required_field_groups:
+      - common_transport_spine
+    required_fields:
+      - reason_sentence
+      - narrative_refs
+    forbidden_raw_fields:
+      - raw_url
+      - raw_hostname
+      - raw_ip_address
+      - raw_request_body
+      - raw_response_body
+      - raw_token
+      - raw_cookie
+      - raw_proxy_credentials
+      - raw_certificate_pem
+      - raw_private_key
+      - raw_ssh_host_key
+      - raw_pac_script
+    default_redaction_class: metadata_safe_default
+
+  - requirement_ref: audit.network.artifact_distribution
+    title: Artifact distribution audit
+    extends: audit.network.common_transport_event
+    required_field_groups:
+      - artifact_identity_fields
+    required_fields:
+      - signer_or_trust_root_ref
+      - artifact_family
+    default_redaction_class: metadata_safe_default
+
+  - requirement_ref: audit.network.registry_artifact
+    title: Extension registry artifact audit
+    extends: audit.network.artifact_distribution
+    required_fields:
+      - registry_source_class
+      - publisher_identity_ref
+      - declared_permission_digest_ref
+    default_redaction_class: metadata_safe_default
+
+  - requirement_ref: audit.network.registry_publish
+    title: Extension registry publish audit
+    extends: audit.network.registry_artifact
+    required_fields:
+      - approval_ticket_ref
+      - publisher_actor_ref
+      - publication_intent_ref
+    default_redaction_class: operator_only_restricted
+
+  - requirement_ref: audit.network.ai_context
+    title: AI context egress audit
+    extends: audit.network.common_transport_event
+    required_field_groups:
+      - publisher_provider_fields
+      - denial_failure_fields
+    required_fields:
+      - context_class
+      - data_class_allowlist_ref
+      - redaction_policy_ref
+      - retention_stance_class
+    default_redaction_class: operator_only_restricted
+
+  - requirement_ref: audit.network.ai_tool
+    title: AI tool egress audit
+    extends: audit.network.ai_context
+    required_fields:
+      - tool_entry_ref
+      - side_effect_class
+      - approval_ticket_ref
+      - tool_permission_grant_ref
+    default_redaction_class: operator_only_restricted
+
+  - requirement_ref: audit.network.docs_pack
+    title: Docs pack fetch audit
+    extends: audit.network.artifact_distribution
+    required_fields:
+      - docs_pack_id
+      - pack_revision_ref
+      - docs_source_class
+      - freshness_class
+    default_redaction_class: metadata_safe_default
+
+  - requirement_ref: audit.network.remote_route
+    title: Remote route and attach audit
+    extends: audit.network.common_transport_event
+    required_field_groups:
+      - remote_route_fields
+      - denial_failure_fields
+    required_fields:
+      - broker_class
+      - target_class
+      - target_witness_ref
+      - auth_mode
+    default_redaction_class: operator_only_restricted
+
+  - requirement_ref: audit.network.vcs_remote
+    title: Git remote audit
+    extends: audit.network.common_transport_event
+    required_field_groups:
+      - operation_fields
+      - denial_failure_fields
+    required_fields:
+      - remote_class
+      - git_operation_class
+      - ref_update_ref
+    default_redaction_class: metadata_safe_default
+
+  - requirement_ref: audit.network.extension_egress
+    title: Extension network egress audit
+    extends: audit.network.common_transport_event
+    required_field_groups:
+      - publisher_provider_fields
+      - denial_failure_fields
+    required_fields:
+      - extension_identity_ref
+      - extension_version_ref
+      - permission_grant_ref
+      - declared_permission_digest_ref
+    default_redaction_class: operator_only_restricted
+
+  - requirement_ref: audit.network.policy_bundle
+    title: Policy and trust bundle audit
+    extends: audit.network.artifact_distribution
+    required_fields:
+      - bundle_ref
+      - policy_epoch_ref
+      - signer_or_trust_root_ref
+      - bundle_freshness_class
+    default_redaction_class: metadata_safe_default
+
+  - requirement_ref: audit.network.telemetry_send
+    title: Telemetry send audit
+    extends: audit.network.common_transport_event
+    required_fields:
+      - telemetry_stream_class
+      - event_batch_ref
+      - consent_or_policy_ref
+      - redaction_policy_ref
+    default_redaction_class: metadata_safe_default
+
+  - requirement_ref: audit.network.provider_callback
+    title: Provider callback audit
+    extends: audit.network.common_transport_event
+    required_fields:
+      - callback_envelope_ref
+      - provider_actor_class
+      - correlation_ref
+      - replay_policy_ref
+    default_redaction_class: operator_only_restricted
+
+  - requirement_ref: audit.network.api_client
+    title: API client audit
+    extends: audit.network.common_transport_event
+    required_field_groups:
+      - operation_fields
+      - denial_failure_fields
+    required_fields:
+      - api_surface_class
+      - request_document_ref
+      - auth_handle_class
+    default_redaction_class: operator_only_restricted
+
+no_bypass_rules:
+  - rule_id: no_bypass.shared_transport_governance_required
+    applies_to_permission_classes: all
+    forbidden_bypass_class: surface_local_transport_stack
+    expectation: >
+      Every network-capable surface resolves a transport decision through the
+      shared governance layer before any route leaves the current boundary.
+  - rule_id: no_bypass.exception_and_waiver_required
+    applies_to_permission_classes: all
+    forbidden_bypass_class: exception_without_waiver
+    expectation: >
+      Any exception must attach both exception_ref and waiver_ref to the emitted
+      decision or audit event. Missing, expired, or scope-mismatched refs deny.
+  - rule_id: no_bypass.no_silent_public_origin_fallback
+    applies_to_permission_classes:
+      - core_update
+      - registry_read
+      - docs_fetch
+      - policy_refresh
+      - mirror_refresh
+      - api_client_request
+    forbidden_bypass_class: public_origin_on_mirror_only_profile
+    expectation: >
+      Mirror-only and offline-bundle rows never retry a public endpoint unless a
+      policy-visible exception and waiver explicitly admit the route.
+  - rule_id: no_bypass.no_extension_ambient_egress
+    applies_to_permission_classes:
+      - extension_network
+      - ai_tool_egress
+    forbidden_bypass_class: extension_ambient_egress
+    expectation: >
+      Extension-originated egress above local_only requires a permission grant
+      and carries the same decision/audit vocabulary as core surfaces.
+  - rule_id: no_bypass.no_destructive_offline_deferral
+    applies_to_permission_classes:
+      - registry_write
+      - ai_tool_egress
+      - tunnel_publish
+      - provider_callback_inbound
+      - browser_handoff_launch
+    forbidden_bypass_class: destructive_or_externally_visible_offline_defer
+    expectation: >
+      Destructive, externally visible, paid, provider-mutating, or tunnel-
+      exposing actions fail typed and request fresh approval after connectivity
+      returns. They are not silently queued.
+
+permission_class_rows:
+  - permission_class: core_update
+    source_display_token: core-update
+    title: Core updates and release metadata
+    surface_family: updates_release_metadata
+    default_posture: channel_governed_by_policy
+    canonical_component_classes:
+      - update_client_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: required_for_enterprise_self_hosted_and_air_gap_claims
+      offline_support_class: signed_offline_bundle_or_local_mirror
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - vendor_published_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_only_no_direct_allowed
+      freshness_requirement: signer_continuity_and_revocation_snapshot_current_or_typed_stale
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.artifact_distribution
+    required_permission_fields:
+      - channel_ref
+      - artifact_digest_ref
+      - signer_or_trust_root_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_silent_public_origin_fallback
+
+  - permission_class: registry_read
+    source_display_token: registry-read
+    title: Extension registry read
+    surface_family: extension_registry_read
+    default_posture: user_or_admin_policy_allowed
+    canonical_component_classes:
+      - extension_registry_component
+      - desktop_shell_component
+      - cli_headless_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: required
+      offline_support_class: offline_bundle_import_supported
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_only_no_direct_allowed
+      freshness_requirement: publisher_revocation_snapshot_within_policy_window
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.registry_artifact
+    required_permission_fields:
+      - registry_source_class
+      - artifact_digest_ref
+      - publisher_identity_ref
+      - declared_permission_digest_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_silent_public_origin_fallback
+
+  - permission_class: registry_write
+    source_display_token: registry-write
+    title: Extension registry write and publication
+    surface_family: extension_registry_write
+    default_posture: approval_or_step_up_required
+    canonical_component_classes:
+      - extension_registry_component
+      - cli_headless_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: deny_all
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: publish_to_private_registry_when_policy_admits
+      offline_support_class: no_offline_mutation
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - no_mirror_direct_origin
+      freshness_requirement: live_publisher_and_registry_authority_required
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.registry_publish
+    required_permission_fields:
+      - approval_ticket_ref
+      - publisher_identity_ref
+      - publication_intent_ref
+      - artifact_digest_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_destructive_offline_deferral
+
+  - permission_class: ai_context_egress
+    source_display_token: ai-context-egress
+    title: AI context egress
+    surface_family: ai_provider_context
+    default_posture: opt_in_and_policy_bounded
+    canonical_component_classes:
+      - ai_broker_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: deny_all
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: local_model_pack_or_enterprise_gateway_substitute
+      offline_support_class: local_model_pack_only_when_installed_and_admitted
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_not_applicable
+      freshness_requirement: provider_model_and_policy_route_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.ai_context
+    required_permission_fields:
+      - provider_entry_ref
+      - model_entry_ref
+      - context_class
+      - data_class_allowlist_ref
+      - retention_stance_class
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+
+  - permission_class: ai_tool_egress
+    source_display_token: ai-tool-egress
+    title: AI tool egress
+    surface_family: ai_external_tool
+    default_posture: tool_grant_and_approval_required
+    canonical_component_classes:
+      - ai_broker_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: deny_all
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: local_tools_or_org_gateway_only
+      offline_support_class: local_only_tools_when_declared
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - mirror_not_applicable
+      freshness_requirement: tool_registry_entry_and_approval_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.ai_tool
+    required_permission_fields:
+      - provider_entry_ref
+      - model_entry_ref
+      - tool_entry_ref
+      - side_effect_class
+      - approval_ticket_ref
+      - tool_permission_grant_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_extension_ambient_egress
+      - no_bypass.no_destructive_offline_deferral
+
+  - permission_class: docs_fetch
+    source_display_token: docs-fetch
+    title: Docs and tutorial pack fetch
+    surface_family: docs_help_packs
+    default_posture: optional_low_risk_with_freshness_truth
+    canonical_component_classes:
+      - docs_pack_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: required
+      offline_support_class: signed_docs_bundle_supported
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - vendor_published_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_only_no_direct_allowed
+      freshness_requirement: pack_manifest_freshness_or_typed_stale
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.docs_pack
+    required_permission_fields:
+      - docs_pack_id
+      - pack_revision_ref
+      - docs_source_class
+      - mirror_snapshot_ref
+      - freshness_class
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_silent_public_origin_fallback
+
+  - permission_class: remote_connect
+    source_display_token: remote-connect
+    title: Remote connect and attach
+    surface_family: remote_attach_broker_ssh_agent
+    default_posture: explicit_user_action_or_policy_reconnect
+    canonical_component_classes:
+      - remote_tunnel_component
+      - remote_ssh_component
+      - remote_agent_component
+      - managed_control_plane_component
+      - cli_headless_component
+      - desktop_shell_component
+      - notebook_kernel_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: target_local
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: self_hosted_or_managed_route_supported
+      offline_support_class: target_local_only_when_route_stays_inside_boundary
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - mirror_not_applicable
+      freshness_requirement: target_witness_and_trust_proof_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.remote_route
+    required_permission_fields:
+      - broker_class
+      - target_witness_ref
+      - auth_mode
+      - host_proof_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+
+  - permission_class: vcs_network
+    source_display_token: vcs-network
+    title: Git network operations
+    surface_family: git_remote
+    default_posture: workspace_or_user_initiated
+    canonical_component_classes:
+      - git_vcs_component
+      - cli_headless_component
+      - desktop_shell_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: target_local
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: enterprise_git_mirror_supported
+      offline_support_class: local_git_continues_without_remote_mutation
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - mirror_not_applicable
+      freshness_requirement: remote_tracking_freshness_or_typed_unavailable
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.vcs_remote
+    required_permission_fields:
+      - remote_class
+      - git_operation_class
+      - ref_update_ref
+      - failure_reason_class
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+
+  - permission_class: extension_network
+    source_display_token: extension-network
+    title: Extension network egress
+    surface_family: extension_egress
+    default_posture: denied_without_permission_grant
+    canonical_component_classes:
+      - extension_host_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: proxy_or_mirror_where_declared
+      offline_support_class: local_only_extension_paths_only
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_not_applicable
+      freshness_requirement: permission_grant_and_declared_target_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.extension_egress
+    required_permission_fields:
+      - extension_identity_ref
+      - permission_grant_ref
+      - publisher_identity_ref
+      - declared_permission_digest_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_extension_ambient_egress
+
+  - permission_class: policy_refresh
+    title: Policy, entitlement, and trust bundle refresh
+    surface_family: policy_distribution
+    default_posture: signed_bundle_or_cache_with_pinned_trust
+    canonical_component_classes:
+      - policy_distribution_component
+      - managed_control_plane_component
+    default_egress_by_profile:
+      individual_local: local_only
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: required_for_enterprise_self_hosted_and_air_gap_claims
+      offline_support_class: file_import_or_offline_bundle_evaluation
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_only_no_direct_allowed
+      freshness_requirement: policy_epoch_signature_and_expiry_inspectable
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.policy_bundle
+    required_permission_fields:
+      - bundle_ref
+      - policy_epoch_ref
+      - signer_or_trust_root_ref
+      - bundle_freshness_class
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_silent_public_origin_fallback
+
+  - permission_class: telemetry_send
+    title: Telemetry and diagnostics send
+    surface_family: telemetry_diagnostics
+    default_posture: opt_in_or_managed_policy_admitted
+    canonical_component_classes:
+      - telemetry_sink_component
+    default_egress_by_profile:
+      individual_local: local_only
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: customer_operated_sink_when_claimed
+      offline_support_class: local_capture_or_export_without_send
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - mirror_not_applicable
+      freshness_requirement: consent_or_policy_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.telemetry_send
+    required_permission_fields:
+      - telemetry_stream_class
+      - event_batch_ref
+      - consent_or_policy_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+
+  - permission_class: tunnel_publish
+    title: Tunnel and port exposure
+    surface_family: remote_tunnel_publish
+    default_posture: explicit_approval_required_for_shareable_routes
+    canonical_component_classes:
+      - remote_tunnel_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: public_internet
+      enterprise_online: public_internet
+      air_gapped: deny_all
+      managed_cloud: public_internet
+    mirror_offline_support:
+      mirror_support_class: not_applicable_for_public_exposure
+      offline_support_class: local_only_preview_without_share
+      allowed_mirror_route_classes:
+        - mirror_not_applicable
+      freshness_requirement: approval_ticket_and_target_witness_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.remote_route
+    required_permission_fields:
+      - route_exposure_class
+      - approval_ticket_ref
+      - target_witness_ref
+      - revoke_path_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_destructive_offline_deferral
+
+  - permission_class: provider_callback_inbound
+    title: Provider callback and browser return
+    surface_family: provider_callback
+    default_posture: bound_to_prior_handoff_or_provider_packet
+    canonical_component_classes:
+      - provider_callback_receiver_component
+      - browser_handoff_launcher_component
+    default_egress_by_profile:
+      individual_local: local_only
+      self_hosted: local_only
+      enterprise_online: local_only
+      air_gapped: local_only
+      managed_cloud: local_only
+    mirror_offline_support:
+      mirror_support_class: not_applicable_for_inbound_callback
+      offline_support_class: local_callback_capture_only
+      allowed_mirror_route_classes:
+        - mirror_not_applicable
+      freshness_requirement: callback_correlation_and_replay_policy_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.provider_callback
+    required_permission_fields:
+      - callback_envelope_ref
+      - provider_actor_class
+      - correlation_ref
+      - replay_policy_ref
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_destructive_offline_deferral
+
+  - permission_class: mirror_refresh
+    title: Mirror snapshot refresh
+    surface_family: mirror_refresh
+    default_posture: idempotent_refresh_with_signer_continuity
+    canonical_component_classes:
+      - mirror_refresh_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: required
+      offline_support_class: offline_deferred_only_when_idempotent
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - vendor_published_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_only_no_direct_allowed
+      freshness_requirement: mirror_snapshot_and_revocation_lag_visible
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.artifact_distribution
+    required_permission_fields:
+      - artifact_family
+      - mirror_endpoint_ref
+      - mirror_snapshot_ref
+      - mirror_freshness_class
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_silent_public_origin_fallback
+
+  - permission_class: browser_handoff_launch
+    title: Browser handoff launch
+    surface_family: browser_handoff
+    default_posture: explicit_packet_with_reason_and_return_anchor
+    canonical_component_classes:
+      - browser_handoff_launcher_component
+      - desktop_shell_component
+      - cli_headless_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: local_file_or_self_hosted_destination_when_claimed
+      offline_support_class: blocked_unless_local_destination
+      allowed_mirror_route_classes:
+        - mirror_not_applicable
+        - customer_operated_mirror_active
+      freshness_requirement: handoff_packet_and_destination_policy_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.provider_callback
+    required_permission_fields:
+      - browser_handoff_packet_ref
+      - destination_class
+      - return_anchor_ref
+      - provider_actor_class
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_destructive_offline_deferral
+
+  - permission_class: api_client_request
+    title: API client and generic service request
+    surface_family: api_client_request
+    default_posture: explicit_user_workspace_or_policy_admitted_request
+    canonical_component_classes:
+      - api_client_component
+      - notebook_kernel_component
+      - debugger_symbol_component
+      - cli_headless_component
+      - desktop_shell_component
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    mirror_offline_support:
+      mirror_support_class: mirror_or_local_bundle_required_when_surface_claims_offline
+      offline_support_class: local_bundle_or_cached_snapshot_only
+      allowed_mirror_route_classes:
+        - customer_operated_mirror_active
+        - offline_bundle_derived_mirror_active
+        - mirror_not_applicable
+      freshness_requirement: request_document_and_auth_scope_current
+      public_origin_fallback_when_mirror_only: forbidden
+    audit_requirement_ref: audit.network.api_client
+    required_permission_fields:
+      - api_surface_class
+      - request_document_ref
+      - auth_handle_class
+      - operation_class
+    no_bypass_rule_refs:
+      - no_bypass.shared_transport_governance_required
+      - no_bypass.no_silent_public_origin_fallback
+
+surface_permission_map:
+  - source_surface_id: updates_release_metadata
+    source_surface_label: Updates and release metadata
+    permission_classes:
+      - core_update
+    component_classes:
+      - update_client_component
+    audit_requirement_refs:
+      - audit.network.artifact_distribution
+
+  - source_surface_id: extension_registry_read
+    source_surface_label: Extension registry read, install metadata, and trust lookup
+    permission_classes:
+      - registry_read
+    component_classes:
+      - extension_registry_component
+      - desktop_shell_component
+      - cli_headless_component
+    audit_requirement_refs:
+      - audit.network.registry_artifact
+
+  - source_surface_id: extension_registry_write
+    source_surface_label: Extension registry publication or mutation
+    permission_classes:
+      - registry_write
+    component_classes:
+      - extension_registry_component
+      - cli_headless_component
+    audit_requirement_refs:
+      - audit.network.registry_publish
+
+  - source_surface_id: ai_provider_context
+    source_surface_label: AI provider context egress
+    permission_classes:
+      - ai_context_egress
+    component_classes:
+      - ai_broker_component
+    audit_requirement_refs:
+      - audit.network.ai_context
+
+  - source_surface_id: ai_external_tool
+    source_surface_label: AI tool, MCP, retrieval, or external tool call
+    permission_classes:
+      - ai_tool_egress
+      - extension_network
+    component_classes:
+      - ai_broker_component
+      - extension_host_component
+    audit_requirement_refs:
+      - audit.network.ai_tool
+      - audit.network.extension_egress
+
+  - source_surface_id: docs_help_packs
+    source_surface_label: Docs, Help, tutorial, and onboarding pack fetch
+    permission_classes:
+      - docs_fetch
+    component_classes:
+      - docs_pack_component
+    audit_requirement_refs:
+      - audit.network.docs_pack
+
+  - source_surface_id: remote_attach_broker_ssh_agent
+    source_surface_label: Remote SSH, remote agents, managed workspaces, and brokers
+    permission_classes:
+      - remote_connect
+      - tunnel_publish
+    component_classes:
+      - remote_tunnel_component
+      - remote_ssh_component
+      - remote_agent_component
+      - managed_control_plane_component
+    audit_requirement_refs:
+      - audit.network.remote_route
+
+  - source_surface_id: git_remote
+    source_surface_label: Git remote clone, fetch, pull, push, and tracking refresh
+    permission_classes:
+      - vcs_network
+    component_classes:
+      - git_vcs_component
+      - desktop_shell_component
+      - cli_headless_component
+    audit_requirement_refs:
+      - audit.network.vcs_remote
+
+  - source_surface_id: extension_egress
+    source_surface_label: Extension-authored network egress
+    permission_classes:
+      - extension_network
+    component_classes:
+      - extension_host_component
+    audit_requirement_refs:
+      - audit.network.extension_egress
+
+  - source_surface_id: policy_entitlement_trust
+    source_surface_label: Policy endpoints, offline entitlement, trust-root, and emergency bundle refresh
+    permission_classes:
+      - policy_refresh
+      - mirror_refresh
+    component_classes:
+      - policy_distribution_component
+      - mirror_refresh_component
+      - managed_control_plane_component
+    audit_requirement_refs:
+      - audit.network.policy_bundle
+      - audit.network.artifact_distribution
+
+  - source_surface_id: telemetry_diagnostics_support
+    source_surface_label: Telemetry, diagnostics send, support upload, and usage summaries
+    permission_classes:
+      - telemetry_send
+      - api_client_request
+    component_classes:
+      - telemetry_sink_component
+      - api_client_component
+    audit_requirement_refs:
+      - audit.network.telemetry_send
+      - audit.network.api_client
+
+  - source_surface_id: provider_callback_browser_handoff
+    source_surface_label: Browser-mediated auth, provider handoff, callback, and webhook return
+    permission_classes:
+      - browser_handoff_launch
+      - provider_callback_inbound
+    component_classes:
+      - browser_handoff_launcher_component
+      - provider_callback_receiver_component
+    audit_requirement_refs:
+      - audit.network.provider_callback
+
+  - source_surface_id: package_restore_artifact_fetch
+    source_surface_label: Package restore, artifact registry fetch, model asset fetch, and symbol/test provider fetch
+    permission_classes:
+      - api_client_request
+      - mirror_refresh
+    component_classes:
+      - api_client_component
+      - debugger_symbol_component
+      - mirror_refresh_component
+    audit_requirement_refs:
+      - audit.network.api_client
+      - audit.network.artifact_distribution
+
+  - source_surface_id: notebook_kernel_transport
+    source_surface_label: Notebook remote kernel, kernel HTTP/WebSocket endpoint, and shared runtime transport
+    permission_classes:
+      - remote_connect
+      - api_client_request
+    component_classes:
+      - notebook_kernel_component
+      - remote_agent_component
+    audit_requirement_refs:
+      - audit.network.remote_route
+      - audit.network.api_client
+
+  - source_surface_id: request_workspace_browser_runtime_api
+    source_surface_label: Request workspace, browser runtime network inspection, and generic API client request
+    permission_classes:
+      - api_client_request
+      - remote_connect
+    component_classes:
+      - api_client_component
+      - remote_agent_component
+      - desktop_shell_component
+    audit_requirement_refs:
+      - audit.network.api_client
+      - audit.network.remote_route
+
+exception_path:
+  required_refs_on_bypass_decision:
+    - exception_ref
+    - waiver_ref
+  exception_template: docs/governance/templates/exception_packet_template.md
+  waiver_template: docs/governance/templates/waiver_template.md
+  bypass_denial_when_missing: deny_policy
+  bypass_denial_reason: approval_ticket_missing
+  expiry_rule: >
+    Expired, scope-mismatched, or missing exception/waiver refs deny. A bypass
+    may not continue under cached approval after policy epoch, target identity,
+    route, trust posture, or permission class changes.

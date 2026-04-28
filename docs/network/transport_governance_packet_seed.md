@@ -16,6 +16,15 @@ trust failure.
 - [`/docs/network/transport_governance_seed.md`](transport_governance_seed.md)
   defines the underlying proxy, trust, SSH host-key, mirror, egress, posture,
   and attribution vocabulary.
+- [`/docs/network/transport_permission_matrix.md`](transport_permission_matrix.md)
+  publishes the shared permission-class, mirror/offline, and audit-
+  requirement matrix that every network-capable surface resolves through.
+- [`/artifacts/network/permission_classes.yaml`](../../artifacts/network/permission_classes.yaml)
+  defines the machine-readable permission-class and audit-requirement rows
+  consumed by decision records, inspector projections, and support exports.
+- [`/artifacts/network/mirror_offline_matrix.yaml`](../../artifacts/network/mirror_offline_matrix.yaml)
+  defines the air-gapped, sovereign, enterprise-mirror, and local-only
+  mirror/offline posture rows.
 - [`/schemas/network/transport_decision.schema.json`](../../schemas/network/transport_decision.schema.json)
   defines the machine-readable `transport_decision_record`.
 - [`/artifacts/network/proxy_lab_matrix.yaml`](../../artifacts/network/proxy_lab_matrix.yaml)
@@ -330,4 +339,3 @@ cite:
 
 This keeps enterprise transport behavior from diverging into per-feature
 folklore as implementation lands.
-

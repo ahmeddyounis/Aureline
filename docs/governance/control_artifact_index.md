@@ -11,6 +11,13 @@ Companion artifacts:
 - [`/artifacts/governance/control_artifact_index.yaml`](../../artifacts/governance/control_artifact_index.yaml)
   — machine-readable register. Tooling reads this file; the narrative
   below describes the same rows.
+- [`/docs/network/transport_permission_matrix.md`](../network/transport_permission_matrix.md),
+  [`/artifacts/network/permission_classes.yaml`](../../artifacts/network/permission_classes.yaml),
+  and
+  [`/artifacts/network/mirror_offline_matrix.yaml`](../../artifacts/network/mirror_offline_matrix.yaml)
+  — shared network permission-class, audit-requirement, and
+  mirror/offline matrix. Worked examples live under
+  [`/fixtures/network/audit_event_examples/`](../../fixtures/network/audit_event_examples/).
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
   — canonical public/private issue-and-RFC routing matrix, disclosure
   transitions, and escalation paths. Normative narrative lives in

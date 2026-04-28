@@ -25,6 +25,16 @@ claims that way.
 
 Companion artifacts:
 
+- [`/docs/network/transport_permission_matrix.md`](transport_permission_matrix.md):
+  published permission-class, mirror/offline, and audit-requirement
+  matrix that maps every network-capable surface to this shared
+  transport vocabulary.
+- [`/artifacts/network/permission_classes.yaml`](../../artifacts/network/permission_classes.yaml):
+  machine-readable permission-class and audit-requirement register
+  consumed by UI, CLI, support export, policy, and fixture rows.
+- [`/artifacts/network/mirror_offline_matrix.yaml`](../../artifacts/network/mirror_offline_matrix.yaml):
+  machine-readable air-gapped, sovereign, enterprise-mirror, and
+  local-only mirror/offline posture matrix.
 - [`/docs/network/transport_governance_packet_seed.md`](transport_governance_packet_seed.md):
   decision-packet layer that projects the shared route, trust,
   mirror/public, failure, no-bypass, and repair vocabulary into
@@ -59,6 +69,10 @@ Companion artifacts:
   system-browser auth callback, enterprise telemetry denied by user
   disable, and an individual-profile deny-all refusal covering every
   egress class.
+- [`/fixtures/network/audit_event_examples/`](../../fixtures/network/audit_event_examples/)
+  — worked audit-event examples that demonstrate the published
+  permission classes, audit requirements, no-bypass rules, and
+  mirror/offline rows.
 
 Upstream contracts this seed rides on:
 

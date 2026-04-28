@@ -1,0 +1,406 @@
+# Shared mirror/offline deployment matrix for network-capable surfaces.
+#
+# Machine-readable companion to docs/network/transport_permission_matrix.md
+# and artifacts/network/permission_classes.yaml.
+#
+# This matrix freezes what "air-gapped", "sovereign", "enterprise mirror",
+# and "local-only" mean for transport reachability. Rows intentionally spell
+# out vendor reachability dependencies so later product, docs, support, or
+# release claims cannot hide a public-service call behind a mirror/offline
+# label.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/network/transport_permission_matrix.md
+permission_matrix_source: artifacts/network/permission_classes.yaml
+egress_matrix_source: artifacts/network/egress_classes.yaml
+deployment_profile_source: artifacts/governance/deployment_profiles.yaml
+transport_decision_source: docs/network/transport_governance_packet_seed.md
+audit_fixture_source: fixtures/network/audit_event_examples/
+
+owner_dri: "@ahmeddyounis"
+owning_decision_forum: security_trust_review
+review_cadence: each_transport_or_deployment_profile_change
+visibility_class: public
+
+profile_claim_vocabulary:
+  - air_gapped
+  - sovereign
+  - enterprise_mirror
+  - local_only
+
+vendor_reachability_dependency_vocabulary:
+  - none
+  - optional_when_policy_allows
+  - admitted_only_through_customer_gateway
+  - forbidden
+  - explicitly_out_of_scope
+
+route_posture_vocabulary:
+  - public_origin_allowed
+  - org_approved_origin_allowed
+  - customer_mirror_required
+  - offline_bundle_required
+  - local_only_no_network
+  - target_local_only
+  - blocked_typed
+  - not_applicable
+
+offline_behavior_vocabulary:
+  - works_from_local_state
+  - works_from_signed_bundle
+  - works_from_customer_mirror
+  - idempotent_defer_visible
+  - denied_no_queue
+  - stale_labeled_no_live_claim
+  - not_applicable
+
+shared_no_bypass_invariants:
+  - invariant_id: mirror_claim_names_vendor_dependency
+    expectation: >
+      Every mirror/offline row names vendor_reachability_dependency. A row
+      that relies on a live vendor endpoint may not claim air-gapped,
+      sovereign, enterprise-mirror-only, or local-only behavior without
+      marking that dependency explicitly.
+  - invariant_id: mirror_only_has_no_public_fallback
+    expectation: >
+      Rows with route_posture customer_mirror_required or
+      offline_bundle_required set public_origin_allowed to false on emitted
+      transport decisions.
+  - invariant_id: offline_mutations_do_not_queue_silently
+    expectation: >
+      Registry writes, tunnel publication, provider mutation, external AI tool
+      calls, and trust rotation fail typed while offline unless a separate
+      explicit handoff packet admits the mutation after connectivity returns.
+  - invariant_id: local_core_survives_transport_denial
+    expectation: >
+      Local editing, save, local search, local Git operations, local tasks,
+      export, and diagnostics continue where their own contracts allow them
+      even when networked actions are denied.
+
+profile_rows:
+  - row_id: mirror_offline.air_gapped
+    profile_claim: air_gapped
+    deployment_profile_id: air_gapped
+    identity_mode: self_hosted_org
+    offline_or_deny_all_state: offline_air_gapped
+    default_route_class: air_gap_no_network_route
+    default_mirror_route_class: offline_bundle_derived_mirror_active
+    public_origin_allowed: false
+    vendor_reachability_dependency: forbidden
+    required_disclosure: >
+      The row has no public internet route. Any freshness, revocation,
+      registry, docs, update, policy, or model claim must be satisfied from a
+      signed offline bundle, a customer-operated internal mirror, or a local
+      cache labeled with freshness and revocation age.
+    per_permission_posture:
+      core_update:
+        route_posture: offline_bundle_required
+        offline_behavior: works_from_signed_bundle
+        required_refs:
+          - artifact_digest_ref
+          - signer_or_trust_root_ref
+          - mirror_snapshot_ref
+      registry_read:
+        route_posture: offline_bundle_required
+        offline_behavior: works_from_signed_bundle
+        required_refs:
+          - artifact_digest_ref
+          - publisher_identity_ref
+          - revocation_snapshot_ref
+      registry_write:
+        route_posture: blocked_typed
+        offline_behavior: denied_no_queue
+        required_refs:
+          - denial_reason_detail_class
+      ai_context_egress:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_local_state
+        required_refs:
+          - provider_entry_ref
+          - model_entry_ref
+          - local_model_pack_ref
+      ai_tool_egress:
+        route_posture: blocked_typed
+        offline_behavior: denied_no_queue
+        required_refs:
+          - tool_entry_ref
+          - denial_reason_detail_class
+      docs_fetch:
+        route_posture: offline_bundle_required
+        offline_behavior: works_from_signed_bundle
+        required_refs:
+          - pack_revision_ref
+          - mirror_snapshot_ref
+          - freshness_class
+      remote_connect:
+        route_posture: target_local_only
+        offline_behavior: stale_labeled_no_live_claim
+        required_refs:
+          - target_witness_ref
+          - host_proof_ref
+      vcs_network:
+        route_posture: target_local_only
+        offline_behavior: works_from_local_state
+        required_refs:
+          - remote_class
+          - failure_reason_class
+      extension_network:
+        route_posture: local_only_no_network
+        offline_behavior: denied_no_queue
+        required_refs:
+          - extension_identity_ref
+          - permission_grant_ref
+          - denial_reason_detail_class
+      policy_refresh:
+        route_posture: offline_bundle_required
+        offline_behavior: works_from_signed_bundle
+        required_refs:
+          - bundle_ref
+          - policy_epoch_ref
+          - signer_or_trust_root_ref
+      telemetry_send:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_local_state
+        required_refs:
+          - event_batch_ref
+          - consent_or_policy_ref
+      tunnel_publish:
+        route_posture: blocked_typed
+        offline_behavior: denied_no_queue
+        required_refs:
+          - route_exposure_class
+          - denial_reason_detail_class
+      provider_callback_inbound:
+        route_posture: local_only_no_network
+        offline_behavior: stale_labeled_no_live_claim
+        required_refs:
+          - callback_envelope_ref
+          - replay_policy_ref
+      mirror_refresh:
+        route_posture: offline_bundle_required
+        offline_behavior: idempotent_defer_visible
+        required_refs:
+          - mirror_snapshot_ref
+          - mirror_freshness_class
+      browser_handoff_launch:
+        route_posture: local_only_no_network
+        offline_behavior: denied_no_queue
+        required_refs:
+          - browser_handoff_packet_ref
+          - denial_reason_detail_class
+      api_client_request:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_signed_bundle
+        required_refs:
+          - api_surface_class
+          - request_document_ref
+          - artifact_digest_ref
+
+  - row_id: mirror_offline.sovereign_self_hosted
+    profile_claim: sovereign
+    deployment_profile_id: self_hosted
+    identity_mode: self_hosted_org
+    offline_or_deny_all_state: online_mirror_only
+    default_route_class: mirror_proxy_route
+    default_mirror_route_class: customer_operated_mirror_active
+    public_origin_allowed: false
+    vendor_reachability_dependency: none
+    required_disclosure: >
+      The row uses customer-hosted control planes, customer identity, customer
+      mirrors, customer policy bundles, and customer-managed or offline trust
+      roots. Hosted-style features may exist only when their control-plane and
+      data-plane dependencies are customer-hostable under the same object
+      vocabulary.
+    per_permission_posture:
+      core_update:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      registry_read:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      registry_write:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      ai_context_egress:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: stale_labeled_no_live_claim
+      ai_tool_egress:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      docs_fetch:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      remote_connect:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: stale_labeled_no_live_claim
+      vcs_network:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: works_from_local_state
+      extension_network:
+        route_posture: customer_mirror_required
+        offline_behavior: denied_no_queue
+      policy_refresh:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      telemetry_send:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: works_from_local_state
+      tunnel_publish:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      provider_callback_inbound:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: stale_labeled_no_live_claim
+      mirror_refresh:
+        route_posture: customer_mirror_required
+        offline_behavior: idempotent_defer_visible
+      browser_handoff_launch:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      api_client_request:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: works_from_customer_mirror
+
+  - row_id: mirror_offline.enterprise_mirror
+    profile_claim: enterprise_mirror
+    deployment_profile_id: enterprise_online
+    identity_mode: managed_workspace
+    offline_or_deny_all_state: online_mirror_only
+    default_route_class: pac_resolved_route
+    default_mirror_route_class: customer_operated_mirror_active
+    public_origin_allowed: false
+    vendor_reachability_dependency: optional_when_policy_allows
+    required_disclosure: >
+      The row prefers enterprise mirrors, PAC/manual/system proxy, org CA
+      bundles, and customer-approved endpoints. A live public origin is allowed
+      only when policy names it; mirror-only actions must fail typed instead of
+      falling through to public origin.
+    per_permission_posture:
+      core_update:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      registry_read:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      registry_write:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      ai_context_egress:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: stale_labeled_no_live_claim
+      ai_tool_egress:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      docs_fetch:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      remote_connect:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: stale_labeled_no_live_claim
+      vcs_network:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: works_from_local_state
+      extension_network:
+        route_posture: customer_mirror_required
+        offline_behavior: denied_no_queue
+      policy_refresh:
+        route_posture: customer_mirror_required
+        offline_behavior: works_from_customer_mirror
+      telemetry_send:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: works_from_local_state
+      tunnel_publish:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      provider_callback_inbound:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: stale_labeled_no_live_claim
+      mirror_refresh:
+        route_posture: customer_mirror_required
+        offline_behavior: idempotent_defer_visible
+      browser_handoff_launch:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: denied_no_queue
+      api_client_request:
+        route_posture: org_approved_origin_allowed
+        offline_behavior: works_from_customer_mirror
+
+  - row_id: mirror_offline.local_only
+    profile_claim: local_only
+    deployment_profile_id: individual_local
+    identity_mode: account_free_local
+    offline_or_deny_all_state: network_disabled_by_user
+    default_route_class: air_gap_no_network_route
+    default_mirror_route_class: mirror_not_applicable
+    public_origin_allowed: false
+    vendor_reachability_dependency: none
+    required_disclosure: >
+      The row requires no outbound network after installation. Local editing,
+      local Git, local search, local tasks, local debugging where configured,
+      and local model packs continue. Actions that need a live endpoint emit a
+      typed denial and do not start background retries.
+    per_permission_posture:
+      core_update:
+        route_posture: blocked_typed
+        offline_behavior: denied_no_queue
+      registry_read:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_signed_bundle
+      registry_write:
+        route_posture: blocked_typed
+        offline_behavior: denied_no_queue
+      ai_context_egress:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_local_state
+      ai_tool_egress:
+        route_posture: local_only_no_network
+        offline_behavior: denied_no_queue
+      docs_fetch:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_signed_bundle
+      remote_connect:
+        route_posture: target_local_only
+        offline_behavior: stale_labeled_no_live_claim
+      vcs_network:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_local_state
+      extension_network:
+        route_posture: local_only_no_network
+        offline_behavior: denied_no_queue
+      policy_refresh:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_signed_bundle
+      telemetry_send:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_local_state
+      tunnel_publish:
+        route_posture: blocked_typed
+        offline_behavior: denied_no_queue
+      provider_callback_inbound:
+        route_posture: local_only_no_network
+        offline_behavior: stale_labeled_no_live_claim
+      mirror_refresh:
+        route_posture: local_only_no_network
+        offline_behavior: idempotent_defer_visible
+      browser_handoff_launch:
+        route_posture: blocked_typed
+        offline_behavior: denied_no_queue
+      api_client_request:
+        route_posture: local_only_no_network
+        offline_behavior: works_from_signed_bundle
+
+fixture_coverage:
+  - fixture: fixtures/network/audit_event_examples/docs_fetch_air_gap_allowed.yaml
+    covers_profile_row: mirror_offline.air_gapped
+    covers_permission_class: docs_fetch
+  - fixture: fixtures/network/audit_event_examples/core_update_mirror_allowed.yaml
+    covers_profile_row: mirror_offline.enterprise_mirror
+    covers_permission_class: core_update
+  - fixture: fixtures/network/audit_event_examples/vcs_network_enterprise_mirror_failed.yaml
+    covers_profile_row: mirror_offline.enterprise_mirror
+    covers_permission_class: vcs_network
+  - fixture: fixtures/network/audit_event_examples/extension_network_missing_permission_denied.yaml
+    covers_profile_row: mirror_offline.local_only
+    covers_permission_class: extension_network
