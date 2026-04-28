@@ -99,6 +99,12 @@ already frozen in:
   invalidation posture on the underlying subscription stream. Every
   saved view and batch-review packet pins a `freshness_class` from
   that ADR.
+- [`/docs/ux/view_freshness_contract.md`](./view_freshness_contract.md)
+  — cross-surface freshness badge, materialized-view disclosure,
+  captured-versus-live scope truth, and export-safe rules. Collection
+  records keep filter, count, saved-view, and batch-population truth;
+  any cross-surface freshness badge resolves through the
+  `view_freshness_record`.
 - [`/docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md`](../adr/0007-secret-broker-credential-handle-trust-store-redaction.md)
   — broker-owned redaction pass. Filter-AST literals, saved-view
   labels, and batch-review packets carry opaque refs and reviewable

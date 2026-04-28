@@ -1,0 +1,1410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/view_freshness.schema.json",
+  "title": "Aureline view freshness and captured-scope disclosure record",
+  "description": "Boundary schema for the view_freshness_record frozen in docs/ux/view_freshness_contract.md. Every live, cached, imported, replayed, derived, or exported materialized view that needs to disclose freshness emits one record with a freshness badge class, authority source, completeness posture, invalidation cause, snapshot/delta parity, refresh or requery action, current-versus-captured scope truth, and export posture. The eventual shell / runtime Rust types are the source of record; this JSON Schema is the cross-tool boundary for docs, CLI, support export, parity audit, fixtures, and non-owning surfaces. Adding a new surface family, freshness class, source posture, completeness class, invalidation cause, parity state, refresh action, scope-truth class, export scope class, omission reason, or denial reason is additive-minor and requires a view_freshness_schema_version bump; repurposing an existing value is breaking and requires a new decision row. Raw query bodies, raw document bodies, raw log bytes, raw notebook outputs, raw hostnames, raw URLs, raw absolute filesystem paths, and raw credential material never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/view_freshness_record" }
+  ],
+  "$defs": {
+    "view_freshness_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this view-freshness boundary export. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["view_freshness_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque reference to an owner, source, run, scope, packet, snapshot, fixture, or schema family. Raw paths, URLs, query bodies, and document bodies are forbidden."
+    },
+
+    "redaction_aware_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewer-visible label after the redaction pass. Labels may describe class, scope, count, time, or source, but must not contain raw secrets, raw hostnames, raw URLs, raw file bodies, raw query bodies, raw log bytes, or raw notebook output."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ],
+          "description": "Scope class shared with the subscription contract."
+        },
+        "id": { "$ref": "#/$defs/opaque_ref" }
+      },
+      "description": "Typed scope the view speaks for."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "search_results",
+        "docs_view",
+        "graph_view",
+        "log_view",
+        "review_pack",
+        "notebook_view",
+        "dashboard",
+        "support_packet",
+        "output_viewer",
+        "generic_materialized_view"
+      ],
+      "description": "Closed surface-family vocabulary for view-freshness projection."
+    },
+
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ],
+      "description": "Canonical-owner classification re-exported from the subscription contract."
+    },
+
+    "truth_class": {
+      "type": "string",
+      "enum": [
+        "runtime_observed_truth",
+        "derived_indexed_truth",
+        "session_collaboration_truth",
+        "ai_inferred_truth",
+        "workspace_vcs_truth",
+        "user_authored_durable_truth"
+      ],
+      "description": "Truth class projected from docs/governance/truth_and_degraded_state_vocabulary.md."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_exact",
+        "snapshot_exact",
+        "partial",
+        "stale",
+        "approximate_derived"
+      ],
+      "description": "Closed cross-surface freshness badge class. live_exact is current, complete, and exact for the declared scope; snapshot_exact is exact for a fixed basis but not live; partial names omissions; stale names lost freshness; approximate_derived names heuristic, sampled, inferred, lossy, or non-exact derived views."
+    },
+
+    "accuracy_class": {
+      "type": "string",
+      "enum": ["exact", "approximate", "mixed"],
+      "description": "Accuracy axis orthogonal to freshness. approximate and mixed require derivation disclosure."
+    },
+
+    "badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visible_label", "accessible_name", "summary_label"],
+      "properties": {
+        "visible_label": {
+          "type": "string",
+          "enum": [
+            "Live exact",
+            "Snapshot",
+            "Partial",
+            "Stale",
+            "Approximate"
+          ],
+          "description": "Compact visible badge label. Localization may translate the string but not remove the class."
+        },
+        "accessible_name": { "$ref": "#/$defs/redaction_aware_label" },
+        "summary_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Visible and accessible badge disclosure. Icon-only renderings still carry this full object."
+    },
+
+    "source_posture_class": {
+      "type": "string",
+      "enum": [
+        "live_authority_query",
+        "live_subscription",
+        "revalidated_cache_current",
+        "current_derived_exact",
+        "captured_snapshot",
+        "imported_bundle",
+        "replayed_capture",
+        "unrevalidated_cache",
+        "stale_cache",
+        "derived_projection",
+        "provider_overlay",
+        "sampled_aggregate",
+        "ai_inferred_summary",
+        "support_packet_capture",
+        "notebook_capture"
+      ],
+      "description": "Where the view was read from. Captured, imported, replayed, unrevalidated cached, stale cache, sampled, or inferred postures cannot claim live_exact."
+    },
+
+    "freshness_floor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["floor_class", "label"],
+      "properties": {
+        "floor_class": {
+          "type": "string",
+          "enum": [
+            "none_required",
+            "same_delta_sequence",
+            "same_snapshot_epoch",
+            "same_run",
+            "within_refresh_window",
+            "manual_requery_required",
+            "policy_defined"
+          ]
+        },
+        "max_age_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Freshness floor the view must satisfy before it may claim its class."
+    },
+
+    "authority_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_class",
+        "source_posture_class",
+        "source_ref",
+        "owner_label",
+        "freshness_floor"
+      ],
+      "properties": {
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "source_posture_class": { "$ref": "#/$defs/source_posture_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "owner_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "freshness_floor": { "$ref": "#/$defs/freshness_floor" },
+        "upstream_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Authority and source disclosure for this view."
+    },
+
+    "producer_freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported"
+      ],
+      "description": "Producer freshness re-exported from the subscription envelope."
+    },
+
+    "producer_completeness": {
+      "type": "string",
+      "enum": ["full", "partial", "unloaded", "unavailable"],
+      "description": "Producer completeness re-exported from the subscription envelope."
+    },
+
+    "derivation_class": {
+      "type": "string",
+      "enum": ["authoritative", "derived"],
+      "description": "Authoritative versus derived classification re-exported from the subscription envelope."
+    },
+
+    "backpressure_mode": {
+      "type": "string",
+      "enum": ["realtime", "coalesced", "snapshot_required", "not_applicable"],
+      "description": "Backpressure mode from the subscription envelope, or not_applicable for non-streamed captures."
+    },
+
+    "materialized_view_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ],
+      "description": "Materialized-view class re-exported from the subscription envelope."
+    },
+
+    "subscription_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_family",
+        "scope_ref",
+        "authority_class",
+        "derivation_class",
+        "producer_freshness",
+        "producer_completeness",
+        "backpressure_mode",
+        "materialized_view_class"
+      ],
+      "properties": {
+        "subscription_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "query_family": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+        },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "producer_freshness": { "$ref": "#/$defs/producer_freshness" },
+        "producer_completeness": { "$ref": "#/$defs/producer_completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "materialized_view_class": { "$ref": "#/$defs/materialized_view_class" },
+        "snapshot_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delta_seq": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Compact projection of subscription-envelope truth. Non-streamed captures still name the query family, scope, producer freshness, completeness, and view class they represent."
+    },
+
+    "basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis_class", "basis_ref", "basis_label"],
+      "properties": {
+        "basis_class": {
+          "type": "string",
+          "enum": [
+            "live_observation",
+            "live_run",
+            "captured_snapshot",
+            "imported_snapshot",
+            "replayed_window",
+            "cached_checkpoint",
+            "derived_epoch"
+          ]
+        },
+        "basis_ref": { "$ref": "#/$defs/opaque_ref" },
+        "basis_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_known_good_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "derivation_epoch": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Time, run, snapshot, cache, or derivation basis for the record."
+    },
+
+    "count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "exact" },
+            "value": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "approximate" },
+            "value": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "const": "unknown" }
+          }
+        }
+      ],
+      "description": "Exact / approximate / unknown count truth."
+    },
+
+    "omission_reason_class": {
+      "type": "string",
+      "enum": [
+        "indexing_in_progress",
+        "scope_not_loaded",
+        "policy_hidden",
+        "provider_limit",
+        "remote_shard_unreachable",
+        "permission_missing",
+        "retention_window_exceeded",
+        "redaction_applied",
+        "unsupported_current_client",
+        "source_unavailable",
+        "not_in_captured_basis"
+      ],
+      "description": "Closed omission reason vocabulary. Partial views must enumerate at least one omission."
+    },
+
+    "recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "none_available",
+        "finish_indexing",
+        "load_scope",
+        "widen_scope_with_review",
+        "request_permission",
+        "reconnect_provider",
+        "open_policy_explainer",
+        "refresh_or_requery",
+        "open_authority_source",
+        "export_with_omissions"
+      ],
+      "description": "Action that can widen, repair, or explain an omitted scope."
+    },
+
+    "scope_omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "omitted_scope_ref",
+        "missing_scope_label",
+        "reason_class",
+        "reason_label",
+        "recovery_action_class"
+      ],
+      "properties": {
+        "omitted_scope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "missing_scope_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "reason_class": { "$ref": "#/$defs/omission_reason_class" },
+        "reason_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "recovery_action_class": { "$ref": "#/$defs/recovery_action_class" }
+      },
+      "description": "One declared omitted scope. Partial records name what is missing and why."
+    },
+
+    "completeness_class": {
+      "type": "string",
+      "enum": ["complete", "partial", "unloaded", "unavailable"],
+      "description": "Completeness disclosure for the declared user-facing scope."
+    },
+
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completeness_class",
+        "declared_scope_label",
+        "covered_scope_label",
+        "covered_count",
+        "total_count"
+      ],
+      "properties": {
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "declared_scope_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "covered_scope_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "covered_count": { "$ref": "#/$defs/count_value" },
+        "total_count": { "$ref": "#/$defs/count_value" },
+        "scope_omissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_omission" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Completeness, counts, and omitted scope disclosure."
+    },
+
+    "invalidation_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable_current",
+        "valid_until_floor",
+        "stale",
+        "resync_required",
+        "terminal_unavailable",
+        "policy_invalidated",
+        "scope_changed",
+        "source_replaced"
+      ],
+      "description": "Current invalidation state."
+    },
+
+    "invalidation_cause": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost",
+        "retention_window_advanced",
+        "sampling_window_shifted",
+        "schema_changed"
+      ],
+      "description": "Why the view is stale, invalidated, captured, imported, replayed, or otherwise non-current. Values mirror the subscription stale-reason taxonomy and add view-level causes where required."
+    },
+
+    "invalidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invalidation_state", "invalidation_cause", "label"],
+      "properties": {
+        "invalidation_state": { "$ref": "#/$defs/invalidation_state" },
+        "invalidation_cause": { "$ref": "#/$defs/invalidation_cause" },
+        "invalidated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "caused_by_ref": { "$ref": "#/$defs/opaque_ref" },
+        "label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Invalidation disclosure. Non-current classes must name a cause other than not_applicable."
+    },
+
+    "parity_state": {
+      "type": "string",
+      "enum": [
+        "parity_verified",
+        "parity_pending",
+        "not_applicable_snapshot_only",
+        "delta_gap_resync_required",
+        "snapshot_required_backpressure",
+        "mismatch_detected",
+        "not_applicable_non_streamed"
+      ],
+      "description": "Snapshot/delta parity state."
+    },
+
+    "snapshot_delta_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parity_state", "label"],
+      "properties": {
+        "parity_state": { "$ref": "#/$defs/parity_state" },
+        "snapshot_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delta_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "parity_case_ref": { "$ref": "#/$defs/opaque_ref" },
+        "order_audit_ref": { "$ref": "#/$defs/opaque_ref" },
+        "label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Snapshot/delta parity disclosure. Exportable snapshots and non-streamed captures keep snapshot-only state explicit."
+    },
+
+    "refresh_action_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_current",
+        "refresh_available",
+        "requery_available",
+        "resubscribe_required",
+        "rebuild_required",
+        "open_authority_source",
+        "explain_policy",
+        "unavailable_offline",
+        "class_change_required",
+        "export_only"
+      ],
+      "description": "Safe next action for the user or automation."
+    },
+
+    "refresh_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "label",
+        "safe_to_auto_refresh",
+        "would_change_class"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/refresh_action_class" },
+        "label": { "$ref": "#/$defs/redaction_aware_label" },
+        "safe_to_auto_refresh": { "type": "boolean" },
+        "would_change_class": { "type": "boolean" },
+        "target_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "action_ref": { "$ref": "#/$defs/opaque_ref" }
+      },
+      "description": "Refresh, requery, rebuild, or source-opening action. If it changes class, target_freshness_class names the target."
+    },
+
+    "scope_truth_class": {
+      "type": "string",
+      "enum": [
+        "current_live_scope",
+        "captured_scope",
+        "current_subset_of_captured",
+        "captured_subset_of_current",
+        "mixed_current_and_captured",
+        "policy_limited_current_scope",
+        "unknown_scope_relationship"
+      ],
+      "description": "Relationship between current scope and captured scope."
+    },
+
+    "scope_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_truth_class", "scope_label"],
+      "properties": {
+        "scope_truth_class": { "$ref": "#/$defs/scope_truth_class" },
+        "current_scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "captured_scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "scope_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "comparison_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Current-versus-captured scope truth. Captured and mixed classes keep captured_scope_ref visible."
+    },
+
+    "derivation_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_ref", "source_label", "role"],
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "role": {
+          "type": "string",
+          "enum": [
+            "authority_input",
+            "cache_input",
+            "import_input",
+            "model_input",
+            "sampling_input",
+            "projection_input"
+          ]
+        }
+      },
+      "description": "One source that contributed to an approximate, derived, imported, or mixed view."
+    },
+
+    "approximation_reason_class": {
+      "type": "string",
+      "enum": [
+        "heuristic_ranking",
+        "semantic_embedding",
+        "sampled_count",
+        "lossy_projection",
+        "ai_inference",
+        "provider_estimate",
+        "truncated_source",
+        "mixed_exact_and_approximate"
+      ],
+      "description": "Closed approximation reason vocabulary."
+    },
+
+    "approximation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class", "reason_label"],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/approximation_reason_class" },
+        "reason_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "confidence_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "error_bound_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "One approximation disclosure."
+    },
+
+    "derivation_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_sources", "approximations", "exact_source_action_class"],
+      "properties": {
+        "input_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/derivation_source" },
+          "uniqueItems": true
+        },
+        "approximations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/approximation" },
+          "uniqueItems": true
+        },
+        "exact_source_action_class": {
+          "type": "string",
+          "enum": [
+            "not_available",
+            "open_authority_source",
+            "run_exact_query",
+            "rebuild_exact_index",
+            "request_provider_exact_export"
+          ]
+        }
+      },
+      "description": "Required for approximate_derived or mixed accuracy records."
+    },
+
+    "export_scope_class": {
+      "type": "string",
+      "enum": [
+        "live_reference_only",
+        "captured_snapshot_only",
+        "captured_with_requery_metadata",
+        "mixed_captured_and_live_refs",
+        "metadata_only",
+        "export_blocked"
+      ],
+      "description": "Export scope class. Non-live and approximate records cannot flatten into live_reference_only."
+    },
+
+    "export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_scope_class",
+        "preserve_captured_vs_live",
+        "can_requery_on_import",
+        "export_label",
+        "support_packet_label"
+      ],
+      "properties": {
+        "export_scope_class": { "$ref": "#/$defs/export_scope_class" },
+        "preserve_captured_vs_live": { "const": true },
+        "can_requery_on_import": { "type": "boolean" },
+        "export_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "support_packet_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "flattening_denied_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "captured_scope_must_remain_named",
+              "non_live_source_cannot_export_as_live",
+              "partial_omissions_must_remain_visible",
+              "stale_cause_must_remain_visible",
+              "approximation_must_remain_visible",
+              "policy_hidden_scope_must_remain_hidden"
+            ]
+          },
+          "uniqueItems": true
+        }
+      },
+      "description": "Export and support-packet posture. preserve_captured_vs_live is a required invariant."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class. Mirrors the capability-lifecycle family; broker-owned redaction runs before bytes reach persistent or exportable sinks."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_ref" }
+      },
+      "description": "Policy and trust context at mint time."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "non_live_source_claimed_live_exact",
+        "partial_scope_omissions_missing",
+        "stale_invalidation_cause_missing",
+        "approximation_disclosure_missing",
+        "captured_scope_ref_missing",
+        "export_would_flatten_captured_vs_live",
+        "exact_mutation_requires_live_exact",
+        "view_freshness_schema_version_lagging"
+      ],
+      "description": "Denial reasons for audit events or validator findings using this record."
+    },
+
+    "view_freshness_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "view_freshness_schema_version",
+        "view_id",
+        "surface_family",
+        "truth_class",
+        "freshness_class",
+        "accuracy_class",
+        "badge",
+        "authority_source",
+        "subscription_projection",
+        "basis",
+        "completeness",
+        "invalidation",
+        "snapshot_delta_parity",
+        "refresh_action",
+        "scope_truth",
+        "export_posture",
+        "redaction_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "view_freshness_schema_version": { "$ref": "#/$defs/view_freshness_schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "truth_class": { "$ref": "#/$defs/truth_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "accuracy_class": { "$ref": "#/$defs/accuracy_class" },
+        "badge": { "$ref": "#/$defs/badge" },
+        "authority_source": { "$ref": "#/$defs/authority_source" },
+        "subscription_projection": { "$ref": "#/$defs/subscription_projection" },
+        "basis": { "$ref": "#/$defs/basis" },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "invalidation": { "$ref": "#/$defs/invalidation" },
+        "snapshot_delta_parity": { "$ref": "#/$defs/snapshot_delta_parity" },
+        "refresh_action": { "$ref": "#/$defs/refresh_action" },
+        "scope_truth": { "$ref": "#/$defs/scope_truth" },
+        "derivation_disclosure": {
+          "oneOf": [
+            { "$ref": "#/$defs/derivation_disclosure" },
+            { "type": "null" }
+          ]
+        },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "denial_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/denial_reason" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Badge labels must match the freshness class.",
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "live_exact" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "badge": {
+                "type": "object",
+                "properties": { "visible_label": { "const": "Live exact" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "snapshot_exact" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "badge": {
+                "type": "object",
+                "properties": { "visible_label": { "const": "Snapshot" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "partial" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "badge": {
+                "type": "object",
+                "properties": { "visible_label": { "const": "Partial" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "stale" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "badge": {
+                "type": "object",
+                "properties": { "visible_label": { "const": "Stale" } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "approximate_derived" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "badge": {
+                "type": "object",
+                "properties": { "visible_label": { "const": "Approximate" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "live_exact requires exact accuracy, live/current source posture, full producer completeness, authoritative producer freshness, and current scope.",
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "live_exact" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "accuracy_class": { "const": "exact" },
+              "authority_source": {
+                "type": "object",
+                "properties": {
+                  "source_posture_class": {
+                    "enum": [
+                      "live_authority_query",
+                      "live_subscription",
+                      "revalidated_cache_current",
+                      "current_derived_exact"
+                    ]
+                  }
+                }
+              },
+              "subscription_projection": {
+                "type": "object",
+                "properties": {
+                  "producer_freshness": { "const": "authoritative" },
+                  "producer_completeness": { "const": "full" }
+                }
+              },
+              "basis": {
+                "type": "object",
+                "required": ["observed_at"]
+              },
+              "completeness": {
+                "type": "object",
+                "properties": {
+                  "completeness_class": { "const": "complete" }
+                }
+              },
+              "invalidation": {
+                "type": "object",
+                "properties": {
+                  "invalidation_state": { "const": "not_applicable_current" },
+                  "invalidation_cause": { "const": "not_applicable" }
+                }
+              },
+              "snapshot_delta_parity": {
+                "type": "object",
+                "properties": {
+                  "parity_state": { "const": "parity_verified" }
+                }
+              },
+              "refresh_action": {
+                "type": "object",
+                "properties": {
+                  "action_class": { "const": "not_applicable_current" },
+                  "would_change_class": { "const": false }
+                }
+              },
+              "scope_truth": {
+                "type": "object",
+                "properties": {
+                  "scope_truth_class": {
+                    "enum": [
+                      "current_live_scope",
+                      "policy_limited_current_scope"
+                    ]
+                  }
+                },
+                "required": ["current_scope_ref"]
+              },
+              "export_posture": {
+                "type": "object",
+                "properties": {
+                  "export_scope_class": {
+                    "enum": [
+                      "live_reference_only",
+                      "captured_with_requery_metadata",
+                      "metadata_only"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Captured, imported, replayed, unrevalidated cached, stale-cache, sampled, inferred, support-packet, and notebook-capture source postures cannot claim live_exact.",
+          "if": {
+            "type": "object",
+            "required": ["authority_source"],
+            "properties": {
+              "authority_source": {
+                "type": "object",
+                "required": ["source_posture_class"],
+                "properties": {
+                  "source_posture_class": {
+                    "enum": [
+                      "captured_snapshot",
+                      "imported_bundle",
+                      "replayed_capture",
+                      "unrevalidated_cache",
+                      "stale_cache",
+                      "derived_projection",
+                      "provider_overlay",
+                      "sampled_aggregate",
+                      "ai_inferred_summary",
+                      "support_packet_capture",
+                      "notebook_capture"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "freshness_class": {
+                "not": { "const": "live_exact" }
+              },
+              "export_posture": {
+                "type": "object",
+                "properties": {
+                  "export_scope_class": {
+                    "not": { "const": "live_reference_only" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "snapshot_exact requires an exact captured/imported/replayed/cache basis, captured scope, and a captured_at timestamp or run ref.",
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "snapshot_exact" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "accuracy_class": { "const": "exact" },
+              "authority_source": {
+                "type": "object",
+                "properties": {
+                  "source_posture_class": {
+                    "enum": [
+                      "captured_snapshot",
+                      "imported_bundle",
+                      "replayed_capture",
+                      "unrevalidated_cache",
+                      "support_packet_capture",
+                      "notebook_capture"
+                    ]
+                  }
+                }
+              },
+              "basis": {
+                "type": "object",
+                "anyOf": [
+                  { "required": ["captured_at"] },
+                  { "required": ["run_ref"] }
+                ]
+              },
+              "scope_truth": {
+                "type": "object",
+                "required": ["captured_scope_ref"],
+                "properties": {
+                  "scope_truth_class": {
+                    "enum": [
+                      "captured_scope",
+                      "current_subset_of_captured",
+                      "captured_subset_of_current",
+                      "mixed_current_and_captured"
+                    ]
+                  }
+                }
+              },
+              "refresh_action": {
+                "type": "object",
+                "properties": {
+                  "action_class": {
+                    "not": { "const": "not_applicable_current" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "partial views must carry partial completeness, producer_completeness = partial, and at least one named omitted scope.",
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "partial" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "completeness": {
+                "type": "object",
+                "required": ["scope_omissions"],
+                "properties": {
+                  "completeness_class": { "const": "partial" },
+                  "scope_omissions": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              },
+              "subscription_projection": {
+                "type": "object",
+                "properties": {
+                  "producer_completeness": { "const": "partial" }
+                }
+              },
+              "refresh_action": {
+                "type": "object",
+                "properties": {
+                  "action_class": {
+                    "not": { "const": "not_applicable_current" }
+                  }
+                }
+              },
+              "export_posture": {
+                "type": "object",
+                "properties": {
+                  "flattening_denied_reasons": {
+                    "type": "array",
+                    "contains": { "const": "partial_omissions_must_remain_visible" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "stale views require an invalidation cause, last-known-good or captured basis, and a refresh, requery, resubscribe, repair, or export-only action.",
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "stale" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "subscription_projection": {
+                "type": "object",
+                "properties": {
+                  "producer_freshness": {
+                    "enum": ["cached", "stale", "replayed", "imported"]
+                  }
+                }
+              },
+              "basis": {
+                "type": "object",
+                "anyOf": [
+                  { "required": ["last_known_good_at"] },
+                  { "required": ["captured_at"] },
+                  { "required": ["run_ref"] }
+                ]
+              },
+              "invalidation": {
+                "type": "object",
+                "properties": {
+                  "invalidation_state": {
+                    "enum": [
+                      "stale",
+                      "resync_required",
+                      "terminal_unavailable",
+                      "policy_invalidated",
+                      "scope_changed",
+                      "source_replaced"
+                    ]
+                  },
+                  "invalidation_cause": {
+                    "not": { "const": "not_applicable" }
+                  }
+                }
+              },
+              "refresh_action": {
+                "type": "object",
+                "properties": {
+                  "action_class": {
+                    "enum": [
+                      "refresh_available",
+                      "requery_available",
+                      "resubscribe_required",
+                      "rebuild_required",
+                      "open_authority_source",
+                      "explain_policy",
+                      "unavailable_offline",
+                      "class_change_required",
+                      "export_only"
+                    ]
+                  }
+                }
+              },
+              "export_posture": {
+                "type": "object",
+                "properties": {
+                  "flattening_denied_reasons": {
+                    "type": "array",
+                    "contains": { "const": "stale_cause_must_remain_visible" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "approximate_derived views require approximate or mixed accuracy plus derivation disclosure.",
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": { "freshness_class": { "const": "approximate_derived" } }
+          },
+          "then": {
+            "type": "object",
+            "required": ["derivation_disclosure"],
+            "properties": {
+              "accuracy_class": {
+                "enum": ["approximate", "mixed"]
+              },
+              "derivation_disclosure": {
+                "$ref": "#/$defs/derivation_disclosure"
+              },
+              "authority_source": {
+                "type": "object",
+                "properties": {
+                  "source_posture_class": {
+                    "enum": [
+                      "derived_projection",
+                      "provider_overlay",
+                      "sampled_aggregate",
+                      "ai_inferred_summary"
+                    ]
+                  }
+                }
+              },
+              "export_posture": {
+                "type": "object",
+                "properties": {
+                  "flattening_denied_reasons": {
+                    "type": "array",
+                    "contains": { "const": "approximation_must_remain_visible" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Captured and mixed scope classes require captured_scope_ref; current classes require current_scope_ref.",
+          "if": {
+            "type": "object",
+            "required": ["scope_truth"],
+            "properties": {
+              "scope_truth": {
+                "type": "object",
+                "required": ["scope_truth_class"],
+                "properties": {
+                  "scope_truth_class": {
+                    "enum": [
+                      "captured_scope",
+                      "current_subset_of_captured",
+                      "captured_subset_of_current",
+                      "mixed_current_and_captured"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "scope_truth": {
+                "type": "object",
+                "required": ["captured_scope_ref"]
+              },
+              "export_posture": {
+                "type": "object",
+                "properties": {
+                  "flattening_denied_reasons": {
+                    "type": "array",
+                    "contains": { "const": "captured_scope_must_remain_named" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["scope_truth"],
+            "properties": {
+              "scope_truth": {
+                "type": "object",
+                "required": ["scope_truth_class"],
+                "properties": {
+                  "scope_truth_class": {
+                    "enum": [
+                      "current_live_scope",
+                      "policy_limited_current_scope"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "scope_truth": {
+                "type": "object",
+                "required": ["current_scope_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Mixed current/captured comparisons require both refs and a comparison label.",
+          "if": {
+            "type": "object",
+            "required": ["scope_truth"],
+            "properties": {
+              "scope_truth": {
+                "type": "object",
+                "required": ["scope_truth_class"],
+                "properties": {
+                  "scope_truth_class": { "const": "mixed_current_and_captured" }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "scope_truth": {
+                "type": "object",
+                "required": [
+                  "current_scope_ref",
+                  "captured_scope_ref",
+                  "comparison_label"
+                ]
+              },
+              "export_posture": {
+                "type": "object",
+                "properties": {
+                  "export_scope_class": { "const": "mixed_captured_and_live_refs" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

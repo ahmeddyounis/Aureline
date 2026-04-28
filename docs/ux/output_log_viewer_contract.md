@@ -38,6 +38,13 @@ already frozen in:
   truncation, and copy/export scope. Every output viewer whose origin
   is a live stream MUST point at one emitted `live_set_state_record`
   via `live_set_state_ref` and MUST NOT redefine any of that state.
+- [`/docs/ux/view_freshness_contract.md`](./view_freshness_contract.md)
+  and [`/schemas/ux/view_freshness.schema.json`](../../schemas/ux/view_freshness.schema.json)
+  - cross-surface freshness badge, materialized-view disclosure,
+  captured-versus-live scope truth, and export-safe rules. Output
+  viewers keep origin, size, trust, and truncation here, but any
+  cross-surface "live exact", "snapshot", "partial", "stale", or
+  "approximate" badge resolves through `view_freshness_record`.
 - [`/schemas/security/trust_class.schema.json`](../../schemas/security/trust_class.schema.json)
   - safe-preview trust-class, connectivity-state, and the
   safe-preview downgrade-trigger ladder. Every output viewer MUST

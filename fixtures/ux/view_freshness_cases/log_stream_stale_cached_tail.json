@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../schemas/ux/view_freshness.schema.json",
+  "__fixture__": {
+    "name": "log_stream_stale_cached_tail",
+    "scenario": "A log viewer shows the last cached tail after the provider retention window advanced and the live stream disconnected. The record uses Stale, names the last-known-good time, and offers a requery action instead of implying a live tail.",
+    "exercised_axes": {
+      "surface_family": "log_view",
+      "freshness_class": "stale",
+      "invalidation_cause": "retention_window_advanced"
+    },
+    "contract_sections": [
+      "Freshness badge table",
+      "Materialized-view disclosure fields",
+      "Export-safe rules"
+    ]
+  },
+  "record_kind": "view_freshness_record",
+  "view_freshness_schema_version": 1,
+  "view_id": "view:freshness:log:stale-cache:01",
+  "surface_family": "log_view",
+  "truth_class": "runtime_observed_truth",
+  "freshness_class": "stale",
+  "accuracy_class": "exact",
+  "badge": {
+    "visible_label": "Stale",
+    "accessible_name": "Stale log tail from last-known-good time 2026-04-28T15:59:41Z; refresh required for live logs.",
+    "summary_label": "Showing cached log tail after provider retention advanced."
+  },
+  "authority_source": {
+    "authority_class": "execution",
+    "source_posture_class": "stale_cache",
+    "source_ref": "log:provider:task-run-908:cached-tail",
+    "owner_label": "Task log provider cached tail.",
+    "freshness_floor": {
+      "floor_class": "within_refresh_window",
+      "max_age_seconds": 60,
+      "label": "Live log tail must be revalidated within 60 seconds."
+    },
+    "upstream_record_refs": [
+      "live_set_state:log:task-run-908"
+    ]
+  },
+  "subscription_projection": {
+    "subscription_ref": "subscription:logs.task_tail:task-run-908:11",
+    "query_family": "logs.task_tail",
+    "scope_ref": {
+      "class": "workspace",
+      "id": "workspace:primary"
+    },
+    "authority_class": "execution",
+    "derivation_class": "authoritative",
+    "producer_freshness": "stale",
+    "producer_completeness": "partial",
+    "backpressure_mode": "snapshot_required",
+    "materialized_view_class": "durable_local_materialization",
+    "snapshot_epoch": 11,
+    "delta_seq": 284
+  },
+  "basis": {
+    "basis_class": "cached_checkpoint",
+    "basis_ref": "basis:logs.task_tail:task-run-908:last-good",
+    "basis_label": "Last-known-good log tail before the provider stream disconnected.",
+    "last_known_good_at": "2026-04-28T15:59:41Z"
+  },
+  "completeness": {
+    "completeness_class": "partial",
+    "declared_scope_label": "Live task-run log tail.",
+    "covered_scope_label": "Cached tail through the last-known-good event.",
+    "covered_count": {
+      "status": "exact",
+      "value": 421
+    },
+    "total_count": {
+      "status": "unknown"
+    },
+    "scope_omissions": [
+      {
+        "omitted_scope_ref": "log-window:task-run-908:after-last-good",
+        "missing_scope_label": "Log events after the cached last-known-good time.",
+        "reason_class": "retention_window_exceeded",
+        "reason_label": "The provider retention cursor advanced before the client could revalidate the live tail.",
+        "recovery_action_class": "refresh_or_requery"
+      }
+    ]
+  },
+  "invalidation": {
+    "invalidation_state": "stale",
+    "invalidation_cause": "retention_window_advanced",
+    "invalidated_at": "2026-04-28T16:01:10Z",
+    "caused_by_ref": "provider:event:logs:retention-window-advanced",
+    "label": "Retention window advanced; cached tail no longer proves current log state."
+  },
+  "snapshot_delta_parity": {
+    "parity_state": "snapshot_required_backpressure",
+    "snapshot_epoch": 11,
+    "delta_seq": 284,
+    "label": "Delta continuity is no longer enough; a fresh provider query is required."
+  },
+  "refresh_action": {
+    "action_class": "requery_available",
+    "label": "Requery the provider for a fresh log window.",
+    "safe_to_auto_refresh": false,
+    "would_change_class": true,
+    "target_freshness_class": "live_exact",
+    "action_ref": "command:logs.requery_task_tail"
+  },
+  "scope_truth": {
+    "scope_truth_class": "current_subset_of_captured",
+    "current_scope_ref": {
+      "class": "workspace",
+      "id": "workspace:primary"
+    },
+    "captured_scope_ref": {
+      "class": "workspace",
+      "id": "log-capture:task-run-908:last-good"
+    },
+    "scope_label": "Cached log tail scope.",
+    "comparison_label": "Current live tail may include events not present in the cached last-known-good window.",
+    "captured_at": "2026-04-28T15:59:41Z"
+  },
+  "derivation_disclosure": null,
+  "export_posture": {
+    "export_scope_class": "captured_with_requery_metadata",
+    "preserve_captured_vs_live": true,
+    "can_requery_on_import": true,
+    "export_label": "Export includes cached log tail plus stale cause and provider requery metadata.",
+    "support_packet_label": "Support packet preserves last-known-good time and retention-window invalidation.",
+    "flattening_denied_reasons": [
+      "captured_scope_must_remain_named",
+      "non_live_source_cannot_export_as_live",
+      "partial_omissions_must_remain_visible",
+      "stale_cause_must_remain_visible"
+    ]
+  },
+  "redaction_class": "operator_only_restricted",
+  "policy_context": {
+    "policy_epoch": "policy:logs:2026-04-28:01",
+    "trust_state": "trusted",
+    "execution_context_id": "exec:task-run-908:logs"
+  },
+  "minted_at": "2026-04-28T16:02:00Z"
+}

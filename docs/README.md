@@ -618,6 +618,14 @@ code.
   [`/schemas/ux/live_set_state.schema.json`](../schemas/ux/live_set_state.schema.json);
   worked fixtures in
   [`/fixtures/ux/live_review_examples/`](../fixtures/ux/live_review_examples/).
+- [`ux/view_freshness_contract.md`](./ux/view_freshness_contract.md)
+  — cross-surface freshness, materialized-view disclosure, and
+  captured-versus-live scope contract for search, docs, graph, logs,
+  review packs, notebooks, dashboards, support packets, and other
+  materialized views. Boundary schema in
+  [`/schemas/ux/view_freshness.schema.json`](../schemas/ux/view_freshness.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/view_freshness_cases/`](../fixtures/ux/view_freshness_cases/).
 - [`ux/tree_row_contract.md`](./ux/tree_row_contract.md)
   — shared structural tree row contract for file trees, outlines,
   component/runtime trees, route and dependency trees, write-scope

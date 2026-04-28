@@ -26,6 +26,11 @@ already frozen in:
 - `docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`
   - authority class, scope, freshness, completeness, and invalidation
   posture on the underlying subscription stream.
+- `docs/ux/view_freshness_contract.md`
+  - cross-surface freshness badge, materialized-view disclosure, and
+  captured-versus-live scope truth. Live-set records own moment-to-
+  moment review control; view-freshness records own the export-safe
+  badge and scope disclosure projected from that live state.
 - `docs/ux/shell_interaction_safety_contract.md`
   - batch review, representation-labeled copy / export, and deny-closed
   behavior when scope honesty is lost.
