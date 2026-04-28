@@ -22,6 +22,15 @@ is non-conforming.
 
 The companion artifacts are:
 
+- [`/docs/ux/notification_contract.md`](./notification_contract.md)
+  and
+  [`/schemas/ux/notification_event.schema.json`](../../schemas/ux/notification_event.schema.json)
+  — the higher-level event contract that decides whether a signal
+  is a toast, banner, activity-center row, digest group, or system
+  notification; freezes actor/source, age, expiry, next-action,
+  visibility-scope, badge-count, quiet-hours, and exact-reopen
+  requirements before this delivery-lineage contract records the
+  per-surface route.
 - [`/schemas/ux/event_lineage.schema.json`](../../schemas/ux/event_lineage.schema.json)
   — boundary schema every non-owning surface reads. Freezes the
   `event_lineage_record` (one record per `canonical_event_id`,

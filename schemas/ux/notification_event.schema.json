@@ -1,0 +1,1211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/notification_event.schema.json",
+  "title": "Aureline notification event, surface class, badge, quiet-hours, and exact-reopen contract",
+  "description": "Boundary schema for the notification_event_record and notification_surface_rule_record frozen in docs/ux/notification_contract.md. The record binds toast, banner, activity-center row, digest-group, and system-notification surfaces to one canonical_event_id, one event_lineage_id_ref, one actor/source, one visibility scope, one badge-count policy, one quiet-hours rule, and one exact reopen target. It composes with schemas/ux/activity_event_envelope.schema.json and schemas/ux/event_lineage.schema.json without re-minting delivery-surface, quiet-hours, dedupe, dismissal, or privacy vocabulary. Raw bodies, raw paths, raw URLs, raw provider payloads, raw prompt or completion text, raw command bodies, secret material, and customer-owned identifiers never cross this boundary. Adding a new surface class, severity class, durability class, state class, visibility scope, expiry class, cross-window rule, or toast-prohibition reason is additive-minor and requires a notification_event_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notification_event_record" },
+    { "$ref": "#/$defs/notification_surface_rule_record" }
+  ],
+  "$defs": {
+    "notification_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this notification-event vocabulary export. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for RPC, manifests, journals, support bundles, claim manifests, OS notification payloads, and lock-screen summaries."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Short privacy-safe label text. Must not contain raw paths, raw URLs, raw provider payloads, raw secret material, raw customer-owned identifiers, or raw prompt / completion text."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notification_event_record",
+        "notification_surface_rule_record"
+      ]
+    },
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json without modification."
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "visibility_scope": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "workspace_visible",
+        "provider_shared"
+      ],
+      "description": "Whether this notification remains local to the current client, is visible across the workspace, or is shared with a provider / companion-backed object."
+    },
+    "notification_surface_class": {
+      "type": "string",
+      "enum": [
+        "toast",
+        "banner",
+        "activity_center_row",
+        "digest_group",
+        "system_notification"
+      ],
+      "description": "High-level notification surface class frozen by docs/ux/notification_contract.md."
+    },
+    "delivery_surface_class": {
+      "type": "string",
+      "enum": [
+        "toast",
+        "contextual_banner",
+        "status_item",
+        "durable_job_row",
+        "attention_item",
+        "activity_center_digest_card",
+        "digest_group_row",
+        "os_notification",
+        "os_badge_app_icon",
+        "lock_screen_summary",
+        "companion_push",
+        "not_delivered_held"
+      ],
+      "description": "Lower-level delivery surface re-exported from the activity-event envelope schema."
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "info",
+        "success",
+        "warning",
+        "degraded",
+        "error",
+        "blocking",
+        "critical"
+      ]
+    },
+    "durability_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_acknowledgement",
+        "ephemeral_mirror_with_durable_link",
+        "persistent_until_condition_clears",
+        "durable_until_resolved_or_archived",
+        "digest_until_reviewed",
+        "os_managed_mirror"
+      ]
+    },
+    "notification_state_class": {
+      "type": "string",
+      "enum": [
+        "acknowledgement",
+        "reversible_success",
+        "durable_outage",
+        "policy_denial",
+        "connectivity_loss",
+        "long_running_work",
+        "degraded_capability",
+        "review_required",
+        "provider_grouped_update",
+        "quiet_hours_digest",
+        "exact_reopen_state"
+      ],
+      "description": "Event state class used to review toast misuse mechanically."
+    },
+    "toast_prohibition_reason": {
+      "type": "string",
+      "enum": [
+        "durable_outage_requires_banner",
+        "policy_denial_requires_review_or_banner",
+        "connectivity_loss_requires_banner_or_activity_row",
+        "long_running_work_requires_activity_row",
+        "review_required_requires_attention_or_review_surface",
+        "grouped_provider_events_require_digest"
+      ]
+    },
+    "badge_class": {
+      "type": "string",
+      "enum": [
+        "needs_review",
+        "failed_runs",
+        "mentions",
+        "security_notices",
+        "session_requests",
+        "offline_publish_pending",
+        "durable_running_count",
+        "held_or_suppressed_count",
+        "completion_unread"
+      ]
+    },
+    "quiet_hours_mode": {
+      "type": "string",
+      "enum": [
+        "mode_none",
+        "mode_quiet_hours_user",
+        "mode_do_not_disturb_user",
+        "mode_focus_mode_user",
+        "mode_presentation",
+        "mode_screen_share",
+        "mode_privacy_mode",
+        "mode_reduced_attention_policy",
+        "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ]
+    },
+    "suppression_reason": {
+      "type": "string",
+      "enum": [
+        "quiet_hours_user_policy",
+        "do_not_disturb_user_policy",
+        "focus_mode_user_policy",
+        "presentation_mode_active",
+        "screen_share_active",
+        "privacy_mode_active",
+        "admin_policy_suppression",
+        "reduced_attention_posture",
+        "power_saver_background_pause",
+        "dedupe_same_canonical_event",
+        "dedupe_same_grouped_burst",
+        "class_muted_by_user",
+        "class_snoozed_by_user",
+        "release_pending_next_unsuppressed_surface"
+      ]
+    },
+    "privacy_payload_class": {
+      "type": "string",
+      "enum": [
+        "lock_screen_safe_generic",
+        "lock_screen_safe_scoped",
+        "in_product_only",
+        "redacted_metadata_only",
+        "policy_forbidden_on_lock_screen"
+      ]
+    },
+    "dedupe_key_scheme": {
+      "type": "string",
+      "enum": [
+        "canonical_event_id",
+        "canonical_object_target_plus_event_class",
+        "grouped_burst_id",
+        "subsystem_plus_object_plus_phase",
+        "cross_client_canonical_event_id"
+      ]
+    },
+    "interruptibility_tier": {
+      "type": "string",
+      "enum": [
+        "tier_ambient",
+        "tier_transient",
+        "tier_durable",
+        "tier_actionable",
+        "tier_blocking_trust",
+        "tier_critical_safety"
+      ]
+    },
+    "escalation_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "severity_increased",
+        "duration_threshold_crossed",
+        "required_authority_changed",
+        "consequence_class_escalated",
+        "basis_snapshot_drifted",
+        "policy_epoch_changed",
+        "trust_state_changed",
+        "provider_grant_narrowed",
+        "recovery_class_downgraded_to_no_recovery",
+        "repeated_dedupe_threshold_crossed"
+      ]
+    },
+    "dismissal_verb": {
+      "type": "string",
+      "enum": [
+        "acknowledge",
+        "resolve",
+        "dismiss",
+        "snooze",
+        "mute",
+        "suppress"
+      ]
+    },
+    "reopen_target_kind": {
+      "type": "string",
+      "enum": [
+        "canonical_object",
+        "canonical_route",
+        "review_context",
+        "durable_activity_row",
+        "digest_group",
+        "placeholder_announced",
+        "denied_requires_revalidation"
+      ],
+      "description": "High-level exact reopen target. Generic home-screen reopen is intentionally not a value."
+    },
+    "expiry_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_expiry",
+        "expires_when_condition_clears",
+        "expires_at_time",
+        "durable_until_resolved",
+        "provider_authority_expiry"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "next_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "command_id_ref",
+        "target_identity_ref",
+        "reopen_target_kind",
+        "is_destructive"
+      ],
+      "properties": {
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "is_destructive": { "type": "boolean" }
+      }
+    },
+    "badge_count_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affects_badge",
+        "badge_class",
+        "count_delta",
+        "count_basis",
+        "clears_on",
+        "badge_count_semantics_label"
+      ],
+      "properties": {
+        "affects_badge": { "type": "boolean" },
+        "badge_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/badge_class" }
+          ]
+        },
+        "count_delta": { "type": "integer" },
+        "count_basis": {
+          "type": "string",
+          "enum": [
+            "none",
+            "deduped_canonical_event",
+            "deduped_durable_item",
+            "group_member_count"
+          ]
+        },
+        "clears_on": {
+          "type": "string",
+          "enum": [
+            "never",
+            "acknowledge",
+            "resolve",
+            "dismiss_transient_only",
+            "mode_exit_digest_reviewed"
+          ]
+        },
+        "badge_count_semantics_label": { "$ref": "#/$defs/short_label_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "affects_badge": { "const": false } },
+            "required": ["affects_badge"]
+          },
+          "then": {
+            "properties": {
+              "badge_class": { "type": "null" },
+              "count_delta": { "const": 0 },
+              "count_basis": { "const": "none" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "affects_badge": { "const": true } },
+            "required": ["affects_badge"]
+          },
+          "then": {
+            "properties": {
+              "badge_class": { "$ref": "#/$defs/badge_class" },
+              "count_basis": {
+                "enum": [
+                  "deduped_canonical_event",
+                  "deduped_durable_item",
+                  "group_member_count"
+                ]
+              }
+            },
+            "required": ["badge_class", "count_basis"]
+          }
+        }
+      ]
+    },
+    "quiet_hours_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_modes_at_mint",
+        "suppression_reasons",
+        "delivery_when_suppressed",
+        "digest_release_rule",
+        "preserves_durable_history",
+        "urgent_or_blocking_rule"
+      ],
+      "properties": {
+        "active_modes_at_mint": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/quiet_hours_mode" }
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" }
+        },
+        "delivery_when_suppressed": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "hold_transient_only",
+            "release_as_digest",
+            "durable_only",
+            "render_immediately",
+            "admin_narrowed_durable_only"
+          ]
+        },
+        "digest_release_rule": {
+          "type": "string",
+          "enum": [
+            "none",
+            "mode_exit_grouped_digest",
+            "user_explicit_show_held",
+            "escalation_to_critical_safety"
+          ]
+        },
+        "preserves_durable_history": {
+          "type": "boolean",
+          "const": true
+        },
+        "urgent_or_blocking_rule": {
+          "type": "string",
+          "enum": [
+            "not_urgent",
+            "render_immediately",
+            "render_redacted_system_notification_and_banner",
+            "admin_narrowed_durable_only"
+          ]
+        }
+      }
+    },
+    "grouping_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grouping_key_ref",
+        "member_count",
+        "group_reason_label",
+        "shows_individual_member_toasts",
+        "lineage_preserved"
+      ],
+      "properties": {
+        "grouping_key_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "member_count": { "type": "integer", "minimum": 1 },
+        "group_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "shows_individual_member_toasts": { "type": "boolean" },
+        "lineage_preserved": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "surface_lineage_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_event_id",
+        "event_lineage_id_ref",
+        "canonical_object_target_ref",
+        "envelope_id_refs",
+        "durable_linkback_target_ref"
+      ],
+      "properties": {
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_lineage_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "envelope_id_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "durable_linkback_target_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "reopen_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_target_kind",
+        "target_identity_ref",
+        "canonical_route_ref",
+        "review_context_ref",
+        "command_id_ref",
+        "requires_revalidation",
+        "revalidation_reason_label",
+        "placeholder_announcement_label",
+        "returns_to_invoking_window"
+      ],
+      "properties": {
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "target_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "canonical_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "review_context_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "requires_revalidation": { "type": "boolean" },
+        "revalidation_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "placeholder_announcement_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "returns_to_invoking_window": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "reopen_target_kind": { "const": "denied_requires_revalidation" } },
+            "required": ["reopen_target_kind"]
+          },
+          "then": {
+            "properties": {
+              "requires_revalidation": { "const": true },
+              "revalidation_reason_label": { "$ref": "#/$defs/short_label_text" }
+            },
+            "required": ["requires_revalidation", "revalidation_reason_label"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "reopen_target_kind": { "const": "placeholder_announced" } },
+            "required": ["reopen_target_kind"]
+          },
+          "then": {
+            "properties": {
+              "placeholder_announcement_label": { "$ref": "#/$defs/short_label_text" }
+            },
+            "required": ["placeholder_announcement_label"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reopen_target_kind": {
+                "enum": [
+                  "canonical_object",
+                  "canonical_route",
+                  "review_context",
+                  "durable_activity_row",
+                  "digest_group"
+                ]
+              }
+            },
+            "required": ["reopen_target_kind"]
+          },
+          "then": {
+            "properties": {
+              "target_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["target_identity_ref"]
+          }
+        }
+      ]
+    },
+    "dismissal_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available_verbs",
+        "applied_verb",
+        "mutates_source_object",
+        "preserves_durable_history",
+        "clears_badge_only",
+        "snooze_resume_condition_label"
+      ],
+      "properties": {
+        "available_verbs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/dismissal_verb" }
+        },
+        "applied_verb": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dismissal_verb" }
+          ]
+        },
+        "mutates_source_object": { "type": "boolean" },
+        "preserves_durable_history": {
+          "type": "boolean",
+          "const": true
+        },
+        "clears_badge_only": { "type": "boolean" },
+        "snooze_resume_condition_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applied_verb": {
+                "enum": ["acknowledge", "dismiss", "snooze", "mute", "suppress"]
+              }
+            },
+            "required": ["applied_verb"]
+          },
+          "then": {
+            "properties": { "mutates_source_object": { "const": false } },
+            "required": ["mutates_source_object"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "applied_verb": { "const": "resolve" } },
+            "required": ["applied_verb"]
+          },
+          "then": {
+            "properties": { "mutates_source_object": { "const": true } },
+            "required": ["mutates_source_object"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "applied_verb": { "const": "snooze" } },
+            "required": ["applied_verb"]
+          },
+          "then": {
+            "properties": {
+              "snooze_resume_condition_label": { "$ref": "#/$defs/short_label_text" }
+            },
+            "required": ["snooze_resume_condition_label"]
+          }
+        }
+      ]
+    },
+    "surface_instance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "notification_surface_class",
+        "delivery_surface_class",
+        "severity_class",
+        "durability_class",
+        "state_class",
+        "privacy_payload_class",
+        "interruptibility_tier",
+        "visible_age_label",
+        "expires_at",
+        "next_action",
+        "badge_count_policy",
+        "quiet_hours_policy",
+        "grouping_policy",
+        "surface_lineage_refs",
+        "reopen_contract",
+        "dismissal_policy"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "notification_surface_class": { "$ref": "#/$defs/notification_surface_class" },
+        "delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "durability_class": { "$ref": "#/$defs/durability_class" },
+        "state_class": { "$ref": "#/$defs/notification_state_class" },
+        "privacy_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "interruptibility_tier": { "$ref": "#/$defs/interruptibility_tier" },
+        "visible_age_label": { "$ref": "#/$defs/short_label_text" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "next_action": { "$ref": "#/$defs/next_action_record" },
+        "badge_count_policy": { "$ref": "#/$defs/badge_count_policy" },
+        "quiet_hours_policy": { "$ref": "#/$defs/quiet_hours_policy" },
+        "grouping_policy": { "$ref": "#/$defs/grouping_policy" },
+        "surface_lineage_refs": { "$ref": "#/$defs/surface_lineage_refs" },
+        "reopen_contract": { "$ref": "#/$defs/reopen_contract" },
+        "dismissal_policy": { "$ref": "#/$defs/dismissal_policy" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "notification_surface_class": { "const": "toast" } },
+            "required": ["notification_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "durability_class": {
+                "enum": [
+                  "ephemeral_acknowledgement",
+                  "ephemeral_mirror_with_durable_link"
+                ]
+              },
+              "state_class": {
+                "not": {
+                  "enum": [
+                    "durable_outage",
+                    "policy_denial",
+                    "connectivity_loss",
+                    "long_running_work",
+                    "review_required"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state_class": {
+                "enum": [
+                  "durable_outage",
+                  "policy_denial",
+                  "connectivity_loss",
+                  "long_running_work",
+                  "review_required"
+                ]
+              }
+            },
+            "required": ["state_class"]
+          },
+          "then": {
+            "properties": {
+              "notification_surface_class": {
+                "not": { "const": "toast" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "notification_surface_class": { "const": "activity_center_row" } },
+            "required": ["notification_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "durability_class": { "const": "durable_until_resolved_or_archived" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "notification_surface_class": { "const": "digest_group" } },
+            "required": ["notification_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "durability_class": { "const": "digest_until_reviewed" },
+              "grouping_policy": {
+                "type": "object",
+                "properties": {
+                  "member_count": { "type": "integer", "minimum": 2 },
+                  "shows_individual_member_toasts": { "const": false }
+                },
+                "required": ["member_count", "shows_individual_member_toasts"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "notification_surface_class": { "const": "system_notification" } },
+            "required": ["notification_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "durability_class": { "const": "os_managed_mirror" },
+              "delivery_surface_class": {
+                "enum": [
+                  "os_notification",
+                  "os_badge_app_icon",
+                  "lock_screen_summary",
+                  "companion_push"
+                ]
+              },
+              "privacy_payload_class": {
+                "not": { "const": "in_product_only" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "severity_class": {
+                "enum": ["blocking", "critical"]
+              }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "quiet_hours_policy": {
+                "type": "object",
+                "properties": {
+                  "urgent_or_blocking_rule": {
+                    "not": { "const": "not_urgent" }
+                  }
+                },
+                "required": ["urgent_or_blocking_rule"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dedupe_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dedupe_key_scheme",
+        "dedupe_key_ref",
+        "collapsed_delivery_count",
+        "grouped_burst_id_ref",
+        "dedupe_reasons",
+        "lineage_preserved"
+      ],
+      "properties": {
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "dedupe_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "collapsed_delivery_count": { "type": "integer", "minimum": 0 },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "dedupe_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" }
+        },
+        "lineage_preserved": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "escalation_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_tier",
+        "escalation_reason",
+        "escalated_from_surface_class",
+        "escalates_to_surface_classes"
+      ],
+      "properties": {
+        "current_tier": { "$ref": "#/$defs/interruptibility_tier" },
+        "escalation_reason": { "$ref": "#/$defs/escalation_reason" },
+        "escalated_from_surface_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/notification_surface_class" }
+          ]
+        },
+        "escalates_to_surface_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/notification_surface_class" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "escalation_reason": {
+                "not": { "const": "none" }
+              }
+            },
+            "required": ["escalation_reason"]
+          },
+          "then": {
+            "properties": {
+              "escalated_from_surface_class": { "$ref": "#/$defs/notification_surface_class" },
+              "escalates_to_surface_classes": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/notification_surface_class" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "snooze_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snooze_allowed",
+        "default_resume_condition_label",
+        "max_snooze_until"
+      ],
+      "properties": {
+        "snooze_allowed": { "type": "boolean" },
+        "default_resume_condition_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "max_snooze_until": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      }
+    },
+    "cross_window_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owning_window_ref",
+        "window_scope",
+        "focus_transfer_rule",
+        "cross_client_collapse_ref"
+      ],
+      "properties": {
+        "owning_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_scope": {
+          "type": "string",
+          "enum": [
+            "active_window",
+            "workspace_all_windows",
+            "provider_shared_all_clients",
+            "cross_workspace_denied"
+          ]
+        },
+        "focus_transfer_rule": {
+          "type": "string",
+          "enum": [
+            "return_to_origin_window",
+            "preserve_existing_owner_window",
+            "open_in_invoking_window_if_canonical_object_visible",
+            "placeholder_in_invoking_window",
+            "deny_cross_window_reopen"
+          ]
+        },
+        "cross_client_collapse_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "toast_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toast_only_allowed",
+        "prohibited_reasons"
+      ],
+      "properties": {
+        "toast_only_allowed": {
+          "type": "boolean",
+          "description": "Whether this event may be represented only by a toast. False still allows a toast mirror when a durable banner, activity row, or review surface owns the state."
+        },
+        "prohibited_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/toast_prohibition_reason" }
+        }
+      }
+    },
+    "notification_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notification_event_schema_version",
+        "notification_event_id",
+        "canonical_event_id",
+        "event_lineage_id_ref",
+        "source_subsystem",
+        "source_event_ref",
+        "actor_identity_ref",
+        "canonical_object_target_ref",
+        "event_state_class",
+        "visibility_scope",
+        "event_age_millis",
+        "occurred_at",
+        "last_updated_at",
+        "expires_at",
+        "expiry_policy_class",
+        "next_action",
+        "dedupe_policy",
+        "escalation_policy",
+        "snooze_policy",
+        "quiet_hours_policy",
+        "cross_window_policy",
+        "toast_policy",
+        "surface_instances",
+        "client_scopes",
+        "policy_context"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "notification_event_record" },
+        "notification_event_schema_version": { "$ref": "#/$defs/notification_event_schema_version" },
+        "notification_event_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_lineage_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "source_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "event_state_class": { "$ref": "#/$defs/notification_state_class" },
+        "visibility_scope": { "$ref": "#/$defs/visibility_scope" },
+        "event_age_millis": { "type": "integer", "minimum": 0 },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "expiry_policy_class": { "$ref": "#/$defs/expiry_policy_class" },
+        "next_action": { "$ref": "#/$defs/next_action_record" },
+        "dedupe_policy": { "$ref": "#/$defs/dedupe_policy" },
+        "escalation_policy": { "$ref": "#/$defs/escalation_policy" },
+        "snooze_policy": { "$ref": "#/$defs/snooze_policy" },
+        "quiet_hours_policy": { "$ref": "#/$defs/quiet_hours_policy" },
+        "cross_window_policy": { "$ref": "#/$defs/cross_window_policy" },
+        "toast_policy": { "$ref": "#/$defs/toast_policy" },
+        "surface_instances": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_instance_record" }
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "event_state_class": {
+                "enum": [
+                  "durable_outage",
+                  "policy_denial",
+                  "connectivity_loss",
+                  "long_running_work",
+                  "review_required"
+                ]
+              }
+            },
+            "required": ["event_state_class"]
+          },
+          "then": {
+            "properties": {
+              "toast_policy": {
+                "type": "object",
+                "properties": {
+                  "toast_only_allowed": { "const": false },
+                  "prohibited_reasons": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/toast_prohibition_reason" }
+                  }
+                },
+                "required": ["toast_only_allowed", "prohibited_reasons"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "notification_surface_rule_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notification_event_schema_version",
+        "surface_rule_id",
+        "notification_surface_class",
+        "allowed_durability_classes",
+        "allowed_state_classes",
+        "forbidden_state_classes",
+        "default_quiet_hours_policy",
+        "badge_count_rule_label"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "notification_surface_rule_record" },
+        "notification_event_schema_version": { "$ref": "#/$defs/notification_event_schema_version" },
+        "surface_rule_id": { "$ref": "#/$defs/opaque_id" },
+        "notification_surface_class": { "$ref": "#/$defs/notification_surface_class" },
+        "allowed_durability_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/durability_class" }
+        },
+        "allowed_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/notification_state_class" }
+        },
+        "forbidden_state_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/notification_state_class" }
+        },
+        "default_quiet_hours_policy": { "$ref": "#/$defs/quiet_hours_policy" },
+        "badge_count_rule_label": { "$ref": "#/$defs/short_label_text" }
+      }
+    }
+  }
+}

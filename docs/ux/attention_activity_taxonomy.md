@@ -23,6 +23,14 @@ vocabulary, this document wins and the surface is non-conforming.
 
 The companion artifacts are:
 
+- [`/docs/ux/notification_contract.md`](./notification_contract.md)
+  and
+  [`/schemas/ux/notification_event.schema.json`](../../schemas/ux/notification_event.schema.json)
+  — the surface-class contract for toast, banner,
+  activity-center row, digest group, and system notification
+  records. It reuses this taxonomy's axes and adds required
+  actor/source, age, expiry, next-action, visibility-scope,
+  badge-count, quiet-hours, and exact-reopen fields.
 - [`/schemas/ux/activity_event_envelope.schema.json`](../../schemas/ux/activity_event_envelope.schema.json)
   — boundary schema every non-owning surface reads. Freezes the
   `activity_event_envelope_record`, the `durable_job_record`,
