@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=../../../schemas/runtime/action_safety_review.schema.json
+__fixture__:
+  name: mixed_authority_scale_blocked
+  scenario: >
+    A scale action is proposed while the local kubeconfig points at a
+    developer namespace but the managed connector credential is scoped
+    to staging checkout. The conflict is represented as mixed
+    authority and mutation is blocked.
+  exercised_contract_sections:
+    - Target context — mixed_authority
+    - Connector invalidation — mixed_local_plus_managed_authority
+    - Action-safety reviews — block
+
+record_kind: action_safety_review_record
+action_safety_review_schema_version: 1
+action_review_id: "arev:k8s:checkout-api:scale:mixed-authority"
+action_verb: scale
+action_class: mutate
+review_state: blocked
+admission_decision: block
+safety_blockers:
+  - mixed_authority
+target_context_ref: "tctx:k8s:mixed:checkout-api"
+connector_session_ref: "csess:managed:k8s:checkout:mixed-local"
+target_context_state_at_review: mixed_authority
+connector_session_state_at_review: mixed_authority_detected
+target_confirmation:
+  loaded_target_context_ref: "tctx:k8s:mixed:checkout-api"
+  pre_execute_target_context_ref: "tctx:k8s:mixed:checkout-api"
+  confirmation_state: mixed_authority_blocked
+  confirmed_by: null
+  confirmed_at: null
+  no_hidden_target_switch: true
+  hidden_switch_detected: false
+  switch_reason: null
+approval_posture:
+  approval_state: policy_blocked
+  approval_ticket_ref: null
+  policy_ref: "policy:infra-mutate:no-mixed-authority"
+  approved_by: null
+  approved_at: null
+  expires_at: null
+  approval_summary: "Scale cannot proceed while local and managed target authorities disagree."
+action_envelope:
+  verb: scale
+  target_context_ref: "tctx:k8s:mixed:checkout-api"
+  connector_session_ref: "csess:managed:k8s:checkout:mixed-local"
+  change_summary: "Scale checkout-api Deployment from 4 to 6 replicas."
+  command_preview_ref: "cmdprev:kubectl-scale:checkout-api:mixed-authority"
+  request_preview_ref: null
+  preview_hash: "sha256:preview-scale-mixed-authority"
+  dry_run_result_ref: "dryrun:k8s:checkout-api:scale:mixed-authority"
+  rollback_plan_ref: "rollback:k8s:checkout-api:replicas-4"
+  affected_resource_links:
+    - relationship_state: authored_to_live
+      source_resource:
+        truth_class: authored
+        resource_ref: "src:k8s:deploy:checkout"
+        group_version_kind: "apps/v1/Deployment"
+        name: "checkout-api"
+        namespace_or_scope: "checkout"
+        source_path: "deploy/k8s/checkout/deployment.yaml"
+        digest_or_generation: "sha256:src-checkout-api-0001"
+      rendered_resource: null
+      planned_resource: null
+      observed_resource:
+        truth_class: observed
+        resource_ref: "live:k8s:payments-us-1:checkout:deployment:checkout-api"
+        group_version_kind: "apps/v1/Deployment"
+        name: "checkout-api"
+        namespace_or_scope: "checkout"
+        source_path: null
+        digest_or_generation: "generation:42"
+      match_confidence: ambiguous
+      no_source_match_reason: not_applicable
+      relationship_provenance_ref: "edge:k8s:checkout-api:mixed-authority"
+surface_bindings:
+  - desktop
+  - cli
+  - support_bundle
+  - incident_workspace
+audit_refs:
+  - "audit:target_context_mixed_authority_blocked:20260428T183000Z:0001"
+  - "audit:connector_session_mixed_authority_blocked:20260428T183000Z:0001"
+  - "audit:action_safety_blocked:20260428T183001Z:0001"
+created_at: "2026-04-28T18:30:01Z"
+executed_at: null
+notes: "The UI may offer a target switch workflow, but not an inline scale."
+

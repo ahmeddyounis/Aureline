@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=../../../schemas/runtime/action_safety_review.schema.json
+__fixture__:
+  name: expired_delegated_identity_review
+  scenario: >
+    A user tries to restart a checkout worker after the delegated
+    identity expires. The surface keeps inspection available but
+    downgrades mutation to inspect-only with typed stale-context and
+    expired-credential blockers.
+  exercised_contract_sections:
+    - Connector sessions — delegated_identity
+    - Invalidation and downgrade — expired_credentials
+    - Action-safety reviews — downgrade_to_inspect_only
+
+record_kind: action_safety_review_record
+action_safety_review_schema_version: 1
+action_review_id: "arev:k8s:checkout-worker:restart:expired-cred"
+action_verb: restart
+action_class: mutate
+review_state: downgraded_to_inspect_only
+admission_decision: downgrade_to_inspect_only
+safety_blockers:
+  - stale_context
+  - expired_credentials
+target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+connector_session_ref: "csess:delegated:k8s:checkout:expired"
+target_context_state_at_review: stale
+connector_session_state_at_review: expired_credentials
+target_confirmation:
+  loaded_target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+  pre_execute_target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+  confirmation_state: stale_blocked
+  confirmed_by: null
+  confirmed_at: null
+  no_hidden_target_switch: true
+  hidden_switch_detected: false
+  switch_reason: null
+approval_posture:
+  approval_state: expired
+  approval_ticket_ref: "approval:k8s:checkout-worker:restart:expired"
+  policy_ref: "policy:infra-mutate:namespace-bound"
+  approved_by: "user:ops-reviewer"
+  approved_at: "2026-04-28T17:48:00Z"
+  expires_at: "2026-04-28T18:03:00Z"
+  approval_summary: "Previous restart approval expired with the delegated credential."
+action_envelope:
+  verb: restart
+  target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+  connector_session_ref: "csess:delegated:k8s:checkout:expired"
+  change_summary: "Restart checkout-worker Deployment by rolling pod template annotation."
+  command_preview_ref: "cmdprev:kubectl-rollout-restart:checkout-worker:expired"
+  request_preview_ref: null
+  preview_hash: null
+  dry_run_result_ref: null
+  rollback_plan_ref: null
+  affected_resource_links:
+    - relationship_state: authored_to_live
+      source_resource:
+        truth_class: authored
+        resource_ref: "src:k8s:deploy:checkout-worker"
+        group_version_kind: "apps/v1/Deployment"
+        name: "checkout-worker"
+        namespace_or_scope: "checkout"
+        source_path: "deploy/k8s/checkout/worker.yaml"
+        digest_or_generation: "sha256:src-checkout-worker-0001"
+      rendered_resource: null
+      planned_resource: null
+      observed_resource:
+        truth_class: observed
+        resource_ref: "live:k8s:payments-us-1:checkout:deployment:checkout-worker"
+        group_version_kind: "apps/v1/Deployment"
+        name: "checkout-worker"
+        namespace_or_scope: "checkout"
+        source_path: null
+        digest_or_generation: "generation:17"
+      match_confidence: exact
+      no_source_match_reason: not_applicable
+      relationship_provenance_ref: "edge:k8s:checkout-worker:authored-to-live"
+surface_bindings:
+  - desktop
+  - cli
+  - support_bundle
+  - runbook
+audit_refs:
+  - "audit:connector_session_downgraded:20260428T181500Z:0001"
+  - "audit:action_safety_downgraded_to_inspect_only:20260428T181501Z:0001"
+created_at: "2026-04-28T18:15:01Z"
+executed_at: null
+notes: "The next safe action is reauthenticate and recreate the review packet."
+

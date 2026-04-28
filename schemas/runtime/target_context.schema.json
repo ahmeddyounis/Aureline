@@ -1,0 +1,752 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/target_context.schema.json",
+  "title": "Aureline target-context record",
+  "description": "Boundary schema for the environment target context every live infrastructure, database, queue, preview, terminal, CLI, support, runbook, browser-handoff, and action-review surface reads before it claims to observe or mutate a live target. The record names provider, account or subscription, project, region, cluster, namespace, runtime host, target scope, credential posture, freshness, stale-context state, mixed-authority state, and source-to-rendered-to-live resource relationships. Raw kubeconfig bodies, cloud profiles, passwords, tokens, private endpoint URLs, and raw provider responses never appear here; only handles, refs, digests, labels, and freshness metadata cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/target_context_record" },
+    { "$ref": "#/$defs/target_context_audit_event_record" }
+  ],
+  "$defs": {
+    "target_context_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this target-context family. Additive optional fields or enum values bump this const; repurposing an existing value is breaking and requires a new governance decision."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "target_context_record",
+        "target_context_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete target-context payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, and show in review surfaces. Raw secrets, raw kubeconfig bodies, and raw provider response bodies never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic time source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short operator-facing sentence safe for action sheets, support bundles, runbook packets, and CLI JSON. Secret material and raw provider payloads MUST NOT appear."
+    },
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "kubernetes",
+        "aws",
+        "gcp",
+        "azure",
+        "terraform_cloud",
+        "database",
+        "queue",
+        "container_runtime",
+        "ci_provider",
+        "custom_provider"
+      ],
+      "description": "Provider or live-system family. none is reserved for static or file-only target contexts with no live provider."
+    },
+    "environment_class": {
+      "type": "string",
+      "enum": [
+        "local",
+        "development",
+        "preview",
+        "test",
+        "staging",
+        "production",
+        "disaster_recovery",
+        "shared_service",
+        "ephemeral",
+        "unknown"
+      ],
+      "description": "Deployment or environment risk class. Production and disaster_recovery default to read-only on newly loaded mutating surfaces."
+    },
+    "runtime_host_class": {
+      "type": "string",
+      "enum": [
+        "local_desktop",
+        "remote_ssh_host",
+        "local_container",
+        "devcontainer",
+        "managed_workspace",
+        "cloud_vm",
+        "kubernetes_cluster",
+        "database_endpoint",
+        "queue_endpoint",
+        "provider_console",
+        "browser_session",
+        "imported_evidence",
+        "unknown"
+      ],
+      "description": "Runtime boundary from which observation or mutation is performed."
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "project",
+        "account",
+        "subscription",
+        "region",
+        "cluster",
+        "namespace",
+        "service",
+        "resource",
+        "runtime_host",
+        "global_provider",
+        "unknown"
+      ],
+      "description": "Smallest named scope the target context is authoritative for."
+    },
+    "context_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale",
+        "ambiguous",
+        "mixed_authority",
+        "invalidated",
+        "inspect_only",
+        "unavailable"
+      ],
+      "description": "Typed target-context state. Mutating surfaces MUST NOT collapse stale, ambiguous, mixed-authority, invalidated, or unavailable into a generic runtime error."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "current_snapshot",
+        "cached_within_floor",
+        "stale",
+        "partial",
+        "offline",
+        "imported_read_only",
+        "unknown"
+      ],
+      "description": "Freshness and collection posture visible on every target-context surface."
+    },
+    "write_posture_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "inspect_only",
+        "dry_run_only",
+        "write_capable_pending_approval",
+        "write_capable_approved",
+        "write_blocked"
+      ],
+      "description": "Effective write posture after policy, connector, credential, environment class, freshness, and authority checks."
+    },
+    "credential_handle_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "local_config_handle",
+        "delegated_token_handle",
+        "ssh_key_handle",
+        "tunnel_session_handle",
+        "managed_connector_handle",
+        "browser_handoff_handle",
+        "imported_evidence_no_credential"
+      ],
+      "description": "Credential reference class. Raw credentials are excluded."
+    },
+    "credential_issuance_source_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "local_config",
+        "os_keychain",
+        "enterprise_vault",
+        "delegated_identity_provider",
+        "managed_control_plane",
+        "ssh_agent",
+        "browser_handoff",
+        "imported_evidence"
+      ]
+    },
+    "step_up_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "not_performed",
+        "required_pending",
+        "performed",
+        "expired",
+        "revoked"
+      ],
+      "description": "Step-up state bound to this target context and credential handle."
+    },
+    "authority_source_class": {
+      "type": "string",
+      "enum": [
+        "local_config",
+        "delegated_identity",
+        "ssh_or_tunnel_bridge",
+        "managed_connector",
+        "browser_handoff",
+        "imported_read_only_evidence",
+        "policy_bundle",
+        "workspace_manifest",
+        "provider_observation"
+      ],
+      "description": "Where a target, credential, topology, observation, or policy assertion came from."
+    },
+    "authority_role_class": {
+      "type": "string",
+      "enum": [
+        "target_identity",
+        "credential_identity",
+        "topology_observation",
+        "live_observation",
+        "mutation_authority",
+        "policy_authority",
+        "source_mapping"
+      ],
+      "description": "Role played by an authority source in the resolved target context."
+    },
+    "mixed_authority_mutation_posture": {
+      "type": "string",
+      "enum": [
+        "mutation_allowed",
+        "mutation_downgraded_to_inspect_only",
+        "mutation_blocked"
+      ],
+      "description": "Mutation posture when multiple authorities contributed incompatible target truth."
+    },
+    "stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_stale",
+        "credential_expired",
+        "freshness_floor_unmet",
+        "cluster_context_changed",
+        "connector_drift",
+        "target_deleted_or_moved",
+        "policy_epoch_changed",
+        "source_revision_changed",
+        "imported_evidence_only",
+        "target_ambiguity_after_load"
+      ],
+      "description": "Typed reason a target context became stale or invalidated after the surface first loaded."
+    },
+    "completeness_label": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial",
+        "policy_limited",
+        "permission_limited",
+        "stale",
+        "unverified",
+        "no_live_access"
+      ],
+      "description": "Coverage label for the observed target context."
+    },
+    "source_truth_class": {
+      "type": "string",
+      "enum": [
+        "authored",
+        "rendered",
+        "planned",
+        "observed",
+        "provider_overlay",
+        "imported_evidence",
+        "no_source_match"
+      ],
+      "description": "Truth layer for a resource identity in a source-to-live relationship."
+    },
+    "resource_relationship_state": {
+      "type": "string",
+      "enum": [
+        "authored_to_rendered",
+        "rendered_to_planned",
+        "planned_to_live",
+        "authored_to_live",
+        "observed_to_authored",
+        "no_source_match",
+        "unknown_pending_review"
+      ],
+      "description": "Typed state for the source-to-rendered-to-planned-to-live resource relationship."
+    },
+    "no_source_match_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "live_object_imported_out_of_band",
+        "source_deleted",
+        "provider_generated_resource",
+        "permission_limited",
+        "rendered_overlay_unavailable",
+        "ambiguous_multiple_sources",
+        "unknown_pending_review"
+      ],
+      "description": "Required when relationship_state is no_source_match."
+    },
+    "match_confidence_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "high",
+        "partial",
+        "ambiguous",
+        "none"
+      ]
+    },
+    "runtime_host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_host_class",
+        "host_id",
+        "display_label"
+      ],
+      "properties": {
+        "runtime_host_class": { "$ref": "#/$defs/runtime_host_class" },
+        "host_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Runtime boundary that supplied the target context or will run the connector."
+    },
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "stable_scope_id",
+        "display_label"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "selector_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      },
+      "description": "Smallest target scope the surface is authorized to describe or mutate."
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "environment_class",
+        "tenant_ref",
+        "account_ref",
+        "subscription_ref",
+        "project_ref",
+        "region",
+        "zone",
+        "cluster_ref",
+        "namespace_ref",
+        "runtime_host",
+        "target_scope"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "environment_class": { "$ref": "#/$defs/environment_class" },
+        "tenant_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "account_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "subscription_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "project_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "region": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "zone": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "cluster_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "namespace_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "runtime_host": { "$ref": "#/$defs/runtime_host" },
+        "target_scope": { "$ref": "#/$defs/target_scope" }
+      },
+      "description": "Explicit target identity. Surfaces MUST NOT substitute an unlabeled current environment for this object."
+    },
+    "credential_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "credential_handle_class",
+        "credential_handle_ref",
+        "issuance_source",
+        "issued_at",
+        "expires_at",
+        "write_scope",
+        "step_up_state"
+      ],
+      "properties": {
+        "credential_handle_class": { "$ref": "#/$defs/credential_handle_class" },
+        "credential_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "issuance_source": { "$ref": "#/$defs/credential_issuance_source_class" },
+        "issued_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "write_scope": { "$ref": "#/$defs/write_posture_class" },
+        "step_up_state": { "$ref": "#/$defs/step_up_state_class" }
+      },
+      "description": "Credential handle and scope. Raw credential values, raw certs, and raw kubeconfig fragments are forbidden."
+    },
+    "freshness_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "observed_at",
+        "first_loaded_at",
+        "source_connector_session_ref",
+        "raw_response_ref",
+        "completeness_label",
+        "policy_epoch"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "observed_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "first_loaded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_connector_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "raw_response_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "completeness_label": { "$ref": "#/$defs/completeness_label" },
+        "policy_epoch": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Freshness and provenance visible on live and cached target surfaces."
+    },
+    "authority_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_source_class",
+        "authority_ref",
+        "authority_role",
+        "field_paths"
+      ],
+      "properties": {
+        "authority_source_class": { "$ref": "#/$defs/authority_source_class" },
+        "authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "authority_role": { "$ref": "#/$defs/authority_role_class" },
+        "field_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "Authority source contributing target, credential, policy, source-mapping, or observation truth."
+    },
+    "mixed_authority_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mixed_authority_detected",
+        "authority_sources",
+        "conflicting_fields",
+        "resolution_required",
+        "mutation_posture"
+      ],
+      "properties": {
+        "mixed_authority_detected": { "type": "boolean" },
+        "authority_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_source" }
+        },
+        "conflicting_fields": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "resolution_required": { "type": "boolean" },
+        "mutation_posture": { "$ref": "#/$defs/mixed_authority_mutation_posture" }
+      },
+      "description": "Mixed-authority state. Local-plus-managed authority conflicts block mutation or downgrade to inspect-only through this typed state."
+    },
+    "stale_context_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stale_context_detected",
+        "stale_reason",
+        "first_loaded_at",
+        "last_verified_at",
+        "invalidated_at",
+        "requires_reconfirmation"
+      ],
+      "properties": {
+        "stale_context_detected": { "type": "boolean" },
+        "stale_reason": { "$ref": "#/$defs/stale_reason_class" },
+        "first_loaded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_verified_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "invalidated_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "requires_reconfirmation": { "type": "boolean" }
+      },
+      "description": "Typed stale or invalidated context state discovered after a surface first loaded."
+    },
+    "resource_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truth_class",
+        "resource_ref",
+        "group_version_kind",
+        "name",
+        "namespace_or_scope",
+        "source_path",
+        "digest_or_generation"
+      ],
+      "properties": {
+        "truth_class": { "$ref": "#/$defs/source_truth_class" },
+        "resource_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "group_version_kind": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "name": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "namespace_or_scope": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "source_path": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "digest_or_generation": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Authored, rendered, planned, observed, provider-overlay, imported, or explicit no-source-match resource identity."
+    },
+    "resource_relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relationship_state",
+        "source_resource",
+        "rendered_resource",
+        "planned_resource",
+        "observed_resource",
+        "match_confidence",
+        "no_source_match_reason",
+        "relationship_provenance_ref"
+      ],
+      "properties": {
+        "relationship_state": { "$ref": "#/$defs/resource_relationship_state" },
+        "source_resource": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resource_identity" }
+          ]
+        },
+        "rendered_resource": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resource_identity" }
+          ]
+        },
+        "planned_resource": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resource_identity" }
+          ]
+        },
+        "observed_resource": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resource_identity" }
+          ]
+        },
+        "match_confidence": { "$ref": "#/$defs/match_confidence_class" },
+        "no_source_match_reason": { "$ref": "#/$defs/no_source_match_reason_class" },
+        "relationship_provenance_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Relationship between authored, rendered, planned, and observed resource identities. Explicit no_source_match is required when a live object cannot be traced back to source or plan."
+    },
+    "target_context_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "target_context_schema_version",
+        "target_context_id",
+        "display_label",
+        "context_state",
+        "target_identity",
+        "credential_identity",
+        "freshness_provenance",
+        "write_posture",
+        "ambient_context_prohibited",
+        "stale_context_state",
+        "mixed_authority_state",
+        "resource_relationships",
+        "audit_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "target_context_record" },
+        "target_context_schema_version": {
+          "$ref": "#/$defs/target_context_schema_version"
+        },
+        "target_context_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "context_state": { "$ref": "#/$defs/context_state_class" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "credential_identity": { "$ref": "#/$defs/credential_identity" },
+        "freshness_provenance": { "$ref": "#/$defs/freshness_provenance" },
+        "write_posture": { "$ref": "#/$defs/write_posture_class" },
+        "ambient_context_prohibited": {
+          "type": "boolean",
+          "const": true,
+          "description": "Must be true: live-action surfaces may not fall back to an unlabeled current environment."
+        },
+        "stale_context_state": { "$ref": "#/$defs/stale_context_state" },
+        "mixed_authority_state": { "$ref": "#/$defs/mixed_authority_state" },
+        "resource_relationships": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resource_relationship" }
+        },
+        "audit_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "context_state = stale requires stale_context_detected = true.",
+          "if": {
+            "properties": {
+              "context_state": { "const": "stale" }
+            },
+            "required": ["context_state"]
+          },
+          "then": {
+            "properties": {
+              "stale_context_state": {
+                "properties": {
+                  "stale_context_detected": { "const": true }
+                },
+                "required": ["stale_context_detected"]
+              }
+            }
+          }
+        },
+        {
+          "description": "context_state = mixed_authority requires mixed_authority_detected = true and mutation blocked or downgraded.",
+          "if": {
+            "properties": {
+              "context_state": { "const": "mixed_authority" }
+            },
+            "required": ["context_state"]
+          },
+          "then": {
+            "properties": {
+              "mixed_authority_state": {
+                "properties": {
+                  "mixed_authority_detected": { "const": true },
+                  "mutation_posture": {
+                    "enum": [
+                      "mutation_downgraded_to_inspect_only",
+                      "mutation_blocked"
+                    ]
+                  }
+                },
+                "required": [
+                  "mixed_authority_detected",
+                  "mutation_posture"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "target_context_audit_event_class": {
+      "type": "string",
+      "enum": [
+        "target_context_resolved",
+        "target_context_reconfirmed",
+        "target_context_downgraded",
+        "target_context_invalidated",
+        "target_context_ambiguous_blocked",
+        "target_context_mixed_authority_blocked",
+        "target_context_no_source_match_recorded",
+        "target_context_schema_version_bumped"
+      ],
+      "description": "Frozen audit event ids emitted by target-context resolvers and action-review packets."
+    },
+    "target_context_audit_event_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "target_context_schema_version",
+        "event_id",
+        "event_class",
+        "target_context_ref",
+        "occurred_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "target_context_audit_event_record" },
+        "target_context_schema_version": {
+          "$ref": "#/$defs/target_context_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/target_context_audit_event_class" },
+        "target_context_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    }
+  }
+}

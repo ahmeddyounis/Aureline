@@ -1,0 +1,554 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/action_safety_review.schema.json",
+  "title": "Aureline action-safety review record",
+  "description": "Boundary schema for inspect, dry-run, apply, restart, scale, delete, publish, and rollback review packets. The packet binds the action verb to an explicit target context, connector session, target confirmation, approval posture, command or request preview, source-to-rendered-to-live resource relationship, audit refs, and the no-hidden-target-switch rule. Mutating actions can be admitted only when target context, connector session, preview, approval, and no-hidden-switch checks agree; otherwise the packet records a typed downgrade or block.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/action_safety_review_record" },
+    { "$ref": "#/$defs/action_safety_audit_event_record" }
+  ],
+  "$defs": {
+    "action_safety_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this action-safety review family. Additive optional fields or enum values bump this const; repurposing an existing value is breaking and requires a new governance decision."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "action_safety_review_record",
+        "action_safety_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw command bodies, raw tokens, private endpoint URLs, and provider payload bodies are forbidden."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "hash_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Digest, plan hash, or preview hash safe to export."
+    },
+    "nullable_hash_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/hash_ref" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 360
+    },
+    "action_verb": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "dry_run",
+        "apply",
+        "restart",
+        "scale",
+        "delete",
+        "publish",
+        "rollback"
+      ],
+      "description": "Action verb covered by this review packet."
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "compare_or_simulate",
+        "mutate"
+      ],
+      "description": "Risk class derived from the verb."
+    },
+    "review_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "awaiting_target_confirmation",
+        "awaiting_approval",
+        "approved_ready",
+        "downgraded_to_inspect_only",
+        "blocked",
+        "executed",
+        "superseded"
+      ],
+      "description": "Lifecycle state of the review packet."
+    },
+    "admission_decision": {
+      "type": "string",
+      "enum": [
+        "allow_inspect",
+        "allow_dry_run",
+        "allow_mutation",
+        "downgrade_to_inspect_only",
+        "block"
+      ],
+      "description": "Final or current admission decision. Mutating verbs fail closed when required checks are absent."
+    },
+    "safety_blocker_class": {
+      "type": "string",
+      "enum": [
+        "no_blocker",
+        "stale_context",
+        "ambiguous_target",
+        "mixed_authority",
+        "expired_credentials",
+        "connector_drift",
+        "hidden_target_switch",
+        "missing_preview",
+        "approval_missing_or_expired",
+        "policy_blocked",
+        "source_relationship_unresolved",
+        "live_target_unavailable"
+      ],
+      "description": "Typed blocker or downgrade reason. Use no_blocker only when the decision is allow_inspect, allow_dry_run, or allow_mutation."
+    },
+    "context_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale",
+        "ambiguous",
+        "mixed_authority",
+        "invalidated",
+        "inspect_only",
+        "unavailable"
+      ]
+    },
+    "connector_session_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "warming",
+        "degraded",
+        "expired_credentials",
+        "connector_drift",
+        "target_context_changed",
+        "mixed_authority_detected",
+        "target_ambiguous",
+        "inspect_only",
+        "revoked",
+        "blocked"
+      ]
+    },
+    "target_confirmation_state": {
+      "type": "string",
+      "enum": [
+        "not_required_for_inspect",
+        "required_pending",
+        "confirmed_exact",
+        "mismatch_blocked",
+        "stale_blocked",
+        "ambiguous_blocked",
+        "mixed_authority_blocked"
+      ],
+      "description": "Target confirmation result shown before execution."
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_pending",
+        "approved",
+        "denied",
+        "expired",
+        "policy_blocked"
+      ],
+      "description": "Approval posture after policy and environment-class checks."
+    },
+    "surface_binding_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli",
+        "support_bundle",
+        "runbook",
+        "incident_workspace",
+        "browser_companion",
+        "automation",
+        "ai_action_sheet"
+      ],
+      "description": "Surface family that can consume this packet without translation."
+    },
+    "target_confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "loaded_target_context_ref",
+        "pre_execute_target_context_ref",
+        "confirmation_state",
+        "confirmed_by",
+        "confirmed_at",
+        "no_hidden_target_switch",
+        "hidden_switch_detected",
+        "switch_reason"
+      ],
+      "properties": {
+        "loaded_target_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "pre_execute_target_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "confirmation_state": { "$ref": "#/$defs/target_confirmation_state" },
+        "confirmed_by": { "$ref": "#/$defs/nullable_opaque_id" },
+        "confirmed_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "no_hidden_target_switch": {
+          "type": "boolean",
+          "description": "True only when the target context displayed at load and the target context at execution resolve to the same explicit identity."
+        },
+        "hidden_switch_detected": { "type": "boolean" },
+        "switch_reason": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "cluster_context_changed",
+                "namespace_changed",
+                "account_or_subscription_changed",
+                "project_or_region_changed",
+                "connector_session_changed",
+                "browser_handoff_return_mismatch",
+                "provider_redirect_changed_target",
+                "unknown_requires_review"
+              ]
+            }
+          ]
+        }
+      },
+      "description": "Target confirmation and no-hidden-target-switch proof."
+    },
+    "approval_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_state",
+        "approval_ticket_ref",
+        "policy_ref",
+        "approved_by",
+        "approved_at",
+        "expires_at",
+        "approval_summary"
+      ],
+      "properties": {
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approved_by": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approved_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "approval_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Policy and human approval posture for this action."
+    },
+    "action_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verb",
+        "target_context_ref",
+        "connector_session_ref",
+        "change_summary",
+        "command_preview_ref",
+        "request_preview_ref",
+        "preview_hash",
+        "dry_run_result_ref",
+        "rollback_plan_ref",
+        "affected_resource_links"
+      ],
+      "properties": {
+        "verb": { "$ref": "#/$defs/action_verb" },
+        "target_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "connector_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "command_preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "request_preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preview_hash": { "$ref": "#/$defs/nullable_hash_ref" },
+        "dry_run_result_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_plan_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "affected_resource_links": {
+          "type": "array",
+          "items": {
+            "$ref": "target_context.schema.json#/$defs/resource_relationship"
+          }
+        }
+      },
+      "description": "Human-reviewable command or API request envelope. Mutating actions need a preview hash before allow_mutation."
+    },
+    "action_safety_review_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "action_safety_review_schema_version",
+        "action_review_id",
+        "action_verb",
+        "action_class",
+        "review_state",
+        "admission_decision",
+        "safety_blockers",
+        "target_context_ref",
+        "connector_session_ref",
+        "target_context_state_at_review",
+        "connector_session_state_at_review",
+        "target_confirmation",
+        "approval_posture",
+        "action_envelope",
+        "surface_bindings",
+        "audit_refs",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "action_safety_review_record" },
+        "action_safety_review_schema_version": {
+          "$ref": "#/$defs/action_safety_review_schema_version"
+        },
+        "action_review_id": { "$ref": "#/$defs/opaque_id" },
+        "action_verb": { "$ref": "#/$defs/action_verb" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "review_state": { "$ref": "#/$defs/review_state" },
+        "admission_decision": { "$ref": "#/$defs/admission_decision" },
+        "safety_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safety_blocker_class" }
+        },
+        "target_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "connector_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_context_state_at_review": { "$ref": "#/$defs/context_state_class" },
+        "connector_session_state_at_review": { "$ref": "#/$defs/connector_session_state" },
+        "target_confirmation": { "$ref": "#/$defs/target_confirmation" },
+        "approval_posture": { "$ref": "#/$defs/approval_posture" },
+        "action_envelope": { "$ref": "#/$defs/action_envelope" },
+        "surface_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_binding_class" }
+        },
+        "audit_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "executed_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "inspect uses the inspect action class.",
+          "if": {
+            "properties": {
+              "action_verb": { "const": "inspect" }
+            },
+            "required": ["action_verb"]
+          },
+          "then": {
+            "properties": {
+              "action_class": { "const": "inspect" }
+            }
+          }
+        },
+        {
+          "description": "dry_run uses the compare_or_simulate action class.",
+          "if": {
+            "properties": {
+              "action_verb": { "const": "dry_run" }
+            },
+            "required": ["action_verb"]
+          },
+          "then": {
+            "properties": {
+              "action_class": { "const": "compare_or_simulate" }
+            }
+          }
+        },
+        {
+          "description": "apply, restart, scale, delete, publish, and rollback are mutating verbs.",
+          "if": {
+            "properties": {
+              "action_verb": {
+                "enum": [
+                  "apply",
+                  "restart",
+                  "scale",
+                  "delete",
+                  "publish",
+                  "rollback"
+                ]
+              }
+            },
+            "required": ["action_verb"]
+          },
+          "then": {
+            "properties": {
+              "action_class": { "const": "mutate" }
+            }
+          }
+        },
+        {
+          "description": "allow_mutation requires current target, active connector, exact confirmation, approved posture, no hidden target switch, and a non-null preview hash.",
+          "if": {
+            "properties": {
+              "admission_decision": { "const": "allow_mutation" }
+            },
+            "required": ["admission_decision"]
+          },
+          "then": {
+            "properties": {
+              "target_context_state_at_review": { "const": "current" },
+              "connector_session_state_at_review": { "const": "active" },
+              "target_confirmation": {
+                "properties": {
+                  "confirmation_state": { "const": "confirmed_exact" },
+                  "no_hidden_target_switch": { "const": true },
+                  "hidden_switch_detected": { "const": false }
+                },
+                "required": [
+                  "confirmation_state",
+                  "no_hidden_target_switch",
+                  "hidden_switch_detected"
+                ]
+              },
+              "approval_posture": {
+                "properties": {
+                  "approval_state": { "const": "approved" }
+                },
+                "required": ["approval_state"]
+              },
+              "action_envelope": {
+                "properties": {
+                  "preview_hash": { "$ref": "#/$defs/hash_ref" }
+                },
+                "required": ["preview_hash"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Stale, ambiguous, mixed, invalidated, or unavailable target contexts may only downgrade or block.",
+          "if": {
+            "properties": {
+              "target_context_state_at_review": {
+                "enum": [
+                  "stale",
+                  "ambiguous",
+                  "mixed_authority",
+                  "invalidated",
+                  "unavailable"
+                ]
+              }
+            },
+            "required": ["target_context_state_at_review"]
+          },
+          "then": {
+            "properties": {
+              "admission_decision": {
+                "enum": [
+                  "downgrade_to_inspect_only",
+                  "block"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A hidden target switch always blocks the action.",
+          "if": {
+            "properties": {
+              "target_confirmation": {
+                "properties": {
+                  "hidden_switch_detected": { "const": true }
+                },
+                "required": ["hidden_switch_detected"]
+              }
+            },
+            "required": ["target_confirmation"]
+          },
+          "then": {
+            "properties": {
+              "admission_decision": { "const": "block" },
+              "target_confirmation": {
+                "properties": {
+                  "no_hidden_target_switch": { "const": false }
+                },
+                "required": ["no_hidden_target_switch"]
+              },
+              "safety_blockers": {
+                "contains": { "const": "hidden_target_switch" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "action_safety_audit_event_class": {
+      "type": "string",
+      "enum": [
+        "action_safety_review_created",
+        "action_safety_target_confirmed",
+        "action_safety_approval_attached",
+        "action_safety_downgraded_to_inspect_only",
+        "action_safety_blocked",
+        "action_safety_executed",
+        "action_safety_hidden_target_switch_blocked",
+        "action_safety_schema_version_bumped"
+      ]
+    },
+    "action_safety_audit_event_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "action_safety_review_schema_version",
+        "event_id",
+        "event_class",
+        "action_review_ref",
+        "target_context_ref",
+        "connector_session_ref",
+        "occurred_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "action_safety_audit_event_record" },
+        "action_safety_review_schema_version": {
+          "$ref": "#/$defs/action_safety_review_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/action_safety_audit_event_class" },
+        "action_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_context_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "connector_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    }
+  }
+}

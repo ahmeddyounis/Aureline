@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=../../../schemas/runtime/action_safety_review.schema.json
+__fixture__:
+  name: changed_local_kube_context_delete_blocked
+  scenario: >
+    A delete review loaded against staging checkout, but immediately
+    before execution the local kubeconfig current-context changed to
+    production. The no-hidden-target-switch rule blocks the delete.
+  exercised_contract_sections:
+    - Connector sessions — local_config
+    - Invalidation and downgrade — changed_cluster_context
+    - Action-safety reviews — no hidden target switch
+
+record_kind: action_safety_review_record
+action_safety_review_schema_version: 1
+action_review_id: "arev:k8s:checkout-canary:delete:hidden-switch"
+action_verb: delete
+action_class: mutate
+review_state: blocked
+admission_decision: block
+safety_blockers:
+  - hidden_target_switch
+  - stale_context
+target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+connector_session_ref: "csess:local:kubeconfig:checkout:hidden-switch"
+target_context_state_at_review: invalidated
+connector_session_state_at_review: target_context_changed
+target_confirmation:
+  loaded_target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+  pre_execute_target_context_ref: "tctx:k8s:production:payments-us-1:checkout"
+  confirmation_state: mismatch_blocked
+  confirmed_by: null
+  confirmed_at: null
+  no_hidden_target_switch: false
+  hidden_switch_detected: true
+  switch_reason: cluster_context_changed
+approval_posture:
+  approval_state: denied
+  approval_ticket_ref: null
+  policy_ref: "policy:infra-mutate:no-hidden-target-switch"
+  approved_by: null
+  approved_at: null
+  expires_at: null
+  approval_summary: "Delete blocked because the local kubeconfig target changed after review load."
+action_envelope:
+  verb: delete
+  target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+  connector_session_ref: "csess:local:kubeconfig:checkout:hidden-switch"
+  change_summary: "Delete stale checkout-canary Service from staging checkout."
+  command_preview_ref: "cmdprev:kubectl-delete-service:checkout-canary"
+  request_preview_ref: null
+  preview_hash: "sha256:preview-delete-checkout-canary"
+  dry_run_result_ref: "dryrun:k8s:checkout-canary:delete:0001"
+  rollback_plan_ref: null
+  affected_resource_links:
+    - relationship_state: observed_to_authored
+      source_resource:
+        truth_class: authored
+        resource_ref: "src:k8s:svc:checkout-canary"
+        group_version_kind: "v1/Service"
+        name: "checkout-canary"
+        namespace_or_scope: "checkout"
+        source_path: "deploy/k8s/checkout/canary-service.yaml"
+        digest_or_generation: "sha256:src-checkout-canary-0001"
+      rendered_resource: null
+      planned_resource:
+        truth_class: planned
+        resource_ref: "plan:kubectl-diff:delete-checkout-canary"
+        group_version_kind: "v1/Service"
+        name: "checkout-canary"
+        namespace_or_scope: "checkout"
+        source_path: "deploy/k8s/checkout/canary-service.yaml"
+        digest_or_generation: "sha256:plan-delete-checkout-canary"
+      observed_resource:
+        truth_class: observed
+        resource_ref: "live:k8s:payments-us-1:checkout:service:checkout-canary"
+        group_version_kind: "v1/Service"
+        name: "checkout-canary"
+        namespace_or_scope: "checkout"
+        source_path: null
+        digest_or_generation: "resourceVersion:1124"
+      match_confidence: exact
+      no_source_match_reason: not_applicable
+      relationship_provenance_ref: "edge:k8s:checkout-canary:observed-to-authored"
+surface_bindings:
+  - desktop
+  - cli
+  - support_bundle
+  - runbook
+audit_refs:
+  - "audit:target_context_invalidated:20260428T184100Z:0001"
+  - "audit:action_safety_hidden_target_switch_blocked:20260428T184101Z:0001"
+created_at: "2026-04-28T18:41:01Z"
+executed_at: null
+notes: "The old staging target remains reviewable, but no delete may execute from the changed local context."
+

@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/connector_session.schema.json",
+  "title": "Aureline connector-session record",
+  "description": "Boundary schema for the connector session that binds a target context to the local config, delegated identity, SSH or tunnel bridge, managed connector, browser handoff, or imported read-only evidence used to inspect, dry-run, or mutate live infrastructure. The session records capability posture, credential handle class, drift and invalidation markers, and source-to-live relationship retention. It never carries raw tokens, kubeconfig bodies, SSH private keys, raw browser cookies, private endpoint URLs, or provider response bodies.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/connector_session_record" },
+    { "$ref": "#/$defs/connector_session_audit_event_record" }
+  ],
+  "$defs": {
+    "connector_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this connector-session family. Additive optional fields or enum values bump this const; repurposing a value is breaking and requires a new governance decision."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "connector_session_record",
+        "connector_session_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw credentials and raw provider payloads are forbidden."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+    "connector_session_class": {
+      "type": "string",
+      "enum": [
+        "local_config",
+        "delegated_identity",
+        "ssh_or_tunnel_bridge",
+        "managed_connector",
+        "browser_handoff",
+        "imported_read_only_evidence"
+      ],
+      "description": "How the session gained target truth or authority."
+    },
+    "backing_connector_class": {
+      "type": "string",
+      "enum": [
+        "static_file_only",
+        "cli_mediated",
+        "agent_mediated_live",
+        "provider_console_overlay"
+      ],
+      "description": "Architecture-level connector class used to produce or refresh this session."
+    },
+    "connector_session_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "warming",
+        "degraded",
+        "expired_credentials",
+        "connector_drift",
+        "target_context_changed",
+        "mixed_authority_detected",
+        "target_ambiguous",
+        "inspect_only",
+        "revoked",
+        "blocked"
+      ],
+      "description": "Typed connector state. Mutating surfaces consume this value rather than parsing generic runtime errors."
+    },
+    "connector_capability_state": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "approval_required",
+        "inspect_only",
+        "denied",
+        "not_claimed"
+      ],
+      "description": "Effective capability for one action family after policy, credential, target, and connector checks."
+    },
+    "credential_handle_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "local_config_handle",
+        "delegated_token_handle",
+        "ssh_key_handle",
+        "tunnel_session_handle",
+        "managed_connector_handle",
+        "browser_handoff_handle",
+        "imported_evidence_no_credential"
+      ]
+    },
+    "credential_scope_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "read_only",
+        "namespace_bound",
+        "project_bound",
+        "account_bound",
+        "subscription_bound",
+        "resource_bound",
+        "provider_console_bound",
+        "unknown_requires_review"
+      ],
+      "description": "Maximum live target scope the credential handle may affect."
+    },
+    "step_up_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "not_performed",
+        "required_pending",
+        "performed",
+        "expired",
+        "revoked"
+      ]
+    },
+    "invalidation_trigger_class": {
+      "type": "string",
+      "enum": [
+        "expired_credentials",
+        "changed_cluster_context",
+        "connector_drift",
+        "mixed_local_plus_managed_authority",
+        "target_ambiguity_after_load",
+        "freshness_floor_unmet",
+        "policy_epoch_changed",
+        "credential_scope_narrowed",
+        "browser_handoff_return_mismatch",
+        "imported_evidence_no_live_auth"
+      ],
+      "description": "Typed trigger that downgrades or invalidates the connector session."
+    },
+    "resulting_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "downgrade_to_inspect_only",
+        "block_mutation",
+        "invalidate_session",
+        "require_reapproval",
+        "require_target_reconfirm"
+      ],
+      "description": "Required posture after an invalidation trigger is observed."
+    },
+    "surface_binding_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli",
+        "support_bundle",
+        "runbook",
+        "incident_workspace",
+        "browser_companion",
+        "automation",
+        "ai_action_sheet"
+      ],
+      "description": "Surface families allowed to consume this session record without translating it."
+    },
+    "capability_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inspect",
+        "dry_run",
+        "apply",
+        "restart",
+        "scale",
+        "delete",
+        "publish",
+        "rollback",
+        "attach",
+        "forward",
+        "exec"
+      ],
+      "properties": {
+        "inspect": { "$ref": "#/$defs/connector_capability_state" },
+        "dry_run": { "$ref": "#/$defs/connector_capability_state" },
+        "apply": { "$ref": "#/$defs/connector_capability_state" },
+        "restart": { "$ref": "#/$defs/connector_capability_state" },
+        "scale": { "$ref": "#/$defs/connector_capability_state" },
+        "delete": { "$ref": "#/$defs/connector_capability_state" },
+        "publish": { "$ref": "#/$defs/connector_capability_state" },
+        "rollback": { "$ref": "#/$defs/connector_capability_state" },
+        "attach": { "$ref": "#/$defs/connector_capability_state" },
+        "forward": { "$ref": "#/$defs/connector_capability_state" },
+        "exec": { "$ref": "#/$defs/connector_capability_state" }
+      },
+      "description": "Action-family capability posture. Mutating verbs may not infer write capability from inspect or dry-run capability."
+    },
+    "credential_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "credential_handle_class",
+        "credential_handle_ref",
+        "credential_scope",
+        "issued_at",
+        "expires_at",
+        "step_up_state",
+        "revocation_ref"
+      ],
+      "properties": {
+        "credential_handle_class": { "$ref": "#/$defs/credential_handle_class" },
+        "credential_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "credential_scope": { "$ref": "#/$defs/credential_scope_class" },
+        "issued_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "step_up_state": { "$ref": "#/$defs/step_up_state_class" },
+        "revocation_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Credential handle used by this connector session. Raw secrets are excluded."
+    },
+    "bridge_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bridge_ref",
+        "bridge_class",
+        "local_endpoint_ref",
+        "remote_endpoint_ref",
+        "expires_at",
+        "revocation_ref"
+      ],
+      "properties": {
+        "bridge_ref": { "$ref": "#/$defs/opaque_id" },
+        "bridge_class": {
+          "type": "string",
+          "enum": [
+            "ssh_control_master",
+            "ssh_local_forward",
+            "ssh_remote_forward",
+            "managed_tunnel",
+            "private_network_bridge"
+          ]
+        },
+        "local_endpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "remote_endpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "revocation_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "SSH or tunnel bridge metadata. Raw hostnames and private endpoints should be replaced with refs when exported."
+    },
+    "browser_handoff_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_ref",
+        "destination_class",
+        "return_anchor_ref",
+        "target_context_ref",
+        "evidence_refs"
+      ],
+      "properties": {
+        "handoff_ref": { "$ref": "#/$defs/opaque_id" },
+        "destination_class": {
+          "type": "string",
+          "enum": [
+            "provider_console",
+            "cloud_console",
+            "database_console",
+            "queue_console",
+            "preview_browser",
+            "support_portal"
+          ]
+        },
+        "return_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_context_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "description": "Attributable browser or vendor-console handoff binding."
+    },
+    "imported_evidence_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_bundle_ref",
+        "captured_at",
+        "source_system_ref",
+        "read_only_reason"
+      ],
+      "properties": {
+        "evidence_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_system_ref": { "$ref": "#/$defs/opaque_id" },
+        "read_only_reason": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Imported read-only evidence binding. It can explain or compare; it cannot grant live mutation authority."
+    },
+    "invalidation_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger",
+        "detected_at",
+        "resulting_posture",
+        "summary"
+      ],
+      "properties": {
+        "trigger": { "$ref": "#/$defs/invalidation_trigger_class" },
+        "detected_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resulting_posture": { "$ref": "#/$defs/resulting_posture_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "superseded_target_context_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Typed downgrade or invalidation marker discovered after the surface first loaded."
+    },
+    "connector_session_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "connector_session_schema_version",
+        "connector_session_id",
+        "display_label",
+        "connector_session_class",
+        "backing_connector_class",
+        "session_state",
+        "target_context_ref",
+        "target_context_fingerprint",
+        "capability_posture",
+        "credential_binding",
+        "bridge_binding",
+        "browser_handoff_binding",
+        "imported_evidence_binding",
+        "invalidation_markers",
+        "resource_relationships_retained",
+        "surface_bindings",
+        "audit_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "connector_session_record" },
+        "connector_session_schema_version": {
+          "$ref": "#/$defs/connector_session_schema_version"
+        },
+        "connector_session_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "connector_session_class": { "$ref": "#/$defs/connector_session_class" },
+        "backing_connector_class": { "$ref": "#/$defs/backing_connector_class" },
+        "session_state": { "$ref": "#/$defs/connector_session_state" },
+        "target_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_context_fingerprint": { "$ref": "#/$defs/opaque_id" },
+        "capability_posture": { "$ref": "#/$defs/capability_posture" },
+        "credential_binding": { "$ref": "#/$defs/credential_binding" },
+        "bridge_binding": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bridge_binding" }
+          ]
+        },
+        "browser_handoff_binding": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_binding" }
+          ]
+        },
+        "imported_evidence_binding": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/imported_evidence_binding" }
+          ]
+        },
+        "invalidation_markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_marker" }
+        },
+        "resource_relationships_retained": {
+          "type": "array",
+          "items": {
+            "$ref": "target_context.schema.json#/$defs/resource_relationship"
+          },
+          "description": "Relationships this connector preserved when moving from source to rendered, planned, observed, handoff, or imported evidence."
+        },
+        "surface_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_binding_class" }
+        },
+        "audit_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "SSH or tunnel bridge sessions must carry a bridge binding.",
+          "if": {
+            "properties": {
+              "connector_session_class": { "const": "ssh_or_tunnel_bridge" }
+            },
+            "required": ["connector_session_class"]
+          },
+          "then": {
+            "properties": {
+              "bridge_binding": { "$ref": "#/$defs/bridge_binding" }
+            },
+            "required": ["bridge_binding"]
+          }
+        },
+        {
+          "description": "Browser handoff sessions must carry a browser handoff binding.",
+          "if": {
+            "properties": {
+              "connector_session_class": { "const": "browser_handoff" }
+            },
+            "required": ["connector_session_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_binding": { "$ref": "#/$defs/browser_handoff_binding" }
+            },
+            "required": ["browser_handoff_binding"]
+          }
+        },
+        {
+          "description": "Imported read-only evidence sessions must carry imported evidence binding and inspect-only or blocked state.",
+          "if": {
+            "properties": {
+              "connector_session_class": { "const": "imported_read_only_evidence" }
+            },
+            "required": ["connector_session_class"]
+          },
+          "then": {
+            "properties": {
+              "session_state": {
+                "enum": [
+                  "inspect_only",
+                  "degraded",
+                  "blocked"
+                ]
+              },
+              "imported_evidence_binding": { "$ref": "#/$defs/imported_evidence_binding" }
+            },
+            "required": [
+              "session_state",
+              "imported_evidence_binding"
+            ]
+          }
+        }
+      ]
+    },
+    "connector_session_audit_event_class": {
+      "type": "string",
+      "enum": [
+        "connector_session_opened",
+        "connector_session_refreshed",
+        "connector_session_downgraded",
+        "connector_session_invalidated",
+        "connector_session_drift_detected",
+        "connector_session_mixed_authority_blocked",
+        "connector_session_browser_handoff_created",
+        "connector_session_imported_evidence_attached",
+        "connector_session_schema_version_bumped"
+      ]
+    },
+    "connector_session_audit_event_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "connector_session_schema_version",
+        "event_id",
+        "event_class",
+        "connector_session_ref",
+        "target_context_ref",
+        "occurred_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "connector_session_audit_event_record" },
+        "connector_session_schema_version": {
+          "$ref": "#/$defs/connector_session_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/connector_session_audit_event_class" },
+        "connector_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_context_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    }
+  }
+}
