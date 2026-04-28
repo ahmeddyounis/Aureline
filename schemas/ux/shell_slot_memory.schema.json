@@ -1,0 +1,759 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/shell_slot_memory.schema.json",
+  "title": "Aureline shell close/reopen, focus-return, and slot-memory contract",
+  "description": "Boundary schema for docs/ux/shell_close_reopen_contract.md. It exports inspectable shell-slot close, reopen, remembered-last-surface, placeholder, and focus-return records for rail sections, sidebars, workspace surfaces, inspectors, bottom-panel tabs, collapsed panes, status routes, and transient overlays. Raw paths, raw query text, raw provider payloads, raw credentials, unreviewed destructive input, and product planning identifiers never cross this boundary; records carry opaque refs, typed vocabulary, command ids, and redaction-aware summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/shell_slot_catalog_record" },
+    { "$ref": "#/$defs/shell_slot_transition_record" }
+  ],
+  "$defs": {
+    "shell_slot_memory_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for shell-slot close/reopen and memory records."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "shell_slot_catalog_record",
+        "shell_slot_transition_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support bundles, fixtures, and review packets."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "description": "Short redaction-aware text safe for visible labels and accessibility names."
+    },
+    "safe_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200,
+      "description": "Bounded redaction-aware summary safe for design evidence, support export, and review packets."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp emitted by the producer."
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*|\\.\\*)+$",
+      "description": "Canonical command id, reserved command id, or command-family wildcard."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "record_kinds_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried by fixtures."
+    },
+    "shell_zone": {
+      "type": "string",
+      "enum": [
+        "title_context_bar",
+        "activity_rail",
+        "left_sidebar",
+        "main_workspace",
+        "right_inspector",
+        "bottom_panel",
+        "status_bar",
+        "transient_overlay"
+      ]
+    },
+    "shell_slot_kind": {
+      "type": "string",
+      "enum": [
+        "title_context_bar",
+        "activity_rail",
+        "rail_section",
+        "left_sidebar",
+        "sidebar_surface",
+        "main_workspace",
+        "right_inspector",
+        "inspector_panel",
+        "bottom_panel",
+        "bottom_panel_tab",
+        "status_bar",
+        "transient_overlay",
+        "collapsed_pane",
+        "placeholder_surface"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "required_chrome",
+        "rail_route",
+        "structural_sidebar",
+        "query_collection",
+        "editor_group",
+        "workspace_tab",
+        "contextual_inspector",
+        "terminal_or_live_panel",
+        "problems_or_output_panel",
+        "status_route",
+        "dialog_or_sheet",
+        "collapsed_layout_region",
+        "missing_surface_placeholder"
+      ]
+    },
+    "close_action_class": {
+      "type": "string",
+      "enum": [
+        "not_closable_required_chrome",
+        "hide_zone",
+        "close_surface",
+        "close_tab",
+        "collapse_pane",
+        "dismiss_overlay",
+        "replace_with_placeholder",
+        "remove_placeholder",
+        "reset_to_default"
+      ]
+    },
+    "close_request_source": {
+      "type": "string",
+      "enum": [
+        "user_command",
+        "keyboard_shortcut",
+        "pointer_control",
+        "adaptive_layout",
+        "restore_hydration",
+        "provider_replacement",
+        "dependency_loss",
+        "overlay_dismiss",
+        "apply_completion",
+        "migration"
+      ]
+    },
+    "close_outcome": {
+      "type": "string",
+      "enum": [
+        "closed",
+        "hidden",
+        "collapsed",
+        "dismissed",
+        "replaced_by_placeholder",
+        "removed_placeholder",
+        "close_denied",
+        "not_applicable_required_chrome"
+      ]
+    },
+    "reopen_strategy": {
+      "type": "string",
+      "enum": [
+        "not_applicable_required_chrome",
+        "exact_last_surface",
+        "direct_surface",
+        "same_slot_placeholder",
+        "sheet_fallback",
+        "first_admitted_primary",
+        "main_workspace_default",
+        "evidence_only_no_rerun",
+        "clear_intent_then_default"
+      ]
+    },
+    "memory_restore_posture": {
+      "type": "string",
+      "enum": [
+        "restore_exact",
+        "restore_with_revalidation",
+        "restore_as_placeholder",
+        "restore_as_evidence_only",
+        "fallback_with_explanation",
+        "discard_user_close_intent",
+        "not_remembered"
+      ]
+    },
+    "memory_scope": {
+      "type": "string",
+      "enum": [
+        "none",
+        "window",
+        "workspace_window",
+        "workspace",
+        "profile_default"
+      ]
+    },
+    "remembered_field": {
+      "type": "string",
+      "enum": [
+        "slot_id",
+        "shell_zone",
+        "section_id",
+        "surface_ref",
+        "pane_id",
+        "tab_id",
+        "target_ref",
+        "active_view_ref",
+        "size_or_sheet_posture",
+        "proportional_layout_intent",
+        "expanded_nodes",
+        "query_scope_ref",
+        "filter_sort_ref",
+        "scroll_anchor",
+        "selection_summary",
+        "provider_freshness",
+        "dependency_reason",
+        "focus_return_target",
+        "user_close_intent",
+        "recovery_route_refs",
+        "transcript_or_evidence_ref",
+        "placeholder_state"
+      ]
+    },
+    "restore_precondition": {
+      "type": "string",
+      "enum": [
+        "slot_schema_known",
+        "workspace_authority_matches",
+        "policy_admits",
+        "trust_admits",
+        "lifecycle_admits",
+        "client_scope_admits",
+        "dependency_available",
+        "authority_valid",
+        "surface_target_resolves",
+        "freshness_floor_met",
+        "no_live_effect_replay",
+        "focus_target_resolves",
+        "state_contains_only_safe_refs"
+      ]
+    },
+    "unsafe_restore_reason": {
+      "type": "string",
+      "enum": [
+        "missing_extension",
+        "extension_disabled_or_quarantined",
+        "provider_unavailable",
+        "policy_blocked",
+        "trust_revoked_or_untrusted",
+        "authority_expired_or_revoked",
+        "remote_unavailable",
+        "schema_unsupported",
+        "target_missing_or_moved",
+        "non_reentrant_live_surface",
+        "stale_snapshot_for_mutation",
+        "raw_secret_or_unreviewed_input",
+        "client_scope_not_admitted"
+      ]
+    },
+    "placeholder_reason": {
+      "type": "string",
+      "enum": [
+        "not_a_placeholder",
+        "missing_extension",
+        "extension_disabled_or_quarantined",
+        "provider_unavailable",
+        "policy_blocked",
+        "trust_revoked_or_untrusted",
+        "authority_expired_or_revoked",
+        "remote_unavailable",
+        "schema_unsupported",
+        "target_missing_or_moved",
+        "non_reentrant_live_surface"
+      ]
+    },
+    "focus_target_class": {
+      "type": "string",
+      "enum": [
+        "exact_invoking_control",
+        "invoking_row_or_card",
+        "section_owner",
+        "panel_tab_list",
+        "inspector_target_owner",
+        "adjacent_visible_pane",
+        "placeholder_card",
+        "main_workspace",
+        "command_palette_route",
+        "none_required_chrome"
+      ]
+    },
+    "invalid_focus_target_class": {
+      "type": "string",
+      "enum": [
+        "offscreen_window",
+        "hidden_pane",
+        "collapsed_pane_body",
+        "removed_row",
+        "disabled_control",
+        "stale_overlay_body",
+        "document_body_fallback",
+        "placeholderless_void"
+      ]
+    },
+    "focus_return_outcome": {
+      "type": "string",
+      "enum": [
+        "returned_exact",
+        "returned_nearest_owner",
+        "returned_adjacent_pane",
+        "returned_placeholder",
+        "returned_main_workspace",
+        "returned_command_route",
+        "not_applicable_required_chrome"
+      ]
+    },
+    "route_id": {
+      "type": "string",
+      "enum": [
+        "route.activity_rail",
+        "route.sidebar",
+        "route.command_palette",
+        "route.global_menu",
+        "route.context_menu",
+        "route.status_bar_link",
+        "route.inspector_link",
+        "route.panel_tab",
+        "route.splitter_stub",
+        "route.placeholder_action",
+        "route.notification_or_banner"
+      ]
+    },
+    "recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "visible_rail_entry",
+        "sidebar_toggle",
+        "direct_section_command",
+        "panel_tab",
+        "inspector_link",
+        "splitter_stub",
+        "status_item",
+        "placeholder_action",
+        "command_palette_entry",
+        "global_menu_entry",
+        "history_or_restore_detail",
+        "job_or_activity_row"
+      ]
+    },
+    "command_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_class",
+        "route_id",
+        "command_id",
+        "keyboard_reachable",
+        "visible_when_available",
+        "focus_return_target_class"
+      ],
+      "properties": {
+        "route_class": { "$ref": "#/$defs/recovery_route_class" },
+        "route_id": { "$ref": "#/$defs/route_id" },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "label_ref": { "$ref": "#/$defs/short_text" },
+        "keyboard_reachable": { "type": "boolean" },
+        "visible_when_available": { "type": "boolean" },
+        "focus_return_target_class": { "$ref": "#/$defs/focus_target_class" },
+        "disabled_reason_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notes": { "$ref": "#/$defs/safe_summary" }
+      }
+    },
+    "close_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "closable",
+        "action_class",
+        "allowed_request_sources",
+        "state_recorded_on_close",
+        "required_guardrails"
+      ],
+      "properties": {
+        "closable": { "type": "boolean" },
+        "action_class": { "$ref": "#/$defs/close_action_class" },
+        "allowed_request_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/close_request_source" },
+          "uniqueItems": true
+        },
+        "state_recorded_on_close": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remembered_field" },
+          "uniqueItems": true
+        },
+        "required_guardrails": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_summary" }
+        }
+      }
+    },
+    "reopen_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "command_routes",
+        "keyboard_route_required",
+        "requires_revalidation",
+        "fallback_order"
+      ],
+      "properties": {
+        "strategy": { "$ref": "#/$defs/reopen_strategy" },
+        "command_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_route" }
+        },
+        "keyboard_route_required": { "type": "boolean" },
+        "requires_revalidation": { "type": "boolean" },
+        "fallback_order": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_strategy" }
+        }
+      }
+    },
+    "memory_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "default_posture",
+        "fields_allowed",
+        "restore_preconditions",
+        "unsafe_restore_reasons_force_placeholder",
+        "fields_never_recorded"
+      ],
+      "properties": {
+        "scope": { "$ref": "#/$defs/memory_scope" },
+        "default_posture": { "$ref": "#/$defs/memory_restore_posture" },
+        "fields_allowed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remembered_field" },
+          "uniqueItems": true
+        },
+        "restore_preconditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_precondition" },
+          "uniqueItems": true
+        },
+        "unsafe_restore_reasons_force_placeholder": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsafe_restore_reason" },
+          "uniqueItems": true
+        },
+        "fields_never_recorded": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_summary" }
+        }
+      }
+    },
+    "focus_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_order",
+        "forbidden_targets",
+        "announcement_required_on_fallback"
+      ],
+      "properties": {
+        "target_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/focus_target_class" }
+        },
+        "forbidden_targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalid_focus_target_class" },
+          "uniqueItems": true
+        },
+        "announcement_required_on_fallback": { "type": "boolean" }
+      }
+    },
+    "slot_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot_kind",
+        "shell_zone",
+        "surface_class",
+        "close_behavior",
+        "reopen_behavior",
+        "memory_behavior",
+        "focus_behavior"
+      ],
+      "properties": {
+        "slot_kind": { "$ref": "#/$defs/shell_slot_kind" },
+        "shell_zone": { "$ref": "#/$defs/shell_zone" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "close_behavior": { "$ref": "#/$defs/close_behavior" },
+        "reopen_behavior": { "$ref": "#/$defs/reopen_behavior" },
+        "memory_behavior": { "$ref": "#/$defs/memory_behavior" },
+        "focus_behavior": { "$ref": "#/$defs/focus_behavior" }
+      }
+    },
+    "placeholder_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_placeholder",
+        "reason",
+        "original_slot_ref",
+        "safe_recovery_routes",
+        "pretend_live_forbidden"
+      ],
+      "properties": {
+        "is_placeholder": { "type": "boolean" },
+        "reason": { "$ref": "#/$defs/placeholder_reason" },
+        "original_slot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "safe_recovery_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_route" }
+        },
+        "pretend_live_forbidden": { "type": "boolean", "const": true },
+        "provenance_summary": { "$ref": "#/$defs/safe_summary" }
+      }
+    },
+    "guardrail_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_or_command_reopen_path",
+        "keyboard_reopen_path",
+        "focus_not_stranded",
+        "unsafe_surface_not_silently_restored",
+        "placeholder_truthful_when_needed",
+        "no_live_effect_replay",
+        "workspace_authority_not_deleted"
+      ],
+      "properties": {
+        "visible_or_command_reopen_path": { "type": "boolean" },
+        "keyboard_reopen_path": { "type": "boolean" },
+        "focus_not_stranded": { "type": "boolean" },
+        "unsafe_surface_not_silently_restored": { "type": "boolean" },
+        "placeholder_truthful_when_needed": { "type": "boolean" },
+        "no_live_effect_replay": { "type": "boolean" },
+        "workspace_authority_not_deleted": { "type": "boolean" }
+      }
+    },
+    "transition_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot_ref",
+        "slot_kind",
+        "shell_zone",
+        "surface_class",
+        "focus_owner_ref",
+        "remembered_fields",
+        "placeholder"
+      ],
+      "properties": {
+        "slot_ref": { "$ref": "#/$defs/opaque_id" },
+        "slot_kind": { "$ref": "#/$defs/shell_slot_kind" },
+        "shell_zone": { "$ref": "#/$defs/shell_zone" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "focus_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "remembered_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remembered_field" },
+          "uniqueItems": true
+        },
+        "placeholder": { "$ref": "#/$defs/placeholder_record" },
+        "notes": { "$ref": "#/$defs/safe_summary" }
+      }
+    },
+    "close_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_source",
+        "action_class",
+        "outcome",
+        "memory_posture_after_close",
+        "focus_return_outcome",
+        "focus_return_target_class",
+        "command_routes_preserved"
+      ],
+      "properties": {
+        "request_source": { "$ref": "#/$defs/close_request_source" },
+        "action_class": { "$ref": "#/$defs/close_action_class" },
+        "outcome": { "$ref": "#/$defs/close_outcome" },
+        "memory_posture_after_close": { "$ref": "#/$defs/memory_restore_posture" },
+        "focus_return_outcome": { "$ref": "#/$defs/focus_return_outcome" },
+        "focus_return_target_class": { "$ref": "#/$defs/focus_target_class" },
+        "command_routes_preserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_route" }
+        },
+        "visible_explanation": { "$ref": "#/$defs/safe_summary" }
+      }
+    },
+    "reopen_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "memory_posture_after_reopen",
+        "preconditions_checked",
+        "unsafe_restore_reasons",
+        "resulting_slot_state",
+        "focus_return_outcome",
+        "focus_return_target_class"
+      ],
+      "properties": {
+        "strategy": { "$ref": "#/$defs/reopen_strategy" },
+        "memory_posture_after_reopen": { "$ref": "#/$defs/memory_restore_posture" },
+        "preconditions_checked": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_precondition" },
+          "uniqueItems": true
+        },
+        "unsafe_restore_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsafe_restore_reason" },
+          "uniqueItems": true
+        },
+        "resulting_slot_state": { "$ref": "#/$defs/transition_state" },
+        "focus_return_outcome": { "$ref": "#/$defs/focus_return_outcome" },
+        "focus_return_target_class": { "$ref": "#/$defs/focus_target_class" },
+        "visible_explanation": { "$ref": "#/$defs/safe_summary" }
+      }
+    },
+    "shell_slot_catalog_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "shell_slot_memory_schema_version",
+        "catalog_id",
+        "source_contract_refs",
+        "slot_behaviors",
+        "global_focus_return_order",
+        "global_forbidden_focus_targets",
+        "global_restore_preconditions",
+        "unsafe_restore_reasons_force_placeholder",
+        "reserved_command_families",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "shell_slot_catalog_record" },
+        "shell_slot_memory_schema_version": { "$ref": "#/$defs/shell_slot_memory_schema_version" },
+        "catalog_id": { "$ref": "#/$defs/opaque_id" },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "slot_behaviors": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/slot_behavior" }
+        },
+        "global_focus_return_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/focus_target_class" }
+        },
+        "global_forbidden_focus_targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalid_focus_target_class" },
+          "uniqueItems": true
+        },
+        "global_restore_preconditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_precondition" },
+          "uniqueItems": true
+        },
+        "unsafe_restore_reasons_force_placeholder": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsafe_restore_reason" },
+          "uniqueItems": true
+        },
+        "reserved_command_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_id" },
+          "uniqueItems": true
+        },
+        "minted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "shell_slot_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "shell_slot_memory_schema_version",
+        "case_id",
+        "source_contract_refs",
+        "starting_state",
+        "requested_transition",
+        "close_result",
+        "reopen_result",
+        "guardrail_checks",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "shell_slot_transition_record" },
+        "shell_slot_memory_schema_version": { "$ref": "#/$defs/shell_slot_memory_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "starting_state": { "$ref": "#/$defs/transition_state" },
+        "requested_transition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "request_source",
+            "action_class",
+            "requested_by_ref",
+            "command_route"
+          ],
+          "properties": {
+            "request_source": { "$ref": "#/$defs/close_request_source" },
+            "action_class": { "$ref": "#/$defs/close_action_class" },
+            "requested_by_ref": { "$ref": "#/$defs/opaque_id" },
+            "command_route": { "$ref": "#/$defs/command_route" },
+            "notes": { "$ref": "#/$defs/safe_summary" }
+          }
+        },
+        "close_result": { "$ref": "#/$defs/close_result" },
+        "reopen_result": { "$ref": "#/$defs/reopen_result" },
+        "guardrail_checks": { "$ref": "#/$defs/guardrail_checks" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}

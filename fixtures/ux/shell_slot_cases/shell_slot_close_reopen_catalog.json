@@ -1,0 +1,720 @@
+{
+  "$schema": "../../../schemas/ux/shell_slot_memory.schema.json",
+  "__fixture__": {
+    "name": "shell_slot_close_reopen_catalog",
+    "scenario": "Catalog fixture for the shell close, reopen, focus-return, and remembered-last-surface contract. It lists each shell zone plus closeable slot classes so reviewers can inspect the default behavior without reading product code.",
+    "record_kinds_exercised": ["shell_slot_catalog_record"],
+    "contract_sections": [
+      "4. Close And Reopen Matrix",
+      "5. Remembered-Last-Surface Rules",
+      "7. Focus-Return Rules",
+      "8. Command-Backed Recovery Routes"
+    ],
+    "exercised_axes": {
+      "slot_kinds": [
+        "title_context_bar",
+        "activity_rail",
+        "rail_section",
+        "left_sidebar",
+        "sidebar_surface",
+        "main_workspace",
+        "right_inspector",
+        "inspector_panel",
+        "bottom_panel",
+        "bottom_panel_tab",
+        "status_bar",
+        "transient_overlay",
+        "collapsed_pane",
+        "placeholder_surface"
+      ],
+      "required_chrome_not_closable": true,
+      "keyboard_reopen_routes_required": true
+    }
+  },
+  "record_kind": "shell_slot_catalog_record",
+  "shell_slot_memory_schema_version": 1,
+  "catalog_id": "shell-slot-close-reopen-catalog-v1",
+  "source_contract_refs": [
+    "docs/ux/shell_close_reopen_contract.md",
+    "docs/ux/shell_zone_and_density_contract.md",
+    "docs/ux/rail_sidebar_contract.md",
+    "docs/ux/splitter_contract.md",
+    "docs/workspace/layout_serialization_contract.md",
+    "docs/ux/shell_interaction_safety_contract.md"
+  ],
+  "slot_behaviors": [
+    {
+      "slot_kind": "title_context_bar",
+      "shell_zone": "title_context_bar",
+      "surface_class": "required_chrome",
+      "close_behavior": {
+        "closable": false,
+        "action_class": "not_closable_required_chrome",
+        "allowed_request_sources": [],
+        "state_recorded_on_close": [],
+        "required_guardrails": [
+          "Workspace, trust, target, and restore identity remain reachable in every adaptive class."
+        ]
+      },
+      "reopen_behavior": {
+        "strategy": "not_applicable_required_chrome",
+        "command_routes": [],
+        "keyboard_route_required": false,
+        "requires_revalidation": false,
+        "fallback_order": ["not_applicable_required_chrome"]
+      },
+      "memory_behavior": {
+        "scope": "none",
+        "default_posture": "not_remembered",
+        "fields_allowed": [],
+        "restore_preconditions": [],
+        "unsafe_restore_reasons_force_placeholder": [],
+        "fields_never_recorded": ["No raw workspace title, host path, or provider payload is captured by this slot-memory record."]
+      },
+      "focus_behavior": {
+        "target_order": ["none_required_chrome"],
+        "forbidden_targets": ["offscreen_window", "document_body_fallback"],
+        "announcement_required_on_fallback": false
+      }
+    },
+    {
+      "slot_kind": "activity_rail",
+      "shell_zone": "activity_rail",
+      "surface_class": "required_chrome",
+      "close_behavior": {
+        "closable": false,
+        "action_class": "not_closable_required_chrome",
+        "allowed_request_sources": [],
+        "state_recorded_on_close": ["section_id", "focus_return_target"],
+        "required_guardrails": ["The rail may compress but remains keyboard reachable."]
+      },
+      "reopen_behavior": {
+        "strategy": "not_applicable_required_chrome",
+        "command_routes": [],
+        "keyboard_route_required": false,
+        "requires_revalidation": false,
+        "fallback_order": ["not_applicable_required_chrome"]
+      },
+      "memory_behavior": {
+        "scope": "window",
+        "default_posture": "restore_exact",
+        "fields_allowed": ["section_id", "focus_return_target"],
+        "restore_preconditions": ["slot_schema_known", "focus_target_resolves"],
+        "unsafe_restore_reasons_force_placeholder": [],
+        "fields_never_recorded": ["The rail never records raw labels or provider data."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "main_workspace"],
+        "forbidden_targets": ["hidden_pane", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "rail_section",
+      "shell_zone": "activity_rail",
+      "surface_class": "rail_route",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "hide_zone",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "adaptive_layout"],
+        "state_recorded_on_close": ["section_id", "active_view_ref", "provider_freshness", "focus_return_target"],
+        "required_guardrails": ["Hiding a section preserves a rail, palette, or menu route back to that section."]
+      },
+      "reopen_behavior": {
+        "strategy": "exact_last_surface",
+        "command_routes": [
+          {
+            "route_class": "direct_section_command",
+            "route_id": "route.activity_rail",
+            "command_id": "cmd:shell.section.open.*",
+            "label_ref": "open section",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "section_owner",
+            "disabled_reason_ref": null,
+            "notes": "Each rail section has a stable direct-open command."
+          },
+          {
+            "route_class": "command_palette_entry",
+            "route_id": "route.command_palette",
+            "command_id": "cmd:shell.sidebar.reopen_last",
+            "label_ref": "reopen last sidebar section",
+            "keyboard_reachable": true,
+            "visible_when_available": false,
+            "focus_return_target_class": "section_owner",
+            "disabled_reason_ref": null,
+            "notes": "Keyboard users can reopen the last admitted section without finding the rail."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["exact_last_surface", "same_slot_placeholder", "first_admitted_primary", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["section_id", "active_view_ref", "query_scope_ref", "filter_sort_ref", "scroll_anchor", "provider_freshness", "focus_return_target"],
+        "restore_preconditions": ["slot_schema_known", "policy_admits", "trust_admits", "lifecycle_admits", "client_scope_admits", "state_contains_only_safe_refs"],
+        "unsafe_restore_reasons_force_placeholder": ["provider_unavailable", "policy_blocked", "trust_revoked_or_untrusted", "client_scope_not_admitted"],
+        "fields_never_recorded": ["Raw query text, provider payloads, raw URLs, and secret-bearing input remain with their owning contracts."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "section_owner", "main_workspace"],
+        "forbidden_targets": ["hidden_pane", "collapsed_pane_body", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "left_sidebar",
+      "shell_zone": "left_sidebar",
+      "surface_class": "structural_sidebar",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "hide_zone",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "adaptive_layout"],
+        "state_recorded_on_close": ["section_id", "active_view_ref", "size_or_sheet_posture", "expanded_nodes", "selection_summary", "focus_return_target"],
+        "required_guardrails": ["The sidebar body can hide, but the rail and command route remain available."]
+      },
+      "reopen_behavior": {
+        "strategy": "exact_last_surface",
+        "command_routes": [
+          {
+            "route_class": "sidebar_toggle",
+            "route_id": "route.sidebar",
+            "command_id": "cmd:shell.sidebar.toggle",
+            "label_ref": "toggle sidebar",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "section_owner",
+            "disabled_reason_ref": null,
+            "notes": "Toggle restores the prior admitted section or a truthful placeholder."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["exact_last_surface", "same_slot_placeholder", "first_admitted_primary", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["section_id", "active_view_ref", "size_or_sheet_posture", "expanded_nodes", "query_scope_ref", "filter_sort_ref", "scroll_anchor", "selection_summary", "provider_freshness", "placeholder_state", "focus_return_target"],
+        "restore_preconditions": ["slot_schema_known", "workspace_authority_matches", "policy_admits", "trust_admits", "client_scope_admits", "surface_target_resolves", "state_contains_only_safe_refs"],
+        "unsafe_restore_reasons_force_placeholder": ["provider_unavailable", "policy_blocked", "trust_revoked_or_untrusted", "schema_unsupported"],
+        "fields_never_recorded": ["Unsent credential material, raw paths, raw queries, raw provider rows, and staged destructive side effects are not sidebar memory."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "section_owner", "adjacent_visible_pane", "main_workspace"],
+        "forbidden_targets": ["hidden_pane", "collapsed_pane_body", "removed_row", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "sidebar_surface",
+      "shell_zone": "left_sidebar",
+      "surface_class": "query_collection",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "close_surface",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "provider_replacement"],
+        "state_recorded_on_close": ["active_view_ref", "query_scope_ref", "filter_sort_ref", "scroll_anchor", "selection_summary", "provider_freshness", "focus_return_target"],
+        "required_guardrails": ["Section-local close records view intent but does not discard provider truth."]
+      },
+      "reopen_behavior": {
+        "strategy": "direct_surface",
+        "command_routes": [
+          {
+            "route_class": "direct_section_command",
+            "route_id": "route.command_palette",
+            "command_id": "cmd:shell.section.open.*",
+            "label_ref": "open sidebar surface",
+            "keyboard_reachable": true,
+            "visible_when_available": false,
+            "focus_return_target_class": "section_owner",
+            "disabled_reason_ref": null,
+            "notes": "The owning section command can restore or replace this surface."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["direct_surface", "same_slot_placeholder", "first_admitted_primary"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["active_view_ref", "query_scope_ref", "filter_sort_ref", "scroll_anchor", "selection_summary", "provider_freshness", "focus_return_target"],
+        "restore_preconditions": ["policy_admits", "trust_admits", "dependency_available", "freshness_floor_met", "state_contains_only_safe_refs"],
+        "unsafe_restore_reasons_force_placeholder": ["provider_unavailable", "stale_snapshot_for_mutation", "raw_secret_or_unreviewed_input"],
+        "fields_never_recorded": ["Raw query strings and raw result payloads remain outside the slot-memory record."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "invoking_row_or_card", "section_owner", "main_workspace"],
+        "forbidden_targets": ["removed_row", "hidden_pane", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "main_workspace",
+      "shell_zone": "main_workspace",
+      "surface_class": "workspace_tab",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "close_surface",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "restore_hydration"],
+        "state_recorded_on_close": ["pane_id", "tab_id", "surface_ref", "scroll_anchor", "selection_summary", "focus_return_target", "user_close_intent"],
+        "required_guardrails": ["Closing a workspace tab does not delete dirty buffers, journals, or evidence owned elsewhere."]
+      },
+      "reopen_behavior": {
+        "strategy": "direct_surface",
+        "command_routes": [
+          {
+            "route_class": "history_or_restore_detail",
+            "route_id": "route.command_palette",
+            "command_id": "cmd:shell.workspace_surface.reopen_closed",
+            "label_ref": "reopen closed workspace surface",
+            "keyboard_reachable": true,
+            "visible_when_available": false,
+            "focus_return_target_class": "main_workspace",
+            "disabled_reason_ref": null,
+            "notes": "Closed workspace surfaces reopen through history, tabs, or command palette."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["direct_surface", "same_slot_placeholder", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["pane_id", "tab_id", "surface_ref", "scroll_anchor", "selection_summary", "focus_return_target", "user_close_intent", "placeholder_state"],
+        "restore_preconditions": ["workspace_authority_matches", "policy_admits", "trust_admits", "surface_target_resolves", "state_contains_only_safe_refs"],
+        "unsafe_restore_reasons_force_placeholder": ["missing_extension", "schema_unsupported", "target_missing_or_moved", "authority_expired_or_revoked"],
+        "fields_never_recorded": ["Unsaved buffer contents are owned by buffer and journal contracts, not slot memory."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "adjacent_visible_pane", "main_workspace", "command_palette_route"],
+        "forbidden_targets": ["offscreen_window", "removed_row", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "right_inspector",
+      "shell_zone": "right_inspector",
+      "surface_class": "contextual_inspector",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "hide_zone",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "adaptive_layout"],
+        "state_recorded_on_close": ["target_ref", "surface_ref", "size_or_sheet_posture", "focus_return_target"],
+        "required_guardrails": ["The inspector target remains attributable after close or sheet fallback."]
+      },
+      "reopen_behavior": {
+        "strategy": "exact_last_surface",
+        "command_routes": [
+          {
+            "route_class": "inspector_link",
+            "route_id": "route.inspector_link",
+            "command_id": "cmd:shell.inspector.open_last",
+            "label_ref": "open last inspector",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "inspector_target_owner",
+            "disabled_reason_ref": null,
+            "notes": "Inspector reopen validates the target before restoring."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["exact_last_surface", "same_slot_placeholder", "sheet_fallback", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["target_ref", "surface_ref", "size_or_sheet_posture", "provider_freshness", "focus_return_target"],
+        "restore_preconditions": ["surface_target_resolves", "policy_admits", "trust_admits", "dependency_available", "focus_target_resolves"],
+        "unsafe_restore_reasons_force_placeholder": ["missing_extension", "provider_unavailable", "target_missing_or_moved", "trust_revoked_or_untrusted"],
+        "fields_never_recorded": ["Inspector memory records refs and disclosure posture, not raw inspected data."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "inspector_target_owner", "placeholder_card", "main_workspace"],
+        "forbidden_targets": ["hidden_pane", "collapsed_pane_body", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "inspector_panel",
+      "shell_zone": "right_inspector",
+      "surface_class": "contextual_inspector",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "close_surface",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "provider_replacement", "dependency_loss"],
+        "state_recorded_on_close": ["target_ref", "surface_ref", "provider_freshness", "dependency_reason", "focus_return_target"],
+        "required_guardrails": ["Missing inspector providers become host-owned placeholders rather than blank panels."]
+      },
+      "reopen_behavior": {
+        "strategy": "same_slot_placeholder",
+        "command_routes": [
+          {
+            "route_class": "inspector_link",
+            "route_id": "route.inspector_link",
+            "command_id": "cmd:shell.inspector.open_for_target",
+            "label_ref": "open inspector for target",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "inspector_target_owner",
+            "disabled_reason_ref": null,
+            "notes": "Target-owned inspector links revalidate the provider before restoring."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["exact_last_surface", "same_slot_placeholder", "sheet_fallback", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["target_ref", "surface_ref", "provider_freshness", "dependency_reason", "placeholder_state", "focus_return_target"],
+        "restore_preconditions": ["policy_admits", "trust_admits", "dependency_available", "surface_target_resolves", "no_live_effect_replay"],
+        "unsafe_restore_reasons_force_placeholder": ["missing_extension", "extension_disabled_or_quarantined", "provider_unavailable", "authority_expired_or_revoked"],
+        "fields_never_recorded": ["Raw inspected object payloads stay with their owner."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "inspector_target_owner", "placeholder_card", "main_workspace"],
+        "forbidden_targets": ["hidden_pane", "removed_row", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "bottom_panel",
+      "shell_zone": "bottom_panel",
+      "surface_class": "problems_or_output_panel",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "hide_zone",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "adaptive_layout"],
+        "state_recorded_on_close": ["tab_id", "size_or_sheet_posture", "provider_freshness", "focus_return_target"],
+        "required_guardrails": ["Durable jobs or blocking problems keep a visible or command-backed route when the panel hides."]
+      },
+      "reopen_behavior": {
+        "strategy": "exact_last_surface",
+        "command_routes": [
+          {
+            "route_class": "panel_tab",
+            "route_id": "route.panel_tab",
+            "command_id": "cmd:shell.bottom_panel.open_last_tab",
+            "label_ref": "open last panel tab",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "panel_tab_list",
+            "disabled_reason_ref": null,
+            "notes": "The last panel tab is reopened only after provider and barrier checks."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["exact_last_surface", "same_slot_placeholder", "evidence_only_no_rerun", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["tab_id", "size_or_sheet_posture", "provider_freshness", "focus_return_target", "transcript_or_evidence_ref"],
+        "restore_preconditions": ["policy_admits", "trust_admits", "dependency_available", "no_live_effect_replay", "focus_target_resolves"],
+        "unsafe_restore_reasons_force_placeholder": ["non_reentrant_live_surface", "provider_unavailable", "remote_unavailable", "authority_expired_or_revoked"],
+        "fields_never_recorded": ["Terminal input, raw command lines, and raw logs are not stored in slot memory."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "panel_tab_list", "adjacent_visible_pane", "main_workspace"],
+        "forbidden_targets": ["collapsed_pane_body", "hidden_pane", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "bottom_panel_tab",
+      "shell_zone": "bottom_panel",
+      "surface_class": "terminal_or_live_panel",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "close_tab",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "apply_completion", "restore_hydration"],
+        "state_recorded_on_close": ["tab_id", "surface_ref", "transcript_or_evidence_ref", "provider_freshness", "focus_return_target", "user_close_intent"],
+        "required_guardrails": ["Closing a live tab never authorizes automatic rerun on reopen."]
+      },
+      "reopen_behavior": {
+        "strategy": "evidence_only_no_rerun",
+        "command_routes": [
+          {
+            "route_class": "panel_tab",
+            "route_id": "route.panel_tab",
+            "command_id": "cmd:shell.bottom_panel.open_tab.*",
+            "label_ref": "open panel tab",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "panel_tab_list",
+            "disabled_reason_ref": null,
+            "notes": "Live panel tabs restore evidence or rebind only after explicit validation."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["evidence_only_no_rerun", "same_slot_placeholder", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_as_evidence_only",
+        "fields_allowed": ["tab_id", "surface_ref", "transcript_or_evidence_ref", "provider_freshness", "focus_return_target", "user_close_intent"],
+        "restore_preconditions": ["policy_admits", "trust_admits", "no_live_effect_replay", "state_contains_only_safe_refs"],
+        "unsafe_restore_reasons_force_placeholder": ["non_reentrant_live_surface", "remote_unavailable", "authority_expired_or_revoked", "provider_unavailable"],
+        "fields_never_recorded": ["PTY input, shell command bodies, secret output, and raw logs are not shell-slot memory."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "panel_tab_list", "main_workspace"],
+        "forbidden_targets": ["hidden_pane", "removed_row", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "status_bar",
+      "shell_zone": "status_bar",
+      "surface_class": "status_route",
+      "close_behavior": {
+        "closable": false,
+        "action_class": "not_closable_required_chrome",
+        "allowed_request_sources": [],
+        "state_recorded_on_close": ["recovery_route_refs", "focus_return_target"],
+        "required_guardrails": ["The status bar may overflow items but cannot hide trust, recovery, or route-critical state without a reachable summary."]
+      },
+      "reopen_behavior": {
+        "strategy": "not_applicable_required_chrome",
+        "command_routes": [],
+        "keyboard_route_required": false,
+        "requires_revalidation": false,
+        "fallback_order": ["not_applicable_required_chrome"]
+      },
+      "memory_behavior": {
+        "scope": "window",
+        "default_posture": "restore_exact",
+        "fields_allowed": ["recovery_route_refs", "focus_return_target"],
+        "restore_preconditions": ["slot_schema_known", "focus_target_resolves"],
+        "unsafe_restore_reasons_force_placeholder": [],
+        "fields_never_recorded": ["Status item live values remain owned by their producer."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "main_workspace"],
+        "forbidden_targets": ["offscreen_window", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "transient_overlay",
+      "shell_zone": "transient_overlay",
+      "surface_class": "dialog_or_sheet",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "dismiss_overlay",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "overlay_dismiss", "apply_completion"],
+        "state_recorded_on_close": ["target_ref", "focus_return_target", "recovery_route_refs"],
+        "required_guardrails": ["Dismissal returns to the invoker or a durable handoff route when work continues."]
+      },
+      "reopen_behavior": {
+        "strategy": "direct_surface",
+        "command_routes": [
+          {
+            "route_class": "history_or_restore_detail",
+            "route_id": "route.command_palette",
+            "command_id": "cmd:shell.restore.details",
+            "label_ref": "open restore details",
+            "keyboard_reachable": true,
+            "visible_when_available": false,
+            "focus_return_target_class": "main_workspace",
+            "disabled_reason_ref": null,
+            "notes": "Dismissed overlays reopen through the owning command, object, history row, or job row."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["direct_surface", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["target_ref", "focus_return_target", "recovery_route_refs"],
+        "restore_preconditions": ["surface_target_resolves", "policy_admits", "focus_target_resolves", "state_contains_only_safe_refs"],
+        "unsafe_restore_reasons_force_placeholder": ["target_missing_or_moved", "authority_expired_or_revoked"],
+        "fields_never_recorded": ["Unsubmitted form secrets and unreviewed destructive choices are not remembered as shell state."]
+      },
+      "focus_behavior": {
+        "target_order": ["exact_invoking_control", "invoking_row_or_card", "section_owner", "placeholder_card", "main_workspace"],
+        "forbidden_targets": ["stale_overlay_body", "removed_row", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "collapsed_pane",
+      "shell_zone": "main_workspace",
+      "surface_class": "collapsed_layout_region",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "collapse_pane",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "adaptive_layout", "restore_hydration"],
+        "state_recorded_on_close": ["pane_id", "shell_zone", "surface_ref", "proportional_layout_intent", "recovery_route_refs", "focus_return_target"],
+        "required_guardrails": ["A collapsed pane keeps at least one visible or command-backed route and never receives focus while collapsed."]
+      },
+      "reopen_behavior": {
+        "strategy": "exact_last_surface",
+        "command_routes": [
+          {
+            "route_class": "splitter_stub",
+            "route_id": "route.splitter_stub",
+            "command_id": "cmd:shell.pane.reopen_collapsed",
+            "label_ref": "reopen collapsed pane",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "adjacent_visible_pane",
+            "disabled_reason_ref": null,
+            "notes": "Collapsed panes restore with the same pane id or a placeholder if the dependency is unavailable."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["exact_last_surface", "same_slot_placeholder", "sheet_fallback", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_with_revalidation",
+        "fields_allowed": ["pane_id", "shell_zone", "surface_ref", "proportional_layout_intent", "recovery_route_refs", "focus_return_target", "placeholder_state"],
+        "restore_preconditions": ["slot_schema_known", "workspace_authority_matches", "dependency_available", "focus_target_resolves", "no_live_effect_replay"],
+        "unsafe_restore_reasons_force_placeholder": ["missing_extension", "provider_unavailable", "remote_unavailable", "schema_unsupported"],
+        "fields_never_recorded": ["Raw pane content is never captured by collapse memory."]
+      },
+      "focus_behavior": {
+        "target_order": ["adjacent_visible_pane", "main_workspace", "command_palette_route"],
+        "forbidden_targets": ["collapsed_pane_body", "offscreen_window", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    },
+    {
+      "slot_kind": "placeholder_surface",
+      "shell_zone": "main_workspace",
+      "surface_class": "missing_surface_placeholder",
+      "close_behavior": {
+        "closable": true,
+        "action_class": "remove_placeholder",
+        "allowed_request_sources": ["user_command", "keyboard_shortcut", "pointer_control", "migration"],
+        "state_recorded_on_close": ["slot_id", "pane_id", "section_id", "dependency_reason", "user_close_intent", "focus_return_target"],
+        "required_guardrails": ["Closing a placeholder removes the placeholder occupant only; durable evidence and workspace authority remain with their owners."]
+      },
+      "reopen_behavior": {
+        "strategy": "clear_intent_then_default",
+        "command_routes": [
+          {
+            "route_class": "placeholder_action",
+            "route_id": "route.placeholder_action",
+            "command_id": "cmd:shell.placeholder.recover",
+            "label_ref": "recover placeholder",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "placeholder_card",
+            "disabled_reason_ref": null,
+            "notes": "Recovery validates the missing dependency before replacing the placeholder with a live surface."
+          },
+          {
+            "route_class": "placeholder_action",
+            "route_id": "route.placeholder_action",
+            "command_id": "cmd:shell.placeholder.close",
+            "label_ref": "close placeholder",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "adjacent_visible_pane",
+            "disabled_reason_ref": null,
+            "notes": "Close records user intent so automatic restore does not resurrect the placeholder unexpectedly."
+          }
+        ],
+        "keyboard_route_required": true,
+        "requires_revalidation": true,
+        "fallback_order": ["same_slot_placeholder", "clear_intent_then_default", "main_workspace_default"]
+      },
+      "memory_behavior": {
+        "scope": "workspace_window",
+        "default_posture": "restore_as_placeholder",
+        "fields_allowed": ["slot_id", "pane_id", "section_id", "dependency_reason", "placeholder_state", "recovery_route_refs", "user_close_intent", "focus_return_target"],
+        "restore_preconditions": ["slot_schema_known", "workspace_authority_matches", "state_contains_only_safe_refs", "focus_target_resolves"],
+        "unsafe_restore_reasons_force_placeholder": ["missing_extension", "provider_unavailable", "policy_blocked", "trust_revoked_or_untrusted", "authority_expired_or_revoked"],
+        "fields_never_recorded": ["A placeholder never records enough data to impersonate the missing live capability."]
+      },
+      "focus_behavior": {
+        "target_order": ["placeholder_card", "adjacent_visible_pane", "main_workspace"],
+        "forbidden_targets": ["placeholderless_void", "removed_row", "document_body_fallback"],
+        "announcement_required_on_fallback": true
+      }
+    }
+  ],
+  "global_focus_return_order": [
+    "exact_invoking_control",
+    "invoking_row_or_card",
+    "section_owner",
+    "panel_tab_list",
+    "inspector_target_owner",
+    "adjacent_visible_pane",
+    "placeholder_card",
+    "main_workspace",
+    "command_palette_route"
+  ],
+  "global_forbidden_focus_targets": [
+    "offscreen_window",
+    "hidden_pane",
+    "collapsed_pane_body",
+    "removed_row",
+    "disabled_control",
+    "stale_overlay_body",
+    "document_body_fallback",
+    "placeholderless_void"
+  ],
+  "global_restore_preconditions": [
+    "slot_schema_known",
+    "workspace_authority_matches",
+    "policy_admits",
+    "trust_admits",
+    "lifecycle_admits",
+    "client_scope_admits",
+    "dependency_available",
+    "authority_valid",
+    "surface_target_resolves",
+    "no_live_effect_replay",
+    "focus_target_resolves",
+    "state_contains_only_safe_refs"
+  ],
+  "unsafe_restore_reasons_force_placeholder": [
+    "missing_extension",
+    "extension_disabled_or_quarantined",
+    "provider_unavailable",
+    "policy_blocked",
+    "trust_revoked_or_untrusted",
+    "authority_expired_or_revoked",
+    "remote_unavailable",
+    "schema_unsupported",
+    "target_missing_or_moved",
+    "non_reentrant_live_surface",
+    "stale_snapshot_for_mutation",
+    "raw_secret_or_unreviewed_input",
+    "client_scope_not_admitted"
+  ],
+  "reserved_command_families": [
+    "cmd:shell.sidebar.hide",
+    "cmd:shell.sidebar.toggle",
+    "cmd:shell.sidebar.reopen_last",
+    "cmd:shell.section.open.*",
+    "cmd:shell.inspector.toggle",
+    "cmd:shell.inspector.open_last",
+    "cmd:shell.inspector.open_for_target",
+    "cmd:shell.bottom_panel.toggle",
+    "cmd:shell.bottom_panel.open_last_tab",
+    "cmd:shell.bottom_panel.open_tab.*",
+    "cmd:shell.pane.collapse",
+    "cmd:shell.pane.reopen_collapsed",
+    "cmd:shell.placeholder.recover",
+    "cmd:shell.placeholder.close",
+    "cmd:shell.workspace_surface.reopen_closed",
+    "cmd:shell.restore.details"
+  ],
+  "minted_at": "2026-04-28T19:00:00Z"
+}

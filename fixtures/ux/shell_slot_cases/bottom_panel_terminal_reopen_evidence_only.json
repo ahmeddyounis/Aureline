@@ -1,0 +1,165 @@
+{
+  "$schema": "../../../schemas/ux/shell_slot_memory.schema.json",
+  "__fixture__": {
+    "name": "bottom_panel_terminal_reopen_evidence_only",
+    "scenario": "A terminal tab in the bottom panel is closed and later reopened from the panel tab command. The shell preserves title, tab identity, and transcript ref, but reopens as evidence-only because replaying PTY input or rerunning commands is forbidden.",
+    "record_kinds_exercised": ["shell_slot_transition_record"],
+    "contract_sections": [
+      "4. Close And Reopen Matrix",
+      "5. Remembered-Last-Surface Rules",
+      "8. Command-Backed Recovery Routes"
+    ],
+    "exercised_axes": {
+      "slot_kind": "bottom_panel_tab",
+      "memory_posture": "restore_as_evidence_only",
+      "no_live_effect_replay": true,
+      "command_backed_recovery": true
+    }
+  },
+  "record_kind": "shell_slot_transition_record",
+  "shell_slot_memory_schema_version": 1,
+  "case_id": "shell-slot-case-bottom-terminal-evidence-only-0001",
+  "source_contract_refs": [
+    "docs/ux/shell_close_reopen_contract.md",
+    "docs/workspace/layout_serialization_contract.md",
+    "docs/ux/splitter_contract.md"
+  ],
+  "starting_state": {
+    "slot_ref": "slot-bottom-terminal-tab-0001",
+    "slot_kind": "bottom_panel_tab",
+    "shell_zone": "bottom_panel",
+    "surface_class": "terminal_or_live_panel",
+    "surface_ref": "terminal-session-ref-0001",
+    "focus_owner_ref": "terminal-tab-close-button-0001",
+    "remembered_fields": [
+      "tab_id",
+      "surface_ref",
+      "transcript_or_evidence_ref",
+      "provider_freshness",
+      "focus_return_target"
+    ],
+    "placeholder": {
+      "is_placeholder": false,
+      "reason": "not_a_placeholder",
+      "original_slot_ref": null,
+      "safe_recovery_routes": [],
+      "pretend_live_forbidden": true,
+      "provenance_summary": "Live terminal is present before close."
+    },
+    "notes": "Slot memory carries a transcript ref, not raw terminal output or command text."
+  },
+  "requested_transition": {
+    "request_source": "pointer_control",
+    "action_class": "close_tab",
+    "requested_by_ref": "terminal-tab-close-button-0001",
+    "command_route": {
+      "route_class": "panel_tab",
+      "route_id": "route.panel_tab",
+      "command_id": "cmd:shell.bottom_panel.open_tab.terminal",
+      "label_ref": "open terminal tab",
+      "keyboard_reachable": true,
+      "visible_when_available": true,
+      "focus_return_target_class": "panel_tab_list",
+      "disabled_reason_ref": null,
+      "notes": "The terminal tab command can restore evidence or start a new explicit session."
+    },
+    "notes": "The close action records user intent and moves focus to the tab list."
+  },
+  "close_result": {
+    "request_source": "pointer_control",
+    "action_class": "close_tab",
+    "outcome": "closed",
+    "memory_posture_after_close": "restore_as_evidence_only",
+    "focus_return_outcome": "returned_nearest_owner",
+    "focus_return_target_class": "panel_tab_list",
+    "command_routes_preserved": [
+      {
+        "route_class": "panel_tab",
+        "route_id": "route.panel_tab",
+        "command_id": "cmd:shell.bottom_panel.open_tab.terminal",
+        "label_ref": "open terminal tab",
+        "keyboard_reachable": true,
+        "visible_when_available": true,
+        "focus_return_target_class": "panel_tab_list",
+        "disabled_reason_ref": null,
+        "notes": "The tab command remains reachable from the bottom panel and command palette."
+      },
+      {
+        "route_class": "command_palette_entry",
+        "route_id": "route.command_palette",
+        "command_id": "cmd:shell.bottom_panel.open_last_tab",
+        "label_ref": "open last panel tab",
+        "keyboard_reachable": true,
+        "visible_when_available": false,
+        "focus_return_target_class": "panel_tab_list",
+        "disabled_reason_ref": null,
+        "notes": "Open-last-tab can recover the evidence-only terminal card."
+      }
+    ],
+    "visible_explanation": "Terminal closed; prior command input will not be replayed."
+  },
+  "reopen_result": {
+    "strategy": "evidence_only_no_rerun",
+    "memory_posture_after_reopen": "restore_as_evidence_only",
+    "preconditions_checked": [
+      "slot_schema_known",
+      "workspace_authority_matches",
+      "policy_admits",
+      "trust_admits",
+      "client_scope_admits",
+      "no_live_effect_replay",
+      "state_contains_only_safe_refs",
+      "focus_target_resolves"
+    ],
+    "unsafe_restore_reasons": ["non_reentrant_live_surface"],
+    "resulting_slot_state": {
+      "slot_ref": "slot-bottom-terminal-tab-0001",
+      "slot_kind": "bottom_panel_tab",
+      "shell_zone": "bottom_panel",
+      "surface_class": "terminal_or_live_panel",
+      "surface_ref": "terminal-session-ref-0001",
+      "focus_owner_ref": "terminal-evidence-card-0001",
+      "remembered_fields": [
+        "tab_id",
+        "surface_ref",
+        "transcript_or_evidence_ref",
+        "provider_freshness",
+        "focus_return_target"
+      ],
+      "placeholder": {
+        "is_placeholder": true,
+        "reason": "non_reentrant_live_surface",
+        "original_slot_ref": "slot-bottom-terminal-tab-0001",
+        "safe_recovery_routes": [
+          {
+            "route_class": "placeholder_action",
+            "route_id": "route.placeholder_action",
+            "command_id": "cmd:shell.placeholder.recover",
+            "label_ref": "start a new terminal explicitly",
+            "keyboard_reachable": true,
+            "visible_when_available": true,
+            "focus_return_target_class": "placeholder_card",
+            "disabled_reason_ref": null,
+            "notes": "Recovery starts a new explicit terminal session or opens transcript evidence."
+          }
+        ],
+        "pretend_live_forbidden": true,
+        "provenance_summary": "The prior terminal is represented by transcript evidence only."
+      },
+      "notes": "The card preserves tab identity and transcript ref while making the non-live state explicit."
+    },
+    "focus_return_outcome": "returned_placeholder",
+    "focus_return_target_class": "placeholder_card",
+    "visible_explanation": "Terminal context restored as evidence only; no commands were rerun."
+  },
+  "guardrail_checks": {
+    "visible_or_command_reopen_path": true,
+    "keyboard_reopen_path": true,
+    "focus_not_stranded": true,
+    "unsafe_surface_not_silently_restored": true,
+    "placeholder_truthful_when_needed": true,
+    "no_live_effect_replay": true,
+    "workspace_authority_not_deleted": true
+  },
+  "emitted_at": "2026-04-28T19:10:00Z"
+}

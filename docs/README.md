@@ -572,6 +572,14 @@ code.
   worked fixtures (destructive core path, publish-capable /
   externally-mutating path, responsive-fallback denial) in
   [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
+- [`ux/shell_close_reopen_contract.md`](./ux/shell_close_reopen_contract.md)
+  — shell-slot close/reopen, remembered-last-surface, placeholder, and
+  focus-return contract for rail sections, sidebars, workspace
+  surfaces, inspectors, bottom-panel tabs, collapsed panes, status
+  routes, and transient overlays. Boundary schema in
+  [`/schemas/ux/shell_slot_memory.schema.json`](../schemas/ux/shell_slot_memory.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/shell_slot_cases/`](../fixtures/ux/shell_slot_cases/).
 - [`ux/splitter_contract.md`](./ux/splitter_contract.md)
   — splitter and resizable-pane contract covering visible line versus
   hit target, hover/focus reinforcement, keyboard fine and coarse
