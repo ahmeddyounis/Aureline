@@ -1,0 +1,176 @@
+# First-run import preview case: rollback after a partial apply.
+schema_version: 1
+case_id: first_run_import.rollback_after_apply.partial_profile
+title: Rollback restores the pre-apply checkpoint after a partial import
+contract_refs:
+  - docs/migration/first_run_import_diff_and_rollback_contract.md
+  - schemas/migration/import_diff_preview.schema.json
+  - schemas/migration/import_rollback_checkpoint.schema.json
+  - schemas/migration/migration_session.schema.json
+
+import_plan:
+  import_plan_id: import-plan:first-run-rollback-partial
+  migration_session_ref: migration-session:first-run-rollback-partial
+  target_descriptor:
+    target_kind: profile_library_entry
+    target_ref: target-profile:local-default
+    apply_scope: profile_only
+    target_owner_class: user_owned_durable_truth
+  selected_domains:
+    - settings
+    - shortcuts
+    - themes_and_visuals
+  write_authority_posture: none_dry_run_only
+  dry_run_stability: current_complete
+
+diff_preview:
+  import_diff_preview_id: import-preview:first-run-rollback-partial
+  item_counts:
+    imported: 2
+    mapped: 1
+    skipped: 0
+    manual_review: 1
+    bridge_required: 0
+    unsupported: 0
+    conflicts: 1
+    blocked: 0
+    total_rows: 4
+  rows:
+    - preview_row_id: preview-row:rollback-theme
+      plan_item_ref: plan-item:rollback-theme
+      source_profile_ref: source-profile:vscode-default
+      source_object_ref: vscode:setting:workbench.colorTheme
+      source_label: workbench.colorTheme
+      domain: themes_and_visuals
+      target_object_ref: aureline:setting:ui.theme
+      outcome_state: mapped
+      reason_class: capability_mapping_available
+      confidence_class: high
+      mapping_basis: capability_based
+      fidelity_label_projection: compatible
+      state_plane_projection: portable_settings
+      preserved_prior_artifact_ref: preserved-artifact:theme-before-first-run-import
+      rollback_checkpoint_ref: rollback-checkpoint:first-run-rollback-partial
+      docs_help_refs:
+        - docs-ref:first-run-import-themes
+    - preview_row_id: preview-row:rollback-shortcut-conflict
+      plan_item_ref: plan-item:rollback-shortcut-conflict
+      source_profile_ref: source-profile:vscode-default
+      source_object_ref: vscode:keybinding:ctrl+k.ctrl+s
+      source_label: Show Keybindings
+      domain: shortcuts
+      target_object_ref: aureline:keybinding:keybindings.open
+      outcome_state: manual_review
+      reason_class: conflict_requires_review
+      confidence_class: medium
+      mapping_basis: semantic_equivalent
+      fidelity_label_projection: manual_review
+      state_plane_projection: portable_settings
+      preserved_prior_artifact_ref: preserved-artifact:keybindings-before-first-run-import
+      rollback_checkpoint_ref: rollback-checkpoint:first-run-rollback-partial
+      docs_help_refs:
+        - docs-ref:first-run-import-shortcuts
+      support_packet_refs:
+        - support:first-run-rollback-partial
+  conflicts:
+    - conflict_id: conflict:rollback-shortcut-conflict
+      conflict_class: reserved_shortcut_collision
+      source_object_ref: vscode:keybinding:ctrl+k.ctrl+s
+      target_object_ref: aureline:keybinding:keybindings.open
+      preserved_prior_artifact_ref: preserved-artifact:keybindings-before-first-run-import
+      reviewer_action_required: skip_import
+      summary: Shortcut conflict left the import in partial state.
+  rollback_requirements:
+    checkpoint_required_before_apply: true
+    checkpoint_scope: profile_only
+    checkpoint_status: created_ready
+    checkpoint_ref: rollback-checkpoint:first-run-rollback-partial
+    restore_record_ref: migration-restore-record:first-run-rollback-partial
+    retention_policy_ref: retention-policy:user-owned-recovery-state
+  apply_gate:
+    apply_gate_class: requires_manual_review
+    idempotency_token_ref: idempotency:first-run-rollback-partial
+    reason_refs:
+      - conflict:rollback-shortcut-conflict
+
+apply_result:
+  migration_session_state: partially_applied
+  outcome_packet_ref: importer-outcome-packet:first-run-rollback-partial
+  restore_record_ref: migration-restore-record:first-run-rollback-partial
+  applied_rows:
+    - preview-row:rollback-theme
+  blocked_rows:
+    - preview-row:rollback-shortcut-conflict
+
+rollback_checkpoint:
+  schema_version: 1
+  record_kind: first_run_import_rollback_checkpoint_record
+  import_rollback_checkpoint_id: import-rollback-checkpoint:first-run-rollback-partial
+  checkpoint_ref: rollback-checkpoint:first-run-rollback-partial
+  import_plan_ref: import-plan:first-run-rollback-partial
+  import_diff_preview_ref: import-preview:first-run-rollback-partial
+  migration_session_ref: migration-session:first-run-rollback-partial
+  migration_restore_record_ref: migration-restore-record:first-run-rollback-partial
+  rollback_checkpoint_outcome_class: checkpoint_restored_to_prior_state
+  checkpoint_scope: profile_only
+  availability_state: restored
+  cleanup_state: retained
+  checkpoint_integrity_state: verified
+  protected_state_refs:
+    - protected_state_id: protected-state:theme-before-first-run-import
+      state_plane: portable_settings
+      state_owner_class: user_authored_durable_truth
+      snapshot_ref: snapshot:theme-before-first-run-import
+      restore_posture_class: exact_restore_available
+    - protected_state_id: protected-state:keybindings-before-first-run-import
+      state_plane: portable_settings
+      state_owner_class: user_authored_durable_truth
+      snapshot_ref: snapshot:keybindings-before-first-run-import
+      restore_posture_class: exact_restore_available
+  preserved_prior_artifacts:
+    - preserved_prior_artifact_ref: preserved-artifact:theme-before-first-run-import
+      state_plane: portable_settings
+      preservation_reason_class: rollback_validation
+      compare_ref: compare:theme-before-first-run-import
+      export_ref: export:theme-before-first-run-import
+      redaction_class: metadata_only
+    - preserved_prior_artifact_ref: preserved-artifact:keybindings-before-first-run-import
+      state_plane: portable_settings
+      preservation_reason_class: rollback_validation
+      compare_ref: compare:keybindings-before-first-run-import
+      export_ref: export:keybindings-before-first-run-import
+      redaction_class: metadata_only
+  rollback_event_refs:
+    - rollback-event:first-run-rollback-partial
+  rollback_action_hints:
+    - compare_before_restore
+    - export_for_support
+  idempotency_token_ref: idempotency:first-run-rollback-partial
+  policy_epoch_ref: policy-epoch:local-default
+  compatibility_report_ref: compat-report:first-run-rollback-partial
+  compatibility_row_refs:
+    - compat_row:first_run_profile_settings
+  post_restore_validation_refs:
+    - validator_class: settings_schema_migration
+      outcome_class: passed
+      validator_run_ref: validator-run:first-run-rollback-settings
+    - validator_class: keybinding_conflict
+      outcome_class: passed_with_warnings
+      validator_run_ref: validator-run:first-run-rollback-keybindings
+  support_and_export_refs:
+    docs_help_refs:
+      - docs-ref:first-run-import-rollback
+    export_refs:
+      - export:first-run-rollback-partial
+    support_packet_refs:
+      - support:first-run-rollback-partial
+  created_at: "2026-04-28T00:00:00Z"
+  updated_at: "2026-04-28T00:00:00Z"
+
+assertions:
+  - id: rollback_keeps_history
+    statement: The import remains linked as rolled_back rather than being deleted from history.
+  - id: rollback_validated
+    statement: Restored-to-prior-state claim carries post-restore validator refs.
+  - id: independent_changes_protected
+    statement: Rollback restores only checkpointed import scope and does not claim to delete unrelated later changes.

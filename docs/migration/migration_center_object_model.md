@@ -21,6 +21,17 @@ Companion artifacts:
 - [`/schemas/migration/importer_outcome.schema.json`](../../schemas/migration/importer_outcome.schema.json)
   — machine-readable schema for `importer_outcome_row_record` and
   `importer_outcome_packet_record`.
+- [`/docs/migration/first_run_import_diff_and_rollback_contract.md`](./first_run_import_diff_and_rollback_contract.md)
+  — first-run dry-run import plan, preview diff, apply, rollback, and
+  imported-profile history contract.
+- [`/schemas/migration/import_plan.schema.json`](../../schemas/migration/import_plan.schema.json),
+  [`/schemas/migration/import_diff_preview.schema.json`](../../schemas/migration/import_diff_preview.schema.json),
+  and [`/schemas/migration/import_rollback_checkpoint.schema.json`](../../schemas/migration/import_rollback_checkpoint.schema.json)
+  — machine-readable first-run import plan, preview, and rollback
+  checkpoint packet schemas.
+- [`/fixtures/migration/import_preview_cases/`](../../fixtures/migration/import_preview_cases/)
+  — worked cases for first-run full preview, partial import, skip path,
+  rollback, and imported-profile history linkage.
 - [`/docs/migration/source_ecosystem_coverage_matrix.md`](./source_ecosystem_coverage_matrix.md)
   — governed source ecosystem coverage matrix for the marketed migration
   lanes and their non-claimed source policy.

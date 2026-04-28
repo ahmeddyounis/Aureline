@@ -1,0 +1,188 @@
+# First-run import preview case: partial import with missing extension.
+schema_version: 1
+case_id: first_run_import.partial_import.missing_extension
+title: Partial import keeps missing extension and workflow gaps visible
+contract_refs:
+  - docs/migration/first_run_import_diff_and_rollback_contract.md
+  - schemas/migration/import_diff_preview.schema.json
+  - schemas/migration/import_rollback_checkpoint.schema.json
+
+source_detection:
+  source_installations:
+    - source_installation_ref: source-installation:jetbrains-family
+      source_kind: jetbrains_family
+      display_name: JetBrains IDE
+      detection_state: detected
+      discovery_method: known_platform_location
+      path_availability_class: available_readable
+      source_read_posture: manifest_and_schema_only
+      evidence_refs:
+        - evidence:first-run-detector-jetbrains-family
+  discovered_profiles:
+    - source_profile_ref: source-profile:jetbrains-workflow
+      source_installation_ref: source-installation:jetbrains-family
+      profile_label: Daily workflow profile
+      source_scope: user_profile
+      profile_discovery_state: selected
+      profile_portability_state: portable_plain
+      selected_for_plan: true
+
+import_plan:
+  import_plan_id: import-plan:first-run-jetbrains-partial
+  migration_session_ref: migration-session:first-run-jetbrains-partial
+  target_descriptor:
+    target_kind: profile_library_entry
+    target_ref: target-profile:local-default
+    apply_scope: profile_only
+    target_owner_class: user_owned_durable_truth
+  selected_domains:
+    - shortcuts
+    - tasks_and_run_configs
+    - extensions_and_providers
+  write_authority_posture: none_dry_run_only
+  dry_run_stability: current_partial
+  plan_summary:
+    detected_source_count: 1
+    unavailable_source_count: 0
+    selected_profile_count: 1
+    planned_item_count: 5
+    blocked_item_count: 2
+
+diff_preview:
+  import_diff_preview_id: import-preview:first-run-jetbrains-partial
+  item_counts:
+    imported: 1
+    mapped: 1
+    skipped: 0
+    manual_review: 1
+    bridge_required: 1
+    unsupported: 0
+    conflicts: 0
+    blocked: 1
+    total_rows: 4
+  rows:
+    - preview_row_id: preview-row:jetbrains-find-action
+      plan_item_ref: plan-item:jetbrains-find-action
+      source_profile_ref: source-profile:jetbrains-workflow
+      source_object_ref: jetbrains:keymap:find-action
+      source_label: Find Action
+      domain: shortcuts
+      target_object_ref: aureline:keybinding:command_palette.open
+      outcome_state: mapped
+      reason_class: semantic_equivalent_available
+      confidence_class: high
+      mapping_basis: semantic_equivalent
+      fidelity_label_projection: compatible
+      state_plane_projection: portable_settings
+      rollback_checkpoint_ref: rollback-checkpoint:first-run-jetbrains-partial
+      docs_help_refs:
+        - docs-ref:first-run-import-shortcuts
+    - preview_row_id: preview-row:jetbrains-run-config
+      plan_item_ref: plan-item:jetbrains-run-config
+      source_profile_ref: source-profile:jetbrains-workflow
+      source_object_ref: jetbrains:run-config:app-server
+      source_label: App server run configuration
+      domain: tasks_and_run_configs
+      target_object_ref: aureline:task-candidate:app-server
+      outcome_state: manual_review
+      reason_class: conflict_requires_review
+      confidence_class: medium
+      mapping_basis: capability_based
+      fidelity_label_projection: manual_review
+      state_plane_projection: workspace_shared_manifest
+      preserved_prior_artifact_ref: preserved-artifact:workspace-tasks-before-import
+      rollback_checkpoint_ref: rollback-checkpoint:first-run-jetbrains-partial
+      docs_help_refs:
+        - docs-ref:first-run-import-run-configs
+      support_packet_refs:
+        - support:first-run-jetbrains-partial
+    - preview_row_id: preview-row:jetbrains-plugin-test-runner
+      plan_item_ref: plan-item:jetbrains-plugin-test-runner
+      source_profile_ref: source-profile:jetbrains-workflow
+      source_object_ref: jetbrains:plugin:test-runner-plus
+      source_label: Test Runner Plus
+      domain: extensions_and_providers
+      target_object_ref: aureline:bridge:test-runner-compat
+      outcome_state: bridge_required
+      reason_class: bridge_needed_for_parity
+      confidence_class: low
+      mapping_basis: bridge_adapter
+      fidelity_label_projection: manual_review
+      state_plane_projection: portable_settings
+      bridge_requirement_ref: bridge-requirement:test-runner-compat
+      rollback_checkpoint_ref: rollback-checkpoint:first-run-jetbrains-partial
+      docs_help_refs:
+        - docs-ref:first-run-import-bridge-required
+      support_packet_refs:
+        - support:first-run-jetbrains-partial
+  incompatible_items:
+    - incompatible_item_id: incompatible:jetbrains-test-runner-plus
+      item_class: extension
+      source_object_ref: jetbrains:plugin:test-runner-plus
+      target_or_alternative_ref: native-alternative:aureline-test-explorer
+      compatibility_advice_class: bridge_required
+      blocked_from_apply: false
+      summary: Plugin runtime is not imported; a bridge or native test explorer review is required.
+      docs_help_refs:
+        - docs-ref:first-run-import-bridge-required
+      support_packet_refs:
+        - support:first-run-jetbrains-partial
+  native_alternatives:
+    - native_alternative_id: native-alternative:aureline-test-explorer
+      alternative_class: native_command
+      source_object_ref: jetbrains:plugin:test-runner-plus
+      suggested_target_ref: aureline:command:test.explorer.open
+      requires_separate_review: false
+      summary: Open the native test explorer after the workspace task mapping is reviewed.
+  trust_permission_implications:
+    - implication_id: implication:run-config-subprocess
+      implication_class: subprocess_or_task
+      delta_class: requires_separate_review
+      policy_epoch_ref: policy-epoch:local-default
+      summary: Imported run configuration cannot execute until task review accepts the command boundary.
+  rollback_requirements:
+    checkpoint_required_before_apply: true
+    checkpoint_scope: profile_and_workspace
+    checkpoint_status: created_ready
+    checkpoint_ref: rollback-checkpoint:first-run-jetbrains-partial
+    restore_record_ref: migration-restore-record:first-run-jetbrains-partial
+    retention_policy_ref: retention-policy:user-owned-recovery-state
+  apply_gate:
+    apply_gate_class: requires_manual_review
+    idempotency_token_ref: idempotency:first-run-jetbrains-partial
+    reason_refs:
+      - preview-row:jetbrains-run-config
+      - preview-row:jetbrains-plugin-test-runner
+
+rollback_checkpoint:
+  import_rollback_checkpoint_id: import-rollback-checkpoint:first-run-jetbrains-partial
+  rollback_checkpoint_outcome_class: checkpoint_available_post_apply_partial
+  checkpoint_scope: profile_and_workspace
+  availability_state: available
+  cleanup_state: retained
+  checkpoint_integrity_state: verified
+  protected_state_refs:
+    - protected_state_id: protected-state:profile-shortcuts-before-jetbrains
+      state_plane: portable_settings
+      state_owner_class: user_authored_durable_truth
+      snapshot_ref: snapshot:profile-shortcuts-before-jetbrains
+      restore_posture_class: exact_restore_available
+    - protected_state_id: protected-state:workspace-tasks-before-jetbrains
+      state_plane: workspace_shared_manifest
+      state_owner_class: workspace_authoritative_truth
+      snapshot_ref: snapshot:workspace-tasks-before-jetbrains
+      restore_posture_class: manual_review_required
+  preserved_prior_artifacts:
+    - preserved_prior_artifact_ref: preserved-artifact:workspace-tasks-before-import
+      state_plane: workspace_shared_manifest
+      preservation_reason_class: manual_review_required
+      compare_ref: compare:workspace-tasks-before-import
+      export_ref: export:workspace-tasks-before-import
+      redaction_class: redact_sensitive_values
+  partial_apply_note: Settings and keymap rows may apply; workspace task mapping and plugin bridge remain visible for review.
+
+assertions:
+  - id: partial_apply_does_not_hide_missing_extension
+    statement: The bridge-required plugin row remains in preview, support, and native-alternative arrays.
+  - id: workspace_truth_preserved
+    statement: Workspace task changes carry preserved prior artifacts and checkpoint refs before apply.

@@ -1,0 +1,734 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/import_plan.schema.json",
+  "title": "Aureline first-run import dry-run plan contract",
+  "description": "Boundary schema for first_run_import_plan_record. The record freezes read-only source detection, profile discovery, selected import domains, source-labeled plan items, policy ceilings, and dry-run stability before any first-run import preview or apply is allowed. It composes with docs/migration/first_run_import_diff_and_rollback_contract.md, docs/migration/migration_center_object_model.md, schemas/migration/migration_session.schema.json, and schemas/migration/importer_outcome.schema.json. Raw source profile bodies, raw absolute paths, raw credentials, raw extension storage, raw command histories, raw workspace file bodies, and raw network endpoints never cross this boundary; opaque refs, counts, class labels, and redaction-aware summaries do.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/first_run_import_plan_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this first-run import plan contract."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, persist, or export. Raw absolute paths, source file bodies, raw URLs, credentials, and secret material are forbidden."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured at packet assembly."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720,
+      "description": "Short redaction-aware label or summary. Exporters apply the active redaction policy before this value crosses process, support, or telemetry boundaries."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "migration_source_kind": {
+      "type": "string",
+      "enum": [
+        "vs_code",
+        "jetbrains_family",
+        "vim_or_neovim",
+        "emacs",
+        "sublime_textmate",
+        "prior_aureline",
+        "portable_profile_bundle",
+        "support_recovery_bundle",
+        "workflow_bundle_handoff",
+        "generic_import"
+      ],
+      "description": "Closed migration source-family set aligned with the migration-center object model."
+    },
+    "migration_source_scope": {
+      "type": "string",
+      "enum": [
+        "user_profile",
+        "workspace",
+        "portable_export",
+        "support_bundle",
+        "workflow_bundle",
+        "other"
+      ]
+    },
+    "discovery_method": {
+      "type": "string",
+      "enum": [
+        "known_platform_location",
+        "registry_or_plist_probe",
+        "workspace_manifest_probe",
+        "user_selected_path",
+        "portable_bundle_manifest",
+        "support_bundle_manifest",
+        "prior_session_history",
+        "policy_seeded_source"
+      ],
+      "description": "How the detector found or attempted to find the source. Discovery never implies read or write authority."
+    },
+    "detection_state": {
+      "type": "string",
+      "enum": [
+        "detected",
+        "not_detected",
+        "path_unavailable",
+        "permission_denied",
+        "unsupported_version",
+        "corrupted_or_unreadable",
+        "policy_blocked",
+        "insufficient_evidence"
+      ],
+      "description": "Detector result. Unavailable, denied, unsupported, and low-evidence states remain visible instead of disappearing from the plan."
+    },
+    "path_availability_class": {
+      "type": "string",
+      "enum": [
+        "available_readable",
+        "available_metadata_only",
+        "missing_unavailable",
+        "permission_denied",
+        "locked_by_os_or_provider",
+        "unsupported_profile_version",
+        "corrupted_or_unparseable",
+        "policy_hidden",
+        "user_supplied_unverified"
+      ],
+      "description": "Read posture for the source location without exposing raw absolute paths."
+    },
+    "source_read_posture": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "manifest_and_schema_only",
+        "profile_values_redacted",
+        "full_profile_readable",
+        "unreadable_visible",
+        "blocked_visible"
+      ],
+      "description": "How much source profile content the dry-run planner could inspect."
+    },
+    "profile_discovery_state": {
+      "type": "string",
+      "enum": [
+        "discoverable",
+        "selected",
+        "not_selected",
+        "unavailable_path_visible",
+        "unreadable_permission_denied",
+        "corrupted_or_unreadable",
+        "unsupported_version",
+        "policy_blocked",
+        "user_skipped"
+      ],
+      "description": "State of a source profile row during first-run planning."
+    },
+    "migration_domain": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "shortcuts",
+        "themes_and_visuals",
+        "snippets_and_templates",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "workspace_metadata",
+        "profiles_and_layout",
+        "docs_and_tours",
+        "bridge_metadata",
+        "other"
+      ]
+    },
+    "migration_domain_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/migration_domain" }
+    },
+    "domain_availability_state": {
+      "type": "string",
+      "enum": [
+        "available_for_preview",
+        "available_metadata_only",
+        "not_present",
+        "user_not_selected",
+        "permission_denied",
+        "unsupported_source_semantics",
+        "policy_blocked",
+        "requires_manual_review"
+      ],
+      "description": "Whether one import domain can contribute plan rows."
+    },
+    "interop_result_state": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported"
+      ],
+      "description": "Predicted importer outcome vocabulary. In this schema it is a dry-run prediction only."
+    },
+    "outcome_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_equivalent_available",
+        "semantic_equivalent_available",
+        "capability_mapping_available",
+        "user_declined_import",
+        "policy_excludes_import",
+        "existing_state_retained",
+        "conflict_requires_review",
+        "bridge_needed_for_parity",
+        "target_feature_not_supported",
+        "source_artifact_unreadable",
+        "source_version_not_qualified",
+        "insufficient_evidence"
+      ]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "insufficient_evidence"]
+    },
+    "mapping_basis": {
+      "type": "string",
+      "enum": [
+        "exact_identity",
+        "semantic_equivalent",
+        "capability_based",
+        "bridge_adapter",
+        "name_heuristic",
+        "user_override",
+        "not_applicable"
+      ]
+    },
+    "migration_target_kind": {
+      "type": "string",
+      "enum": [
+        "active_profile",
+        "profile_library_entry",
+        "portable_profile_artifact",
+        "active_workspace",
+        "workspace_manifest",
+        "workspace_candidate",
+        "workflow_bundle_candidate"
+      ]
+    },
+    "migration_apply_scope": {
+      "type": "string",
+      "enum": [
+        "preview_only",
+        "profile_only",
+        "workspace_only",
+        "profile_and_workspace"
+      ]
+    },
+    "target_owner_class": {
+      "type": "string",
+      "enum": [
+        "empty_target",
+        "user_owned_durable_truth",
+        "workspace_owned_durable_truth",
+        "policy_locked_truth",
+        "temporary_candidate",
+        "unknown_owner_review_required"
+      ],
+      "description": "Ownership posture of the destination object before import."
+    },
+    "target_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "target_ref",
+        "apply_scope",
+        "target_owner_class"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/migration_target_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "apply_scope": { "$ref": "#/$defs/migration_apply_scope" },
+        "target_owner_class": { "$ref": "#/$defs/target_owner_class" },
+        "target_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "current_revision_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        }
+      }
+    },
+    "policy_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "no_change_allowed",
+        "narrowing_only",
+        "existing_authority_only",
+        "review_required_for_any_change",
+        "blocked_by_policy",
+        "not_applicable"
+      ],
+      "description": "Authority ceiling observed during dry-run planning."
+    },
+    "safety_implication_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust",
+        "extension_permission",
+        "network_egress",
+        "ai_egress",
+        "managed_entitlement",
+        "credential_or_secret",
+        "filesystem_write",
+        "subprocess_or_task",
+        "destructive_automation_default",
+        "policy_lock",
+        "not_applicable"
+      ]
+    },
+    "safety_delta_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "narrows_existing_authority",
+        "preserves_existing_authority",
+        "requires_separate_review",
+        "blocked_would_widen_authority",
+        "policy_denied",
+        "not_applicable"
+      ]
+    },
+    "safety_implication_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implication_id",
+        "implication_class",
+        "delta_class",
+        "policy_ceiling_class"
+      ],
+      "properties": {
+        "implication_id": { "$ref": "#/$defs/opaque_id" },
+        "implication_class": { "$ref": "#/$defs/safety_implication_class" },
+        "delta_class": { "$ref": "#/$defs/safety_delta_class" },
+        "policy_ceiling_class": { "$ref": "#/$defs/policy_ceiling_class" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "profile_portability_state": {
+      "type": "string",
+      "enum": [
+        "portable_plain",
+        "portable_encrypted",
+        "portable_with_machine_addendum",
+        "managed_sync_opt_in",
+        "customer_managed_key_sync",
+        "self_hosted_sync",
+        "support_recovery_only",
+        "local_only_unpublishable",
+        "unknown_review_required"
+      ]
+    },
+    "domain_availability_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "availability_state"
+      ],
+      "properties": {
+        "domain": { "$ref": "#/$defs/migration_domain" },
+        "availability_state": { "$ref": "#/$defs/domain_availability_state" },
+        "source_artifact_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "estimated_source_item_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "source_installation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_installation_ref",
+        "source_kind",
+        "display_name",
+        "detection_state",
+        "discovery_method",
+        "path_availability_class",
+        "source_read_posture",
+        "evidence_refs"
+      ],
+      "properties": {
+        "source_installation_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_kind": { "$ref": "#/$defs/migration_source_kind" },
+        "display_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_version": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "detection_state": { "$ref": "#/$defs/detection_state" },
+        "discovery_method": { "$ref": "#/$defs/discovery_method" },
+        "path_availability_class": { "$ref": "#/$defs/path_availability_class" },
+        "source_read_posture": { "$ref": "#/$defs/source_read_posture" },
+        "source_path_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque path-handle or path-truth ref. Never a raw path."
+        },
+        "unavailable_reason_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "not_installed",
+            "path_missing",
+            "permission_denied",
+            "unsupported_version",
+            "corrupted_or_unreadable",
+            "policy_blocked",
+            "insufficient_evidence",
+            null
+          ]
+        },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "discovered_profile_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_profile_ref",
+        "source_installation_ref",
+        "source_kind",
+        "profile_label",
+        "source_scope",
+        "profile_discovery_state",
+        "path_availability_class",
+        "profile_portability_state",
+        "selected_for_plan",
+        "domain_availability"
+      ],
+      "properties": {
+        "source_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_installation_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_kind": { "$ref": "#/$defs/migration_source_kind" },
+        "profile_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_scope": { "$ref": "#/$defs/migration_source_scope" },
+        "profile_version": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "profile_discovery_state": { "$ref": "#/$defs/profile_discovery_state" },
+        "path_availability_class": { "$ref": "#/$defs/path_availability_class" },
+        "profile_portability_state": { "$ref": "#/$defs/profile_portability_state" },
+        "selected_for_plan": { "type": "boolean" },
+        "source_path_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "domain_availability": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/domain_availability_row" }
+        },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "plan_item_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_item_id",
+        "source_profile_ref",
+        "source_object_ref",
+        "source_label",
+        "domain",
+        "planned_outcome_state",
+        "reason_class",
+        "confidence_class",
+        "mapping_basis",
+        "target_descriptor",
+        "unavailable_source_visible",
+        "safety_implications"
+      ],
+      "properties": {
+        "plan_item_id": { "$ref": "#/$defs/opaque_id" },
+        "source_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "domain": { "$ref": "#/$defs/migration_domain" },
+        "planned_outcome_state": { "$ref": "#/$defs/interop_result_state" },
+        "reason_class": { "$ref": "#/$defs/outcome_reason_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "mapping_basis": { "$ref": "#/$defs/mapping_basis" },
+        "target_descriptor": { "$ref": "#/$defs/target_descriptor" },
+        "target_object_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "unavailable_source_visible": {
+          "type": "boolean",
+          "description": "True when this row exists to keep a missing or unreadable source path visible in the plan."
+        },
+        "safety_implications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_implication_row" }
+        },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "planned_outcome_state": {
+                "enum": ["imported", "mapped", "bridge_required"]
+              }
+            },
+            "required": ["planned_outcome_state"]
+          },
+          "then": {
+            "required": ["target_object_ref"]
+          }
+        }
+      ]
+    },
+    "plan_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detected_source_count",
+        "unavailable_source_count",
+        "selected_profile_count",
+        "planned_item_count",
+        "blocked_item_count"
+      ],
+      "properties": {
+        "detected_source_count": { "type": "integer", "minimum": 0 },
+        "unavailable_source_count": { "type": "integer", "minimum": 0 },
+        "selected_profile_count": { "type": "integer", "minimum": 0 },
+        "planned_item_count": { "type": "integer", "minimum": 0 },
+        "blocked_item_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "policy_floor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch_ref",
+        "workspace_trust_ceiling",
+        "extension_permission_ceiling",
+        "network_egress_ceiling",
+        "ai_egress_ceiling",
+        "managed_entitlement_ceiling"
+      ],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_trust_ceiling": { "$ref": "#/$defs/policy_ceiling_class" },
+        "extension_permission_ceiling": { "$ref": "#/$defs/policy_ceiling_class" },
+        "network_egress_ceiling": { "$ref": "#/$defs/policy_ceiling_class" },
+        "ai_egress_ceiling": { "$ref": "#/$defs/policy_ceiling_class" },
+        "managed_entitlement_ceiling": { "$ref": "#/$defs/policy_ceiling_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "write_authority_posture": {
+      "type": "string",
+      "enum": [
+        "none_dry_run_only"
+      ],
+      "description": "Import plans grant no durable write authority. Apply must consume a separate reviewed preview and checkpoint."
+    },
+    "dry_run_stability": {
+      "type": "string",
+      "enum": [
+        "current_complete",
+        "current_partial",
+        "stale_requires_replan",
+        "blocked_by_policy",
+        "blocked_disclosure_incomplete"
+      ]
+    },
+    "first_run_import_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "import_plan_id",
+        "migration_session_ref",
+        "source_installations",
+        "discovered_profiles",
+        "target_descriptor",
+        "selected_domains",
+        "plan_items",
+        "plan_summary",
+        "policy_floor",
+        "write_authority_posture",
+        "dry_run_stability",
+        "emitted_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "first_run_import_plan_record"
+        },
+        "import_plan_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_installations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_installation_row" }
+        },
+        "discovered_profiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/discovered_profile_row" }
+        },
+        "target_descriptor": { "$ref": "#/$defs/target_descriptor" },
+        "selected_domains": { "$ref": "#/$defs/migration_domain_array" },
+        "plan_items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/plan_item_row" }
+        },
+        "plan_summary": { "$ref": "#/$defs/plan_summary" },
+        "policy_floor": { "$ref": "#/$defs/policy_floor" },
+        "write_authority_posture": { "$ref": "#/$defs/write_authority_posture" },
+        "dry_run_stability": { "$ref": "#/$defs/dry_run_stability" },
+        "blocking_reason_refs": { "$ref": "#/$defs/ref_array" },
+        "narrative_refs": { "$ref": "#/$defs/ref_array" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "dry_run_stability": {
+                "enum": ["blocked_by_policy", "blocked_disclosure_incomplete"]
+              }
+            },
+            "required": ["dry_run_stability"]
+          },
+          "then": {
+            "required": ["blocking_reason_refs"]
+          }
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1,
+      "record_kind": "first_run_import_plan_record",
+      "import_plan_id": "import-plan:first-run-vscode-common",
+      "migration_session_ref": "migration-session:first-run-vscode-common",
+      "source_installations": [
+        {
+          "source_installation_ref": "source-installation:vscode-stable",
+          "source_kind": "vs_code",
+          "display_name": "VS Code",
+          "source_version": "1.99.x",
+          "detection_state": "detected",
+          "discovery_method": "known_platform_location",
+          "path_availability_class": "available_readable",
+          "source_read_posture": "manifest_and_schema_only",
+          "source_path_ref": "path-ref:source-profile-vscode-default",
+          "unavailable_reason_class": null,
+          "evidence_refs": ["evidence:detector-vscode-default"]
+        }
+      ],
+      "discovered_profiles": [
+        {
+          "source_profile_ref": "source-profile:vscode-default",
+          "source_installation_ref": "source-installation:vscode-stable",
+          "source_kind": "vs_code",
+          "profile_label": "Default profile",
+          "source_scope": "user_profile",
+          "profile_version": "1.99.x",
+          "profile_discovery_state": "selected",
+          "path_availability_class": "available_readable",
+          "profile_portability_state": "portable_plain",
+          "selected_for_plan": true,
+          "source_path_ref": "path-ref:source-profile-vscode-default",
+          "domain_availability": [
+            {
+              "domain": "settings",
+              "availability_state": "available_for_preview",
+              "source_artifact_ref": "source-artifact:vscode-settings",
+              "estimated_source_item_count": 24,
+              "summary": "Settings manifest is readable."
+            }
+          ],
+          "evidence_refs": ["evidence:source-profile-vscode-default"]
+        }
+      ],
+      "target_descriptor": {
+        "target_kind": "profile_library_entry",
+        "target_ref": "target-profile:first-run-local",
+        "apply_scope": "profile_only",
+        "target_owner_class": "user_owned_durable_truth",
+        "target_label": "Local profile",
+        "current_revision_ref": "profile-revision:before-import"
+      },
+      "selected_domains": ["settings"],
+      "plan_items": [
+        {
+          "plan_item_id": "plan-item:vscode-editor-tab-size",
+          "source_profile_ref": "source-profile:vscode-default",
+          "source_object_ref": "vscode:setting:editor.tabSize",
+          "source_label": "editor.tabSize",
+          "domain": "settings",
+          "planned_outcome_state": "imported",
+          "reason_class": "exact_equivalent_available",
+          "confidence_class": "high",
+          "mapping_basis": "exact_identity",
+          "target_descriptor": {
+            "target_kind": "profile_library_entry",
+            "target_ref": "target-profile:first-run-local",
+            "apply_scope": "profile_only",
+            "target_owner_class": "user_owned_durable_truth",
+            "target_label": "Local profile",
+            "current_revision_ref": "profile-revision:before-import"
+          },
+          "target_object_ref": "aureline:setting:editor.tabSize",
+          "unavailable_source_visible": false,
+          "safety_implications": [],
+          "docs_help_refs": ["docs-ref:first-run-import-settings"]
+        }
+      ],
+      "plan_summary": {
+        "detected_source_count": 1,
+        "unavailable_source_count": 0,
+        "selected_profile_count": 1,
+        "planned_item_count": 1,
+        "blocked_item_count": 0
+      },
+      "policy_floor": {
+        "policy_epoch_ref": "policy-epoch:local-default",
+        "workspace_trust_ceiling": "no_change_allowed",
+        "extension_permission_ceiling": "existing_authority_only",
+        "network_egress_ceiling": "existing_authority_only",
+        "ai_egress_ceiling": "existing_authority_only",
+        "managed_entitlement_ceiling": "not_applicable",
+        "summary": "Dry run cannot widen authority."
+      },
+      "write_authority_posture": "none_dry_run_only",
+      "dry_run_stability": "current_complete",
+      "emitted_at": "2026-04-28T00:00:00Z",
+      "narrative_refs": ["docs/migration/first_run_import_diff_and_rollback_contract.md"]
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+# First-run import preview case: user declines import and unavailable paths remain visible.
+schema_version: 1
+case_id: first_run_import.skip_path.user_declined
+title: Skip path records declined domains and unavailable source paths
+contract_refs:
+  - docs/migration/first_run_import_diff_and_rollback_contract.md
+  - schemas/migration/import_plan.schema.json
+  - schemas/migration/import_diff_preview.schema.json
+
+source_detection:
+  source_installations:
+    - source_installation_ref: source-installation:vscode-stable
+      source_kind: vs_code
+      display_name: VS Code
+      detection_state: detected
+      discovery_method: known_platform_location
+      path_availability_class: available_readable
+      source_read_posture: manifest_and_schema_only
+      evidence_refs:
+        - evidence:first-run-detector-vscode-default
+    - source_installation_ref: source-installation:emacs-home
+      source_kind: emacs
+      display_name: Emacs
+      detection_state: permission_denied
+      discovery_method: known_platform_location
+      path_availability_class: permission_denied
+      source_read_posture: unreadable_visible
+      source_path_ref: path-ref:emacs-profile-denied
+      unavailable_reason_class: permission_denied
+      evidence_refs:
+        - evidence:first-run-detector-emacs-denied
+  discovered_profiles:
+    - source_profile_ref: source-profile:vscode-default
+      source_installation_ref: source-installation:vscode-stable
+      profile_label: Default profile
+      source_scope: user_profile
+      profile_discovery_state: user_skipped
+      profile_portability_state: portable_plain
+      selected_for_plan: false
+      domain_availability:
+        - domain: settings
+          availability_state: user_not_selected
+          estimated_source_item_count: 24
+        - domain: shortcuts
+          availability_state: user_not_selected
+          estimated_source_item_count: 18
+    - source_profile_ref: source-profile:emacs-denied
+      source_installation_ref: source-installation:emacs-home
+      profile_label: Emacs profile
+      source_scope: user_profile
+      profile_discovery_state: unreadable_permission_denied
+      profile_portability_state: unknown_review_required
+      selected_for_plan: false
+      source_path_ref: path-ref:emacs-profile-denied
+      domain_availability:
+        - domain: shortcuts
+          availability_state: permission_denied
+          estimated_source_item_count: 0
+
+import_plan:
+  import_plan_id: import-plan:first-run-skip-import
+  migration_session_ref: migration-session:first-run-skip-import
+  target_descriptor:
+    target_kind: profile_library_entry
+    target_ref: target-profile:local-default
+    apply_scope: preview_only
+    target_owner_class: user_owned_durable_truth
+  selected_domains:
+    - settings
+  write_authority_posture: none_dry_run_only
+  dry_run_stability: current_complete
+  plan_summary:
+    detected_source_count: 1
+    unavailable_source_count: 1
+    selected_profile_count: 0
+    planned_item_count: 2
+    blocked_item_count: 0
+  plan_items:
+    - plan_item_id: plan-item:vscode-profile-skipped
+      source_profile_ref: source-profile:vscode-default
+      source_object_ref: vscode:profile:default
+      source_label: Default profile skipped by user
+      domain: profiles_and_layout
+      planned_outcome_state: skipped
+      reason_class: user_declined_import
+      confidence_class: high
+      mapping_basis: not_applicable
+      target_object_ref: null
+      unavailable_source_visible: false
+      safety_implications: []
+    - plan_item_id: plan-item:emacs-unreadable-visible
+      source_profile_ref: source-profile:emacs-denied
+      source_object_ref: emacs:profile:unreadable
+      source_label: Emacs profile unreadable
+      domain: shortcuts
+      planned_outcome_state: skipped
+      reason_class: source_artifact_unreadable
+      confidence_class: insufficient_evidence
+      mapping_basis: not_applicable
+      target_object_ref: null
+      unavailable_source_visible: true
+      safety_implications: []
+
+diff_preview:
+  import_diff_preview_id: import-preview:first-run-skip-import
+  source_summary:
+    detected_source_count: 1
+    selected_profile_count: 0
+    unavailable_profile_count: 1
+    blocked_source_count: 0
+    insufficient_evidence_count: 1
+    source_selection_state: skipped_by_user
+  item_counts:
+    imported: 0
+    mapped: 0
+    skipped: 2
+    manual_review: 0
+    bridge_required: 0
+    unsupported: 0
+    conflicts: 0
+    blocked: 0
+    total_rows: 2
+  rows:
+    - preview_row_id: preview-row:vscode-profile-skipped
+      plan_item_ref: plan-item:vscode-profile-skipped
+      source_profile_ref: source-profile:vscode-default
+      source_object_ref: vscode:profile:default
+      source_label: Default profile skipped by user
+      domain: profiles_and_layout
+      target_object_ref: null
+      outcome_state: skipped
+      reason_class: user_declined_import
+      confidence_class: high
+      mapping_basis: not_applicable
+      fidelity_label_projection: exact
+      state_plane_projection: portable_settings
+      rollback_checkpoint_ref: null
+      docs_help_refs:
+        - docs-ref:first-run-import-skip-path
+    - preview_row_id: preview-row:emacs-unreadable-visible
+      plan_item_ref: plan-item:emacs-unreadable-visible
+      source_profile_ref: source-profile:emacs-denied
+      source_object_ref: emacs:profile:unreadable
+      source_label: Emacs profile unreadable
+      domain: shortcuts
+      target_object_ref: null
+      outcome_state: skipped
+      reason_class: source_artifact_unreadable
+      confidence_class: insufficient_evidence
+      mapping_basis: not_applicable
+      fidelity_label_projection: exact
+      state_plane_projection: portable_settings
+      rollback_checkpoint_ref: null
+      docs_help_refs:
+        - docs-ref:first-run-import-unavailable-paths
+  rollback_requirements:
+    checkpoint_required_before_apply: false
+    checkpoint_scope: profile_only
+    checkpoint_status: not_required_preview_only
+    checkpoint_ref: null
+    restore_record_ref: null
+    retention_policy_ref: retention-policy:no-durable-write
+  apply_gate:
+    apply_gate_class: dry_run_only
+    idempotency_token_ref: null
+    reason_refs:
+      - plan-item:vscode-profile-skipped
+      - plan-item:emacs-unreadable-visible
+  support_and_history_links:
+    imported_profile_history_ref: import-history:first-run-skip-import
+    onboarding_portability_ref: onboarding-portability:first-run-skip-import
+    docs_help_refs:
+      - docs-ref:first-run-import-skip-path
+      - docs-ref:first-run-import-unavailable-paths
+    export_refs:
+      - export:first-run-skip-import-summary
+    support_packet_refs: []
+
+assertions:
+  - id: no_checkpoint_for_no_write
+    statement: Preview-only skip path does not require a rollback checkpoint because no durable state can change.
+  - id: unavailable_paths_are_visible
+    statement: The permission-denied source stays represented as a skipped row with insufficient evidence.

@@ -35,6 +35,11 @@ Companion artifacts:
   import, skipped objects, alias / remap import, temporary profile
   session, sync conflict requiring review, downgrade migration, and
   rollback to a prior checkpoint.
+- [`/docs/migration/first_run_import_diff_and_rollback_contract.md`](../migration/first_run_import_diff_and_rollback_contract.md)
+  and [`/fixtures/migration/import_preview_cases/`](../../fixtures/migration/import_preview_cases/)
+  — first-run dry-run import plan, preview diff, apply, rollback, and
+  imported-profile history cases using the same outcome and checkpoint
+  vocabulary.
 - [`/fixtures/profiles/portability_and_temp_profile_cases/`](../../fixtures/profiles/portability_and_temp_profile_cases/)
   — reviewer-facing portable-profile and temporary-profile worked
   rows covering the closed `profile_portability_state` and
@@ -78,6 +83,11 @@ Companion artifacts:
 - [`/schemas/migration/importer_outcome.schema.json`](../../schemas/migration/importer_outcome.schema.json)
   — boundary schema carrying `importer_outcome_row_record` and
   `importer_outcome_packet_record` shapes this packet projects.
+- [`/schemas/migration/import_plan.schema.json`](../../schemas/migration/import_plan.schema.json),
+  [`/schemas/migration/import_diff_preview.schema.json`](../../schemas/migration/import_diff_preview.schema.json),
+  and [`/schemas/migration/import_rollback_checkpoint.schema.json`](../../schemas/migration/import_rollback_checkpoint.schema.json)
+  — first-run import dry-run, preview, and rollback checkpoint
+  schemas that project the same outcome and fidelity vocabulary.
 - [`/schemas/profile/portable_profile.schema.json`](../../schemas/profile/portable_profile.schema.json)
   — boundary schema for the portable-profile artifact, export
   manifest, state-map rows, and restore-provenance rows this packet

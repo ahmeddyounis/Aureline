@@ -1,0 +1,416 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/import_rollback_checkpoint.schema.json",
+  "title": "Aureline first-run import rollback checkpoint contract",
+  "description": "Boundary schema for first_run_import_rollback_checkpoint_record. The record is the first-run import projection of the migration_restore_record and rollback-checkpoint vocabulary: it names the reviewed dry-run plan, preview packet, protected state refs, preserved prior artifacts, availability and cleanup posture, idempotency token, rollback action hints, validation refs, and support/export linkage. It composes with docs/migration/first_run_import_diff_and_rollback_contract.md, docs/verification/migration_and_profile_packet.md, docs/state/migration_and_restore_playbook.md, and schemas/migration/migration_session.schema.json. Raw profile bodies, raw workspace file bodies, raw absolute paths, raw credentials, raw extension storage, and raw support payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/first_run_import_rollback_checkpoint_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, persist, or export."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "checkpoint_scope": {
+      "type": "string",
+      "enum": [
+        "profile_only",
+        "workspace_only",
+        "profile_and_workspace",
+        "extensions_only",
+        "settings_only",
+        "composite_import"
+      ]
+    },
+    "state_plane": {
+      "type": "string",
+      "enum": [
+        "portable_settings",
+        "local_context",
+        "workspace_shared_manifest",
+        "non_portable_live_authority"
+      ]
+    },
+    "state_owner_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "workspace_authoritative_truth",
+        "profile_library_truth",
+        "policy_locked_truth",
+        "local_context_truth",
+        "support_evidence_only"
+      ]
+    },
+    "restore_posture_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore_available",
+        "compatible_restore_available",
+        "manual_review_required",
+        "metadata_only_support_export",
+        "not_restorable_intentional",
+        "policy_hidden"
+      ]
+    },
+    "protected_state_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protected_state_id",
+        "state_plane",
+        "state_owner_class",
+        "snapshot_ref",
+        "restore_posture_class"
+      ],
+      "properties": {
+        "protected_state_id": { "$ref": "#/$defs/opaque_id" },
+        "state_plane": { "$ref": "#/$defs/state_plane" },
+        "state_owner_class": { "$ref": "#/$defs/state_owner_class" },
+        "snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_posture_class": { "$ref": "#/$defs/restore_posture_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "preserved_prior_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_prior_artifact_ref",
+        "state_plane",
+        "preservation_reason_class",
+        "compare_ref"
+      ],
+      "properties": {
+        "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "state_plane": { "$ref": "#/$defs/state_plane" },
+        "preservation_reason_class": {
+          "type": "string",
+          "enum": [
+            "pre_apply_snapshot",
+            "schema_meaning_changed",
+            "manual_review_required",
+            "partial_apply_recovery",
+            "rollback_validation",
+            "support_export_only"
+          ]
+        },
+        "compare_ref": { "$ref": "#/$defs/opaque_id" },
+        "export_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "redact_to_class_label",
+            "redact_sensitive_values",
+            "operator_only_restricted"
+          ]
+        }
+      }
+    },
+    "rollback_checkpoint_outcome_class": {
+      "type": "string",
+      "enum": [
+        "checkpoint_created_pre_apply",
+        "checkpoint_available_post_apply_clean",
+        "checkpoint_available_post_apply_partial",
+        "checkpoint_restored_to_prior_state",
+        "checkpoint_expired_cleanup_complete",
+        "checkpoint_cleanup_pending_manual",
+        "checkpoint_policy_hidden_support_only"
+      ]
+    },
+    "availability_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "restored",
+        "expired",
+        "cleanup_pending",
+        "policy_hidden"
+      ]
+    },
+    "cleanup_state": {
+      "type": "string",
+      "enum": [
+        "retained",
+        "cleanup_pending",
+        "cleaned_up",
+        "cleanup_blocked"
+      ]
+    },
+    "checkpoint_integrity_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "verified_metadata_only",
+        "pending_validation",
+        "digest_mismatch_blocking",
+        "missing_blocking",
+        "policy_hidden"
+      ]
+    },
+    "restore_action_hint": {
+      "type": "string",
+      "enum": [
+        "open_restore_center",
+        "restore_from_checkpoint",
+        "compare_before_restore",
+        "keep_partial_apply_visible",
+        "export_for_support",
+        "cleanup_retained_checkpoint"
+      ]
+    },
+    "validation_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validator_class",
+        "outcome_class",
+        "validator_run_ref"
+      ],
+      "properties": {
+        "validator_class": {
+          "type": "string",
+          "enum": [
+            "settings_schema_migration",
+            "layout_restore_sanity",
+            "keybinding_conflict",
+            "extension_selection_integrity",
+            "workspace_manifest_integrity",
+            "policy_epoch_recheck",
+            "support_export_consistency"
+          ]
+        },
+        "outcome_class": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "passed_with_warnings",
+            "failed_recoverable",
+            "failed_blocking",
+            "skipped_not_applicable"
+          ]
+        },
+        "validator_run_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "support_and_export_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "docs_help_refs",
+        "export_refs",
+        "support_packet_refs"
+      ],
+      "properties": {
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "export_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "issue_template_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "first_run_import_rollback_checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "import_rollback_checkpoint_id",
+        "checkpoint_ref",
+        "import_plan_ref",
+        "import_diff_preview_ref",
+        "migration_session_ref",
+        "migration_restore_record_ref",
+        "rollback_checkpoint_outcome_class",
+        "checkpoint_scope",
+        "availability_state",
+        "cleanup_state",
+        "checkpoint_integrity_state",
+        "protected_state_refs",
+        "preserved_prior_artifacts",
+        "rollback_action_hints",
+        "idempotency_token_ref",
+        "policy_epoch_ref",
+        "compatibility_report_ref",
+        "compatibility_row_refs",
+        "support_and_export_refs",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "first_run_import_rollback_checkpoint_record"
+        },
+        "import_rollback_checkpoint_id": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "import_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "import_diff_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "migration_restore_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_checkpoint_outcome_class": { "$ref": "#/$defs/rollback_checkpoint_outcome_class" },
+        "checkpoint_scope": { "$ref": "#/$defs/checkpoint_scope" },
+        "availability_state": { "$ref": "#/$defs/availability_state" },
+        "cleanup_state": { "$ref": "#/$defs/cleanup_state" },
+        "checkpoint_integrity_state": { "$ref": "#/$defs/checkpoint_integrity_state" },
+        "protected_state_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/protected_state_ref" }
+        },
+        "preserved_prior_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preserved_prior_artifact" }
+        },
+        "apply_event_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_event_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_action_hints": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/restore_action_hint" },
+          "uniqueItems": true
+        },
+        "idempotency_token_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "compatibility_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "compatibility_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "partial_apply_note": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 900
+        },
+        "post_restore_validation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_ref" }
+        },
+        "support_and_export_refs": { "$ref": "#/$defs/support_and_export_refs" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "rollback_checkpoint_outcome_class": {
+                "const": "checkpoint_available_post_apply_partial"
+              }
+            },
+            "required": ["rollback_checkpoint_outcome_class"]
+          },
+          "then": {
+            "required": ["partial_apply_note"],
+            "properties": {
+              "partial_apply_note": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 900
+              },
+              "preserved_prior_artifacts": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "rollback_checkpoint_outcome_class": {
+                "const": "checkpoint_restored_to_prior_state"
+              }
+            },
+            "required": ["rollback_checkpoint_outcome_class"]
+          },
+          "then": {
+            "required": ["post_restore_validation_refs"],
+            "properties": {
+              "post_restore_validation_refs": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1,
+      "record_kind": "first_run_import_rollback_checkpoint_record",
+      "import_rollback_checkpoint_id": "import-rollback-checkpoint:first-run-vscode-common",
+      "checkpoint_ref": "rollback-checkpoint:first-run-vscode-common",
+      "import_plan_ref": "import-plan:first-run-vscode-common",
+      "import_diff_preview_ref": "import-preview:first-run-vscode-common",
+      "migration_session_ref": "migration-session:first-run-vscode-common",
+      "migration_restore_record_ref": "migration-restore-record:first-run-vscode-common",
+      "rollback_checkpoint_outcome_class": "checkpoint_created_pre_apply",
+      "checkpoint_scope": "profile_only",
+      "availability_state": "available",
+      "cleanup_state": "retained",
+      "checkpoint_integrity_state": "verified",
+      "protected_state_refs": [
+        {
+          "protected_state_id": "protected-state:first-run-profile-settings",
+          "state_plane": "portable_settings",
+          "state_owner_class": "user_authored_durable_truth",
+          "snapshot_ref": "snapshot:profile-before-import",
+          "restore_posture_class": "exact_restore_available",
+          "summary": "Profile settings snapshot captured before apply."
+        }
+      ],
+      "preserved_prior_artifacts": [],
+      "apply_event_refs": [],
+      "rollback_event_refs": [],
+      "rollback_action_hints": [
+        "compare_before_restore",
+        "restore_from_checkpoint"
+      ],
+      "idempotency_token_ref": "idempotency:first-run-vscode-common",
+      "policy_epoch_ref": "policy-epoch:local-default",
+      "compatibility_report_ref": "compat-report:first-run-vscode-common",
+      "compatibility_row_refs": [
+        "compat_row:first_run_profile_settings"
+      ],
+      "partial_apply_note": null,
+      "post_restore_validation_refs": [],
+      "support_and_export_refs": {
+        "docs_help_refs": ["docs-ref:first-run-import-rollback"],
+        "export_refs": [],
+        "support_packet_refs": [],
+        "issue_template_refs": []
+      },
+      "created_at": "2026-04-28T00:00:00Z",
+      "updated_at": "2026-04-28T00:00:00Z"
+    }
+  ]
+}

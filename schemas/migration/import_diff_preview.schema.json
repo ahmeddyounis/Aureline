@@ -1,0 +1,734 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/import_diff_preview.schema.json",
+  "title": "Aureline first-run import diff preview contract",
+  "description": "Boundary schema for first_run_import_diff_preview_record. The preview packet tells a reviewer exactly what a first-run import would change before apply: imported item counts, conflicts, unsupported keys, incompatible extensions or workflows, native alternatives, trust and permission implications, rollback checkpoint requirements, apply gate, and downstream history/support linkage. It composes with docs/migration/first_run_import_diff_and_rollback_contract.md, schemas/migration/import_plan.schema.json, schemas/migration/importer_outcome.schema.json, and schemas/migration/migration_session.schema.json. Raw source bodies, raw absolute paths, raw credential values, raw extension storage, raw command histories, raw URLs, and raw workspace file bodies never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/first_run_import_diff_preview_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, persist, and export."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "migration_domain": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "shortcuts",
+        "themes_and_visuals",
+        "snippets_and_templates",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "workspace_metadata",
+        "profiles_and_layout",
+        "docs_and_tours",
+        "bridge_metadata",
+        "other"
+      ]
+    },
+    "interop_result_state": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported"
+      ]
+    },
+    "outcome_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_equivalent_available",
+        "semantic_equivalent_available",
+        "capability_mapping_available",
+        "user_declined_import",
+        "policy_excludes_import",
+        "existing_state_retained",
+        "conflict_requires_review",
+        "bridge_needed_for_parity",
+        "target_feature_not_supported",
+        "source_artifact_unreadable",
+        "source_version_not_qualified",
+        "insufficient_evidence"
+      ]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "insufficient_evidence"]
+    },
+    "mapping_basis": {
+      "type": "string",
+      "enum": [
+        "exact_identity",
+        "semantic_equivalent",
+        "capability_based",
+        "bridge_adapter",
+        "name_heuristic",
+        "user_override",
+        "not_applicable"
+      ]
+    },
+    "fidelity_label": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "manual_review"]
+    },
+    "state_plane": {
+      "type": "string",
+      "enum": [
+        "portable_settings",
+        "local_context",
+        "workspace_shared_manifest",
+        "non_portable_live_authority"
+      ]
+    },
+    "source_selection_state": {
+      "type": "string",
+      "enum": [
+        "selected",
+        "not_selected",
+        "unavailable_visible",
+        "blocked_visible",
+        "skipped_by_user",
+        "insufficient_evidence_visible"
+      ]
+    },
+    "source_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detected_source_count",
+        "selected_profile_count",
+        "unavailable_profile_count",
+        "blocked_source_count",
+        "insufficient_evidence_count"
+      ],
+      "properties": {
+        "detected_source_count": { "type": "integer", "minimum": 0 },
+        "selected_profile_count": { "type": "integer", "minimum": 0 },
+        "unavailable_profile_count": { "type": "integer", "minimum": 0 },
+        "blocked_source_count": { "type": "integer", "minimum": 0 },
+        "insufficient_evidence_count": { "type": "integer", "minimum": 0 },
+        "source_selection_state": { "$ref": "#/$defs/source_selection_state" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "item_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported",
+        "conflicts",
+        "blocked",
+        "total_rows"
+      ],
+      "properties": {
+        "imported": { "type": "integer", "minimum": 0 },
+        "mapped": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "manual_review": { "type": "integer", "minimum": 0 },
+        "bridge_required": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 },
+        "conflicts": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "total_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "safety_implication_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust",
+        "extension_permission",
+        "network_egress",
+        "ai_egress",
+        "managed_entitlement",
+        "credential_or_secret",
+        "filesystem_write",
+        "subprocess_or_task",
+        "destructive_automation_default",
+        "policy_lock",
+        "not_applicable"
+      ]
+    },
+    "safety_delta_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "narrows_existing_authority",
+        "preserves_existing_authority",
+        "requires_separate_review",
+        "blocked_would_widen_authority",
+        "policy_denied",
+        "not_applicable"
+      ]
+    },
+    "safety_implication_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implication_id",
+        "implication_class",
+        "delta_class",
+        "summary"
+      ],
+      "properties": {
+        "implication_id": { "$ref": "#/$defs/opaque_id" },
+        "implication_class": { "$ref": "#/$defs/safety_implication_class" },
+        "delta_class": { "$ref": "#/$defs/safety_delta_class" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "preview_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_row_id",
+        "plan_item_ref",
+        "source_profile_ref",
+        "source_object_ref",
+        "source_label",
+        "domain",
+        "outcome_state",
+        "reason_class",
+        "confidence_class",
+        "mapping_basis",
+        "fidelity_label_projection",
+        "state_plane_projection",
+        "docs_help_refs"
+      ],
+      "properties": {
+        "preview_row_id": { "$ref": "#/$defs/opaque_id" },
+        "plan_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "domain": { "$ref": "#/$defs/migration_domain" },
+        "target_object_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "target_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 720
+        },
+        "outcome_state": { "$ref": "#/$defs/interop_result_state" },
+        "reason_class": { "$ref": "#/$defs/outcome_reason_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "mapping_basis": { "$ref": "#/$defs/mapping_basis" },
+        "fidelity_label_projection": { "$ref": "#/$defs/fidelity_label" },
+        "state_plane_projection": { "$ref": "#/$defs/state_plane" },
+        "bridge_requirement_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "preserved_prior_artifact_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "rollback_checkpoint_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "safety_implication_refs": { "$ref": "#/$defs/ref_array" },
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "export_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome_state": {
+                "enum": ["imported", "mapped", "bridge_required"]
+              }
+            },
+            "required": ["outcome_state"]
+          },
+          "then": {
+            "required": ["target_object_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_state": { "const": "bridge_required" }
+            },
+            "required": ["outcome_state"]
+          },
+          "then": {
+            "required": ["bridge_requirement_ref"]
+          }
+        }
+      ]
+    },
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "target_value_diverged",
+        "reserved_shortcut_collision",
+        "workspace_manifest_conflict",
+        "policy_locked_value",
+        "profile_revision_changed",
+        "extension_permission_conflict",
+        "unsupported_scope_collision"
+      ]
+    },
+    "conflict_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflict_id",
+        "conflict_class",
+        "source_object_ref",
+        "target_object_ref",
+        "reviewer_action_required",
+        "summary"
+      ],
+      "properties": {
+        "conflict_id": { "$ref": "#/$defs/opaque_id" },
+        "conflict_class": { "$ref": "#/$defs/conflict_class" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserved_prior_artifact_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "reviewer_action_required": {
+          "type": "string",
+          "enum": [
+            "keep_target",
+            "import_source",
+            "merge",
+            "choose_alternative",
+            "skip_import",
+            "escalate_to_admin",
+            "none"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "unsupported_key_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unsupported_key_id",
+        "source_profile_ref",
+        "source_object_ref",
+        "domain",
+        "reason_class",
+        "docs_help_refs"
+      ],
+      "properties": {
+        "unsupported_key_id": { "$ref": "#/$defs/opaque_id" },
+        "source_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "domain": { "$ref": "#/$defs/migration_domain" },
+        "reason_class": { "$ref": "#/$defs/outcome_reason_class" },
+        "native_alternative_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "incompatible_item_class": {
+      "type": "string",
+      "enum": [
+        "extension",
+        "workflow",
+        "task_or_launch",
+        "theme_token",
+        "keybinding_sequence",
+        "workspace_trust_or_policy",
+        "source_feature"
+      ]
+    },
+    "compatibility_advice_class": {
+      "type": "string",
+      "enum": [
+        "native_alternative_available",
+        "bridge_required",
+        "manual_workflow_rebuild",
+        "unsupported_no_native_equivalent",
+        "policy_blocks_import",
+        "install_review_required",
+        "source_runtime_not_imported"
+      ]
+    },
+    "incompatible_item_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "incompatible_item_id",
+        "item_class",
+        "source_object_ref",
+        "compatibility_advice_class",
+        "blocked_from_apply",
+        "summary",
+        "docs_help_refs"
+      ],
+      "properties": {
+        "incompatible_item_id": { "$ref": "#/$defs/opaque_id" },
+        "item_class": { "$ref": "#/$defs/incompatible_item_class" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_or_alternative_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "compatibility_advice_class": { "$ref": "#/$defs/compatibility_advice_class" },
+        "blocked_from_apply": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "native_alternative_class": {
+      "type": "string",
+      "enum": [
+        "native_command",
+        "native_setting",
+        "native_extension_or_package",
+        "workflow_bundle",
+        "docs_or_learning_path",
+        "manual_rebuild_guide",
+        "external_handoff"
+      ]
+    },
+    "native_alternative_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_alternative_id",
+        "alternative_class",
+        "source_object_ref",
+        "suggested_target_ref",
+        "requires_separate_review",
+        "summary"
+      ],
+      "properties": {
+        "native_alternative_id": { "$ref": "#/$defs/opaque_id" },
+        "alternative_class": { "$ref": "#/$defs/native_alternative_class" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "suggested_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "requires_separate_review": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "checkpoint_scope": {
+      "type": "string",
+      "enum": [
+        "profile_only",
+        "workspace_only",
+        "profile_and_workspace",
+        "extensions_only",
+        "settings_only",
+        "composite_import"
+      ]
+    },
+    "checkpoint_status": {
+      "type": "string",
+      "enum": [
+        "not_required_preview_only",
+        "required_not_created",
+        "created_ready",
+        "unavailable_blocking",
+        "policy_hidden_support_only"
+      ]
+    },
+    "rollback_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_required_before_apply",
+        "checkpoint_scope",
+        "checkpoint_status",
+        "restore_record_ref",
+        "retention_policy_ref",
+        "summary"
+      ],
+      "properties": {
+        "checkpoint_required_before_apply": { "type": "boolean" },
+        "checkpoint_scope": { "$ref": "#/$defs/checkpoint_scope" },
+        "checkpoint_status": { "$ref": "#/$defs/checkpoint_status" },
+        "checkpoint_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "restore_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "retention_policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "apply_gate_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_only",
+        "allowed_checkpoint_ready",
+        "requires_manual_review",
+        "denied_by_policy",
+        "denied_would_widen_authority",
+        "denied_disclosure_incomplete",
+        "stale_requires_replan"
+      ]
+    },
+    "apply_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apply_gate_class",
+        "idempotency_token_ref",
+        "reason_refs",
+        "summary"
+      ],
+      "properties": {
+        "apply_gate_class": { "$ref": "#/$defs/apply_gate_class" },
+        "idempotency_token_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "reason_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "support_and_history_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "docs_help_refs",
+        "export_refs",
+        "support_packet_refs",
+        "imported_profile_history_ref",
+        "onboarding_portability_ref"
+      ],
+      "properties": {
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "export_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "imported_profile_history_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "onboarding_portability_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "issue_template_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "first_run_import_diff_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "import_diff_preview_id",
+        "import_plan_ref",
+        "migration_session_ref",
+        "source_summary",
+        "item_counts",
+        "rows",
+        "conflicts",
+        "unsupported_keys",
+        "incompatible_items",
+        "native_alternatives",
+        "trust_permission_implications",
+        "rollback_requirements",
+        "apply_gate",
+        "support_and_history_links",
+        "generated_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "first_run_import_diff_preview_record"
+        },
+        "import_diff_preview_id": { "$ref": "#/$defs/opaque_id" },
+        "import_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_summary": { "$ref": "#/$defs/source_summary" },
+        "item_counts": { "$ref": "#/$defs/item_counts" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preview_row" }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/conflict_row" }
+        },
+        "unsupported_keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_key_row" }
+        },
+        "incompatible_items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/incompatible_item_row" }
+        },
+        "native_alternatives": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/native_alternative_row" }
+        },
+        "trust_permission_implications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_implication_row" }
+        },
+        "rollback_requirements": { "$ref": "#/$defs/rollback_requirements" },
+        "apply_gate": { "$ref": "#/$defs/apply_gate" },
+        "support_and_history_links": { "$ref": "#/$defs/support_and_history_links" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "rows": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "outcome_state": {
+                      "enum": ["bridge_required", "unsupported"]
+                    }
+                  },
+                  "required": ["outcome_state"]
+                }
+              }
+            },
+            "required": ["rows"]
+          },
+          "then": {
+            "properties": {
+              "support_and_history_links": {
+                "required": ["support_packet_refs", "export_refs"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1,
+      "record_kind": "first_run_import_diff_preview_record",
+      "import_diff_preview_id": "import-preview:first-run-vscode-common",
+      "import_plan_ref": "import-plan:first-run-vscode-common",
+      "migration_session_ref": "migration-session:first-run-vscode-common",
+      "source_summary": {
+        "detected_source_count": 1,
+        "selected_profile_count": 1,
+        "unavailable_profile_count": 0,
+        "blocked_source_count": 0,
+        "insufficient_evidence_count": 0,
+        "source_selection_state": "selected",
+        "summary": "One source profile is selected for dry-run preview."
+      },
+      "item_counts": {
+        "imported": 1,
+        "mapped": 0,
+        "skipped": 0,
+        "manual_review": 0,
+        "bridge_required": 0,
+        "unsupported": 0,
+        "conflicts": 0,
+        "blocked": 0,
+        "total_rows": 1
+      },
+      "rows": [
+        {
+          "preview_row_id": "preview-row:vscode-editor-tab-size",
+          "plan_item_ref": "plan-item:vscode-editor-tab-size",
+          "source_profile_ref": "source-profile:vscode-default",
+          "source_object_ref": "vscode:setting:editor.tabSize",
+          "source_label": "editor.tabSize",
+          "domain": "settings",
+          "target_object_ref": "aureline:setting:editor.tabSize",
+          "target_label": "editor.tabSize",
+          "outcome_state": "imported",
+          "reason_class": "exact_equivalent_available",
+          "confidence_class": "high",
+          "mapping_basis": "exact_identity",
+          "fidelity_label_projection": "exact",
+          "state_plane_projection": "portable_settings",
+          "bridge_requirement_ref": null,
+          "preserved_prior_artifact_ref": null,
+          "rollback_checkpoint_ref": "rollback-checkpoint:first-run-vscode-common",
+          "safety_implication_refs": [],
+          "docs_help_refs": ["docs-ref:first-run-import-settings"],
+          "export_refs": [],
+          "support_packet_refs": []
+        }
+      ],
+      "conflicts": [],
+      "unsupported_keys": [],
+      "incompatible_items": [],
+      "native_alternatives": [],
+      "trust_permission_implications": [],
+      "rollback_requirements": {
+        "checkpoint_required_before_apply": true,
+        "checkpoint_scope": "profile_only",
+        "checkpoint_status": "created_ready",
+        "checkpoint_ref": "rollback-checkpoint:first-run-vscode-common",
+        "restore_record_ref": "migration-restore-record:first-run-vscode-common",
+        "retention_policy_ref": "retention-policy:user-owned-recovery-state",
+        "summary": "A profile checkpoint is ready before apply."
+      },
+      "apply_gate": {
+        "apply_gate_class": "allowed_checkpoint_ready",
+        "idempotency_token_ref": "idempotency:first-run-vscode-common",
+        "reason_refs": [],
+        "summary": "Apply is allowed for the selected exact settings row."
+      },
+      "support_and_history_links": {
+        "docs_help_refs": ["docs-ref:first-run-import-settings"],
+        "export_refs": [],
+        "support_packet_refs": [],
+        "imported_profile_history_ref": "import-history:first-run-vscode-common",
+        "onboarding_portability_ref": "onboarding-portability:first-run-vscode-common",
+        "issue_template_refs": []
+      },
+      "generated_at": "2026-04-28T00:00:00Z"
+    }
+  ]
+}
