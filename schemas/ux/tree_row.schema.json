@@ -1,26 +1,28 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/ux/tree_row.schema.json",
-  "title": "Aureline structural tree row, placeholder, and hidden-scope contract",
-  "description": "Boundary schema for the structural tree row contract frozen in docs/ux/tree_row_contract.md. File trees, outlines, component trees, runtime trees, route trees, dependency trees, write-scope preview trees, and support/export projections use this shared row anatomy, placeholder readiness vocabulary, hidden-scope disclosure model, and identity/recovery posture. The eventual shell / workspace / graph Rust types are the source of record; this schema is the cross-tool boundary every non-owning surface reads.",
+  "title": "Aureline structural tree row and tree-view interaction contract",
+  "description": "Boundary schema for the structural tree row and tree-view interaction contracts frozen in docs/ux/tree_row_contract.md and docs/ux/tree_view_contract.md. File trees, outline trees, schema trees, package trees, component/runtime trees, route and dependency trees, write-scope preview trees, and support/export projections use this shared row anatomy, disclosure, lazy-hydration, virtualization, selection, action-exposure, provider-fallback, hidden-scope, and identity/recovery vocabulary. The eventual shell / workspace / graph Rust types are the source of record; this schema is the cross-tool boundary every non-owning surface reads. Adding enum values, optional fields, or additive sub-records is additive-minor and bumps tree_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
   "type": "object",
   "oneOf": [
     { "$ref": "#/$defs/tree_row_record" },
     { "$ref": "#/$defs/tree_placeholder_record" },
-    { "$ref": "#/$defs/tree_surface_snapshot_record" }
+    { "$ref": "#/$defs/tree_surface_snapshot_record" },
+    { "$ref": "#/$defs/tree_view_snapshot_record" }
   ],
   "$defs": {
     "tree_row_schema_version": {
       "type": "integer",
-      "const": 1,
-      "description": "Integer schema version for the structural tree row contract export. Current value is 1."
+      "const": 2,
+      "description": "Integer schema version for the structural tree row and tree-view contract export. Current value is 2."
     },
     "record_kind": {
       "type": "string",
       "enum": [
         "tree_row_record",
         "tree_placeholder_record",
-        "tree_surface_snapshot_record"
+        "tree_surface_snapshot_record",
+        "tree_view_snapshot_record"
       ],
       "description": "Discriminator for the concrete tree-row payload shape."
     },
@@ -117,6 +119,8 @@
       "enum": [
         "file_tree",
         "outline_tree",
+        "schema_tree",
+        "package_tree",
         "component_tree",
         "runtime_tree",
         "route_tree",
@@ -139,8 +143,12 @@
         "function",
         "method",
         "field",
+        "schema",
+        "schema_type",
+        "schema_field",
         "module",
         "package",
+        "dependency",
         "route",
         "component",
         "service",
@@ -466,6 +474,512 @@
         "explanation_ref": { "$ref": "#/$defs/opaque_id" }
       }
     },
+    "indentation_guide_state": {
+      "type": "string",
+      "enum": [
+        "hidden",
+        "visible_for_depth",
+        "visible_for_focus_path",
+        "visible_for_selected_path"
+      ],
+      "description": "How indentation guides are exposed without changing row identity or focus order."
+    },
+    "tree_indentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["depth", "indent_unit_ref", "guide_state"],
+      "properties": {
+        "depth": { "type": "integer", "minimum": 0 },
+        "indent_unit_ref": { "$ref": "#/$defs/opaque_id" },
+        "guide_state": { "$ref": "#/$defs/indentation_guide_state" },
+        "mirrors_parent_row_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Presentation indentation facts. Consumers still use structural identity and parent refs for behavior."
+    },
+    "tree_disclosure_state": {
+      "type": "string",
+      "enum": [
+        "leaf_no_affordance",
+        "collapsed_ready",
+        "expanded_ready",
+        "collapsed_unhydrated",
+        "expanding_hydrating",
+        "expanded_partial",
+        "blocked_unavailable",
+        "provider_unavailable",
+        "placeholder_expandable"
+      ],
+      "description": "Closed disclosure affordance vocabulary. Expansion, hydration, blocked, and provider-unavailable states remain distinct."
+    },
+    "tree_disclosure_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "keyboard_toggle_allowed",
+        "announces_child_count",
+        "announces_hidden_count"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/tree_disclosure_state" },
+        "keyboard_toggle_allowed": { "type": "boolean" },
+        "announces_child_count": { "type": "boolean" },
+        "announces_hidden_count": { "type": "boolean" },
+        "placeholder_ref": { "$ref": "#/$defs/opaque_id" },
+        "child_count": { "$ref": "#/$defs/count_value" },
+        "accessible_label_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Disclosure control facts for rows and placeholders. Visual chevrons, twisties, and disclosure buttons all resolve to this shape."
+    },
+    "row_hydration_state": {
+      "type": "string",
+      "enum": [
+        "not_hydrated",
+        "hydrating",
+        "hydrated",
+        "partially_hydrated",
+        "hydration_paused",
+        "hydration_blocked",
+        "provider_unavailable",
+        "provider_missing"
+      ],
+      "description": "Lazy-hydration state for a row's children or backing provider."
+    },
+    "tree_row_focus_state": {
+      "type": "string",
+      "enum": [
+        "not_focusable",
+        "focusable",
+        "focused",
+        "focus_delegated_to_child",
+        "focus_return_placeholder"
+      ]
+    },
+    "tree_row_current_item_state": {
+      "type": "string",
+      "enum": [
+        "not_current",
+        "current_item",
+        "current_item_hidden",
+        "current_item_missing",
+        "current_item_placeholder"
+      ]
+    },
+    "tree_row_active_state": {
+      "type": "string",
+      "enum": [
+        "inactive",
+        "active_target",
+        "active_ancestor",
+        "active_provider_context",
+        "active_target_unavailable"
+      ]
+    },
+    "tree_row_selected_state": {
+      "type": "string",
+      "enum": [
+        "unselected",
+        "selected",
+        "range_anchor",
+        "hidden_selected",
+        "selection_blocked"
+      ]
+    },
+    "tree_row_open_state": {
+      "type": "string",
+      "enum": [
+        "not_open",
+        "open_primary_editor",
+        "open_secondary_editor",
+        "open_preview",
+        "open_external",
+        "open_unavailable"
+      ]
+    },
+    "tree_row_interaction_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_state",
+        "current_item_state",
+        "active_state",
+        "selected_state",
+        "open_state"
+      ],
+      "properties": {
+        "focus_state": { "$ref": "#/$defs/tree_row_focus_state" },
+        "current_item_state": { "$ref": "#/$defs/tree_row_current_item_state" },
+        "active_state": { "$ref": "#/$defs/tree_row_active_state" },
+        "selected_state": { "$ref": "#/$defs/tree_row_selected_state" },
+        "open_state": { "$ref": "#/$defs/tree_row_open_state" },
+        "range_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "invocation_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Per-row interaction truth. Focus, current item, active target, selection, and open state are separate axes."
+    },
+    "tree_action_exposure_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "inline_always",
+        "inline_on_focus_or_hover",
+        "inline_when_width_allows",
+        "deferred_context_menu",
+        "deferred_command_palette",
+        "blocked_explain_only"
+      ],
+      "description": "Whether row actions are visible inline or deferred to context routes."
+    },
+    "tree_action_exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exposure_class", "max_inline_actions"],
+      "properties": {
+        "exposure_class": { "$ref": "#/$defs/tree_action_exposure_class" },
+        "max_inline_actions": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "inline_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "deferred_action_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Inline versus deferred action posture for a tree row or view."
+    },
+    "tree_drag_move_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_supported",
+        "preview_only",
+        "local_reorder_allowed",
+        "move_requires_review",
+        "copy_requires_modifier",
+        "external_drop_review_required",
+        "blocked_by_policy",
+        "blocked_generated_or_read_only",
+        "provider_move_unavailable"
+      ],
+      "description": "Closed drag or move posture vocabulary for tree-backed surfaces."
+    },
+    "tree_drag_move_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "review_required"],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/tree_drag_move_posture_class" },
+        "review_required": { "type": "boolean" },
+        "drop_target_state": {
+          "type": "string",
+          "enum": [
+            "not_drop_target",
+            "drop_target_allowed",
+            "drop_target_review_required",
+            "drop_target_blocked",
+            "drop_target_unknown_until_hydrated"
+          ]
+        },
+        "recovery_action_id": { "$ref": "#/$defs/recovery_action_id" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Drag, drop, reorder, move, and copy posture without overloading row hover state."
+    },
+    "tree_keyboard_navigation_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arrow_key_model",
+        "left_key_behavior",
+        "right_key_behavior",
+        "typeahead_behavior",
+        "home_end_behavior",
+        "activation_behavior"
+      ],
+      "properties": {
+        "arrow_key_model": {
+          "type": "string",
+          "enum": ["roving_focus", "aria_activedescendant", "platform_native_tree"]
+        },
+        "left_key_behavior": {
+          "type": "string",
+          "enum": ["collapse_then_parent", "parent_only", "no_op_on_leaf"]
+        },
+        "right_key_behavior": {
+          "type": "string",
+          "enum": ["expand_then_first_child", "first_child_only", "hydrate_then_expand"]
+        },
+        "typeahead_behavior": {
+          "type": "string",
+          "enum": ["visible_rows_only", "loaded_rows", "all_matching_with_review", "disabled"]
+        },
+        "home_end_behavior": {
+          "type": "string",
+          "enum": ["realized_window", "loaded_tree", "full_tree_with_virtual_scroll"]
+        },
+        "activation_behavior": {
+          "type": "string",
+          "enum": ["open_current_item", "toggle_disclosure_on_branch", "route_by_node_kind"]
+        },
+        "multi_select_modifier": {
+          "type": "string",
+          "enum": ["platform_default", "ctrl_cmd", "shift_only", "disabled"]
+        }
+      },
+      "description": "Keyboard behavior shared by hierarchy surfaces."
+    },
+    "tree_virtualization_state": {
+      "type": "string",
+      "enum": [
+        "not_virtualized",
+        "virtualized_stable",
+        "virtualized_hydrating",
+        "virtualized_filtered",
+        "virtualized_provider_limited"
+      ]
+    },
+    "tree_accessibility_semantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role_model",
+        "setsize_truth",
+        "posinset_truth",
+        "active_descendant_strategy",
+        "exposes_hidden_counts"
+      ],
+      "properties": {
+        "role_model": {
+          "type": "string",
+          "enum": ["tree_treeitem_group", "treegrid", "outline_tree", "native_platform_tree"]
+        },
+        "setsize_truth": {
+          "type": "string",
+          "enum": ["exact", "approximate", "unknown_until_hydrated"]
+        },
+        "posinset_truth": {
+          "type": "string",
+          "enum": ["exact_for_visible_siblings", "exact_for_loaded_siblings", "unknown_until_hydrated"]
+        },
+        "active_descendant_strategy": {
+          "type": "string",
+          "enum": ["dom_focus", "aria_activedescendant", "platform_accessibility_focus"]
+        },
+        "exposes_hidden_counts": { "type": "boolean" },
+        "announcement_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Accessibility semantics for virtualized or lazily hydrated tree views."
+    },
+    "tree_virtualization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "visible_row_count",
+        "realized_row_count",
+        "total_represented_row_count",
+        "offscreen_before_count",
+        "offscreen_after_count",
+        "focus_preservation",
+        "accessibility_semantics"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/tree_virtualization_state" },
+        "first_realized_row_id": { "$ref": "#/$defs/opaque_id" },
+        "last_realized_row_id": { "$ref": "#/$defs/opaque_id" },
+        "visible_row_count": { "$ref": "#/$defs/count_value" },
+        "realized_row_count": { "$ref": "#/$defs/count_value" },
+        "total_represented_row_count": { "$ref": "#/$defs/count_value" },
+        "offscreen_before_count": { "$ref": "#/$defs/count_value" },
+        "offscreen_after_count": { "$ref": "#/$defs/count_value" },
+        "hidden_filtered_count": { "$ref": "#/$defs/count_value" },
+        "not_loaded_count": { "$ref": "#/$defs/count_value" },
+        "focus_preservation": {
+          "type": "string",
+          "enum": [
+            "preserve_by_identity",
+            "return_nearest_visible_ancestor",
+            "return_placeholder_announced",
+            "block_until_row_realized"
+          ]
+        },
+        "accessibility_semantics": { "$ref": "#/$defs/tree_accessibility_semantics" }
+      },
+      "description": "Virtualization window facts, including offscreen counts, focus preservation, and accessibility-tree truth."
+    },
+    "selection_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_item_only",
+        "visible_range",
+        "loaded_set",
+        "all_matching_query",
+        "explicit_custom_set"
+      ],
+      "description": "Selection scope vocabulary shared with the selection and batch-scope contracts."
+    },
+    "range_anchor_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "reset_after_clear",
+        "stale_after_tree_change"
+      ]
+    },
+    "tree_view_selection_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_row_ref",
+        "current_row_ref",
+        "selection_scope_class",
+        "selected_count",
+        "hidden_selected_count",
+        "not_loaded_selected_count",
+        "range_anchor_state"
+      ],
+      "properties": {
+        "focus_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "open_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "selection_scope_class": { "$ref": "#/$defs/selection_scope_class" },
+        "selected_count": { "$ref": "#/$defs/count_value" },
+        "hidden_selected_count": { "$ref": "#/$defs/count_value" },
+        "not_loaded_selected_count": { "$ref": "#/$defs/count_value" },
+        "range_anchor_state": { "$ref": "#/$defs/range_anchor_state" },
+        "range_anchor_row_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "View-level distinction between focus, current item, active/open rows, selected rows, hidden selected rows, and range anchor."
+    },
+    "tree_batch_selection_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_scope_class",
+        "selected_count",
+        "visible_count",
+        "loaded_count",
+        "matching_count",
+        "hidden_selected_count",
+        "not_loaded_selected_count",
+        "blocked_count",
+        "batch_review_required",
+        "escalation_state"
+      ],
+      "properties": {
+        "selection_scope_class": { "$ref": "#/$defs/selection_scope_class" },
+        "selected_count": { "$ref": "#/$defs/count_value" },
+        "visible_count": { "$ref": "#/$defs/count_value" },
+        "loaded_count": { "$ref": "#/$defs/count_value" },
+        "matching_count": { "$ref": "#/$defs/count_value" },
+        "hidden_selected_count": { "$ref": "#/$defs/count_value" },
+        "not_loaded_selected_count": { "$ref": "#/$defs/count_value" },
+        "blocked_count": { "$ref": "#/$defs/count_value" },
+        "batch_review_required": { "type": "boolean" },
+        "escalation_state": {
+          "type": "string",
+          "enum": [
+            "not_escalated",
+            "visible_to_loaded_available",
+            "loaded_to_matching_available",
+            "matching_scope_review_required",
+            "escalation_blocked_stale_or_partial"
+          ]
+        },
+        "review_packet_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Batch-selection posture for tree views. Visible, loaded, matching, selected, hidden selected, not-loaded, and blocked counts stay separate."
+    },
+    "tree_provider_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "partially_available",
+        "disconnected_cached",
+        "missing_extension",
+        "missing_provider",
+        "blocked_by_policy",
+        "unsupported_scope",
+        "failed_degraded"
+      ],
+      "description": "Provider/fallback state for tree-backed rows and views."
+    },
+    "tree_provider_fallback_behavior": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "use_cached_snapshot",
+        "use_file_local_outline",
+        "show_expandable_placeholder",
+        "disable_expand_keep_row",
+        "offer_install_or_enable_provider",
+        "offer_refresh_or_reconnect",
+        "route_to_support_export"
+      ]
+    },
+    "tree_provider_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_state",
+        "fallback_behavior",
+        "affected_row_refs",
+        "preserved_capability",
+        "unavailable_label"
+      ],
+      "properties": {
+        "fallback_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_state": { "$ref": "#/$defs/tree_provider_state" },
+        "fallback_behavior": { "$ref": "#/$defs/tree_provider_fallback_behavior" },
+        "affected_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "provider_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserved_capability": { "$ref": "#/$defs/redaction_aware_text" },
+        "unavailable_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "recovery_action_id": { "$ref": "#/$defs/recovery_action_id" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Fallback rule for disconnected providers, missing extensions/providers, blocked scopes, and failed degraded tree backings."
+    },
+    "tree_view_row_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_ref",
+        "indentation",
+        "disclosure",
+        "hydration_state",
+        "interaction_state",
+        "action_exposure",
+        "drag_move_posture"
+      ],
+      "properties": {
+        "row_ref": { "$ref": "#/$defs/opaque_id" },
+        "indentation": { "$ref": "#/$defs/tree_indentation" },
+        "disclosure": { "$ref": "#/$defs/tree_disclosure_affordance" },
+        "hydration_state": { "$ref": "#/$defs/row_hydration_state" },
+        "interaction_state": { "$ref": "#/$defs/tree_row_interaction_state" },
+        "action_exposure": { "$ref": "#/$defs/tree_action_exposure" },
+        "drag_move_posture": { "$ref": "#/$defs/tree_drag_move_posture" },
+        "hidden_scope_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hidden_scope_disclosure" }
+        },
+        "provider_fallback_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "View-local interaction and virtualization state for one row identity."
+    },
     "tree_row_record": {
       "type": "object",
       "additionalProperties": false,
@@ -507,6 +1021,12 @@
           "type": "string",
           "enum": ["expanded", "collapsed", "leaf", "unknown"]
         },
+        "indentation": { "$ref": "#/$defs/tree_indentation" },
+        "disclosure": { "$ref": "#/$defs/tree_disclosure_affordance" },
+        "hydration_state": { "$ref": "#/$defs/row_hydration_state" },
+        "interaction_state": { "$ref": "#/$defs/tree_row_interaction_state" },
+        "action_exposure": { "$ref": "#/$defs/tree_action_exposure" },
+        "drag_move_posture": { "$ref": "#/$defs/tree_drag_move_posture" },
         "node_kind": { "$ref": "#/$defs/node_kind" },
         "primary_label": { "$ref": "#/$defs/redaction_aware_text" },
         "secondary_label": { "$ref": "#/$defs/redaction_aware_text" },
@@ -664,6 +1184,64 @@
         },
         "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
       }
+    },
+    "tree_view_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "tree_row_schema_version",
+        "view_snapshot_id",
+        "surface_class",
+        "scope_ref",
+        "readiness_state",
+        "freshness_class",
+        "completeness_class",
+        "keyboard_navigation",
+        "virtualization",
+        "selection_state",
+        "batch_selection",
+        "drag_move",
+        "inline_action_policy",
+        "provider_fallbacks",
+        "row_states",
+        "captured_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "tree_view_snapshot_record" },
+        "tree_row_schema_version": { "$ref": "#/$defs/tree_row_schema_version" },
+        "view_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "source_tree_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "filter_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "keyboard_navigation": { "$ref": "#/$defs/tree_keyboard_navigation_model" },
+        "virtualization": { "$ref": "#/$defs/tree_virtualization" },
+        "selection_state": { "$ref": "#/$defs/tree_view_selection_state" },
+        "batch_selection": { "$ref": "#/$defs/tree_batch_selection_policy" },
+        "drag_move": { "$ref": "#/$defs/tree_drag_move_posture" },
+        "inline_action_policy": { "$ref": "#/$defs/tree_action_exposure" },
+        "provider_fallbacks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tree_provider_fallback" }
+        },
+        "row_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tree_view_row_state" },
+          "minItems": 1
+        },
+        "hidden_scope_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hidden_scope_disclosure" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "View-level snapshot for hierarchy interaction, virtualization, keyboard navigation, active/open/selected state, batch-selection, drag/move posture, inline-action policy, and provider fallback."
     }
   }
 }

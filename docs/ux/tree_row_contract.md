@@ -1,22 +1,28 @@
 # Structural Tree Row Contract
 
 This document freezes the shared row and placeholder contract for
-structural trees: file trees, outlines, component trees, runtime DOM or
-widget trees, route trees, dependency trees, write-scope preview trees,
-and support/export projections. The goal is one row anatomy, one
-partial-readiness vocabulary, one hidden-scope disclosure model, and one
-identity/recovery model so tree surfaces do not invent local labels such
-as "loading", "known", "partial", "hidden", "read-only", or "moved" in
-different ways.
+structural trees: file trees, outlines, schema trees, package trees,
+component trees, runtime DOM or widget trees, route trees, dependency
+trees, write-scope preview trees, and support/export projections. The
+goal is one row anatomy, one partial-readiness vocabulary, one hidden-
+scope disclosure model, and one identity/recovery model so tree surfaces
+do not invent local labels such as "loading", "known", "partial",
+"hidden", "read-only", or "moved" in different ways.
 
 Machine-readable companions:
 
 - [`/schemas/ux/tree_row.schema.json`](../../schemas/ux/tree_row.schema.json)
   defines `tree_row_record`, `tree_placeholder_record`, and
-  `tree_surface_snapshot_record`.
+  `tree_surface_snapshot_record`, plus the view-level
+  `tree_view_snapshot_record` used by
+  [`/docs/ux/tree_view_contract.md`](./tree_view_contract.md).
 - [`/fixtures/ux/tree_rows/`](../../fixtures/ux/tree_rows/)
   contains worked examples for partial file discovery, stale outlines,
   runtime component mapping, and moved or missing rows.
+- [`/fixtures/ux/tree_view_cases/`](../../fixtures/ux/tree_view_cases/)
+  contains worked view-level examples for virtualization, keyboard
+  navigation, active/open/selected state, batch selection, drag or move
+  posture, and provider fallback.
 
 This contract composes with:
 
@@ -29,6 +35,10 @@ This contract composes with:
 - [`/docs/ux/selection_and_scope_contract.md`](./selection_and_scope_contract.md)
   for focus, selection, current item, range anchor, and hidden-selected
   disclosure.
+- [`/docs/ux/tree_view_contract.md`](./tree_view_contract.md)
+  for row interaction state, disclosure affordances, lazy hydration,
+  keyboard navigation, virtualization, batch selection, drag/move
+  posture, inline action exposure, and provider fallback.
 - [`/docs/ux/state_and_recovery_taxonomy.md`](./state_and_recovery_taxonomy.md)
   for empty, loading, degraded, paused, stale, and failed placement.
 - [`/docs/filesystem/filesystem_identity_vocabulary.md`](../filesystem/filesystem_identity_vocabulary.md)
@@ -75,6 +85,8 @@ must not replace the vocabulary below with private labels.
 |---|---|---|
 | `file_tree` | workspace runtime and VFS | Partial discovery, ignored scopes, aliases, generated files, moved or missing targets. |
 | `outline_tree` | parser, language, or notebook structure provider | File-local fallback, stale symbols, unavailable provider, current-editor selection sync. |
+| `schema_tree` | database, GraphQL, OpenAPI, config, or data-schema provider | Partial introspection, generated schema fragments, provider outage, unavailable fields. |
+| `package_tree` | package manager, extension registry, dependency inventory, or policy provider | Provider-limited metadata, policy-hidden packages, generated lockfile rows, unavailable provider. |
 | `component_tree` | framework analyzer, preview runtime, or language graph | Derived, imported, runtime-only, or approximate source mappings. |
 | `runtime_tree` | browser, simulator, notebook, or debugger adapter | Live runtime identity, cross-origin or protocol limits, stale captured snapshots. |
 | `route_tree` | framework analyzer or graph authority | Convention-derived routes, missing source, unsupported framework versions. |
@@ -109,7 +121,8 @@ The frozen set is:
 
 `workspace_root`, `directory`, `file`, `generated_artifact`,
 `symlink_or_alias`, `symbol`, `class`, `function`, `method`, `field`,
-`module`, `package`, `route`, `component`, `service`, `runtime_node`,
+`schema`, `schema_type`, `schema_field`, `module`, `package`,
+`dependency`, `route`, `component`, `service`, `runtime_node`,
 `notebook_cell`, `test`, `placeholder`, `missing_target`,
 `unsupported_scope`, `imported_node`, `cached_node`.
 
@@ -326,6 +339,14 @@ Tree rows remain keyboard-complete:
 - support/export packets preserve token values, identity refs, hidden
   counts, and recovery posture with redaction-aware labels.
 
+View-level keyboard navigation, active/open/selected state,
+virtualization, batch selection, drag/move posture, and inline versus
+deferred action rules are frozen in
+[`/docs/ux/tree_view_contract.md`](./tree_view_contract.md). Row records
+may carry the optional view-facing fields from
+`tree_row.schema.json`, but the view snapshot is the source of truth for
+one rendered viewport.
+
 ## Non-Conforming Patterns
 
 - An empty file tree while discovery is still running.
@@ -348,3 +369,11 @@ The fixture corpus covers:
 - component/runtime rows with partial or approximate source mapping; and
 - moved, missing, generated, imported, cached, and unsupported recovery
   states.
+
+The companion view fixture corpus covers:
+
+- deep nesting with lazy hydration and virtualized offscreen counts;
+- mixed generated, ignored, hidden, and blocked nodes;
+- filtered hierarchy state with hidden-selected and active/open rows;
+  and
+- partially available schema and package providers.

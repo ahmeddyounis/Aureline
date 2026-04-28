@@ -718,6 +718,16 @@ code.
   [`/schemas/ux/tree_row.schema.json`](../schemas/ux/tree_row.schema.json);
   worked fixtures in
   [`/fixtures/ux/tree_rows/`](../fixtures/ux/tree_rows/).
+- [`ux/tree_view_contract.md`](./ux/tree_view_contract.md)
+  — shared hierarchy interaction contract for file, outline, schema,
+  package, component/runtime, route, dependency, write-scope preview,
+  and support/export trees. Freezes indentation, disclosure, lazy
+  hydration, keyboard navigation, active/current/selected/open state,
+  virtualization, batch selection, drag or move posture, inline versus
+  deferred actions, and provider fallback. Boundary schema in
+  [`/schemas/ux/tree_row.schema.json`](../schemas/ux/tree_row.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/tree_view_cases/`](../fixtures/ux/tree_view_cases/).
 - [`ux/forms_validation_contract.md`](./ux/forms_validation_contract.md)
   — shared form-validation, async-probe, and staged-review contract
   for settings, connections, packages, policy edits, repairs,

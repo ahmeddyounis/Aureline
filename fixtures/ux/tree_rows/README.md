@@ -11,6 +11,10 @@ the shared row anatomy, readiness placeholders, hidden-scope
 disclosures, and identity/recovery states used by file trees, outlines,
 component trees, runtime trees, and support/export projections.
 
+View-level interaction fixtures live in
+[`/fixtures/ux/tree_view_cases/`](../tree_view_cases/) and validate as
+`tree_view_snapshot_record` against the same schema family.
+
 Every fixture:
 
 - uses only the closed tree surface, node kind, readiness, badge,
