@@ -1014,6 +1014,19 @@ code.
   [`/artifacts/runtime/managed_workspace_lifecycle.yaml`](../artifacts/runtime/managed_workspace_lifecycle.yaml);
   example compatibility-label and activation-budget-summary
   packet shapes are embedded in the taxonomy doc.
+- [`runtime/context_cache_and_terminal_restore_contract.md`](./runtime/context_cache_and_terminal_restore_contract.md)
+  — execution-context cache and terminal-restore metadata contract.
+  Freezes the derived cache entry, cache compare/reset preview,
+  terminal restore metadata, restore compare/reset preview, and
+  restore-no-rerun invariants that let Project Doctor and support
+  flows diagnose wrong interpreter, wrong shell, wrong target, stale
+  environment, and blocked restore cases without deleting broad state
+  roots. Boundary schemas in
+  [`/schemas/runtime/execution_context_cache_entry.schema.json`](../schemas/runtime/execution_context_cache_entry.schema.json)
+  and
+  [`/schemas/runtime/terminal_restore_metadata.schema.json`](../schemas/runtime/terminal_restore_metadata.schema.json);
+  worked fixtures in
+  [`/fixtures/runtime/context_cache_cases/`](../fixtures/runtime/context_cache_cases/).
 - [`remote/attach_tunnel_port_forward_contract.md`](./remote/attach_tunnel_port_forward_contract.md)
   — remote attach, reconnect, tunnel, port-forward, service-discovery,
   and browser-preview route-truth contract. Freezes attach-session and

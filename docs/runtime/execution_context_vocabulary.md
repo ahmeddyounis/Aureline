@@ -41,6 +41,10 @@ document must be updated in the same change.
   toolchain-class enum, the scope-class enum, the authority
   envelope, the degraded-field taxonomy, and the provenance record
   shape.
+- [`/docs/runtime/context_cache_and_terminal_restore_contract.md`](./context_cache_and_terminal_restore_contract.md)
+  — derived execution-context cache entry, compare, reset-preview,
+  and audit contract. Cache entries quote this vocabulary by field
+  name and may not become independent launch authority.
 
 ## Vocabulary surfaces share
 

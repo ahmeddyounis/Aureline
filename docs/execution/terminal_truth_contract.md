@@ -70,6 +70,13 @@ This contract composes with and does not replace:
   suppression-class, and terminal-denial-reason vocabularies are
   frozen there; this contract narrows them into review-time truth and
   never re-mints them.
+- [`/schemas/runtime/terminal_restore_metadata.schema.json`](../../schemas/runtime/terminal_restore_metadata.schema.json)
+  and
+  [`/docs/runtime/context_cache_and_terminal_restore_contract.md`](../runtime/context_cache_and_terminal_restore_contract.md)
+  — runtime terminal-restore metadata, compare, reset-preview, and
+  audit contract. Restored metadata remains inspect-only evidence
+  unless a fresh terminal-session record and command-dispatch
+  descriptor are explicitly minted.
 - [`/docs/runtime/execution_context_vocabulary.md`](../runtime/execution_context_vocabulary.md)
   and
   [`/schemas/runtime/execution_context.schema.json`](../../schemas/runtime/execution_context.schema.json)

@@ -1,0 +1,612 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/terminal_restore_metadata.schema.json",
+  "title": "Aureline terminal restore metadata, reset preview, comparison, and audit event",
+  "description": "Boundary schema for terminal restore metadata and reset semantics frozen by docs/runtime/context_cache_and_terminal_restore_contract.md. This schema narrows the ADR terminal session-restore vocabulary into durable/session-scoped metadata records that support restore, compare, reset, Project Doctor, and support export flows. Restored metadata is evidence and UI continuity only; it never auto-reruns commands, never replays privileged actions, and never restores input or clipboard-bridge authority without a freshly minted terminal session and command-dispatch descriptor. Raw PTY bytes, raw scrollback bodies, raw escape-sequence payloads, raw command lines, raw environment bodies, raw clipboard bytes, raw URLs, raw paths, and raw secrets MUST NOT appear by default.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/terminal_restore_metadata_record" },
+    { "$ref": "#/$defs/terminal_restore_comparison_record" },
+    { "$ref": "#/$defs/terminal_restore_reset_preview_record" },
+    { "$ref": "#/$defs/terminal_restore_audit_event_record" }
+  ],
+  "$defs": {
+    "terminal_restore_metadata_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this terminal restore metadata artifact family."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "terminal_restore_metadata_record",
+        "terminal_restore_comparison_record",
+        "terminal_restore_reset_preview_record",
+        "terminal_restore_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id or ref safe for logs, support exports, and restore manifests."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewable sentence. Raw terminal bodies, command lines, secrets, and paths are forbidden."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "restore_storage_scope_class": {
+      "type": "string",
+      "enum": [
+        "session_only",
+        "durable_recovery_state",
+        "support_bundle_reference",
+        "imported_evidence_only"
+      ],
+      "description": "Where the restore metadata lives. durable_recovery_state is user-owned recovery state, not disposable cache."
+    },
+    "restore_reset_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_terminal_restore_metadata",
+        "workspace_terminal_restore_metadata",
+        "session_terminal_restore_metadata",
+        "support_import_terminal_restore_metadata"
+      ]
+    },
+    "terminal_restore_level": {
+      "type": "string",
+      "enum": [
+        "restore_ui_only",
+        "restore_ui_with_transcript",
+        "restore_ui_with_transcript_and_hints",
+        "restore_declined_by_policy",
+        "restore_declined_by_trust",
+        "restore_declined_by_missing_root"
+      ],
+      "description": "Re-export of the ADR terminal-restore-level vocabulary."
+    },
+    "terminal_restore_decision": {
+      "type": "string",
+      "enum": [
+        "restore_approved_user_initiated_fresh_session",
+        "restore_approved_evidence_only",
+        "restore_declined",
+        "restore_declined_automatic"
+      ],
+      "description": "Re-export of the ADR terminal-restore-decision vocabulary."
+    },
+    "restore_authority_state_class": {
+      "type": "string",
+      "enum": [
+        "restored_inspect_only",
+        "restored_with_hints_inspect_only",
+        "fresh_session_minted_with_explicit_user_initiation",
+        "restore_blocked_no_authority"
+      ]
+    },
+    "pty_owner_class": {
+      "type": "string",
+      "enum": [
+        "host_desktop",
+        "remote_agent_primary",
+        "managed_workspace_agent",
+        "provider_side_remote_agent",
+        "compatibility_bridge_remote"
+      ]
+    },
+    "shell_family_declared": {
+      "type": "string",
+      "enum": [
+        "bash",
+        "zsh",
+        "fish",
+        "powershell",
+        "cmd",
+        "other"
+      ]
+    },
+    "shell_signal_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_shell_integration_baseline_only",
+        "partial_shell_integration_signals",
+        "full_shell_integration_signals",
+        "signals_redacted_or_unavailable",
+        "signals_unknown_requires_review"
+      ]
+    },
+    "scrollback_retention_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_no_body",
+        "bounded_rendered_text_redacted",
+        "bounded_hashes_and_markers",
+        "support_bundle_scoped_redacted",
+        "unbounded_forbidden_without_approval"
+      ]
+    },
+    "scrollback_line_range_state": {
+      "type": "string",
+      "enum": [
+        "within_declared_bound",
+        "partially_truncated",
+        "fully_truncated",
+        "paused_by_redaction",
+        "unavailable"
+      ]
+    },
+    "restore_blocker_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "policy_denied",
+        "trust_denied",
+        "missing_root",
+        "target_identity_changed",
+        "shell_family_mismatch",
+        "stale_execution_context",
+        "privileged_replay_requested",
+        "auto_rerun_requested",
+        "raw_body_unavailable",
+        "approval_ticket_required",
+        "corruption_detected",
+        "unknown_requires_review"
+      ]
+    },
+    "restore_compare_layer": {
+      "type": "string",
+      "enum": [
+        "terminal_session_identity",
+        "target_identity",
+        "execution_context_cache_entry",
+        "shell_family",
+        "cwd_hint",
+        "scrollback_bound",
+        "redaction_class",
+        "policy_epoch",
+        "restore_authority"
+      ]
+    },
+    "restore_compare_status": {
+      "type": "string",
+      "enum": [
+        "same",
+        "changed_inspect_only",
+        "changed_requires_fresh_session",
+        "blocked",
+        "redaction_limited",
+        "unknown_requires_review"
+      ]
+    },
+    "restore_recommended_action_class": {
+      "type": "string",
+      "enum": [
+        "render_metadata_only",
+        "render_restored_transcript_inspect_only",
+        "offer_fresh_session",
+        "block_restore",
+        "reset_restore_metadata",
+        "run_project_doctor"
+      ]
+    },
+    "excluded_state_class": {
+      "type": "string",
+      "enum": [
+        "terminal_preferences",
+        "terminal_profile_settings",
+        "user_settings",
+        "profile_library",
+        "local_history",
+        "dirty_buffer_recovery_journal",
+        "execution_context_cache",
+        "trust_approvals",
+        "policy_bundle_cache",
+        "credential_handles",
+        "support_evidence"
+      ]
+    },
+    "terminal_restore_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "terminal_restore_metadata_written",
+        "terminal_restore_metadata_compared",
+        "terminal_restore_offered_inspect_only",
+        "terminal_restore_blocked",
+        "terminal_restore_fresh_session_minted",
+        "terminal_restore_reset_previewed",
+        "terminal_restore_reset_applied",
+        "terminal_restore_exported"
+      ]
+    },
+    "scrollback_retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scrollback_retention_class",
+        "line_range_state",
+        "scrollback_bound_lines_max",
+        "scrollback_bytes_estimate_max",
+        "transcript_hash_ref",
+        "command_marker_count",
+        "raw_body_present"
+      ],
+      "properties": {
+        "scrollback_retention_class": { "$ref": "#/$defs/scrollback_retention_class" },
+        "line_range_state": { "$ref": "#/$defs/scrollback_line_range_state" },
+        "scrollback_bound_lines_max": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "scrollback_bytes_estimate_max": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "transcript_hash_ref": { "type": ["string", "null"] },
+        "command_marker_count": { "type": "integer", "minimum": 0 },
+        "raw_body_present": { "type": "boolean", "const": false }
+      }
+    },
+    "shell_restore_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pty_owner_class",
+        "shell_family_declared",
+        "shell_signal_summary_class",
+        "cwd_hint_ref",
+        "title_hint_ref",
+        "target_identity_witness_ref",
+        "execution_context_cache_entry_ref"
+      ],
+      "properties": {
+        "pty_owner_class": { "$ref": "#/$defs/pty_owner_class" },
+        "shell_family_declared": { "$ref": "#/$defs/shell_family_declared" },
+        "shell_signal_summary_class": { "$ref": "#/$defs/shell_signal_summary_class" },
+        "cwd_hint_ref": { "type": ["string", "null"] },
+        "title_hint_ref": { "type": ["string", "null"] },
+        "target_identity_witness_ref": { "type": ["string", "null"] },
+        "execution_context_cache_entry_ref": { "type": ["string", "null"] }
+      }
+    },
+    "restore_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_authority_state_class",
+        "auto_rerun_forbidden",
+        "privileged_action_replay_forbidden",
+        "input_admission_forbidden_until_fresh_session",
+        "clipboard_bridge_admission_forbidden_until_fresh_session",
+        "live_authority_restored",
+        "fresh_terminal_session_record_ref",
+        "fresh_command_dispatch_descriptor_ref"
+      ],
+      "properties": {
+        "restore_authority_state_class": { "$ref": "#/$defs/restore_authority_state_class" },
+        "auto_rerun_forbidden": { "type": "boolean", "const": true },
+        "privileged_action_replay_forbidden": { "type": "boolean", "const": true },
+        "input_admission_forbidden_until_fresh_session": { "type": "boolean" },
+        "clipboard_bridge_admission_forbidden_until_fresh_session": { "type": "boolean" },
+        "live_authority_restored": { "type": "boolean", "const": false },
+        "fresh_terminal_session_record_ref": { "type": ["string", "null"] },
+        "fresh_command_dispatch_descriptor_ref": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "restore_authority_state_class": {
+                "enum": [
+                  "restored_inspect_only",
+                  "restored_with_hints_inspect_only",
+                  "restore_blocked_no_authority"
+                ]
+              }
+            },
+            "required": ["restore_authority_state_class"]
+          },
+          "then": {
+            "properties": {
+              "input_admission_forbidden_until_fresh_session": { "const": true },
+              "clipboard_bridge_admission_forbidden_until_fresh_session": { "const": true },
+              "fresh_terminal_session_record_ref": { "type": "null" },
+              "fresh_command_dispatch_descriptor_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "restore_authority_state_class": {
+                "const": "fresh_session_minted_with_explicit_user_initiation"
+              }
+            },
+            "required": ["restore_authority_state_class"]
+          },
+          "then": {
+            "properties": {
+              "fresh_terminal_session_record_ref": { "type": "string", "minLength": 1 },
+              "fresh_command_dispatch_descriptor_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "restore_blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_blocker_class",
+        "evidence_ref",
+        "explanation"
+      ],
+      "properties": {
+        "restore_blocker_class": { "$ref": "#/$defs/restore_blocker_class" },
+        "evidence_ref": { "type": ["string", "null"] },
+        "explanation": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "restore_reset_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_reset_scope_class",
+        "requires_preview",
+        "preserves_terminal_preferences",
+        "preserves_user_history",
+        "preserves_execution_context_cache",
+        "changes_execution_authority",
+        "deletes_user_authored_durable_state",
+        "excluded_state_classes"
+      ],
+      "properties": {
+        "restore_reset_scope_class": { "$ref": "#/$defs/restore_reset_scope_class" },
+        "requires_preview": { "type": "boolean", "const": true },
+        "preserves_terminal_preferences": { "type": "boolean", "const": true },
+        "preserves_user_history": { "type": "boolean", "const": true },
+        "preserves_execution_context_cache": { "type": "boolean" },
+        "changes_execution_authority": { "type": "boolean", "const": false },
+        "deletes_user_authored_durable_state": { "type": "boolean", "const": false },
+        "excluded_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/excluded_state_class" }
+        }
+      }
+    },
+    "export_safe_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "approval_ticket_ref",
+        "raw_pty_bytes_present",
+        "raw_scrollback_body_present",
+        "raw_command_bodies_present",
+        "raw_environment_bodies_present",
+        "raw_secret_values_present",
+        "summary_refs",
+        "note"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "type": ["string", "null"] },
+        "raw_pty_bytes_present": { "type": "boolean", "const": false },
+        "raw_scrollback_body_present": { "type": "boolean", "const": false },
+        "raw_command_bodies_present": { "type": "boolean", "const": false },
+        "raw_environment_bodies_present": { "type": "boolean", "const": false },
+        "raw_secret_values_present": { "type": "boolean", "const": false },
+        "summary_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "redaction_class": { "const": "broadened_capture" }
+            },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "restore_comparison_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_compare_layer",
+        "restore_compare_status",
+        "stored_ref",
+        "observed_ref",
+        "explanation"
+      ],
+      "properties": {
+        "restore_compare_layer": { "$ref": "#/$defs/restore_compare_layer" },
+        "restore_compare_status": { "$ref": "#/$defs/restore_compare_status" },
+        "stored_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_ref": { "$ref": "#/$defs/opaque_id" },
+        "explanation": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "terminal_restore_metadata_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_restore_metadata_schema_version",
+        "restore_metadata_id",
+        "captured_at",
+        "workspace_id",
+        "profile_id",
+        "terminal_session_ref",
+        "storage_scope_class",
+        "retained_until",
+        "restore_level",
+        "restore_decision",
+        "scrollback_retention",
+        "shell_restore_summary",
+        "restore_authority",
+        "restore_blockers",
+        "reset_contract",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "terminal_restore_metadata_record" },
+        "terminal_restore_metadata_schema_version": { "$ref": "#/$defs/terminal_restore_metadata_schema_version" },
+        "restore_metadata_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_id": { "type": ["string", "null"] },
+        "terminal_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "storage_scope_class": { "$ref": "#/$defs/restore_storage_scope_class" },
+        "retained_until": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "restore_level": { "$ref": "#/$defs/terminal_restore_level" },
+        "restore_decision": { "$ref": "#/$defs/terminal_restore_decision" },
+        "scrollback_retention": { "$ref": "#/$defs/scrollback_retention" },
+        "shell_restore_summary": { "$ref": "#/$defs/shell_restore_summary" },
+        "restore_authority": { "$ref": "#/$defs/restore_authority" },
+        "restore_blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_blocker" }
+        },
+        "reset_contract": { "$ref": "#/$defs/restore_reset_contract" },
+        "export_safe_summary": { "$ref": "#/$defs/export_safe_summary" }
+      }
+    },
+    "terminal_restore_comparison_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_restore_metadata_schema_version",
+        "comparison_id",
+        "compared_at",
+        "restore_metadata_ref",
+        "observed_session_or_target_ref",
+        "comparisons",
+        "restore_recommended_action_class",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "terminal_restore_comparison_record" },
+        "terminal_restore_metadata_schema_version": { "$ref": "#/$defs/terminal_restore_metadata_schema_version" },
+        "comparison_id": { "$ref": "#/$defs/opaque_id" },
+        "compared_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "restore_metadata_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_session_or_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "comparisons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/restore_comparison_entry" }
+        },
+        "restore_recommended_action_class": { "$ref": "#/$defs/restore_recommended_action_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "terminal_restore_reset_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_restore_metadata_schema_version",
+        "preview_id",
+        "previewed_at",
+        "restore_reset_scope_class",
+        "selected_restore_metadata_refs",
+        "excluded_state_classes",
+        "will_delete_user_authored_state",
+        "will_change_execution_authority",
+        "execution_context_cache_preserved",
+        "support_evidence_preserved",
+        "verification_plan_refs",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "terminal_restore_reset_preview_record" },
+        "terminal_restore_metadata_schema_version": { "$ref": "#/$defs/terminal_restore_metadata_schema_version" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "previewed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "restore_reset_scope_class": { "$ref": "#/$defs/restore_reset_scope_class" },
+        "selected_restore_metadata_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "excluded_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/excluded_state_class" }
+        },
+        "will_delete_user_authored_state": { "type": "boolean", "const": false },
+        "will_change_execution_authority": { "type": "boolean", "const": false },
+        "execution_context_cache_preserved": { "type": "boolean" },
+        "support_evidence_preserved": { "type": "boolean", "const": true },
+        "verification_plan_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "terminal_restore_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_restore_metadata_schema_version",
+        "audit_event_id",
+        "emitted_at",
+        "restore_metadata_ref",
+        "actor_ref",
+        "restore_recommended_action_class",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "terminal_restore_audit_event_record" },
+        "terminal_restore_metadata_schema_version": { "$ref": "#/$defs/terminal_restore_metadata_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/terminal_restore_audit_event_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "restore_metadata_ref": { "type": ["string", "null"] },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_recommended_action_class": { "$ref": "#/$defs/restore_recommended_action_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}
