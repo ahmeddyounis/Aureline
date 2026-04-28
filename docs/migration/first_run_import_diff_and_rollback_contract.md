@@ -38,6 +38,12 @@ Companion artifacts:
   preserved-prior-artifact rules.
 - [`/docs/migration/source_ecosystem_coverage_matrix.md`](./source_ecosystem_coverage_matrix.md)
   — governed source ecosystem coverage matrix.
+- [`/docs/migration/compatibility_scorecard_contract.md`](./compatibility_scorecard_contract.md),
+  [`/schemas/migration/compatibility_scorecard.schema.json`](../../schemas/migration/compatibility_scorecard.schema.json),
+  and [`/artifacts/migration/top_imported_workflow_rows.yaml`](../../artifacts/migration/top_imported_workflow_rows.yaml)
+  — reusable imported-extension, imported-workflow, and workflow-bundle
+  scorecard rows for blockers, partial paths, community paths, and
+  native alternatives surfaced by preview packets.
 - [`/docs/architecture/preview_runtime_contract.md`](../architecture/preview_runtime_contract.md)
   — preview/apply discipline reused for planned mutation disclosure.
 
@@ -196,7 +202,7 @@ Minimum preview fields:
 | `rows` | Source-labeled preview rows with target refs, outcome state, reason, mapping basis, and fidelity projection |
 | `conflicts` | Target collisions, reserved shortcuts, divergent workspace truth, or policy-locked values |
 | `unsupported_keys` | Source keys or concepts with no Aureline-native target |
-| `incompatible_items` | Extensions, workflows, or source features blocked by compatibility or policy |
+| `incompatible_items` | Extensions, workflows, or source features blocked by compatibility or policy, with scorecard refs when one exists |
 | `native_alternatives` | Suggested Aureline-native command, setting, extension, workflow, or docs refs |
 | `trust_permission_implications` | Trust, extension permission, AI/network egress, entitlement, credential, subprocess, or filesystem-write deltas |
 | `rollback_requirements` | Checkpoint scope, checkpoint ref/posture, retention, and restore-record linkage |
@@ -212,7 +218,10 @@ Rules:
    alternatives are first-class arrays. They may be empty but may not be
    folded into prose.
 3. A row with `bridge_required` or `unsupported` MUST carry docs/help and
-   support/export refs through the preview packet.
+   support/export refs through the preview packet. When the row matches an
+   imported-extension, imported-workflow, or workflow-bundle scorecard, it
+   MUST also carry the scorecard ref so later docs and support surfaces do
+   not reinterpret the blocker.
 4. A row that would widen trust, extension permissions, managed
    entitlement, AI egress, network egress, credential access, subprocess
    authority, or destructive automation defaults MUST be blocked from
@@ -338,4 +347,3 @@ covers:
 | `skip_path_user_declined.yaml` | User-selected skip path that keeps unavailable paths and declined domains visible without producing writes |
 | `rollback_after_apply.yaml` | Apply followed by rollback to the pre-apply checkpoint with post-restore validation refs |
 | `imported_profile_history_linkage.yaml` | Imported-profile history row linking onboarding, support, docs/help, preview, outcome, and rollback refs |
-

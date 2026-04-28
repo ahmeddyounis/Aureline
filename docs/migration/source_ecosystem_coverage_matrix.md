@@ -19,6 +19,11 @@ Companion artifacts:
 - [`/docs/migration/first_run_import_diff_and_rollback_contract.md`](./first_run_import_diff_and_rollback_contract.md)
   defines first-run dry-run planning, preview diff, apply, rollback,
   and imported-profile history packets for those source rows.
+- [`/docs/migration/compatibility_scorecard_contract.md`](./compatibility_scorecard_contract.md),
+  [`/schemas/migration/compatibility_scorecard.schema.json`](../../schemas/migration/compatibility_scorecard.schema.json),
+  and [`/artifacts/migration/top_imported_workflow_rows.yaml`](../../artifacts/migration/top_imported_workflow_rows.yaml)
+  define the imported-extension, imported-workflow, and workflow-bundle
+  scorecard rows that keep blocker and native-alternative claims current.
 
 The rows here are scope definitions, not a claim that every importer is
 already implemented. A release may market a source lane only by citing the
@@ -73,7 +78,7 @@ without inventing parallel wording:
 | Consumer | Required reference |
 |---|---|
 | Onboarding and task-success measurement | `docs/product/onboarding_measurement_plan.md#surface_migration_review` plus scenario refs in `artifacts/product/task_success_corpus_seed.yaml`. |
-| Certified-archetype and compatibility scorecards | `artifacts/compat/reference_workspace_rows.yaml` and `artifacts/compat/qualification_matrix_seed.yaml`. |
+| Certified-archetype and compatibility scorecards | `artifacts/compat/reference_workspace_rows.yaml`, `artifacts/compat/qualification_matrix_seed.yaml`, `docs/migration/compatibility_scorecard_contract.md`, `schemas/migration/compatibility_scorecard.schema.json`, and `artifacts/migration/top_imported_workflow_rows.yaml`. |
 | Migration center and support export | `docs/migration/migration_center_object_model.md`, `docs/migration/first_run_import_diff_and_rollback_contract.md`, `schemas/migration/migration_session.schema.json`, `schemas/migration/importer_outcome.schema.json`, `schemas/migration/import_plan.schema.json`, `schemas/migration/import_diff_preview.schema.json`, and `schemas/migration/import_rollback_checkpoint.schema.json`. |
 | Docs and public-truth propagation | `artifacts/governance/public_truth_parity_matrix.yaml`, `artifacts/governance/claim_manifest_seed.yaml`, and the `migration_notes` publication channel. |
 | Release evidence | `docs/release/compatibility_report_template.md`, `docs/release/certified_archetype_report_template.md`, and `docs/release/release_evidence_packet_template.md`. |

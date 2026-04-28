@@ -1007,6 +1007,18 @@ code.
   and
   [`/schemas/migration/importer_outcome.schema.json`](../schemas/migration/importer_outcome.schema.json);
   both schemas embed worked examples.
+- [`migration/compatibility_scorecard_contract.md`](./migration/compatibility_scorecard_contract.md)
+  — imported-extension, imported-workflow, and workflow-bundle
+  compatibility scorecard contract. Freezes supported, partial,
+  community-path, blocked, deprecated, and replaced status semantics;
+  caveat, owner, docs/help, compatibility-row, claim-manifest, support,
+  evidence, and freshness fields; and downgrade behavior for stale or
+  missing evidence. Boundary schema in
+  [`/schemas/migration/compatibility_scorecard.schema.json`](../schemas/migration/compatibility_scorecard.schema.json);
+  seed rows in
+  [`/artifacts/migration/top_imported_workflow_rows.yaml`](../artifacts/migration/top_imported_workflow_rows.yaml);
+  worked fixtures in
+  [`/fixtures/migration/compatibility_scorecards/`](../fixtures/migration/compatibility_scorecards/).
 - [`runtime/target_discovery_and_install_review_taxonomy.md`](./runtime/target_discovery_and_install_review_taxonomy.md)
   — target-discovery confidence, host-boundary cue, managed-
   workspace lifecycle, notebook-trust ladder, structured round-

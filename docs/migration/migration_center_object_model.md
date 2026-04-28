@@ -42,6 +42,13 @@ Companion artifacts:
   — canonical quality-bar vocabulary for migration lane claims.
 - [`/fixtures/migration/source_profile_examples/`](../../fixtures/migration/source_profile_examples/)
   — source profile examples for the governed source ecosystem rows.
+- [`/docs/migration/compatibility_scorecard_contract.md`](./compatibility_scorecard_contract.md),
+  [`/schemas/migration/compatibility_scorecard.schema.json`](../../schemas/migration/compatibility_scorecard.schema.json),
+  and [`/artifacts/migration/top_imported_workflow_rows.yaml`](../../artifacts/migration/top_imported_workflow_rows.yaml)
+  — imported-extension, imported-workflow, and workflow-bundle
+  compatibility scorecards that migration sessions and importer outcomes
+  cite when a row is native, bridge-backed, partial, community-only,
+  blocked, deprecated, or replaced.
 - [`/schemas/commands/keybinding_resolver.schema.json`](../../schemas/commands/keybinding_resolver.schema.json)
   — keybinding-resolution, import-bridge fidelity, leader-overlay, and
   high-frequency shortcut-diff contract reused by the shortcut digest.
@@ -98,6 +105,9 @@ ephemera.
   and reserves typed slots for parity scores, equivalence-map rows,
   post-import validation refs, recommended-bundle handoff, and
   migration-report/export linkage.
+- Freeze scorecard refs as the compatibility bridge between importer
+  outcomes and public claims for imported extensions, imported workflows,
+  and workflow-bundle handoff rows.
 - Freeze one `migration_shortcut_digest_record` so high-frequency
   shortcut deltas do not disappear inside a general settings diff.
 - Freeze one `migration_restore_record` so restore checkpoints remain

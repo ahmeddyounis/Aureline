@@ -9,6 +9,9 @@ The machine-readable schemas are:
 
 - [`/schemas/ecosystem/extension_lockfile.schema.json`](../../schemas/ecosystem/extension_lockfile.schema.json)
 - [`/schemas/ecosystem/extension_recommendation_set.schema.json`](../../schemas/ecosystem/extension_recommendation_set.schema.json)
+- [`/schemas/migration/compatibility_scorecard.schema.json`](../../schemas/migration/compatibility_scorecard.schema.json)
+  for imported-extension and workflow-bundle scorecard refs consumed by
+  imported recommendation rows.
 
 The extension manifest, effective permission, publisher-continuity, and
 registry / mirror rows remain owned by the existing extension contracts:
@@ -153,6 +156,8 @@ to:
 - equivalence map row when mapping to a native package;
 - bridge profile when compatibility is bridge-backed;
 - workflow or extension compatibility scorecard;
+- scorecard status and caveat from the imported-extension or
+  workflow-bundle compatibility scorecard when one exists;
 - rollback or compare/export packet when manual review is needed.
 
 An imported extension can end in `native`, `compatibility_bridge`,
@@ -215,4 +220,3 @@ Example artifacts live under
 - `native_workspace_lock.json`
 - `imported_bridge_and_blocked_lock.json`
 - `recommendation_set_mixed_lanes.json`
-

@@ -14,6 +14,9 @@ Related control artifacts:
 - artifacts/governance/evidence_rerun_triggers.yaml
 - schemas/governance/evidence_packet_header.schema.json
 - schemas/release/compatibility_row.schema.json
+- docs/migration/compatibility_scorecard_contract.md
+- schemas/migration/compatibility_scorecard.schema.json
+- artifacts/migration/top_imported_workflow_rows.yaml
 - docs/release/certified_archetype_report_template.md
 - docs/release/release_evidence_packet_template.md
 - docs/governance/dogfood_issue_taxonomy.md
