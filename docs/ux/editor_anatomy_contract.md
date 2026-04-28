@@ -21,6 +21,14 @@ Companion artifacts:
   and [`/fixtures/ux/gutter_cases/`](../../fixtures/ux/gutter_cases/)
   publish the gutter-specific machine-readable contract and worked
   cases.
+- [`/docs/ux/editor_viewport_summary_contract.md`](./editor_viewport_summary_contract.md)
+  owns detailed minimap, overview-ruler, fold-summary, search-hit tick,
+  and diagnostic-summary admission, suppression, and fallback rules.
+- [`/schemas/editor/viewport_summary.schema.json`](../../schemas/editor/viewport_summary.schema.json)
+  and
+  [`/fixtures/editor/viewport_summary_cases/`](../../fixtures/editor/viewport_summary_cases/)
+  publish the viewport-summary machine-readable contract and worked
+  cases.
 - [`/docs/ux/editor_inline_assist_contract.md`](./editor_inline_assist_contract.md)
   owns detailed inline decoration, code-lens, inlay-hint, ghost-text,
   inline-value, inline quick-action, precedence, density, and

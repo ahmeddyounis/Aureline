@@ -27,6 +27,10 @@ Normative sources projected here:
   icon-control hit target floors.
 - [`/docs/ux/editor_anatomy_contract.md`](./editor_anatomy_contract.md)
   owns the canonical editor-layer boundary and stable text-column rule.
+- [`/docs/ux/editor_viewport_summary_contract.md`](./editor_viewport_summary_contract.md)
+  owns minimap, overview-ruler, fold-summary, search-hit tick, and
+  diagnostic-summary projections that reuse gutter and decoration
+  meaning without becoming a second marker truth model.
 - [`/docs/ux/decoration_precedence_contract.md`](./decoration_precedence_contract.md)
   owns cross-surface decoration precedence and gutter/inline projection.
 - [`/docs/language/diagnostics_and_code_action_contract.md`](../language/diagnostics_and_code_action_contract.md)

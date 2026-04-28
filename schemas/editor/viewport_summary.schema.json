@@ -1,0 +1,736 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/viewport_summary.schema.json",
+  "title": "Aureline editor viewport summary, minimap, overview-ruler, fold, search, and diagnostic projection contract",
+  "description": "Boundary schema for the editor viewport summary contract frozen in docs/ux/editor_viewport_summary_contract.md. The schema exports viewport_summary_surface_record and viewport_summary_case_record so renderer, editor, accessibility, language, search, review, debug, VCS, support/export, and degraded-mode tooling share one vocabulary for minimap, overview-ruler, fold-summary, search-hit tick, and diagnostic-summary admission, suppression, freshness, fallback language, keyboard parity, and not-summary-only invariants. Raw source text, raw file paths, raw search queries, raw provider payloads, raw debug payloads, raw URLs, credentials, and secret material never cross this boundary; records carry opaque refs, bounded labels, typed marker counts, and redaction-aware summaries only. Adding a new surface class, marker family, suppression reason, downgrade class, fallback language class, or visibility class is additive-minor and requires a viewport_summary_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/viewport_summary_surface_record" },
+    { "$ref": "#/$defs/viewport_summary_case_record" }
+  ],
+  "$defs": {
+    "viewport_summary_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for editor viewport summary payloads. Current value is 1."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "record_kinds_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque stable id safe to log, safe on RPC, safe in manifests, and safe in support bundles. Raw source text, raw file paths, raw provider payloads, raw search queries, raw URLs, credentials, and secret material never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200,
+      "description": "Bounded, redaction-aware display or export text. Raw source text, raw paths, raw search queries, raw provider payloads, raw URLs, and secrets must not appear."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Short redaction-aware label suitable for compact editor chrome."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced by the emitting subsystem."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["viewport_summary_surface_record", "viewport_summary_case_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "summary_surface_class": {
+      "type": "string",
+      "enum": [
+        "minimap",
+        "overview_ruler",
+        "fold_summary",
+        "search_hit_ticks",
+        "diagnostic_summary"
+      ],
+      "description": "Closed editor viewport summary surface taxonomy."
+    },
+    "summary_visibility_class": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "visible_compact",
+        "downgraded",
+        "partial",
+        "stale",
+        "hidden_with_replacement",
+        "suppressed",
+        "unavailable"
+      ],
+      "description": "Expected rendering posture after admission, precedence, width, accessibility, and degraded-mode resolution."
+    },
+    "summary_marker_family_class": {
+      "type": "string",
+      "enum": [
+        "diagnostic_error",
+        "diagnostic_warning",
+        "diagnostic_info",
+        "diagnostic_hint",
+        "search_hit",
+        "review_thread",
+        "merge_conflict",
+        "vcs_change",
+        "breakpoint",
+        "debug_current_frame",
+        "folded_region",
+        "fold_hidden_state",
+        "trust_or_policy_warning",
+        "generated_or_read_only_state",
+        "freshness_or_stale_state",
+        "current_viewport",
+        "ambient_document_shape"
+      ],
+      "description": "Marker family a summary surface may project. These are summaries only; canonical truth stays with the source authority."
+    },
+    "canonical_source_class": {
+      "type": "string",
+      "enum": [
+        "buffer_view",
+        "folding_model",
+        "diagnostic_cluster",
+        "search_session",
+        "review_anchor",
+        "vcs_or_conflict_state",
+        "debug_session",
+        "trust_or_policy_state",
+        "generated_lineage",
+        "freshness_record",
+        "renderer_policy"
+      ],
+      "description": "Canonical source family whose state is being projected."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_exact",
+        "snapshot_exact",
+        "partial",
+        "stale",
+        "approximate_derived",
+        "unavailable",
+        "not_applicable"
+      ],
+      "description": "View-freshness posture for the marker source or surface."
+    },
+    "semantic_layer_state_class": {
+      "type": "string",
+      "enum": [
+        "semantic_current_exact",
+        "semantic_current_remapped",
+        "semantic_narrowed_scope",
+        "semantic_cached_recent",
+        "semantic_stale_epoch_mismatch",
+        "syntactic_or_text_only",
+        "runtime_observed_no_semantic_basis",
+        "imported_snapshot_only",
+        "policy_asserted_non_semantic",
+        "not_applicable"
+      ],
+      "description": "Semantic-layer truth label re-exported for summary decision making."
+    },
+    "completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete_for_declared_scope",
+        "viewport_bounded",
+        "chunked_partial",
+        "scope_partial",
+        "omitted_by_policy",
+        "unknown_relationship",
+        "not_applicable"
+      ],
+      "description": "Scope completeness for the summary surface or marker family."
+    },
+    "suppression_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "large_file_mode",
+        "mixed_zoom_or_scale",
+        "high_zoom",
+        "screen_reader_mode",
+        "assistive_technology_active",
+        "high_contrast_or_forced_colors",
+        "reduced_motion",
+        "power_saver_or_thermal",
+        "low_resource_protect_core",
+        "low_confidence_semantics",
+        "partial_index_or_warming",
+        "stale_authority_epoch",
+        "constrained_width_editor_group",
+        "user_disabled",
+        "policy_or_restricted_mode",
+        "provider_unavailable",
+        "no_source_markers",
+        "renderer_budget_exceeded",
+        "higher_priority_marker_family"
+      ],
+      "description": "Reason a summary surface or marker downgraded, hid, or became unavailable."
+    },
+    "downgrade_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "static_document_shape_only",
+        "static_markers_only",
+        "aggregate_markers_by_family",
+        "diagnostics_only",
+        "viewport_bounded_only",
+        "source_view_only",
+        "detail_only",
+        "status_or_command_route_only",
+        "disabled"
+      ],
+      "description": "How the ideal surface was narrowed when visibility is not fully visible."
+    },
+    "fallback_language_class": {
+      "type": "string",
+      "enum": [
+        "not_needed",
+        "summary_hidden_width",
+        "summary_reduced_large_file",
+        "summary_moved_to_details_accessibility",
+        "summary_stale",
+        "summary_partial",
+        "summary_unavailable",
+        "summary_disabled"
+      ],
+      "description": "Controlled fallback-language class from the contract."
+    },
+    "editor_width_class": {
+      "type": "string",
+      "enum": ["wide", "standard", "compact", "narrow", "high_zoom", "mixed_zoom"],
+      "description": "Editor group width, zoom, or scale posture relevant to summary admission."
+    },
+    "large_file_state_class": {
+      "type": "string",
+      "enum": ["not_large_file", "large_file", "large_file_degraded", "large_file_read_only"],
+      "description": "Current large-file posture for the editor buffer."
+    },
+    "accessibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "keyboard_only",
+        "screen_reader_active",
+        "high_contrast",
+        "forced_colors",
+        "reduced_motion",
+        "reduced_distraction",
+        "mixed_accessibility_posture"
+      ],
+      "description": "Accessibility posture influencing summary admission."
+    },
+    "route_kind_class": {
+      "type": "string",
+      "enum": [
+        "source_view",
+        "line_detail",
+        "problems_panel",
+        "search_panel",
+        "find_widget",
+        "review_detail",
+        "debug_detail",
+        "fold_command",
+        "status_detail",
+        "command_palette",
+        "support_export"
+      ],
+      "description": "Canonical or replacement route that exposes the same critical information."
+    },
+    "non_color_channel": {
+      "type": "string",
+      "enum": ["text", "shape", "glyph", "border", "position", "accessible_name", "focus_ring"],
+      "description": "Non-hue channel required for high-contrast, forced-colors, screenshot, and assistive-technology parity."
+    },
+    "source_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ref",
+        "source_class",
+        "owner_label",
+        "freshness",
+        "semantic_layer_state",
+        "completeness",
+        "canonical_detail_route_ref"
+      ],
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/canonical_source_class" },
+        "owner_label": { "$ref": "#/$defs/short_label_text" },
+        "freshness": { "$ref": "#/$defs/freshness_class" },
+        "semantic_layer_state": { "$ref": "#/$defs/semantic_layer_state_class" },
+        "completeness": { "$ref": "#/$defs/completeness_class" },
+        "canonical_detail_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_safe_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Canonical source authority referenced by one or more summary markers."
+    },
+    "marker_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "marker_family",
+        "count_status",
+        "visible_count",
+        "hidden_count",
+        "omitted_count",
+        "dominant_freshness"
+      ],
+      "properties": {
+        "marker_family": { "$ref": "#/$defs/summary_marker_family_class" },
+        "count_status": {
+          "type": "string",
+          "enum": ["exact", "approximate", "lower_bound", "unknown", "not_applicable"]
+        },
+        "visible_count": { "type": "integer", "minimum": 0 },
+        "hidden_count": { "type": "integer", "minimum": 0 },
+        "omitted_count": { "type": "integer", "minimum": 0 },
+        "dominant_freshness": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/short_label_text" },
+        "source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Counted marker family projection with freshness and omission posture."
+    },
+    "summary_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "marker_id",
+        "marker_family",
+        "source_ref",
+        "freshness",
+        "completeness",
+        "visibility",
+        "canonical_route_refs",
+        "critical_state_not_summary_only",
+        "exact_anchor_available"
+      ],
+      "properties": {
+        "marker_id": { "$ref": "#/$defs/opaque_id" },
+        "marker_family": { "$ref": "#/$defs/summary_marker_family_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "range_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "freshness": { "$ref": "#/$defs/freshness_class" },
+        "semantic_layer_state": { "$ref": "#/$defs/semantic_layer_state_class" },
+        "completeness": { "$ref": "#/$defs/completeness_class" },
+        "visibility": { "$ref": "#/$defs/summary_visibility_class" },
+        "suppression_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_reason_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "canonical_route_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "critical_state_not_summary_only": { "type": "boolean", "const": true },
+        "exact_anchor_available": { "type": "boolean" },
+        "accessible_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "export_safe_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "freshness": { "enum": ["partial", "stale", "approximate_derived", "unavailable"] }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "visibility": {
+                "enum": ["downgraded", "partial", "stale", "hidden_with_replacement", "suppressed", "unavailable"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One projected marker on a summary surface."
+    },
+    "appearance_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_to_appear",
+        "source_authority_gate_passed",
+        "core_route_parity_gate_passed",
+        "layout_budget_gate_passed",
+        "accessibility_gate_passed",
+        "performance_budget_gate_passed",
+        "freshness_confidence_gate_passed",
+        "setting_policy_gate_passed",
+        "decision_summary"
+      ],
+      "properties": {
+        "allowed_to_appear": { "type": "boolean" },
+        "source_authority_gate_passed": { "type": "boolean" },
+        "core_route_parity_gate_passed": { "type": "boolean" },
+        "layout_budget_gate_passed": { "type": "boolean" },
+        "accessibility_gate_passed": { "type": "boolean" },
+        "performance_budget_gate_passed": { "type": "boolean" },
+        "freshness_confidence_gate_passed": { "type": "boolean" },
+        "setting_policy_gate_passed": { "type": "boolean" },
+        "decision_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Admission gate results for one summary surface."
+    },
+    "route_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_ref",
+        "route_kind",
+        "route_label",
+        "keyboard_reachable",
+        "pointer_only_forbidden",
+        "preserves_focus_continuity"
+      ],
+      "properties": {
+        "route_ref": { "$ref": "#/$defs/opaque_id" },
+        "route_kind": { "$ref": "#/$defs/route_kind_class" },
+        "route_label": { "$ref": "#/$defs/short_label_text" },
+        "keyboard_reachable": { "type": "boolean", "const": true },
+        "pointer_only_forbidden": { "type": "boolean", "const": true },
+        "preserves_focus_continuity": { "type": "boolean", "const": true }
+      },
+      "description": "Canonical or replacement route for summary detail."
+    },
+    "fallback_language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fallback_language_class",
+        "visible_label",
+        "accessible_name",
+        "detail_sentence",
+        "safe_next_action_label"
+      ],
+      "properties": {
+        "fallback_language_class": { "$ref": "#/$defs/fallback_language_class" },
+        "visible_label": { "$ref": "#/$defs/short_label_text" },
+        "accessible_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "detail_sentence": { "$ref": "#/$defs/redaction_aware_text" },
+        "safe_next_action_label": { "$ref": "#/$defs/short_label_text" }
+      },
+      "description": "Controlled fallback language rendered or exported when a summary is hidden, stale, partial, unavailable, disabled, or not needed."
+    },
+    "interaction_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pointer_activation_opens_canonical_route",
+        "keyboard_equivalent_available",
+        "hover_not_required_for_discovery",
+        "back_forward_history_preserved",
+        "summary_does_not_run_mutation",
+        "focus_return_route_ref"
+      ],
+      "properties": {
+        "pointer_activation_opens_canonical_route": { "type": "boolean", "const": true },
+        "keyboard_equivalent_available": { "type": "boolean", "const": true },
+        "hover_not_required_for_discovery": { "type": "boolean", "const": true },
+        "back_forward_history_preserved": { "type": "boolean", "const": true },
+        "summary_does_not_run_mutation": { "type": "boolean", "const": true },
+        "focus_return_route_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Interaction invariants for pointer and keyboard use of a summary surface."
+    },
+    "accessibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_classes",
+        "non_color_channels",
+        "screen_reader_summary",
+        "reduced_motion_static",
+        "keyboard_route_refs"
+      ],
+      "properties": {
+        "posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/accessibility_posture_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "non_color_channels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_color_channel" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "screen_reader_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "reduced_motion_static": { "type": "boolean" },
+        "keyboard_route_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "description": "Accessibility and non-color channel obligations for a summary surface."
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_class",
+        "visibility",
+        "freshness",
+        "completeness",
+        "downgrade_class",
+        "suppression_reason_classes",
+        "appearance_decision",
+        "source_authority_refs",
+        "marker_counts",
+        "markers",
+        "canonical_routes",
+        "replacement_route_ref",
+        "fallback_language",
+        "interaction_contract",
+        "accessibility_contract",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/summary_surface_class" },
+        "visibility": { "$ref": "#/$defs/summary_visibility_class" },
+        "freshness": { "$ref": "#/$defs/freshness_class" },
+        "completeness": { "$ref": "#/$defs/completeness_class" },
+        "downgrade_class": { "$ref": "#/$defs/downgrade_class" },
+        "suppression_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_reason_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "appearance_decision": { "$ref": "#/$defs/appearance_decision" },
+        "source_authority_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "marker_counts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker_count" },
+          "minItems": 1
+        },
+        "markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/summary_marker" }
+        },
+        "canonical_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/route_ref" },
+          "minItems": 1
+        },
+        "replacement_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "fallback_language": { "$ref": "#/$defs/fallback_language" },
+        "interaction_contract": { "$ref": "#/$defs/interaction_contract" },
+        "accessibility_contract": { "$ref": "#/$defs/accessibility_contract" },
+        "export_safe_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "visibility": {
+                "enum": ["hidden_with_replacement", "suppressed", "unavailable"]
+              }
+            },
+            "required": ["visibility"]
+          },
+          "then": {
+            "properties": {
+              "downgrade_class": {
+                "enum": ["source_view_only", "detail_only", "status_or_command_route_only", "disabled"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "visibility": { "const": "visible" }
+            },
+            "required": ["visibility"]
+          },
+          "then": {
+            "properties": {
+              "fallback_language": {
+                "properties": {
+                  "fallback_language_class": { "const": "not_needed" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Resolved projection for one summary surface in one editor view."
+    },
+    "case_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "editor_view_ref",
+        "buffer_ref",
+        "workspace_scope_ref",
+        "width_class",
+        "zoom_factor_percent",
+        "large_file_state",
+        "semantic_layer_state",
+        "accessibility_postures",
+        "captured_at"
+      ],
+      "properties": {
+        "editor_view_ref": { "$ref": "#/$defs/opaque_id" },
+        "buffer_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "width_class": { "$ref": "#/$defs/editor_width_class" },
+        "zoom_factor_percent": { "type": "integer", "minimum": 50, "maximum": 500 },
+        "large_file_state": { "$ref": "#/$defs/large_file_state_class" },
+        "semantic_layer_state": { "$ref": "#/$defs/semantic_layer_state_class" },
+        "accessibility_postures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/accessibility_posture_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Editor view conditions for a worked viewport-summary case."
+    },
+    "assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_sources_present_for_every_marker",
+        "critical_state_not_summary_only",
+        "suppression_reasons_explicit",
+        "folded_hidden_state_discoverable",
+        "search_ticks_preserve_scope_truth",
+        "diagnostic_summary_preserves_freshness_truth",
+        "accessibility_routes_preserve_equivalence",
+        "support_export_preserves_decision"
+      ],
+      "properties": {
+        "canonical_sources_present_for_every_marker": { "type": "boolean", "const": true },
+        "critical_state_not_summary_only": { "type": "boolean", "const": true },
+        "suppression_reasons_explicit": { "type": "boolean", "const": true },
+        "folded_hidden_state_discoverable": { "type": "boolean", "const": true },
+        "search_ticks_preserve_scope_truth": { "type": "boolean", "const": true },
+        "diagnostic_summary_preserves_freshness_truth": { "type": "boolean", "const": true },
+        "accessibility_routes_preserve_equivalence": { "type": "boolean", "const": true },
+        "support_export_preserves_decision": { "type": "boolean", "const": true }
+      },
+      "description": "Review assertions all viewport-summary cases must hold."
+    },
+    "viewport_summary_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "viewport_summary_schema_version",
+        "surface_projection"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "viewport_summary_surface_record" },
+        "viewport_summary_schema_version": { "$ref": "#/$defs/viewport_summary_schema_version" },
+        "surface_projection": { "$ref": "#/$defs/surface_projection" }
+      }
+    },
+    "viewport_summary_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "viewport_summary_schema_version",
+        "case_id",
+        "scenario",
+        "case_context",
+        "source_authorities",
+        "surface_projections",
+        "assertions",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "viewport_summary_case_record" },
+        "viewport_summary_schema_version": { "$ref": "#/$defs/viewport_summary_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/redaction_aware_text" },
+        "case_context": { "$ref": "#/$defs/case_context" },
+        "source_authorities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_authority" },
+          "minItems": 1
+        },
+        "surface_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_projection" },
+          "minItems": 1
+        },
+        "assertions": { "$ref": "#/$defs/assertions" },
+        "narrative_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "export_safe_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    }
+  }
+}
