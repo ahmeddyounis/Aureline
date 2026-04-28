@@ -33,6 +33,11 @@ This contract composes with, and does not replace:
 - [`/docs/ux/forms_validation_contract.md`](./forms_validation_contract.md)
   for staged review, validation classes, probe attribution, stale/skipped
   admission, and apply gating.
+- [`/docs/ux/field_row_and_value_source_contract.md`](./field_row_and_value_source_contract.md)
+  and [`/schemas/ux/field_row.schema.json`](../../schemas/ux/field_row.schema.json)
+  for reusable row anatomy, value-source precedence, source-pill
+  rendering, object-reference identity, exact-row links, and search
+  highlighting.
 - [`/docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md`](../adr/0007-secret-broker-credential-handle-trust-store-redaction.md)
   and [`/artifacts/security/secret_class_rows.yaml`](../../artifacts/security/secret_class_rows.yaml)
   for secret classes, storage modes, projection modes, and redaction

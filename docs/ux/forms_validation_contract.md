@@ -25,6 +25,12 @@ Companion artifacts:
   - boundary schema for one form review sheet or equivalent CLI /
   headless review packet. It binds live value, staged value, validation
   rollup, field rows, policy locks, apply actions, and support handoff.
+- [`/docs/ux/field_row_and_value_source_contract.md`](./field_row_and_value_source_contract.md)
+  and [`/schemas/ux/field_row.schema.json`](../../schemas/ux/field_row.schema.json)
+  - reusable row anatomy, source pill, effective-value inspector,
+  object-reference picker, exact-row link, and search-highlight
+  contract. A staged review `field_rows[]` entry is the compact
+  projection of this richer row record.
 - [`/fixtures/ux/form_validation_cases/`](../../fixtures/ux/form_validation_cases/)
   - worked YAML records covering settings, connection setup, package
   actions, policy edits, repair actions, transport forms, and request /
@@ -40,6 +46,9 @@ This contract composes with, and does not replace:
 - [`/docs/settings/settings_vocabulary.md`](../settings/settings_vocabulary.md)
   for effective setting, write-intent, preview, checkpoint, and lock
   vocabulary.
+- [`/docs/ux/field_row_and_value_source_contract.md`](./field_row_and_value_source_contract.md)
+  for row anatomy, value-source precedence, source-pill rendering,
+  object-reference identity, exact-row links, and search highlighting.
 - [`/docs/admin/policy_explainability_contract.md`](../admin/policy_explainability_contract.md)
   for policy source, owner, freshness, validation, and lock
   explanation.
