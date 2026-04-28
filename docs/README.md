@@ -503,6 +503,18 @@ code.
   [`/schemas/language/inline_hint_state.schema.json`](../schemas/language/inline_hint_state.schema.json);
   worked fixtures in
   [`/fixtures/language/completion_hint_cases/`](../fixtures/language/completion_hint_cases/).
+- [`ux/editor_anatomy_contract.md`](./ux/editor_anatomy_contract.md)
+  — editor anatomy, layer-classification, and stable-text-column
+  contract for document header, context layer, gutter, text viewport,
+  inline assist, transient knowledge, and status layer ownership.
+  Freezes content / annotation / action-affordance classification,
+  no-jitter source-column behavior, required placement for compare,
+  restored, generated, read-only, live-preview, degraded, and large-file
+  states, and large-file/degraded layer downgrade disclosure. Boundary
+  schema in
+  [`/schemas/ux/editor_layer.schema.json`](../schemas/ux/editor_layer.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/editor_layer_cases/`](../fixtures/ux/editor_layer_cases/).
 - [`verification/source_fidelity_and_undo_packet.md`](./verification/source_fidelity_and_undo_packet.md)
   — seed verification packet for save/source-fidelity fields,
   whole-file-rewrite disclosure, and undo-honesty copy. Pairs with the
