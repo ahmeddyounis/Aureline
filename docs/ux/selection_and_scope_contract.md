@@ -26,6 +26,13 @@ This contract owns the state a dense collection presents while the user
 is selecting and deciding. The batch-review packet owns the reviewed
 population once the user chooses a consequential action.
 
+Source-editor carets and text ranges are intentionally outside this
+contract. They are owned by
+[`/docs/ux/editor_selection_contract.md`](./editor_selection_contract.md)
+so multi-cursor, column-selection, line-selection, IME composition, and
+replace/refactor scope cannot borrow dense-collection multi-select
+vocabulary.
+
 ## State Model
 
 Dense collection rows must keep five states distinct:

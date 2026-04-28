@@ -515,6 +515,16 @@ code.
   [`/schemas/ux/editor_layer.schema.json`](../schemas/ux/editor_layer.schema.json);
   worked fixtures in
   [`/fixtures/ux/editor_layer_cases/`](../fixtures/ux/editor_layer_cases/).
+- [`ux/editor_selection_contract.md`](./ux/editor_selection_contract.md)
+  — source-editor selection, caret, multi-cursor, column-selection,
+  line-selection, structural/semantic selection, IME composition, and
+  scope-status contract. Freezes editor-specific labels for cursor
+  counts, visible versus all-matching ranges, selection-derived writes,
+  explicit scope widening, undo/preview/snippet/modal persistence, and
+  read-only/generated compare behavior. Boundary schema in
+  [`/schemas/editor/selection_state.schema.json`](../schemas/editor/selection_state.schema.json);
+  worked fixtures in
+  [`/fixtures/editor/selection_cases/`](../fixtures/editor/selection_cases/).
 - [`verification/source_fidelity_and_undo_packet.md`](./verification/source_fidelity_and_undo_packet.md)
   — seed verification packet for save/source-fidelity fields,
   whole-file-rewrite disclosure, and undo-honesty copy. Pairs with the

@@ -41,6 +41,11 @@ This contract composes with and does not replace:
   — diagnostic-cluster and code-action summary truth that originates
   most quick-fix and fix-all transactions and that this contract
   cites by reference rather than re-deriving.
+- [`/docs/ux/editor_selection_contract.md`](../ux/editor_selection_contract.md)
+  — editor-specific primary caret, active selection, visible-match,
+  all-matching, multi-cursor, column-selection, line-selection, IME, and
+  selection-derived write scope language consumed by find/replace,
+  rename, refactor, quick-fix, and apply surfaces.
 - [`/docs/governance/truth_and_degraded_state_vocabulary.md`](../governance/truth_and_degraded_state_vocabulary.md)
   — shared `Limited`, `Stale`, `Blocked`, and related downgrade
   language reused here without forking.

@@ -34,6 +34,11 @@ Normative sources projected here:
 - [`/docs/ux/decoration_precedence_contract.md`](./decoration_precedence_contract.md)
   owns shared decoration precedence for editor gutter and inline
   projection.
+- [`/docs/ux/editor_selection_contract.md`](./editor_selection_contract.md)
+  owns primary caret, active selection, selection anchor, multi-cursor,
+  column-selection, line-selection, IME-composition, and editor
+  scope-status language projected through the text viewport and status
+  layer.
 - [`/docs/language/diagnostics_and_code_action_contract.md`](../language/diagnostics_and_code_action_contract.md)
   and
   [`/docs/language/completion_and_inline_hint_contract.md`](../language/completion_and_inline_hint_contract.md)
