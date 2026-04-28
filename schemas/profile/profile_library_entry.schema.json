@@ -1,0 +1,535 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/profile/profile_library_entry.schema.json",
+  "title": "Aureline profile library entry",
+  "description": "Boundary schema for one profile_library_entry row frozen in docs/profile/profile_sync_and_conflict_contract.md. The row is the profile-library, import/export, optional-sync, and support-export summary for a portable profile. It declares all profile scope classes, revision lineage, sync posture, machine-binding addendum refs, conflict journal refs, non-widening guarantees, rollback expectations, and the complete no-service export/import fallback. The portable profile body remains governed by schemas/profile/portable_profile.schema.json; this schema records the library row and policy envelope around that body. Raw secrets, live credentials, approval tickets, workspace trust grants, admin policy payloads, raw machine paths, raw hostnames, and raw source content never appear here.",
+  "$ref": "#/$defs/profile_library_entry",
+  "$defs": {
+    "profile_library_entry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this profile-library row vocabulary. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["profile_library_entry"],
+      "description": "Discriminator for this schema."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Opaque ref safe for logs, support export, manifests, and review sheets. Raw paths, URLs, hostnames, credentials, and source text are not valid refs."
+    },
+
+    "nullable_opaque_ref": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable prose safe for docs, previews, support exports, and fixtures. It must not contain raw secrets, raw URLs, raw paths, raw command lines, raw logs, or raw source content."
+    },
+
+    "opaque_ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local timestamp or logical clock token. Opaque at this boundary."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction-class vocabulary reused by profile and settings schemas."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "profile_defaults",
+        "user_global_preferences",
+        "machine_specific_state",
+        "workspace_settings",
+        "administrative_defaults_or_policy",
+        "ephemeral_session_state"
+      ],
+      "description": "Closed profile scope class set. Every profile_library_entry MUST include one row for each class."
+    },
+
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "profile_artifact_authority",
+        "imported_profile_authority",
+        "user_global_authority",
+        "machine_authority",
+        "workspace_authority",
+        "admin_policy_authority",
+        "session_authority"
+      ],
+      "description": "Who owns the class and may author durable truth for it."
+    },
+
+    "export_posture": {
+      "type": "string",
+      "enum": [
+        "portable_profile_body",
+        "portable_profile_body_redacted",
+        "machine_binding_addendum_only",
+        "workspace_export_only",
+        "signed_policy_bundle_only",
+        "support_metadata_only",
+        "not_exported"
+      ],
+      "description": "Where this class may appear during export. The posture names the carrier, not an implementation path."
+    },
+
+    "sync_posture": {
+      "type": "string",
+      "enum": [
+        "sync_eligible_opt_in",
+        "sync_disabled_by_default",
+        "never_synced",
+        "separate_workspace_export_only",
+        "signed_policy_distribution_only",
+        "session_only",
+        "managed_sync_excluded"
+      ],
+      "description": "Whether the class may participate in optional sync. never_synced and managed_sync_excluded are terminal for ordinary sync payloads."
+    },
+
+    "conflict_rule_class": {
+      "type": "string",
+      "enum": [
+        "schema_aware_merge_preview",
+        "user_global_wins_over_imported_default",
+        "local_machine_authoritative",
+        "workspace_may_narrow_not_widen",
+        "policy_replace_signed_bundle_only",
+        "discard_or_promote_explicitly",
+        "block_and_review"
+      ],
+      "description": "Conflict and safety rule the profile library row exposes for the class."
+    },
+
+    "excluded_data_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_material",
+        "live_credential",
+        "delegated_credential",
+        "approval_ticket",
+        "workspace_trust_grant",
+        "admin_policy_payload",
+        "machine_unique_binding",
+        "raw_machine_path",
+        "raw_hostname_or_url",
+        "raw_source_content",
+        "ephemeral_operation_token",
+        "none"
+      ],
+      "description": "Classes that MUST NOT ride the scope carrier. Use none only when the row has no special exclusions beyond the global contract."
+    },
+
+    "widening_vector": {
+      "type": "string",
+      "enum": [
+        "workspace_trust",
+        "extension_permission",
+        "managed_entitlement",
+        "ai_egress",
+        "network_egress",
+        "credential_exposure",
+        "admin_control",
+        "approval_ticket",
+        "none"
+      ],
+      "description": "Authority vector import or sync may not silently widen."
+    },
+
+    "storage_claim_class": {
+      "type": "string",
+      "enum": [
+        "no_managed_sync_claimed",
+        "local_file_export_import_only",
+        "managed_sync_e2ee_required_before_claim",
+        "customer_managed_storage_required_before_claim",
+        "self_hosted_storage_required_before_claim"
+      ],
+      "description": "Storage claim posture. Managed, customer-managed, and self-hosted claims are future promises until the row can prove the listed guarantees."
+    },
+
+    "portable_profile_mode": {
+      "type": "string",
+      "enum": [
+        "file_portable_plain",
+        "file_portable_encrypted",
+        "managed_sync_opt_in",
+        "customer_managed_key_sync",
+        "self_hosted_sync",
+        "support_recovery_only"
+      ],
+      "description": "Profile mode vocabulary reused from schemas/profile/portable_profile.schema.json."
+    },
+
+    "revision_tracking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_revision_ref",
+        "parent_revision_ref",
+        "content_digest_ref",
+        "profile_schema_version",
+        "source_device_ref",
+        "emitted_at"
+      ],
+      "properties": {
+        "current_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_revision_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "content_digest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "profile_schema_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Schema epoch of the portable profile body this row points at."
+        },
+        "source_device_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref",
+          "description": "Opaque source-device ref when available. It is lineage, not a hostname or serial number."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Revision lineage for the library row and portable profile body."
+    },
+
+    "scope_class_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "authority",
+        "export_posture",
+        "sync_posture",
+        "conflict_rule",
+        "redaction_class",
+        "excluded_data_classes",
+        "preview_required",
+        "rollback_required",
+        "safety_notes"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "authority": { "$ref": "#/$defs/authority_class" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "sync_posture": { "$ref": "#/$defs/sync_posture" },
+        "conflict_rule": { "$ref": "#/$defs/conflict_rule_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "excluded_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/excluded_data_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "preview_required": {
+          "type": "boolean",
+          "description": "Whether apply, import, sync, or export toggles for this class require a visible preview."
+        },
+        "rollback_required": {
+          "type": "boolean",
+          "description": "Whether a durable apply involving this class requires a rollback checkpoint."
+        },
+        "machine_binding_addendum_required": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when this class may leave the portable body only through an explicit local-only addendum."
+        },
+        "safety_notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "scope_class_entries": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/scope_class_entry" },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["scope_class"],
+            "properties": { "scope_class": { "const": "profile_defaults" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["scope_class"],
+            "properties": { "scope_class": { "const": "user_global_preferences" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["scope_class"],
+            "properties": { "scope_class": { "const": "machine_specific_state" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["scope_class"],
+            "properties": { "scope_class": { "const": "workspace_settings" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["scope_class"],
+            "properties": { "scope_class": { "const": "administrative_defaults_or_policy" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["scope_class"],
+            "properties": { "scope_class": { "const": "ephemeral_session_state" } }
+          }
+        }
+      ],
+      "description": "Complete scope-class matrix. Every entry must include all six scope classes."
+    },
+
+    "library_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "portable_profile_ref",
+        "export_manifest_ref",
+        "sync_metadata_ref",
+        "conflict_journal_ref",
+        "machine_binding_addendum_refs",
+        "rollback_checkpoint_refs",
+        "preserved_prior_artifact_refs"
+      ],
+      "properties": {
+        "portable_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "export_manifest_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "sync_metadata_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "conflict_journal_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "machine_binding_addendum_refs": { "$ref": "#/$defs/opaque_ref_array" },
+        "rollback_checkpoint_refs": { "$ref": "#/$defs/opaque_ref_array" },
+        "preserved_prior_artifact_refs": { "$ref": "#/$defs/opaque_ref_array" }
+      },
+      "description": "Opaque refs to companion artifacts. Values are refs only, never raw artifact bodies."
+    },
+
+    "managed_sync_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sync_enabled",
+        "storage_claim",
+        "selected_scope_classes",
+        "excluded_scope_classes",
+        "local_authoritative_on_failure",
+        "guarantees",
+        "exclusions"
+      ],
+      "properties": {
+        "sync_enabled": {
+          "type": "boolean",
+          "description": "Whether this profile entry is currently participating in optional sync."
+        },
+        "storage_claim": { "$ref": "#/$defs/storage_claim_class" },
+        "selected_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_class" },
+          "uniqueItems": true
+        },
+        "excluded_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "local_authoritative_on_failure": {
+          "type": "boolean",
+          "description": "Must be true. Transport, policy, encryption, or capability failures keep local durable state authoritative."
+        },
+        "customer_managed_storage_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "guarantees": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "minItems": 1
+        },
+        "exclusions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/excluded_data_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      }
+    },
+
+    "non_widening_guarantees": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "denied_widening_vectors",
+        "scope_broadening_refusal_required",
+        "audit_record_required",
+        "approval_ticket_minting_forbidden",
+        "blocked_resolution_paths"
+      ],
+      "properties": {
+        "denied_widening_vectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/widening_vector" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "scope_broadening_refusal_required": {
+          "type": "boolean",
+          "description": "Must be true. Any would-widen verdict creates a refusal or conflict record."
+        },
+        "audit_record_required": {
+          "type": "boolean",
+          "description": "Whether a refusal or protected apply creates an audit/support record."
+        },
+        "approval_ticket_minting_forbidden": {
+          "type": "boolean",
+          "description": "Must be true. Profile import and sync may cite approval refs but may not mint authority."
+        },
+        "blocked_resolution_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "silently_apply_widening",
+              "last_writer_wins_document",
+              "merge_admin_policy_as_user_preference",
+              "copy_machine_binding_into_profile_body",
+              "sync_ephemeral_session_state"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      }
+    },
+
+    "merge_preview_and_rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_overwrite_preview_required",
+        "scope_toggle_preview_required",
+        "field_aware_merge_required",
+        "rollback_checkpoint_required",
+        "preview_required_for_scope_classes",
+        "rollback_checkpoint_ref"
+      ],
+      "properties": {
+        "profile_overwrite_preview_required": { "type": "boolean" },
+        "scope_toggle_preview_required": { "type": "boolean" },
+        "field_aware_merge_required": { "type": "boolean" },
+        "rollback_checkpoint_required": { "type": "boolean" },
+        "preview_required_for_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "oss_portability_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available_without_service",
+        "manual_transport_supported",
+        "export_formats",
+        "import_preserves_unknown_fields",
+        "no_account_required",
+        "fallback_notes"
+      ],
+      "properties": {
+        "available_without_service": { "type": "boolean" },
+        "manual_transport_supported": { "type": "boolean" },
+        "export_formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["json", "manifest_bundle", "tar_gz_archive"]
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "import_preserves_unknown_fields": { "type": "boolean" },
+        "no_account_required": { "type": "boolean" },
+        "fallback_notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "No-service portability floor for the open-source baseline."
+    },
+
+    "profile_library_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "entry_id",
+        "profile_id",
+        "profile_label",
+        "profile_mode",
+        "revision",
+        "scope_class_entries",
+        "library_artifacts",
+        "managed_sync",
+        "non_widening_guarantees",
+        "merge_preview_and_rollback",
+        "oss_portability_fallback"
+      ],
+      "properties": {
+        "record_kind": { "const": "profile_library_entry" },
+        "schema_version": { "$ref": "#/$defs/profile_library_entry_schema_version" },
+        "entry_id": { "$ref": "#/$defs/opaque_ref" },
+        "profile_id": { "$ref": "#/$defs/opaque_ref" },
+        "profile_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Display label after active redaction policy. It must not contain raw path or host identity."
+        },
+        "profile_mode": { "$ref": "#/$defs/portable_profile_mode" },
+        "revision": { "$ref": "#/$defs/revision_tracking" },
+        "scope_class_entries": { "$ref": "#/$defs/scope_class_entries" },
+        "library_artifacts": { "$ref": "#/$defs/library_artifacts" },
+        "managed_sync": { "$ref": "#/$defs/managed_sync_posture" },
+        "non_widening_guarantees": { "$ref": "#/$defs/non_widening_guarantees" },
+        "merge_preview_and_rollback": { "$ref": "#/$defs/merge_preview_and_rollback" },
+        "oss_portability_fallback": { "$ref": "#/$defs/oss_portability_fallback" }
+      }
+    }
+  }
+}

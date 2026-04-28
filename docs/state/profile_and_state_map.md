@@ -20,9 +20,15 @@ The machine-readable schema lives at:
 
 - [`/schemas/profile/portable_profile.schema.json`](../../schemas/profile/portable_profile.schema.json)
 
+The profile-library and conflict contract that layers over this
+portable artifact lives at:
+
+- [`/docs/profile/profile_sync_and_conflict_contract.md`](../profile/profile_sync_and_conflict_contract.md)
+
 The companion fixtures live under:
 
 - [`/fixtures/profile/restore_provenance_examples/`](../../fixtures/profile/restore_provenance_examples/)
+- [`/fixtures/profile/scope_class_cases/`](../../fixtures/profile/scope_class_cases/)
 
 The companion workspace-layout contract lives at:
 

@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/profile/sync_conflict_record.schema.json",
+  "title": "Aureline profile sync conflict record",
+  "description": "Boundary schema for one profile_sync_conflict_record frozen in docs/profile/profile_sync_and_conflict_contract.md. The record is the profile-level conflict journal row for portable profile import, manual export/import continuity, optional managed sync, profile overwrite, scope toggle, machine-binding addendum review, and support recovery. Settings-specific field packets remain governed by schemas/settings/sync_conflict_packet.schema.json; this schema records the profile scope class, profile revision lineage, non-widening verdict, preview refs, rollback refs, and support-export posture. Raw secrets, live credentials, approval tickets, workspace trust grants, admin policy payloads, raw machine paths, raw hostnames, and raw source content never appear here.",
+  "$ref": "#/$defs/profile_sync_conflict_record",
+  "$defs": {
+    "profile_sync_conflict_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this profile sync conflict vocabulary. Bumped only on breaking payload changes."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Opaque ref safe for logs, support export, manifests, and review sheets. Raw paths, URLs, hostnames, credentials, and source text are not valid refs."
+    },
+
+    "nullable_opaque_ref": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable prose safe for docs, previews, support exports, and fixtures. It must not contain raw secrets, raw URLs, raw paths, raw command lines, raw logs, or raw source content."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local timestamp or logical clock token. Opaque at this boundary."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction-class vocabulary reused by profile and settings schemas."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "profile_defaults",
+        "user_global_preferences",
+        "machine_specific_state",
+        "workspace_settings",
+        "administrative_defaults_or_policy",
+        "ephemeral_session_state"
+      ],
+      "description": "Closed profile scope class set."
+    },
+
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "same_key_divergent",
+        "delete_vs_modify",
+        "stale_remote",
+        "missing_capability",
+        "machine_binding_attempted",
+        "workspace_widening_refused",
+        "policy_locked",
+        "admin_policy_injection_refused",
+        "encrypted_payload_unavailable",
+        "schema_version_mismatch",
+        "local_only_scope_attempted",
+        "import_non_widening_refusal"
+      ],
+      "description": "Typed profile-level conflict class. Whole-document last-writer-wins is not a valid class."
+    },
+
+    "conflict_state": {
+      "type": "string",
+      "enum": [
+        "pending_preview",
+        "previewed",
+        "resolved_keep_local",
+        "resolved_keep_incoming",
+        "resolved_merged",
+        "declined",
+        "expired",
+        "withdrawn"
+      ],
+      "description": "Lifecycle state for the conflict journal row."
+    },
+
+    "candidate_source_class": {
+      "type": "string",
+      "enum": [
+        "local_profile_library",
+        "manual_export_import",
+        "managed_sync",
+        "customer_managed_sync",
+        "self_hosted_sync",
+        "support_recovery",
+        "workspace_import",
+        "admin_policy_bundle"
+      ],
+      "description": "Where the candidate came from. Admin policy can appear as a blocked incoming source but cannot be merged as a user preference."
+    },
+
+    "value_preview_kind": {
+      "type": "string",
+      "enum": [
+        "literal_safe_value",
+        "redacted_shape_preserved",
+        "class_label_only",
+        "excluded_from_export",
+        "absent"
+      ],
+      "description": "Preview shape after redaction. Raw secret or raw path values are never carried."
+    },
+
+    "widening_vector": {
+      "type": "string",
+      "enum": [
+        "workspace_trust",
+        "extension_permission",
+        "managed_entitlement",
+        "ai_egress",
+        "network_egress",
+        "credential_exposure",
+        "admin_control",
+        "approval_ticket",
+        "none"
+      ],
+      "description": "Authority vector import or sync may not silently widen."
+    },
+
+    "resolution_path": {
+      "type": "string",
+      "enum": [
+        "keep_local",
+        "keep_incoming_after_preview",
+        "merge_preview",
+        "create_machine_binding_addendum",
+        "rollback_to_checkpoint",
+        "decline",
+        "request_admin_policy_update"
+      ],
+      "description": "Resolution options a review surface may offer. Widening refusals normally offer keep_local, decline, and a separate owning-subsystem request path only."
+    },
+
+    "selected_resolution_path": {
+      "anyOf": [
+        { "$ref": "#/$defs/resolution_path" },
+        { "type": "null" }
+      ]
+    },
+
+    "diff_kind": {
+      "type": "string",
+      "enum": [
+        "added",
+        "removed",
+        "replaced",
+        "reordered",
+        "redacted",
+        "blocked"
+      ]
+    },
+
+    "resolution_limit": {
+      "type": "string",
+      "enum": [
+        "allow_keep_local_only",
+        "allow_incoming_after_preview",
+        "merge_allowed_after_preview",
+        "policy_locked_blocked",
+        "machine_addendum_required",
+        "admin_bundle_required"
+      ],
+      "description": "Ceiling imposed by policy, non-widening, or machine-local posture."
+    },
+
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "source_class",
+        "source_ref",
+        "source_device_ref",
+        "scope_class",
+        "revision_ref",
+        "redaction_class",
+        "value_preview_kind",
+        "value_class_label",
+        "emitted_at"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_class": { "$ref": "#/$defs/candidate_source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_device_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "value_preview_kind": { "$ref": "#/$defs/value_preview_kind" },
+        "value_class_label": {
+          "type": ["string", "null"],
+          "maxLength": 256,
+          "description": "Class label or redacted summary. Null when value_preview_kind is absent."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "field_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_path",
+        "diff_kind",
+        "local_value_preview_kind",
+        "incoming_value_preview_kind"
+      ],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Dotted or JSON-pointer-like field path. Top-level scalar conflicts use '$'."
+        },
+        "diff_kind": { "$ref": "#/$defs/diff_kind" },
+        "local_value_preview_kind": { "$ref": "#/$defs/value_preview_kind" },
+        "incoming_value_preview_kind": { "$ref": "#/$defs/value_preview_kind" },
+        "redacted_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "non_widening_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "would_widen",
+        "blocked_vectors",
+        "resolution_limit",
+        "audit_record_required",
+        "verdict_notes"
+      ],
+      "properties": {
+        "would_widen": {
+          "type": "boolean",
+          "description": "True when adopting the incoming candidate would widen a denied vector."
+        },
+        "blocked_vectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/widening_vector" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "resolution_limit": { "$ref": "#/$defs/resolution_limit" },
+        "audit_record_required": { "type": "boolean" },
+        "verdict_notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "preview_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_preview_ref",
+        "merge_preview_ref",
+        "rollback_checkpoint_ref",
+        "approval_ticket_ref",
+        "mutation_journal_ref"
+      ],
+      "properties": {
+        "change_preview_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "merge_preview_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref",
+          "description": "Existing approval ref if an owning subsystem required one. This profile conflict record never mints approval authority."
+        },
+        "mutation_journal_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "last_common_revision_ref",
+        "local_revision_ref",
+        "incoming_revision_ref",
+        "conflict_journal_ref",
+        "sync_session_ref"
+      ],
+      "properties": {
+        "last_common_revision_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "local_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "incoming_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "conflict_journal_ref": { "$ref": "#/$defs/opaque_ref" },
+        "sync_session_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "support_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "include_value_bodies",
+        "metadata_fields"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "include_value_bodies": {
+          "type": "boolean",
+          "description": "Must be false unless a future governed support contract explicitly admits redacted bodies for this record."
+        },
+        "metadata_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "conflict_id",
+              "profile_id",
+              "scope_class",
+              "conflict_class",
+              "conflict_state",
+              "selected_resolution_path",
+              "lineage_refs",
+              "non_widening_verdict",
+              "preview_refs"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        }
+      }
+    },
+
+    "profile_sync_conflict_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "conflict_id",
+        "profile_id",
+        "library_entry_ref",
+        "scope_class",
+        "conflict_class",
+        "conflict_state",
+        "local_candidate",
+        "incoming_candidate",
+        "field_diffs",
+        "non_widening_verdict",
+        "offered_resolution_paths",
+        "selected_resolution_path",
+        "preview_refs",
+        "lineage",
+        "support_export",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "profile_sync_conflict_record" },
+        "schema_version": { "$ref": "#/$defs/profile_sync_conflict_schema_version" },
+        "conflict_id": { "$ref": "#/$defs/opaque_ref" },
+        "profile_id": { "$ref": "#/$defs/opaque_ref" },
+        "library_entry_ref": { "$ref": "#/$defs/opaque_ref" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "conflict_class": { "$ref": "#/$defs/conflict_class" },
+        "conflict_state": { "$ref": "#/$defs/conflict_state" },
+        "local_candidate": { "$ref": "#/$defs/candidate" },
+        "incoming_candidate": { "$ref": "#/$defs/candidate" },
+        "field_diffs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field_diff" },
+          "minItems": 1
+        },
+        "non_widening_verdict": { "$ref": "#/$defs/non_widening_verdict" },
+        "offered_resolution_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resolution_path" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "selected_resolution_path": { "$ref": "#/$defs/selected_resolution_path" },
+        "preview_refs": { "$ref": "#/$defs/preview_refs" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "support_export": { "$ref": "#/$defs/support_export_posture" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

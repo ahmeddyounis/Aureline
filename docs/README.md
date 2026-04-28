@@ -867,6 +867,21 @@ code.
   state-map row for the execution-context cache, and one restore-
   provenance fixture per fidelity label) in
   [`/fixtures/profile/restore_provenance_examples/`](../fixtures/profile/restore_provenance_examples/).
+- [`profile/profile_sync_and_conflict_contract.md`](./profile/profile_sync_and_conflict_contract.md)
+  — profile-library, optional-sync metadata, machine-binding addendum,
+  and conflict-resolution contract. Freezes the six profile scope
+  classes (profile defaults, user-global preferences, machine-specific
+  state, workspace settings, administrative defaults / policy, and
+  ephemeral session state), the profile-library entry row, profile
+  conflict-journal row, non-widening import / sync rules, merge-preview
+  and rollback expectations, no-service portability fallback, and the
+  minimum posture required before encrypted or customer-managed sync
+  storage can be claimed. Boundary schemas in
+  [`/schemas/profile/profile_library_entry.schema.json`](../schemas/profile/profile_library_entry.schema.json)
+  and
+  [`/schemas/profile/sync_conflict_record.schema.json`](../schemas/profile/sync_conflict_record.schema.json);
+  worked fixtures in
+  [`/fixtures/profile/scope_class_cases/`](../fixtures/profile/scope_class_cases/).
 - [`ux/persistence_inspector_contract.md`](./ux/persistence_inspector_contract.md)
   — concrete remembered-state inspector, portable-state export sheet,
   and restore-provenance card contract for persistence review. Freezes
