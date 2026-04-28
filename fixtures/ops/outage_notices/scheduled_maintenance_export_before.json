@@ -1,0 +1,180 @@
+{
+  "__fixture__": {
+    "name": "scheduled_maintenance_export_before",
+    "scenario": "Future planned maintenance for hosted review publish and merge queue. Local editing, save, search, Git, diagnostics, and export remain available before the window; users with pending review drafts are required to export before maintenance starts.",
+    "contract_sections": [
+      "Notice Kind And State",
+      "Blocked Writes And Deferral",
+      "Rendering Invariants"
+    ]
+  },
+  "schema_version": 1,
+  "record_kind": "outage_notice_record",
+  "notice_id": "notice.scheduled_maintenance_export_before",
+  "notice_kind_class": "planned_maintenance",
+  "notice_state_class": "scheduled",
+  "title": "Hosted review maintenance scheduled",
+  "summary": "Hosted review publish and merge queue writes will pause during the scheduled window; local editing and local Git remain available.",
+  "created_at": "2026-04-28T16:00:00Z",
+  "updated_at": "2026-04-28T16:00:00Z",
+  "schedule": {
+    "time_basis_class": "scheduled_exact",
+    "observed_or_announced_at": "2026-04-28T16:00:00Z",
+    "starts_at": "2026-05-04T08:00:00Z",
+    "expected_or_actual_ends_at": "2026-05-04T08:30:00Z",
+    "resolved_at": null,
+    "timezone_id": "America/Los_Angeles",
+    "utc_offset_at_start": "-07:00",
+    "export_deadline_at": "2026-05-04T07:45:00Z"
+  },
+  "affected_scope": {
+    "deployment_profiles": [
+      "enterprise_online",
+      "managed_cloud"
+    ],
+    "tenant_refs": [
+      "tenant.ref.enterprise.review"
+    ],
+    "org_refs": [
+      "org.ref.platform"
+    ],
+    "workspace_refs": [],
+    "region_refs": [
+      "region.ref.us-west"
+    ],
+    "residency_scope_classes": [
+      "customer_region_pinned"
+    ],
+    "service_classes": [
+      "provider_review_service",
+      "merge_queue_service"
+    ],
+    "endpoint_refs": [
+      "endpoint.ref.review.publish"
+    ],
+    "scope_summary": "Hosted review publish and merge queue writes for the pinned enterprise review scope."
+  },
+  "plane_effects": {
+    "control_plane": [
+      {
+        "service_class": "provider_review_service",
+        "effect_state": "scheduled_impact",
+        "recovery_trigger_class": "window_ends",
+        "note": "Review publish admission pauses during the scheduled maintenance window."
+      },
+      {
+        "service_class": "merge_queue_service",
+        "effect_state": "scheduled_impact",
+        "recovery_trigger_class": "window_ends",
+        "note": "Merge queue enqueue pauses during the scheduled maintenance window."
+      }
+    ],
+    "data_plane": [
+      {
+        "capability_class": "local_editing",
+        "effect_state": "available_local_safe",
+        "recovery_trigger_class": "not_applicable",
+        "note": "Local buffers and local save are unaffected."
+      },
+      {
+        "capability_class": "hosted_review_publish",
+        "effect_state": "reduced_read_only",
+        "recovery_trigger_class": "window_ends",
+        "note": "Hosted review drafts can be prepared locally but not published during the window."
+      }
+    ]
+  },
+  "local_continuity": {
+    "local_core_status_class": "meaningful_safe_subset_available",
+    "continue_local_guidance_required": true,
+    "retained_local_safe_capabilities": [
+      "continue local edits, save files, search, run local Git, and export review packets before the window"
+    ],
+    "blocked_managed_only_capabilities": [
+      "publish hosted review comments during the window",
+      "enqueue merge queue entries during the window"
+    ],
+    "continuity_summary": "The scheduled service window does not block local-first work."
+  },
+  "blocked_write_classes": [
+    {
+      "write_class": "managed_review_comment_publish",
+      "block_state_class": "scheduled_to_block",
+      "deferral_path_class": "export_before_maintenance",
+      "local_capture_class": "capture_allowed_export_only",
+      "resume_trigger_class": "window_ends",
+      "affected_queue_ref": "queue.ref.review.publish",
+      "note": "Export pending review drafts before the freeze deadline if they must survive the window."
+    },
+    {
+      "write_class": "merge_queue_enqueue",
+      "block_state_class": "scheduled_to_block",
+      "deferral_path_class": "publish_later",
+      "local_capture_class": "capture_allowed_local_queue",
+      "resume_trigger_class": "window_ends",
+      "affected_queue_ref": "queue.ref.merge.enqueue",
+      "note": "Queue intent can be captured locally and retried after the maintenance window."
+    }
+  ],
+  "guidance_actions": [
+    {
+      "action_class": "continue_local",
+      "requirement_class": "available",
+      "trigger_class": "safe_local_subset_available",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Continue local editing, local Git, search, diagnostics, and export."
+    },
+    {
+      "action_class": "export_before_maintenance",
+      "requirement_class": "required",
+      "trigger_class": "maintenance_window_pending",
+      "target_write_classes": [
+        "managed_review_comment_publish"
+      ],
+      "due_before_at": "2026-05-04T07:45:00Z",
+      "message": "Export pending review drafts before the maintenance freeze if they cannot wait."
+    },
+    {
+      "action_class": "publish_later",
+      "requirement_class": "recommended",
+      "trigger_class": "control_plane_write_blocked",
+      "target_write_classes": [
+        "merge_queue_enqueue"
+      ],
+      "due_before_at": null,
+      "message": "Capture merge queue intent locally and publish after the window."
+    }
+  ],
+  "boundary_change_summary": {
+    "boundary_change_required": false,
+    "boundary_effective_at": null,
+    "review_status_class": "not_required",
+    "boundary_axes": [],
+    "summary": "No tenant, region, residency, key ownership, or endpoint identity change is planned for this maintenance."
+  },
+  "notice_lifecycle": {
+    "notice_freshness_class": "active_current",
+    "supersedes_notice_id": null,
+    "superseded_by_notice_id": null,
+    "retained_until_at": "2026-06-04T08:30:00Z",
+    "retention_reason_class": "active_window",
+    "history_notice_refs": []
+  },
+  "display_copy": {
+    "primary_status_line": "Hosted review maintenance starts May 4, 2026 at 01:00 America/Los_Angeles.",
+    "local_continuity_line": "Local edits, save, search, Git, diagnostics, and export remain available.",
+    "blocked_writes_line": "Review publish and merge queue writes pause during the window.",
+    "boundary_change_line": "No boundary change is planned.",
+    "stale_label": null,
+    "all_work_broken_implied": false,
+    "generic_all_clear_used": false
+  },
+  "evidence_refs": [
+    "evidence.notice.scheduled.review_maintenance"
+  ],
+  "narrative_refs": [
+    "docs/ux/control_data_plane_status_contract.md",
+    "docs/deployment/locality_and_continuity_seed.md"
+  ]
+}

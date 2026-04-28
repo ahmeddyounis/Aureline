@@ -1,0 +1,236 @@
+{
+  "__fixture__": {
+    "name": "regional_failover_review_boundary",
+    "scenario": "Unplanned regional failover restored the control plane through a new endpoint and key-owner route. Local work continues; managed reconnect and replay require review-new-boundary.",
+    "contract_sections": [
+      "Failover state",
+      "Boundary Changes",
+      "Rendering Invariants"
+    ]
+  },
+  "schema_version": 1,
+  "record_kind": "outage_notice_record",
+  "notice_id": "notice.regional_failover_review_boundary",
+  "notice_kind_class": "unplanned_degradation",
+  "notice_state_class": "failover",
+  "title": "Regional failover requires boundary review",
+  "summary": "The managed control plane failed over to a new region and endpoint identity; local work continues while managed reconnects wait for review.",
+  "created_at": "2026-04-28T18:10:00Z",
+  "updated_at": "2026-04-28T18:40:00Z",
+  "schedule": {
+    "time_basis_class": "detected_exact",
+    "observed_or_announced_at": "2026-04-28T18:10:00Z",
+    "starts_at": "2026-04-28T18:10:00Z",
+    "expected_or_actual_ends_at": "2026-04-28T19:10:00Z",
+    "resolved_at": null,
+    "timezone_id": "UTC",
+    "utc_offset_at_start": "Z",
+    "export_deadline_at": null
+  },
+  "affected_scope": {
+    "deployment_profiles": [
+      "managed_cloud",
+      "enterprise_online"
+    ],
+    "tenant_refs": [
+      "tenant.ref.managed.failover"
+    ],
+    "org_refs": [
+      "org.ref.managed.failover"
+    ],
+    "workspace_refs": [
+      "workspace.ref.runtime.failover"
+    ],
+    "region_refs": [
+      "region.ref.us-west",
+      "region.ref.us-east"
+    ],
+    "residency_scope_classes": [
+      "tenant_residency_recheck_required"
+    ],
+    "service_classes": [
+      "workspace_control_plane_service",
+      "auth_identity_service",
+      "policy_service"
+    ],
+    "endpoint_refs": [
+      "endpoint.ref.control.prior",
+      "endpoint.ref.control.failover"
+    ],
+    "scope_summary": "Managed workspace control plane, identity refresh, and policy refresh on the failed-over route."
+  },
+  "plane_effects": {
+    "control_plane": [
+      {
+        "service_class": "workspace_control_plane_service",
+        "effect_state": "failover_in_progress",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Workspace control moved to a failover endpoint and requires boundary review."
+      },
+      {
+        "service_class": "policy_service",
+        "effect_state": "boundary_recheck_required",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Policy refresh waits for the new route boundary to be reviewed."
+      }
+    ],
+    "data_plane": [
+      {
+        "capability_class": "local_editing",
+        "effect_state": "available_local_safe",
+        "recovery_trigger_class": "not_applicable",
+        "note": "Local editing, save, search, export, and Git remain available."
+      },
+      {
+        "capability_class": "remote_attach",
+        "effect_state": "blocked_pending_boundary_recheck",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Managed remote attach waits for the failed-over endpoint review."
+      }
+    ]
+  },
+  "local_continuity": {
+    "local_core_status_class": "meaningful_safe_subset_available",
+    "continue_local_guidance_required": true,
+    "retained_local_safe_capabilities": [
+      "continue local edits, saves, search, Git, diagnostics, and export while managed attach waits"
+    ],
+    "blocked_managed_only_capabilities": [
+      "managed remote attach",
+      "policy refresh under the failed-over route",
+      "replay prior approval-backed managed writes"
+    ],
+    "continuity_summary": "Failover narrows managed routes but does not block local-first work."
+  },
+  "blocked_write_classes": [
+    {
+      "write_class": "managed_workspace_lifecycle_write",
+      "block_state_class": "blocked_pending_boundary_recheck",
+      "deferral_path_class": "reconnect_later",
+      "local_capture_class": "capture_blocked_boundary_unknown",
+      "resume_trigger_class": "boundary_review_completed",
+      "affected_queue_ref": "queue.ref.workspace.failover.reconnect",
+      "note": "Managed lifecycle writes wait for the failed-over route review."
+    },
+    {
+      "write_class": "policy_admin_write",
+      "block_state_class": "blocked_pending_boundary_recheck",
+      "deferral_path_class": "blocked_no_safe_retry",
+      "local_capture_class": "capture_blocked_boundary_unknown",
+      "resume_trigger_class": "boundary_review_completed",
+      "affected_queue_ref": null,
+      "note": "Policy admin writes cannot replay across the failed-over boundary."
+    }
+  ],
+  "guidance_actions": [
+    {
+      "action_class": "continue_local",
+      "requirement_class": "available",
+      "trigger_class": "safe_local_subset_available",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Continue local work and export diagnostics if needed."
+    },
+    {
+      "action_class": "review_new_boundary",
+      "requirement_class": "required",
+      "trigger_class": "boundary_change_detected",
+      "target_write_classes": [
+        "managed_workspace_lifecycle_write",
+        "policy_admin_write"
+      ],
+      "due_before_at": null,
+      "message": "Review the failed-over region, key ownership, and endpoint identity before reconnect."
+    },
+    {
+      "action_class": "reconnect_later",
+      "requirement_class": "required",
+      "trigger_class": "data_plane_reconnect_needed",
+      "target_write_classes": [
+        "managed_workspace_lifecycle_write"
+      ],
+      "due_before_at": null,
+      "message": "Reconnect managed workspace routes after boundary review completes."
+    },
+    {
+      "action_class": "export_diagnostics",
+      "requirement_class": "recommended",
+      "trigger_class": "user_export_requested",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Export diagnostics with the failed-over route metadata if support review is needed."
+    }
+  ],
+  "boundary_change_summary": {
+    "boundary_change_required": true,
+    "boundary_effective_at": "2026-04-28T18:35:00Z",
+    "review_status_class": "required_pending",
+    "boundary_axes": [
+      {
+        "axis_class": "tenant",
+        "axis_state_class": "unchanged",
+        "previous_ref": "tenant.ref.managed.failover",
+        "current_ref": "tenant.ref.managed.failover",
+        "required_follow_up_action": "open_boundary_details",
+        "summary": "Tenant boundary remains unchanged."
+      },
+      {
+        "axis_class": "region",
+        "axis_state_class": "changed",
+        "previous_ref": "region.ref.us-west",
+        "current_ref": "region.ref.us-east",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Managed control-plane region changed under failover."
+      },
+      {
+        "axis_class": "residency",
+        "axis_state_class": "unknown_recheck_required",
+        "previous_ref": "residency.ref.us-west",
+        "current_ref": "residency.ref.us-east",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Residency posture requires recheck after failover."
+      },
+      {
+        "axis_class": "key_ownership",
+        "axis_state_class": "changed",
+        "previous_ref": "key.ref.customer.managed.prior",
+        "current_ref": "key.ref.customer.managed.failover",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Key ownership route changed and must be reviewed."
+      },
+      {
+        "axis_class": "endpoint_identity",
+        "axis_state_class": "changed",
+        "previous_ref": "endpoint.ref.control.prior",
+        "current_ref": "endpoint.ref.control.failover",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Endpoint identity changed under failover."
+      }
+    ],
+    "summary": "Region, key ownership route, and endpoint identity changed; residency requires recheck."
+  },
+  "notice_lifecycle": {
+    "notice_freshness_class": "active_current",
+    "supersedes_notice_id": null,
+    "superseded_by_notice_id": null,
+    "retained_until_at": "2027-04-28T19:10:00Z",
+    "retention_reason_class": "boundary_change_history",
+    "history_notice_refs": []
+  },
+  "display_copy": {
+    "primary_status_line": "Managed control plane is failed over since Apr 28, 2026 18:10 UTC.",
+    "local_continuity_line": "Local edits, save, search, Git, diagnostics, and export remain available.",
+    "blocked_writes_line": "Managed workspace lifecycle and policy writes wait for boundary review.",
+    "boundary_change_line": "Region, key ownership route, and endpoint identity changed under failover.",
+    "stale_label": null,
+    "all_work_broken_implied": false,
+    "generic_all_clear_used": false
+  },
+  "evidence_refs": [
+    "boundary_recheck_packet.regional_failover"
+  ],
+  "narrative_refs": [
+    "docs/ux/control_data_plane_status_contract.md",
+    "docs/deployment/locality_and_continuity_seed.md"
+  ]
+}

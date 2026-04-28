@@ -1,0 +1,220 @@
+{
+  "__fixture__": {
+    "name": "resolved_boundary_change_retained",
+    "scenario": "Resolved tenant migration notice retained as historical evidence because tenant, region, residency, and endpoint boundary changed. The notice is stale-labelled and still requires boundary review for users who have not accepted the new boundary.",
+    "contract_sections": [
+      "Resolved state",
+      "Boundary Changes",
+      "Stale notice retention"
+    ]
+  },
+  "schema_version": 1,
+  "record_kind": "outage_notice_record",
+  "notice_id": "notice.resolved_boundary_change_retained",
+  "notice_kind_class": "tenant_migration",
+  "notice_state_class": "resolved",
+  "title": "Tenant migration resolved with boundary change retained",
+  "summary": "The migration window is resolved, but the historical notice remains retained because tenant, region, residency, and endpoint identity changed.",
+  "created_at": "2026-05-12T07:40:00Z",
+  "updated_at": "2026-05-12T07:45:00Z",
+  "schedule": {
+    "time_basis_class": "resolved_exact",
+    "observed_or_announced_at": "2026-05-12T05:30:00Z",
+    "starts_at": "2026-05-12T06:00:00Z",
+    "expected_or_actual_ends_at": "2026-05-12T07:30:00Z",
+    "resolved_at": "2026-05-12T07:30:00Z",
+    "timezone_id": "UTC",
+    "utc_offset_at_start": "Z",
+    "export_deadline_at": "2026-05-12T05:55:00Z"
+  },
+  "affected_scope": {
+    "deployment_profiles": [
+      "enterprise_online"
+    ],
+    "tenant_refs": [
+      "tenant.ref.prior",
+      "tenant.ref.next"
+    ],
+    "org_refs": [
+      "org.ref.enterprise"
+    ],
+    "workspace_refs": [],
+    "region_refs": [
+      "region.ref.eu-west",
+      "region.ref.eu-central"
+    ],
+    "residency_scope_classes": [
+      "residency_changed_review_required"
+    ],
+    "service_classes": [
+      "auth_identity_service",
+      "policy_service",
+      "workspace_control_plane_service",
+      "sync_service"
+    ],
+    "endpoint_refs": [
+      "endpoint.ref.workspace.control.prior",
+      "endpoint.ref.workspace.control.next"
+    ],
+    "scope_summary": "Resolved tenant migration affecting identity, policy, workspace control, and sync services."
+  },
+  "plane_effects": {
+    "control_plane": [
+      {
+        "service_class": "auth_identity_service",
+        "effect_state": "resolved",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Identity service is available under the new tenant boundary."
+      },
+      {
+        "service_class": "workspace_control_plane_service",
+        "effect_state": "boundary_recheck_required",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Users who have not reviewed the new boundary must do so before reconnect."
+      }
+    ],
+    "data_plane": [
+      {
+        "capability_class": "local_editing",
+        "effect_state": "available_local_safe",
+        "recovery_trigger_class": "not_applicable",
+        "note": "Local-first work remains available after the migration."
+      },
+      {
+        "capability_class": "managed_runtime",
+        "effect_state": "blocked_pending_boundary_recheck",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Managed runtime reconnect requires review of the new tenant, region, residency, and endpoint identity."
+      }
+    ]
+  },
+  "local_continuity": {
+    "local_core_status_class": "meaningful_safe_subset_available",
+    "continue_local_guidance_required": true,
+    "retained_local_safe_capabilities": [
+      "continue local edits, saves, search, Git, diagnostics, and export after the resolved migration"
+    ],
+    "blocked_managed_only_capabilities": [
+      "reconnect managed workspaces without reviewing the new boundary",
+      "replay prior approval-backed managed actions under the old boundary"
+    ],
+    "continuity_summary": "The window is resolved, but local work stays distinct from managed reconnect and replay."
+  },
+  "blocked_write_classes": [
+    {
+      "write_class": "managed_workspace_lifecycle_write",
+      "block_state_class": "blocked_pending_boundary_recheck",
+      "deferral_path_class": "reconnect_later",
+      "local_capture_class": "capture_blocked_boundary_unknown",
+      "resume_trigger_class": "boundary_review_completed",
+      "affected_queue_ref": "queue.ref.workspace.lifecycle.boundary_review",
+      "note": "Reconnect waits for review of the new tenant and endpoint boundary."
+    },
+    {
+      "write_class": "policy_admin_write",
+      "block_state_class": "blocked_pending_boundary_recheck",
+      "deferral_path_class": "blocked_no_safe_retry",
+      "local_capture_class": "capture_blocked_boundary_unknown",
+      "resume_trigger_class": "boundary_review_completed",
+      "affected_queue_ref": null,
+      "note": "Policy admin writes cannot replay under the old boundary."
+    }
+  ],
+  "guidance_actions": [
+    {
+      "action_class": "continue_local",
+      "requirement_class": "available",
+      "trigger_class": "safe_local_subset_available",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Continue local work while the historical boundary review remains pending."
+    },
+    {
+      "action_class": "review_new_boundary",
+      "requirement_class": "required",
+      "trigger_class": "boundary_change_detected",
+      "target_write_classes": [
+        "managed_workspace_lifecycle_write",
+        "policy_admin_write"
+      ],
+      "due_before_at": null,
+      "message": "Review the new tenant, region, residency, and endpoint identity before reconnect or replay."
+    },
+    {
+      "action_class": "reconnect_later",
+      "requirement_class": "required",
+      "trigger_class": "data_plane_reconnect_needed",
+      "target_write_classes": [
+        "managed_workspace_lifecycle_write"
+      ],
+      "due_before_at": null,
+      "message": "Reconnect managed workspaces after accepting the new boundary."
+    }
+  ],
+  "boundary_change_summary": {
+    "boundary_change_required": true,
+    "boundary_effective_at": "2026-05-12T06:00:00Z",
+    "review_status_class": "stale_notice_requires_review",
+    "boundary_axes": [
+      {
+        "axis_class": "tenant",
+        "axis_state_class": "changed",
+        "previous_ref": "tenant.ref.prior",
+        "current_ref": "tenant.ref.next",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Tenant authority changed during migration."
+      },
+      {
+        "axis_class": "region",
+        "axis_state_class": "changed",
+        "previous_ref": "region.ref.eu-west",
+        "current_ref": "region.ref.eu-central",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Control-plane region changed during migration."
+      },
+      {
+        "axis_class": "residency",
+        "axis_state_class": "changed",
+        "previous_ref": "residency.ref.eu-west",
+        "current_ref": "residency.ref.eu-central",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Residency posture changed during migration."
+      },
+      {
+        "axis_class": "endpoint_identity",
+        "axis_state_class": "changed",
+        "previous_ref": "endpoint.ref.workspace.control.prior",
+        "current_ref": "endpoint.ref.workspace.control.next",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Endpoint identity changed during migration."
+      }
+    ],
+    "summary": "Resolved notice is retained because tenant, region, residency, and endpoint identity changed."
+  },
+  "notice_lifecycle": {
+    "notice_freshness_class": "historical_retained",
+    "supersedes_notice_id": "notice.tenant_migration_boundary_change",
+    "superseded_by_notice_id": null,
+    "retained_until_at": "2027-05-12T07:30:00Z",
+    "retention_reason_class": "boundary_change_history",
+    "history_notice_refs": [
+      "notice.tenant_migration_boundary_change"
+    ]
+  },
+  "display_copy": {
+    "primary_status_line": "Tenant migration resolved May 12, 2026 07:30 UTC.",
+    "local_continuity_line": "Local editing, save, search, Git, diagnostics, and export remain available.",
+    "blocked_writes_line": "Managed reconnect and policy writes still require boundary review for stale sessions.",
+    "boundary_change_line": "Tenant, region, residency, and endpoint identity changed.",
+    "stale_label": "Historical notice retained for boundary-change review; do not treat as a generic all-clear.",
+    "all_work_broken_implied": false,
+    "generic_all_clear_used": false
+  },
+  "evidence_refs": [
+    "boundary_recheck_packet.tenant_migration.resolved"
+  ],
+  "narrative_refs": [
+    "docs/ux/control_data_plane_status_contract.md",
+    "docs/deployment/locality_and_continuity_seed.md"
+  ]
+}

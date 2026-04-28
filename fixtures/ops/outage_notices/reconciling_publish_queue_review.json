@@ -1,0 +1,175 @@
+{
+  "__fixture__": {
+    "name": "reconciling_publish_queue_review",
+    "scenario": "After a read-only outage, publish-later queues are reconciling before replay. The notice keeps local work available and requires review of queued drafts before publish.",
+    "contract_sections": [
+      "Reconciling state",
+      "Blocked Writes And Deferral",
+      "Plane Separation Rules"
+    ]
+  },
+  "schema_version": 1,
+  "record_kind": "outage_notice_record",
+  "notice_id": "notice.reconciling_publish_queue_review",
+  "notice_kind_class": "unplanned_degradation",
+  "notice_state_class": "reconciling",
+  "title": "Review drafts are reconciling",
+  "summary": "Queued review drafts are being compared with the restored service before publish-later replay.",
+  "created_at": "2026-04-28T19:05:00Z",
+  "updated_at": "2026-04-28T19:12:00Z",
+  "schedule": {
+    "time_basis_class": "updated_exact",
+    "observed_or_announced_at": "2026-04-28T19:05:00Z",
+    "starts_at": "2026-04-28T19:05:00Z",
+    "expected_or_actual_ends_at": "2026-04-28T19:25:00Z",
+    "resolved_at": null,
+    "timezone_id": "UTC",
+    "utc_offset_at_start": "Z",
+    "export_deadline_at": null
+  },
+  "affected_scope": {
+    "deployment_profiles": [
+      "managed_cloud"
+    ],
+    "tenant_refs": [
+      "tenant.ref.managed.review"
+    ],
+    "org_refs": [
+      "org.ref.managed.review"
+    ],
+    "workspace_refs": [
+      "workspace.ref.payments"
+    ],
+    "region_refs": [
+      "region.ref.us-west"
+    ],
+    "residency_scope_classes": [
+      "customer_region_pinned"
+    ],
+    "service_classes": [
+      "provider_review_service"
+    ],
+    "endpoint_refs": [
+      "endpoint.ref.review.publish"
+    ],
+    "scope_summary": "Publish-later review drafts captured during the hosted review read-only event."
+  },
+  "plane_effects": {
+    "control_plane": [
+      {
+        "service_class": "provider_review_service",
+        "effect_state": "reconciling",
+        "recovery_trigger_class": "operator_marks_reconciled",
+        "note": "The provider route is available, but queued drafts are reconciling before publish."
+      }
+    ],
+    "data_plane": [
+      {
+        "capability_class": "hosted_review_publish",
+        "effect_state": "reduced_read_only",
+        "recovery_trigger_class": "operator_marks_reconciled",
+        "note": "Publish-later replay is held until queued drafts are reviewed."
+      },
+      {
+        "capability_class": "local_editing",
+        "effect_state": "available_local_safe",
+        "recovery_trigger_class": "not_applicable",
+        "note": "Local work remains available while publish queues reconcile."
+      }
+    ]
+  },
+  "local_continuity": {
+    "local_core_status_class": "meaningful_safe_subset_available",
+    "continue_local_guidance_required": true,
+    "retained_local_safe_capabilities": [
+      "continue local edits, save, search, Git, diagnostics, and export while queued drafts reconcile"
+    ],
+    "blocked_managed_only_capabilities": [
+      "automatic replay of review comments",
+      "automatic replay of approvals"
+    ],
+    "continuity_summary": "Reconciliation holds managed replay but preserves local-first work."
+  },
+  "blocked_write_classes": [
+    {
+      "write_class": "managed_review_comment_publish",
+      "block_state_class": "blocked_read_only",
+      "deferral_path_class": "publish_later",
+      "local_capture_class": "capture_allowed_local_queue",
+      "resume_trigger_class": "operator_marks_reconciled",
+      "affected_queue_ref": "queue.ref.review.comment.reconcile",
+      "note": "Queued comments require review before publish."
+    },
+    {
+      "write_class": "managed_review_approval",
+      "block_state_class": "blocked_read_only",
+      "deferral_path_class": "publish_later",
+      "local_capture_class": "capture_allowed_local_queue",
+      "resume_trigger_class": "operator_marks_reconciled",
+      "affected_queue_ref": "queue.ref.review.approval.reconcile",
+      "note": "Queued approvals require review before publish."
+    }
+  ],
+  "guidance_actions": [
+    {
+      "action_class": "continue_local",
+      "requirement_class": "available",
+      "trigger_class": "safe_local_subset_available",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Continue local work while publish-later queues reconcile."
+    },
+    {
+      "action_class": "publish_later",
+      "requirement_class": "required",
+      "trigger_class": "reconciliation_pending",
+      "target_write_classes": [
+        "managed_review_comment_publish",
+        "managed_review_approval"
+      ],
+      "due_before_at": null,
+      "message": "Review queued drafts before publishing after service recovery."
+    },
+    {
+      "action_class": "export_diagnostics",
+      "requirement_class": "available",
+      "trigger_class": "user_export_requested",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Export the queue reconciliation summary if needed."
+    }
+  ],
+  "boundary_change_summary": {
+    "boundary_change_required": false,
+    "boundary_effective_at": null,
+    "review_status_class": "not_required",
+    "boundary_axes": [],
+    "summary": "No tenant, region, residency, key ownership, or endpoint identity change occurred before reconciliation."
+  },
+  "notice_lifecycle": {
+    "notice_freshness_class": "active_current",
+    "supersedes_notice_id": "notice.read_only_publish_later",
+    "superseded_by_notice_id": null,
+    "retained_until_at": "2026-05-28T19:25:00Z",
+    "retention_reason_class": "audit_history",
+    "history_notice_refs": [
+      "notice.read_only_publish_later"
+    ]
+  },
+  "display_copy": {
+    "primary_status_line": "Review drafts are reconciling before publish-later replay.",
+    "local_continuity_line": "Local editing, save, search, Git, diagnostics, and export remain available.",
+    "blocked_writes_line": "Automatic review publish replay waits for user review.",
+    "boundary_change_line": "No boundary change occurred.",
+    "stale_label": null,
+    "all_work_broken_implied": false,
+    "generic_all_clear_used": false
+  },
+  "evidence_refs": [
+    "queue.ref.review.reconcile.summary"
+  ],
+  "narrative_refs": [
+    "docs/ux/control_data_plane_status_contract.md",
+    "docs/ops/incident_workspace_contract.md"
+  ]
+}

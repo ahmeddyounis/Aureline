@@ -1,0 +1,174 @@
+{
+  "__fixture__": {
+    "name": "drain_reconnect_later",
+    "scenario": "Planned relay drain before maintenance. Existing collaboration sessions can finish, new joins are blocked, and reconnect-later is required after the drain completes.",
+    "contract_sections": [
+      "Drain state",
+      "Blocked Writes And Deferral",
+      "Local Continuity Rules"
+    ]
+  },
+  "schema_version": 1,
+  "record_kind": "outage_notice_record",
+  "notice_id": "notice.drain_reconnect_later",
+  "notice_kind_class": "planned_maintenance",
+  "notice_state_class": "drain",
+  "title": "Collaboration relay drain in progress",
+  "summary": "Existing collaboration sessions may finish, but new joins and remote control session starts are blocked until reconnect after maintenance.",
+  "created_at": "2026-05-04T07:45:00Z",
+  "updated_at": "2026-05-04T07:50:00Z",
+  "schedule": {
+    "time_basis_class": "scheduled_exact",
+    "observed_or_announced_at": "2026-05-04T07:45:00Z",
+    "starts_at": "2026-05-04T07:50:00Z",
+    "expected_or_actual_ends_at": "2026-05-04T08:30:00Z",
+    "resolved_at": null,
+    "timezone_id": "America/Los_Angeles",
+    "utc_offset_at_start": "-07:00",
+    "export_deadline_at": "2026-05-04T08:00:00Z"
+  },
+  "affected_scope": {
+    "deployment_profiles": [
+      "enterprise_online",
+      "managed_cloud"
+    ],
+    "tenant_refs": [
+      "tenant.ref.collab"
+    ],
+    "org_refs": [
+      "org.ref.collab"
+    ],
+    "workspace_refs": [],
+    "region_refs": [
+      "region.ref.us-west"
+    ],
+    "residency_scope_classes": [
+      "customer_region_pinned"
+    ],
+    "service_classes": [
+      "relay_service"
+    ],
+    "endpoint_refs": [
+      "endpoint.ref.relay.join"
+    ],
+    "scope_summary": "Collaboration relay joins and remote-control session starts on the affected managed relay route."
+  },
+  "plane_effects": {
+    "control_plane": [
+      {
+        "service_class": "relay_service",
+        "effect_state": "drain",
+        "recovery_trigger_class": "manual_reconnect_required",
+        "note": "The relay is draining active sessions and refusing new joins."
+      }
+    ],
+    "data_plane": [
+      {
+        "capability_class": "collaboration_session",
+        "effect_state": "blocked_pending_reconnect",
+        "recovery_trigger_class": "manual_reconnect_required",
+        "note": "Existing sessions can finish; new joins must reconnect after the window."
+      },
+      {
+        "capability_class": "local_git",
+        "effect_state": "available_local_safe",
+        "recovery_trigger_class": "not_applicable",
+        "note": "Local Git remains available outside the relay."
+      }
+    ]
+  },
+  "local_continuity": {
+    "local_core_status_class": "meaningful_safe_subset_available",
+    "continue_local_guidance_required": true,
+    "retained_local_safe_capabilities": [
+      "continue local editing, save, search, Git, diagnostics, and export while the relay drains"
+    ],
+    "blocked_managed_only_capabilities": [
+      "start new collaboration sessions",
+      "join remote control sessions through the draining relay"
+    ],
+    "continuity_summary": "The relay drain blocks new managed joins but does not block local-first work."
+  },
+  "blocked_write_classes": [
+    {
+      "write_class": "collaboration_presence_write",
+      "block_state_class": "blocked_drain_new_actions",
+      "deferral_path_class": "reconnect_later",
+      "local_capture_class": "capture_not_applicable",
+      "resume_trigger_class": "manual_reconnect_required",
+      "affected_queue_ref": null,
+      "note": "New presence joins wait until the user reconnects after maintenance."
+    },
+    {
+      "write_class": "remote_control_session_join",
+      "block_state_class": "blocked_drain_new_actions",
+      "deferral_path_class": "reconnect_later",
+      "local_capture_class": "capture_not_applicable",
+      "resume_trigger_class": "manual_reconnect_required",
+      "affected_queue_ref": null,
+      "note": "New remote-control joins are blocked during drain."
+    }
+  ],
+  "guidance_actions": [
+    {
+      "action_class": "continue_local",
+      "requirement_class": "available",
+      "trigger_class": "safe_local_subset_available",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Continue local work while managed collaboration drains."
+    },
+    {
+      "action_class": "reconnect_later",
+      "requirement_class": "required",
+      "trigger_class": "data_plane_reconnect_needed",
+      "target_write_classes": [
+        "collaboration_presence_write",
+        "remote_control_session_join"
+      ],
+      "due_before_at": null,
+      "message": "Reconnect collaboration after the drain window instead of retrying joins now."
+    },
+    {
+      "action_class": "export_before_maintenance",
+      "requirement_class": "recommended",
+      "trigger_class": "maintenance_window_pending",
+      "target_write_classes": [
+        "collaboration_presence_write"
+      ],
+      "due_before_at": "2026-05-04T08:00:00Z",
+      "message": "Export shared session notes before the maintenance cutover if they are needed offline."
+    }
+  ],
+  "boundary_change_summary": {
+    "boundary_change_required": false,
+    "boundary_effective_at": null,
+    "review_status_class": "not_required",
+    "boundary_axes": [],
+    "summary": "Relay drain does not change tenant, region, residency, key ownership, or endpoint identity."
+  },
+  "notice_lifecycle": {
+    "notice_freshness_class": "active_current",
+    "supersedes_notice_id": null,
+    "superseded_by_notice_id": null,
+    "retained_until_at": "2026-06-04T08:30:00Z",
+    "retention_reason_class": "active_window",
+    "history_notice_refs": []
+  },
+  "display_copy": {
+    "primary_status_line": "Collaboration relay drain is active until May 4, 2026 01:30 America/Los_Angeles.",
+    "local_continuity_line": "Local editing, save, search, Git, diagnostics, and export remain available.",
+    "blocked_writes_line": "New collaboration joins and remote-control joins wait for reconnect later.",
+    "boundary_change_line": "No boundary change is planned.",
+    "stale_label": null,
+    "all_work_broken_implied": false,
+    "generic_all_clear_used": false
+  },
+  "evidence_refs": [
+    "drill.ref.relay_drain"
+  ],
+  "narrative_refs": [
+    "docs/ux/control_data_plane_status_contract.md",
+    "docs/deployment/locality_and_continuity_seed.md"
+  ]
+}

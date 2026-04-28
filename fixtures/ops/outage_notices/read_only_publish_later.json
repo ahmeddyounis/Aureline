@@ -1,0 +1,177 @@
+{
+  "__fixture__": {
+    "name": "read_only_publish_later",
+    "scenario": "Active unplanned read-only posture for hosted review. Read paths remain available, local drafts can be captured, and publish-later is required for blocked writes.",
+    "contract_sections": [
+      "Read-only state",
+      "Blocked Writes And Deferral",
+      "Plane Separation Rules"
+    ]
+  },
+  "schema_version": 1,
+  "record_kind": "outage_notice_record",
+  "notice_id": "notice.read_only_publish_later",
+  "notice_kind_class": "unplanned_degradation",
+  "notice_state_class": "read_only",
+  "title": "Hosted review is read-only",
+  "summary": "Review data can be inspected from cached and live read paths, but comments, approvals, and merge queue writes are blocked until service recovery.",
+  "created_at": "2026-04-28T17:20:00Z",
+  "updated_at": "2026-04-28T17:32:00Z",
+  "schedule": {
+    "time_basis_class": "detected_exact",
+    "observed_or_announced_at": "2026-04-28T17:20:00Z",
+    "starts_at": "2026-04-28T17:20:00Z",
+    "expected_or_actual_ends_at": null,
+    "resolved_at": null,
+    "timezone_id": "UTC",
+    "utc_offset_at_start": "Z",
+    "export_deadline_at": null
+  },
+  "affected_scope": {
+    "deployment_profiles": [
+      "managed_cloud"
+    ],
+    "tenant_refs": [
+      "tenant.ref.managed.review"
+    ],
+    "org_refs": [
+      "org.ref.managed.review"
+    ],
+    "workspace_refs": [
+      "workspace.ref.payments"
+    ],
+    "region_refs": [
+      "region.ref.us-west"
+    ],
+    "residency_scope_classes": [
+      "customer_region_pinned"
+    ],
+    "service_classes": [
+      "provider_review_service",
+      "merge_queue_service"
+    ],
+    "endpoint_refs": [
+      "endpoint.ref.review.read"
+    ],
+    "scope_summary": "Hosted review and merge queue writes for managed-cloud workspaces in the affected review scope."
+  },
+  "plane_effects": {
+    "control_plane": [
+      {
+        "service_class": "provider_review_service",
+        "effect_state": "read_only",
+        "recovery_trigger_class": "service_returns_healthy",
+        "note": "Review metadata can be read, but write admission is disabled."
+      }
+    ],
+    "data_plane": [
+      {
+        "capability_class": "local_editing",
+        "effect_state": "available_local_safe",
+        "recovery_trigger_class": "not_applicable",
+        "note": "Local editing and save are unaffected by hosted review read-only mode."
+      },
+      {
+        "capability_class": "hosted_review_publish",
+        "effect_state": "reduced_read_only",
+        "recovery_trigger_class": "service_returns_healthy",
+        "note": "Drafts can be captured locally and published after recovery."
+      }
+    ]
+  },
+  "local_continuity": {
+    "local_core_status_class": "meaningful_safe_subset_available",
+    "continue_local_guidance_required": true,
+    "retained_local_safe_capabilities": [
+      "continue editing, saving, searching, using local Git, and capturing review drafts locally"
+    ],
+    "blocked_managed_only_capabilities": [
+      "publish new review comments",
+      "submit approvals",
+      "enqueue merge queue entries"
+    ],
+    "continuity_summary": "Hosted review writes are blocked, but local-first development work remains available."
+  },
+  "blocked_write_classes": [
+    {
+      "write_class": "managed_review_comment_publish",
+      "block_state_class": "blocked_read_only",
+      "deferral_path_class": "publish_later",
+      "local_capture_class": "capture_allowed_local_queue",
+      "resume_trigger_class": "service_returns_healthy",
+      "affected_queue_ref": "queue.ref.review.comment.publish_later",
+      "note": "Comment drafts are captured locally for publish-later review."
+    },
+    {
+      "write_class": "managed_review_approval",
+      "block_state_class": "blocked_read_only",
+      "deferral_path_class": "publish_later",
+      "local_capture_class": "capture_allowed_local_queue",
+      "resume_trigger_class": "service_returns_healthy",
+      "affected_queue_ref": "queue.ref.review.approval.publish_later",
+      "note": "Approval intent is held locally and must be reviewed before publish."
+    },
+    {
+      "write_class": "merge_queue_enqueue",
+      "block_state_class": "blocked_read_only",
+      "deferral_path_class": "publish_later",
+      "local_capture_class": "capture_allowed_local_queue",
+      "resume_trigger_class": "service_returns_healthy",
+      "affected_queue_ref": "queue.ref.merge.publish_later",
+      "note": "Merge queue intent is held locally until the provider accepts writes."
+    }
+  ],
+  "guidance_actions": [
+    {
+      "action_class": "continue_local",
+      "requirement_class": "available",
+      "trigger_class": "safe_local_subset_available",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Continue local edits, saves, search, Git, and diagnostics."
+    },
+    {
+      "action_class": "publish_later",
+      "requirement_class": "required",
+      "trigger_class": "control_plane_write_blocked",
+      "target_write_classes": [
+        "managed_review_comment_publish",
+        "managed_review_approval",
+        "merge_queue_enqueue"
+      ],
+      "due_before_at": null,
+      "message": "Hold review and merge intents locally and review them before publish after recovery."
+    }
+  ],
+  "boundary_change_summary": {
+    "boundary_change_required": false,
+    "boundary_effective_at": null,
+    "review_status_class": "not_required",
+    "boundary_axes": [],
+    "summary": "No tenant, region, residency, key ownership, or endpoint identity change is known for this read-only event."
+  },
+  "notice_lifecycle": {
+    "notice_freshness_class": "active_current",
+    "supersedes_notice_id": null,
+    "superseded_by_notice_id": null,
+    "retained_until_at": "2026-05-28T17:20:00Z",
+    "retention_reason_class": "active_window",
+    "history_notice_refs": []
+  },
+  "display_copy": {
+    "primary_status_line": "Hosted review is read-only since Apr 28, 2026 17:20 UTC.",
+    "local_continuity_line": "Local editing, save, search, Git, and draft capture remain available.",
+    "blocked_writes_line": "New review comments, approvals, and merge queue writes use publish-later.",
+    "boundary_change_line": "No boundary change is known.",
+    "stale_label": null,
+    "all_work_broken_implied": false,
+    "generic_all_clear_used": false
+  },
+  "evidence_refs": [
+    "incident_workspace.review_read_only.active"
+  ],
+  "narrative_refs": [
+    "docs/ux/control_data_plane_status_contract.md",
+    "docs/ops/incident_workspace_contract.md"
+  ]
+}

@@ -1,0 +1,249 @@
+{
+  "__fixture__": {
+    "name": "tenant_migration_boundary_change",
+    "scenario": "Tenant migration where region and residency posture change. Local work continues, managed writes hold, and review-new-boundary is required before reconnect or replay.",
+    "contract_sections": [
+      "Migration state",
+      "Boundary Changes",
+      "Local Continuity Rules"
+    ]
+  },
+  "schema_version": 1,
+  "record_kind": "outage_notice_record",
+  "notice_id": "notice.tenant_migration_boundary_change",
+  "notice_kind_class": "tenant_migration",
+  "notice_state_class": "migration",
+  "title": "Tenant migration requires boundary review",
+  "summary": "The tenant is moving to a new region and residency posture; local work continues while managed writes and reconnects wait for boundary review.",
+  "created_at": "2026-05-12T05:30:00Z",
+  "updated_at": "2026-05-12T06:05:00Z",
+  "schedule": {
+    "time_basis_class": "scheduled_exact",
+    "observed_or_announced_at": "2026-05-12T05:30:00Z",
+    "starts_at": "2026-05-12T06:00:00Z",
+    "expected_or_actual_ends_at": "2026-05-12T07:30:00Z",
+    "resolved_at": null,
+    "timezone_id": "UTC",
+    "utc_offset_at_start": "Z",
+    "export_deadline_at": "2026-05-12T05:55:00Z"
+  },
+  "affected_scope": {
+    "deployment_profiles": [
+      "enterprise_online"
+    ],
+    "tenant_refs": [
+      "tenant.ref.prior",
+      "tenant.ref.next"
+    ],
+    "org_refs": [
+      "org.ref.enterprise"
+    ],
+    "workspace_refs": [],
+    "region_refs": [
+      "region.ref.eu-west",
+      "region.ref.eu-central"
+    ],
+    "residency_scope_classes": [
+      "residency_changed_review_required"
+    ],
+    "service_classes": [
+      "auth_identity_service",
+      "policy_service",
+      "workspace_control_plane_service",
+      "sync_service"
+    ],
+    "endpoint_refs": [
+      "endpoint.ref.workspace.control.prior",
+      "endpoint.ref.workspace.control.next"
+    ],
+    "scope_summary": "Enterprise tenant migration affecting identity, policy, workspace control, and sync services."
+  },
+  "plane_effects": {
+    "control_plane": [
+      {
+        "service_class": "auth_identity_service",
+        "effect_state": "migration_in_progress",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Identity authority is moving to the next tenant boundary."
+      },
+      {
+        "service_class": "workspace_control_plane_service",
+        "effect_state": "boundary_recheck_required",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Workspace orchestration reconnect is held until the new boundary is reviewed."
+      }
+    ],
+    "data_plane": [
+      {
+        "capability_class": "local_editing",
+        "effect_state": "available_local_safe",
+        "recovery_trigger_class": "not_applicable",
+        "note": "Local editing, save, search, and Git remain available during migration."
+      },
+      {
+        "capability_class": "managed_runtime",
+        "effect_state": "blocked_pending_boundary_recheck",
+        "recovery_trigger_class": "boundary_review_completed",
+        "note": "Managed runtime attach waits for the new tenant and region boundary review."
+      }
+    ]
+  },
+  "local_continuity": {
+    "local_core_status_class": "meaningful_safe_subset_available",
+    "continue_local_guidance_required": true,
+    "retained_local_safe_capabilities": [
+      "continue local edits, saves, search, Git, diagnostics, and export pending work before or during migration"
+    ],
+    "blocked_managed_only_capabilities": [
+      "resume managed workspace orchestration",
+      "sync profile or policy writes",
+      "replay prior approval-backed managed actions"
+    ],
+    "continuity_summary": "Local-first work remains safe, but managed writes and reconnects wait for boundary review."
+  },
+  "blocked_write_classes": [
+    {
+      "write_class": "managed_workspace_lifecycle_write",
+      "block_state_class": "blocked_pending_boundary_recheck",
+      "deferral_path_class": "reconnect_later",
+      "local_capture_class": "capture_blocked_boundary_unknown",
+      "resume_trigger_class": "boundary_review_completed",
+      "affected_queue_ref": "queue.ref.workspace.lifecycle.boundary_review",
+      "note": "Workspace lifecycle writes cannot replay under the prior tenant boundary."
+    },
+    {
+      "write_class": "profile_settings_sync_write",
+      "block_state_class": "blocked_pending_boundary_recheck",
+      "deferral_path_class": "export_before_maintenance",
+      "local_capture_class": "capture_allowed_export_only",
+      "resume_trigger_class": "boundary_review_completed",
+      "affected_queue_ref": "queue.ref.profile.sync.boundary_review",
+      "note": "Export profile and settings state before replaying sync under the new residency posture."
+    },
+    {
+      "write_class": "policy_admin_write",
+      "block_state_class": "blocked_pending_boundary_recheck",
+      "deferral_path_class": "blocked_no_safe_retry",
+      "local_capture_class": "capture_blocked_boundary_unknown",
+      "resume_trigger_class": "boundary_review_completed",
+      "affected_queue_ref": null,
+      "note": "Policy admin writes require explicit boundary review before any retry."
+    }
+  ],
+  "guidance_actions": [
+    {
+      "action_class": "continue_local",
+      "requirement_class": "available",
+      "trigger_class": "safe_local_subset_available",
+      "target_write_classes": [],
+      "due_before_at": null,
+      "message": "Continue local work while managed reconnect waits for boundary review."
+    },
+    {
+      "action_class": "export_before_maintenance",
+      "requirement_class": "required",
+      "trigger_class": "maintenance_window_pending",
+      "target_write_classes": [
+        "profile_settings_sync_write"
+      ],
+      "due_before_at": "2026-05-12T05:55:00Z",
+      "message": "Export profile and settings state before the migration cutover."
+    },
+    {
+      "action_class": "review_new_boundary",
+      "requirement_class": "required",
+      "trigger_class": "boundary_change_detected",
+      "target_write_classes": [
+        "managed_workspace_lifecycle_write",
+        "profile_settings_sync_write",
+        "policy_admin_write"
+      ],
+      "due_before_at": null,
+      "message": "Review the new tenant, region, residency, and endpoint boundary before reconnect or replay."
+    },
+    {
+      "action_class": "reconnect_later",
+      "requirement_class": "required",
+      "trigger_class": "data_plane_reconnect_needed",
+      "target_write_classes": [
+        "managed_workspace_lifecycle_write"
+      ],
+      "due_before_at": null,
+      "message": "Reconnect managed workspaces only after boundary review completes."
+    }
+  ],
+  "boundary_change_summary": {
+    "boundary_change_required": true,
+    "boundary_effective_at": "2026-05-12T06:00:00Z",
+    "review_status_class": "required_pending",
+    "boundary_axes": [
+      {
+        "axis_class": "tenant",
+        "axis_state_class": "changed",
+        "previous_ref": "tenant.ref.prior",
+        "current_ref": "tenant.ref.next",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Tenant authority changes during migration."
+      },
+      {
+        "axis_class": "region",
+        "axis_state_class": "changed",
+        "previous_ref": "region.ref.eu-west",
+        "current_ref": "region.ref.eu-central",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Control-plane region changes during migration."
+      },
+      {
+        "axis_class": "residency",
+        "axis_state_class": "changed",
+        "previous_ref": "residency.ref.eu-west",
+        "current_ref": "residency.ref.eu-central",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Residency posture changes and must be reviewed."
+      },
+      {
+        "axis_class": "key_ownership",
+        "axis_state_class": "unchanged",
+        "previous_ref": "key.ref.customer.managed",
+        "current_ref": "key.ref.customer.managed",
+        "required_follow_up_action": "open_boundary_details",
+        "summary": "Customer-managed key ownership remains unchanged."
+      },
+      {
+        "axis_class": "endpoint_identity",
+        "axis_state_class": "unknown_recheck_required",
+        "previous_ref": "endpoint.ref.workspace.control.prior",
+        "current_ref": "endpoint.ref.workspace.control.next",
+        "required_follow_up_action": "review_new_boundary",
+        "summary": "Endpoint identity must be rechecked before reconnect."
+      }
+    ],
+    "summary": "Tenant, region, and residency change; endpoint identity requires recheck."
+  },
+  "notice_lifecycle": {
+    "notice_freshness_class": "active_current",
+    "supersedes_notice_id": null,
+    "superseded_by_notice_id": null,
+    "retained_until_at": "2027-05-12T07:30:00Z",
+    "retention_reason_class": "boundary_change_history",
+    "history_notice_refs": [
+      "notice.scheduled_maintenance_export_before"
+    ]
+  },
+  "display_copy": {
+    "primary_status_line": "Tenant migration is in progress from May 12, 2026 06:00 UTC.",
+    "local_continuity_line": "Local editing, save, search, Git, diagnostics, and export remain available.",
+    "blocked_writes_line": "Managed workspace, profile sync, and policy writes wait for boundary review.",
+    "boundary_change_line": "Tenant, region, and residency changed; endpoint identity requires review.",
+    "stale_label": null,
+    "all_work_broken_implied": false,
+    "generic_all_clear_used": false
+  },
+  "evidence_refs": [
+    "boundary_recheck_packet.tenant_migration"
+  ],
+  "narrative_refs": [
+    "docs/ux/control_data_plane_status_contract.md",
+    "docs/deployment/locality_and_continuity_seed.md"
+  ]
+}
