@@ -1,0 +1,437 @@
+# Promotion and launch-bearing decision row registry.
+#
+# Scorecards, shiproom packets, operational-readiness reviews, release
+# packets, and signoff automation cite these row ids instead of writing
+# free-form approval status. Authority and concurrence requirements live
+# in artifacts/governance/signoff_matrix.yaml; this file freezes the row
+# ids, packet-id fields, evidence-bundle joins, allowed outcomes, and
+# degraded-state mappings needed to reconstruct each decision later.
+
+schema_version: 1
+registry_id: aureline.governance.promotion_decision_rows
+status: seeded
+overview_doc: docs/governance/decision_rights_and_signoff_matrix.md
+source_signoff_matrix: artifacts/governance/signoff_matrix.yaml
+
+source_refs:
+  - artifacts/governance/signoff_matrix.yaml
+  - docs/governance/forum_packet_templates.md
+  - docs/release/shiproom_runbook.md
+  - artifacts/release/promotion_gate_map.yaml
+  - artifacts/release/assurance_claim_rows.yaml
+  - artifacts/qe/workflow_bundle_ids.yaml
+
+row_id_prefix: governance_decision
+
+row_kind_vocabulary:
+  - architecture_freeze
+  - waiver
+  - cutline_change
+  - claim_publication
+  - release_promotion
+  - lts_line_creation
+  - workflow_bundle_decision
+
+reference_surface_vocabulary:
+  - milestone_scorecard
+  - shiproom_packet
+  - operational_readiness_review
+  - release_evidence_packet
+  - claim_manifest
+  - compatibility_report
+  - public_proof_packet
+  - support_packet
+  - forum_packet
+
+decision_status_vocabulary:
+  - not_started
+  - packet_draft
+  - in_review
+  - approved
+  - approved_with_narrowing
+  - held_for_packet_refresh
+  - rejected
+  - no_go
+  - escalated
+  - degraded_owner_unresolved
+  - degraded_handoff_expired
+  - superseded
+
+reconstruction_requirements:
+  required_fields:
+    - decision_row_id
+    - decision_class_id
+    - decision_status
+    - packet_id
+    - signoff_row_ref
+    - accountable_owner_role_ids
+    - concurrence_role_ids
+    - evidence_bundle_ids
+    - evidence_ref_or_packet_ref
+    - decided_at_utc_or_reviewed_at_utc
+    - outcome_rationale
+  forbidden_patterns:
+    - free_form_status_without_decision_row_id
+    - packet_id_without_signoff_row_ref
+    - evidence_refs_without_evidence_bundle_id
+    - degraded_owner_rendered_as_approved
+
+default_degraded_state_mapping:
+  unresolved_owner_state: degraded_owner_unresolved
+  expired_temporary_handoff_state: degraded_handoff_expired
+  required_projection: >
+    Render the degraded status explicitly in scorecards, shiproom
+    packets, and operational-readiness reviews. A degraded row is never
+    equivalent to approved or approved_with_narrowing.
+
+rows:
+  - decision_row_id: governance_decision:architecture_freeze
+    decision_class_id: architecture_freeze
+    row_kind: architecture_freeze
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.architecture_freeze
+    reference_surfaces:
+      - milestone_scorecard
+      - operational_readiness_review
+      - forum_packet
+    packet_id_field: architecture_freeze_packet_id
+    packet_id_shape: architecture.freeze.<scope>
+    required_packet_type_id: architecture_freeze_packet
+    required_packet_profile_ids:
+      - architecture_decision_bundle
+    accountable_owner_role_ids:
+      - chief_architect
+      - architecture_council
+    concurrence_role_ids:
+      - product_lead
+      - performance_owner
+      - release_owner
+    evidence_bundle_ids:
+      - evidence.bundle.architecture.freeze
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - approved_with_narrowing
+      - held_for_packet_refresh
+      - escalated
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: held_for_packet_refresh
+    reconstruction_join_fields:
+      - frozen_interface_row_refs
+      - architecture_decision_refs
+      - affected_lane_refs
+      - evidence_bundle_ids
+      - signoff_row_ref
+
+  - decision_row_id: governance_decision:protected_metric_waiver
+    decision_class_id: protected_metric_waiver
+    row_kind: waiver
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.protected_metric_waiver
+    reference_surfaces:
+      - milestone_scorecard
+      - shiproom_packet
+      - release_evidence_packet
+      - forum_packet
+    packet_id_field: waiver_packet_id
+    packet_id_shape: waiver.protected_metric.<fitness_row_id>
+    required_packet_type_id: protected_metric_waiver_packet
+    required_packet_profile_ids:
+      - performance_readout_bundle
+    accountable_owner_role_ids:
+      - performance_owner
+    concurrence_role_ids:
+      - architecture_council
+      - product_lead
+    conditional_concurrence_role_ids:
+      - sponsor
+      - shiproom_executive_scope_review
+    evidence_bundle_ids:
+      - evidence.bundle.protected_metric.waiver
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - approved_with_narrowing
+      - rejected
+      - held_for_packet_refresh
+      - escalated
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: rejected
+    reconstruction_join_fields:
+      - fitness_row_ids
+      - before_after_evidence_refs
+      - expiry
+      - mitigation
+      - evidence_bundle_ids
+      - signoff_row_ref
+
+  - decision_row_id: governance_decision:discipline_waiver
+    decision_class_id: discipline_waiver
+    row_kind: waiver
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.discipline_waiver
+    reference_surfaces:
+      - milestone_scorecard
+      - shiproom_packet
+      - release_evidence_packet
+      - support_packet
+      - forum_packet
+    packet_id_field: waiver_packet_id
+    packet_id_shape: waiver.<discipline>.<scope>
+    required_packet_type_id: discipline_waiver_packet
+    required_packet_profile_ids:
+      - security_trust_packet
+      - accessibility_review_packet
+      - release_readiness_packet
+    accountable_owner_role_ids:
+      - security_lead
+      - reliability_owner
+      - accessibility_owner
+      - trust_owner
+    concurrence_role_ids:
+      - product_lead
+      - release_owner
+    conditional_concurrence_role_ids:
+      - sponsor
+      - shiproom_executive_scope_review
+    evidence_bundle_ids:
+      - evidence.bundle.discipline.waiver
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - approved_with_narrowing
+      - rejected
+      - no_go
+      - escalated
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: no_go
+    reconstruction_join_fields:
+      - discipline_role_id
+      - affected_requirement_ids
+      - affected_claim_row_refs
+      - mitigation
+      - expiry
+      - evidence_bundle_ids
+      - signoff_row_ref
+
+  - decision_row_id: governance_decision:stable_cutline_change
+    decision_class_id: stable_cutline_change
+    row_kind: cutline_change
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.stable_cutline_change
+    reference_surfaces:
+      - milestone_scorecard
+      - operational_readiness_review
+      - claim_manifest
+      - forum_packet
+    packet_id_field: cutline_packet_id
+    packet_id_shape: cutline.stable.<scope>
+    required_packet_type_id: stable_cutline_change_packet
+    required_packet_profile_ids:
+      - milestone_scope_packet
+    accountable_owner_role_ids:
+      - product_lead
+    concurrence_role_ids:
+      - sponsor
+      - chief_architect
+      - release_owner
+    evidence_bundle_ids:
+      - evidence.bundle.cutline.scope
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - approved_with_narrowing
+      - rejected
+      - escalated
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: approved_with_narrowing
+    reconstruction_join_fields:
+      - cutline_delta
+      - affected_requirement_ids
+      - affected_claim_row_refs
+      - rebaseline_or_scope_effect
+      - evidence_bundle_ids
+      - signoff_row_ref
+
+  - decision_row_id: governance_decision:support_class_or_archetype_claim_publication
+    decision_class_id: support_class_or_archetype_claim_publication
+    row_kind: claim_publication
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.support_class_or_archetype_claim_publication
+    reference_surfaces:
+      - claim_manifest
+      - release_evidence_packet
+      - compatibility_report
+      - public_proof_packet
+      - support_packet
+      - forum_packet
+    packet_id_field: claim_publication_packet_id
+    packet_id_shape: claim_publication.<claim_family>.<scope>
+    required_packet_type_id: claim_publication_packet
+    required_packet_profile_ids:
+      - compatibility_review_packet
+      - release_readiness_packet
+    accountable_owner_role_ids:
+      - product_lead
+      - certification_qe_owner
+    concurrence_role_ids:
+      - release_owner
+      - docs_lead
+      - affected_subsystem_lead
+    evidence_bundle_ids:
+      - evidence.bundle.claim.publication
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - approved_with_narrowing
+      - held_for_packet_refresh
+      - rejected
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: held_for_packet_refresh
+    reconstruction_join_fields:
+      - claim_row_refs
+      - support_class_or_archetype_row_refs
+      - certification_or_compatibility_report_refs
+      - known_limit_refs
+      - evidence_bundle_ids
+      - signoff_row_ref
+
+  - decision_row_id: governance_decision:stable_release_promotion
+    decision_class_id: stable_release_promotion
+    row_kind: release_promotion
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.stable_release_promotion
+    reference_surfaces:
+      - shiproom_packet
+      - operational_readiness_review
+      - release_evidence_packet
+      - claim_manifest
+      - support_packet
+    packet_id_field: release_promotion_packet_id
+    packet_id_shape: release_promotion.stable.<candidate>
+    required_packet_type_id: stable_release_promotion_packet
+    required_packet_profile_ids:
+      - release_readiness_packet
+    accountable_owner_role_ids:
+      - release_owner
+    concurrence_role_ids:
+      - performance_owner
+      - security_lead
+      - accessibility_owner
+      - supportability_owner
+      - certification_qe_owner
+      - docs_lead
+    evidence_bundle_ids:
+      - evidence.bundle.stable.promotion
+      - evidence.bundle.claim.publication
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - held_for_packet_refresh
+      - no_go
+      - escalated
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: no_go
+    reconstruction_join_fields:
+      - candidate_ref
+      - exact_build_identity_refs
+      - promotion_gate_refs
+      - ring_history_packet_refs
+      - waiver_packet_refs
+      - claim_row_refs
+      - evidence_bundle_ids
+      - signoff_row_ref
+
+  - decision_row_id: governance_decision:lts_line_creation
+    decision_class_id: lts_line_creation
+    row_kind: lts_line_creation
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.lts_line_creation
+    reference_surfaces:
+      - shiproom_packet
+      - operational_readiness_review
+      - release_evidence_packet
+      - support_packet
+      - forum_packet
+    packet_id_field: lts_line_packet_id
+    packet_id_shape: lts_line.<line_ref>
+    required_packet_type_id: lts_line_creation_packet
+    required_packet_profile_ids:
+      - release_readiness_packet
+      - milestone_scope_packet
+    accountable_owner_role_ids:
+      - release_owner
+      - enterprise_support_owner
+    concurrence_role_ids:
+      - sponsor
+      - security_lead
+      - product_lead
+    evidence_bundle_ids:
+      - evidence.bundle.lts_line.creation
+      - evidence.bundle.stable.promotion
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - rejected
+      - no_go
+      - escalated
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: rejected
+    reconstruction_join_fields:
+      - lts_line_ref
+      - release_channel_scope
+      - backport_posture
+      - security_response_posture
+      - support_window_refs
+      - evidence_bundle_ids
+      - signoff_row_ref
+
+  - decision_row_id: governance_decision:workflow_bundle_certification_or_downgrade
+    decision_class_id: workflow_bundle_certification_or_downgrade
+    row_kind: workflow_bundle_decision
+    signoff_row_ref: artifacts/governance/signoff_matrix.yaml#decision_classes.workflow_bundle_certification_or_downgrade
+    reference_surfaces:
+      - claim_manifest
+      - compatibility_report
+      - public_proof_packet
+      - release_evidence_packet
+      - forum_packet
+    packet_id_field: workflow_bundle_decision_packet_id
+    packet_id_shape: workflow_bundle_decision.<workflow_bundle_id>
+    required_packet_type_id: workflow_bundle_decision_packet
+    required_packet_profile_ids:
+      - compatibility_review_packet
+      - release_readiness_packet
+    accountable_owner_role_ids:
+      - compatibility_ecosystem_review_owner
+    concurrence_role_ids:
+      - certification_qe_owner
+      - docs_release_owner
+    evidence_bundle_ids:
+      - evidence.bundle.workflow_bundle.decision
+      - evidence.bundle.claim.publication
+    admissible_statuses:
+      - packet_draft
+      - in_review
+      - approved
+      - approved_with_narrowing
+      - held_for_packet_refresh
+      - rejected
+      - degraded_owner_unresolved
+      - degraded_handoff_expired
+    default_unresolved_status: approved_with_narrowing
+    reconstruction_join_fields:
+      - workflow_bundle_id
+      - bundle_revision
+      - scoreboard_family_id
+      - result_class
+      - downgrade_trigger_refs
+      - evidence_bundle_ids
+      - signoff_row_ref

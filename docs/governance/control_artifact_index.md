@@ -61,6 +61,13 @@ Companion artifacts:
 - [`./forum_packet_templates.md`](./forum_packet_templates.md)
   — required input-packet profiles and output-landing rules for the
   standing forums.
+- [`./decision_rights_and_signoff_matrix.md`](./decision_rights_and_signoff_matrix.md),
+  [`/artifacts/governance/signoff_matrix.yaml`](../../artifacts/governance/signoff_matrix.yaml),
+  and
+  [`/artifacts/governance/promotion_decision_rows.yaml`](../../artifacts/governance/promotion_decision_rows.yaml)
+  — role-based decision-rights, concurrence, packet, evidence-bundle,
+  degraded-ownership, and reconstruction rows for launch-bearing
+  decisions.
 - [`./requirement_alias_crosswalk.md`](./requirement_alias_crosswalk.md)
   — human-readable crosswalk for the canonical requirement register and
   the local labels that must resolve back to it.
@@ -143,7 +150,8 @@ the benchmark change-control register, the protected-metrics file, the
 benchmark-publication pack, the public-comparison rules, the
 qualification cadence, the
 compatibility qualification seed, the canonical requirement register,
-the decision dependency register, the build-vs-buy register, the fork-review policy, the supply-chain
+the decision dependency register, the decision-rights signoff matrix,
+the promotion decision row registry, the build-vs-buy register, the fork-review policy, the supply-chain
 dependency and import registers, the critical-upstream health
 scorecard, the maintainer-coverage policy, the signing-quorum matrix,
 the merge-control policy, protected merge class catalog, branch-protection
@@ -216,6 +224,13 @@ and scopes.
   `evidence_packet_header.schema.json`. Do not mint packet-local
   ownership, freshness, or evidence-id fields when the shared header
   already covers them.
+- Launch-bearing architecture, waiver, cutline, claim-publication,
+  release-promotion, LTS-line, and workflow-bundle decisions now
+  route through `signoff_matrix.yaml` and
+  `promotion_decision_rows.yaml`. Do not write approval state as
+  free-form scorecard or shiproom text when a decision row id, packet
+  id field, closed status value, and evidence-bundle join already
+  exist.
 - Package, boundary, claim, source-anchor, and decision-reference drift
   now route through the shared contract-artifact validation lane. Frozen
   surface changes also route through the frozen-surface manifest and CI
@@ -552,6 +567,14 @@ and scopes.
   [`artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml)
   for the action ids that governed promotion, freeze, revocation, or
   break-glass handling.
+- Decision-rights and signoff are likewise explicit. Release packets,
+  shiproom packets, LTS-line decisions, and workflow-bundle
+  certification or downgrade rows cite
+  [`signoff_matrix.yaml`](../../artifacts/governance/signoff_matrix.yaml)
+  and
+  [`promotion_decision_rows.yaml`](../../artifacts/governance/promotion_decision_rows.yaml)
+  so packet ids, evidence bundles, owner roles, concurrence roles, and
+  degraded ownership states remain reconstructable.
 - Merge-control and branch-protection evidence are likewise explicit.
   Protected and release-bearing merges now cite
   [`docs/governance/merge_control_policy.md`](./merge_control_policy.md),
