@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/tasks.schema.json",
+  "title": "Aureline human-edited tasks JSONC artifact",
+  "description": "Boundary schema for tasks.jsonc. Project-owned tasks are VCS-reviewable, source-attributed, and tied to execution context refs rather than hidden loader-local commands.",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "artifact_kind",
+    "source_attribution",
+    "tasks"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://aureline.dev/schemas/config/tasks.schema.json"
+    },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "artifact_kind": { "type": "string", "const": "tasks" },
+    "source_attribution": { "$ref": "#/$defs/source_attribution" },
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/task_entry" }
+    },
+    "schema_evolution": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/schema_evolution_record" }
+    },
+    "round_trip_policy": { "$ref": "#/$defs/round_trip_policy" }
+  },
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "stable_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:[._:-][a-z0-9_]+)*$"
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+    },
+    "source_scope": {
+      "type": "string",
+      "enum": ["workspace", "folder_or_module_override", "imported_profile_default"]
+    },
+    "owner_class": {
+      "type": "string",
+      "enum": ["workspace_owned", "user_owned", "imported_profile", "generated_for_review"]
+    },
+    "source_attribution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["artifact_id", "source_scope", "owner_class", "source_label"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/stable_id" },
+        "source_scope": { "$ref": "#/$defs/source_scope" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "imported_from": { "type": ["string", "null"], "minLength": 1 },
+        "mutation_journal_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "task_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "task_id",
+        "label",
+        "runner",
+        "review",
+        "source_ref"
+      ],
+      "properties": {
+        "task_id": { "$ref": "#/$defs/stable_id" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "runner": {
+          "type": "string",
+          "enum": [
+            "aureline_command",
+            "process",
+            "shell",
+            "package_script",
+            "extension_task",
+            "notebook_kernel"
+          ]
+        },
+        "command_id": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$" },
+        "command_ref": { "type": ["string", "null"], "minLength": 1 },
+        "args_ref": { "type": ["string", "null"], "minLength": 1 },
+        "environment_ref": { "type": ["string", "null"], "minLength": 1 },
+        "execution_context_ref": { "type": ["string", "null"], "minLength": 1 },
+        "depends_on": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "problem_matcher_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "review": { "$ref": "#/$defs/review_posture" },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque source ref used in diff, support, and migration previews. Raw command lines do not need to cross this boundary."
+        }
+      }
+    },
+    "review_posture": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "vcs_reviewable",
+        "preview_class",
+        "rollback_required"
+      ],
+      "properties": {
+        "vcs_reviewable": { "type": "boolean", "const": true },
+        "preview_class": {
+          "type": "string",
+          "enum": [
+            "safe_apply",
+            "preview_required",
+            "rollback_checkpoint_required",
+            "approval_required"
+          ]
+        },
+        "rollback_required": { "type": "boolean" },
+        "diff_anchor": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "schema_evolution_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["migration_id", "from_schema_version", "to_schema_version", "change_class", "lossy", "rollback_ref"],
+      "properties": {
+        "migration_id": { "$ref": "#/$defs/stable_id" },
+        "from_schema_version": { "type": "integer", "minimum": 0 },
+        "to_schema_version": { "type": "integer", "minimum": 1 },
+        "change_class": {
+          "type": "string",
+          "enum": [
+            "schema_uri_introduced",
+            "version_field_introduced",
+            "task_renamed",
+            "runner_changed",
+            "field_split",
+            "additive_field",
+            "unknown_field_preserved"
+          ]
+        },
+        "affected_task_ids": { "type": "array", "items": { "$ref": "#/$defs/stable_id" } },
+        "lossy": { "type": "boolean" },
+        "rollback_ref": { "type": ["string", "null"], "minLength": 1 },
+        "fixture_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "round_trip_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comments", "unknown_fields", "ordering"],
+      "properties": {
+        "comments": { "const": "preserve_verbatim" },
+        "unknown_fields": { "const": "preserve_verbatim" },
+        "ordering": { "const": "stable_order_preserved" }
+      }
+    }
+  }
+}

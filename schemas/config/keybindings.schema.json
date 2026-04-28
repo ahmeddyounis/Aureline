@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/keybindings.schema.json",
+  "title": "Aureline human-edited keybindings JSONC artifact",
+  "description": "Boundary schema for keybindings.jsonc. Rows bind authored key sequences to stable command ids and carry conflict-diagnostics hooks so the resolver, import bridge, settings surface, and support export explain the same outcome.",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "artifact_kind",
+    "source_attribution",
+    "bindings"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://aureline.dev/schemas/config/keybindings.schema.json"
+    },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "artifact_kind": { "type": "string", "const": "keybindings" },
+    "profile_ref": { "type": ["string", "null"], "minLength": 1 },
+    "source_attribution": { "$ref": "#/$defs/source_attribution" },
+    "bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/keybinding_entry" }
+    },
+    "schema_evolution": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/schema_evolution_record" }
+    },
+    "round_trip_policy": { "$ref": "#/$defs/round_trip_policy" }
+  },
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "stable_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:[._:-][a-z0-9_]+)*$"
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable command id. Display names and palette phrasing do not replace this id."
+    },
+    "source_scope": {
+      "type": "string",
+      "enum": [
+        "imported_profile_default",
+        "user_global",
+        "workspace"
+      ]
+    },
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "user_owned",
+        "profile_owned",
+        "workspace_owned",
+        "imported_profile",
+        "generated_for_review"
+      ]
+    },
+    "source_attribution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "artifact_id",
+        "source_scope",
+        "owner_class",
+        "source_label"
+      ],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/stable_id" },
+        "source_scope": { "$ref": "#/$defs/source_scope" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "imported_from": { "type": ["string", "null"], "minLength": 1 },
+        "mutation_journal_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "keybinding_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "binding_id",
+        "command_id",
+        "keys",
+        "source_layer",
+        "conflict_diagnostics"
+      ],
+      "properties": {
+        "binding_id": { "$ref": "#/$defs/stable_id" },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "keys": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "when": { "type": ["string", "null"] },
+        "args": true,
+        "source_layer": {
+          "type": "string",
+          "enum": [
+            "user_profile_binding",
+            "workspace_recommendation",
+            "extension_binding",
+            "core_default"
+          ]
+        },
+        "enabled": { "type": "boolean" },
+        "conflict_diagnostics": { "$ref": "#/$defs/conflict_diagnostics" }
+      }
+    },
+    "conflict_diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "expected_resolution"
+      ],
+      "properties": {
+        "resolver_packet_ref": { "type": ["string", "null"], "minLength": 1 },
+        "conflict_review_ref": { "type": ["string", "null"], "minLength": 1 },
+        "disabled_command_ref": { "type": ["string", "null"], "minLength": 1 },
+        "expected_resolution": {
+          "type": "string",
+          "enum": [
+            "resolved",
+            "waiting_for_next_stroke",
+            "unbound",
+            "blocked_by_host",
+            "blocked_by_security",
+            "blocked_by_policy",
+            "disabled_command",
+            "same_layer_collision_requires_review"
+          ]
+        }
+      }
+    },
+    "schema_evolution_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "migration_id",
+        "from_schema_version",
+        "to_schema_version",
+        "change_class",
+        "lossy",
+        "rollback_ref"
+      ],
+      "properties": {
+        "migration_id": { "$ref": "#/$defs/stable_id" },
+        "from_schema_version": { "type": "integer", "minimum": 0 },
+        "to_schema_version": { "type": "integer", "minimum": 1 },
+        "change_class": {
+          "type": "string",
+          "enum": [
+            "schema_uri_introduced",
+            "version_field_introduced",
+            "command_renamed",
+            "binding_split",
+            "context_expression_changed",
+            "additive_field",
+            "unknown_field_preserved"
+          ]
+        },
+        "affected_binding_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "lossy": { "type": "boolean" },
+        "rollback_ref": { "type": ["string", "null"], "minLength": 1 },
+        "fixture_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "round_trip_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comments",
+        "unknown_fields",
+        "ordering"
+      ],
+      "properties": {
+        "comments": { "const": "preserve_verbatim" },
+        "unknown_fields": { "const": "preserve_verbatim" },
+        "ordering": { "const": "stable_order_preserved" }
+      }
+    }
+  }
+}

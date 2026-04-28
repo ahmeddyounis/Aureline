@@ -22,6 +22,10 @@ Companion artifacts:
 - [`/fixtures/config/comment_preservation_cases/`](../../fixtures/config/comment_preservation_cases/)
   — worked JSONC cases showing comment, unknown-field, and ordering
   preservation under reads and writes.
+- [`/docs/config/human_edited_artifact_contract.md`](./human_edited_artifact_contract.md)
+  — artifact-specific contract for schema-backed settings,
+  keybindings, tasks, launch configs, workspace manifests, and the
+  wider reviewable text-first artifact family.
 
 This policy governs how artifacts are read, written, and migrated. It
 does **not** replace the stable-identifier lifecycle rules frozen in
@@ -73,8 +77,17 @@ The policy applies to every artifact family listed in
 which today covers:
 
 - user, workspace, and machine scope settings files;
+- keybindings files;
+- workspace tasks and launch/debug configuration files;
+- workspace manifests;
+- AI policy and instruction files;
+- request files, notebook-adjacent manifests, docs/glossary/tour
+  manifests, theme package manifests, quality profiles,
+  suppressions, and baselines;
 - the effective-settings resolver output;
 - portable profile exports;
+- extension lockfiles, theme import reports, and evidence-packet
+  manifests where the artifact is generated but still reviewable;
 - doctor-command diagnostic reports;
 - evidence packets produced by governance, verification, and release
   validators;

@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/workspace_manifest.schema.json",
+  "title": "Aureline human-edited workspace manifest JSONC artifact",
+  "description": "Boundary schema for aureline.workspace.jsonc. The manifest declares workspace roots, excludes, profile references, trusted metadata pointers, and links to project-owned config files while preserving comments, unknown fields, and authored ordering.",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "artifact_kind",
+    "workspace_id",
+    "source_attribution",
+    "roots"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://aureline.dev/schemas/config/workspace_manifest.schema.json"
+    },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "artifact_kind": { "type": "string", "const": "workspace_manifest" },
+    "workspace_id": { "$ref": "#/$defs/stable_id" },
+    "source_attribution": { "$ref": "#/$defs/source_attribution" },
+    "roots": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/workspace_root" }
+    },
+    "workspace_excludes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/exclude_entry" }
+    },
+    "profile_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/profile_ref" }
+    },
+    "trusted_metadata_pointers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/trusted_metadata_pointer" }
+    },
+    "config_refs": { "$ref": "#/$defs/config_refs" },
+    "schema_evolution": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/schema_evolution_record" }
+    },
+    "round_trip_policy": { "$ref": "#/$defs/round_trip_policy" }
+  },
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "stable_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:[._:-][a-z0-9_]+)*$"
+    },
+    "source_scope": { "type": "string", "enum": ["workspace", "imported_profile_default"] },
+    "owner_class": { "type": "string", "enum": ["workspace_owned", "imported_profile", "generated_for_review"] },
+    "source_attribution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["artifact_id", "source_scope", "owner_class", "source_label"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/stable_id" },
+        "source_scope": { "$ref": "#/$defs/source_scope" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "imported_from": { "type": ["string", "null"], "minLength": 1 },
+        "mutation_journal_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "workspace_root": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "root_id",
+        "uri",
+        "trust_state"
+      ],
+      "properties": {
+        "root_id": { "$ref": "#/$defs/stable_id" },
+        "uri": { "type": "string", "minLength": 1 },
+        "display_name": { "type": ["string", "null"], "minLength": 1, "maxLength": 240 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "pending_evaluation"]
+        },
+        "case_sensitivity": {
+          "type": ["string", "null"],
+          "enum": ["case_sensitive", "case_insensitive", "unknown", null]
+        },
+        "excludes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exclude_entry" }
+        },
+        "source_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "exclude_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["exclude_id", "pattern", "reason_class"],
+      "properties": {
+        "exclude_id": { "$ref": "#/$defs/stable_id" },
+        "pattern": { "type": "string", "minLength": 1 },
+        "reason_class": {
+          "type": "string",
+          "enum": [
+            "user_authored",
+            "workspace_default",
+            "generated_output",
+            "dependency_vendor",
+            "policy_hidden",
+            "imported_profile"
+          ]
+        },
+        "source_label": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "profile_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["profile_ref", "profile_role"],
+      "properties": {
+        "profile_ref": { "type": "string", "minLength": 1 },
+        "profile_role": {
+          "type": "string",
+          "enum": [
+            "recommended",
+            "required_by_workspace",
+            "imported_default",
+            "local_override_allowed"
+          ]
+        },
+        "source_label": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "trusted_metadata_pointer": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["pointer_id", "metadata_class", "target_ref", "trust_state"],
+      "properties": {
+        "pointer_id": { "$ref": "#/$defs/stable_id" },
+        "metadata_class": {
+          "type": "string",
+          "enum": [
+            "workspace_trust_packet",
+            "extension_recommendations",
+            "extension_lockfile",
+            "policy_pointer",
+            "docs_pack_manifest",
+            "quality_profile",
+            "prebuild_fingerprint",
+            "support_export_manifest"
+          ]
+        },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "pending_evaluation"]
+        },
+        "freshness_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "config_refs": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "settings_ref": { "type": ["string", "null"], "minLength": 1 },
+        "tasks_ref": { "type": ["string", "null"], "minLength": 1 },
+        "launch_ref": { "type": ["string", "null"], "minLength": 1 },
+        "keybindings_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "schema_evolution_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["migration_id", "from_schema_version", "to_schema_version", "change_class", "lossy", "rollback_ref"],
+      "properties": {
+        "migration_id": { "$ref": "#/$defs/stable_id" },
+        "from_schema_version": { "type": "integer", "minimum": 0 },
+        "to_schema_version": { "type": "integer", "minimum": 1 },
+        "change_class": {
+          "type": "string",
+          "enum": [
+            "schema_uri_introduced",
+            "version_field_introduced",
+            "root_ref_changed",
+            "exclude_rule_changed",
+            "profile_ref_changed",
+            "trusted_metadata_pointer_changed",
+            "additive_field",
+            "unknown_field_preserved"
+          ]
+        },
+        "affected_ids": { "type": "array", "items": { "$ref": "#/$defs/stable_id" } },
+        "lossy": { "type": "boolean" },
+        "rollback_ref": { "type": ["string", "null"], "minLength": 1 },
+        "fixture_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "round_trip_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comments", "unknown_fields", "ordering"],
+      "properties": {
+        "comments": { "const": "preserve_verbatim" },
+        "unknown_fields": { "const": "preserve_verbatim" },
+        "ordering": { "const": "stable_order_preserved" }
+      }
+    }
+  }
+}

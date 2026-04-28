@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/launch.schema.json",
+  "title": "Aureline human-edited launch JSONC artifact",
+  "description": "Boundary schema for launch.jsonc. Debug launch and attach configurations are project-owned, reviewable, and source-attributed; they link to tasks and execution contexts without flattening target truth.",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "artifact_kind",
+    "source_attribution",
+    "configurations"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://aureline.dev/schemas/config/launch.schema.json"
+    },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "artifact_kind": { "type": "string", "const": "launch" },
+    "source_attribution": { "$ref": "#/$defs/source_attribution" },
+    "configurations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/launch_configuration" }
+    },
+    "schema_evolution": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/schema_evolution_record" }
+    },
+    "round_trip_policy": { "$ref": "#/$defs/round_trip_policy" }
+  },
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "stable_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:[._:-][a-z0-9_]+)*$"
+    },
+    "source_scope": {
+      "type": "string",
+      "enum": ["workspace", "folder_or_module_override", "imported_profile_default"]
+    },
+    "owner_class": {
+      "type": "string",
+      "enum": ["workspace_owned", "user_owned", "imported_profile", "generated_for_review"]
+    },
+    "source_attribution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["artifact_id", "source_scope", "owner_class", "source_label"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/stable_id" },
+        "source_scope": { "$ref": "#/$defs/source_scope" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "imported_from": { "type": ["string", "null"], "minLength": 1 },
+        "mutation_journal_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "launch_configuration": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "launch_id",
+        "label",
+        "request",
+        "debug_type",
+        "target",
+        "review",
+        "source_ref"
+      ],
+      "properties": {
+        "launch_id": { "$ref": "#/$defs/stable_id" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "request": { "type": "string", "enum": ["launch", "attach"] },
+        "debug_type": { "$ref": "#/$defs/stable_id" },
+        "target": { "$ref": "#/$defs/target_ref" },
+        "pre_launch_task_ref": { "type": ["string", "null"], "minLength": 1 },
+        "post_debug_task_ref": { "type": ["string", "null"], "minLength": 1 },
+        "environment_ref": { "type": ["string", "null"], "minLength": 1 },
+        "execution_context_ref": { "type": ["string", "null"], "minLength": 1 },
+        "debug_prep_snapshot_ref": { "type": ["string", "null"], "minLength": 1 },
+        "review": { "$ref": "#/$defs/review_posture" },
+        "source_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "target_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["target_kind", "target_ref"],
+      "properties": {
+        "target_kind": {
+          "type": "string",
+          "enum": [
+            "workspace_program",
+            "test_target",
+            "task_output",
+            "remote_process",
+            "container_process",
+            "notebook_kernel",
+            "imported_debug_profile"
+          ]
+        },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "target_confidence_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "review_posture": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["vcs_reviewable", "preview_class", "rollback_required"],
+      "properties": {
+        "vcs_reviewable": { "type": "boolean", "const": true },
+        "preview_class": {
+          "type": "string",
+          "enum": ["safe_apply", "preview_required", "rollback_checkpoint_required", "approval_required"]
+        },
+        "rollback_required": { "type": "boolean" },
+        "diff_anchor": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "schema_evolution_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["migration_id", "from_schema_version", "to_schema_version", "change_class", "lossy", "rollback_ref"],
+      "properties": {
+        "migration_id": { "$ref": "#/$defs/stable_id" },
+        "from_schema_version": { "type": "integer", "minimum": 0 },
+        "to_schema_version": { "type": "integer", "minimum": 1 },
+        "change_class": {
+          "type": "string",
+          "enum": [
+            "schema_uri_introduced",
+            "version_field_introduced",
+            "launch_renamed",
+            "target_ref_changed",
+            "debug_type_changed",
+            "additive_field",
+            "unknown_field_preserved"
+          ]
+        },
+        "affected_launch_ids": { "type": "array", "items": { "$ref": "#/$defs/stable_id" } },
+        "lossy": { "type": "boolean" },
+        "rollback_ref": { "type": ["string", "null"], "minLength": 1 },
+        "fixture_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "round_trip_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comments", "unknown_fields", "ordering"],
+      "properties": {
+        "comments": { "const": "preserve_verbatim" },
+        "unknown_fields": { "const": "preserve_verbatim" },
+        "ordering": { "const": "stable_order_preserved" }
+      }
+    }
+  }
+}

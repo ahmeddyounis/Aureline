@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/settings.schema.json",
+  "title": "Aureline human-edited settings JSONC artifact",
+  "description": "Boundary schema for settings.jsonc. The file is human-edited, comment-preserving JSONC and carries stable setting ids, source attribution, schema-evolution rows, and extension-owned unknown fields without relying on path-local loader defaults. See docs/config/human_edited_artifact_contract.md.",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "artifact_kind",
+    "source_attribution",
+    "settings"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://aureline.dev/schemas/config/settings.schema.json"
+    },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "artifact_kind": {
+      "type": "string",
+      "const": "settings"
+    },
+    "source_attribution": { "$ref": "#/$defs/source_attribution" },
+    "settings": {
+      "type": "object",
+      "description": "Map of stable setting_id to authored value. Unknown setting ids are preserved and diagnosed by the resolver; they are not dropped by this artifact contract.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$": true,
+        "^x-[A-Za-z0-9_.-]+$": true
+      },
+      "additionalProperties": true
+    },
+    "language_overrides": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/language_override" },
+      "description": "Optional language-scoped values. These keep scope attribution rather than flattening into the main settings map."
+    },
+    "folder_overrides": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/folder_override" }
+    },
+    "schema_evolution": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/schema_evolution_record" }
+    },
+    "round_trip_policy": { "$ref": "#/$defs/round_trip_policy" }
+  },
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Settings artifact schema version. Additive optional fields do not change this value; breaking artifact-shape changes require an explicit migration record."
+    },
+    "stable_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:[._:-][a-z0-9_]+)*$"
+    },
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+    },
+    "source_scope": {
+      "type": "string",
+      "enum": [
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override"
+      ]
+    },
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "user_owned",
+        "profile_owned",
+        "workspace_owned",
+        "imported_profile",
+        "generated_for_review"
+      ]
+    },
+    "source_attribution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "artifact_id",
+        "source_scope",
+        "owner_class",
+        "source_label"
+      ],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/stable_id" },
+        "source_scope": { "$ref": "#/$defs/source_scope" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "imported_from": { "type": ["string", "null"], "minLength": 1 },
+        "mutation_journal_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "language_override": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "language_id",
+        "settings"
+      ],
+      "properties": {
+        "language_id": { "$ref": "#/$defs/stable_id" },
+        "settings": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$": true,
+            "^x-[A-Za-z0-9_.-]+$": true
+          },
+          "additionalProperties": true
+        },
+        "source_label": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "folder_override": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "scope_ref",
+        "settings"
+      ],
+      "properties": {
+        "scope_ref": { "$ref": "#/$defs/stable_id" },
+        "settings": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$": true,
+            "^x-[A-Za-z0-9_.-]+$": true
+          },
+          "additionalProperties": true
+        },
+        "source_label": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "schema_evolution_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "migration_id",
+        "from_schema_version",
+        "to_schema_version",
+        "change_class",
+        "lossy",
+        "rollback_ref"
+      ],
+      "properties": {
+        "migration_id": { "$ref": "#/$defs/stable_id" },
+        "from_schema_version": { "type": "integer", "minimum": 0 },
+        "to_schema_version": { "type": "integer", "minimum": 1 },
+        "change_class": {
+          "type": "string",
+          "enum": [
+            "schema_uri_introduced",
+            "version_field_introduced",
+            "setting_renamed",
+            "field_split",
+            "field_merged",
+            "default_changed",
+            "type_changed",
+            "additive_field",
+            "unknown_field_preserved"
+          ]
+        },
+        "affected_setting_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/setting_id" }
+        },
+        "lossy": { "type": "boolean" },
+        "lossy_reason": { "type": ["string", "null"], "minLength": 1 },
+        "compatibility_window": { "type": ["string", "null"], "minLength": 1 },
+        "rollback_ref": { "type": ["string", "null"], "minLength": 1 },
+        "fixture_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "round_trip_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comments",
+        "unknown_fields",
+        "ordering"
+      ],
+      "properties": {
+        "comments": { "const": "preserve_verbatim" },
+        "unknown_fields": { "const": "preserve_verbatim" },
+        "ordering": { "const": "stable_order_preserved" }
+      }
+    }
+  }
+}
