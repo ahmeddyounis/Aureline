@@ -452,6 +452,13 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`ux/search_result_contract.md`](./ux/search_result_contract.md)
+  — renderer-facing search result row, guarantee label, quick-action,
+  replace-scope, saved-query, and deep-link route contract. Boundary
+  schema in
+  [`/schemas/search/search_result_row.schema.json`](../schemas/search/search_result_row.schema.json);
+  worked fixtures in
+  [`/fixtures/search/result_cases/`](../fixtures/search/result_cases/).
 - [`ux/quick_open_contract.md`](./ux/quick_open_contract.md)
   — quick-open result-row, readiness-banner, same-surface
   explanation, and focus-return contract. Boundary schemas in
