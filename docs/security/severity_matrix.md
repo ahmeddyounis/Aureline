@@ -13,6 +13,13 @@ Companion artifacts:
   — boundary schema for the `advisory_record` every public advisory,
   release-note, About / Help surface, support-bundle export, and
   revocation / disable-bundle record resolves against field-for-field.
+- [`/docs/security/advisory_surface_contract.md`](./advisory_surface_contract.md)
+  and
+  [`/schemas/security/advisory_card.schema.json`](../../schemas/security/advisory_card.schema.json)
+  — surface contract for advisory cards, emergency banners, revocation
+  notices, and disclosure links. This is the rendering / export projection
+  of the advisory, emergency-action, revocation, and manual-import records;
+  it does not replace those source records.
 - [`/schemas/security/incident_workspace_packet.schema.json`](../../schemas/security/incident_workspace_packet.schema.json)
   — boundary schema for the `incident_workspace_packet_record` the
   private-triage workspace exports for evidence capture, timeline,
@@ -29,6 +36,10 @@ Companion artifacts:
   stub tied to exact-build identity refs, and one incident packet
   that exercises omitted / embedded / redacted / by-reference
   evidence items while preserving exact-build linkage.
+- [`/fixtures/security/advisory_cases/`](../../fixtures/security/advisory_cases/)
+  — worked advisory-surface fixtures covering staged disclosure, active
+  emergency disable, mirror-only advisory behavior, and superseded
+  advisory history chains.
 
 Normative sources this matrix projects from:
 

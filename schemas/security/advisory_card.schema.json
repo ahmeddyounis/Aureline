@@ -1,0 +1,944 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/advisory_card.schema.json",
+  "title": "Aureline advisory card, emergency banner, revocation notice, and disclosure link contract",
+  "description": "Boundary schema for the advisory_surface_record frozen in docs/security/advisory_surface_contract.md. The record is the shared surface projection for advisory cards, emergency banners, revocation notices, and disclosure links across product UI, docs/help, release packets, support exports, and mirror-safe distribution notes. It preserves advisory identity, copy-safe CVE/GHSA/Aureline advisory ids, severity, action-required and mitigation-complete states, affected-surface rows, exact-build and install-profile linkage, disclosure timing, public/private posture, acknowledgement/review state, local-only/managed/offline-mirror/manual-import delivery behavior, linked rollback/revocation/support/export refs, supersedence, and resolved-versus-active history. Raw reporter identities, raw exploit payloads, raw signatures, raw hostnames, raw paths, private registry URLs, account identifiers, and raw evidence bodies never cross this boundary.",
+  "$ref": "#/$defs/advisory_surface_record",
+  "$defs": {
+    "advisory_surface_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this advisory surface export. Bump on additive enum/value changes or breaking payload changes per docs/security/advisory_surface_contract.md."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "advisory_surface_record",
+      "description": "Discriminator for this surface projection."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional fixture-only metadata used by worked cases."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for manifests, support bundles, release packets, docs/help surfaces, and journal entries."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "nullable_monotonic_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short privacy-safe sentence. Raw secrets, raw exploit payloads, raw signatures, raw hostnames, raw paths, private registry URLs, account identifiers, and raw evidence bodies MUST NOT appear."
+    },
+    "security_severity_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/security_severity_class"
+    },
+    "advisory_identity": {
+      "$ref": "./advisory_record.schema.json#/$defs/advisory_identity"
+    },
+    "affected_install_linkage": {
+      "$ref": "./advisory_record.schema.json#/$defs/affected_install_linkage"
+    },
+    "deployment_profile_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/deployment_profile_class"
+    },
+    "disclosure_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/disclosure_class"
+    },
+    "distribution_freshness_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/distribution_freshness_class"
+    },
+    "distribution_validation_state_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/distribution_validation_state_class"
+    },
+    "signer_continuity_state_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/signer_continuity_state_class"
+    },
+    "surface_kind": {
+      "type": "string",
+      "enum": [
+        "advisory_card",
+        "emergency_banner",
+        "revocation_notice",
+        "disclosure_link"
+      ],
+      "description": "Which surface is being projected."
+    },
+    "surface_severity_class": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "low",
+        "moderate",
+        "high",
+        "critical",
+        "operational_emergency"
+      ],
+      "description": "Compact rendering severity. security_severity.medium maps to moderate; operational emergency stays distinct from critical."
+    },
+    "action_state_class": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "review_recommended",
+        "action_required",
+        "blocking",
+        "immediate_remediation",
+        "mitigation_complete"
+      ],
+      "description": "User/admin-facing action state. Distinguishes informational notices from blocking or immediate remediation."
+    },
+    "affected_surface_class": {
+      "type": "string",
+      "enum": [
+        "build_binary",
+        "docs_pack",
+        "extension",
+        "package_or_dependency",
+        "install_profile",
+        "release_channel",
+        "trust_root",
+        "capability_or_route",
+        "managed_cloud_surface",
+        "workspace_trust_policy",
+        "ai_context_assembly"
+      ],
+      "description": "Top-level affected surface vocabulary."
+    },
+    "installed_match_state": {
+      "type": "string",
+      "enum": [
+        "matches_current_install",
+        "affected_pending_mitigation",
+        "not_affected",
+        "mitigation_complete",
+        "unknown_stale",
+        "blocked_by_revocation"
+      ],
+      "description": "How the applies-to row relates to the current install or packet being rendered."
+    },
+    "mitigation_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "not_started",
+        "mitigation_available",
+        "mitigation_in_progress",
+        "mitigation_complete",
+        "blocked_by_revocation"
+      ],
+      "description": "Current mitigation state for a surface or applies-to row."
+    },
+    "required_action_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "review_notice",
+        "update_to_fixed_version",
+        "rollback_or_repin",
+        "disable_or_remove",
+        "import_signed_snapshot",
+        "rotate_trust_root",
+        "export_support_packet",
+        "contact_admin",
+        "wait_for_superseding_action"
+      ],
+      "description": "Primary next action expected for one applies-to row."
+    },
+    "copy_safe_id_kind": {
+      "type": "string",
+      "enum": [
+        "aureline_advisory_id",
+        "cve_id",
+        "ghsa_id"
+      ]
+    },
+    "copy_state_class": {
+      "type": "string",
+      "enum": [
+        "copy_available",
+        "copy_unavailable_pending_publication",
+        "copy_unavailable_private",
+        "copy_unavailable_not_assigned"
+      ],
+      "description": "Whether a user/reviewer can copy this id from the current surface."
+    },
+    "visibility_class": {
+      "type": "string",
+      "enum": [
+        "private",
+        "internal",
+        "staged_private",
+        "public",
+        "mirror_only"
+      ],
+      "description": "Disclosure or link visibility boundary."
+    },
+    "copy_safe_id_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id_kind",
+        "id_value",
+        "copy_state",
+        "visibility_class",
+        "copy_label",
+        "source_ref"
+      ],
+      "properties": {
+        "id_kind": { "$ref": "#/$defs/copy_safe_id_kind" },
+        "id_value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The exact id value copied when copy_state permits it."
+        },
+        "copy_state": { "$ref": "#/$defs/copy_state_class" },
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+        "copy_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "id_kind": { "const": "aureline_advisory_id" } },
+            "required": ["id_kind"]
+          },
+          "then": {
+            "properties": {
+              "id_value": { "pattern": "^AURELINE-ADV-[0-9]{4}-[0-9]{4,}$" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "id_kind": { "const": "cve_id" } },
+            "required": ["id_kind"]
+          },
+          "then": {
+            "properties": {
+              "id_value": {
+                "oneOf": [
+                  { "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$" },
+                  { "const": "not_assigned" },
+                  { "const": "pending_publication" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "id_kind": { "const": "ghsa_id" } },
+            "required": ["id_kind"]
+          },
+          "then": {
+            "properties": {
+              "id_value": {
+                "oneOf": [
+                  { "pattern": "^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$" },
+                  { "const": "not_assigned" },
+                  { "const": "pending_publication" }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One copy-safe advisory id row. Copying this value must not reveal unrelated account, host, path, evidence, or reporter data."
+    },
+    "applies_to_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "affected_surface_class",
+        "subject_refs",
+        "exact_build_identity_refs",
+        "install_profile_card_refs",
+        "package_or_component_refs",
+        "deployment_profile_scope",
+        "installed_match_state",
+        "mitigation_state",
+        "required_action",
+        "action_ref",
+        "continuity_note"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "affected_surface_class": { "$ref": "#/$defs/affected_surface_class" },
+        "subject_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "package_or_component_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "installed_match_state": { "$ref": "#/$defs/installed_match_state" },
+        "mitigation_state": { "$ref": "#/$defs/mitigation_state_class" },
+        "required_action": { "$ref": "#/$defs/required_action_class" },
+        "action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "continuity_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "exact_build_identity_refs": { "minItems": 1 }
+          }
+        },
+        {
+          "properties": {
+            "install_profile_card_refs": { "minItems": 1 }
+          }
+        },
+        {
+          "properties": {
+            "package_or_component_refs": { "minItems": 1 }
+          }
+        }
+      ],
+      "description": "One row that tells a user or operator whether the notice applies to a build, package, profile, channel, trust root, or component they are inspecting."
+    },
+    "disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disclosure_class",
+        "visibility_class",
+        "current_disclosure_at",
+        "private_disclosed_at",
+        "public_disclosed_at",
+        "embargo_until",
+        "disclosure_note"
+      ],
+      "properties": {
+        "disclosure_class": { "$ref": "#/$defs/disclosure_class" },
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+        "current_disclosure_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "private_disclosed_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "public_disclosed_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "embargo_until": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "disclosure_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "visibility_class": { "const": "public" } },
+            "required": ["visibility_class"]
+          },
+          "then": {
+            "properties": {
+              "public_disclosed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["public_disclosed_at"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "visibility_class": { "const": "staged_private" } },
+            "required": ["visibility_class"]
+          },
+          "then": {
+            "properties": {
+              "private_disclosed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["private_disclosed_at"]
+          }
+        }
+      ],
+      "description": "Disclosure timing and posture. Public and private disclosure times remain separate fields so staged disclosure is not flattened."
+    },
+    "acknowledgement_state_class": {
+      "type": "string",
+      "enum": [
+        "not_acknowledgeable",
+        "unacknowledged",
+        "acknowledged",
+        "snoozed_until_review",
+        "blocked_until_remediated"
+      ]
+    },
+    "review_state_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "review_required",
+        "under_review",
+        "reviewed",
+        "review_deferred_stale_metadata"
+      ]
+    },
+    "acknowledgement_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acknowledgement_state",
+        "review_state",
+        "acknowledged_by_ref",
+        "acknowledged_at",
+        "reviewed_by_ref",
+        "reviewed_at",
+        "next_review_due_at",
+        "note"
+      ],
+      "properties": {
+        "acknowledgement_state": { "$ref": "#/$defs/acknowledgement_state_class" },
+        "review_state": { "$ref": "#/$defs/review_state_class" },
+        "acknowledged_by_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "acknowledged_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "reviewed_by_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "reviewed_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "next_review_due_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Acknowledgement and review state. Acknowledgement is not mitigation and does not remove a required action."
+    },
+    "linked_records": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_record_ref",
+        "private_triage_workspace_ref",
+        "incident_workspace_packet_refs",
+        "emergency_action_refs",
+        "revocation_refs",
+        "disable_bundle_refs",
+        "rollback_action_refs",
+        "support_packet_refs",
+        "export_packet_refs",
+        "release_evidence_packet_refs",
+        "docs_help_refs"
+      ],
+      "properties": {
+        "advisory_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "private_triage_workspace_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "incident_workspace_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "emergency_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "disable_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "rollback_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "support_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "export_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "release_evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "description": "Exact record graph this surface projects from. Surfaces quote refs rather than flattening them into prose."
+    },
+    "notice_profile_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "managed",
+        "offline_mirror",
+        "manual_import"
+      ],
+      "description": "Deployment/distribution profile for notice behavior."
+    },
+    "notice_source_class": {
+      "type": "string",
+      "enum": [
+        "local_cached_metadata",
+        "managed_authoritative",
+        "approved_private_mirror",
+        "offline_bundle_snapshot",
+        "manual_import_bundle",
+        "runtime_preload",
+        "release_packet_static"
+      ]
+    },
+    "notice_path_class": {
+      "type": "string",
+      "enum": [
+        "local_cache_projection",
+        "managed_push",
+        "managed_pull",
+        "mirror_sync",
+        "offline_transfer",
+        "file_import",
+        "release_packet",
+        "docs_help_pack"
+      ]
+    },
+    "notice_render_behavior_class": {
+      "type": "string",
+      "enum": [
+        "render_persistent_banner",
+        "render_advisory_card",
+        "render_revocation_notice",
+        "render_history_row",
+        "render_mirror_note",
+        "render_release_packet_note",
+        "render_support_export_row"
+      ]
+    },
+    "notice_delivery_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delivery_id",
+        "profile_class",
+        "source_class",
+        "path_class",
+        "freshness_class",
+        "validation_state",
+        "observed_signer_continuity_state",
+        "receipt_ref",
+        "render_behavior",
+        "local_continuity_note",
+        "unavailable_reason"
+      ],
+      "properties": {
+        "delivery_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_class": { "$ref": "#/$defs/notice_profile_class" },
+        "source_class": { "$ref": "#/$defs/notice_source_class" },
+        "path_class": { "$ref": "#/$defs/notice_path_class" },
+        "freshness_class": { "$ref": "#/$defs/distribution_freshness_class" },
+        "validation_state": { "$ref": "#/$defs/distribution_validation_state_class" },
+        "observed_signer_continuity_state": { "$ref": "#/$defs/signer_continuity_state_class" },
+        "receipt_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "render_behavior": { "$ref": "#/$defs/notice_render_behavior_class" },
+        "local_continuity_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "unavailable_reason": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "Manual-import notices must cite a receipt and cannot claim live freshness.",
+          "if": {
+            "properties": { "profile_class": { "const": "manual_import" } },
+            "required": ["profile_class"]
+          },
+          "then": {
+            "properties": {
+              "receipt_ref": { "$ref": "#/$defs/opaque_id" },
+              "freshness_class": {
+                "enum": [
+                  "manual_snapshot_current",
+                  "manual_snapshot_stale",
+                  "offline_snapshot_unexpired",
+                  "offline_snapshot_expired",
+                  "unknown"
+                ]
+              }
+            },
+            "required": ["receipt_ref", "freshness_class"]
+          }
+        },
+        {
+          "description": "Offline-mirror notices must render as mirror or release-packet notes, not live authority.",
+          "if": {
+            "properties": { "profile_class": { "const": "offline_mirror" } },
+            "required": ["profile_class"]
+          },
+          "then": {
+            "properties": {
+              "freshness_class": {
+                "enum": [
+                  "mirrored_current",
+                  "mirrored_stale_within_grace",
+                  "mirrored_stale_past_grace",
+                  "offline_snapshot_unexpired",
+                  "offline_snapshot_expired",
+                  "unknown"
+                ]
+              }
+            },
+            "required": ["freshness_class"]
+          }
+        }
+      ],
+      "description": "One delivery behavior row preserving local-only, managed, offline-mirror, or manual-import truth."
+    },
+    "link_kind": {
+      "type": "string",
+      "enum": [
+        "public_advisory",
+        "private_triage_workspace",
+        "cve_record",
+        "ghsa_record",
+        "release_note",
+        "docs_help",
+        "release_packet",
+        "support_export_packet",
+        "mirror_distribution_note",
+        "manual_import_receipt",
+        "rollback_action",
+        "revocation_action",
+        "emergency_action",
+        "post_incident_review",
+        "history_chain"
+      ]
+    },
+    "link_action_class": {
+      "type": "string",
+      "enum": [
+        "copy_id",
+        "open_in_product",
+        "open_docs_help",
+        "open_release_packet",
+        "open_support_export",
+        "open_mirror_note",
+        "external_handoff",
+        "export_packet"
+      ]
+    },
+    "disclosure_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_id",
+        "link_kind",
+        "destination_ref",
+        "label",
+        "visibility_class",
+        "available_offline",
+        "mirror_safe",
+        "action_class",
+        "privacy_note"
+      ],
+      "properties": {
+        "link_id": { "$ref": "#/$defs/opaque_id" },
+        "link_kind": { "$ref": "#/$defs/link_kind" },
+        "destination_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_sentence" },
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+        "available_offline": { "type": "boolean" },
+        "mirror_safe": { "type": "boolean" },
+        "action_class": { "$ref": "#/$defs/link_action_class" },
+        "privacy_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One copy/open/export disclosure link row with explicit visibility and offline/mirror posture."
+    },
+    "history_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "active_emergency",
+        "mitigated_active_history",
+        "resolved_history",
+        "superseded_history",
+        "withdrawn_history"
+      ]
+    },
+    "history_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "history_state",
+        "supersedes_surface_refs",
+        "superseded_by_surface_ref",
+        "resolved_at",
+        "resolved_by_ref",
+        "retained_history_refs",
+        "history_note"
+      ],
+      "properties": {
+        "history_state": { "$ref": "#/$defs/history_state_class" },
+        "supersedes_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "superseded_by_surface_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "resolved_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "resolved_by_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "retained_history_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "history_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "history_state": { "const": "superseded_history" } },
+            "required": ["history_state"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_surface_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["superseded_by_surface_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "history_state": { "const": "resolved_history" } },
+            "required": ["history_state"]
+          },
+          "then": {
+            "properties": {
+              "resolved_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "retained_history_refs": { "minItems": 1 }
+            },
+            "required": ["resolved_at", "retained_history_refs"]
+          }
+        }
+      ],
+      "description": "Durable history and supersedence envelope. Resolved or superseded notices remain reachable."
+    },
+    "advisory_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_surface_schema_version",
+        "record_kind",
+        "surface_id",
+        "surface_kind",
+        "title",
+        "summary",
+        "advisory_identity",
+        "copy_safe_ids",
+        "severity_class",
+        "surface_severity_class",
+        "action_state",
+        "affected_surface_class",
+        "current_mitigation_state",
+        "affected_install_linkage",
+        "applies_to_rows",
+        "disclosure",
+        "acknowledgement",
+        "linked_records",
+        "notice_delivery_rows",
+        "disclosure_links",
+        "history",
+        "minted_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "advisory_surface_schema_version": { "$ref": "#/$defs/advisory_surface_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "advisory_identity": { "$ref": "#/$defs/advisory_identity" },
+        "copy_safe_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/copy_safe_id_record" }
+        },
+        "severity_class": { "$ref": "#/$defs/security_severity_class" },
+        "surface_severity_class": { "$ref": "#/$defs/surface_severity_class" },
+        "action_state": { "$ref": "#/$defs/action_state_class" },
+        "affected_surface_class": { "$ref": "#/$defs/affected_surface_class" },
+        "current_mitigation_state": { "$ref": "#/$defs/mitigation_state_class" },
+        "affected_install_linkage": { "$ref": "#/$defs/affected_install_linkage" },
+        "applies_to_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/applies_to_row" }
+        },
+        "disclosure": { "$ref": "#/$defs/disclosure_record" },
+        "acknowledgement": { "$ref": "#/$defs/acknowledgement_record" },
+        "linked_records": { "$ref": "#/$defs/linked_records" },
+        "notice_delivery_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/notice_delivery_row" }
+        },
+        "disclosure_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disclosure_link_record" }
+        },
+        "history": { "$ref": "#/$defs/history_record" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Advisory cards require a linked advisory record.",
+          "if": {
+            "properties": { "surface_kind": { "const": "advisory_card" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "linked_records": {
+                "properties": {
+                  "advisory_record_ref": { "$ref": "#/$defs/opaque_id" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Emergency banners require linked emergency action refs and an action-bearing state.",
+          "if": {
+            "properties": { "surface_kind": { "const": "emergency_banner" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "action_state": {
+                "enum": ["action_required", "blocking", "immediate_remediation"]
+              },
+              "linked_records": {
+                "properties": {
+                  "emergency_action_refs": { "minItems": 1 }
+                }
+              },
+              "history": {
+                "properties": {
+                  "history_state": {
+                    "enum": ["active_emergency", "mitigated_active_history", "resolved_history", "superseded_history"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Revocation notices require at least one linked revocation ref.",
+          "if": {
+            "properties": { "surface_kind": { "const": "revocation_notice" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "linked_records": {
+                "properties": {
+                  "revocation_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Disclosure-link surfaces require at least one disclosure link.",
+          "if": {
+            "properties": { "surface_kind": { "const": "disclosure_link" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_links": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Immediate remediation requires an emergency action or revocation ref.",
+          "if": {
+            "properties": { "action_state": { "const": "immediate_remediation" } },
+            "required": ["action_state"]
+          },
+          "then": {
+            "properties": {
+              "linked_records": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "emergency_action_refs": { "minItems": 1 }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "revocation_refs": { "minItems": 1 }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Mitigation-complete surfaces must render as history-bearing states.",
+          "if": {
+            "properties": { "action_state": { "const": "mitigation_complete" } },
+            "required": ["action_state"]
+          },
+          "then": {
+            "properties": {
+              "current_mitigation_state": { "const": "mitigation_complete" },
+              "history": {
+                "properties": {
+                  "history_state": {
+                    "enum": [
+                      "mitigated_active_history",
+                      "resolved_history",
+                      "superseded_history"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Shared surface projection for advisory cards, emergency banners, revocation notices, and disclosure links. Consumers render from this record so product, docs/help, release packets, support exports, and mirror/import notes preserve the same identity, severity, affected rows, disclosure, delivery, and history truth."
+    }
+  }
+}

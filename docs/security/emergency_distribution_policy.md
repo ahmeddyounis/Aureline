@@ -32,6 +32,12 @@ Companion artifacts:
   [`/schemas/security/advisory_record.schema.json`](../../schemas/security/advisory_record.schema.json)
   — advisory severity, identity, and affected-install linkage the
   emergency action projects from.
+- [`/docs/security/advisory_surface_contract.md`](./advisory_surface_contract.md)
+  and
+  [`/schemas/security/advisory_card.schema.json`](../../schemas/security/advisory_card.schema.json)
+  — surface projection for advisory cards, emergency banners,
+  revocation notices, and disclosure links that quote this policy's
+  mirror/manual-import freshness and receipt fields.
 - [`/artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml)
   — action ids, quorum floors, and the break-glass audit fields
   receipts cite when they record policy-admitted signature skips.
@@ -362,7 +368,7 @@ or omit the shared ids. Full table in
 
 ## Acceptance mapping
 
-This policy satisfies the M00-218 acceptance criteria as follows:
+This policy satisfies its acceptance criteria as follows:
 
 - **Emergency controls can be applied and audited without assuming a
   live SaaS control plane.** The authoritative-distribution channel
