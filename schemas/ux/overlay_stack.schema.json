@@ -1,0 +1,760 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/overlay_stack.schema.json",
+  "title": "Aureline overlay stack, portal, scrim, focus-trap, dismissal, and promotion contract",
+  "description": "Boundary schema for the overlay_stack_record frozen in docs/ux/overlay_layer_contract.md. The record describes one overlay stack or overlay-stack decision: overlay classes, layer tokens, portal boundary, scrim semantics, focus trap, dismissal and back-stack posture, allowed nesting, stale and provider-boundary behavior, promotion identity preservation, keyboard and assistive-technology routes, critical-action route parity, multi-window focus locality, missing-provider fallback, boundary-change banners, and high-zoom safety. Raw paths, URLs, provider payloads, prompt text, credentials, file bodies, and customer-owned identifiers never cross this boundary; rows carry opaque refs, typed vocabulary, and short privacy-safe labels. Adding enum values or optional fields is additive-minor with an overlay_stack_schema_version bump when payload semantics change; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/overlay_stack_record",
+  "$defs": {
+    "overlay_stack_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this overlay-stack vocabulary export."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "overlay_stack_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for manifests, support bundles, journals, and automation traces."
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 220,
+      "description": "Short privacy-safe rendered label. Must not contain raw paths, raw URLs, secrets, provider payloads, prompts, or file bodies."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "case_class": {
+      "type": "string",
+      "enum": [
+        "nested_overlay_case",
+        "stale_preview_promotion_case",
+        "boundary_change_banner_case",
+        "focus_return_after_dismissal_case",
+        "multi_window_missing_provider_case",
+        "accessibility_zoom_keyboard_case",
+        "keyboard_only_escalation_case",
+        "general_overlay_stack_case"
+      ]
+    },
+    "overlay_class": {
+      "type": "string",
+      "enum": [
+        "tooltip",
+        "hovercard",
+        "popover",
+        "context_menu",
+        "command_palette",
+        "quick_picker",
+        "completion_list",
+        "peek_panel",
+        "pinned_panel",
+        "side_sheet",
+        "window_attached_sheet",
+        "full_sheet",
+        "modal_dialog",
+        "platform_auth_dialog",
+        "platform_file_picker_dialog",
+        "banner",
+        "toast",
+        "presentation_spotlight",
+        "follow_prompt",
+        "critical_prompt",
+        "dedicated_panel",
+        "dedicated_review_surface"
+      ]
+    },
+    "layer_order_class": {
+      "type": "string",
+      "enum": [
+        "z_base",
+        "z_sticky",
+        "z_floating",
+        "z_menu",
+        "z_dialog",
+        "z_toast",
+        "z_critical"
+      ]
+    },
+    "portal_boundary_class": {
+      "type": "string",
+      "enum": [
+        "anchor_local",
+        "pane_local",
+        "editor_group_local",
+        "window_local",
+        "workspace_window_attached",
+        "platform_host_owned",
+        "dedicated_surface_owned"
+      ]
+    },
+    "platform_exception_kind": {
+      "type": "string",
+      "enum": ["none", "auth", "file_picker"]
+    },
+    "scrim_class": {
+      "type": "string",
+      "enum": [
+        "scrim_none",
+        "scrim_weak",
+        "scrim_strong",
+        "overlay_dim_presentation"
+      ]
+    },
+    "scrim_semantics_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "orienting_dim_only",
+        "blocks_inert_region",
+        "blocks_workspace_window",
+        "presentation_focus_mask"
+      ]
+    },
+    "focus_trap_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "roving_tab_stop",
+        "contained_focus",
+        "modal_focus_trap",
+        "platform_host_trap"
+      ]
+    },
+    "focus_return_state": {
+      "type": "string",
+      "enum": [
+        "returned_exact",
+        "returned_nearest_safe_ancestor",
+        "returned_current_batch_or_detail_owner",
+        "returned_placeholder_announced",
+        "focus_not_moved_cross_window",
+        "focus_not_applicable_non_interactive",
+        "focus_return_denied_missing_target"
+      ]
+    },
+    "dismissal_behavior_class": {
+      "type": "string",
+      "enum": [
+        "pointer_leave_or_focus_move",
+        "esc_or_explicit_close",
+        "outside_click_safe_only",
+        "cancel_requires_review",
+        "blocked_until_decision_or_handoff",
+        "platform_host_owned",
+        "promoted_to_durable_surface",
+        "denied_request"
+      ]
+    },
+    "back_stack_policy_class": {
+      "type": "string",
+      "enum": [
+        "not_in_history",
+        "consumes_escape_only",
+        "overlay_back_stack_entry",
+        "promotes_to_navigation_history",
+        "durable_surface_history",
+        "platform_host_return_packet"
+      ]
+    },
+    "nesting_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_child_overlay",
+        "allowed_passive_child",
+        "allowed_platform_exception",
+        "denied_product_owned_nested_overlay",
+        "replaces_parent",
+        "promotes_parent_to_dedicated_surface"
+      ]
+    },
+    "interactivity_class": {
+      "type": "string",
+      "enum": [
+        "passive",
+        "inspect_only",
+        "reversible_action",
+        "consequence_bearing_review",
+        "critical_decision"
+      ]
+    },
+    "accessibility_route_class": {
+      "type": "string",
+      "enum": [
+        "focus_dwell",
+        "keyboard_command",
+        "command_palette",
+        "explicit_info_button",
+        "touch_long_press",
+        "screen_reader_action",
+        "visible_structural_route"
+      ]
+    },
+    "freshness_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "live_current",
+        "cached_last_known_good",
+        "stale_past_ttl",
+        "stale_basis_drifted",
+        "provider_unavailable",
+        "boundary_changed",
+        "target_missing",
+        "policy_blocked"
+      ]
+    },
+    "provider_state_class": {
+      "type": "string",
+      "enum": [
+        "not_provider_backed",
+        "provider_live",
+        "provider_missing",
+        "provider_unavailable_cached",
+        "provider_policy_blocked"
+      ]
+    },
+    "promotion_step_class": {
+      "type": "string",
+      "enum": [
+        "tooltip",
+        "hovercard",
+        "popover",
+        "peek_panel",
+        "pinned_panel",
+        "side_sheet",
+        "full_sheet",
+        "dedicated_panel",
+        "canonical_open"
+      ]
+    },
+    "identity_preservation_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "canonical_identity_preserved",
+        "preserved_with_stale_cue",
+        "denied_identity_lost"
+      ]
+    },
+    "stale_content_cue_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "stale_chip_visible",
+        "boundary_change_banner_visible",
+        "provider_unavailable_chip_visible",
+        "vanished_target_notice",
+        "denied_missing_cue"
+      ]
+    },
+    "pinning_policy_class": {
+      "type": "string",
+      "enum": [
+        "not_pinnable",
+        "pin_preserves_identity",
+        "pin_creates_durable_panel",
+        "pin_denied_identity_missing"
+      ]
+    },
+    "critical_action_route_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "durable_primary_surface_available",
+        "command_palette_or_menu_available",
+        "review_sheet_available",
+        "tooltip_only_denied",
+        "pointer_only_denied"
+      ]
+    },
+    "missing_provider_behavior_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "render_attributed_placeholder",
+        "promote_to_product_sheet",
+        "disable_risky_actions",
+        "deny_open",
+        "browser_handoff",
+        "fallback_to_durable_panel"
+      ]
+    },
+    "offscreen_recovery_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "recenter_available",
+        "restore_layout_path",
+        "denied_stranded_overlay"
+      ]
+    },
+    "dismissal_step_class": {
+      "type": "string",
+      "enum": [
+        "tooltip_or_hovercard",
+        "completion_or_menu",
+        "popover_or_peek",
+        "sheet_or_dialog",
+        "spotlight_or_follow_prompt",
+        "parent_surface"
+      ]
+    },
+    "required_alternative_class": {
+      "type": "string",
+      "enum": [
+        "no_alternative_needed",
+        "update_parent_in_place",
+        "replace_parent",
+        "promote_to_dedicated_surface",
+        "host_owned_exception"
+      ]
+    },
+    "contract_verdict": {
+      "type": "string",
+      "enum": ["passed", "degraded_admitted", "denied"]
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "hard_coded_layer_order",
+        "critical_layer_impersonation",
+        "portal_boundary_missing",
+        "product_nested_overlay_forbidden",
+        "scrim_used_as_sole_state_indicator",
+        "focus_trap_missing",
+        "focus_return_missing",
+        "escape_order_ambiguous",
+        "cross_window_focus_warp",
+        "provider_overlay_unattributed",
+        "boundary_change_hidden",
+        "stale_promotion_lost_identity",
+        "stale_promotion_lost_freshness_cue",
+        "critical_action_tooltip_only",
+        "pointer_only_critical_route",
+        "overlay_schema_version_lagging",
+        "zoom_clipped_required_action",
+        "missing_keyboard_route",
+        "missing_provider_fallback_absent",
+        "transient_only_completion_route"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "overlay_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overlay_ref",
+        "overlay_class",
+        "layer_order_class",
+        "z_order_index",
+        "portal_boundary_class",
+        "owning_window_ref",
+        "source_surface_ref",
+        "anchor_ref",
+        "parent_overlay_ref",
+        "is_product_owned",
+        "platform_exception_kind",
+        "scrim_class",
+        "scrim_semantics_class",
+        "focus_trap_class",
+        "interactivity_class",
+        "dismissal_behavior_class",
+        "back_stack_policy_class",
+        "nesting_policy_class",
+        "provider_state_class",
+        "freshness_state_class",
+        "stale_cue_visible",
+        "canonical_object_target_ref",
+        "focus_return_target_ref",
+        "keyboard_routes",
+        "accessibility_routes",
+        "critical_action_route_class"
+      ],
+      "properties": {
+        "overlay_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_class": { "$ref": "#/$defs/overlay_class" },
+        "layer_order_class": { "$ref": "#/$defs/layer_order_class" },
+        "z_order_index": { "type": "integer", "minimum": 0 },
+        "portal_boundary_class": { "$ref": "#/$defs/portal_boundary_class" },
+        "owning_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "parent_overlay_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "is_product_owned": { "type": "boolean" },
+        "platform_exception_kind": { "$ref": "#/$defs/platform_exception_kind" },
+        "scrim_class": { "$ref": "#/$defs/scrim_class" },
+        "scrim_semantics_class": { "$ref": "#/$defs/scrim_semantics_class" },
+        "focus_trap_class": { "$ref": "#/$defs/focus_trap_class" },
+        "interactivity_class": { "$ref": "#/$defs/interactivity_class" },
+        "dismissal_behavior_class": { "$ref": "#/$defs/dismissal_behavior_class" },
+        "back_stack_policy_class": { "$ref": "#/$defs/back_stack_policy_class" },
+        "nesting_policy_class": { "$ref": "#/$defs/nesting_policy_class" },
+        "provider_state_class": { "$ref": "#/$defs/provider_state_class" },
+        "freshness_state_class": { "$ref": "#/$defs/freshness_state_class" },
+        "stale_cue_visible": { "type": "boolean" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "focus_return_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "keyboard_routes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/accessibility_route_class" }
+        },
+        "accessibility_routes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/accessibility_route_class" }
+        },
+        "critical_action_route_class": { "$ref": "#/$defs/critical_action_route_class" },
+        "summary_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "overlay_class": { "const": "critical_prompt" } },
+            "required": ["overlay_class"]
+          },
+          "then": {
+            "properties": { "layer_order_class": { "const": "z_critical" } },
+            "required": ["layer_order_class"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "interactivity_class": {
+                "enum": ["consequence_bearing_review", "critical_decision"]
+              }
+            },
+            "required": ["interactivity_class"]
+          },
+          "then": {
+            "properties": {
+              "critical_action_route_class": {
+                "enum": [
+                  "durable_primary_surface_available",
+                  "command_palette_or_menu_available",
+                  "review_sheet_available"
+                ]
+              }
+            },
+            "required": ["critical_action_route_class"]
+          }
+        }
+      ]
+    },
+    "portal_boundary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "portal_boundary_class",
+        "owning_window_ref",
+        "provider_ref",
+        "missing_provider_behavior_class",
+        "offscreen_recovery_class",
+        "boundary_change_banner_required",
+        "cross_window_focus_transfer_allowed",
+        "window_local_history"
+      ],
+      "properties": {
+        "portal_boundary_class": { "$ref": "#/$defs/portal_boundary_class" },
+        "owning_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "missing_provider_behavior_class": { "$ref": "#/$defs/missing_provider_behavior_class" },
+        "offscreen_recovery_class": { "$ref": "#/$defs/offscreen_recovery_class" },
+        "boundary_change_banner_required": { "type": "boolean" },
+        "cross_window_focus_transfer_allowed": { "type": "boolean" },
+        "window_local_history": { "type": "boolean" },
+        "boundary_change_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "provider_attribution_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "promotion_chain_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chain_ref",
+        "source_overlay_ref",
+        "canonical_object_target_ref",
+        "source_freshness_state",
+        "target_promotion_step_class",
+        "identity_preservation_class",
+        "freshness_cue_preserved",
+        "stale_content_cue_class",
+        "pinning_policy_class",
+        "keyboard_promotion_available",
+        "pointer_only_promotion_denied",
+        "target_surface_ref"
+      ],
+      "properties": {
+        "chain_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_overlay_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_freshness_state": { "$ref": "#/$defs/freshness_state_class" },
+        "target_promotion_step_class": { "$ref": "#/$defs/promotion_step_class" },
+        "identity_preservation_class": { "$ref": "#/$defs/identity_preservation_class" },
+        "freshness_cue_preserved": { "type": "boolean" },
+        "stale_content_cue_class": { "$ref": "#/$defs/stale_content_cue_class" },
+        "pinning_policy_class": { "$ref": "#/$defs/pinning_policy_class" },
+        "keyboard_promotion_available": { "type": "boolean" },
+        "pointer_only_promotion_denied": { "type": "boolean" },
+        "target_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "announcement_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "focus_and_dismissal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_focus_owner_ref",
+        "initial_focus_ref",
+        "focus_trap_class",
+        "escape_order",
+        "dismissal_behavior_class",
+        "focus_return_state",
+        "invoker_identity_ref",
+        "return_target_identity_ref",
+        "announcement_label",
+        "cross_window_focus_warp_forbidden",
+        "stack_dismissal_order"
+      ],
+      "properties": {
+        "active_focus_owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "initial_focus_ref": { "$ref": "#/$defs/opaque_id" },
+        "focus_trap_class": { "$ref": "#/$defs/focus_trap_class" },
+        "escape_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dismissal_step_class" }
+        },
+        "dismissal_behavior_class": { "$ref": "#/$defs/dismissal_behavior_class" },
+        "focus_return_state": { "$ref": "#/$defs/focus_return_state" },
+        "invoker_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "return_target_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "announcement_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_label" },
+            { "type": "null" }
+          ]
+        },
+        "cross_window_focus_warp_forbidden": { "type": "boolean" },
+        "stack_dismissal_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "nesting_rule_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_overlay_ref",
+        "child_overlay_ref",
+        "nesting_policy_class",
+        "platform_exception_kind",
+        "allowed",
+        "denial_reason",
+        "required_alternative_class"
+      ],
+      "properties": {
+        "parent_overlay_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "child_overlay_ref": { "$ref": "#/$defs/opaque_id" },
+        "nesting_policy_class": { "$ref": "#/$defs/nesting_policy_class" },
+        "platform_exception_kind": { "$ref": "#/$defs/platform_exception_kind" },
+        "allowed": { "type": "boolean" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "required_alternative_class": { "$ref": "#/$defs/required_alternative_class" }
+      }
+    },
+    "contract_checks_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layer_order_respected",
+        "portal_boundary_respected",
+        "scrim_semantics_respected",
+        "focus_trap_respected",
+        "dismissal_order_respected",
+        "back_stack_respected",
+        "nesting_policy_respected",
+        "keyboard_accessibility_respected",
+        "critical_action_has_durable_route",
+        "multi_window_focus_local",
+        "boundary_change_disclosed",
+        "stale_promotion_preserved_identity",
+        "accessibility_zoom_safe",
+        "final_verdict",
+        "denial_reasons"
+      ],
+      "properties": {
+        "layer_order_respected": { "type": "boolean" },
+        "portal_boundary_respected": { "type": "boolean" },
+        "scrim_semantics_respected": { "type": "boolean" },
+        "focus_trap_respected": { "type": "boolean" },
+        "dismissal_order_respected": { "type": "boolean" },
+        "back_stack_respected": { "type": "boolean" },
+        "nesting_policy_respected": { "type": "boolean" },
+        "keyboard_accessibility_respected": { "type": "boolean" },
+        "critical_action_has_durable_route": { "type": "boolean" },
+        "multi_window_focus_local": { "type": "boolean" },
+        "boundary_change_disclosed": { "type": "boolean" },
+        "stale_promotion_preserved_identity": { "type": "boolean" },
+        "accessibility_zoom_safe": { "type": "boolean" },
+        "final_verdict": { "$ref": "#/$defs/contract_verdict" },
+        "denial_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/denial_reason" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "overlay_stack_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "overlay_stack_schema_version",
+        "overlay_stack_id",
+        "case_class",
+        "source_contract_refs",
+        "owning_window_ref",
+        "workspace_scope_ref",
+        "overlays",
+        "top_overlay_ref",
+        "portal_boundary",
+        "promotion_chains",
+        "focus_and_dismissal",
+        "nesting_rules",
+        "contract_checks",
+        "client_scope",
+        "redaction_class",
+        "policy_context",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "overlay_stack_schema_version": { "$ref": "#/$defs/overlay_stack_schema_version" },
+        "overlay_stack_id": { "$ref": "#/$defs/opaque_id" },
+        "case_class": { "$ref": "#/$defs/case_class" },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "owning_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlays": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/overlay_surface_record" }
+        },
+        "top_overlay_ref": { "$ref": "#/$defs/opaque_id" },
+        "portal_boundary": { "$ref": "#/$defs/portal_boundary_record" },
+        "promotion_chains": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/promotion_chain_record" }
+        },
+        "focus_and_dismissal": { "$ref": "#/$defs/focus_and_dismissal_record" },
+        "nesting_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nesting_rule_record" }
+        },
+        "contract_checks": { "$ref": "#/$defs/contract_checks_record" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

@@ -645,6 +645,14 @@ code.
   worked fixtures (destructive core path, publish-capable /
   externally-mutating path, responsive-fallback denial) in
   [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
+- [`ux/overlay_layer_contract.md`](./ux/overlay_layer_contract.md)
+  — overlay-layer, portal-boundary, scrim, focus-trap,
+  dismissal/back-stack, nesting, and promotion contract shared by
+  tooltips, hovercards, popovers, peeks, menus, dialogs, sheets,
+  banners, critical prompts, and promoted panels. Boundary schema in
+  [`/schemas/ux/overlay_stack.schema.json`](../schemas/ux/overlay_stack.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/overlay_cases/`](../fixtures/ux/overlay_cases/).
 - [`ux/shell_close_reopen_contract.md`](./ux/shell_close_reopen_contract.md)
   — shell-slot close/reopen, remembered-last-surface, placeholder, and
   focus-return contract for rail sections, sidebars, workspace
