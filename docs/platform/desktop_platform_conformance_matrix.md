@@ -16,6 +16,14 @@ Companion artifacts:
   — machine-readable claimed-profile roster, deployment-pattern support
   notes, platform-owned primitive rows, owners, validation methods, and
   known narrowings.
+- [`/docs/platform/desktop_management_contract.md`](./desktop_management_contract.md),
+  [`/artifacts/platform/deployment_patterns.yaml`](../../artifacts/platform/deployment_patterns.yaml),
+  and
+  [`/artifacts/platform/managed_controls_matrix.yaml`](../../artifacts/platform/managed_controls_matrix.yaml)
+  — IT-facing scriptability contract, deployment-pattern rows, and
+  managed-control support matrix for silent install/uninstall, channel
+  pinning, update controls, mirrors, proxy posture, policy bundles, and
+  uninstall behavior on the claimed desktop profiles.
 - [`/artifacts/qa/window_display_matrix.yaml`](../../artifacts/qa/window_display_matrix.yaml)
   — seeded scenario and drill ids for multi-window, monitor-topology,
   mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen

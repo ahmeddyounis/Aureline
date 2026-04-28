@@ -488,6 +488,12 @@ and scopes.
   validation methods, and explicitly unclaimed lanes. Release and
   support wording should cite those rows rather than saying
   "desktop-supported" generically.
+- The desktop-management contract, deployment-pattern matrix, managed-
+  controls matrix, and scriptable-install fixtures are now the canonical
+  IT-facing home for silent install/uninstall, channel pinning, update
+  controls, extension mirrors, proxy posture, policy bundle location,
+  and documented uninstall behavior. Enterprise rollout guidance should
+  cite those rows rather than relying on installer folklore.
 - The window display behavior contract now lives in
   [`/docs/ux/window_display_contract.md`](../ux/window_display_contract.md)
   with boundary schema

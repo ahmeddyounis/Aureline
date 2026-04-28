@@ -1,0 +1,100 @@
+schema_version: 1
+record_kind: scriptable_install_case_record
+case_id: scriptable_install_case:linux_ubuntu_wayland_mirror_policy
+case_class: managed_mirror_and_proxy_policy
+scenario_summary: >
+  A named Ubuntu GNOME Wayland fleet installs from a customer mirror,
+  pins Stable, routes extension registry traffic through an approved
+  mirror, and applies proxy and policy-bundle controls without public
+  fallback.
+
+platform_profile_refs:
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+deployment_pattern_ref: desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+managed_control_refs:
+  - desktop_management.control.silent_install
+  - desktop_management.control.silent_uninstall
+  - desktop_management.control.channel_pinning
+  - desktop_management.control.extension_mirror_location
+  - desktop_management.control.proxy_settings
+  - desktop_management.control.policy_bundle_location
+artifact_family_refs:
+  - artifact_family.linux.deb
+  - artifact_family.linux.rpm
+  - artifact_family.linux.tarball
+install_topology_card_refs:
+  - card.linux.x86_64.offline_bundle.stable
+  - card.linux.x86_64.customer_managed_mirror.stable
+channel_identity_refs:
+  - channel_identity.stable
+state_root_refs:
+  - state.offline_bundle_mirror_metadata_root.stable
+  - state.per_machine_admin_policy_root.stable
+  - state.per_machine_shared_data_root.stable
+  - state.per_user_configuration_root.stable
+policy_artifact_refs:
+  - docs/policy/admin_policy_and_bundle_cache_contract.md#aureline.policy.json
+  - schemas/policy/admin_policy.schema.json
+extension_registry_refs:
+  - artifacts/extensions/channel_promotion_rows.yaml#approved_mirror
+  - fixtures/extensions/mirror_cases/approved_mirror_verified_cached.json
+silent_deployment_result_refs:
+  - artifacts/release/silent_deployment_seed.yaml#fixture.install.air_gap_bundle_target.platform_native_any.offline_bundle.stable.mirror_metadata_stale
+  - artifacts/release/silent_deployment_seed.yaml#fixture.install.linux.x86_64.managed_deployed.stable.trust_policy_denial
+
+scriptable_operations:
+  - operation_kind: install
+    expected_claim: supported
+    required_inputs:
+      - mirror_metadata_ref
+      - artifact_family_ref
+      - install_profile_card_ref
+      - policy_bundle_location_ref
+    expected_result_record:
+      result_kind: install
+      admitted_return_code_families:
+        - success
+        - network_transport
+        - trust_policy_denial
+  - operation_kind: verify
+    expected_claim: supported
+    required_inputs:
+      - mirror_metadata_integrity_class
+      - policy_epoch
+      - proxy_mode
+    expected_result_record:
+      result_kind: verify
+      admitted_return_code_families:
+        - success
+        - verification_failed
+        - network_transport
+  - operation_kind: uninstall
+    expected_claim: supported
+    required_inputs:
+      - install_profile_card_ref
+      - admin_authority_ref
+    expected_result_record:
+      result_kind: uninstall
+      return_code_family: success
+
+expected_transport_behavior:
+  proxy_source_classes:
+    - system_proxy
+    - pac
+    - manual_override
+    - policy_bundle
+  forbidden_fallbacks:
+    - public_direct_when_mirror_only
+    - insecure_trust_store_bypass
+    - raw_proxy_secret_export
+
+blocked_if:
+  - mirror_metadata_missing_for_mirror_claim
+  - extension_mirror_repackages_artifacts
+  - proxy_policy_bypass_to_public_registry
+  - policy_denial_without_policy_injection_class
+support_summary: >
+  This case proves the Ubuntu Wayland mirror claim joins package
+  artifact families, mirror metadata roots, policy roots, Stable
+  channel identity, extension mirror vocabulary, and transport policy.
+status: proposed

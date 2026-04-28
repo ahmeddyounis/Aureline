@@ -1,0 +1,89 @@
+schema_version: 1
+record_kind: scriptable_install_case_record
+case_id: scriptable_install_case:macos_mdm_update_deferral
+case_class: managed_update_deferral
+scenario_summary: >
+  A macOS fleet deploys the PKG package through an MDM-owned path,
+  defers updates during a rollout window, and keeps the policy bundle
+  location inspectable from diagnostics and support export.
+
+platform_profile_refs:
+  - macos_15_plus_universal
+deployment_pattern_ref: desktop_management.pattern.macos.managed
+managed_control_refs:
+  - desktop_management.control.silent_install
+  - desktop_management.control.silent_uninstall
+  - desktop_management.control.channel_pinning
+  - desktop_management.control.update_deferral
+  - desktop_management.control.update_disablement
+  - desktop_management.control.policy_bundle_location
+artifact_family_refs:
+  - artifact_family.macos.pkg
+install_topology_card_refs:
+  - card.macos.universal_binary.managed_deployed.stable
+channel_identity_refs:
+  - channel_identity.stable
+state_root_refs:
+  - state.per_machine_admin_policy_root.stable
+  - state.per_machine_shared_data_root.stable
+  - state.per_user_configuration_root.stable
+  - state.per_user_recovery_root.stable
+  - state.per_user_keychain_or_secret_store.stable
+policy_artifact_refs:
+  - docs/policy/admin_policy_and_bundle_cache_contract.md#aureline.policy.json
+  - schemas/identity/policy_bundle.schema.json
+silent_deployment_result_refs:
+  - artifacts/release/silent_deployment_seed.yaml#fixture.update.macos.universal_binary.per_machine_installed.stable.partial_success_reboot
+
+scriptable_operations:
+  - operation_kind: install
+    expected_claim: supported
+    required_inputs:
+      - pkg_artifact_ref
+      - install_profile_card_ref
+      - policy_bundle_location_ref
+    expected_result_record:
+      result_kind: install
+      return_code_family: success
+  - operation_kind: update_deferral
+    expected_claim: supported
+    required_inputs:
+      - policy_bundle_ref
+      - rollout_ring_class
+      - deferral_expiry_ref
+    expected_explainability:
+      source_authority: policy_bundle
+      effective_state: partially_managed
+  - operation_kind: uninstall
+    expected_claim: supported
+    required_inputs:
+      - install_profile_card_ref
+      - admin_authority_ref
+    expected_result_record:
+      result_kind: uninstall
+      return_code_family: success
+
+expected_uninstall_behavior:
+  removes:
+    - managed_pkg_receipt
+    - binary_root
+    - update_marker_owned_by_managed_row
+    - candidate_handler_registration_owned_by_managed_row
+  preserves:
+    - user_workspace_repositories
+    - state.per_user_configuration_root.stable
+    - state.per_user_recovery_root.stable
+    - state.per_user_keychain_or_secret_store.stable
+  admin_owned_cleanup:
+    - state.per_machine_admin_policy_root.stable
+
+blocked_if:
+  - mdm_deferral_hides_update_source
+  - policy_bundle_location_not_exportable
+  - uninstall_removes_user_keychain_entries_without_explicit_clear_data
+  - pkg_row_uses_homebrew_update_ownership
+support_summary: >
+  The case binds macOS managed update deferral to the PKG artifact
+  family, the managed install card, Stable channel identity, policy
+  bundle refs, and user-state preservation rules.
+status: proposed

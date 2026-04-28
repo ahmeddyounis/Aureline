@@ -1,0 +1,86 @@
+schema_version: 1
+record_kind: scriptable_install_case_record
+case_id: scriptable_install_case:portable_archive_removal_boundary
+case_class: portable_archive_boundary
+scenario_summary: >
+  A user extracts a portable archive beside an installed Stable copy.
+  The portable copy keeps state under the portable root, does not
+  register host-wide handlers, and is removed by deleting that root.
+
+platform_profile_refs:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+deployment_pattern_refs:
+  - desktop_management.pattern.macos.portable
+  - desktop_management.pattern.windows.portable
+  - desktop_management.pattern.linux_ubuntu_wayland.portable
+managed_control_refs:
+  - desktop_management.control.channel_pinning
+  - desktop_management.control.documented_uninstall_behavior
+artifact_family_refs:
+  - artifact_family.windows.signed_portable_zip
+  - artifact_family.macos.signed_app_zip
+  - artifact_family.linux.appimage
+  - artifact_family.linux.tarball
+install_topology_card_refs:
+  - card.windows.x86_64.portable.portable_stable
+  - card.macos.universal_binary.portable.portable_stable
+  - card.linux.x86_64.portable.portable_stable
+channel_identity_refs:
+  - channel_identity.portable_stable
+state_root_refs:
+  - state.portable_colocated_root.portable_stable
+handler_refs:
+  - file_association.portable_stable
+  - protocol_handler.portable_stable
+silent_deployment_result_refs:
+  - artifacts/release/silent_deployment_seed.yaml#fixture.install.windows.x86_64.portable.portable_stable.portable_spill_detected
+
+scriptable_operations:
+  - operation_kind: extract
+    expected_claim: supported
+    claim_note: >
+      Extraction is documented and scriptable, but it is not a
+      platform silent install claim.
+    required_inputs:
+      - artifact_family_ref
+      - portable_root
+      - channel_identity_ref
+  - operation_kind: remove_portable_root
+    expected_claim: supported
+    claim_note: >
+      Portable removal deletes the portable root only after diagnostics
+      identify it.
+    required_inputs:
+      - portable_root
+      - state_root_refs
+
+expected_uninstall_behavior:
+  removes:
+    - portable_root
+    - state.portable_colocated_root.portable_stable
+    - update_marker.portable_stable
+    - recent_items.portable_stable
+  preserves:
+    - installed_channel_binary_root
+    - state.per_user_configuration_root.stable
+    - state.per_user_recovery_root.stable
+    - state.per_machine_admin_policy_root.stable
+  never_registers:
+    - machine_global_file_association
+    - protocol_handler
+    - service
+    - shell_hook
+    - machine_global_update_marker
+
+blocked_if:
+  - portable_reads_installed_channel_state_root
+  - portable_writes_machine_global_update_marker
+  - portable_registers_protocol_handler
+  - removal_advice_targets_installed_state
+support_summary: >
+  Portable support is a root-isolation and documented-removal claim,
+  not a platform installer claim. Diagnostics must show the portable
+  root and installed roots separately.
+status: proposed

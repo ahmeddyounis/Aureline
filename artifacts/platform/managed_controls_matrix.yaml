@@ -1,0 +1,510 @@
+# Desktop managed-controls matrix.
+#
+# Machine-readable companion to docs/platform/desktop_management_contract.md.
+# This file defines the scriptable controls IT may rely on and maps each
+# control to existing release, policy, transport, extension-mirror, and
+# state-root contracts. It intentionally reuses those vocabularies rather
+# than minting platform-local management words.
+
+schema_version: 1
+matrix_id: aureline.desktop_management.managed_controls
+status: seeded
+
+contract_doc_ref: docs/platform/desktop_management_contract.md
+deployment_patterns_ref: artifacts/platform/deployment_patterns.yaml
+claimed_desktop_profiles_ref: artifacts/platform/claimed_desktop_profiles.yaml
+install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+install_artifact_families_ref: artifacts/release/install_artifact_families.yaml
+channel_identity_state_roots_ref: artifacts/release/channel_identity_and_state_roots.yaml
+state_root_map_ref: artifacts/release/state_root_map.yaml
+silent_deployment_seed_ref: artifacts/release/silent_deployment_seed.yaml
+admin_policy_contract_ref: docs/policy/admin_policy_and_bundle_cache_contract.md
+admin_policy_schema_ref: schemas/policy/admin_policy.schema.json
+policy_bundle_schema_ref: schemas/identity/policy_bundle.schema.json
+policy_explainability_ref: docs/admin/policy_explainability_contract.md
+extension_mirror_rows_ref: artifacts/extensions/channel_promotion_rows.yaml
+fixtures_ref: fixtures/platform/scriptable_install_cases/
+
+control_claim_vocabulary:
+  - supported
+  - unsupported
+  - future_work
+
+support_class_vocabulary:
+  - full
+  - partial
+  - delegated
+  - documented_manual
+  - not_applicable
+
+control_surface_class_vocabulary:
+  - installer_argument_or_package_metadata
+  - managed_policy_bundle
+  - package_manager_policy
+  - transport_policy_snapshot
+  - extension_registry_policy
+  - state_root_diagnostics
+  - documentation_only
+
+source_authority_vocabulary:
+  - user
+  - admin
+  - managed_fleet
+  - external_package_manager
+  - policy_bundle
+  - operating_system
+  - portable_root
+  - none
+
+rules:
+  - id: controls_resolve_to_existing_contracts
+    description: >
+      Every control row cites release, policy, transport, state-root,
+      or extension-mirror source rows. A control with only prose is
+      non-conforming.
+  - id: unattended_operations_emit_result_records
+    description: >
+      Silent install, uninstall, update, pin, rollback, and verify
+      operations emit result records from silent_deployment_seed.yaml.
+  - id: policy_controls_cannot_widen
+    description: >
+      Policy bundle, mirror, proxy, and update controls may narrow,
+      pin, defer, disable, or route through a mirror. They cannot widen
+      trust, endpoint reachability, extension trust, or channel identity.
+  - id: uninstall_preserves_user_state_by_default
+    description: >
+      Uninstall controls remove declared package/binary/install roots.
+      User-authored state and recovery state survive unless a separate
+      explicit clear-data operation is selected.
+  - id: portable_controls_stay_in_portable_root
+    description: >
+      Portable rows may document extraction, verification, and root
+      deletion, but may not write machine-global handlers, update
+      markers, services, or policy roots.
+
+control_definitions:
+  - control_id: desktop_management.control.silent_install
+    control_class: silent_install
+    user_facing_name: Silent install
+    control_surface_classes:
+      - installer_argument_or_package_metadata
+    source_authority: admin
+    result_kind_ref: install
+    release_contract_refs:
+      - artifacts/release/install_topology_matrix.yaml#silent_install_support_class_vocabulary
+      - artifacts/release/silent_deployment_seed.yaml#result_kind_vocabulary
+    required_join_fields:
+      - install_profile_card_ref
+      - artifact_family_refs
+      - channel_identity_refs
+      - return_code_family
+      - failure_reason_class
+    support_rule: >
+      Supported rows must document the package family, channel, policy
+      source, result record, and return-code family. Portable extraction
+      is not a platform silent install claim.
+
+  - control_id: desktop_management.control.silent_uninstall
+    control_class: silent_uninstall
+    user_facing_name: Silent uninstall
+    control_surface_classes:
+      - installer_argument_or_package_metadata
+      - state_root_diagnostics
+    source_authority: admin
+    result_kind_ref: uninstall
+    release_contract_refs:
+      - artifacts/release/install_topology_matrix.yaml#repair_verify_support_vocabulary
+      - artifacts/release/silent_deployment_seed.yaml#result_kind_vocabulary
+    required_join_fields:
+      - install_profile_card_ref
+      - state_root_refs
+      - return_code_family
+      - documented_uninstall_behavior
+    support_rule: >
+      Uninstall removes declared package and install markers while
+      preserving user-authored state by default.
+
+  - control_id: desktop_management.control.channel_pinning
+    control_class: channel_pinning
+    user_facing_name: Channel pinning
+    control_surface_classes:
+      - installer_argument_or_package_metadata
+      - managed_policy_bundle
+      - package_manager_policy
+    source_authority: policy_bundle
+    result_kind_ref: pin
+    release_contract_refs:
+      - artifacts/release/channel_identity_and_state_roots.yaml
+      - artifacts/release/install_topology_matrix.yaml#channel_class_vocabulary
+      - artifacts/release/silent_deployment_seed.yaml#result_kind_vocabulary
+    required_join_fields:
+      - channel_identity_refs
+      - install_profile_card_ref
+      - update_marker_refs
+      - policy_injection_class
+    support_rule: >
+      A pin binds a row to a channel identity and update-marker owner.
+      Pins may not silently convert Stable to Preview or installed
+      channels to portable channels.
+
+  - control_id: desktop_management.control.update_deferral
+    control_class: update_deferral
+    user_facing_name: Update deferral
+    control_surface_classes:
+      - managed_policy_bundle
+      - package_manager_policy
+    source_authority: policy_bundle
+    result_kind_ref: update
+    release_contract_refs:
+      - artifacts/release/install_topology_matrix.yaml#rollout_ring_class_vocabulary
+      - docs/admin/policy_explainability_contract.md#endpoint-posture-card
+    required_join_fields:
+      - install_profile_card_ref
+      - rollout_ring_class
+      - updater_owner_class
+      - policy_bundle_ref
+    support_rule: >
+      Deferral is supported on admin, managed-fleet, external-package-
+      manager, and policy-owned rows. The source and expiry must be
+      explainable.
+
+  - control_id: desktop_management.control.update_disablement
+    control_class: update_disablement
+    user_facing_name: Update disablement
+    control_surface_classes:
+      - managed_policy_bundle
+      - package_manager_policy
+    source_authority: policy_bundle
+    result_kind_ref: update
+    release_contract_refs:
+      - docs/governance/policy_flag_schema_stack.md
+      - docs/admin/policy_explainability_contract.md
+    required_join_fields:
+      - install_profile_card_ref
+      - updater_owner_class
+      - policy_bundle_ref
+      - effective_state
+    support_rule: >
+      Update disablement is an admin/policy, emergency-disable,
+      package-manager, or portable/no-updater state. It must not hide
+      a newer available build without an explainable source.
+
+  - control_id: desktop_management.control.extension_mirror_location
+    control_class: extension_mirror_location
+    user_facing_name: Extension mirror location
+    control_surface_classes:
+      - extension_registry_policy
+      - managed_policy_bundle
+    source_authority: policy_bundle
+    result_kind_ref: verify
+    release_contract_refs:
+      - artifacts/extensions/channel_promotion_rows.yaml#registry_source_classes
+      - fixtures/extensions/mirror_cases/
+    required_join_fields:
+      - registry_source_class
+      - trust_inheritance_default
+      - mirror_continuity_state_class
+      - policy_bundle_ref
+    support_rule: >
+      Mirror controls point to approved_mirror, private_registry, or
+      offline_bundle rows. Mirrors can narrow and verify; they cannot
+      repackage or silently widen trust.
+
+  - control_id: desktop_management.control.proxy_settings
+    control_class: proxy_settings
+    user_facing_name: Proxy settings
+    control_surface_classes:
+      - transport_policy_snapshot
+      - managed_policy_bundle
+    source_authority: operating_system
+    result_kind_ref: verify
+    release_contract_refs:
+      - docs/policy/admin_policy_and_bundle_cache_contract.md
+      - docs/admin/policy_explainability_contract.md#endpoint-posture-card
+    required_join_fields:
+      - effective_proxy_mode
+      - trust_store_summary
+      - policy_source
+      - route_choice
+    support_rule: >
+      Proxy settings use system, PAC, environment, manual override, or
+      policy source labels. No path may silently bypass configured
+      proxy, mirror-only, or deny-all posture.
+
+  - control_id: desktop_management.control.policy_bundle_location
+    control_class: policy_bundle_location
+    user_facing_name: Policy bundle location
+    control_surface_classes:
+      - managed_policy_bundle
+      - state_root_diagnostics
+    source_authority: policy_bundle
+    result_kind_ref: verify
+    release_contract_refs:
+      - docs/policy/admin_policy_and_bundle_cache_contract.md
+      - schemas/policy/admin_policy.schema.json
+      - schemas/identity/policy_bundle.schema.json
+    required_join_fields:
+      - policy_bundle_ref
+      - policy_epoch
+      - cache_entry_ref
+      - state_root_refs
+    support_rule: >
+      Policy bundle location resolves through the admin policy artifact
+      family and signed bundle cache, not a hosted-console-only state.
+
+  - control_id: desktop_management.control.documented_uninstall_behavior
+    control_class: documented_uninstall_behavior
+    user_facing_name: Documented uninstall behavior
+    control_surface_classes:
+      - documentation_only
+      - state_root_diagnostics
+    source_authority: admin
+    result_kind_ref: uninstall
+    release_contract_refs:
+      - artifacts/release/state_root_map.yaml
+      - docs/platform/desktop_management_contract.md#uninstall-behavior
+    required_join_fields:
+      - install_profile_card_ref
+      - state_root_refs
+      - documented_uninstall_behavior
+      - preservation_rule
+    support_rule: >
+      Every row states what is removed, what is preserved, and who owns
+      removal. Clear-data is a separate operation.
+
+claimed_platform_minimums:
+  - platform_profile_ref: macos_15_plus_universal
+    silent_install:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.macos.individual
+        - desktop_management.pattern.macos.managed
+    silent_uninstall:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.macos.individual
+        - desktop_management.pattern.macos.managed
+    channel_pinning:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.macos.individual
+        - desktop_management.pattern.macos.managed
+        - desktop_management.pattern.macos.portable
+    unsupported_or_future_work_refs:
+      - desktop_management.out_of_claim.macos_offline_bundle
+
+  - platform_profile_ref: windows_11_23h2_plus_x86_64
+    silent_install:
+      claim: supported
+      support_class: full
+      qualifying_pattern_refs:
+        - desktop_management.pattern.windows.individual
+        - desktop_management.pattern.windows.managed
+        - desktop_management.pattern.windows.offline_or_mirror
+    silent_uninstall:
+      claim: supported
+      support_class: full
+      qualifying_pattern_refs:
+        - desktop_management.pattern.windows.individual
+        - desktop_management.pattern.windows.managed
+        - desktop_management.pattern.windows.offline_or_mirror
+    channel_pinning:
+      claim: supported
+      support_class: full
+      qualifying_pattern_refs:
+        - desktop_management.pattern.windows.individual
+        - desktop_management.pattern.windows.managed
+        - desktop_management.pattern.windows.offline_or_mirror
+        - desktop_management.pattern.windows.portable
+    unsupported_or_future_work_refs:
+      - desktop_management.out_of_claim.windows_winget
+
+  - platform_profile_ref: linux_ubuntu_24_04_gnome_wayland_x86_64
+    silent_install:
+      claim: supported
+      support_class: full
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_ubuntu_wayland.individual
+        - desktop_management.pattern.linux_ubuntu_wayland.managed
+        - desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+    silent_uninstall:
+      claim: supported
+      support_class: full
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_ubuntu_wayland.individual
+        - desktop_management.pattern.linux_ubuntu_wayland.managed
+        - desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+    channel_pinning:
+      claim: supported
+      support_class: full
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_ubuntu_wayland.individual
+        - desktop_management.pattern.linux_ubuntu_wayland.managed
+        - desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+        - desktop_management.pattern.linux_ubuntu_wayland.portable
+    unsupported_or_future_work_refs: []
+
+  - platform_profile_ref: linux_ubuntu_24_04_gnome_x11_x86_64
+    silent_install:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_ubuntu_x11.individual
+    silent_uninstall:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_ubuntu_x11.individual
+    channel_pinning:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_ubuntu_x11.individual
+    unsupported_or_future_work_refs:
+      - desktop_management.out_of_claim.linux_managed_except_ubuntu_wayland
+
+  - platform_profile_ref: linux_fedora_current_gnome_wayland_x86_64
+    silent_install:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_fedora_wayland.individual
+    silent_uninstall:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_fedora_wayland.individual
+    channel_pinning:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_fedora_wayland.individual
+    unsupported_or_future_work_refs:
+      - desktop_management.out_of_claim.linux_managed_except_ubuntu_wayland
+
+  - platform_profile_ref: linux_debian_stable_gnome_x11_x86_64
+    silent_install:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_debian_x11.individual
+    silent_uninstall:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_debian_x11.individual
+    channel_pinning:
+      claim: supported
+      support_class: partial
+      qualifying_pattern_refs:
+        - desktop_management.pattern.linux_debian_x11.individual
+    unsupported_or_future_work_refs:
+      - desktop_management.out_of_claim.linux_managed_except_ubuntu_wayland
+
+control_support_rollups:
+  - control_id: desktop_management.control.silent_install
+    supported_pattern_refs:
+      - desktop_management.pattern.macos.individual
+      - desktop_management.pattern.macos.managed
+      - desktop_management.pattern.windows.individual
+      - desktop_management.pattern.windows.managed
+      - desktop_management.pattern.windows.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_wayland.individual
+      - desktop_management.pattern.linux_ubuntu_wayland.managed
+      - desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_x11.individual
+      - desktop_management.pattern.linux_fedora_wayland.individual
+      - desktop_management.pattern.linux_debian_x11.individual
+    unsupported_pattern_refs:
+      - desktop_management.pattern.macos.portable
+      - desktop_management.pattern.macos.offline_or_mirror
+      - desktop_management.pattern.windows.portable
+      - desktop_management.pattern.linux_ubuntu_wayland.portable
+      - desktop_management.pattern.linux_ubuntu_x11.managed
+      - desktop_management.pattern.linux_fedora_wayland.managed
+      - desktop_management.pattern.linux_debian_x11.managed
+      - desktop_management.pattern.linux_debian_x11.portable
+    future_work_pattern_refs:
+      - desktop_management.pattern.windows.external_package_manager
+
+  - control_id: desktop_management.control.silent_uninstall
+    supported_pattern_refs:
+      - desktop_management.pattern.macos.individual
+      - desktop_management.pattern.macos.managed
+      - desktop_management.pattern.windows.individual
+      - desktop_management.pattern.windows.managed
+      - desktop_management.pattern.windows.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_wayland.individual
+      - desktop_management.pattern.linux_ubuntu_wayland.managed
+      - desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_x11.individual
+      - desktop_management.pattern.linux_fedora_wayland.individual
+      - desktop_management.pattern.linux_debian_x11.individual
+    unsupported_pattern_refs:
+      - desktop_management.pattern.macos.portable
+      - desktop_management.pattern.macos.offline_or_mirror
+      - desktop_management.pattern.windows.portable
+      - desktop_management.pattern.linux_ubuntu_wayland.portable
+      - desktop_management.pattern.linux_ubuntu_x11.managed
+      - desktop_management.pattern.linux_fedora_wayland.managed
+      - desktop_management.pattern.linux_debian_x11.managed
+      - desktop_management.pattern.linux_debian_x11.portable
+    future_work_pattern_refs:
+      - desktop_management.pattern.windows.external_package_manager
+
+  - control_id: desktop_management.control.channel_pinning
+    supported_pattern_refs:
+      - desktop_management.pattern.macos.individual
+      - desktop_management.pattern.macos.managed
+      - desktop_management.pattern.macos.portable
+      - desktop_management.pattern.windows.individual
+      - desktop_management.pattern.windows.managed
+      - desktop_management.pattern.windows.portable
+      - desktop_management.pattern.windows.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_wayland.individual
+      - desktop_management.pattern.linux_ubuntu_wayland.managed
+      - desktop_management.pattern.linux_ubuntu_wayland.portable
+      - desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_x11.individual
+      - desktop_management.pattern.linux_fedora_wayland.individual
+      - desktop_management.pattern.linux_debian_x11.individual
+    unsupported_pattern_refs:
+      - desktop_management.pattern.macos.offline_or_mirror
+      - desktop_management.pattern.linux_ubuntu_x11.managed
+      - desktop_management.pattern.linux_fedora_wayland.managed
+      - desktop_management.pattern.linux_debian_x11.managed
+      - desktop_management.pattern.linux_debian_x11.portable
+    future_work_pattern_refs:
+      - desktop_management.pattern.windows.external_package_manager
+
+explicit_control_gaps:
+  - id: desktop_management.control_gap.vendor_specific_mdm_console_adapters
+    summary: >
+      Vendor-specific MDM console adapters, smart groups, detection
+      rules, and package recipes are outside the current claim. The
+      claim is the installer/control/result contract those tools can
+      automate against.
+    affected_controls:
+      - desktop_management.control.silent_install
+      - desktop_management.control.silent_uninstall
+      - desktop_management.control.channel_pinning
+  - id: desktop_management.control_gap.raw_proxy_or_mirror_secrets
+    summary: >
+      Raw proxy credentials, private keys, bearer tokens, raw mirror
+      hostnames, and raw policy rule bodies are never part of the
+      exported management contract.
+    affected_controls:
+      - desktop_management.control.proxy_settings
+      - desktop_management.control.extension_mirror_location
+      - desktop_management.control.policy_bundle_location
+  - id: desktop_management.control_gap.package_manager_pin_semantics
+    summary: >
+      Package-manager pinning is delegated and does not become an
+      Aureline channel-pinning claim without a dedicated install-card
+      row and fixture.
+    affected_controls:
+      - desktop_management.control.channel_pinning
+      - desktop_management.control.update_deferral

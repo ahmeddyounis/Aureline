@@ -1,0 +1,870 @@
+# Desktop deployment-pattern support matrix.
+#
+# Machine-readable companion to docs/platform/desktop_management_contract.md.
+# This file records which individual, managed, portable, offline/mirror,
+# and package-manager patterns are claim-bearing on each named desktop
+# platform profile. It reuses install-profile-card, artifact-family,
+# state-root, and channel-identity ids from the release contracts.
+
+schema_version: 1
+matrix_id: aureline.desktop_management.deployment_patterns
+status: seeded
+
+contract_doc_ref: docs/platform/desktop_management_contract.md
+claimed_desktop_profiles_ref: artifacts/platform/claimed_desktop_profiles.yaml
+desktop_conformance_doc_ref: docs/platform/desktop_platform_conformance_matrix.md
+install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+install_artifact_families_ref: artifacts/release/install_artifact_families.yaml
+channel_identity_state_roots_ref: artifacts/release/channel_identity_and_state_roots.yaml
+state_root_map_ref: artifacts/release/state_root_map.yaml
+silent_deployment_seed_ref: artifacts/release/silent_deployment_seed.yaml
+managed_controls_matrix_ref: artifacts/platform/managed_controls_matrix.yaml
+fixtures_ref: fixtures/platform/scriptable_install_cases/
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "Native OS integration and desktop-platform contract"
+      - "Configuration, policy, and managed deployment"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Appendix AA native OS and fleet-deployment conformance matrix"
+      - "Appendix BA install, portable-mode, and fleet-rollout matrix"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "Installation, rollout rings, and rollback matrix"
+      - "Transport policy, proxy resolution, and egress-decision contract"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "Install authority, fleet rollout, and device-governance contract"
+
+pattern_class_vocabulary:
+  - individual_install
+  - managed_install
+  - portable_install
+  - offline_bundle_or_customer_mirror
+  - external_package_manager
+
+claim_status_vocabulary:
+  - claimed
+  - claimed_narrow
+  - best_effort
+  - unclaimed
+
+management_claim_bucket_vocabulary:
+  - supported
+  - supported_narrow
+  - best_effort
+  - unsupported
+  - future_work
+  - delegated
+
+scriptable_control_claim_vocabulary:
+  - supported
+  - unsupported
+  - future_work
+
+scriptable_control_support_class_vocabulary:
+  - full
+  - partial
+  - delegated
+  - documented_manual
+  - not_applicable
+
+posture_vocabulary:
+  - supported
+  - supported_narrow
+  - best_effort
+  - unsupported
+  - not_applicable
+
+rules:
+  - id: platform_profile_is_the_claim_unit
+    description: >
+      A deployment claim is a named platform profile plus a pattern
+      row. Generic macOS, Windows, or Linux wording is non-conforming.
+  - id: control_claims_reuse_release_vocabulary
+    description: >
+      Silent install, silent uninstall, channel pinning, update
+      ownership, policy injection, and CLI scriptability fields cite
+      install-topology and silent-deployment values instead of local
+      aliases.
+  - id: portable_patterns_are_not_package_uninstalls
+    description: >
+      Portable extraction and removal are documented and scriptable,
+      but are not treated as platform package install/uninstall
+      claims. Portable rows must keep state under the portable root.
+  - id: package_manager_paths_are_delegated_unless_claimed
+    description: >
+      External package managers own package update and removal. A
+      package-manager row does not widen in-product update, uninstall,
+      or handler-ownership claims unless a dedicated install-profile
+      card says so.
+  - id: unsupported_rows_are_explicit
+    description: >
+      Unsupported and future-work lanes are represented as rows so
+      support and procurement copy cannot infer hidden support.
+
+platform_deployment_rows:
+  - id: desktop_management.patterns.macos_15_plus_universal
+    platform_profile_ref: macos_15_plus_universal
+    platform_class: macos
+    architecture_class: universal_binary
+    patterns:
+      individual_install:
+        pattern_row_id: desktop_management.pattern.macos.individual
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: supported
+        per_machine_posture: supported
+        updater_owner_classes: [user, admin]
+        policy_injection_classes: [none, config_profile]
+        artifact_family_refs:
+          - artifact_family.macos.pkg
+          - artifact_family.macos.notarized_dmg
+        install_topology_card_refs:
+          - card.macos.universal_binary.per_user_installed.stable
+          - card.macos.universal_binary.per_machine_installed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+          - channel_identity.preview
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+          - state.per_user_derived_cache_root.stable
+          - state.per_user_keychain_or_secret_store.stable
+        scriptable_controls:
+          silent_install:
+            claim: supported
+            support_class: partial
+            basis: >
+              PKG rows are fully scriptable; direct DMG rows are
+              narrower and must disclose drag-install or cask ownership.
+          silent_uninstall:
+            claim: supported
+            support_class: partial
+            basis: >
+              PKG rows support package removal; direct DMG removal is
+              documented but narrower than managed package uninstall.
+          channel_pinning:
+            claim: supported
+            support_class: partial
+            basis: >
+              User-selected channel is supported; admin-enforced pinning
+              requires the per-machine or managed package path.
+        documented_uninstall_behavior: removes_package_or_app_bundle_preserves_user_state
+      managed_install:
+        pattern_row_id: desktop_management.pattern.macos.managed
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: not_applicable
+        per_machine_posture: supported
+        updater_owner_classes: [managed_fleet]
+        policy_injection_classes: [mdm]
+        artifact_family_refs:
+          - artifact_family.macos.pkg
+        install_topology_card_refs:
+          - card.macos.universal_binary.managed_deployed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_machine_admin_policy_root.stable
+          - state.per_machine_shared_data_root.stable
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install:
+            claim: supported
+            support_class: full
+            basis: PKG managed rows emit unattended install result records.
+          silent_uninstall:
+            claim: supported
+            support_class: full
+            basis: Managed package removal emits unattended uninstall result records.
+          channel_pinning:
+            claim: supported
+            support_class: full
+            basis: Admin channel pinning binds to channel_identity.stable.
+        documented_uninstall_behavior: removes_managed_package_preserves_user_state_and_policy_history
+      portable_install:
+        pattern_row_id: desktop_management.pattern.macos.portable
+        claim_status: claimed_narrow
+        management_claim_bucket: supported_narrow
+        per_user_posture: supported_narrow
+        per_machine_posture: unsupported
+        updater_owner_classes: [user, none]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.macos.signed_app_zip
+        install_topology_card_refs:
+          - card.macos.universal_binary.portable.portable_stable
+        channel_identity_refs:
+          - channel_identity.portable_stable
+        state_root_refs:
+          - state.portable_colocated_root.portable_stable
+        scriptable_controls:
+          silent_install:
+            claim: unsupported
+            support_class: documented_manual
+            basis: Portable app ZIP extraction is not a platform package install claim.
+          silent_uninstall:
+            claim: unsupported
+            support_class: documented_manual
+            basis: Portable removal is deleting the portable root after diagnostics identify it.
+          channel_pinning:
+            claim: supported
+            support_class: partial
+            basis: Portable channel is fixed by archive identity and portable root.
+        documented_uninstall_behavior: delete_portable_root_only
+      offline_bundle_or_customer_mirror:
+        pattern_row_id: desktop_management.pattern.macos.offline_or_mirror
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      external_package_manager:
+        pattern_row_id: desktop_management.pattern.macos.external_package_manager
+        claim_status: best_effort
+        management_claim_bucket: delegated
+        per_user_posture: best_effort
+        per_machine_posture: unsupported
+        updater_owner_classes: [external_package_manager]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.macos.notarized_dmg
+        install_topology_card_refs:
+          - card.macos.universal_binary.external_package_manager.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install:
+            claim: unsupported
+            support_class: delegated
+            basis: Package-manager automation is outside the in-product installer claim.
+          silent_uninstall:
+            claim: unsupported
+            support_class: delegated
+            basis: Package-manager removal is delegated.
+          channel_pinning:
+            claim: unsupported
+            support_class: delegated
+            basis: Package-manager pinning is not an Aureline control claim.
+        documented_uninstall_behavior: delegated_package_manager_removal_preserves_user_state
+
+  - id: desktop_management.patterns.windows_11_23h2_plus_x86_64
+    platform_profile_ref: windows_11_23h2_plus_x86_64
+    platform_class: windows
+    architecture_class: x86_64
+    patterns:
+      individual_install:
+        pattern_row_id: desktop_management.pattern.windows.individual
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: supported
+        per_machine_posture: supported
+        updater_owner_classes: [user, admin]
+        policy_injection_classes: [none, gpo]
+        artifact_family_refs:
+          - artifact_family.windows.msi
+          - artifact_family.windows.msix
+        install_topology_card_refs:
+          - card.windows.x86_64.per_user_installed.stable
+          - card.windows.x86_64.per_machine_installed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+          - channel_identity.preview
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+          - state.per_user_derived_cache_root.stable
+          - state.per_machine_shared_data_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_package_preserves_user_state
+      managed_install:
+        pattern_row_id: desktop_management.pattern.windows.managed
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: unsupported
+        per_machine_posture: supported
+        updater_owner_classes: [managed_fleet]
+        policy_injection_classes: [gpo]
+        artifact_family_refs:
+          - artifact_family.windows.msi
+          - artifact_family.windows.msix
+        install_topology_card_refs:
+          - card.windows.x86_64.managed_deployed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_machine_admin_policy_root.stable
+          - state.per_machine_shared_data_root.stable
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_managed_package_preserves_user_state_and_policy_history
+      portable_install:
+        pattern_row_id: desktop_management.pattern.windows.portable
+        claim_status: claimed_narrow
+        management_claim_bucket: supported_narrow
+        per_user_posture: supported_narrow
+        per_machine_posture: unsupported
+        updater_owner_classes: [user, none]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.windows.signed_portable_zip
+        install_topology_card_refs:
+          - card.windows.x86_64.portable.portable_stable
+        channel_identity_refs:
+          - channel_identity.portable_stable
+        state_root_refs:
+          - state.portable_colocated_root.portable_stable
+        scriptable_controls:
+          silent_install:
+            claim: unsupported
+            support_class: documented_manual
+            basis: Portable ZIP extraction is not a platform package install claim.
+          silent_uninstall:
+            claim: unsupported
+            support_class: documented_manual
+            basis: Portable removal is deleting the portable root.
+          channel_pinning:
+            claim: supported
+            support_class: partial
+            basis: Portable channel is fixed by archive identity and portable root.
+        documented_uninstall_behavior: delete_portable_root_only
+      offline_bundle_or_customer_mirror:
+        pattern_row_id: desktop_management.pattern.windows.offline_or_mirror
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: unsupported
+        per_machine_posture: supported
+        updater_owner_classes: [admin]
+        policy_injection_classes: [gpo]
+        artifact_family_refs:
+          - artifact_family.windows.msi
+          - artifact_family.windows.msix
+        install_topology_card_refs:
+          - card.windows.x86_64.offline_bundle.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.offline_bundle_mirror_metadata_root.stable
+          - state.per_machine_admin_policy_root.stable
+          - state.per_machine_shared_data_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_offline_bundle_install_preserves_user_state
+      external_package_manager:
+        pattern_row_id: desktop_management.pattern.windows.external_package_manager
+        claim_status: unclaimed
+        management_claim_bucket: future_work
+        per_user_posture: future_work
+        per_machine_posture: future_work
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: future_work, support_class: not_applicable}
+          silent_uninstall: {claim: future_work, support_class: not_applicable}
+          channel_pinning: {claim: future_work, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+
+  - id: desktop_management.patterns.linux_ubuntu_24_04_gnome_wayland_x86_64
+    platform_profile_ref: linux_ubuntu_24_04_gnome_wayland_x86_64
+    platform_class: linux
+    architecture_class: x86_64
+    patterns:
+      individual_install:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_wayland.individual
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: supported
+        per_machine_posture: unsupported
+        updater_owner_classes: [user]
+        policy_injection_classes: [env_var]
+        artifact_family_refs:
+          - artifact_family.linux.appimage
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+          - state.per_user_derived_cache_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_extract_or_appimage_marker_preserves_user_state
+      managed_install:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_wayland.managed
+        claim_status: claimed
+        management_claim_bucket: supported_narrow
+        per_user_posture: unsupported
+        per_machine_posture: supported_narrow
+        updater_owner_classes: [managed_fleet]
+        policy_injection_classes: [config_profile]
+        artifact_family_refs:
+          - artifact_family.linux.deb
+          - artifact_family.linux.rpm
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.managed_deployed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_machine_admin_policy_root.stable
+          - state.per_machine_shared_data_root.stable
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_managed_package_preserves_user_state_and_policy_history
+      portable_install:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_wayland.portable
+        claim_status: claimed_narrow
+        management_claim_bucket: supported_narrow
+        per_user_posture: supported_narrow
+        per_machine_posture: unsupported
+        updater_owner_classes: [user, none]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.linux.appimage
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.portable.portable_stable
+        channel_identity_refs:
+          - channel_identity.portable_stable
+        state_root_refs:
+          - state.portable_colocated_root.portable_stable
+        scriptable_controls:
+          silent_install:
+            claim: unsupported
+            support_class: documented_manual
+            basis: Portable extraction is not a platform package install claim.
+          silent_uninstall:
+            claim: unsupported
+            support_class: documented_manual
+            basis: Portable removal is deleting the portable root.
+          channel_pinning:
+            claim: supported
+            support_class: partial
+            basis: Portable channel is fixed by archive identity and portable root.
+        documented_uninstall_behavior: delete_portable_root_only
+      offline_bundle_or_customer_mirror:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_wayland.offline_or_mirror
+        claim_status: claimed_narrow
+        management_claim_bucket: supported_narrow
+        per_user_posture: unsupported
+        per_machine_posture: supported_narrow
+        updater_owner_classes: [admin]
+        policy_injection_classes: [config_profile]
+        artifact_family_refs:
+          - artifact_family.linux.deb
+          - artifact_family.linux.rpm
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.offline_bundle.stable
+          - card.linux.x86_64.customer_managed_mirror.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.offline_bundle_mirror_metadata_root.stable
+          - state.per_machine_admin_policy_root.stable
+          - state.per_machine_shared_data_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_mirror_or_offline_install_preserves_user_state
+      external_package_manager:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_wayland.external_package_manager
+        claim_status: best_effort
+        management_claim_bucket: delegated
+        per_user_posture: unsupported
+        per_machine_posture: best_effort
+        updater_owner_classes: [external_package_manager]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.linux.deb
+          - artifact_family.linux.rpm
+        install_topology_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: delegated}
+          silent_uninstall: {claim: unsupported, support_class: delegated}
+          channel_pinning: {claim: unsupported, support_class: delegated}
+        documented_uninstall_behavior: delegated_package_manager_removal_preserves_user_state
+
+  - id: desktop_management.patterns.linux_ubuntu_24_04_gnome_x11_x86_64
+    platform_profile_ref: linux_ubuntu_24_04_gnome_x11_x86_64
+    platform_class: linux
+    architecture_class: x86_64
+    patterns:
+      individual_install:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_x11.individual
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: supported
+        per_machine_posture: unsupported
+        updater_owner_classes: [user]
+        policy_injection_classes: [env_var]
+        artifact_family_refs:
+          - artifact_family.linux.appimage
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_extract_or_appimage_marker_preserves_user_state
+      managed_install:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_x11.managed
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      portable_install:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_x11.portable
+        claim_status: best_effort
+        management_claim_bucket: best_effort
+        per_user_posture: best_effort
+        per_machine_posture: unsupported
+        updater_owner_classes: [user, none]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.linux.appimage
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.portable.portable_stable
+        channel_identity_refs:
+          - channel_identity.portable_stable
+        state_root_refs:
+          - state.portable_colocated_root.portable_stable
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: documented_manual}
+          silent_uninstall: {claim: unsupported, support_class: documented_manual}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: delete_portable_root_only_best_effort
+      offline_bundle_or_customer_mirror:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_x11.offline_or_mirror
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      external_package_manager:
+        pattern_row_id: desktop_management.pattern.linux_ubuntu_x11.external_package_manager
+        claim_status: best_effort
+        management_claim_bucket: delegated
+        per_user_posture: unsupported
+        per_machine_posture: best_effort
+        updater_owner_classes: [external_package_manager]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.linux.deb
+        install_topology_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: delegated}
+          silent_uninstall: {claim: unsupported, support_class: delegated}
+          channel_pinning: {claim: unsupported, support_class: delegated}
+        documented_uninstall_behavior: delegated_package_manager_removal_preserves_user_state
+
+  - id: desktop_management.patterns.linux_fedora_current_gnome_wayland_x86_64
+    platform_profile_ref: linux_fedora_current_gnome_wayland_x86_64
+    platform_class: linux
+    architecture_class: x86_64
+    patterns:
+      individual_install:
+        pattern_row_id: desktop_management.pattern.linux_fedora_wayland.individual
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: supported
+        per_machine_posture: unsupported
+        updater_owner_classes: [user]
+        policy_injection_classes: [env_var]
+        artifact_family_refs:
+          - artifact_family.linux.appimage
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_extract_or_appimage_marker_preserves_user_state
+      managed_install:
+        pattern_row_id: desktop_management.pattern.linux_fedora_wayland.managed
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      portable_install:
+        pattern_row_id: desktop_management.pattern.linux_fedora_wayland.portable
+        claim_status: best_effort
+        management_claim_bucket: best_effort
+        per_user_posture: best_effort
+        per_machine_posture: unsupported
+        updater_owner_classes: [user, none]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.linux.appimage
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.portable.portable_stable
+        channel_identity_refs:
+          - channel_identity.portable_stable
+        state_root_refs:
+          - state.portable_colocated_root.portable_stable
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: documented_manual}
+          silent_uninstall: {claim: unsupported, support_class: documented_manual}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: delete_portable_root_only_best_effort
+      offline_bundle_or_customer_mirror:
+        pattern_row_id: desktop_management.pattern.linux_fedora_wayland.offline_or_mirror
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      external_package_manager:
+        pattern_row_id: desktop_management.pattern.linux_fedora_wayland.external_package_manager
+        claim_status: best_effort
+        management_claim_bucket: delegated
+        per_user_posture: unsupported
+        per_machine_posture: best_effort
+        updater_owner_classes: [external_package_manager]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.linux.rpm
+        install_topology_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: delegated}
+          silent_uninstall: {claim: unsupported, support_class: delegated}
+          channel_pinning: {claim: unsupported, support_class: delegated}
+        documented_uninstall_behavior: delegated_package_manager_removal_preserves_user_state
+
+  - id: desktop_management.patterns.linux_debian_stable_gnome_x11_x86_64
+    platform_profile_ref: linux_debian_stable_gnome_x11_x86_64
+    platform_class: linux
+    architecture_class: x86_64
+    patterns:
+      individual_install:
+        pattern_row_id: desktop_management.pattern.linux_debian_x11.individual
+        claim_status: claimed
+        management_claim_bucket: supported
+        per_user_posture: supported
+        per_machine_posture: unsupported
+        updater_owner_classes: [user]
+        policy_injection_classes: [env_var]
+        artifact_family_refs:
+          - artifact_family.linux.tarball
+        install_topology_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+        scriptable_controls:
+          silent_install: {claim: supported, support_class: full}
+          silent_uninstall: {claim: supported, support_class: full}
+          channel_pinning: {claim: supported, support_class: full}
+        documented_uninstall_behavior: removes_extract_marker_preserves_user_state
+      managed_install:
+        pattern_row_id: desktop_management.pattern.linux_debian_x11.managed
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      portable_install:
+        pattern_row_id: desktop_management.pattern.linux_debian_x11.portable
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      offline_bundle_or_customer_mirror:
+        pattern_row_id: desktop_management.pattern.linux_debian_x11.offline_or_mirror
+        claim_status: unclaimed
+        management_claim_bucket: unsupported
+        per_user_posture: unsupported
+        per_machine_posture: unsupported
+        updater_owner_classes: []
+        policy_injection_classes: []
+        artifact_family_refs: []
+        install_topology_card_refs: []
+        channel_identity_refs: []
+        state_root_refs: []
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: not_applicable}
+          silent_uninstall: {claim: unsupported, support_class: not_applicable}
+          channel_pinning: {claim: unsupported, support_class: not_applicable}
+        documented_uninstall_behavior: not_claimed
+      external_package_manager:
+        pattern_row_id: desktop_management.pattern.linux_debian_x11.external_package_manager
+        claim_status: best_effort
+        management_claim_bucket: delegated
+        per_user_posture: unsupported
+        per_machine_posture: best_effort
+        updater_owner_classes: [external_package_manager]
+        policy_injection_classes: [none]
+        artifact_family_refs:
+          - artifact_family.linux.deb
+        install_topology_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        channel_identity_refs:
+          - channel_identity.stable
+        state_root_refs:
+          - state.per_user_configuration_root.stable
+        scriptable_controls:
+          silent_install: {claim: unsupported, support_class: delegated}
+          silent_uninstall: {claim: unsupported, support_class: delegated}
+          channel_pinning: {claim: unsupported, support_class: delegated}
+        documented_uninstall_behavior: delegated_package_manager_removal_preserves_user_state
+
+explicitly_out_of_claim:
+  - id: desktop_management.out_of_claim.windows_arm64
+    summary: Windows ARM64 package and desktop-management rows are not claimed.
+    affected_profiles: []
+    future_work_trigger: dedicated_platform_profile_and_install_profile_cards
+  - id: desktop_management.out_of_claim.linux_arm64
+    summary: Linux ARM64 package and desktop-management rows are not claimed.
+    affected_profiles: []
+    future_work_trigger: dedicated_platform_profile_and_install_profile_cards
+  - id: desktop_management.out_of_claim.windows_winget
+    summary: Windows winget deployment, uninstall, and channel pinning are future work.
+    affected_profiles:
+      - windows_11_23h2_plus_x86_64
+    future_work_trigger: dedicated_external_package_manager_card
+  - id: desktop_management.out_of_claim.macos_offline_bundle
+    summary: macOS offline-bundle and customer-mirror install lanes are unsupported.
+    affected_profiles:
+      - macos_15_plus_universal
+    future_work_trigger: macos_offline_bundle_card_and_fixture
+  - id: desktop_management.out_of_claim.linux_managed_except_ubuntu_wayland
+    summary: Linux managed/offline widening is claimed only on Ubuntu GNOME Wayland.
+    affected_profiles:
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    future_work_trigger: per_profile_managed_install_evidence

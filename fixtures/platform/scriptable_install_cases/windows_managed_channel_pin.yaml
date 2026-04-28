@@ -1,0 +1,89 @@
+schema_version: 1
+record_kind: scriptable_install_case_record
+case_id: scriptable_install_case:windows_managed_channel_pin
+case_class: managed_install_channel_pin
+scenario_summary: >
+  A Windows managed-fleet deployment installs Stable from a signed
+  MSI/MSIX package, pins the host to the Stable channel, and reports
+  package state to fleet tooling without launching the GUI.
+
+platform_profile_refs:
+  - windows_11_23h2_plus_x86_64
+deployment_pattern_ref: desktop_management.pattern.windows.managed
+managed_control_refs:
+  - desktop_management.control.silent_install
+  - desktop_management.control.silent_uninstall
+  - desktop_management.control.channel_pinning
+  - desktop_management.control.update_deferral
+  - desktop_management.control.policy_bundle_location
+artifact_family_refs:
+  - artifact_family.windows.msi
+  - artifact_family.windows.msix
+install_topology_card_refs:
+  - card.windows.x86_64.managed_deployed.stable
+channel_identity_refs:
+  - channel_identity.stable
+state_root_refs:
+  - state.per_machine_admin_policy_root.stable
+  - state.per_machine_shared_data_root.stable
+  - state.per_user_configuration_root.stable
+  - state.per_user_recovery_root.stable
+policy_artifact_refs:
+  - docs/policy/admin_policy_and_bundle_cache_contract.md#aureline.policy.json
+  - schemas/policy/admin_policy.schema.json
+silent_deployment_result_refs:
+  - artifacts/release/silent_deployment_seed.yaml#fixture.install.windows.x86_64.per_machine_installed.stable.success
+
+scriptable_operations:
+  - operation_kind: install
+    expected_claim: supported
+    required_inputs:
+      - artifact_family_ref
+      - install_profile_card_ref
+      - channel_identity_ref
+      - policy_bundle_location_ref
+    expected_result_record:
+      result_kind: install
+      return_code_family: success
+  - operation_kind: pin
+    expected_claim: supported
+    required_inputs:
+      - channel_identity_ref
+      - updater_owner_class
+      - policy_epoch
+    expected_result_record:
+      result_kind: pin
+      return_code_family: success
+  - operation_kind: uninstall
+    expected_claim: supported
+    required_inputs:
+      - install_profile_card_ref
+      - preservation_rule
+    expected_result_record:
+      result_kind: uninstall
+      return_code_family: success
+
+expected_uninstall_behavior:
+  removes:
+    - managed_package_registration
+    - binary_root
+    - update_marker_owned_by_managed_row
+    - candidate_handler_registration_owned_by_managed_row
+  preserves:
+    - user_workspace_repositories
+    - state.per_user_configuration_root.stable
+    - state.per_user_recovery_root.stable
+    - support_bundle_history
+  admin_owned_cleanup:
+    - state.per_machine_admin_policy_root.stable
+
+blocked_if:
+  - installer_changes_preview_channel_identity_without_pin
+  - uninstall_deletes_user_authored_state
+  - silent_failure_emits_free_text_without_result_record
+  - managed_package_report_missing
+support_summary: >
+  Support can trace install, pin, and uninstall claims to the Windows
+  managed install card, Windows artifact families, Stable channel row,
+  policy root, and silent-deployment result family.
+status: proposed

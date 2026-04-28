@@ -1,0 +1,91 @@
+schema_version: 1
+record_kind: scriptable_install_case_record
+case_id: scriptable_install_case:unsupported_package_manager_gap
+case_class: explicit_gap_visibility
+scenario_summary: >
+  Support and procurement review the package-manager and platform
+  combinations that are outside the current management claim before
+  fielding a beta fleet.
+
+platform_profile_refs:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+deployment_pattern_refs:
+  - desktop_management.pattern.macos.external_package_manager
+  - desktop_management.pattern.windows.external_package_manager
+  - desktop_management.pattern.linux_ubuntu_x11.managed
+  - desktop_management.pattern.linux_fedora_wayland.managed
+  - desktop_management.pattern.linux_debian_x11.managed
+managed_control_refs:
+  - desktop_management.control.silent_install
+  - desktop_management.control.silent_uninstall
+  - desktop_management.control.channel_pinning
+explicit_gap_refs:
+  - desktop_management.out_of_claim.windows_winget
+  - desktop_management.out_of_claim.macos_offline_bundle
+  - desktop_management.out_of_claim.linux_managed_except_ubuntu_wayland
+  - desktop_management.control_gap.package_manager_pin_semantics
+
+gap_rows:
+  - gap_id: gap.windows.winget
+    platform_profile_ref: windows_11_23h2_plus_x86_64
+    claim_bucket: future_work
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+    required_before_claim:
+      - dedicated_install_profile_card
+      - support_diagnostics_path
+      - package_manager_owned_update_fixture
+  - gap_id: gap.macos.homebrew_management
+    platform_profile_ref: macos_15_plus_universal
+    claim_bucket: best_effort
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+    delegated_owner: external_package_manager
+    required_before_claim:
+      - package_manager_owned_update_fixture
+      - default_handler_ownership_evidence
+  - gap_id: gap.macos.offline_bundle
+    platform_profile_ref: macos_15_plus_universal
+    claim_bucket: unsupported
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+    required_before_claim:
+      - macos_offline_bundle_card
+      - mirror_metadata_integrity_fixture
+      - rollback_evidence_fixture
+  - gap_id: gap.linux.managed_outside_ubuntu_wayland
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    claim_bucket: unsupported
+    unsupported_controls:
+      - silent_install
+      - silent_uninstall
+      - channel_pinning
+    required_before_claim:
+      - per_profile_managed_install_card
+      - proxy_and_secret_store_lab
+      - uninstall_state_report_fixture
+
+expected_result: visible_gap
+blocked_if:
+  - support_copy_implies_winget_is_supported
+  - homebrew_row_claims_in_product_update
+  - linux_managed_claim_drops_named_profile_requirement
+  - unsupported_gap_missing_from_machine_readable_matrix
+support_summary: >
+  Unsupported and future-work rows are part of the contract. They keep
+  field support from inferring package-manager, MDM, or platform
+  combinations that have no install card or evidence row.
+status: proposed
