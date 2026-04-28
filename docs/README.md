@@ -525,6 +525,15 @@ code.
   [`/schemas/ux/editor_gutter_lane.schema.json`](../schemas/ux/editor_gutter_lane.schema.json);
   worked fixtures in
   [`/fixtures/ux/gutter_cases/`](../fixtures/ux/gutter_cases/).
+- [`ux/editor_inline_assist_contract.md`](./ux/editor_inline_assist_contract.md)
+  — editor inline assist contract for diagnostics, debug/current-frame
+  state, review/diff state, test/coverage cues, code lenses, inlay
+  hints, ghost text, inline values, inline quick actions, precedence,
+  density reduction, stale/approximate labels, and accessibility
+  parity. Boundary schema in
+  [`/schemas/editor/inline_assist.schema.json`](../schemas/editor/inline_assist.schema.json);
+  worked fixtures in
+  [`/fixtures/editor/inline_assist_cases/`](../fixtures/editor/inline_assist_cases/).
 - [`ux/editor_selection_contract.md`](./ux/editor_selection_contract.md)
   — source-editor selection, caret, multi-cursor, column-selection,
   line-selection, structural/semantic selection, IME composition, and

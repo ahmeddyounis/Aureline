@@ -27,6 +27,7 @@ This contract composes with, and does not replace:
 - [`/docs/ux/status_bar_contract.md`](./status_bar_contract.md),
   [`/docs/ux/status_strip_family_contract.md`](./status_strip_family_contract.md),
   [`/docs/ux/editor_gutter_contract.md`](./editor_gutter_contract.md),
+  [`/docs/ux/editor_inline_assist_contract.md`](./editor_inline_assist_contract.md),
   [`/docs/ux/tabs_editor_groups_contract.md`](./tabs_editor_groups_contract.md),
   [`/docs/ux/tree_row_contract.md`](./tree_row_contract.md), and
   [`/docs/ux/collection_view_contract.md`](./collection_view_contract.md)
@@ -36,6 +37,10 @@ This contract composes with, and does not replace:
   [`/docs/language/diagnostics_and_code_action_contract.md`](../language/diagnostics_and_code_action_contract.md)
   for inline metadata, diagnostic convergence, and detail-sheet
   requirements.
+- [`/schemas/editor/inline_assist.schema.json`](../../schemas/editor/inline_assist.schema.json)
+  and
+  [`/fixtures/editor/inline_assist_cases/`](../../fixtures/editor/inline_assist_cases/)
+  for editor-inline element records and precedence fixtures.
 - [`/docs/security/safe_preview_trust_classes.md`](../security/safe_preview_trust_classes.md)
   for trust-class, owner, origin, representation, snapshot, and
   suspicious-content chrome.

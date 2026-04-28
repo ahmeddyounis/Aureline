@@ -21,6 +21,14 @@ Companion artifacts:
   and [`/fixtures/ux/gutter_cases/`](../../fixtures/ux/gutter_cases/)
   publish the gutter-specific machine-readable contract and worked
   cases.
+- [`/docs/ux/editor_inline_assist_contract.md`](./editor_inline_assist_contract.md)
+  owns detailed inline decoration, code-lens, inlay-hint, ghost-text,
+  inline-value, inline quick-action, precedence, density, and
+  suppression rules.
+- [`/schemas/editor/inline_assist.schema.json`](../../schemas/editor/inline_assist.schema.json)
+  and
+  [`/fixtures/editor/inline_assist_cases/`](../../fixtures/editor/inline_assist_cases/)
+  publish the inline-assist machine-readable contract and worked cases.
 
 Normative sources projected here:
 
@@ -43,6 +51,9 @@ Normative sources projected here:
   projection.
 - [`/docs/ux/editor_gutter_contract.md`](./editor_gutter_contract.md)
   owns the detailed gutter lane contract underneath this layer-level
+  assignment.
+- [`/docs/ux/editor_inline_assist_contract.md`](./editor_inline_assist_contract.md)
+  owns the detailed inline-assist contract underneath this layer-level
   assignment.
 - [`/docs/ux/editor_selection_contract.md`](./editor_selection_contract.md)
   owns primary caret, active selection, selection anchor, multi-cursor,

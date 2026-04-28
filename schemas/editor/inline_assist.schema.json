@@ -1,0 +1,876 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/inline_assist.schema.json",
+  "title": "Aureline editor inline assist, precedence, suppression, and ghost-text contract",
+  "description": "Boundary schema for the editor inline assist contract frozen in docs/ux/editor_inline_assist_contract.md. The schema exports inline_assist_element_record and inline_assist_case_record so renderer, language, diagnostics, debug, VCS/review, test, coverage, AI, generated-source, accessibility, and support/export tooling share one vocabulary for inline decoration classes, content posture, precedence, density reduction, stale/approximate truth labels, ghost-text attribution, action side effects, and keyboard parity. Raw source text, raw rendered code, raw inline suggestion text, raw provider payloads, raw URLs, raw file paths, raw runtime values, and secret material never cross this boundary; records carry opaque refs, bounded labels, typed state, and export-safe summaries only. Adding a new decoration class, source actor, truth label, suppression reason, visibility state, visual distinction class, command route class, or side-effect class is additive-minor and requires an inline_assist_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/inline_assist_element_record" },
+    { "$ref": "#/$defs/inline_assist_case_record" }
+  ],
+  "$defs": {
+    "inline_assist_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for inline assist payloads. Current value is 1."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "record_kinds_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque stable id safe to log, safe on RPC, safe in manifests, and safe in support bundles. Raw paths, source text, provider payloads, capability tickets, and secret material never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware text safe for interactive detail, fixtures, and support export. Raw source text, raw file paths, raw URLs, raw runtime values, raw provider payloads, and secret material must not appear."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Short redaction-aware label suitable for compact inline chrome."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced by the emitting subsystem."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["inline_assist_element_record", "inline_assist_case_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "inline_decoration_class": {
+      "type": "string",
+      "enum": [
+        "diagnostic_decoration",
+        "debug_current_frame",
+        "merge_conflict_marker",
+        "diff_review_marker",
+        "test_cue",
+        "coverage_cue",
+        "inline_value",
+        "inline_quick_action",
+        "ghost_text_ai",
+        "ghost_text_deterministic",
+        "code_lens",
+        "inlay_type_hint",
+        "inlay_parameter_hint",
+        "inlay_return_hint",
+        "freshness_generated_qualifier",
+        "ambient_decoration"
+      ],
+      "description": "Closed launch-bearing inline assist taxonomy."
+    },
+    "content_posture_class": {
+      "type": "string",
+      "enum": ["committed_content", "annotation", "preview", "action_affordance"],
+      "description": "Whether the inline element is source content, explanatory annotation, preview text, or an invokable affordance."
+    },
+    "precedence_band_class": {
+      "type": "string",
+      "enum": [
+        "diagnostic_or_current_frame",
+        "merge_conflict_diff_review",
+        "test_coverage_execution",
+        "inline_value_observation",
+        "inline_action_affordance",
+        "ghost_text_preview",
+        "code_lens_or_inlay",
+        "decorative_qualifier",
+        "ambient"
+      ],
+      "description": "Precedence band used when inline elements compete for the same visual budget."
+    },
+    "source_actor_class": {
+      "type": "string",
+      "enum": [
+        "compiler_or_build",
+        "language_service",
+        "linter_formatter_style",
+        "framework_provider",
+        "project_graph",
+        "debugger",
+        "runtime_process",
+        "test_runner",
+        "coverage_runner",
+        "vcs_diff_engine",
+        "review_provider",
+        "ai_provider",
+        "snippet_or_template_pack",
+        "generated_artifact_lineage",
+        "policy_or_trust_engine",
+        "cached_snapshot",
+        "fallback_text",
+        "extension_host",
+        "renderer_policy"
+      ],
+      "description": "Subsystem or actor class whose authority admitted the inline element."
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot",
+        "renderer_local"
+      ],
+      "description": "Where the source actor ran or where the evidence was imported from."
+    },
+    "semantic_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current_exact",
+        "current_remapped",
+        "semantic_partial",
+        "cached_recent",
+        "stale",
+        "approximate",
+        "limited_fallback",
+        "runtime_observed",
+        "imported_snapshot",
+        "not_semantic",
+        "blocked"
+      ],
+      "description": "Freshness and semantic authority posture for the element."
+    },
+    "truth_display_class": {
+      "type": "string",
+      "enum": [
+        "live_exact_label",
+        "partial_scope_label",
+        "approximate_label",
+        "stale_label",
+        "cached_label",
+        "limited_fallback_label",
+        "blocked_label",
+        "not_semantic_label"
+      ],
+      "description": "User-visible truth label class. Non-exact evidence must not use live_exact_label."
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["exact", "high", "medium", "low", "unknown", "blocked"],
+      "description": "Display confidence floor for the current element."
+    },
+    "density_mode_class": {
+      "type": "string",
+      "enum": ["off", "compact", "standard", "rich", "auto"],
+      "description": "Current inline density mode."
+    },
+    "visibility_state_class": {
+      "type": "string",
+      "enum": [
+        "visible_primary",
+        "visible_secondary",
+        "visible_downgraded",
+        "suppressed",
+        "hidden_by_precedence",
+        "moved_to_detail",
+        "blocked"
+      ],
+      "description": "How the element appears after precedence, density, and safety resolution."
+    },
+    "suppression_reason_class": {
+      "type": "string",
+      "enum": [
+        "large_file_mode",
+        "low_confidence",
+        "partial_index",
+        "stale_semantics",
+        "high_zoom",
+        "reduced_motion",
+        "generated_file",
+        "read_only_surface",
+        "higher_priority_decoration",
+        "policy_or_trust_blocked",
+        "typing_budget_protection",
+        "low_power_or_degraded_runtime",
+        "user_disabled_class",
+        "provider_unavailable",
+        "viewport_width_constrained"
+      ],
+      "description": "Reason an inline element downgraded, hid, moved to detail, or blocked."
+    },
+    "active_reduction_trigger": {
+      "type": "string",
+      "enum": [
+        "large_file_mode",
+        "low_confidence",
+        "partial_index",
+        "high_zoom",
+        "reduced_motion",
+        "generated_file",
+        "read_only_surface",
+        "policy_or_trust_blocked",
+        "typing_budget_protection",
+        "viewport_width_constrained"
+      ],
+      "description": "Mode or environmental trigger currently affecting density or admissibility."
+    },
+    "actionability_class": {
+      "type": "string",
+      "enum": [
+        "informational_only",
+        "jump_or_peek",
+        "open_detail",
+        "run_or_test",
+        "debug_evaluate",
+        "review_or_diff",
+        "apply_inline_single_buffer",
+        "preview_required_mutation",
+        "blocked"
+      ],
+      "description": "What invoking this inline element can do."
+    },
+    "side_effect_cue_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "opens_detail_only",
+        "navigates_or_peeks",
+        "runs_tests_or_debugger",
+        "evaluates_runtime_state",
+        "opens_review_or_diff",
+        "network_or_remote_lookup",
+        "generator_or_scaffold_work",
+        "changes_buffer",
+        "changes_dependencies_or_config",
+        "opens_preview_before_apply"
+      ],
+      "description": "Visible consequence cue for actionable inline elements."
+    },
+    "visual_distinction_class": {
+      "type": "string",
+      "enum": [
+        "source_text_style",
+        "muted_annotation_text",
+        "ghost_text_preview_style",
+        "dotted_or_wavy_underline",
+        "current_frame_band",
+        "conflict_or_review_marker",
+        "coverage_or_test_marker",
+        "inline_value_chip",
+        "action_icon_or_button",
+        "screen_reader_role_label",
+        "non_color_shape_or_border",
+        "source_attribution_label"
+      ],
+      "description": "Non-hue-only distinction used by renderer, accessibility, screenshot, or export projection."
+    },
+    "keyboard_route_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "line_detail",
+        "diagnostic_detail",
+        "debug_detail",
+        "review_or_diff_detail",
+        "test_or_coverage_detail",
+        "inline_focus_target",
+        "ghost_text_accept_reject",
+        "quick_fix_menu",
+        "provider_detail",
+        "source_or_generator_review",
+        "no_direct_route_not_actionable"
+      ],
+      "description": "Keyboard-reachable equivalent or detail route."
+    },
+    "screen_reader_role_class": {
+      "type": "string",
+      "enum": [
+        "status",
+        "note",
+        "button",
+        "menuitem",
+        "link",
+        "suggestion",
+        "alert",
+        "none"
+      ],
+      "description": "Screen-reader role exported by the interactive projection."
+    },
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "buffer_snapshot",
+        "provider_session",
+        "diagnostic_collection",
+        "debug_session",
+        "execution_run",
+        "test_run",
+        "coverage_run",
+        "review_slice",
+        "vcs_diff",
+        "hint_cache",
+        "generated_lineage",
+        "policy_bundle",
+        "large_file_mode_state"
+      ],
+      "description": "Opaque epoch binding role."
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "policy_limited"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy, trust, and execution-context envelope affecting the inline element."
+    },
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epoch_role_class", "epoch_ref"],
+      "properties": {
+        "epoch_role_class": { "$ref": "#/$defs/epoch_role_class" },
+        "epoch_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Opaque epoch binding for freshness and replay review."
+    },
+    "keyboard_access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_class",
+        "command_id_ref",
+        "accessible_name",
+        "screen_reader_role_class",
+        "equivalent_route_summary"
+      ],
+      "properties": {
+        "route_class": { "$ref": "#/$defs/keyboard_route_class" },
+        "command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "accessible_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "screen_reader_role_class": { "$ref": "#/$defs/screen_reader_role_class" },
+        "equivalent_route_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Keyboard and assistive-technology route equivalent for visible, hidden, suppressed, or blocked inline elements."
+    },
+    "inline_assist_element_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "inline_assist_schema_version",
+        "inline_assist_element_id",
+        "anchor_ref",
+        "inline_decoration_class",
+        "content_posture_class",
+        "precedence_band_class",
+        "precedence_rank",
+        "source_actor_class",
+        "actor_display_label",
+        "source_ref",
+        "locality_class",
+        "semantic_freshness_class",
+        "truth_display_class",
+        "confidence_class",
+        "density_mode_class",
+        "visibility_state_class",
+        "suppression_reason_classes",
+        "active_reduction_triggers",
+        "competing_element_refs",
+        "actionability_class",
+        "side_effect_cue_classes",
+        "visual_distinction_classes",
+        "keyboard_access",
+        "current_epoch_bindings",
+        "policy_context",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "inline_assist_element_record" },
+        "inline_assist_schema_version": { "$ref": "#/$defs/inline_assist_schema_version" },
+        "inline_assist_element_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "range_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "inline_decoration_class": { "$ref": "#/$defs/inline_decoration_class" },
+        "content_posture_class": { "$ref": "#/$defs/content_posture_class" },
+        "precedence_band_class": { "$ref": "#/$defs/precedence_band_class" },
+        "precedence_rank": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9,
+          "description": "Numeric rank for deterministic comparison; lower rank wins."
+        },
+        "source_actor_class": { "$ref": "#/$defs/source_actor_class" },
+        "actor_display_label": { "$ref": "#/$defs/short_label_text" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_status_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "locality_class": { "$ref": "#/$defs/locality_class" },
+        "semantic_freshness_class": { "$ref": "#/$defs/semantic_freshness_class" },
+        "truth_display_class": { "$ref": "#/$defs/truth_display_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "density_mode_class": { "$ref": "#/$defs/density_mode_class" },
+        "visibility_state_class": { "$ref": "#/$defs/visibility_state_class" },
+        "suppression_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_reason_class" },
+          "uniqueItems": true
+        },
+        "active_reduction_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/active_reduction_trigger" },
+          "uniqueItems": true
+        },
+        "competing_element_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "actionability_class": { "$ref": "#/$defs/actionability_class" },
+        "side_effect_cue_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_cue_class" },
+          "uniqueItems": true
+        },
+        "visual_distinction_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/visual_distinction_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "keyboard_access": { "$ref": "#/$defs/keyboard_access" },
+        "visibility_summary": {
+          "oneOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "accept_command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "reject_command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "detail_route_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/epoch_binding" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "diagnostic_or_current_frame" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 1 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "merge_conflict_diff_review" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 2 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "test_coverage_execution" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 3 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "inline_value_observation" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 4 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "inline_action_affordance" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 5 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "ghost_text_preview" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 6 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "code_lens_or_inlay" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 7 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "decorative_qualifier" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 8 } } }
+        },
+        {
+          "if": { "properties": { "precedence_band_class": { "const": "ambient" } }, "required": ["precedence_band_class"] },
+          "then": { "properties": { "precedence_rank": { "const": 9 } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "enum": ["diagnostic_decoration", "debug_current_frame"] } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "precedence_band_class": { "const": "diagnostic_or_current_frame" } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "enum": ["merge_conflict_marker", "diff_review_marker"] } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "precedence_band_class": { "const": "merge_conflict_diff_review" } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "enum": ["test_cue", "coverage_cue"] } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "precedence_band_class": { "const": "test_coverage_execution" } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "const": "inline_value" } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "precedence_band_class": { "const": "inline_value_observation" } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "const": "inline_quick_action" } }, "required": ["inline_decoration_class"] },
+          "then": {
+            "properties": {
+              "precedence_band_class": { "const": "inline_action_affordance" },
+              "content_posture_class": { "const": "action_affordance" },
+              "actionability_class": { "not": { "const": "informational_only" } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "enum": ["ghost_text_ai", "ghost_text_deterministic"] } }, "required": ["inline_decoration_class"] },
+          "then": {
+            "required": ["accept_command_id_ref", "reject_command_id_ref"],
+            "properties": {
+              "precedence_band_class": { "const": "ghost_text_preview" },
+              "content_posture_class": { "const": "preview" },
+              "accept_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "reject_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "visual_distinction_classes": {
+                "contains": { "const": "ghost_text_preview_style" }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "const": "ghost_text_ai" } }, "required": ["inline_decoration_class"] },
+          "then": {
+            "properties": {
+              "source_actor_class": { "const": "ai_provider" },
+              "visual_distinction_classes": {
+                "contains": { "const": "source_attribution_label" }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "enum": ["code_lens", "inlay_type_hint", "inlay_parameter_hint", "inlay_return_hint"] } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "precedence_band_class": { "const": "code_lens_or_inlay" } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "enum": ["inlay_type_hint", "inlay_parameter_hint", "inlay_return_hint"] } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "content_posture_class": { "const": "annotation" } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "const": "freshness_generated_qualifier" } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "precedence_band_class": { "const": "decorative_qualifier" } } }
+        },
+        {
+          "if": { "properties": { "inline_decoration_class": { "const": "ambient_decoration" } }, "required": ["inline_decoration_class"] },
+          "then": { "properties": { "precedence_band_class": { "const": "ambient" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "semantic_freshness_class": {
+                "enum": ["current_remapped", "semantic_partial", "cached_recent", "stale", "approximate", "limited_fallback", "runtime_observed", "imported_snapshot", "not_semantic", "blocked"]
+              }
+            },
+            "required": ["semantic_freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "truth_display_class": { "not": { "const": "live_exact_label" } },
+              "visibility_state_class": { "not": { "const": "visible_primary" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "confidence_class": { "enum": ["low", "unknown", "blocked"] }
+            },
+            "required": ["confidence_class"]
+          },
+          "then": {
+            "properties": {
+              "visibility_state_class": { "not": { "const": "visible_primary" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "visibility_state_class": {
+                "enum": ["suppressed", "hidden_by_precedence", "moved_to_detail", "blocked"]
+              }
+            },
+            "required": ["visibility_state_class"]
+          },
+          "then": {
+            "required": ["visibility_summary"],
+            "properties": {
+              "suppression_reason_classes": { "minItems": 1 },
+              "visibility_summary": { "$ref": "#/$defs/redaction_aware_text" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "visibility_state_class": { "const": "visible_primary" } }, "required": ["visibility_state_class"] },
+          "then": {
+            "properties": {
+              "suppression_reason_classes": { "maxItems": 0 },
+              "competing_element_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "visibility_state_class": { "const": "hidden_by_precedence" } }, "required": ["visibility_state_class"] },
+          "then": {
+            "properties": {
+              "suppression_reason_classes": { "contains": { "const": "higher_priority_decoration" } },
+              "competing_element_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "content_posture_class": { "const": "action_affordance" } }, "required": ["content_posture_class"] },
+          "then": {
+            "properties": {
+              "actionability_class": { "not": { "const": "informational_only" } },
+              "keyboard_access": {
+                "properties": {
+                  "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+                  "route_class": { "not": { "const": "no_direct_route_not_actionable" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "actionability_class": { "const": "preview_required_mutation" } }, "required": ["actionability_class"] },
+          "then": {
+            "properties": {
+              "side_effect_cue_classes": { "contains": { "const": "opens_preview_before_apply" } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "actionability_class": { "const": "blocked" } }, "required": ["actionability_class"] },
+          "then": {
+            "properties": {
+              "visibility_state_class": { "const": "blocked" },
+              "truth_display_class": { "const": "blocked_label" },
+              "confidence_class": { "const": "blocked" }
+            }
+          }
+        }
+      ]
+    },
+    "hidden_or_suppressed_element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "element_ref",
+        "expected_visibility_state_class",
+        "expected_suppression_reason_classes",
+        "detail_route_required"
+      ],
+      "properties": {
+        "element_ref": { "$ref": "#/$defs/opaque_id" },
+        "expected_visibility_state_class": {
+          "enum": ["suppressed", "hidden_by_precedence", "moved_to_detail", "blocked"]
+        },
+        "expected_suppression_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_reason_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "detail_route_required": { "type": "boolean", "const": true }
+      }
+    },
+    "case_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "editor_view_ref",
+        "buffer_ref",
+        "workspace_scope_ref",
+        "file_posture_classes",
+        "viewport_posture_classes",
+        "density_mode_class",
+        "captured_at"
+      ],
+      "properties": {
+        "editor_view_ref": { "$ref": "#/$defs/opaque_id" },
+        "buffer_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "file_posture_classes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "normal_source",
+              "large_file",
+              "generated",
+              "read_only",
+              "partial_index",
+              "stale_semantics",
+              "low_confidence",
+              "high_zoom",
+              "reduced_motion",
+              "restricted_policy"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "viewport_posture_classes": {
+          "type": "array",
+          "items": {
+            "enum": ["standard", "dense", "compact", "narrow", "high_zoom", "reduced_motion"]
+          },
+          "uniqueItems": true
+        },
+        "density_mode_class": { "$ref": "#/$defs/density_mode_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "expected_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_visible_element_refs",
+        "secondary_visible_element_refs",
+        "visible_downgraded_element_refs",
+        "hidden_or_suppressed_elements",
+        "accessible_name_must_include",
+        "forbidden_renderings",
+        "assertions"
+      ],
+      "properties": {
+        "primary_visible_element_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "secondary_visible_element_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "visible_downgraded_element_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "hidden_or_suppressed_elements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hidden_or_suppressed_element" }
+        },
+        "accessible_name_must_include": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_label_text" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "forbidden_renderings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "assertions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "diagnostic_current_frame_or_conflict_not_displaced",
+            "ghost_text_distinct_from_committed_source",
+            "suppressed_elements_keep_detail_route",
+            "stale_or_partial_truth_not_primary",
+            "keyboard_access_for_every_element"
+          ],
+          "properties": {
+            "diagnostic_current_frame_or_conflict_not_displaced": { "type": "boolean", "const": true },
+            "ghost_text_distinct_from_committed_source": { "type": "boolean", "const": true },
+            "suppressed_elements_keep_detail_route": { "type": "boolean", "const": true },
+            "stale_or_partial_truth_not_primary": { "type": "boolean", "const": true },
+            "keyboard_access_for_every_element": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "inline_assist_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "inline_assist_schema_version",
+        "case_id",
+        "case_context",
+        "inline_elements",
+        "expected_resolution",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "inline_assist_case_record" },
+        "inline_assist_schema_version": { "$ref": "#/$defs/inline_assist_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "case_context": { "$ref": "#/$defs/case_context" },
+        "inline_elements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/inline_assist_element_record" },
+          "minItems": 1
+        },
+        "expected_resolution": { "$ref": "#/$defs/expected_resolution" },
+        "narrative_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "export_safe_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    }
+  }
+}
