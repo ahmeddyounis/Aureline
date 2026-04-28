@@ -1,0 +1,771 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/object_availability_state.schema.json",
+  "title": "Aureline object availability and hydration state contract",
+  "description": "Boundary schema for object/path/history/submodule/LFS availability records and audit events. It freezes how surfaces distinguish absent content from outside-slice, manifest-known, not-fetched, shallow-boundary, submodule-uninitialized, nested-root, pointer-only, hydrated, policy-excluded, and generated/excluded states. Search, navigation, blame, review, AI evidence, execution, support, and migration packets read this record instead of flattening unavailable objects into generic missing-file language. Raw file bodies, raw object bytes, raw absolute paths, credentials, and raw remote URLs never appear.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/object_availability_state_record" },
+    { "$ref": "#/$defs/object_availability_audit_event_record" }
+  ],
+  "$defs": {
+    "object_availability_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "object_availability_state_record",
+        "object_availability_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, and include in support packets. Raw paths, credentials, URLs, file bodies, and object bytes never appear here."
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "anyOf": [
+        { "$ref": "#/$defs/monotonic_timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "doc_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "path",
+        "blob",
+        "tree",
+        "commit",
+        "history_range",
+        "submodule_gitlink",
+        "lfs_pointer",
+        "lfs_object",
+        "index_shard",
+        "generated_artifact",
+        "review_anchor",
+        "ai_context_segment"
+      ]
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "absent_in_repository",
+        "available_loaded",
+        "omitted_outside_current_slice",
+        "manifest_known_not_materialized",
+        "object_not_fetched_promisor",
+        "history_shallow_boundary",
+        "submodule_not_initialized",
+        "nested_repo_boundary",
+        "lfs_pointer_only",
+        "lfs_hydrated_available",
+        "lfs_hydration_blocked",
+        "policy_excluded",
+        "generated_excluded",
+        "unavailable_unknown"
+      ]
+    },
+    "honesty_label": {
+      "type": "string",
+      "enum": [
+        "outside_current_slice",
+        "not_fetched",
+        "shallow_boundary",
+        "submodule_not_initialized",
+        "nested_repo_boundary",
+        "pointer_only",
+        "wrong_target_root",
+        "dirty_state_unknown",
+        "unavailable",
+        "policy_excluded",
+        "generated_or_excluded"
+      ]
+    },
+    "fetch_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "fetched",
+        "not_fetched_promisor",
+        "fetch_pending_approval",
+        "fetch_blocked_policy",
+        "promisor_unreachable",
+        "offline_cache_only"
+      ]
+    },
+    "depth_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "full_history_available",
+        "shallow_boundary",
+        "deepen_pending_approval",
+        "deepen_blocked_policy",
+        "history_unavailable"
+      ]
+    },
+    "hydration_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "pointer_only",
+        "hydration_pending",
+        "partially_hydrated",
+        "hydrated",
+        "hydrate_failed",
+        "hydrate_blocked_by_policy"
+      ]
+    },
+    "availability_affordance_class": {
+      "type": "string",
+      "enum": [
+        "widen_workset_scope",
+        "fetch_missing_object",
+        "deepen_history",
+        "init_submodule",
+        "hydrate_lfs_object",
+        "open_child_repo_root",
+        "switch_target_root",
+        "inspect_pointer",
+        "open_manifest_only",
+        "retry_remote",
+        "no_action_available"
+      ]
+    },
+    "availability_denial_reason": {
+      "type": "string",
+      "enum": [
+        "outside_current_slice",
+        "not_fetched",
+        "shallow_boundary",
+        "submodule_not_initialized",
+        "nested_repo_boundary",
+        "pointer_only",
+        "wrong_target_root",
+        "policy_blocked",
+        "availability_unknown",
+        "availability_record_required_field_missing",
+        "availability_record_unknown_value"
+      ]
+    },
+    "object_availability_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "object_availability_state_observed",
+        "object_availability_fetch_requested",
+        "object_availability_deepen_requested",
+        "object_availability_submodule_init_requested",
+        "object_availability_lfs_hydrate_requested",
+        "object_availability_target_root_switch_requested",
+        "object_availability_export_packet_emitted",
+        "object_availability_claim_denied"
+      ]
+    },
+    "object_locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_ref",
+        "root_ref",
+        "repo_topology_state_ref",
+        "path_ref",
+        "revision_ref",
+        "git_object_oid_ref"
+      ],
+      "properties": {
+        "object_ref": { "$ref": "#/$defs/opaque_id" },
+        "root_ref": { "$ref": "#/$defs/opaque_id" },
+        "repo_topology_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "path_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "git_object_oid_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "availability_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "can_claim_content",
+        "can_claim_history",
+        "can_blame",
+        "can_search_body",
+        "can_mutate",
+        "can_export_body",
+        "can_export_metadata"
+      ],
+      "properties": {
+        "can_claim_content": { "type": "boolean" },
+        "can_claim_history": { "type": "boolean" },
+        "can_blame": { "type": "boolean" },
+        "can_search_body": { "type": "boolean" },
+        "can_mutate": { "type": "boolean" },
+        "can_export_body": { "type": "boolean" },
+        "can_export_metadata": { "type": "boolean" }
+      }
+    },
+    "promisor_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promisor_remote_ref",
+        "filter_class",
+        "fetch_policy_class",
+        "missing_object_refs",
+        "last_fetch_at"
+      ],
+      "properties": {
+        "promisor_remote_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "filter_class": {
+          "type": "string",
+          "enum": [
+            "none",
+            "blob_none",
+            "blob_limit",
+            "tree_depth",
+            "sparse_oid",
+            "other"
+          ]
+        },
+        "fetch_policy_class": {
+          "type": "string",
+          "enum": [
+            "fetch_on_demand_allowed",
+            "fetch_requires_approval",
+            "fetch_blocked_policy",
+            "offline_cache_only",
+            "manual_fetch_only",
+            "not_applicable"
+          ]
+        },
+        "missing_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "last_fetch_at": { "$ref": "#/$defs/nullable_timestamp" }
+      }
+    },
+    "depth_boundary_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "depth_commits",
+        "boundary_commit_ref",
+        "requested_ancestor_ref",
+        "deepen_policy_class"
+      ],
+      "properties": {
+        "depth_commits": {
+          "anyOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "boundary_commit_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "requested_ancestor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "deepen_policy_class": {
+          "type": "string",
+          "enum": [
+            "deepen_on_demand_allowed",
+            "deepen_requires_approval",
+            "deepen_blocked_policy",
+            "offline_cache_only",
+            "not_applicable"
+          ]
+        }
+      }
+    },
+    "submodule_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_root_ref",
+        "child_root_ref",
+        "pinned_commit_ref",
+        "init_state",
+        "dirty_state_class"
+      ],
+      "properties": {
+        "parent_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "child_root_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "pinned_commit_ref": { "$ref": "#/$defs/opaque_id" },
+        "init_state": {
+          "type": "string",
+          "enum": [
+            "initialized",
+            "not_initialized",
+            "init_failed",
+            "init_blocked_policy",
+            "unknown"
+          ]
+        },
+        "dirty_state_class": {
+          "type": "string",
+          "enum": [
+            "clean",
+            "dirty",
+            "dirty_unknown_uninitialized",
+            "not_available"
+          ]
+        }
+      }
+    },
+    "lfs_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pointer_oid_ref",
+        "actual_object_oid_ref",
+        "size_band",
+        "lock_posture_class",
+        "hydrate_policy_class",
+        "hydrated_at"
+      ],
+      "properties": {
+        "pointer_oid_ref": { "$ref": "#/$defs/opaque_id" },
+        "actual_object_oid_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "size_band": {
+          "type": "string",
+          "enum": ["unknown", "small", "medium", "large", "very_large"]
+        },
+        "lock_posture_class": {
+          "type": "string",
+          "enum": [
+            "not_locked",
+            "locked_by_current_actor",
+            "locked_by_other_actor",
+            "lock_state_unavailable",
+            "not_applicable"
+          ]
+        },
+        "hydrate_policy_class": {
+          "type": "string",
+          "enum": [
+            "hydrate_on_demand_allowed",
+            "hydrate_requires_approval",
+            "hydrate_blocked_policy",
+            "offline_cache_only",
+            "not_applicable"
+          ]
+        },
+        "hydrated_at": { "$ref": "#/$defs/nullable_timestamp" }
+      }
+    },
+    "target_root_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_root_ref",
+        "authoritative_root_ref",
+        "wrong_target_denial_reason",
+        "safe_mutation_scope_class"
+      ],
+      "properties": {
+        "active_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "authoritative_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "wrong_target_denial_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/availability_denial_reason" },
+            { "type": "null" }
+          ]
+        },
+        "safe_mutation_scope_class": {
+          "type": "string",
+          "enum": [
+            "current_root_mutable",
+            "current_slice_mutable",
+            "child_root_mutable",
+            "read_only_until_fetch",
+            "read_only_until_deepen",
+            "read_only_until_init",
+            "read_only_until_hydrate",
+            "mutation_denied_wrong_root",
+            "mutation_denied_policy"
+          ]
+        }
+      }
+    },
+    "availability_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affordance_class",
+        "command_id_ref",
+        "approval_ticket_required",
+        "target_root_ref",
+        "cost_band",
+        "result_label"
+      ],
+      "properties": {
+        "affordance_class": { "$ref": "#/$defs/availability_affordance_class" },
+        "command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approval_ticket_required": { "type": "boolean" },
+        "target_root_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "cost_band": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "network"]
+        },
+        "result_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "export_surface_class": {
+      "type": "string",
+      "enum": [
+        "search_export",
+        "navigation_deep_link",
+        "blame_view",
+        "review_pack",
+        "ai_evidence_packet",
+        "execution_context",
+        "support_bundle",
+        "migration_packet",
+        "project_doctor"
+      ]
+    },
+    "object_reconstruction_field": {
+      "type": "string",
+      "enum": [
+        "object_locator",
+        "availability_class",
+        "availability_assertions",
+        "honesty_labels",
+        "fetch_state",
+        "depth_state",
+        "hydration_state",
+        "promisor_detail",
+        "depth_boundary",
+        "submodule_detail",
+        "lfs_detail",
+        "target_root_guard",
+        "offered_affordances"
+      ]
+    },
+    "export_support_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_surfaces",
+        "must_preserve_caveats",
+        "reconstruction_fields",
+        "body_embedding_state",
+        "redaction_posture"
+      ],
+      "properties": {
+        "packet_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_surface_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "must_preserve_caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/honesty_label" },
+          "uniqueItems": true
+        },
+        "reconstruction_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/object_reconstruction_field" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "body_embedding_state": {
+          "type": "string",
+          "enum": [
+            "embedded",
+            "by_reference",
+            "omitted_with_label",
+            "unavailable",
+            "blocked_by_policy"
+          ]
+        },
+        "redaction_posture": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "labels_and_counts",
+            "by_reference",
+            "blocked_by_policy"
+          ]
+        }
+      }
+    },
+    "object_availability_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "object_availability_schema_version",
+        "object_availability_state_id",
+        "workspace_id_ref",
+        "locator",
+        "object_kind",
+        "availability_class",
+        "availability_assertions",
+        "honesty_labels",
+        "fetch_state",
+        "depth_state",
+        "hydration_state",
+        "promisor_detail",
+        "depth_boundary",
+        "submodule_detail",
+        "lfs_detail",
+        "target_root_guard",
+        "offered_affordances",
+        "export_support_requirements",
+        "freshness_class",
+        "client_scopes",
+        "redaction_class",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "object_availability_state_record" },
+        "object_availability_schema_version": { "$ref": "#/$defs/object_availability_schema_version" },
+        "object_availability_state_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "locator": { "$ref": "#/$defs/object_locator" },
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "availability_class": { "$ref": "#/$defs/availability_class" },
+        "availability_assertions": { "$ref": "#/$defs/availability_assertions" },
+        "honesty_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/honesty_label" },
+          "uniqueItems": true
+        },
+        "fetch_state": { "$ref": "#/$defs/fetch_state" },
+        "depth_state": { "$ref": "#/$defs/depth_state" },
+        "hydration_state": { "$ref": "#/$defs/hydration_state" },
+        "promisor_detail": {
+          "anyOf": [
+            { "$ref": "#/$defs/promisor_detail" },
+            { "type": "null" }
+          ]
+        },
+        "depth_boundary": {
+          "anyOf": [
+            { "$ref": "#/$defs/depth_boundary_detail" },
+            { "type": "null" }
+          ]
+        },
+        "submodule_detail": {
+          "anyOf": [
+            { "$ref": "#/$defs/submodule_detail" },
+            { "type": "null" }
+          ]
+        },
+        "lfs_detail": {
+          "anyOf": [
+            { "$ref": "#/$defs/lfs_detail" },
+            { "type": "null" }
+          ]
+        },
+        "target_root_guard": { "$ref": "#/$defs/target_root_guard" },
+        "offered_affordances": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/availability_affordance" },
+          "minItems": 1
+        },
+        "export_support_requirements": { "$ref": "#/$defs/export_support_requirements" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "availability_class": { "const": "object_not_fetched_promisor" } },
+            "required": ["availability_class"]
+          },
+          "then": {
+            "properties": {
+              "fetch_state": { "const": "not_fetched_promisor" },
+              "honesty_labels": { "contains": { "const": "not_fetched" } }
+            },
+            "required": ["fetch_state", "honesty_labels", "promisor_detail"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "availability_class": { "const": "history_shallow_boundary" } },
+            "required": ["availability_class"]
+          },
+          "then": {
+            "properties": {
+              "depth_state": { "const": "shallow_boundary" },
+              "honesty_labels": { "contains": { "const": "shallow_boundary" } }
+            },
+            "required": ["depth_state", "honesty_labels", "depth_boundary"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "availability_class": { "const": "submodule_not_initialized" } },
+            "required": ["availability_class"]
+          },
+          "then": {
+            "properties": {
+              "honesty_labels": { "contains": { "const": "submodule_not_initialized" } },
+              "target_root_guard": {
+                "properties": {
+                  "safe_mutation_scope_class": { "const": "read_only_until_init" }
+                },
+                "required": ["safe_mutation_scope_class"]
+              }
+            },
+            "required": ["honesty_labels", "submodule_detail"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "availability_class": { "const": "lfs_pointer_only" } },
+            "required": ["availability_class"]
+          },
+          "then": {
+            "properties": {
+              "hydration_state": { "const": "pointer_only" },
+              "honesty_labels": { "contains": { "const": "pointer_only" } },
+              "target_root_guard": {
+                "properties": {
+                  "safe_mutation_scope_class": { "const": "read_only_until_hydrate" }
+                },
+                "required": ["safe_mutation_scope_class"]
+              }
+            },
+            "required": ["hydration_state", "honesty_labels", "lfs_detail"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "availability_class": { "const": "nested_repo_boundary" } },
+            "required": ["availability_class"]
+          },
+          "then": {
+            "properties": {
+              "honesty_labels": { "contains": { "const": "nested_repo_boundary" } }
+            },
+            "required": ["honesty_labels"]
+          }
+        }
+      ]
+    },
+    "object_availability_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "object_availability_schema_version",
+        "object_availability_audit_event_id",
+        "event_id",
+        "object_availability_state_ref",
+        "workspace_id_ref",
+        "object_ref",
+        "honesty_labels",
+        "denial_reason",
+        "offered_affordances",
+        "export_support_requirements",
+        "actor_ref",
+        "created_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "object_availability_audit_event_record" },
+        "object_availability_schema_version": { "$ref": "#/$defs/object_availability_schema_version" },
+        "object_availability_audit_event_id": { "$ref": "#/$defs/object_availability_audit_event_id" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "object_availability_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_ref": { "$ref": "#/$defs/opaque_id" },
+        "honesty_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/honesty_label" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "denial_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/availability_denial_reason" },
+            { "type": "null" }
+          ]
+        },
+        "offered_affordances": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/availability_affordance" },
+          "minItems": 1
+        },
+        "export_support_requirements": { "$ref": "#/$defs/export_support_requirements" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
