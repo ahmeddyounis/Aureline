@@ -1,0 +1,685 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/decode_recovery_review.schema.json",
+  "title": "Aureline editor decode-recovery review record",
+  "description": "Boundary schema for review records that explain malformed, uncertain, mixed-encoding, or save-sensitive text before editor, diff, import preview, support export, and security review surfaces render or rewrite it. The record answers what bytes were found, how Aureline decoded or failed to decode them, how confident that decision is, and what will happen if the user saves now.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/decode_recovery_review_record" }
+  ],
+  "$defs": {
+    "decode_recovery_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for decode-recovery review records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "decode_recovery_review_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque id safe for logs, review packets, support bundles, and security exports."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "bounded_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1400,
+      "description": "Bounded, redaction-aware display or review text."
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trigger_surface": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "import_preview",
+        "support_export",
+        "security_review",
+        "save_pipeline"
+      ]
+    },
+    "content_kind": {
+      "type": "string",
+      "enum": [
+        "text_file",
+        "diff_hunk",
+        "import_payload",
+        "support_packet_region",
+        "security_review_region"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted",
+        "pending_evaluation",
+        "not_applicable"
+      ]
+    },
+    "detected_encoding": {
+      "type": "string",
+      "enum": [
+        "utf8",
+        "utf8_bom",
+        "utf16le_bom",
+        "utf16be_bom",
+        "utf32le_bom",
+        "utf32be_bom",
+        "declared_override",
+        "legacy_8bit_fallback",
+        "unknown_binary_like",
+        "mixed_encoding_suspected"
+      ]
+    },
+    "detection_source": {
+      "type": "string",
+      "enum": [
+        "bom",
+        "declared_metadata",
+        "utf8_heuristic",
+        "platform_default_with_threshold",
+        "user_override",
+        "workspace_policy",
+        "decode_failed_no_choice",
+        "mixed_encoding_heuristic",
+        "import_metadata",
+        "diff_metadata"
+      ]
+    },
+    "bom_state_detected": {
+      "type": "string",
+      "enum": [
+        "present",
+        "absent",
+        "unknown_or_degraded"
+      ]
+    },
+    "newline_mode_detected": {
+      "type": "string",
+      "enum": [
+        "lf",
+        "crlf",
+        "cr_only",
+        "mixed",
+        "unknown_or_degraded"
+      ]
+    },
+    "final_newline_detected": {
+      "type": "string",
+      "enum": [
+        "present",
+        "absent",
+        "unknown_or_degraded"
+      ]
+    },
+    "decode_recovery_class": {
+      "type": "string",
+      "enum": [
+        "clean_decode",
+        "replacement_char_inserted",
+        "invalid_byte_sequence_detected",
+        "unknown_encoding_fallback",
+        "explicit_user_override",
+        "binary_like_blocked",
+        "lossy_reencode_warning",
+        "mixed_encoding_suspected"
+      ]
+    },
+    "raw_bytes_posture": {
+      "type": "string",
+      "enum": [
+        "not_needed_clean_decode",
+        "preserved_in_open_buffer",
+        "preserved_in_recovery_journal",
+        "preserved_until_save_resolves",
+        "unavailable_source_missing",
+        "policy_redacted_metadata_only"
+      ]
+    },
+    "byte_finding_class": {
+      "type": "string",
+      "enum": [
+        "valid_text_bytes",
+        "invalid_byte_sequence",
+        "replacement_character_emitted",
+        "mixed_encoding_run",
+        "bom_marker",
+        "newline_marker",
+        "nul_or_binary_signature",
+        "unencodable_code_point"
+      ]
+    },
+    "rendered_projection": {
+      "type": "string",
+      "enum": [
+        "rendered_exactly",
+        "rendered_with_replacement",
+        "escaped_only",
+        "raw_bytes_only",
+        "unavailable_until_decoder_chosen"
+      ]
+    },
+    "decode_attempt_result": {
+      "type": "string",
+      "enum": [
+        "succeeded_lossless",
+        "succeeded_with_replacement",
+        "failed_invalid_sequence",
+        "failed_low_confidence",
+        "blocked_binary_like",
+        "not_attempted"
+      ]
+    },
+    "confidence_level": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "unknown",
+        "blocked"
+      ]
+    },
+    "confidence_reason": {
+      "type": "string",
+      "enum": [
+        "bom_confirmed",
+        "declared_metadata_confirmed",
+        "heuristic_confident",
+        "mixed_encoding_suspected",
+        "decoder_replacement_used",
+        "no_decoder_chosen",
+        "binary_like_content",
+        "user_override_confirmed",
+        "lossy_reencode_detected"
+      ]
+    },
+    "review_save_consequence_class": {
+      "type": "string",
+      "enum": [
+        "preserve_untouched_raw_bytes",
+        "normalize_encoding_or_newlines",
+        "replace_undecodable_spans",
+        "block_save_pending_review",
+        "require_explicit_acknowledgment"
+      ],
+      "description": "User-facing save-now consequence class. It maps to the broader text-fidelity packet save_consequence_class through packet_save_consequence_class."
+    },
+    "packet_save_consequence_class": {
+      "type": "string",
+      "enum": [
+        "preserve_untouched",
+        "rewrite_with_warning",
+        "block_pending_review"
+      ]
+    },
+    "rewrite_class": {
+      "type": "string",
+      "enum": [
+        "no_write_needed",
+        "targeted_content_patch",
+        "whole_file_rewrite_declared",
+        "whole_file_rewrite_fallback",
+        "merge_resolution_write",
+        "generator_regeneration_write",
+        "blocked_no_write"
+      ]
+    },
+    "write_posture": {
+      "type": "string",
+      "enum": [
+        "committed_if_no_other_blocks",
+        "no_write_until_review",
+        "no_write_until_acknowledged",
+        "commit_rewrite_after_acknowledgment",
+        "inspect_only_no_save_boundary"
+      ]
+    },
+    "recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_undo",
+        "regenerate_or_recompute",
+        "restore_from_checkpoint",
+        "audit_only",
+        "no_state_change"
+      ]
+    },
+    "review_action_id": {
+      "type": "string",
+      "enum": [
+        "inspect_raw_bytes",
+        "copy_raw_bytes",
+        "copy_escaped_text",
+        "copy_rendered_text",
+        "reopen_with_encoding",
+        "save_as_with_encoding",
+        "normalize_newlines",
+        "open_in_binary_view",
+        "acknowledge_rewrite_and_save",
+        "keep_raw_bytes_and_cancel_save",
+        "export_support_packet",
+        "block_save"
+      ]
+    },
+    "action_availability": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled",
+        "blocked_by_policy",
+        "not_applicable"
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_ref",
+        "content_ref",
+        "display_label",
+        "content_kind",
+        "trust_state"
+      ],
+      "properties": {
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "content_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/short_label" },
+        "content_kind": { "$ref": "#/$defs/content_kind" },
+        "trust_state": { "$ref": "#/$defs/trust_state" }
+      }
+    },
+    "decode_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detected_encoding",
+        "detection_source",
+        "bom_state_detected",
+        "newline_mode_detected",
+        "final_newline_detected",
+        "decode_recovery_class",
+        "raw_bytes_posture"
+      ],
+      "properties": {
+        "detected_encoding": { "$ref": "#/$defs/detected_encoding" },
+        "detection_source": { "$ref": "#/$defs/detection_source" },
+        "bom_state_detected": { "$ref": "#/$defs/bom_state_detected" },
+        "newline_mode_detected": { "$ref": "#/$defs/newline_mode_detected" },
+        "final_newline_detected": { "$ref": "#/$defs/final_newline_detected" },
+        "decode_recovery_class": { "$ref": "#/$defs/decode_recovery_class" },
+        "raw_bytes_posture": { "$ref": "#/$defs/raw_bytes_posture" },
+        "raw_bytes_journal_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "byte_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "length",
+        "unit"
+      ],
+      "properties": {
+        "start": { "type": "integer", "minimum": 0 },
+        "length": { "type": "integer", "minimum": 0 },
+        "unit": { "type": "string", "const": "byte_offset" }
+      }
+    },
+    "byte_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "finding_class",
+        "byte_range",
+        "raw_bytes_hex",
+        "rendered_projection",
+        "user_facing_summary"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/opaque_id" },
+        "finding_class": { "$ref": "#/$defs/byte_finding_class" },
+        "byte_range": { "$ref": "#/$defs/byte_range" },
+        "raw_bytes_hex": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(0x[0-9A-Fa-f]{2})( 0x[0-9A-Fa-f]{2})*$"
+        },
+        "rendered_projection": { "$ref": "#/$defs/rendered_projection" },
+        "replacement_marker": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "enum": ["U+FFFD", "?"] }
+          ]
+        },
+        "user_facing_summary": { "$ref": "#/$defs/bounded_text" }
+      }
+    },
+    "decode_attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "encoding_label",
+        "result",
+        "confidence_level"
+      ],
+      "properties": {
+        "encoding_label": { "$ref": "#/$defs/short_label" },
+        "result": { "$ref": "#/$defs/decode_attempt_result" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "notes": { "$ref": "#/$defs/bounded_text" }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "reason",
+        "summary"
+      ],
+      "properties": {
+        "level": { "$ref": "#/$defs/confidence_level" },
+        "reason": { "$ref": "#/$defs/confidence_reason" },
+        "summary": { "$ref": "#/$defs/bounded_text" }
+      }
+    },
+    "save_consequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consequence_class",
+        "packet_save_consequence_class",
+        "rewrite_class",
+        "write_posture",
+        "requires_user_acknowledgment",
+        "bytes_outside_declared_ranges",
+        "recovery_class",
+        "disclosure_label",
+        "save_now_summary"
+      ],
+      "properties": {
+        "consequence_class": { "$ref": "#/$defs/review_save_consequence_class" },
+        "packet_save_consequence_class": { "$ref": "#/$defs/packet_save_consequence_class" },
+        "rewrite_class": { "$ref": "#/$defs/rewrite_class" },
+        "write_posture": { "$ref": "#/$defs/write_posture" },
+        "requires_user_acknowledgment": { "type": "boolean" },
+        "bytes_outside_declared_ranges": {
+          "type": "string",
+          "enum": [
+            "unchanged",
+            "preserved",
+            "rewritten",
+            "not_written"
+          ]
+        },
+        "recovery_class": { "$ref": "#/$defs/recovery_class" },
+        "disclosure_label": { "$ref": "#/$defs/short_label" },
+        "save_now_summary": { "$ref": "#/$defs/bounded_text" },
+        "post_acknowledgment_packet_save_consequence_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/packet_save_consequence_class" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "consequence_class": { "const": "preserve_untouched_raw_bytes" } },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "packet_save_consequence_class": { "const": "preserve_untouched" },
+              "requires_user_acknowledgment": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "consequence_class": { "const": "normalize_encoding_or_newlines" } },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "packet_save_consequence_class": { "const": "rewrite_with_warning" },
+              "requires_user_acknowledgment": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "consequence_class": { "const": "replace_undecodable_spans" } },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "packet_save_consequence_class": { "const": "rewrite_with_warning" },
+              "requires_user_acknowledgment": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "consequence_class": { "const": "block_save_pending_review" } },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "packet_save_consequence_class": { "const": "block_pending_review" },
+              "rewrite_class": { "const": "blocked_no_write" },
+              "requires_user_acknowledgment": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "consequence_class": { "const": "require_explicit_acknowledgment" } },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "packet_save_consequence_class": { "const": "block_pending_review" },
+              "requires_user_acknowledgment": { "const": true },
+              "post_acknowledgment_packet_save_consequence_class": { "const": "rewrite_with_warning" }
+            }
+          }
+        }
+      ]
+    },
+    "linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suspicious_text_indicator_refs",
+        "mixed_direction_inspector_refs",
+        "support_export_packet_refs",
+        "security_review_refs",
+        "source_packet_refs"
+      ],
+      "properties": {
+        "suspicious_text_indicator_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "mixed_direction_inspector_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "support_export_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "security_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "source_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "review_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "availability",
+        "label",
+        "summary"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/review_action_id" },
+        "availability": { "$ref": "#/$defs/action_availability" },
+        "label": { "$ref": "#/$defs/short_label" },
+        "summary": { "$ref": "#/$defs/bounded_text" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_required",
+        "default_representation_class",
+        "include_raw_bytes",
+        "include_escaped_text",
+        "include_rendered_text",
+        "redaction_posture",
+        "summary"
+      ],
+      "properties": {
+        "export_required": { "type": "boolean" },
+        "default_representation_class": {
+          "type": "string",
+          "enum": [
+            "raw_bytes",
+            "rendered_text",
+            "escaped_text",
+            "metadata_only"
+          ]
+        },
+        "include_raw_bytes": { "type": "boolean" },
+        "include_escaped_text": { "type": "boolean" },
+        "include_rendered_text": { "type": "boolean" },
+        "redaction_posture": {
+          "type": "string",
+          "enum": [
+            "body_allowed",
+            "body_redacted_metadata_only",
+            "policy_review_required"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/bounded_text" }
+      }
+    },
+    "invariant": {
+      "type": "string",
+      "enum": [
+        "raw_bytes_preserved_until_resolution",
+        "save_consequence_visible_before_write",
+        "rendered_text_never_substitutes_for_raw_bytes",
+        "escaped_or_raw_available_when_rendering_can_mislead",
+        "support_export_keeps_decode_context",
+        "suspicious_text_links_survive_review_export"
+      ]
+    },
+    "decode_recovery_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "decode_recovery_review_schema_version",
+        "review_id",
+        "emitted_at",
+        "trigger_surface",
+        "subject",
+        "decode_state",
+        "byte_findings",
+        "decode_attempts",
+        "confidence",
+        "representation_choices",
+        "save_consequence",
+        "linkage",
+        "review_actions",
+        "support_export",
+        "invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "decode_recovery_review_schema_version": {
+          "$ref": "#/$defs/decode_recovery_review_schema_version"
+        },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" },
+        "trigger_surface": { "$ref": "#/$defs/trigger_surface" },
+        "subject": { "$ref": "#/$defs/subject" },
+        "decode_state": { "$ref": "#/$defs/decode_state" },
+        "byte_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/byte_finding" },
+          "minItems": 1
+        },
+        "decode_attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/decode_attempt" },
+          "minItems": 1
+        },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "representation_choices": {
+          "type": "array",
+          "items": {
+            "$ref": "text_representation_choice.schema.json#/$defs/text_representation_choice_record"
+          },
+          "minItems": 1
+        },
+        "save_consequence": { "$ref": "#/$defs/save_consequence" },
+        "linkage": { "$ref": "#/$defs/linkage" },
+        "review_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_action" },
+          "minItems": 1
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "invariants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invariant" },
+          "minItems": 3,
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

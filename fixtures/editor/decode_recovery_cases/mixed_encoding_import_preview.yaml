@@ -1,0 +1,163 @@
+# yaml-language-server: $schema=../../../schemas/editor/decode_recovery_review.schema.json
+$schema: ../../../schemas/editor/decode_recovery_review.schema.json
+__fixture__:
+  name: mixed_encoding_import_preview
+  scenario: >
+    An import preview opens a file whose header is valid UTF-8 while one
+    quoted description run matches legacy Windows punctuation. No single
+    lossless decoder is proven, so the preview defaults to raw bytes and
+    escaped text, with save/import commit blocked until the user chooses.
+  required_coverage:
+    - mixed_encodings
+    - import_preview
+    - blocked_save
+record_kind: decode_recovery_review_record
+decode_recovery_review_schema_version: 1
+review_id: editor:decode-review:mixed-encoding-import-preview:01
+emitted_at: "2026-04-29T18:12:00Z"
+trigger_surface: import_preview
+subject:
+  subject_ref: subject:import:legacy-csv:01
+  content_ref: content:import:legacy-csv:bytes:01
+  display_label: legacy.csv
+  content_kind: import_payload
+  trust_state: pending_evaluation
+decode_state:
+  detected_encoding: mixed_encoding_suspected
+  detection_source: mixed_encoding_heuristic
+  bom_state_detected: absent
+  newline_mode_detected: mixed
+  final_newline_detected: present
+  decode_recovery_class: mixed_encoding_suspected
+  raw_bytes_posture: preserved_in_recovery_journal
+  raw_bytes_journal_ref: recovery-journal:import:legacy-csv:01
+byte_findings:
+  - finding_id: finding:import:legacy-csv:utf8-header
+    finding_class: valid_text_bytes
+    byte_range:
+      start: 0
+      length: 15
+      unit: byte_offset
+    raw_bytes_hex: "0x6E 0x61 0x6D 0x65 0x2C 0x6E 0x6F 0x74 0x65 0x0A 0x61 0x2C 0x22 0x6F 0x6B"
+    rendered_projection: rendered_exactly
+    replacement_marker: null
+    user_facing_summary: Header and first field decode as UTF-8.
+  - finding_id: finding:import:legacy-csv:cp1252-quote-run
+    finding_class: mixed_encoding_run
+    byte_range:
+      start: 15
+      length: 5
+      unit: byte_offset
+    raw_bytes_hex: "0x93 0x6F 0x6C 0x64 0x94"
+    rendered_projection: escaped_only
+    replacement_marker: null
+    user_facing_summary: Quote bytes match a legacy 8-bit encoding but are invalid in UTF-8.
+decode_attempts:
+  - encoding_label: UTF-8
+    result: failed_invalid_sequence
+    confidence_level: high
+    notes: The header is valid, but byte 0x93 fails the UTF-8 decoder.
+  - encoding_label: Windows-1252
+    result: failed_low_confidence
+    confidence_level: medium
+    notes: The quote run is plausible, but the import source does not declare this encoding.
+confidence:
+  level: low
+  reason: mixed_encoding_suspected
+  summary: Import preview cannot prove one decoder for every byte run.
+representation_choices:
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:import:legacy-csv:raw
+    source_review_ref: editor:decode-review:mixed-encoding-import-preview:01
+    source_surface: import_preview
+    representation_class: raw_bytes
+    projection_posture: exact_source_bytes
+    availability_state: default
+    availability_rule: always_available_when_raw_bytes_preserved
+    default_for_surface: true
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - escaped_text
+    transfer_actions:
+      - open_raw_bytes_inspector
+      - copy_raw_bytes
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - save_consequence_class
+      - source_surface
+    user_visible_label: Open raw bytes
+    availability_summary: Raw bytes are the default import preview because no decoder is proven.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:import:legacy-csv:escaped
+    source_review_ref: editor:decode-review:mixed-encoding-import-preview:01
+    source_surface: import_preview
+    representation_class: escaped_text
+    projection_posture: escaped_bytes
+    availability_state: available
+    availability_rule: available_when_escape_projection_possible
+    default_for_surface: false
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - raw_bytes
+    transfer_actions:
+      - copy_escaped_text
+      - export_escaped_text
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - source_surface
+    user_visible_label: Copy escaped text
+    availability_summary: Escaped bytes can be copied without choosing a decoder.
+save_consequence:
+  consequence_class: block_save_pending_review
+  packet_save_consequence_class: block_pending_review
+  rewrite_class: blocked_no_write
+  write_posture: no_write_until_review
+  requires_user_acknowledgment: false
+  bytes_outside_declared_ranges: not_written
+  recovery_class: no_state_change
+  disclosure_label: No durable write
+  save_now_summary: Import commit and save are blocked until the user chooses an encoding or binary inspection path.
+  post_acknowledgment_packet_save_consequence_class: null
+linkage:
+  suspicious_text_indicator_refs: []
+  mixed_direction_inspector_refs: []
+  support_export_packet_refs: []
+  security_review_refs: []
+  source_packet_refs:
+    - docs/verification/text_fidelity_packet.md
+    - docs/editor/decode_recovery_and_save_consequence_contract.md
+review_actions:
+  - action_id: inspect_raw_bytes
+    availability: enabled
+    label: Inspect raw bytes
+    summary: Opens the raw byte inspector at the mixed-encoding run.
+  - action_id: reopen_with_encoding
+    availability: enabled
+    label: Reopen with encoding
+    summary: Lets the user choose one decoder and regenerate the preview.
+  - action_id: block_save
+    availability: enabled
+    label: Keep save blocked
+    summary: Leaves the import preview in review state with no durable write.
+support_export:
+  export_required: false
+  default_representation_class: raw_bytes
+  include_raw_bytes: true
+  include_escaped_text: true
+  include_rendered_text: false
+  redaction_posture: body_allowed
+  summary: If exported, the packet should include raw bytes and escaped bytes, not a guessed rendered body.
+invariants:
+  - raw_bytes_preserved_until_resolution
+  - save_consequence_visible_before_write
+  - rendered_text_never_substitutes_for_raw_bytes
+  - escaped_or_raw_available_when_rendering_can_mislead
+

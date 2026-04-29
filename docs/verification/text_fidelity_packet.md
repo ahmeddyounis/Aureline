@@ -30,6 +30,14 @@ Companion artifacts:
   EOL-rewrite warning, save refusal pending decode recovery, protocol
   coordinate translation, copy / paste representation choice, and
   support / export raw-byte capture.
+- [`/docs/editor/decode_recovery_and_save_consequence_contract.md`](../editor/decode_recovery_and_save_consequence_contract.md)
+  — editor-facing review contract for malformed, mixed-encoding, or
+  save-sensitive text, including the finer save-now consequence classes
+  and representation availability rules.
+- [`/fixtures/editor/decode_recovery_cases/`](../../fixtures/editor/decode_recovery_cases/)
+  — YAML fixtures that project the editor-facing review contract across
+  editor, diff, import preview, support export, security review, and
+  save-pipeline surfaces.
 - [`/docs/verification/source_fidelity_and_undo_packet.md`](./source_fidelity_and_undo_packet.md)
   — sibling packet freezing save rewrite-class and recovery-label
   vocabulary; this packet composes with it rather than re-defining
@@ -120,18 +128,21 @@ artifact_links:
     - evidence.editor_io.decode_recovery_examples
     - evidence.editor_io.save_consequence_examples
     - evidence.editor_io.save_rewrite_class_vocabulary
+    - evidence.editor_io.decode_recovery_review_cases
   exact_build_identity_refs: []
   fixture_refs:
     - fixtures/text/unicode_position_manifest.yaml
     - fixtures/text/encoding_eol_corpus/
     - artifacts/text/decode_recovery_examples/
     - artifacts/text/save_consequence_examples/
+    - fixtures/editor/decode_recovery_cases/
   archetype_refs: []
   source_anchor_refs:
     - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
     - docs/adr/0003-buffer-undo-large-file.md
     - docs/adr/0006-vfs-save-cache-identity.md
     - docs/verification/source_fidelity_and_undo_packet.md
+    - docs/editor/decode_recovery_and_save_consequence_contract.md
     - artifacts/io/save_rewrite_classes.yaml
   waiver_refs: []
   known_limit_refs: []
@@ -266,7 +277,7 @@ in the recovery journal; editing is gated until resolution.
 | `unknown_encoding_fallback` | Detection could not choose with confidence. | preserved in recovery journal | explicit encoding override or binary mode |
 | `explicit_user_override` | User chose a different encoding for the buffer. | preserved in recovery journal | `decode_recovery_change` transaction committed |
 | `binary_like_blocked` | Content looks non-text (NUL density, sniffed binary signature). | preserved unchanged | buffer opens in binary-view or large-file mode |
-| `lossy_reencode_warning` | Re-encode on save would not round-trip exactly. | preserved until save resolves | explicit acknowledgement or encoding change |
+| `lossy_reencode_warning` | Re-encode on save would not round-trip exactly. | preserved until save resolves | explicit acknowledgment or encoding change |
 
 Rules:
 
@@ -276,7 +287,7 @@ Rules:
    transaction (ADR 0003 undo-class taxonomy) with
    `reversal_class = restore_from_checkpoint`.
 3. `lossy_reencode_warning` is the only state where a save may proceed
-   after explicit acknowledgement; it MUST project
+   after explicit acknowledgment; it MUST project
    `encoding_state = explicit_conversion` or
    `encoding_state = decode_recovery_override` and MUST carry a
    `rewrite_with_warning` save consequence.
@@ -320,7 +331,7 @@ both MUST agree on any record.
 | `save_consequence_class` | Meaning | Required disclosure label | Compatible `rewrite_class` |
 |---|---|---|---|
 | `preserve_untouched` | Bytes outside the declared edit ranges are written back verbatim. | `Preserved source fidelity` | `targeted_content_patch`, `no_write_needed` |
-| `rewrite_with_warning` | A save participant or explicit command changed bytes Aureline cannot prove were the user's intent (EOL conversion, BOM add / remove, encoding conversion, whole-file format). | `Explicit rewrite on save` (composes with the matching `Whole-file rewrite` / `Whole-file rewrite fallback` label where applicable) | `whole_file_rewrite_declared`, `whole_file_rewrite_fallback`, `targeted_content_patch` (only with an explicit conversion acknowledgement) |
+| `rewrite_with_warning` | A save participant or explicit command changed bytes Aureline cannot prove were the user's intent (EOL conversion, BOM add / remove, encoding conversion, whole-file format). | `Explicit rewrite on save` (composes with the matching `Whole-file rewrite` / `Whole-file rewrite fallback` label where applicable) | `whole_file_rewrite_declared`, `whole_file_rewrite_fallback`, `targeted_content_patch` (only with an explicit conversion acknowledgment) |
 | `block_pending_review` | The save pipeline refused to write because decode recovery, unknown encoding, mixed-newline ambiguity, external change, or policy review has not resolved. | `No durable write` | `blocked_no_write` |
 
 Rules:
@@ -348,6 +359,7 @@ Rules:
 | `evidence.editor_io.decode_recovery_examples` | `verification_corpus` | Worked records for decode-recovery classes and representation choice | current with packet revision 1 | [`artifacts/text/decode_recovery_examples/`](../../artifacts/text/decode_recovery_examples/) |
 | `evidence.editor_io.save_consequence_examples` | `verification_corpus` | Worked records for preserve-untouched, rewrite-with-warning, block-pending-review | current with packet revision 1 | [`artifacts/text/save_consequence_examples/`](../../artifacts/text/save_consequence_examples/) |
 | `evidence.editor_io.save_rewrite_class_vocabulary` | `verification_corpus` | Composing rewrite-class vocabulary from the sibling save packet | current with packet revision 1 | [`artifacts/io/save_rewrite_classes.yaml`](../../artifacts/io/save_rewrite_classes.yaml) |
+| `evidence.editor_io.decode_recovery_review_cases` | `verification_corpus` | Editor-facing decode-recovery review records for malformed, mixed-encoding, import preview, diff, support export, and save-now consequence cases | current with packet revision 1 | [`fixtures/editor/decode_recovery_cases/`](../../fixtures/editor/decode_recovery_cases/) |
 
 ## Corpus coverage
 
@@ -409,6 +421,18 @@ Save-consequence examples (`artifacts/text/save_consequence_examples/`):
 | `corpus.text.save.protocol_coordinate_adapter_translation` | LSP range translated across UTF-16 / UTF-8 boundary during apply | `preserve_untouched` | [`protocol_coordinate_adapter_translation.json`](../../artifacts/text/save_consequence_examples/protocol_coordinate_adapter_translation.json) |
 | `corpus.text.save.copy_paste_representation_choice` | copy action chooses rendered / escaped / raw_bytes | `preserve_untouched` (no save boundary crossed) | [`copy_paste_representation_choice.json`](../../artifacts/text/save_consequence_examples/copy_paste_representation_choice.json) |
 | `corpus.text.save.support_export_raw_bytes_capture` | support export captures raw bytes of a decode-recovery region | `preserve_untouched` (no save boundary crossed) | [`support_export_raw_bytes_capture.json`](../../artifacts/text/save_consequence_examples/support_export_raw_bytes_capture.json) |
+
+Editor decode-recovery review cases (`fixtures/editor/decode_recovery_cases/`):
+
+| Fixture | Primary case | Primary surface |
+|---|---|---|
+| [`mixed_encoding_import_preview.yaml`](../../fixtures/editor/decode_recovery_cases/mixed_encoding_import_preview.yaml) | mixed encoding suspicion blocks import commit until a decoder is chosen | `import_preview` |
+| [`invalid_utf8_editor_blocked_save.yaml`](../../fixtures/editor/decode_recovery_cases/invalid_utf8_editor_blocked_save.yaml) | invalid UTF-8 run is inspectable with raw bytes preserved and save blocked | `editor` |
+| [`bom_eol_normalization_warning.yaml`](../../fixtures/editor/decode_recovery_cases/bom_eol_normalization_warning.yaml) | explicit BOM and newline normalization projects rewrite-with-warning | `save_pipeline` |
+| [`diff_view_raw_rendered_divergence.yaml`](../../fixtures/editor/decode_recovery_cases/diff_view_raw_rendered_divergence.yaml) | diff hunk keeps raw/escaped peers and suspicious-text links for mixed-direction content | `diff` |
+| [`lossy_reencode_acknowledgment.yaml`](../../fixtures/editor/decode_recovery_cases/lossy_reencode_acknowledgment.yaml) | lossy target encoding blocks save until explicit acknowledgment | `save_pipeline` |
+| [`replace_undecodable_spans_warning.yaml`](../../fixtures/editor/decode_recovery_cases/replace_undecodable_spans_warning.yaml) | explicit replacement commits U+FFFD only after warning review | `save_pipeline` |
+| [`support_export_security_review_raw_bytes.yaml`](../../fixtures/editor/decode_recovery_cases/support_export_security_review_raw_bytes.yaml) | support/security export defaults to raw bytes with escaped companion evidence | `support_export` |
 
 ## Verification method
 

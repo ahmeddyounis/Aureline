@@ -1,0 +1,153 @@
+# yaml-language-server: $schema=../../../schemas/editor/decode_recovery_review.schema.json
+$schema: ../../../schemas/editor/decode_recovery_review.schema.json
+__fixture__:
+  name: bom_eol_normalization_warning
+  scenario: >
+    A UTF-8 BOM file with CRLF line endings is cleanly decoded. The user
+    requests an explicit conversion to no BOM and LF. The review states
+    that saving will normalize BOM/EOL bytes and requires acknowledgment.
+  required_coverage:
+    - bom_change
+    - eol_change
+    - save_consequence_warning
+record_kind: decode_recovery_review_record
+decode_recovery_review_schema_version: 1
+review_id: editor:decode-review:bom-eol-normalization:01
+emitted_at: "2026-04-29T18:16:00Z"
+trigger_surface: save_pipeline
+subject:
+  subject_ref: subject:buffer:settings:01
+  content_ref: content:buffer:settings:bytes:01
+  display_label: settings.ini
+  content_kind: text_file
+  trust_state: trusted
+decode_state:
+  detected_encoding: utf8_bom
+  detection_source: bom
+  bom_state_detected: present
+  newline_mode_detected: crlf
+  final_newline_detected: present
+  decode_recovery_class: clean_decode
+  raw_bytes_posture: not_needed_clean_decode
+  raw_bytes_journal_ref: null
+byte_findings:
+  - finding_id: finding:settings:bom
+    finding_class: bom_marker
+    byte_range:
+      start: 0
+      length: 3
+      unit: byte_offset
+    raw_bytes_hex: "0xEF 0xBB 0xBF"
+    rendered_projection: escaped_only
+    replacement_marker: null
+    user_facing_summary: UTF-8 BOM is present and will be removed by the requested conversion.
+  - finding_id: finding:settings:crlf
+    finding_class: newline_marker
+    byte_range:
+      start: 10
+      length: 2
+      unit: byte_offset
+    raw_bytes_hex: "0x0D 0x0A"
+    rendered_projection: escaped_only
+    replacement_marker: null
+    user_facing_summary: CRLF newline bytes will be rewritten as LF by the requested conversion.
+decode_attempts:
+  - encoding_label: UTF-8 BOM
+    result: succeeded_lossless
+    confidence_level: high
+    notes: BOM confirms the opened encoding.
+confidence:
+  level: high
+  reason: bom_confirmed
+  summary: Decode is clean; the risk is the requested BOM and newline rewrite.
+representation_choices:
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:settings:rendered
+    source_review_ref: editor:decode-review:bom-eol-normalization:01
+    source_surface: editor
+    representation_class: rendered_text
+    projection_posture: rendered_lossless
+    availability_state: default
+    availability_rule: available_when_decode_lossless
+    default_for_surface: true
+    requires_raw_bytes: false
+    requires_lossless_decode: true
+    requires_peer_representations:
+      - escaped_text
+    transfer_actions:
+      - copy_rendered_text
+    required_disclosure_fields:
+      - representation_label
+      - save_consequence_class
+      - source_surface
+    user_visible_label: Copy rendered text
+    availability_summary: Rendered text is lossless, but save review still discloses BOM and newline conversion.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:settings:escaped
+    source_review_ref: editor:decode-review:bom-eol-normalization:01
+    source_surface: editor
+    representation_class: escaped_text
+    projection_posture: escaped_codepoints
+    availability_state: available
+    availability_rule: available_when_escape_projection_possible
+    default_for_surface: false
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - rendered_text
+    transfer_actions:
+      - copy_escaped_text
+    required_disclosure_fields:
+      - representation_label
+      - save_consequence_class
+      - source_surface
+    user_visible_label: Copy escaped text
+    availability_summary: Escaped view exposes BOM and CRLF bytes before the rewrite.
+save_consequence:
+  consequence_class: normalize_encoding_or_newlines
+  packet_save_consequence_class: rewrite_with_warning
+  rewrite_class: whole_file_rewrite_declared
+  write_posture: no_write_until_acknowledged
+  requires_user_acknowledgment: true
+  bytes_outside_declared_ranges: rewritten
+  recovery_class: compensating_undo
+  disclosure_label: Explicit rewrite on save
+  save_now_summary: Saving will remove the UTF-8 BOM and convert CRLF line endings to LF after acknowledgment.
+  post_acknowledgment_packet_save_consequence_class: rewrite_with_warning
+linkage:
+  suspicious_text_indicator_refs: []
+  mixed_direction_inspector_refs: []
+  support_export_packet_refs:
+    - support-export:settings:save-review:01
+  security_review_refs: []
+  source_packet_refs:
+    - docs/verification/source_fidelity_and_undo_packet.md
+    - docs/editor/decode_recovery_and_save_consequence_contract.md
+review_actions:
+  - action_id: normalize_newlines
+    availability: enabled
+    label: Normalize line endings
+    summary: Applies the requested CRLF to LF conversion after acknowledgment.
+  - action_id: acknowledge_rewrite_and_save
+    availability: enabled
+    label: Acknowledge and save
+    summary: Commits the BOM and newline rewrite with an explicit warning record.
+  - action_id: keep_raw_bytes_and_cancel_save
+    availability: enabled
+    label: Cancel save
+    summary: Leaves BOM and CRLF bytes unchanged.
+support_export:
+  export_required: false
+  default_representation_class: escaped_text
+  include_raw_bytes: false
+  include_escaped_text: true
+  include_rendered_text: true
+  redaction_posture: body_allowed
+  summary: Save review export can explain the BOM and newline rewrite without attaching the full file body.
+invariants:
+  - save_consequence_visible_before_write
+  - rendered_text_never_substitutes_for_raw_bytes
+  - escaped_or_raw_available_when_rendering_can_mislead
+

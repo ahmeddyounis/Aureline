@@ -1,0 +1,175 @@
+# yaml-language-server: $schema=../../../schemas/editor/decode_recovery_review.schema.json
+$schema: ../../../schemas/editor/decode_recovery_review.schema.json
+__fixture__:
+  name: lossy_reencode_acknowledgment
+  scenario: >
+    A UTF-16LE file decodes cleanly. The user requests Save As
+    Windows-1252, but one emoji cannot be represented. The review
+    blocks the current save until the user acknowledges the lossy
+    replacement or picks a different encoding.
+  required_coverage:
+    - lossy_reencode
+    - explicit_acknowledgment
+    - replace_undecodable_spans
+record_kind: decode_recovery_review_record
+decode_recovery_review_schema_version: 1
+review_id: editor:decode-review:lossy-reencode:01
+emitted_at: "2026-04-29T18:20:00Z"
+trigger_surface: save_pipeline
+subject:
+  subject_ref: subject:buffer:greeting:01
+  content_ref: content:buffer:greeting:bytes:01
+  display_label: greeting.txt
+  content_kind: text_file
+  trust_state: trusted
+decode_state:
+  detected_encoding: utf16le_bom
+  detection_source: bom
+  bom_state_detected: present
+  newline_mode_detected: lf
+  final_newline_detected: present
+  decode_recovery_class: lossy_reencode_warning
+  raw_bytes_posture: preserved_until_save_resolves
+  raw_bytes_journal_ref: recovery-journal:buffer:greeting:01
+byte_findings:
+  - finding_id: finding:greeting:emoji-not-windows1252
+    finding_class: unencodable_code_point
+    byte_range:
+      start: 12
+      length: 4
+      unit: byte_offset
+    raw_bytes_hex: "0x3D 0xD8 0x00 0xDE"
+    rendered_projection: rendered_exactly
+    replacement_marker: "?"
+    user_facing_summary: The emoji decodes cleanly from UTF-16LE but cannot be encoded as Windows-1252 without substitution.
+decode_attempts:
+  - encoding_label: UTF-16LE BOM
+    result: succeeded_lossless
+    confidence_level: high
+    notes: Source decode is clean.
+  - encoding_label: Windows-1252 target encode
+    result: failed_invalid_sequence
+    confidence_level: high
+    notes: Target encoding cannot represent the emoji code point.
+confidence:
+  level: low
+  reason: lossy_reencode_detected
+  summary: Open decode is high confidence, but requested save encoding would lose text.
+representation_choices:
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:greeting:rendered
+    source_review_ref: editor:decode-review:lossy-reencode:01
+    source_surface: editor
+    representation_class: rendered_text
+    projection_posture: rendered_lossless
+    availability_state: default
+    availability_rule: available_when_decode_lossless
+    default_for_surface: true
+    requires_raw_bytes: false
+    requires_lossless_decode: true
+    requires_peer_representations:
+      - escaped_text
+    transfer_actions:
+      - copy_rendered_text
+    required_disclosure_fields:
+      - representation_label
+      - save_consequence_class
+      - replacement_marker_note
+    user_visible_label: Copy rendered text
+    availability_summary: Rendered text is lossless before save, but the target encoding cannot preserve it.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:greeting:escaped
+    source_review_ref: editor:decode-review:lossy-reencode:01
+    source_surface: editor
+    representation_class: escaped_text
+    projection_posture: escaped_codepoints
+    availability_state: available
+    availability_rule: available_when_escape_projection_possible
+    default_for_surface: false
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - rendered_text
+      - raw_bytes
+    transfer_actions:
+      - copy_escaped_text
+    required_disclosure_fields:
+      - representation_label
+      - raw_bytes_posture
+      - save_consequence_class
+      - replacement_marker_note
+    user_visible_label: Copy escaped text
+    availability_summary: Escaped text shows the exact code point that would be replaced.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:greeting:raw
+    source_review_ref: editor:decode-review:lossy-reencode:01
+    source_surface: editor
+    representation_class: raw_bytes
+    projection_posture: exact_source_bytes
+    availability_state: available
+    availability_rule: always_available_when_raw_bytes_preserved
+    default_for_surface: false
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - escaped_text
+    transfer_actions:
+      - copy_raw_bytes
+      - open_raw_bytes_inspector
+    required_disclosure_fields:
+      - representation_label
+      - raw_bytes_posture
+      - save_consequence_class
+    user_visible_label: Copy raw bytes
+    availability_summary: Raw source bytes remain available while the save decision is pending.
+save_consequence:
+  consequence_class: require_explicit_acknowledgment
+  packet_save_consequence_class: block_pending_review
+  rewrite_class: blocked_no_write
+  write_posture: no_write_until_acknowledged
+  requires_user_acknowledgment: true
+  bytes_outside_declared_ranges: not_written
+  recovery_class: no_state_change
+  disclosure_label: Explicit acknowledgment required
+  save_now_summary: Save is blocked until the user acknowledges that the emoji will be replaced or chooses another target encoding.
+  post_acknowledgment_packet_save_consequence_class: rewrite_with_warning
+linkage:
+  suspicious_text_indicator_refs:
+    - suspicious-text:greeting:replacement-risk:01
+  mixed_direction_inspector_refs: []
+  support_export_packet_refs:
+    - support-export:greeting:lossy-reencode:01
+  security_review_refs: []
+  source_packet_refs:
+    - docs/verification/text_fidelity_packet.md
+    - docs/editor/decode_recovery_and_save_consequence_contract.md
+review_actions:
+  - action_id: acknowledge_rewrite_and_save
+    availability: enabled
+    label: Acknowledge replacement and save
+    summary: Commits a warning rewrite that replaces the unencodable code point.
+  - action_id: save_as_with_encoding
+    availability: enabled
+    label: Choose another encoding
+    summary: Lets the user select an encoding that can preserve the emoji.
+  - action_id: keep_raw_bytes_and_cancel_save
+    availability: enabled
+    label: Cancel save
+    summary: Leaves the original UTF-16LE bytes unchanged.
+support_export:
+  export_required: false
+  default_representation_class: escaped_text
+  include_raw_bytes: true
+  include_escaped_text: true
+  include_rendered_text: true
+  redaction_posture: body_allowed
+  summary: Export can include raw bytes and escaped code point evidence for the lossy save decision.
+invariants:
+  - raw_bytes_preserved_until_resolution
+  - save_consequence_visible_before_write
+  - rendered_text_never_substitutes_for_raw_bytes
+  - escaped_or_raw_available_when_rendering_can_mislead
+

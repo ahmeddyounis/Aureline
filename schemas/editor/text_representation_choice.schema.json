@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/text_representation_choice.schema.json",
+  "title": "Aureline editor text representation choice",
+  "description": "Boundary schema for representation choices used by editor, diff, import preview, support export, and security review surfaces when raw bytes, rendered text, and escaped text can differ. The schema names availability, defaulting, required peer representations, and disclosure fields so no surface exposes an ambiguous Copy or Export action around malformed, suspicious, or mixed-direction text.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/text_representation_choice_record" }
+  ],
+  "$defs": {
+    "text_representation_choice_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for text representation choice records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "text_representation_choice_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque id safe for logs, fixtures, review packets, and support exports."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "bounded_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200,
+      "description": "Bounded, redaction-aware display or review text."
+    },
+    "source_surface": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "import_preview",
+        "support_export",
+        "security_review"
+      ],
+      "description": "Surface family that offers or records this representation choice."
+    },
+    "representation_class": {
+      "type": "string",
+      "enum": [
+        "raw_bytes",
+        "rendered_text",
+        "escaped_text"
+      ],
+      "description": "Closed editor-facing representation vocabulary. Replacement rendering is described by projection_posture rather than by minting a fourth primary transfer class."
+    },
+    "projection_posture": {
+      "type": "string",
+      "enum": [
+        "exact_source_bytes",
+        "rendered_lossless",
+        "rendered_with_replacement_marker",
+        "escaped_codepoints",
+        "escaped_bytes",
+        "metadata_only_no_body"
+      ],
+      "description": "What the payload materially represents."
+    },
+    "availability_state": {
+      "type": "string",
+      "enum": [
+        "default",
+        "available",
+        "companion_required",
+        "unavailable",
+        "blocked_by_policy"
+      ],
+      "description": "Whether the representation is the default, reachable, reachable only alongside a peer representation, unavailable, or policy blocked."
+    },
+    "availability_rule": {
+      "type": "string",
+      "enum": [
+        "always_available_when_raw_bytes_preserved",
+        "available_when_decode_lossless",
+        "available_with_replacement_disclosure",
+        "available_when_escape_projection_possible",
+        "default_for_support_or_security_export",
+        "blocked_when_policy_redacts_raw_bytes",
+        "unavailable_when_decoder_unresolved",
+        "unavailable_on_surface"
+      ]
+    },
+    "action_id": {
+      "type": "string",
+      "enum": [
+        "copy_raw_bytes",
+        "copy_rendered_text",
+        "copy_escaped_text",
+        "export_raw_bytes",
+        "export_rendered_text",
+        "export_escaped_text",
+        "open_raw_bytes_inspector",
+        "open_mixed_direction_inspector",
+        "attach_to_support_packet"
+      ]
+    },
+    "disclosure_field": {
+      "type": "string",
+      "enum": [
+        "representation_label",
+        "decode_recovery_class",
+        "raw_bytes_posture",
+        "save_consequence_class",
+        "suspicious_text_indicator",
+        "mixed_direction_summary",
+        "source_surface",
+        "redaction_posture",
+        "replacement_marker_note"
+      ]
+    },
+    "text_representation_choice_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "text_representation_choice_schema_version",
+        "choice_id",
+        "source_review_ref",
+        "source_surface",
+        "representation_class",
+        "projection_posture",
+        "availability_state",
+        "availability_rule",
+        "default_for_surface",
+        "requires_raw_bytes",
+        "requires_lossless_decode",
+        "requires_peer_representations",
+        "transfer_actions",
+        "required_disclosure_fields",
+        "user_visible_label",
+        "availability_summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "text_representation_choice_schema_version": {
+          "$ref": "#/$defs/text_representation_choice_schema_version"
+        },
+        "choice_id": { "$ref": "#/$defs/opaque_id" },
+        "source_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_surface": { "$ref": "#/$defs/source_surface" },
+        "representation_class": { "$ref": "#/$defs/representation_class" },
+        "projection_posture": { "$ref": "#/$defs/projection_posture" },
+        "availability_state": { "$ref": "#/$defs/availability_state" },
+        "availability_rule": { "$ref": "#/$defs/availability_rule" },
+        "default_for_surface": {
+          "type": "boolean",
+          "description": "True when this is the default representation for the source surface and current decode posture."
+        },
+        "requires_raw_bytes": {
+          "type": "boolean",
+          "description": "True when the exact source bytes or recovery-journal bytes must still be available."
+        },
+        "requires_lossless_decode": {
+          "type": "boolean",
+          "description": "True when the action may only be offered after a lossless decode."
+        },
+        "requires_peer_representations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/representation_class" },
+          "uniqueItems": true,
+          "description": "Representations that must remain reachable alongside this choice."
+        },
+        "transfer_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "required_disclosure_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disclosure_field" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "representation_label" }
+        },
+        "user_visible_label": { "$ref": "#/$defs/bounded_text" },
+        "availability_summary": { "$ref": "#/$defs/bounded_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "representation_class": { "const": "raw_bytes" } },
+            "required": ["representation_class"]
+          },
+          "then": {
+            "properties": {
+              "projection_posture": { "const": "exact_source_bytes" },
+              "requires_raw_bytes": { "const": true },
+              "requires_lossless_decode": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "representation_class": { "const": "rendered_text" } },
+            "required": ["representation_class"]
+          },
+          "then": {
+            "properties": {
+              "projection_posture": {
+                "enum": [
+                  "rendered_lossless",
+                  "rendered_with_replacement_marker"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "representation_class": { "const": "escaped_text" } },
+            "required": ["representation_class"]
+          },
+          "then": {
+            "properties": {
+              "projection_posture": {
+                "enum": [
+                  "escaped_codepoints",
+                  "escaped_bytes"
+                ]
+              },
+              "requires_raw_bytes": { "const": true },
+              "requires_lossless_decode": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "availability_state": { "const": "default" } },
+            "required": ["availability_state"]
+          },
+          "then": {
+            "properties": {
+              "default_for_surface": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

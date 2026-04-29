@@ -1,0 +1,182 @@
+# yaml-language-server: $schema=../../../schemas/editor/decode_recovery_review.schema.json
+$schema: ../../../schemas/editor/decode_recovery_review.schema.json
+__fixture__:
+  name: invalid_utf8_editor_blocked_save
+  scenario: >
+    A text file opens in the editor with a truncated UTF-8 sequence.
+    Inspection can show U+FFFD, but the original bytes remain in the
+    recovery journal and ordinary save is blocked.
+  required_coverage:
+    - undecodable_bytes
+    - editor
+    - blocked_save
+record_kind: decode_recovery_review_record
+decode_recovery_review_schema_version: 1
+review_id: editor:decode-review:invalid-utf8-editor:01
+emitted_at: "2026-04-29T18:14:00Z"
+trigger_surface: editor
+subject:
+  subject_ref: subject:buffer:trace-log:01
+  content_ref: content:buffer:trace-log:bytes:01
+  display_label: trace.log
+  content_kind: text_file
+  trust_state: trusted
+decode_state:
+  detected_encoding: utf8
+  detection_source: utf8_heuristic
+  bom_state_detected: absent
+  newline_mode_detected: unknown_or_degraded
+  final_newline_detected: unknown_or_degraded
+  decode_recovery_class: invalid_byte_sequence_detected
+  raw_bytes_posture: preserved_in_recovery_journal
+  raw_bytes_journal_ref: recovery-journal:buffer:trace-log:01
+byte_findings:
+  - finding_id: finding:trace-log:truncated-utf8
+    finding_class: invalid_byte_sequence
+    byte_range:
+      start: 2
+      length: 2
+      unit: byte_offset
+    raw_bytes_hex: "0xE4 0xB8"
+    rendered_projection: rendered_with_replacement
+    replacement_marker: U+FFFD
+    user_facing_summary: The UTF-8 decoder cannot complete this two-byte run; the rendered marker is not the source byte sequence.
+decode_attempts:
+  - encoding_label: UTF-8
+    result: failed_invalid_sequence
+    confidence_level: high
+    notes: Byte run ends before a valid UTF-8 scalar value is complete.
+  - encoding_label: UTF-8 with replacement
+    result: succeeded_with_replacement
+    confidence_level: low
+    notes: Replacement rendering is inspect-only and cannot be saved without review.
+confidence:
+  level: low
+  reason: decoder_replacement_used
+  summary: The rendered text contains a replacement marker over preserved source bytes.
+representation_choices:
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:trace-log:rendered-replacement
+    source_review_ref: editor:decode-review:invalid-utf8-editor:01
+    source_surface: editor
+    representation_class: rendered_text
+    projection_posture: rendered_with_replacement_marker
+    availability_state: companion_required
+    availability_rule: available_with_replacement_disclosure
+    default_for_surface: false
+    requires_raw_bytes: false
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - raw_bytes
+      - escaped_text
+    transfer_actions:
+      - copy_rendered_text
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - save_consequence_class
+      - replacement_marker_note
+    user_visible_label: Copy rendered text
+    availability_summary: Rendered copy is allowed only with replacement disclosure and raw or escaped peers.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:trace-log:raw
+    source_review_ref: editor:decode-review:invalid-utf8-editor:01
+    source_surface: editor
+    representation_class: raw_bytes
+    projection_posture: exact_source_bytes
+    availability_state: default
+    availability_rule: always_available_when_raw_bytes_preserved
+    default_for_surface: true
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - escaped_text
+    transfer_actions:
+      - copy_raw_bytes
+      - open_raw_bytes_inspector
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - save_consequence_class
+    user_visible_label: Copy raw bytes
+    availability_summary: Raw bytes remain the safest default while save is blocked.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:trace-log:escaped
+    source_review_ref: editor:decode-review:invalid-utf8-editor:01
+    source_surface: editor
+    representation_class: escaped_text
+    projection_posture: escaped_bytes
+    availability_state: available
+    availability_rule: available_when_escape_projection_possible
+    default_for_surface: false
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - raw_bytes
+    transfer_actions:
+      - copy_escaped_text
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - replacement_marker_note
+    user_visible_label: Copy escaped text
+    availability_summary: Escaped text shows the undecodable bytes without committing replacement markers.
+save_consequence:
+  consequence_class: block_save_pending_review
+  packet_save_consequence_class: block_pending_review
+  rewrite_class: blocked_no_write
+  write_posture: no_write_until_review
+  requires_user_acknowledgment: false
+  bytes_outside_declared_ranges: not_written
+  recovery_class: no_state_change
+  disclosure_label: No durable write
+  save_now_summary: Save is blocked because the file still contains unresolved undecodable bytes.
+  post_acknowledgment_packet_save_consequence_class: null
+linkage:
+  suspicious_text_indicator_refs:
+    - suspicious-text:trace-log:replacement-marker:01
+  mixed_direction_inspector_refs: []
+  support_export_packet_refs:
+    - support-export:trace-log:decode-review:01
+  security_review_refs: []
+  source_packet_refs:
+    - docs/verification/text_fidelity_packet.md
+    - docs/editor/decode_recovery_and_save_consequence_contract.md
+review_actions:
+  - action_id: inspect_raw_bytes
+    availability: enabled
+    label: Inspect raw bytes
+    summary: Shows the exact two bytes that could not be decoded.
+  - action_id: reopen_with_encoding
+    availability: enabled
+    label: Reopen with encoding
+    summary: Lets the user pick another decoder before editing or saving.
+  - action_id: open_in_binary_view
+    availability: enabled
+    label: Open binary view
+    summary: Leaves the source bytes unchanged and exits text editing.
+  - action_id: block_save
+    availability: enabled
+    label: Keep save blocked
+    summary: Preserves the buffer and on-disk file with no durable write.
+support_export:
+  export_required: true
+  default_representation_class: raw_bytes
+  include_raw_bytes: true
+  include_escaped_text: true
+  include_rendered_text: false
+  redaction_posture: body_allowed
+  summary: Support export captures the raw bytes and escaped form, not only the replacement marker.
+invariants:
+  - raw_bytes_preserved_until_resolution
+  - save_consequence_visible_before_write
+  - rendered_text_never_substitutes_for_raw_bytes
+  - escaped_or_raw_available_when_rendering_can_mislead
+  - support_export_keeps_decode_context
+

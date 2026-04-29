@@ -1,0 +1,177 @@
+# yaml-language-server: $schema=../../../schemas/editor/decode_recovery_review.schema.json
+$schema: ../../../schemas/editor/decode_recovery_review.schema.json
+__fixture__:
+  name: replace_undecodable_spans_warning
+  scenario: >
+    The user has inspected an invalid UTF-8 run and chooses the explicit
+    replacement path. The final save review states that U+FFFD will be
+    committed for the undecodable span and requires acknowledgment.
+  required_coverage:
+    - replace_undecodable_spans
+    - explicit_acknowledgment
+    - rewrite_with_warning
+record_kind: decode_recovery_review_record
+decode_recovery_review_schema_version: 1
+review_id: editor:decode-review:replace-undecodable-spans:01
+emitted_at: "2026-04-29T18:24:00Z"
+trigger_surface: save_pipeline
+subject:
+  subject_ref: subject:buffer:legacy-note:01
+  content_ref: content:buffer:legacy-note:bytes:01
+  display_label: legacy-note.txt
+  content_kind: text_file
+  trust_state: trusted
+decode_state:
+  detected_encoding: utf8
+  detection_source: utf8_heuristic
+  bom_state_detected: absent
+  newline_mode_detected: lf
+  final_newline_detected: absent
+  decode_recovery_class: replacement_char_inserted
+  raw_bytes_posture: preserved_until_save_resolves
+  raw_bytes_journal_ref: recovery-journal:buffer:legacy-note:01
+byte_findings:
+  - finding_id: finding:legacy-note:invalid-byte
+    finding_class: replacement_character_emitted
+    byte_range:
+      start: 9
+      length: 1
+      unit: byte_offset
+    raw_bytes_hex: "0xFF"
+    rendered_projection: rendered_with_replacement
+    replacement_marker: U+FFFD
+    user_facing_summary: The chosen replacement path will commit U+FFFD for byte 0xFF.
+decode_attempts:
+  - encoding_label: UTF-8
+    result: failed_invalid_sequence
+    confidence_level: high
+    notes: Byte 0xFF is not valid UTF-8.
+  - encoding_label: UTF-8 with replacement
+    result: succeeded_with_replacement
+    confidence_level: low
+    notes: The user selected replacement as the explicit save path.
+confidence:
+  level: low
+  reason: decoder_replacement_used
+  summary: The save can proceed only by replacing an undecodable byte span.
+representation_choices:
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:legacy-note:rendered-replacement
+    source_review_ref: editor:decode-review:replace-undecodable-spans:01
+    source_surface: editor
+    representation_class: rendered_text
+    projection_posture: rendered_with_replacement_marker
+    availability_state: companion_required
+    availability_rule: available_with_replacement_disclosure
+    default_for_surface: false
+    requires_raw_bytes: false
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - raw_bytes
+      - escaped_text
+    transfer_actions:
+      - copy_rendered_text
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - save_consequence_class
+      - replacement_marker_note
+    user_visible_label: Copy rendered text
+    availability_summary: Rendered text is available only with replacement disclosure and raw/escaped peers.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:legacy-note:raw
+    source_review_ref: editor:decode-review:replace-undecodable-spans:01
+    source_surface: editor
+    representation_class: raw_bytes
+    projection_posture: exact_source_bytes
+    availability_state: available
+    availability_rule: always_available_when_raw_bytes_preserved
+    default_for_surface: false
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - escaped_text
+    transfer_actions:
+      - copy_raw_bytes
+      - open_raw_bytes_inspector
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - save_consequence_class
+    user_visible_label: Copy raw bytes
+    availability_summary: Raw bytes remain available until the replacement rewrite is committed.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:legacy-note:escaped
+    source_review_ref: editor:decode-review:replace-undecodable-spans:01
+    source_surface: editor
+    representation_class: escaped_text
+    projection_posture: escaped_bytes
+    availability_state: default
+    availability_rule: available_when_escape_projection_possible
+    default_for_surface: true
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - raw_bytes
+    transfer_actions:
+      - copy_escaped_text
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - replacement_marker_note
+    user_visible_label: Copy escaped text
+    availability_summary: Escaped text is the default review representation before committing the replacement.
+save_consequence:
+  consequence_class: replace_undecodable_spans
+  packet_save_consequence_class: rewrite_with_warning
+  rewrite_class: targeted_content_patch
+  write_posture: commit_rewrite_after_acknowledgment
+  requires_user_acknowledgment: true
+  bytes_outside_declared_ranges: preserved
+  recovery_class: restore_from_checkpoint
+  disclosure_label: Undecodable bytes will be replaced
+  save_now_summary: Saving after acknowledgment will replace byte 0xFF with U+FFFD and keep other bytes outside the replacement span preserved.
+  post_acknowledgment_packet_save_consequence_class: rewrite_with_warning
+linkage:
+  suspicious_text_indicator_refs:
+    - suspicious-text:legacy-note:replacement-marker:01
+  mixed_direction_inspector_refs: []
+  support_export_packet_refs:
+    - support-export:legacy-note:replacement-review:01
+  security_review_refs: []
+  source_packet_refs:
+    - docs/verification/text_fidelity_packet.md
+    - docs/editor/decode_recovery_and_save_consequence_contract.md
+review_actions:
+  - action_id: acknowledge_rewrite_and_save
+    availability: enabled
+    label: Acknowledge replacement and save
+    summary: Commits the replacement marker and records the warning rewrite.
+  - action_id: inspect_raw_bytes
+    availability: enabled
+    label: Inspect raw bytes
+    summary: Shows the preserved source byte before final acknowledgment.
+  - action_id: keep_raw_bytes_and_cancel_save
+    availability: enabled
+    label: Cancel save
+    summary: Leaves the original byte sequence unchanged.
+support_export:
+  export_required: true
+  default_representation_class: escaped_text
+  include_raw_bytes: true
+  include_escaped_text: true
+  include_rendered_text: true
+  redaction_posture: body_allowed
+  summary: Support export records the original byte, escaped form, and replacement decision.
+invariants:
+  - raw_bytes_preserved_until_resolution
+  - save_consequence_visible_before_write
+  - rendered_text_never_substitutes_for_raw_bytes
+  - escaped_or_raw_available_when_rendering_can_mislead
+  - support_export_keeps_decode_context

@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=../../../schemas/editor/decode_recovery_review.schema.json
+$schema: ../../../schemas/editor/decode_recovery_review.schema.json
+__fixture__:
+  name: support_export_security_review_raw_bytes
+  scenario: >
+    Support export captures a decode-recovery region that security review
+    also needs. The export defaults to raw bytes, includes escaped text,
+    keeps rendered text out, and carries the security review reference.
+  required_coverage:
+    - support_export
+    - security_review
+    - raw_byte_preservation
+record_kind: decode_recovery_review_record
+decode_recovery_review_schema_version: 1
+review_id: editor:decode-review:support-export-raw-security:01
+emitted_at: "2026-04-29T18:22:00Z"
+trigger_surface: support_export
+subject:
+  subject_ref: subject:support-region:manifest-name:01
+  content_ref: content:support-region:manifest-name:bytes:01
+  display_label: manifest field
+  content_kind: support_packet_region
+  trust_state: restricted
+decode_state:
+  detected_encoding: unknown_binary_like
+  detection_source: decode_failed_no_choice
+  bom_state_detected: absent
+  newline_mode_detected: unknown_or_degraded
+  final_newline_detected: unknown_or_degraded
+  decode_recovery_class: unknown_encoding_fallback
+  raw_bytes_posture: preserved_in_recovery_journal
+  raw_bytes_journal_ref: recovery-journal:support:manifest-name:01
+byte_findings:
+  - finding_id: finding:support:manifest-name:invalid-run
+    finding_class: invalid_byte_sequence
+    byte_range:
+      start: 4
+      length: 3
+      unit: byte_offset
+    raw_bytes_hex: "0xED 0xA0 0x80"
+    rendered_projection: raw_bytes_only
+    replacement_marker: null
+    user_facing_summary: The support export captures bytes that cannot be safely rendered as text.
+decode_attempts:
+  - encoding_label: UTF-8
+    result: failed_invalid_sequence
+    confidence_level: high
+    notes: The byte run is not valid UTF-8.
+  - encoding_label: Platform fallback
+    result: failed_low_confidence
+    confidence_level: low
+    notes: Fallback confidence is too low for rendered support export.
+confidence:
+  level: unknown
+  reason: no_decoder_chosen
+  summary: No decoder is trusted enough for rendered export.
+representation_choices:
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:support:manifest-name:raw
+    source_review_ref: editor:decode-review:support-export-raw-security:01
+    source_surface: support_export
+    representation_class: raw_bytes
+    projection_posture: exact_source_bytes
+    availability_state: default
+    availability_rule: default_for_support_or_security_export
+    default_for_surface: true
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - escaped_text
+    transfer_actions:
+      - export_raw_bytes
+      - attach_to_support_packet
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - save_consequence_class
+      - source_surface
+      - redaction_posture
+    user_visible_label: Export raw bytes
+    availability_summary: Raw bytes are the default support export representation for this unresolved decode region.
+  - record_kind: text_representation_choice_record
+    text_representation_choice_schema_version: 1
+    choice_id: repr:support:manifest-name:escaped
+    source_review_ref: editor:decode-review:support-export-raw-security:01
+    source_surface: security_review
+    representation_class: escaped_text
+    projection_posture: escaped_bytes
+    availability_state: available
+    availability_rule: available_when_escape_projection_possible
+    default_for_surface: false
+    requires_raw_bytes: true
+    requires_lossless_decode: false
+    requires_peer_representations:
+      - raw_bytes
+    transfer_actions:
+      - export_escaped_text
+      - copy_escaped_text
+    required_disclosure_fields:
+      - representation_label
+      - decode_recovery_class
+      - raw_bytes_posture
+      - source_surface
+      - redaction_posture
+    user_visible_label: Export escaped text
+    availability_summary: Escaped text is included for ticket and security review readability.
+save_consequence:
+  consequence_class: preserve_untouched_raw_bytes
+  packet_save_consequence_class: preserve_untouched
+  rewrite_class: no_write_needed
+  write_posture: inspect_only_no_save_boundary
+  requires_user_acknowledgment: false
+  bytes_outside_declared_ranges: unchanged
+  recovery_class: no_state_change
+  disclosure_label: Preserved source fidelity
+  save_now_summary: Support export performs no durable write and preserves the recovery-journal bytes.
+  post_acknowledgment_packet_save_consequence_class: null
+linkage:
+  suspicious_text_indicator_refs:
+    - suspicious-text:manifest-name:unrenderable-bytes:01
+  mixed_direction_inspector_refs: []
+  support_export_packet_refs:
+    - support-export:decode-recovery:manifest-name:01
+  security_review_refs:
+    - security-review:manifest-name:raw-bytes:01
+  source_packet_refs:
+    - docs/security/suspicious_content_packet.md
+    - docs/editor/decode_recovery_and_save_consequence_contract.md
+review_actions:
+  - action_id: export_support_packet
+    availability: enabled
+    label: Attach to support packet
+    summary: Attaches raw bytes, escaped bytes, and decode context to the support export.
+  - action_id: copy_raw_bytes
+    availability: enabled
+    label: Copy raw bytes
+    summary: Copies the exact byte run for security review.
+  - action_id: copy_escaped_text
+    availability: enabled
+    label: Copy escaped text
+    summary: Copies an escaped representation for ticket discussion.
+support_export:
+  export_required: true
+  default_representation_class: raw_bytes
+  include_raw_bytes: true
+  include_escaped_text: true
+  include_rendered_text: false
+  redaction_posture: policy_review_required
+  summary: The export carries raw and escaped evidence and records policy review before body sharing.
+invariants:
+  - raw_bytes_preserved_until_resolution
+  - rendered_text_never_substitutes_for_raw_bytes
+  - escaped_or_raw_available_when_rendering_can_mislead
+  - support_export_keeps_decode_context
+  - suspicious_text_links_survive_review_export
