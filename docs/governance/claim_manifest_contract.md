@@ -117,6 +117,9 @@ The seeded schema and parity matrix reserve explicit failure triggers:
 - missing required evidence;
 - stale evidence;
 - evidence narrower than the claim text;
+- active or expired test quarantine / mute debt that touches the claim
+  row without an accepted waiver, stable-again closure, or explicit
+  claim narrowing;
 - docs version mismatch or freshness below floor;
 - missing required known-limit notes;
 - degraded upstream compatibility rows; and

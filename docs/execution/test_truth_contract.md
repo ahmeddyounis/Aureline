@@ -60,6 +60,15 @@ Machine-readable companions:
   — worked YAML fixtures covering native adapter identity, imported CI
   remap, parameterized family expansion, tag selectors, and renamed test
   file remap.
+- [`/docs/testing/test_quarantine_and_mute_contract.md`](../testing/test_quarantine_and_mute_contract.md),
+  [`/schemas/testing/quarantine_record.schema.json`](../../schemas/testing/quarantine_record.schema.json),
+  and
+  [`/fixtures/testing/quarantine_cases/`](../../fixtures/testing/quarantine_cases/)
+  — release-facing owner, expiry, mute-state, allowed-surface,
+  review-cadence, unblock, debt, waiver, scorecard, claim-manifest, and
+  stable-promotion treatment for quarantine and mute refs. The
+  execution flaky-history schema remains the base test-state rail; the
+  testing quarantine schema owns release-packet treatment.
 
 This contract composes with and does not replace:
 
@@ -188,6 +197,8 @@ Without one record family the failure modes are familiar:
   re-evaluation run, and a developer trusts that a previously
   quarantined test has stabilised when the quarantine clock simply
   ran out;
+- a local mute hides a shared or release-bearing test debt row from
+  scorecards, claim manifests, or stable-promotion evidence;
 - an admin-policy pack disables a test surface (the test depends on
   a credential class the current identity-mode does not grant, the
   test is marked managed-only running locally, the test would

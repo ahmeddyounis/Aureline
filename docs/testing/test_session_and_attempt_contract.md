@@ -31,6 +31,14 @@ Machine-readable companions:
   - worked YAML fixtures covering a local watch session, a
   provider-imported partial artifact, a rerun-failed attempt after a
   source edit, and a debug-from-test attempt.
+- [`/docs/testing/test_quarantine_and_mute_contract.md`](./test_quarantine_and_mute_contract.md),
+  [`/schemas/testing/quarantine_record.schema.json`](../../schemas/testing/quarantine_record.schema.json),
+  and
+  [`/fixtures/testing/quarantine_cases/`](../../fixtures/testing/quarantine_cases/).
+  Sessions and attempts cite mute / quarantine refs; the quarantine and
+  mute contract defines owner, expiry, allowed surfaces, release
+  visibility, review cadence, unblock, and waiver/debt treatment for
+  those refs.
 
 This contract composes with and does not replace:
 
@@ -112,6 +120,8 @@ The failure modes this contract prevents:
   debug session impossible to relate back to release evidence;
 - a quarantined or muted test vanishes from counts in a tree aggregate,
   support export, or release evidence packet.
+- a local mute is treated as shared release truth and removes a debt row
+  from scorecards or claim manifests.
 
 ## Scope
 

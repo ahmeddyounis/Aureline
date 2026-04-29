@@ -1,0 +1,230 @@
+# Policy rows for test quarantine, mute-state, and release-packet treatment.
+#
+# Consumers MUST resolve these row ids instead of inventing local
+# exception logic. Planning identifiers are intentionally absent from
+# this file.
+
+schema_version: 1
+policy_id: aureline.testing.quarantine_and_mute_policy
+policy_revision: 1
+overview_document: docs/testing/test_quarantine_and_mute_contract.md
+boundary_schema: schemas/testing/quarantine_record.schema.json
+fixture_corpus: fixtures/testing/quarantine_cases
+
+source_refs:
+  - docs/execution/test_truth_contract.md
+  - docs/testing/test_session_and_attempt_contract.md
+  - docs/testing/test_item_identity_contract.md
+  - docs/governance/claim_manifest_contract.md
+  - docs/release/release_evidence_packet_template.md
+  - schemas/testing/quarantine_record.schema.json
+  - schemas/execution/flaky_history.schema.json
+  - schemas/testing/test_session.schema.json
+  - schemas/testing/test_attempt.schema.json
+  - artifacts/qe/release_blocking_rules.yaml
+
+ui_export_vocabulary:
+  suspected_flaky:
+    label: Suspected flaky
+    meaning: Intermittent outcomes observed but comparable reproduction is incomplete.
+    release_projection: counted_separately
+  reproduced_flaky:
+    label: Reproduced flaky
+    meaning: Comparable reruns reproduced divergent outcomes with preserved evidence.
+    release_projection: eligible_for_owner_backed_quarantine
+  stable_again:
+    label: Stable again
+    meaning: Prior mute, quarantine, or flaky state cleared through a defined evidence window.
+    release_projection: recovered_debt_visible_for_closure_packet
+  manually_muted:
+    label: Manually muted
+    meaning: User or reviewer lowered local noise for a scoped row.
+    release_projection: local_delivery_only_never_erases_release_debt
+  policy_muted:
+    label: Policy-muted
+    meaning: Admin or enterprise policy muted the row or delivery class.
+    release_projection: policy_attributed_debt
+  quarantined_pending_investigation:
+    label: Quarantined pending investigation
+    meaning: Execution or result counting is narrowed while an owner investigates.
+    release_projection: owner_expiry_and_unblock_required
+  expired_quarantine:
+    label: Expired quarantine
+    meaning: Quarantine deadline elapsed without accepted renewal, lift, or conversion.
+    release_projection: stable_promotion_blocked_until_review
+
+surface_classes:
+  local_muting_allowed:
+    - editor_inline
+    - editor_gutter
+    - test_tree
+    - cli_output
+    - local_user_preference
+  mandatory_visibility_for_release_bearing_rows:
+    - history_row
+    - review_packet
+    - support_export
+    - release_scorecard
+    - claim_manifest
+    - stable_promotion_packet
+    - release_evidence_packet
+
+release_debt_classes:
+  - release_blocking_debt
+  - waiver_linked_debt
+  - claim_narrowing_required
+  - informational_recovered_debt
+  - historical_only_after_stable_again
+  - release_debt_unknown_requires_review
+
+batch_review_triggers:
+  - expired_or_expiring_before_release_candidate
+  - owner_missing_or_handoff_pending
+  - policy_owner_transfer_pending
+  - selector_suite_or_policy_scope_affects_multiple_items
+  - automation_opened_or_extended
+  - cited_by_release_packet_claim_manifest_scorecard_or_support_export
+
+automation_limits:
+  may_open_when:
+    - evidence_refs_present
+    - owner_or_owner_queue_assigned
+    - scope_is_canonical_identity_or_selector_ref
+    - mandatory_release_visibility_surfaces_present
+  may_not:
+    - extend_indefinitely
+    - clear_on_expiry_alone
+    - convert_suspected_flaky_to_reproduced_without_comparable_evidence
+    - remove_release_bearing_rows_from_scorecards
+    - remove_release_bearing_rows_from_claim_manifests
+    - create_ownerless_active_debt
+
+rows:
+  - row_id: testing_quarantine.owner_expiry_required
+    title: Active quarantine requires owner, expiry, evidence, and unblock conditions
+    applies_to_treatment_kind:
+      - quarantine
+    required_fields:
+      - owner.owner_state_class
+      - evidence_linkage.primary_evidence_ref
+      - expiry.expires_at
+      - review.review_cadence_class
+      - unblock_conditions.condition_classes
+      - release_packet_treatment.release_debt_class
+    release_rule: >
+      Active quarantine on release-bearing scope MUST appear in
+      scorecards, claim manifests, stable-promotion packets, and
+      release evidence packets until renewed, lifted with evidence, or
+      converted to explicit waiver-linked debt.
+    denial_reason_class: quarantine_record_must_cite_owner_for_active_release_bearing_debt
+
+  - row_id: testing_quarantine.local_mute_visibility_guard
+    title: Local mute cannot erase shared or release-bearing debt
+    applies_to_treatment_kind:
+      - manual_mute
+      - expired_mute
+    required_fields:
+      - surfaces.allowed_muting_surface_classes
+      - surfaces.mandatory_visibility_surface_classes
+      - release_packet_treatment.counted_in_scorecards
+      - release_packet_treatment.included_in_claim_manifests
+      - release_packet_treatment.included_in_stable_promotion_packets
+    release_rule: >
+      Manual mute may lower local delivery noise only on allowed local
+      surfaces. It MUST NOT remove a test row from shared counts,
+      support export, scorecards, claim manifests, stable-promotion
+      packets, or release evidence packets.
+    denial_reason_class: quarantine_record_must_not_allow_local_mute_to_hide_release_debt
+
+  - row_id: testing_quarantine.policy_mute_attribution
+    title: Policy mute requires policy owner and policy epoch
+    applies_to_treatment_kind:
+      - policy_mute
+    required_fields:
+      - owner.owning_policy_ref
+      - owner.owner_actor_ref
+      - expiry.policy_epoch_ref
+      - scope.deployment_profile_refs
+      - release_packet_treatment.waiver_refs
+    release_rule: >
+      Policy-muted rows remain explicit policy-attributed debt. Release
+      evidence MUST cite the policy owner, policy epoch, affected
+      deployment profiles, waiver or claim-narrowing path, and unblock
+      condition.
+    denial_reason_class: quarantine_record_must_cite_policy_owner_when_policy_muted
+
+  - row_id: testing_quarantine.expiry_requires_handoff
+    title: Expired or ownerless treatment requires handoff before promotion
+    applies_to_treatment_kind:
+      - expired_quarantine
+      - expired_mute
+    required_fields:
+      - owner.owner_state_class
+      - owner.handoff_ticket_ref
+      - automation_controls.owner_handoff_required
+      - review.batch_review_required
+    release_rule: >
+      Expired rows do not clear themselves. If the owner is missing or
+      handoff is pending, affected stable promotion is blocked until a
+      new owner renews, lifts, or converts the row to explicit
+      waiver-linked debt.
+    denial_reason_class: quarantine_record_must_require_handoff_on_ownerless_expiry
+
+  - row_id: testing_quarantine.stable_again_closure
+    title: Stable again requires prior treatment and unblock evidence
+    applies_to_treatment_kind:
+      - stability_recovered
+    required_fields:
+      - prior_treatment_record_refs
+      - unblock_conditions.unblock_evidence_refs
+      - expiry.lifted_at
+      - release_packet_treatment.release_debt_class
+    release_rule: >
+      Stable-again rows remain visible in the packet that closes the
+      debt. The row MUST cite prior treatment refs, stable evidence
+      window, required attempts, and owner review.
+    denial_reason_class: quarantine_record_stable_again_must_cite_prior_treatment_and_unblock_evidence
+
+  - row_id: testing_quarantine.release_packet_inclusion
+    title: Release packets include active, expired, muted, and recovered treatment rows
+    applies_to_treatment_kind:
+      - manual_mute
+      - policy_mute
+      - quarantine
+      - stability_recovered
+      - expired_quarantine
+      - expired_mute
+    required_fields:
+      - release_packet_treatment.counted_in_scorecards
+      - release_packet_treatment.included_in_claim_manifests
+      - release_packet_treatment.included_in_stable_promotion_packets
+      - release_packet_treatment.claim_manifest_row_refs
+      - release_packet_treatment.scorecard_row_refs
+      - release_packet_treatment.stable_promotion_packet_refs
+    release_rule: >
+      Scorecards, claim manifests, and stable-promotion packets MUST
+      preserve treatment rows with debt class, waiver refs, owner,
+      expiry, and unblock conditions. Omission is a release-truth
+      defect.
+    denial_reason_class: quarantine_record_must_include_scorecard_claim_and_promotion_visibility
+
+  - row_id: testing_quarantine.automation_no_indefinite_debt
+    title: Automation cannot create silent indefinite quarantine or mute debt
+    applies_to_treatment_kind:
+      - manual_mute
+      - policy_mute
+      - quarantine
+      - expired_quarantine
+      - expired_mute
+    required_fields:
+      - automation_controls.automation_open_class
+      - automation_controls.automation_extension_class
+      - automation_controls.max_auto_extension_count
+      - automation_controls.current_auto_extension_count
+      - automation_controls.silent_indefinite_forbidden
+    release_rule: >
+      Automation may suggest, open, or extend rows only inside the
+      declared limits. It cannot clear rows on expiry alone, extend
+      indefinitely, or hide release-bearing debt from downstream
+      evidence.
+    denial_reason_class: quarantine_record_must_not_auto_clear_on_expiry

@@ -53,6 +53,13 @@ This contract composes with and does not replace:
   imported-provider lineage around those identities. They cite
   canonical identities and selector records rather than matching
   display labels.
+- [`/docs/testing/test_quarantine_and_mute_contract.md`](./test_quarantine_and_mute_contract.md)
+  and
+  [`/schemas/testing/quarantine_record.schema.json`](../../schemas/testing/quarantine_record.schema.json).
+  Quarantine and mute rows cite canonical identities, selector refs, and
+  target-environment refs from this identity layer so local muting,
+  policy muting, stable-again recovery, and release-packet debt
+  treatment never key off display labels.
 - [`/docs/runtime/execution_context_vocabulary.md`](../runtime/execution_context_vocabulary.md),
   [`/schemas/runtime/execution_context.schema.json`](../../schemas/runtime/execution_context.schema.json),
   and

@@ -186,6 +186,33 @@ preview-only, or claim-narrowed.
   - `<compat-row-id>` — reason it is still future or narrowed.
   - ...
 
+## Test quarantine and mute debt
+
+Release test-trust packets that cite testing evidence SHOULD include
+the quarantine/mute rows governed by
+`docs/testing/test_quarantine_and_mute_contract.md` and
+`schemas/testing/quarantine_record.schema.json`.
+
+- **Active quarantine refs:** treatment record ids or `none`
+- **Active mute refs:** treatment record ids or `none`
+- **Expired treatment refs:** treatment record ids or `none`
+- **Stable-again closure refs:** treatment record ids or `none`
+- **Scorecard row refs:** rows that count suspected flaky, reproduced
+  flaky, stable-again, manually muted, policy-muted, quarantined, and
+  expired treatment separately
+- **Claim-manifest row refs:** affected rows and whether they are
+  narrowed, waiver-linked, blocked, or closed
+- **Waiver refs:** waiver packet ids or `none`
+- **Owner/expiry posture:** owner state and next review/expiry for each
+  release-bearing treatment row
+- **Unblock conditions:** stable window, required attempt count, policy
+  removal, owner triage, or claim narrowing needed before the row clears
+
+Rows with active or expired quarantine/mute debt remain visible in this
+section even when a local surface muted delivery noise. A packet that
+omits release-bearing treatment debt is `blocked` or
+`narrow_claims`, not `releasable`.
+
 ## Locality and continuity truth
 
 - **Deployment context:** `<profiles, install posture, or ring scope>`

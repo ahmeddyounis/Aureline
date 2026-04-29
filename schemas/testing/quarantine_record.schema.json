@@ -1,0 +1,838 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/quarantine_record.schema.json",
+  "title": "Aureline test quarantine and mute treatment record",
+  "description": "Boundary schema for the release-facing test_quarantine_or_mute_record frozen in docs/testing/test_quarantine_and_mute_contract.md. The record preserves owner, reason, evidence, scope, expiry, allowed muting surfaces, mandatory visibility surfaces, review cadence, unblock conditions, automation controls, and release-packet treatment for quarantined, muted, policy-muted, expired, and stable-again test rows. It composes with schemas/execution/flaky_history.schema.json for execution-level flaky and quarantine truth and with schemas/testing/test_session.schema.json / test_attempt.schema.json for session and attempt refs. Raw command lines, raw stdout or stderr bytes, raw environment bodies, raw absolute paths, raw URLs, raw secret values, raw test names, raw assertion bodies, raw artifact bytes, raw provider payloads, raw policy payloads, and raw stack traces MUST NOT cross this boundary; records carry opaque refs, counts, class labels, bounded summaries, and timestamps only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_quarantine_or_mute_record" }
+  ],
+  "$defs": {
+    "quarantine_record_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["test_quarantine_or_mute_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, support bundles, claim manifests, scorecards, and release packets."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another governed record."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timestamp_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 520,
+      "description": "Short reviewable sentence. Raw code, raw paths, raw secrets, raw tool arguments, raw test names, raw provider payloads, and raw runner payloads are forbidden."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "positive_integer": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^P(T?0S|[0-9YMWDTHS]+)$",
+      "description": "ISO-8601 duration token used for review windows and evidence windows."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "treatment_kind_class": {
+      "type": "string",
+      "enum": [
+        "manual_mute",
+        "policy_mute",
+        "quarantine",
+        "stability_recovered",
+        "expired_quarantine",
+        "expired_mute",
+        "treatment_kind_unknown_requires_review"
+      ],
+      "description": "Closed treatment-kind vocabulary. manual_mute lowers local delivery or noise but cannot remove shared or release-bearing debt. policy_mute is admin or enterprise policy. quarantine narrows execution or result counting while an owner investigates. stability_recovered records a stable-again closure. expired_* rows fail closed until reviewed. Unknown fails closed."
+    },
+    "ui_export_state_class": {
+      "type": "string",
+      "enum": [
+        "suspected_flaky",
+        "reproduced_flaky",
+        "stable_again",
+        "manually_muted",
+        "policy_muted",
+        "quarantined_pending_investigation",
+        "expired_quarantine",
+        "ui_export_state_unknown_requires_review"
+      ],
+      "description": "Frozen UI/export vocabulary shared by editor, test tree, CLI, support export, scorecard, claim manifest, and release packet projections."
+    },
+    "ui_export_label": {
+      "type": "string",
+      "enum": [
+        "Suspected flaky",
+        "Reproduced flaky",
+        "Stable again",
+        "Manually muted",
+        "Policy-muted",
+        "Quarantined pending investigation",
+        "Expired quarantine",
+        "Unknown requires review"
+      ]
+    },
+    "owner_state_class": {
+      "type": "string",
+      "enum": [
+        "owned_by_actor",
+        "owned_by_team",
+        "owned_by_policy_owner",
+        "owner_handoff_pending",
+        "owner_missing_requires_handoff",
+        "owner_state_unknown_requires_review"
+      ],
+      "description": "Closed owner-state vocabulary. Active release-bearing debt requires owned_by_actor, owned_by_team, or owned_by_policy_owner. owner_missing_requires_handoff is admitted only as a degraded row that blocks release widening."
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "suspected_flaky_recent_intermittent",
+        "reproduced_flaky_threshold_met",
+        "known_failing_pinned_under_investigation",
+        "environment_dependent",
+        "external_dependency_unstable",
+        "enterprise_policy_restriction",
+        "manual_noise_reduction",
+        "imported_provider_incomparable",
+        "security_or_data_policy_required",
+        "reason_unknown_requires_review"
+      ],
+      "description": "Closed reason vocabulary. Unknown fails closed and cannot clear release debt."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "exact_test_item",
+        "parameterized_instance",
+        "parameterized_family",
+        "suite_or_container",
+        "selector_expression",
+        "target_environment",
+        "enterprise_policy_scope",
+        "release_channel_scope",
+        "scope_unknown_requires_review"
+      ]
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_inline",
+        "editor_gutter",
+        "test_tree",
+        "history_row",
+        "cli_output",
+        "review_packet",
+        "support_export",
+        "release_scorecard",
+        "claim_manifest",
+        "stable_promotion_packet",
+        "release_evidence_packet",
+        "local_user_preference",
+        "provider_dashboard_projection"
+      ]
+    },
+    "expiry_state_class": {
+      "type": "string",
+      "enum": [
+        "active_time_bounded",
+        "active_policy_epoch_bound",
+        "expired_requires_review",
+        "expired_ownerless_requires_handoff",
+        "lifted_or_cleared",
+        "not_applicable_stable_again",
+        "expiry_state_unknown_requires_review"
+      ],
+      "description": "Closed expiry-state vocabulary. Expiry never lifts debt by itself; it narrows to an expired review state until renewed, cleared, or converted."
+    },
+    "expiry_trigger_class": {
+      "type": "string",
+      "enum": [
+        "absolute_time",
+        "policy_epoch_bound",
+        "stable_window_bound",
+        "owner_handoff_bound",
+        "not_applicable_after_clear",
+        "expiry_trigger_unknown_requires_review"
+      ]
+    },
+    "review_cadence_class": {
+      "type": "string",
+      "enum": [
+        "per_attempt_until_reviewed",
+        "daily_until_owner_review",
+        "weekly",
+        "before_release_candidate",
+        "on_expiry",
+        "on_policy_epoch_change",
+        "on_team_transfer",
+        "no_review_admissible_only_after_stable_again",
+        "review_cadence_unknown_requires_review"
+      ]
+    },
+    "unblock_condition_class": {
+      "type": "string",
+      "enum": [
+        "stable_streak_required",
+        "local_rerun_pass_window_required",
+        "owner_triage_required",
+        "policy_exception_removed",
+        "external_dependency_recovered",
+        "waiver_closed_or_renewed",
+        "release_claim_narrowed",
+        "environment_capability_restored",
+        "manual_unmute_review",
+        "unblock_condition_unknown_requires_review"
+      ]
+    },
+    "release_debt_class": {
+      "type": "string",
+      "enum": [
+        "release_blocking_debt",
+        "waiver_linked_debt",
+        "claim_narrowing_required",
+        "informational_recovered_debt",
+        "historical_only_after_stable_again",
+        "release_debt_unknown_requires_review"
+      ],
+      "description": "Closed release-debt vocabulary. Active or expired muted/quarantined debt cannot use informational_recovered_debt or historical_only_after_stable_again."
+    },
+    "automation_open_class": {
+      "type": "string",
+      "enum": [
+        "automation_may_suggest_only",
+        "automation_may_open_with_owner_queue",
+        "automation_may_open_with_assigned_owner",
+        "automation_must_not_open",
+        "automation_open_unknown_requires_review"
+      ]
+    },
+    "automation_extension_class": {
+      "type": "string",
+      "enum": [
+        "automation_must_not_extend",
+        "automation_may_extend_once_with_owner_review",
+        "automation_may_extend_under_policy_cap",
+        "automation_extension_unknown_requires_review"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "quarantine_record_must_cite_canonical_scope",
+        "quarantine_record_must_cite_owner_for_active_release_bearing_debt",
+        "quarantine_record_must_cite_policy_owner_when_policy_muted",
+        "quarantine_record_must_cite_evidence_for_active_treatment",
+        "quarantine_record_must_carry_expiry_for_active_manual_mute_or_quarantine",
+        "quarantine_record_must_not_allow_local_mute_to_hide_release_debt",
+        "quarantine_record_must_include_scorecard_claim_and_promotion_visibility",
+        "quarantine_record_must_cite_waiver_or_claim_narrowing_for_active_release_debt",
+        "quarantine_record_must_require_handoff_on_ownerless_expiry",
+        "quarantine_record_must_not_auto_clear_on_expiry",
+        "quarantine_record_stable_again_must_cite_prior_treatment_and_unblock_evidence",
+        "quarantine_record_policy_mute_unknown_requires_review",
+        "quarantine_record_unknown_state_requires_review"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "test_quarantine_or_mute_record_published",
+        "test_quarantine_or_mute_record_extended",
+        "test_quarantine_or_mute_record_owner_handoff_required",
+        "test_quarantine_or_mute_record_expired",
+        "test_quarantine_or_mute_record_unblocked",
+        "test_quarantine_or_mute_record_release_debt_projected",
+        "test_quarantine_or_mute_record_policy_owner_attached",
+        "test_quarantine_or_mute_record_batch_review_required",
+        "test_quarantine_or_mute_record_denial_emitted"
+      ]
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_state_class",
+        "owner_actor_ref",
+        "owner_team_ref",
+        "backup_owner_ref",
+        "owning_policy_ref",
+        "handoff_ticket_ref",
+        "owner_transfer_due_at"
+      ],
+      "properties": {
+        "owner_state_class": { "$ref": "#/$defs/owner_state_class" },
+        "owner_actor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "owner_team_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "backup_owner_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "owning_policy_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "handoff_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "owner_transfer_due_at": { "$ref": "#/$defs/timestamp_nullable" }
+      }
+    },
+    "evidence_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_evidence_ref",
+        "evidence_refs",
+        "triage_packet_refs",
+        "test_session_refs",
+        "test_attempt_refs",
+        "flaky_history_ref",
+        "execution_quarantine_record_ref",
+        "support_export_refs",
+        "release_evidence_packet_refs"
+      ],
+      "properties": {
+        "primary_evidence_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "triage_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "test_session_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "test_attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "flaky_history_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_quarantine_record_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "release_evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "canonical_test_item_refs",
+        "selector_ref",
+        "target_environment_refs",
+        "release_channel_scope",
+        "deployment_profile_refs",
+        "scope_summary"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "canonical_test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_environment_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "release_channel_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/release_channel_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "scope_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_muting_surface_classes",
+        "mandatory_visibility_surface_classes",
+        "release_visibility_required"
+      ],
+      "properties": {
+        "allowed_muting_surface_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true
+        },
+        "mandatory_visibility_surface_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true,
+          "allOf": [
+            { "contains": { "const": "release_scorecard" } },
+            { "contains": { "const": "claim_manifest" } },
+            { "contains": { "const": "stable_promotion_packet" } },
+            { "contains": { "const": "release_evidence_packet" } }
+          ]
+        },
+        "release_visibility_required": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "expiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "opened_at",
+        "expires_at",
+        "lifted_at",
+        "expiry_state_class",
+        "expiry_trigger_class",
+        "policy_epoch_ref",
+        "expiry_summary"
+      ],
+      "properties": {
+        "opened_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "expires_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "lifted_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "expiry_state_class": { "$ref": "#/$defs/expiry_state_class" },
+        "expiry_trigger_class": { "$ref": "#/$defs/expiry_trigger_class" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "expiry_summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Active time-bounded rows MUST carry a non-null expires_at.",
+          "if": {
+            "properties": {
+              "expiry_state_class": { "const": "active_time_bounded" }
+            },
+            "required": ["expiry_state_class"]
+          },
+          "then": {
+            "properties": {
+              "expires_at": { "$ref": "#/$defs/timestamp" }
+            }
+          }
+        },
+        {
+          "description": "Cleared or stable-again rows MUST carry a lifted_at timestamp.",
+          "if": {
+            "properties": {
+              "expiry_state_class": {
+                "enum": ["lifted_or_cleared", "not_applicable_stable_again"]
+              }
+            },
+            "required": ["expiry_state_class"]
+          },
+          "then": {
+            "properties": {
+              "lifted_at": { "$ref": "#/$defs/timestamp" }
+            }
+          }
+        }
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_cadence_class",
+        "last_reviewed_at",
+        "next_review_due_at",
+        "review_owner_ref",
+        "batch_review_group_ref",
+        "batch_review_required",
+        "review_summary"
+      ],
+      "properties": {
+        "review_cadence_class": { "$ref": "#/$defs/review_cadence_class" },
+        "last_reviewed_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "next_review_due_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "review_owner_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "batch_review_group_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "batch_review_required": { "type": "boolean" },
+        "review_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "unblock_conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "condition_classes",
+        "required_stable_window",
+        "required_attempt_count",
+        "unblock_evidence_refs",
+        "unblock_owner_ref",
+        "unblock_summary"
+      ],
+      "properties": {
+        "condition_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unblock_condition_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "required_stable_window": {
+          "oneOf": [
+            { "$ref": "#/$defs/duration" },
+            { "type": "null" }
+          ]
+        },
+        "required_attempt_count": { "$ref": "#/$defs/non_negative_integer" },
+        "unblock_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "unblock_owner_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "unblock_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "release_packet_treatment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "counted_in_scorecards",
+        "included_in_claim_manifests",
+        "included_in_stable_promotion_packets",
+        "release_debt_class",
+        "waiver_refs",
+        "debt_item_ref",
+        "claim_manifest_row_refs",
+        "scorecard_row_refs",
+        "stable_promotion_packet_refs",
+        "release_treatment_summary"
+      ],
+      "properties": {
+        "counted_in_scorecards": {
+          "type": "boolean",
+          "const": true
+        },
+        "included_in_claim_manifests": {
+          "type": "boolean",
+          "const": true
+        },
+        "included_in_stable_promotion_packets": {
+          "type": "boolean",
+          "const": true
+        },
+        "release_debt_class": { "$ref": "#/$defs/release_debt_class" },
+        "waiver_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "debt_item_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "claim_manifest_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "scorecard_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "stable_promotion_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "release_treatment_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "automation_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "automation_open_class",
+        "automation_extension_class",
+        "max_auto_extension_count",
+        "current_auto_extension_count",
+        "owner_handoff_required",
+        "team_transfer_requires_handoff",
+        "silent_indefinite_forbidden"
+      ],
+      "properties": {
+        "automation_open_class": { "$ref": "#/$defs/automation_open_class" },
+        "automation_extension_class": { "$ref": "#/$defs/automation_extension_class" },
+        "max_auto_extension_count": { "$ref": "#/$defs/non_negative_integer" },
+        "current_auto_extension_count": { "$ref": "#/$defs/non_negative_integer" },
+        "owner_handoff_required": { "type": "boolean" },
+        "team_transfer_requires_handoff": { "type": "boolean" },
+        "silent_indefinite_forbidden": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "test_quarantine_or_mute_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quarantine_record_schema_version",
+        "treatment_record_id",
+        "treatment_kind_class",
+        "ui_export_state_class",
+        "ui_export_label",
+        "owner",
+        "reason_class",
+        "evidence_linkage",
+        "scope",
+        "surfaces",
+        "expiry",
+        "review",
+        "unblock_conditions",
+        "release_packet_treatment",
+        "automation_controls",
+        "prior_treatment_record_refs",
+        "audit_event_refs",
+        "denial_reason_class",
+        "captured_at",
+        "redaction_class",
+        "approval_ticket_ref",
+        "notes"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quarantine_or_mute_record" },
+        "quarantine_record_schema_version": { "$ref": "#/$defs/quarantine_record_schema_version" },
+        "treatment_record_id": { "$ref": "#/$defs/opaque_id" },
+        "treatment_kind_class": { "$ref": "#/$defs/treatment_kind_class" },
+        "ui_export_state_class": { "$ref": "#/$defs/ui_export_state_class" },
+        "ui_export_label": { "$ref": "#/$defs/ui_export_label" },
+        "owner": { "$ref": "#/$defs/owner" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "evidence_linkage": { "$ref": "#/$defs/evidence_linkage" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "surfaces": { "$ref": "#/$defs/surfaces" },
+        "expiry": { "$ref": "#/$defs/expiry" },
+        "review": { "$ref": "#/$defs/review" },
+        "unblock_conditions": { "$ref": "#/$defs/unblock_conditions" },
+        "release_packet_treatment": { "$ref": "#/$defs/release_packet_treatment" },
+        "automation_controls": { "$ref": "#/$defs/automation_controls" },
+        "prior_treatment_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event_id" },
+          "uniqueItems": true
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Active quarantine MUST have a non-missing owner and a time-bounded expiry.",
+          "if": {
+            "properties": {
+              "treatment_kind_class": { "const": "quarantine" }
+            },
+            "required": ["treatment_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "owner": {
+                "properties": {
+                  "owner_state_class": {
+                    "enum": ["owned_by_actor", "owned_by_team", "owned_by_policy_owner", "owner_handoff_pending"]
+                  }
+                }
+              },
+              "expiry": {
+                "properties": {
+                  "expiry_state_class": { "const": "active_time_bounded" },
+                  "expires_at": { "$ref": "#/$defs/timestamp" }
+                }
+              },
+              "release_packet_treatment": {
+                "properties": {
+                  "release_debt_class": {
+                    "enum": ["release_blocking_debt", "waiver_linked_debt", "claim_narrowing_required"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Active manual mute MUST have a non-missing owner and a time-bounded expiry.",
+          "if": {
+            "properties": {
+              "treatment_kind_class": { "const": "manual_mute" }
+            },
+            "required": ["treatment_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "owner": {
+                "properties": {
+                  "owner_state_class": {
+                    "enum": ["owned_by_actor", "owned_by_team", "owner_handoff_pending"]
+                  }
+                }
+              },
+              "expiry": {
+                "properties": {
+                  "expiry_state_class": { "const": "active_time_bounded" },
+                  "expires_at": { "$ref": "#/$defs/timestamp" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Policy mute MUST cite a policy owner and policy epoch or owning policy ref.",
+          "if": {
+            "properties": {
+              "treatment_kind_class": { "const": "policy_mute" }
+            },
+            "required": ["treatment_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "owner": {
+                "properties": {
+                  "owner_state_class": { "const": "owned_by_policy_owner" },
+                  "owning_policy_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              },
+              "expiry": {
+                "properties": {
+                  "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Expired mute and expired quarantine rows MUST require owner handoff.",
+          "if": {
+            "properties": {
+              "treatment_kind_class": {
+                "enum": ["expired_quarantine", "expired_mute"]
+              }
+            },
+            "required": ["treatment_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "expiry": {
+                "properties": {
+                  "expiry_state_class": {
+                    "enum": ["expired_requires_review", "expired_ownerless_requires_handoff"]
+                  }
+                }
+              },
+              "automation_controls": {
+                "properties": {
+                  "owner_handoff_required": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Stable-again rows MUST cite prior treatment and unblock evidence.",
+          "if": {
+            "properties": {
+              "treatment_kind_class": { "const": "stability_recovered" }
+            },
+            "required": ["treatment_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "ui_export_state_class": { "const": "stable_again" },
+              "prior_treatment_record_refs": {
+                "minItems": 1
+              },
+              "release_packet_treatment": {
+                "properties": {
+                  "release_debt_class": {
+                    "enum": ["informational_recovered_debt", "historical_only_after_stable_again"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One release-facing treatment record for a muted, policy-muted, quarantined, expired, or stable-again test row."
+    }
+  }
+}

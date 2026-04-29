@@ -62,6 +62,13 @@ This contract composes with and does not replace:
   [`/schemas/execution/flaky_history.schema.json`](../../schemas/execution/flaky_history.schema.json)
   — discovery, per-item state, run summary, snapshot/golden review,
   flaky verdict, and quarantine truth remain the base test model.
+- [`/docs/testing/test_quarantine_and_mute_contract.md`](../testing/test_quarantine_and_mute_contract.md)
+  and
+  [`/schemas/testing/quarantine_record.schema.json`](../../schemas/testing/quarantine_record.schema.json)
+  — release-facing mute and quarantine refs preserve owner, expiry,
+  allowed surfaces, mandatory release visibility, review cadence,
+  unblock conditions, and packet treatment for inline and aggregate
+  projections.
 - [`/docs/runtime/execution_context_vocabulary.md`](../runtime/execution_context_vocabulary.md),
   [`/schemas/runtime/execution_context.schema.json`](../../schemas/runtime/execution_context.schema.json),
   and
@@ -111,6 +118,8 @@ The failure modes this contract prevents:
   remap/stale state;
 - a parent test-tree row hides filtered, quarantined, unsupported, or
   unknown children while rendering a clean aggregate pass;
+- a muted row disappears from release-bearing aggregates because the
+  inline or tree projection treated a local mute as shared truth;
 - local, container, remote, CI, notebook, and provider-backed runs are
   merged into one generic pass/fail row without authority,
   comparability, or artifact refs.

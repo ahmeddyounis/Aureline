@@ -353,6 +353,17 @@ code.
   [`/schemas/testing/test_attempt.schema.json`](../schemas/testing/test_attempt.schema.json);
   worked fixtures in
   [`/fixtures/testing/test_session_cases/`](../fixtures/testing/test_session_cases/).
+- [`testing/test_quarantine_and_mute_contract.md`](./testing/test_quarantine_and_mute_contract.md)
+  — release-facing quarantine, mute-state, owner/expiry, allowed
+  surface, review cadence, unblock, and packet-treatment contract that
+  keeps muted or quarantined test debt visible in scorecards, claim
+  manifests, stable-promotion packets, and release evidence. Boundary
+  schema in
+  [`/schemas/testing/quarantine_record.schema.json`](../schemas/testing/quarantine_record.schema.json);
+  worked fixtures in
+  [`/fixtures/testing/quarantine_cases/`](../fixtures/testing/quarantine_cases/);
+  policy rows in
+  [`/artifacts/testing/quarantine_policy_rows.yaml`](../artifacts/testing/quarantine_policy_rows.yaml).
 
 ## Planning
 
