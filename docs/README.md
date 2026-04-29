@@ -561,6 +561,16 @@ code.
   [`/schemas/docs/late_copy_change_packet.schema.json`](../schemas/docs/late_copy_change_packet.schema.json);
   worked fixtures in
   [`/fixtures/docs/late_copy_examples/`](../fixtures/docs/late_copy_examples/).
+- [`copy/translation_safe_content_ops_contract.md`](./copy/translation_safe_content_ops_contract.md)
+  — translation-safe content-ops contract for placeholder semantics,
+  translator-note preservation, glossary refs, screenshot/demo caption
+  metadata, source-language fallback, pseudoloc/truncation gates, and
+  late-copy downstream impact. Boundary schemas in
+  [`/schemas/ux/message_placeholder.schema.json`](../schemas/ux/message_placeholder.schema.json)
+  and
+  [`/schemas/copy/late_copy_change.schema.json`](../schemas/copy/late_copy_change.schema.json);
+  worked fixtures in
+  [`/fixtures/copy/placeholder_and_late_copy_cases/`](../fixtures/copy/placeholder_and_late_copy_cases/).
 - [`copy/count_scope_freshness_grammar.md`](./copy/count_scope_freshness_grammar.md)
   — copy grammar and term contract for dense count, scope, freshness,
   and chronology labels. Freezes controlled meanings for visible,
