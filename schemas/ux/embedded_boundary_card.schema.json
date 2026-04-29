@@ -1,0 +1,828 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/embedded_boundary_card.schema.json",
+  "title": "Aureline embedded-surface boundary card render contract",
+  "description": "Boundary schema for the embedded_boundary_card_record frozen in docs/ux/embedded_surface_boundary_cards.md. The boundary card is the compact, host-rendered chrome painted next to every embedded surface so docs/help, marketplace/account, service-dashboard, auth-confirmation, and extension-hosted rows declare owner, origin, publisher/service identity, permission state, data boundary, action partition, browser-fallback posture, and capability limitations in plain language. The card is a render projection of the upstream embedded_surface_boundary_record (schemas/ux/embedded_surface_boundary.schema.json); when the two disagree, the upstream record wins. The closed vocabularies (surface_family, owner_class, publisher_or_service_class, origin_class, origin_verification_state, data_boundary_class, boundary_state, boundary_action_id, capability_limitation, native_reserved_surface, auth_flow_class) are re-exported from that schema by value so render-side validators can consume the card without pulling the full envelope. Adding a new permission_class, action_partition_role, browser_fallback_posture_class, fallback_target_class, layout_constraint_id, or chrome_inheritance_axis is additive-minor and bumps embedded_boundary_card_schema_version; repurposing an existing value or weakening any host-owned chrome rule is breaking and requires a new decision row (ADR-0015 family).",
+  "type": "object",
+  "$ref": "#/$defs/embedded_boundary_card_record",
+  "$defs": {
+    "embedded_boundary_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the embedded boundary-card render payload. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets. Raw absolute URLs, raw cookies, raw passwords, or raw device codes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of the vocabulary values the fixture exercises."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on YAML/JSON fixtures under __fixture__."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "embedded_docs_help",
+        "embedded_marketplace_or_account",
+        "embedded_service_dashboard",
+        "embedded_auth_confirmation",
+        "extension_hosted_surface"
+      ],
+      "description": "Closed embedded-surface family vocabulary. Re-exported by value from embedded_surface_boundary.schema.json."
+    },
+
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "host_product",
+        "first_party_project",
+        "extension_bundle",
+        "connected_provider",
+        "enterprise_admin",
+        "customer_service_owner",
+        "unknown_owner"
+      ],
+      "description": "Human owner of the embedded surface as rendered by the host shell. Re-exported by value from embedded_surface_boundary.schema.json."
+    },
+
+    "publisher_or_service_class": {
+      "type": "string",
+      "enum": [
+        "first_party_project",
+        "marketplace_service",
+        "connected_provider_service",
+        "customer_service",
+        "extension_publisher",
+        "identity_provider",
+        "unknown_publisher_or_service"
+      ],
+      "description": "Publisher, provider, or service identity distinct from the host product. Re-exported by value."
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_pack_or_artifact",
+        "first_party_hosted_web",
+        "connected_provider_hosted_web",
+        "customer_or_enterprise_hosted_web",
+        "extension_publisher_hosted_web",
+        "cross_origin_subframe",
+        "system_browser_return",
+        "unknown_origin_class"
+      ],
+      "description": "Closed origin-class vocabulary for embedded or handoff-adjacent surfaces. Re-exported by value."
+    },
+
+    "origin_verification_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "unverified",
+        "certificate_failed",
+        "policy_blocked",
+        "cross_origin_limited",
+        "offline_cached"
+      ],
+      "description": "Closed origin-verification-state vocabulary. Re-exported by value."
+    },
+
+    "data_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_product_boundary",
+        "first_party_hosted_service_boundary",
+        "connected_provider_boundary",
+        "customer_control_plane_boundary",
+        "extension_publisher_boundary",
+        "cross_origin_limited_boundary"
+      ],
+      "description": "Closed data-boundary vocabulary. Re-exported by value."
+    },
+
+    "boundary_state": {
+      "type": "string",
+      "enum": [
+        "live_verified",
+        "stale_snapshot",
+        "policy_blocked",
+        "certificate_failed",
+        "cross_origin_limited",
+        "offline_snapshot",
+        "external_open_only"
+      ],
+      "description": "Closed embedded-surface boundary-state vocabulary. Re-exported by value."
+    },
+
+    "permission_class": {
+      "type": "string",
+      "enum": [
+        "host_owned_full_authority",
+        "host_owned_inspect_only",
+        "host_owned_browser_only",
+        "host_owned_copy_export_only",
+        "host_owned_with_native_step_up_required",
+        "embedded_lower_trust_session_refresh",
+        "embedded_lower_trust_password_exception",
+        "no_permission_within_product"
+      ],
+      "description": "Closed permission-state vocabulary describing what authority the host shell currently grants the embedded surface. host_owned_* states keep authority outside the embedded body; embedded_lower_trust_* states require a registered exception per ADR-0015."
+    },
+
+    "boundary_action_id": {
+      "type": "string",
+      "enum": [
+        "reload_embedded_surface",
+        "open_in_system_browser",
+        "switch_to_device_code",
+        "copy_device_code",
+        "retry_auth_handoff",
+        "inspect_certificate_details",
+        "inspect_policy_reason",
+        "continue_local_without_surface",
+        "open_support_evidence",
+        "view_auth_exception_record"
+      ],
+      "description": "Closed host-owned boundary action vocabulary. Re-exported by value."
+    },
+
+    "action_partition_role": {
+      "type": "string",
+      "enum": [
+        "product_owned_native",
+        "product_owned_handoff",
+        "embedded_inspect_only",
+        "embedded_request_only"
+      ],
+      "description": "Closed action-partition vocabulary. product_owned_* roles render in host-native chrome and are governed by the host policy/trust path; embedded_* roles render inside the embedded body and may not claim final authority over native-reserved actions."
+    },
+
+    "browser_fallback_posture_class": {
+      "type": "string",
+      "enum": [
+        "system_browser_first",
+        "device_code_fallback_offered",
+        "external_open_blocked_by_policy",
+        "external_open_unavailable_offline",
+        "browser_fallback_not_applicable"
+      ],
+      "description": "Closed browser-fallback-posture vocabulary. system_browser_first is the default for supported handoffs; device_code_fallback_offered is the auditable next step when browser launch is blocked or non-returnable; external_open_* posture variants explain why the out-of-product lane is not currently available."
+    },
+
+    "fallback_target_class": {
+      "type": "string",
+      "enum": [
+        "system_browser_handoff_packet",
+        "device_code_companion_card",
+        "platform_authenticator_native",
+        "host_native_review_or_approval",
+        "local_inspect_or_export",
+        "no_fallback_available"
+      ],
+      "description": "Closed fallback-target vocabulary naming where the user is sent when the embedded body is not the trusted lane."
+    },
+
+    "capability_limitation": {
+      "type": "string",
+      "enum": [
+        "cannot_issue_native_approval",
+        "cannot_verify_updates_or_signatures",
+        "cannot_raise_workspace_trust",
+        "cannot_perform_rollback_or_restore",
+        "cannot_apply_ai_changes",
+        "cookies_or_storage_outside_product_boundary",
+        "cross_origin_dom_or_storage_hidden",
+        "live_network_mutation_disabled_when_offline",
+        "provider_scope_may_be_narrower_than_page_claims",
+        "embedded_auth_lower_trust"
+      ],
+      "description": "Closed capability-limitation vocabulary rendered on the boundary card. Re-exported by value."
+    },
+
+    "native_reserved_surface": {
+      "type": "string",
+      "enum": [
+        "product_security_messaging",
+        "update_verification",
+        "workspace_trust_elevation",
+        "rollback_or_restore_confirmation",
+        "ai_apply_review",
+        "high_risk_approval_sheet"
+      ],
+      "description": "Native-reserved surfaces that embedded content may never imitate, host, or claim authority over. Re-exported by value."
+    },
+
+    "auth_flow_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "system_browser",
+        "device_code",
+        "platform_authenticator_native",
+        "embedded_session_refresh",
+        "embedded_password_exception"
+      ],
+      "description": "Closed embedded/auth handoff flow-class vocabulary. Re-exported by value."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness class. Re-exported by value."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Docs/help version-match-state. Re-exported by value."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "derived_explanation",
+        "vendor_provider_docs",
+        "support_runbook",
+        "external_status_feed"
+      ],
+      "description": "Docs/help source-of-truth class. Re-exported by value."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Connected-provider class. Re-exported by value."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Connected-provider actor class. Re-exported by value."
+    },
+
+    "provider_health_state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "revoked",
+        "suspended",
+        "expired"
+      ],
+      "description": "Connected-provider health-state. Re-exported by value."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class. Re-exported by value."
+    },
+
+    "layout_constraint_id": {
+      "type": "string",
+      "enum": [
+        "card_visually_distinct_from_embedded_body",
+        "card_not_obscured_by_embedded_body",
+        "card_required_fields_never_hover_only",
+        "card_compact_layout_preserves_required_fields",
+        "card_actions_render_in_host_chrome",
+        "embedded_body_cannot_overlap_card_actions",
+        "card_remains_visible_when_embedded_body_is_withheld"
+      ],
+      "description": "Closed layout-constraint vocabulary the host shell must satisfy when painting the boundary card."
+    },
+
+    "chrome_inheritance_axis": {
+      "type": "string",
+      "enum": [
+        "theme_palette_inherits_from_host",
+        "density_class_inherits_from_host",
+        "zoom_level_inherits_from_host",
+        "focus_ring_inherits_from_host",
+        "reduced_motion_posture_inherits_from_host",
+        "high_contrast_mode_inherits_from_host",
+        "forced_colors_mode_inherits_from_host"
+      ],
+      "description": "Closed chrome-inheritance vocabulary. The boundary card MUST inherit these axes from the host shell so embedded content never paints a parallel theme/zoom/density/focus model."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": [
+            "account_free_local",
+            "self_hosted_org",
+            "managed_workspace"
+          ]
+        },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy, identity-mode, and trust context the boundary card was minted under."
+    },
+
+    "owner_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "class"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "class": { "$ref": "#/$defs/owner_class" }
+      },
+      "description": "Human-readable owner identity plus its closed owner-class token."
+    },
+
+    "publisher_or_service_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "class"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "class": { "$ref": "#/$defs/publisher_or_service_class" }
+      },
+      "description": "Human-readable publisher/service identity plus its closed class token."
+    },
+
+    "origin_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_class",
+        "origin_label",
+        "verification_state",
+        "host_or_domain_label"
+      ],
+      "properties": {
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "origin_label": { "type": "string", "minLength": 1 },
+        "verification_state": {
+          "$ref": "#/$defs/origin_verification_state"
+        },
+        "host_or_domain_label": { "type": "string", "minLength": 1 },
+        "origin_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Host-owned origin identity disclosure."
+    },
+
+    "provider_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "provider_label",
+        "provider_scope_label",
+        "provider_actor_class",
+        "health_state"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "provider_label": { "type": "string", "minLength": 1 },
+        "provider_scope_label": { "type": "string", "minLength": 1 },
+        "provider_actor_class": {
+          "$ref": "#/$defs/provider_actor_class"
+        },
+        "health_state": {
+          "$ref": "#/$defs/provider_health_state"
+        },
+        "connected_provider_record_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "health_summary_label": { "type": "string", "minLength": 1 }
+      },
+      "description": "Provider/service identity chrome for marketplace/account and service-dashboard surfaces."
+    },
+
+    "source_truth_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "version_match_state",
+        "freshness_class",
+        "running_build_identity_ref"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "version_match_state": {
+          "$ref": "#/$defs/version_match_state"
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "running_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "help_status_badge_ref": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_age_label": { "type": "string", "minLength": 1 }
+      },
+      "description": "Quoted docs/help source-version-freshness truth. Required on embedded_docs_help cards."
+    },
+
+    "permission_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permission_class", "permission_label"],
+      "properties": {
+        "permission_class": { "$ref": "#/$defs/permission_class" },
+        "permission_label": { "type": "string", "minLength": 1 },
+        "host_native_step_up_required": { "type": "boolean" },
+        "exception_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_narrowing_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Permission-state row carried on the boundary card. Names the closed permission class, the plain-language label, whether host-native step-up is still required, and (for embedded_lower_trust_* states) the exception register row."
+    },
+
+    "action_partition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "partition_role", "action_label"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/boundary_action_id" },
+        "partition_role": { "$ref": "#/$defs/action_partition_role" },
+        "action_label": { "type": "string", "minLength": 1 },
+        "renders_in_host_chrome": { "type": "boolean" },
+        "preserves_object_identity": { "type": "boolean" },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "One row in the action partition: every action visible near the embedded surface declares whether it is product-owned-native, product-owned-handoff, embedded-inspect-only, or embedded-request-only."
+    },
+
+    "browser_fallback_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "fallback_target_class", "summary_label"],
+      "properties": {
+        "posture_class": {
+          "$ref": "#/$defs/browser_fallback_posture_class"
+        },
+        "fallback_target_class": {
+          "$ref": "#/$defs/fallback_target_class"
+        },
+        "summary_label": { "type": "string", "minLength": 1 },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "device_code_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_reason_label": { "type": "string", "minLength": 1 },
+        "return_target_label": { "type": "string", "minLength": 1 }
+      },
+      "description": "Browser-fallback posture cue. Names the system_browser_first / device_code_fallback / external_open_blocked stance and the explicit fallback target class."
+    },
+
+    "auth_handoff_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_class",
+        "provider_domain_label",
+        "reason_label",
+        "return_target_label"
+      ],
+      "properties": {
+        "flow_class": { "$ref": "#/$defs/auth_flow_class" },
+        "provider_domain_label": { "type": "string", "minLength": 1 },
+        "reason_label": { "type": "string", "minLength": 1 },
+        "return_target_label": { "type": "string", "minLength": 1 },
+        "local_continuity_note": { "type": "string", "minLength": 1 },
+        "code_expiry_label": { "type": "string", "minLength": 1 },
+        "exception_id_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Render-side projection of the auth-handoff cue family for embedded_auth_confirmation cards. The full auth_handoff record lives on the upstream embedded_surface_boundary_record."
+    },
+
+    "embedded_boundary_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "embedded_boundary_card_schema_version",
+        "card_id",
+        "surface_id_ref",
+        "surface_family",
+        "owner_identity",
+        "publisher_or_service_identity",
+        "origin_identity",
+        "data_boundary_class",
+        "data_boundary_label",
+        "boundary_state",
+        "boundary_state_label",
+        "plain_language_summary",
+        "permission_state",
+        "action_partition",
+        "browser_fallback",
+        "capability_limitations",
+        "reserved_native_surfaces_host_owned",
+        "layout_constraints",
+        "chrome_inheritance_axes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "embedded_boundary_card_record" },
+        "embedded_boundary_card_schema_version": {
+          "$ref": "#/$defs/embedded_boundary_card_schema_version"
+        },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the upstream embedded_surface_boundary_record this card projects."
+        },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "owner_identity": { "$ref": "#/$defs/owner_identity_record" },
+        "publisher_or_service_identity": {
+          "$ref": "#/$defs/publisher_or_service_identity_record"
+        },
+        "origin_identity": {
+          "$ref": "#/$defs/origin_identity_record"
+        },
+        "data_boundary_class": {
+          "$ref": "#/$defs/data_boundary_class"
+        },
+        "data_boundary_label": { "type": "string", "minLength": 1 },
+        "boundary_state": { "$ref": "#/$defs/boundary_state" },
+        "boundary_state_label": { "type": "string", "minLength": 1 },
+        "plain_language_summary": { "type": "string", "minLength": 1 },
+        "permission_state": {
+          "$ref": "#/$defs/permission_state_record"
+        },
+        "action_partition": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_partition_record" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Every action visible near the embedded surface, partitioned into product-owned-native, product-owned-handoff, embedded-inspect-only, or embedded-request-only roles."
+        },
+        "browser_fallback": {
+          "$ref": "#/$defs/browser_fallback_record"
+        },
+        "capability_limitations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_limitation" },
+          "uniqueItems": true
+        },
+        "reserved_native_surfaces_host_owned": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/native_reserved_surface" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Native-reserved surfaces this boundary card explicitly keeps host-owned. The set is non-empty even when an action is not currently visible, so the host disclosure remains stable across states."
+        },
+        "layout_constraints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/layout_constraint_id" },
+          "minItems": 5,
+          "uniqueItems": true,
+          "description": "Layout constraints the host shell satisfies when painting the card. The minimum non-skippable set is enforced through the schema's minItems."
+        },
+        "chrome_inheritance_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/chrome_inheritance_axis" },
+          "minItems": 5,
+          "uniqueItems": true,
+          "description": "Chrome axes the embedded body inherits from the host shell. Theme, density, zoom, focus, and reduced-motion are mandatory."
+        },
+        "source_truth": { "$ref": "#/$defs/source_truth_record" },
+        "provider_identity": {
+          "$ref": "#/$defs/provider_identity_record"
+        },
+        "auth_handoff": {
+          "$ref": "#/$defs/auth_handoff_card_record"
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "surface_family": { "const": "embedded_docs_help" }
+            },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["source_truth"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "surface_family": {
+                "enum": [
+                  "embedded_marketplace_or_account",
+                  "embedded_service_dashboard"
+                ]
+              }
+            },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["provider_identity"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "surface_family": {
+                "const": "embedded_auth_confirmation"
+              }
+            },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["auth_handoff"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "boundary_state": {
+                "enum": [
+                  "stale_snapshot",
+                  "policy_blocked",
+                  "certificate_failed",
+                  "cross_origin_limited",
+                  "offline_snapshot",
+                  "external_open_only"
+                ]
+              }
+            },
+            "required": ["boundary_state"]
+          },
+          "then": {
+            "properties": {
+              "capability_limitations": {
+                "minItems": 1
+              }
+            },
+            "required": ["browser_fallback"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "permission_state": {
+                "properties": {
+                  "permission_class": {
+                    "enum": [
+                      "embedded_lower_trust_session_refresh",
+                      "embedded_lower_trust_password_exception"
+                    ]
+                  }
+                },
+                "required": ["permission_class"]
+              }
+            },
+            "required": ["permission_state"]
+          },
+          "then": {
+            "properties": {
+              "permission_state": {
+                "required": ["exception_id_ref"]
+              },
+              "capability_limitations": {
+                "contains": { "const": "embedded_auth_lower_trust" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "permission_state": {
+                "properties": {
+                  "permission_class": {
+                    "const": "embedded_lower_trust_password_exception"
+                  }
+                },
+                "required": ["permission_class"]
+              }
+            },
+            "required": ["permission_state"]
+          },
+          "then": {
+            "properties": {
+              "permission_state": {
+                "properties": {
+                  "host_native_step_up_required": { "const": true }
+                },
+                "required": ["host_native_step_up_required"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "boundary_state": { "const": "external_open_only" }
+            },
+            "required": ["boundary_state"]
+          },
+          "then": {
+            "properties": {
+              "browser_fallback": {
+                "properties": {
+                  "fallback_target_class": {
+                    "enum": [
+                      "system_browser_handoff_packet",
+                      "device_code_companion_card",
+                      "host_native_review_or_approval",
+                      "platform_authenticator_native"
+                    ]
+                  }
+                },
+                "required": ["fallback_target_class"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
