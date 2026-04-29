@@ -23,6 +23,10 @@ Machine-readable companions:
   docs, CLI discovery, support, and automation surfaces can all cite.
 - [`/schemas/commands/palette_result.schema.json`](../../schemas/commands/palette_result.schema.json)
   defines query-session and result-row records.
+- [`/schemas/commands/palette_query_session.schema.json`](../../schemas/commands/palette_query_session.schema.json)
+  defines the dedicated query-session, lightweight-history, and
+  recent-query records used when query text, retention, redaction,
+  and streaming transition state must be reasoned about directly.
 - [`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json)
   defines selected-row footer actions and alternate invocation rows.
 - [`/fixtures/commands/palette_row_cases/`](../../fixtures/commands/palette_row_cases/)
@@ -30,6 +34,9 @@ Machine-readable companions:
 - [`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/)
   contains seed rows and footer variants projected from the existing
   command-registry seed records.
+- [`/fixtures/commands/palette_query_cases/`](../../fixtures/commands/palette_query_cases/)
+  contains query-session cases for streaming, bounded local history,
+  clear-history, and support export privacy.
 
 The command descriptor remains the canonical product object. Palette
 records are materialized projections used by the shell, docs/help,
@@ -98,8 +105,9 @@ from.
 
 ## Query session and privacy
 
-Command palette query sessions are local-first. The session record
-declares:
+Command palette query sessions are local-first. The dedicated
+[`palette_query_session` contract](./palette_query_session_contract.md)
+owns the full session record and declares:
 
 - query state: idle, composing, filtering, results streaming,
   provider degraded, empty, cancelled, or committed;
@@ -118,6 +126,9 @@ The palette may retain lightweight query history only when the session
 declares the retention class. Managed or synced environments may retain
 history only through a named records-governance posture. Support export
 must redact raw query text unless the session explicitly allows export.
+Semantic or provider-backed rows may stream after recent/lexical rows
+only through declared transition rules that preserve current text,
+held modifier intent, history policy, and redaction posture.
 
 ## Result-row contract
 
@@ -183,6 +194,19 @@ surface, not a private command runner. Each footer action declares:
 - whether trust, policy, preview, approval, and permission gates must
   be revalidated; and
 - every surface where the same action semantics must stay consistent.
+
+Each footer also carries an explicit `action_inventory` so keyboard help,
+menus, docs/help, CLI help, support export, and automation builders can address
+the same required verbs even when a verb is disabled or not meaningful for the
+selected command:
+
+- default run/open;
+- split/open-alt;
+- open alternate target;
+- copy command ID;
+- copy CLI/headless form;
+- add to recipe; and
+- inspect why not automatable.
 
 Required action semantics:
 

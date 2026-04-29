@@ -1,0 +1,835 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/palette_query_session.schema.json",
+  "title": "Aureline command palette query-session, history, and streaming contract",
+  "description": "Boundary schema for the command palette query-session record and its lightweight history records. The palette query session owns current query text posture, provider participation, ranking phase, held modifier intent, local-first history policy, bounded recent-query retention, redaction posture, action-footer links, and streaming transition rules. Palette rows and footers remain projections over the command descriptor, registry, keybinding, diagnostics, and shareability records; this schema prevents query text, recent-history memory, semantic streaming, and alternate invocation state from living in widget-local state.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/palette_query_session_record" },
+    { "$ref": "#/$defs/palette_query_history_entry_record" },
+    { "$ref": "#/$defs/palette_recent_query_set_record" }
+  ],
+  "$defs": {
+    "palette_query_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this palette query-session export."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "palette_query_session_record",
+        "palette_query_history_entry_record",
+        "palette_recent_query_set_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, export, and store in support bundles. Raw query text, raw paths, raw URLs, provider payloads, secrets, and command argument values do not appear in opaque ids."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "current_text_state_class": {
+      "type": "string",
+      "enum": [
+        "empty",
+        "editing",
+        "ime_composing",
+        "committed",
+        "restored_from_history",
+        "cancelled"
+      ]
+    },
+    "query_text_material_class": {
+      "type": "string",
+      "enum": [
+        "not_recorded",
+        "raw_local_only",
+        "redacted_text",
+        "hashed_terms_only",
+        "command_refs_only",
+        "classification_only"
+      ],
+      "description": "How much query text material the record carries. raw_local_only is admitted only with local-only retention and denied export."
+    },
+    "query_text_storage_class": {
+      "type": "string",
+      "enum": [
+        "not_recorded",
+        "volatile_session_only",
+        "local_profile_history",
+        "local_per_device_history",
+        "managed_history_policy_allowed"
+      ]
+    },
+    "secret_detection_state": {
+      "type": "string",
+      "enum": [
+        "not_scanned",
+        "no_secret_detected",
+        "suspected_secret_redacted",
+        "confirmed_secret_redacted",
+        "scan_denied_policy"
+      ]
+    },
+    "input_mode_class": {
+      "type": "string",
+      "enum": [
+        "keyboard",
+        "ime",
+        "voice_command_mode",
+        "paste",
+        "history_replay",
+        "programmatic_restore"
+      ]
+    },
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "command_registry",
+        "keybinding_resolver",
+        "recent_history",
+        "lexical_command_index",
+        "semantic_command_index",
+        "docs_help",
+        "settings_registry",
+        "file_index",
+        "symbol_index",
+        "extension_provider",
+        "migration_bridge"
+      ]
+    },
+    "provider_state_class": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "warming",
+        "ready",
+        "streaming",
+        "partial",
+        "stale",
+        "policy_blocked",
+        "unavailable",
+        "complete"
+      ]
+    },
+    "provider_result_phase_class": {
+      "type": "string",
+      "enum": [
+        "no_results_yet",
+        "recent_results_ready",
+        "lexical_results_ready",
+        "semantic_results_streaming",
+        "semantic_results_ready",
+        "degraded_fallback",
+        "blocked"
+      ]
+    },
+    "ranking_mode_class": {
+      "type": "string",
+      "enum": [
+        "recent_first",
+        "lexical_first",
+        "exact_command_first",
+        "semantic_supplement",
+        "provider_mixed",
+        "captured_snapshot_order"
+      ]
+    },
+    "ranking_stage_class": {
+      "type": "string",
+      "enum": [
+        "recent_history",
+        "exact_alias",
+        "lexical_fuzzy",
+        "contextual_boost",
+        "semantic_supplement",
+        "provider_merge"
+      ]
+    },
+    "stable_ordering_policy_class": {
+      "type": "string",
+      "enum": [
+        "selection_stable_during_stream",
+        "result_groups_append_only",
+        "reorder_allowed_before_selection",
+        "captured_snapshot_order"
+      ]
+    },
+    "ranking_reason_export_class": {
+      "type": "string",
+      "enum": [
+        "not_exported",
+        "reason_classes_only",
+        "redacted_reason_refs",
+        "local_debug_only"
+      ]
+    },
+    "held_modifier_intent_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "default_run",
+        "split_or_open_alt",
+        "open_alternate_target",
+        "copy_command_id",
+        "copy_cli_headless_form",
+        "add_to_recipe",
+        "inspect_why_not_automatable",
+        "detail_preview"
+      ]
+    },
+    "history_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_history",
+        "session_only",
+        "local_profile_recent",
+        "local_per_device_recent",
+        "managed_governed_recent"
+      ]
+    },
+    "history_retention_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "until_palette_close",
+        "bounded_local_recent",
+        "bounded_per_device_recent",
+        "bounded_managed_recent"
+      ]
+    },
+    "clear_history_rule_class": {
+      "type": "string",
+      "enum": [
+        "clear_current_session_only",
+        "clear_palette_recent_queries",
+        "clear_command_recents",
+        "clear_profile_command_history",
+        "admin_policy_purge",
+        "erase_on_workspace_untrust"
+      ]
+    },
+    "clear_history_effect_class": {
+      "type": "string",
+      "enum": [
+        "deletes_raw_text",
+        "deletes_hash_refs",
+        "deletes_command_recents",
+        "tombstones_aggregate_counter",
+        "preserves_audit_minimum"
+      ]
+    },
+    "support_export_class": {
+      "type": "string",
+      "enum": [
+        "not_exported",
+        "command_refs_only",
+        "redacted_query_refs",
+        "aggregate_counts_only",
+        "policy_allowed_reviewed_export"
+      ]
+    },
+    "redaction_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_private",
+        "metadata_safe_default",
+        "support_redacted",
+        "policy_review_required",
+        "export_denied"
+      ]
+    },
+    "local_first_storage_class": {
+      "type": "string",
+      "enum": [
+        "memory_only",
+        "profile_local_store",
+        "device_local_store",
+        "org_governed_local_store"
+      ]
+    },
+    "lightweight_history_event_class": {
+      "type": "string",
+      "enum": [
+        "query_committed",
+        "command_invoked",
+        "result_selected",
+        "query_repeated",
+        "history_cleared"
+      ]
+    },
+    "transition_state_class": {
+      "type": "string",
+      "enum": [
+        "opened",
+        "empty",
+        "filtering_lexical",
+        "lexical_recent_ready",
+        "semantic_streaming",
+        "results_ready",
+        "provider_degraded",
+        "committed",
+        "cancelled",
+        "cleared_history"
+      ]
+    },
+    "transition_trigger_class": {
+      "type": "string",
+      "enum": [
+        "text_changed",
+        "provider_frame_received",
+        "semantic_batch_received",
+        "modifier_changed",
+        "selection_changed",
+        "command_committed",
+        "escape_dismissed",
+        "clear_history_requested",
+        "export_requested"
+      ]
+    },
+    "rank_update_policy_class": {
+      "type": "string",
+      "enum": [
+        "append_group",
+        "replace_provider_group",
+        "rerank_unselected_rows_only",
+        "freeze_after_commit",
+        "no_rank_change"
+      ]
+    },
+    "selection_update_policy_class": {
+      "type": "string",
+      "enum": [
+        "preserve_selected_row",
+        "select_first_when_none",
+        "clear_selection_on_empty",
+        "freeze_after_commit"
+      ]
+    },
+    "recent_query_ordering_class": {
+      "type": "string",
+      "enum": [
+        "most_recent_first",
+        "most_used_then_recent",
+        "capture_order",
+        "policy_defined"
+      ]
+    },
+    "projection_surface_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "docs_help",
+        "settings_command_detail",
+        "keybinding_help",
+        "command_docs",
+        "cli_help",
+        "automation_recipe_builder",
+        "support_export"
+      ]
+    },
+    "current_query_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text_state",
+        "text_material_class",
+        "text_storage_class",
+        "query_text_ref",
+        "raw_query_text_present",
+        "query_hash_ref",
+        "locale",
+        "input_mode",
+        "secret_detection_state"
+      ],
+      "properties": {
+        "text_state": { "$ref": "#/$defs/current_text_state_class" },
+        "text_material_class": { "$ref": "#/$defs/query_text_material_class" },
+        "text_storage_class": { "$ref": "#/$defs/query_text_storage_class" },
+        "query_text_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "raw_query_text_present": { "type": "boolean" },
+        "raw_query_text": { "type": "string" },
+        "redacted_text_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "query_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "locale": { "$ref": "#/$defs/non_empty_string" },
+        "input_mode": { "$ref": "#/$defs/input_mode_class" },
+        "secret_detection_state": { "$ref": "#/$defs/secret_detection_state" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "text_material_class": {
+                "enum": [
+                  "not_recorded",
+                  "redacted_text",
+                  "hashed_terms_only",
+                  "command_refs_only",
+                  "classification_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "raw_query_text_present": { "const": false }
+            },
+            "not": {
+              "required": ["raw_query_text"]
+            }
+          }
+        }
+      ]
+    },
+    "provider_session_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "state_class",
+        "result_phase",
+        "included_in_active_provider_set",
+        "provider_epoch_ref",
+        "result_batch_ref",
+        "truth_label_ref"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "state_class": { "$ref": "#/$defs/provider_state_class" },
+        "result_phase": { "$ref": "#/$defs/provider_result_phase_class" },
+        "included_in_active_provider_set": { "type": "boolean" },
+        "provider_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "result_batch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "truth_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "degrade_reason_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "visible_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "hidden_result_count": { "$ref": "#/$defs/non_negative_int" }
+      }
+    },
+    "ranking_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ranking_state_id",
+        "ranking_mode",
+        "active_stages",
+        "stable_ordering_policy",
+        "ranking_reason_export_class",
+        "ranker_epoch_ref",
+        "semantic_results_may_stream_later",
+        "selected_row_stability_required"
+      ],
+      "properties": {
+        "ranking_state_id": { "$ref": "#/$defs/opaque_id" },
+        "ranking_mode": { "$ref": "#/$defs/ranking_mode_class" },
+        "active_stages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ranking_stage_class" }
+        },
+        "stable_ordering_policy": { "$ref": "#/$defs/stable_ordering_policy_class" },
+        "ranking_reason_export_class": { "$ref": "#/$defs/ranking_reason_export_class" },
+        "ranker_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "semantic_results_may_stream_later": { "type": "boolean" },
+        "selected_row_stability_required": { "type": "boolean" },
+        "visible_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "hidden_result_count": { "$ref": "#/$defs/non_negative_int" }
+      }
+    },
+    "held_modifier_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_class",
+        "footer_action_ref",
+        "input_gesture_ref",
+        "preserves_on_stream_update"
+      ],
+      "properties": {
+        "intent_class": { "$ref": "#/$defs/held_modifier_intent_class" },
+        "footer_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "input_gesture_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "preserves_on_stream_update": { "const": true }
+      }
+    },
+    "history_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "history_policy_class",
+        "history_retention_class",
+        "query_text_storage_class",
+        "max_entries",
+        "max_age_days",
+        "sensitive_literal_handling_ref",
+        "raw_query_export_allowed",
+        "synced_history_allowed",
+        "clear_history_rules"
+      ],
+      "properties": {
+        "history_policy_class": { "$ref": "#/$defs/history_policy_class" },
+        "history_retention_class": { "$ref": "#/$defs/history_retention_class" },
+        "query_text_storage_class": { "$ref": "#/$defs/query_text_storage_class" },
+        "max_entries": { "$ref": "#/$defs/non_negative_int" },
+        "max_age_days": { "$ref": "#/$defs/non_negative_int" },
+        "sensitive_literal_handling_ref": { "$ref": "#/$defs/opaque_id" },
+        "raw_query_export_allowed": { "type": "boolean" },
+        "synced_history_allowed": { "type": "boolean" },
+        "clear_history_rules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/clear_history_rule_class" }
+        },
+        "retention_governance_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "local_first_retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_first",
+        "storage_class",
+        "retention_class",
+        "max_entries",
+        "max_age_days",
+        "clear_on_workspace_untrust",
+        "low_disk_eviction_order_ref"
+      ],
+      "properties": {
+        "local_first": { "const": true },
+        "storage_class": { "$ref": "#/$defs/local_first_storage_class" },
+        "retention_class": { "$ref": "#/$defs/history_retention_class" },
+        "max_entries": { "$ref": "#/$defs/non_negative_int" },
+        "max_age_days": { "$ref": "#/$defs/non_negative_int" },
+        "clear_on_workspace_untrust": { "type": "boolean" },
+        "low_disk_eviction_order_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "redaction_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_posture_class",
+        "support_export_class",
+        "raw_query_export_allowed",
+        "secret_or_path_literals_redacted",
+        "review_required_before_export",
+        "support_export_material_ref"
+      ],
+      "properties": {
+        "redaction_posture_class": { "$ref": "#/$defs/redaction_posture_class" },
+        "support_export_class": { "$ref": "#/$defs/support_export_class" },
+        "raw_query_export_allowed": { "type": "boolean" },
+        "secret_or_path_literals_redacted": { "type": "boolean" },
+        "review_required_before_export": { "type": "boolean" },
+        "support_export_material_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "footer_action_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "action_ref",
+        "enabled_by_current_session"
+      ],
+      "properties": {
+        "action_class": {
+          "$ref": "palette_action_footer.schema.json#/$defs/footer_action_class"
+        },
+        "action_ref": { "$ref": "#/$defs/opaque_id" },
+        "enabled_by_current_session": { "type": "boolean" },
+        "unavailable_reason_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "action_footer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_footer_ref",
+        "default_run_action",
+        "alternate_invocation_actions",
+        "copy_actions",
+        "add_to_recipe_action",
+        "inspect_why_not_automatable_action",
+        "keyboard_menu_docs_cli_consistency_required"
+      ],
+      "properties": {
+        "action_footer_ref": { "$ref": "#/$defs/opaque_id" },
+        "default_run_action": { "$ref": "#/$defs/footer_action_link" },
+        "alternate_invocation_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/footer_action_link" }
+        },
+        "copy_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/footer_action_link" }
+        },
+        "add_to_recipe_action": { "$ref": "#/$defs/footer_action_link" },
+        "inspect_why_not_automatable_action": { "$ref": "#/$defs/footer_action_link" },
+        "keyboard_menu_docs_cli_consistency_required": { "const": true }
+      }
+    },
+    "transition_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from_state",
+        "trigger",
+        "to_state",
+        "rank_update_policy",
+        "selection_update_policy",
+        "preserves_current_text",
+        "preserves_held_modifier_intent",
+        "preserves_history_policy",
+        "preserves_redaction_posture"
+      ],
+      "properties": {
+        "from_state": { "$ref": "#/$defs/transition_state_class" },
+        "trigger": { "$ref": "#/$defs/transition_trigger_class" },
+        "to_state": { "$ref": "#/$defs/transition_state_class" },
+        "rank_update_policy": { "$ref": "#/$defs/rank_update_policy_class" },
+        "selection_update_policy": { "$ref": "#/$defs/selection_update_policy_class" },
+        "preserves_current_text": { "const": true },
+        "preserves_held_modifier_intent": { "const": true },
+        "preserves_history_policy": { "const": true },
+        "preserves_redaction_posture": { "const": true },
+        "appended_provider_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_class" }
+        }
+      }
+    },
+    "lightweight_history_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "history_entry_refs",
+        "recent_query_set_ref",
+        "history_policy_ref"
+      ],
+      "properties": {
+        "history_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "recent_query_set_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "history_policy_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "history_entry_query_material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text_material_class",
+        "raw_query_text_present",
+        "query_hash_ref",
+        "redacted_text_ref"
+      ],
+      "properties": {
+        "text_material_class": { "$ref": "#/$defs/query_text_material_class" },
+        "raw_query_text_present": { "type": "boolean" },
+        "query_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redacted_text_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "command_ref_only": { "type": "boolean" }
+      }
+    },
+    "history_export_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_export_class",
+        "raw_query_export_allowed",
+        "privacy_safe_export_ref",
+        "clear_history_effects"
+      ],
+      "properties": {
+        "support_export_class": { "$ref": "#/$defs/support_export_class" },
+        "raw_query_export_allowed": { "type": "boolean" },
+        "privacy_safe_export_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "clear_history_effects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/clear_history_effect_class" }
+        }
+      }
+    },
+    "palette_query_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "palette_query_session_schema_version",
+        "palette_session_id",
+        "session_state",
+        "current_text",
+        "provider_set",
+        "ranking_state",
+        "held_modifier_intent",
+        "history_policy",
+        "local_first_retention",
+        "redaction_posture",
+        "action_footer_projection",
+        "lightweight_history",
+        "transition_rules",
+        "projection_surfaces",
+        "opened_at",
+        "updated_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "palette_query_session_record" },
+        "palette_query_session_schema_version": {
+          "$ref": "#/$defs/palette_query_session_schema_version"
+        },
+        "palette_session_id": { "$ref": "#/$defs/opaque_id" },
+        "session_state": { "$ref": "#/$defs/transition_state_class" },
+        "current_text": { "$ref": "#/$defs/current_query_text" },
+        "provider_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provider_session_state" }
+        },
+        "ranking_state": { "$ref": "#/$defs/ranking_state" },
+        "held_modifier_intent": { "$ref": "#/$defs/held_modifier_intent" },
+        "history_policy": { "$ref": "#/$defs/history_policy" },
+        "local_first_retention": { "$ref": "#/$defs/local_first_retention" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture" },
+        "action_footer_projection": { "$ref": "#/$defs/action_footer_projection" },
+        "lightweight_history": { "$ref": "#/$defs/lightweight_history_projection" },
+        "transition_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transition_rule" }
+        },
+        "projection_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/projection_surface_class" }
+        },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "palette_query_history_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "palette_query_session_schema_version",
+        "history_entry_id",
+        "captured_from_session_id_ref",
+        "event_class",
+        "query_material",
+        "selected_command_id_ref",
+        "provider_scope_classes",
+        "ranking_state_ref",
+        "held_modifier_intent",
+        "footer_action_class",
+        "retention",
+        "export_behavior",
+        "created_at",
+        "last_used_at",
+        "use_count"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "palette_query_history_entry_record" },
+        "palette_query_session_schema_version": {
+          "$ref": "#/$defs/palette_query_session_schema_version"
+        },
+        "history_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_from_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/lightweight_history_event_class" },
+        "query_material": { "$ref": "#/$defs/history_entry_query_material" },
+        "selected_command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "provider_scope_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_class" }
+        },
+        "ranking_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "held_modifier_intent": { "$ref": "#/$defs/held_modifier_intent_class" },
+        "footer_action_class": {
+          "$ref": "palette_action_footer.schema.json#/$defs/footer_action_class"
+        },
+        "retention": { "$ref": "#/$defs/local_first_retention" },
+        "export_behavior": { "$ref": "#/$defs/history_export_behavior" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_used_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "use_count": { "$ref": "#/$defs/non_negative_int" }
+      }
+    },
+    "palette_recent_query_set_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "palette_query_session_schema_version",
+        "recent_query_set_id",
+        "owner_scope_ref",
+        "ordering",
+        "entry_refs",
+        "history_policy",
+        "local_first_retention",
+        "export_behavior",
+        "clear_history_rules",
+        "updated_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "palette_recent_query_set_record" },
+        "palette_query_session_schema_version": {
+          "$ref": "#/$defs/palette_query_session_schema_version"
+        },
+        "recent_query_set_id": { "$ref": "#/$defs/opaque_id" },
+        "owner_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "ordering": { "$ref": "#/$defs/recent_query_ordering_class" },
+        "entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "history_policy": { "$ref": "#/$defs/history_policy" },
+        "local_first_retention": { "$ref": "#/$defs/local_first_retention" },
+        "export_behavior": { "$ref": "#/$defs/history_export_behavior" },
+        "clear_history_rules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/clear_history_rule_class" }
+        },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "cleared_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

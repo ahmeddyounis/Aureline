@@ -23,6 +23,10 @@ Machine-readable companions:
   remain detailed split projections for query-session and selected-row
   footer materializations. They must not disagree with this combined
   row contract.
+- [`/schemas/commands/palette_query_session.schema.json`](../../schemas/commands/palette_query_session.schema.json)
+  owns query text posture, provider streaming, held modifier intent,
+  bounded recent-history retention, clear-history behavior, and
+  redaction posture for the live launcher session.
 
 The command descriptor remains the canonical product object. If a row,
 footer action, CLI aid, support packet, or docs example disagrees with
