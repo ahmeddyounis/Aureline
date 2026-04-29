@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/lock_state_reason.schema.json",
+  "title": "Aureline settings lock-state reason packet",
+  "description": "Boundary schema for the user-visible lock-state reason grammar used by settings inspectors, write previews, import and migration review, optional sync, support export, and downgraded reads. The setting-definition registry remains the schema truth; this packet explains why a resolved value or proposed write is inherited, locked, blocked, downgraded, alias-only, or read-only without requiring implementation logs. Raw secrets, raw paths, raw hostnames, raw tenant identifiers, and raw source content never appear in this packet.",
+  "type": "object",
+  "$ref": "#/$defs/lock_state_reason_packet",
+  "$defs": {
+    "settings_precedence_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the precedence, lock-state, and write-scope grammar."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Opaque ref safe for UI, CLI, support export, audit, and fixtures. Do not place raw paths, URLs, hostnames, tokens, tenant ids, or source text here."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short prose safe for review surfaces and support exports. Must not contain raw secrets, raw URLs, raw hostnames, raw paths, raw command lines, raw logs, or raw source content."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Producer-local monotonic timestamp rendered as an RFC 3339 string at the schema boundary."
+    },
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical stable dotted lower-snake setting id after alias redirection."
+    },
+    "resolution_scope": {
+      "type": "string",
+      "enum": [
+        "product_default",
+        "package_default",
+        "template_default",
+        "imported_setting",
+        "profile_setting",
+        "user_setting",
+        "device_setting",
+        "workspace_setting",
+        "folder_setting",
+        "environment_setting",
+        "remote_target_setting",
+        "session_override",
+        "policy",
+        "emergency_override"
+      ],
+      "description": "User-visible precedence scope. These scopes map onto the lower-level settings ADR scopes but preserve package, template, environment, remote-target, policy, and emergency distinctions for inspectors."
+    },
+    "lock_state_class": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "inherited",
+        "locked",
+        "constrained",
+        "blocked",
+        "degraded_read_only",
+        "alias_only"
+      ],
+      "description": "User-visible lock posture. This is explanation vocabulary, not the low-level effective_setting.lock_state enum."
+    },
+    "lock_reason_code": {
+      "type": "string",
+      "enum": [
+        "none",
+        "inherited",
+        "policy_locked",
+        "policy_constrained",
+        "emergency_override",
+        "unsupported_scope",
+        "wrong_target",
+        "secret_required",
+        "missing_dependency",
+        "degraded_read_only",
+        "migration_alias_only",
+        "mixed_version_downgrade",
+        "imported_alias_only",
+        "stale_effective_read",
+        "absent_capability",
+        "read_only_authority",
+        "insufficient_permission",
+        "unsupported_write_fanout",
+        "checkpoint_required",
+        "approval_required",
+        "validation_failed"
+      ],
+      "description": "Frozen reason-code vocabulary. Codes explain why a setting row or write target is inherited, locked, blocked, downgraded, read-only, or alias-only."
+    },
+    "reason_effect": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "blocks_write",
+        "caps_value",
+        "downgrades_inspection",
+        "requires_review",
+        "requires_repair"
+      ],
+      "description": "How this reason affects read or write behavior."
+    },
+    "repair_action": {
+      "type": "string",
+      "enum": [
+        "none",
+        "inspect_source",
+        "choose_supported_scope",
+        "retarget_setting",
+        "bind_secret",
+        "install_dependency",
+        "refresh_effective_read",
+        "upgrade_schema",
+        "open_migration_review",
+        "request_policy_exception",
+        "create_checkpoint",
+        "request_approval",
+        "use_local_only"
+      ],
+      "description": "Stable repair-action vocabulary. Surfaces may render product copy for these actions but may not invent new hidden repair classes."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Checked-in fixture metadata. Production emitters omit this field."
+    },
+    "lock_state_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_code",
+        "lock_state",
+        "source_scope",
+        "source_ref",
+        "effect",
+        "blocks_write",
+        "message",
+        "repair_action"
+      ],
+      "properties": {
+        "reason_code": { "$ref": "#/$defs/lock_reason_code" },
+        "lock_state": { "$ref": "#/$defs/lock_state_class" },
+        "source_scope": { "$ref": "#/$defs/resolution_scope" },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "authority_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ],
+          "description": "Optional owner or authority that created the reason, such as a policy bundle, package, template lineage, device registry row, remote target, or migration row."
+        },
+        "effect": { "$ref": "#/$defs/reason_effect" },
+        "blocks_write": {
+          "type": "boolean",
+          "description": "True when this reason independently blocks the proposed write to the named scope."
+        },
+        "message": { "$ref": "#/$defs/reviewable_sentence" },
+        "repair_action": { "$ref": "#/$defs/repair_action" },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Expiry for stale, emergency, approval, or degraded read-only reasons; null when not bounded."
+        },
+        "support_export_safe": {
+          "type": "boolean",
+          "default": true,
+          "description": "False only when even the reason metadata must be omitted from ordinary support exports."
+        }
+      },
+      "description": "One lock-state reason row. Reason stacks preserve all rows instead of flattening them into a single disabled-state string."
+    },
+    "lock_state_reason_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_precedence_schema_version",
+        "reason_packet_id",
+        "setting_id",
+        "effective_lock_state",
+        "effective_blocks_write",
+        "reason_stack",
+        "generated_at",
+        "schema_version"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "lock_state_reason_packet"
+        },
+        "settings_precedence_schema_version": { "$ref": "#/$defs/settings_precedence_schema_version" },
+        "reason_packet_id": { "$ref": "#/$defs/opaque_ref" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "effective_lock_state": { "$ref": "#/$defs/lock_state_class" },
+        "effective_blocks_write": {
+          "type": "boolean",
+          "description": "True when at least one active reason blocks the proposed write or when the resolved read is read-only."
+        },
+        "reason_stack": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/lock_state_reason" },
+          "description": "Ordered reasons, most decisive first. Surfaces render this stack instead of scraping logs."
+        },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_version": {
+          "type": "string",
+          "const": "1"
+        }
+      },
+      "description": "One exportable lock-state reason packet."
+    }
+  }
+}

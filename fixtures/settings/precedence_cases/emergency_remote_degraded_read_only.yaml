@@ -1,0 +1,260 @@
+# yaml-language-server: $schema=../../../schemas/settings/precedence_resolution.schema.json
+__fixture__:
+  name: emergency_remote_degraded_read_only
+  scenario: >
+    A remote target has a stale allow-list value, but the resolver
+    cannot verify the target because a brokered secret and package
+    dependency are missing. Policy pins network egress to a managed
+    allow-list, and an emergency override disables the setting until
+    signed successor evidence clears it. The inspector remains honest:
+    the remote row is visible as degraded read-only and the emergency
+    row is the final source.
+  exercised_axes:
+    scopes:
+      - product_default
+      - workspace_setting
+      - remote_target_setting
+      - policy
+      - emergency_override
+    lock_reasons:
+      - policy_locked
+      - secret_required
+      - missing_dependency
+      - degraded_read_only
+      - emergency_override
+    downgrade_reasons:
+      - absent_capability
+      - stale_effective_read
+      - degraded_read_only
+
+record_kind: precedence_resolution_packet
+settings_precedence_schema_version: 1
+resolution_id: "res-security-network-allow-list-emergency-20260429T011500Z"
+setting_id: security.network.allow_list
+target_context:
+  workspace_scope_ref: "workspace:checkout:active"
+  profile_ref: "profile:workbench:default"
+  device_ref: "device:primary"
+  folder_scope_ref: null
+  environment_ref: null
+  remote_target_ref: "remote:managed-target:build"
+  tenant_ref: "tenant:managed:opaque"
+  target_ref: "target:remote:build"
+candidates:
+  - candidate_id: "cand:security.network.allow_list:product"
+    scope: product_default
+    precedence_rank: 10
+    source_ref: "settings-source:product-defaults"
+    authority_ref: "authority:embedded-product"
+    value_present: true
+    value_preview:
+      value_preview_kind: literal_value
+      value: []
+      class_label: null
+      credential_alias_ref: null
+    target_match: global
+    specificity_rank: 0
+    freshness: fresh
+    schema_compatibility: exact
+    source_revision_ref: "rev:product-defaults:1"
+    relation: shadowed
+    relation_reason: "Product default is valid but lower precedence than workspace and policy-related rows."
+    tie_break_applied: [higher_precedence_rank]
+    lock_reasons: []
+  - candidate_id: "cand:security.network.allow_list:workspace"
+    scope: workspace_setting
+    precedence_rank: 80
+    source_ref: "settings-file:workspace"
+    authority_ref: "authority:workspace-owner"
+    value_present: true
+    value_preview:
+      value_preview_kind: redacted_shape_preserved
+      value:
+        item_count: 2
+      class_label: null
+      credential_alias_ref: null
+    target_match: workspace_match
+    specificity_rank: 1
+    freshness: fresh
+    schema_compatibility: exact
+    source_revision_ref: "rev:workspace-settings:51"
+    relation: capped
+    relation_reason: "Workspace allow-list is capped by policy and then replaced by the stricter emergency override."
+    tie_break_applied: [higher_precedence_rank, policy_ceiling, emergency_override]
+    lock_reasons: []
+  - candidate_id: "cand:security.network.allow_list:remote"
+    scope: remote_target_setting
+    precedence_rank: 110
+    source_ref: "remote-target:build:settings"
+    authority_ref: "authority:remote-agent"
+    value_present: true
+    value_preview:
+      value_preview_kind: redacted_shape_preserved
+      value:
+        item_count: 3
+      class_label: null
+      credential_alias_ref: null
+    target_match: remote_target_match
+    specificity_rank: 2
+    freshness: stale
+    schema_compatibility: compatible
+    source_revision_ref: "rev:remote-target-settings:87"
+    relation: blocked
+    relation_reason: "Remote target value is stale and the resolver cannot re-verify the target until credential and package dependencies recover."
+    tie_break_applied: [freshest_non_stale, explicit_target_match]
+    lock_reasons:
+      - reason_code: secret_required
+        lock_state: blocked
+        source_scope: remote_target_setting
+        source_ref: "remote-target:build:settings"
+        authority_ref: "authority:secret-broker"
+        effect: requires_repair
+        blocks_write: true
+        message: "Remote target verification requires a brokered credential alias."
+        repair_action: bind_secret
+        expires_at: null
+        support_export_safe: true
+      - reason_code: missing_dependency
+        lock_state: blocked
+        source_scope: remote_target_setting
+        source_ref: "remote-target:build:settings"
+        authority_ref: "authority:package-registry:trusted"
+        effect: requires_repair
+        blocks_write: true
+        message: "Remote target resolver package is unavailable on the target."
+        repair_action: install_dependency
+        expires_at: null
+        support_export_safe: true
+      - reason_code: degraded_read_only
+        lock_state: degraded_read_only
+        source_scope: remote_target_setting
+        source_ref: "remote-target:build:settings"
+        authority_ref: "authority:remote-agent"
+        effect: downgrades_inspection
+        blocks_write: true
+        message: "Remote value is shown as last-known-good and cannot be mutated until refreshed."
+        repair_action: refresh_effective_read
+        expires_at: "2026-04-29T01:45:00Z"
+        support_export_safe: true
+  - candidate_id: "cand:security.network.allow_list:policy"
+    scope: policy
+    precedence_rank: 900
+    source_ref: "policy:network-egress-managed"
+    authority_ref: "authority:signed-admin-bundle"
+    value_present: true
+    value_preview:
+      value_preview_kind: class_label_only
+      class_label: "managed_allow_list_only"
+      credential_alias_ref: null
+    target_match: remote_target_match
+    specificity_rank: 2
+    freshness: last_known_good
+    schema_compatibility: exact
+    source_revision_ref: "policy-epoch:14"
+    relation: capped
+    relation_reason: "Policy locks the setting to managed allow-list authority."
+    tie_break_applied: [policy_ceiling]
+    lock_reasons:
+      - reason_code: policy_locked
+        lock_state: locked
+        source_scope: policy
+        source_ref: "policy:network-egress-managed"
+        authority_ref: "authority:signed-admin-bundle"
+        effect: blocks_write
+        blocks_write: true
+        message: "Network allow-list is locked by signed policy."
+        repair_action: request_policy_exception
+        expires_at: null
+        support_export_safe: true
+  - candidate_id: "cand:security.network.allow_list:emergency"
+    scope: emergency_override
+    precedence_rank: 1000
+    source_ref: "emergency:disable-public-network-egress"
+    authority_ref: "authority:signed-emergency-disable"
+    value_present: true
+    value_preview:
+      value_preview_kind: literal_value
+      value: []
+      class_label: null
+      credential_alias_ref: null
+    target_match: remote_target_match
+    specificity_rank: 2
+    freshness: fresh
+    schema_compatibility: exact
+    source_revision_ref: "emergency-rev:20260429:01"
+    relation: winner
+    relation_reason: "Emergency override is the strictest active ceiling and disables outbound allow-list entries."
+    tie_break_applied: [emergency_override]
+    lock_reasons:
+      - reason_code: emergency_override
+        lock_state: locked
+        source_scope: emergency_override
+        source_ref: "emergency:disable-public-network-egress"
+        authority_ref: "authority:signed-emergency-disable"
+        effect: blocks_write
+        blocks_write: true
+        message: "Emergency disable freezes this setting until signed successor evidence clears it."
+        repair_action: inspect_source
+        expires_at: "2026-04-29T07:15:00Z"
+        support_export_safe: true
+shadow_chain:
+  - candidate_id: "cand:security.network.allow_list:product"
+    scope: product_default
+    relation: shadowed
+    shadowed_by_candidate_id: "cand:security.network.allow_list:emergency"
+    visible_to_inspector: true
+    reason_codes: []
+    summary: "Product default was shadowed."
+  - candidate_id: "cand:security.network.allow_list:workspace"
+    scope: workspace_setting
+    relation: capped
+    shadowed_by_candidate_id: "cand:security.network.allow_list:emergency"
+    visible_to_inspector: true
+    reason_codes: [policy_locked, emergency_override]
+    summary: "Workspace allow-list was capped by policy and emergency authority."
+  - candidate_id: "cand:security.network.allow_list:remote"
+    scope: remote_target_setting
+    relation: blocked
+    shadowed_by_candidate_id: null
+    visible_to_inspector: true
+    reason_codes: [secret_required, missing_dependency, degraded_read_only]
+    summary: "Remote target row is degraded read-only and blocked from mutation."
+  - candidate_id: "cand:security.network.allow_list:policy"
+    scope: policy
+    relation: capped
+    shadowed_by_candidate_id: "cand:security.network.allow_list:emergency"
+    visible_to_inspector: true
+    reason_codes: [policy_locked]
+    summary: "Policy lock is active but the emergency override is stricter."
+  - candidate_id: "cand:security.network.allow_list:emergency"
+    scope: emergency_override
+    relation: winner
+    shadowed_by_candidate_id: null
+    visible_to_inspector: true
+    reason_codes: [emergency_override]
+    summary: "Emergency override disables the allow-list."
+blocked_scopes:
+  - scope: remote_target_setting
+    source_ref: "remote-target:build:settings"
+    reason_codes: [secret_required, missing_dependency, degraded_read_only]
+    message: "Remote target value is visible as last-known-good but cannot participate in mutation."
+final_effective:
+  winning_candidate_id: "cand:security.network.allow_list:emergency"
+  final_source_scope: emergency_override
+  final_source_ref: "emergency:disable-public-network-egress"
+  value_preview:
+    value_preview_kind: literal_value
+    value: []
+    class_label: null
+    credential_alias_ref: null
+  resolution_state: capped_by_emergency_override
+  policy_ceiling_candidate_id: "cand:security.network.allow_list:policy"
+  emergency_override_candidate_id: "cand:security.network.allow_list:emergency"
+  stale_read_disclosure: "Remote target data is stale; emergency authority remains fresh and stricter."
+downgrade:
+  downgrade_reasons: [absent_capability, stale_effective_read, degraded_read_only]
+  inspection_honesty: "Remote target value is inspect-only until credential, package, and freshness checks recover."
+  writes_allowed: false
+generated_at: "2026-04-29T01:15:00Z"
+schema_version: "1"
+

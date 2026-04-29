@@ -1,0 +1,187 @@
+# yaml-language-server: $schema=../../../schemas/settings/precedence_resolution.schema.json
+__fixture__:
+  name: write_fanout_policy_blocked
+  scenario: >
+    A user edits ai.default_provider.alias from a settings surface.
+    The preview shows exactly which user and profile artifacts would
+    change and also shows blocked workspace, tenant, and imported
+    settings targets. Policy-controlled and alias-only targets remain
+    visible instead of being silently skipped or broadened.
+  exercised_axes:
+    write_targets:
+      - user
+      - profile
+      - workspace
+      - tenant
+      - imported_settings
+    lock_reasons:
+      - policy_locked
+      - unsupported_scope
+      - migration_alias_only
+      - checkpoint_required
+      - approval_required
+    review_requirements:
+      - show_preview
+      - checkpoint_required
+
+record_kind: write_scope_review_packet
+settings_precedence_schema_version: 1
+review_id: "review-ai-provider-alias-fanout-20260429T012500Z"
+setting_id: ai.default_provider.alias
+target_context:
+  workspace_scope_ref: "workspace:checkout:active"
+  profile_ref: "profile:workbench:default"
+  device_ref: "device:primary"
+  folder_scope_ref: null
+  environment_ref: null
+  remote_target_ref: null
+  tenant_ref: "tenant:managed:opaque"
+  target_ref: "target:local:workspace"
+requested_change:
+  requested_by: "surface:settings-ui"
+  requested_scope: user
+  setting_id: ai.default_provider.alias
+  new_value_preview:
+    value_preview_kind: credential_alias_only
+    class_label: "ai_provider_token_alias"
+    credential_alias_ref: "credential-alias:ai-provider:personal"
+  reason: "User selected a different default AI provider alias."
+fanout_summary:
+  requested_scope: user
+  effective_write_scope: user
+  exact_write_count: 2
+  blocked_count: 3
+  touches_shared_scope: true
+  touches_policy_controlled_scope: true
+  broadens_from_local_to_shared: false
+scope_writes:
+  - target_scope: user
+    write_ref_kind: settings_file
+    write_ref: "settings-file:user-global"
+    authority_ref: "authority:user"
+    will_write: true
+    blocked: false
+    lock_reasons: []
+    review_requirements: [show_preview]
+    checkpoint_ref: "checkpoint:settings:user-global:20260429T012500Z"
+    approval_ticket_ref: null
+    exact_change_summary: "Update user-global ai.default_provider.alias to the selected credential alias."
+  - target_scope: profile
+    write_ref_kind: profile_artifact
+    write_ref: "profile-artifact:workbench-default"
+    authority_ref: "authority:user-profile"
+    will_write: true
+    blocked: false
+    lock_reasons:
+      - reason_code: checkpoint_required
+        lock_state: unlocked
+        source_scope: profile_setting
+        source_ref: "profile-artifact:workbench-default"
+        authority_ref: "authority:user-profile"
+        effect: requires_review
+        blocks_write: false
+        message: "Profile artifact update requires a rollback checkpoint before apply."
+        repair_action: create_checkpoint
+        expires_at: null
+        support_export_safe: true
+    review_requirements: [show_preview, checkpoint_required]
+    checkpoint_ref: "checkpoint:settings:profile-default:20260429T012500Z"
+    approval_ticket_ref: null
+    exact_change_summary: "Persist the provider alias into the active profile artifact."
+  - target_scope: workspace
+    write_ref_kind: workspace_manifest
+    write_ref: "workspace-manifest:active"
+    authority_ref: "authority:workspace-owner"
+    will_write: false
+    blocked: true
+    lock_reasons:
+      - reason_code: policy_locked
+        lock_state: locked
+        source_scope: policy
+        source_ref: "policy:ai-provider-managed"
+        authority_ref: "authority:signed-admin-bundle"
+        effect: blocks_write
+        blocks_write: true
+        message: "Workspace AI provider is locked by managed policy."
+        repair_action: request_policy_exception
+        expires_at: null
+        support_export_safe: true
+      - reason_code: approval_required
+        lock_state: blocked
+        source_scope: workspace_setting
+        source_ref: "workspace-manifest:active"
+        authority_ref: "authority:workspace-owner"
+        effect: requires_review
+        blocks_write: true
+        message: "Changing shared workspace provider authority requires approval."
+        repair_action: request_approval
+        expires_at: null
+        support_export_safe: true
+    review_requirements: [policy_review_required, approval_required]
+    checkpoint_ref: null
+    approval_ticket_ref: null
+    exact_change_summary: "Workspace manifest is not changed."
+  - target_scope: tenant
+    write_ref_kind: tenant_policy_authority
+    write_ref: "tenant-policy:ai-provider"
+    authority_ref: "authority:tenant-admin"
+    will_write: false
+    blocked: true
+    lock_reasons:
+      - reason_code: unsupported_write_fanout
+        lock_state: blocked
+        source_scope: policy
+        source_ref: "tenant-policy:ai-provider"
+        authority_ref: "authority:tenant-admin"
+        effect: blocks_write
+        blocks_write: true
+        message: "User settings edit cannot fan out to tenant policy authority."
+        repair_action: choose_supported_scope
+        expires_at: null
+        support_export_safe: true
+    review_requirements: [policy_review_required]
+    checkpoint_ref: null
+    approval_ticket_ref: null
+    exact_change_summary: "Tenant policy authority is not changed."
+  - target_scope: imported_settings
+    write_ref_kind: imported_artifact
+    write_ref: "imported-artifact:vscode-common"
+    authority_ref: "authority:import-session:common"
+    will_write: false
+    blocked: true
+    lock_reasons:
+      - reason_code: unsupported_scope
+        lock_state: blocked
+        source_scope: imported_setting
+        source_ref: "imported-artifact:vscode-common"
+        authority_ref: "authority:import-session:common"
+        effect: blocks_write
+        blocks_write: true
+        message: "Imported settings artifacts are review sources, not write targets for this edit."
+        repair_action: choose_supported_scope
+        expires_at: null
+        support_export_safe: true
+      - reason_code: migration_alias_only
+        lock_state: alias_only
+        source_scope: imported_setting
+        source_ref: "imported-artifact:vscode-common"
+        authority_ref: "authority:migration-table"
+        effect: requires_review
+        blocks_write: true
+        message: "Imported provider id exists only as a migration alias."
+        repair_action: open_migration_review
+        expires_at: null
+        support_export_safe: true
+    review_requirements: [migration_review_required]
+    checkpoint_ref: null
+    approval_ticket_ref: null
+    exact_change_summary: "Imported artifact is not rewritten."
+review_requirements: [show_preview, checkpoint_required]
+downgrade:
+  downgrade_reasons: []
+  inspection_honesty: "Preview was computed from a fresh effective-setting read; blocked shared and policy targets are explicit."
+  writes_allowed: true
+precedence_resolution_ref: "res-ai-provider-alias-current-20260429T012459Z"
+generated_at: "2026-04-29T01:25:00Z"
+schema_version: "1"
+

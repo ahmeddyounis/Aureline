@@ -1,0 +1,680 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/precedence_resolution.schema.json",
+  "title": "Aureline settings precedence-resolution and write-scope review packet",
+  "description": "Boundary schema for user-visible settings precedence resolution and write-scope review. The setting-definition registry remains the schema truth; this packet is the reusable grammar inspectors, write previews, migration, sync, support, and export surfaces use to explain which scope won, which scopes were shadowed, which scopes were blocked, which authority capped the result, and exactly which files or authorities a proposed write would touch. Raw secrets, raw paths, raw hostnames, raw tenant identifiers, and raw source content never appear.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/precedence_resolution_packet" },
+    { "$ref": "#/$defs/write_scope_review_packet" }
+  ],
+  "$defs": {
+    "settings_precedence_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the precedence, lock-state, and write-scope grammar."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Opaque ref safe for UI, CLI, support export, audit, and fixtures. Do not place raw paths, URLs, hostnames, tokens, tenant ids, or source text here."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short prose safe for review surfaces and support exports. Must not contain raw secrets, raw URLs, raw hostnames, raw paths, raw command lines, raw logs, or raw source content."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Producer-local monotonic timestamp rendered as an RFC 3339 string at the schema boundary."
+    },
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical stable dotted lower-snake setting id after alias redirection."
+    },
+    "resolution_scope": {
+      "type": "string",
+      "enum": [
+        "product_default",
+        "package_default",
+        "template_default",
+        "imported_setting",
+        "profile_setting",
+        "user_setting",
+        "device_setting",
+        "workspace_setting",
+        "folder_setting",
+        "environment_setting",
+        "remote_target_setting",
+        "session_override",
+        "policy",
+        "emergency_override"
+      ],
+      "description": "User-visible precedence scope. These scopes map onto the lower-level settings ADR scopes but preserve package, template, environment, remote-target, policy, and emergency distinctions for inspectors."
+    },
+    "target_match_class": {
+      "type": "string",
+      "enum": [
+        "global",
+        "profile_match",
+        "device_match",
+        "workspace_match",
+        "folder_match",
+        "environment_match",
+        "remote_target_match",
+        "wrong_target",
+        "not_applicable"
+      ],
+      "description": "How the candidate's target binding relates to the active inspection target."
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "last_known_good",
+        "stale",
+        "unknown",
+        "unavailable"
+      ],
+      "description": "Freshness state for the candidate value or authority."
+    },
+    "schema_compatibility": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compatible",
+        "mixed_version",
+        "unsupported_newer",
+        "unsupported_older",
+        "alias_only",
+        "unknown"
+      ],
+      "description": "Compatibility state for the value shape and setting-definition row."
+    },
+    "candidate_relation": {
+      "type": "string",
+      "enum": [
+        "winner",
+        "shadowed",
+        "blocked",
+        "capped",
+        "ignored",
+        "downgraded"
+      ],
+      "description": "How this candidate participates in the final explanation."
+    },
+    "resolution_state": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "capped_by_policy",
+        "capped_by_emergency_override",
+        "degraded_read_only",
+        "stale_read",
+        "mixed_version_downgraded",
+        "alias_only",
+        "conflict_requires_review"
+      ],
+      "description": "Final inspector state. Non-exact states require a downgrade block or lock reason stack."
+    },
+    "tie_break_rule": {
+      "type": "string",
+      "enum": [
+        "higher_precedence_rank",
+        "more_specific_scope",
+        "explicit_target_match",
+        "freshest_non_stale",
+        "highest_schema_compatibility",
+        "highest_source_revision",
+        "policy_ceiling",
+        "emergency_override",
+        "stable_source_ref"
+      ],
+      "description": "Deterministic tie-break rule applied to this candidate."
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "mixed_version_settings",
+        "absent_capability",
+        "imported_alias",
+        "stale_effective_read",
+        "degraded_read_only"
+      ],
+      "description": "Why the inspector downgraded certainty or write posture."
+    },
+    "review_requirement": {
+      "type": "string",
+      "enum": [
+        "none",
+        "show_preview",
+        "checkpoint_required",
+        "approval_required",
+        "policy_review_required",
+        "manual_retarget_required",
+        "secret_binding_required",
+        "capability_repair_required",
+        "migration_review_required"
+      ],
+      "description": "Stable review requirement for a proposed write target."
+    },
+    "write_target_scope": {
+      "type": "string",
+      "enum": [
+        "user",
+        "workspace",
+        "folder",
+        "profile",
+        "device",
+        "tenant",
+        "imported_settings",
+        "remote_target",
+        "environment",
+        "policy"
+      ],
+      "description": "Write fan-out target class. Write previews use this instead of silently broadening from local to shared or policy-controlled authority."
+    },
+    "write_ref_kind": {
+      "type": "string",
+      "enum": [
+        "settings_file",
+        "workspace_manifest",
+        "folder_settings_file",
+        "profile_artifact",
+        "device_registry_row",
+        "tenant_policy_authority",
+        "imported_artifact",
+        "remote_target_authority",
+        "environment_authority",
+        "policy_bundle"
+      ],
+      "description": "Kind of file or authority a write would touch."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Checked-in fixture metadata. Production emitters omit this field."
+    },
+    "value_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_preview_kind"],
+      "properties": {
+        "value_preview_kind": {
+          "type": "string",
+          "enum": [
+            "literal_value",
+            "redacted_shape_preserved",
+            "class_label_only",
+            "credential_alias_only",
+            "excluded_from_export",
+            "absent"
+          ]
+        },
+        "value": {
+          "description": "Redacted preview payload. Omitted when value_preview_kind is absent or excluded_from_export."
+        },
+        "class_label": {
+          "type": ["string", "null"],
+          "description": "Class label used when the literal value cannot be exported."
+        },
+        "credential_alias_ref": {
+          "type": ["string", "null"],
+          "description": "Broker alias handle only; never raw secret material."
+        }
+      },
+      "description": "Redacted value preview used by inspectors and write previews."
+    },
+    "lock_state_reason": {
+      "$ref": "./lock_state_reason.schema.json#/$defs/lock_state_reason"
+    },
+    "target_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_scope_ref",
+        "target_ref"
+      ],
+      "properties": {
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "profile_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "device_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "folder_scope_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "environment_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "remote_target_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "tenant_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "target_ref": { "$ref": "#/$defs/opaque_ref" }
+      },
+      "description": "Inspection target. Exact target refs let inspectors explain wrong-target and remote-target downgrades without exposing raw paths or hostnames."
+    },
+    "candidate_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "scope",
+        "precedence_rank",
+        "source_ref",
+        "authority_ref",
+        "value_present",
+        "target_match",
+        "freshness",
+        "schema_compatibility",
+        "relation",
+        "tie_break_applied",
+        "lock_reasons"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/opaque_ref" },
+        "scope": { "$ref": "#/$defs/resolution_scope" },
+        "precedence_rank": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rank from the published lattice. Policy and emergency are ceilings, not ordinary preference writes, and use high ranks."
+        },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "authority_ref": { "$ref": "#/$defs/opaque_ref" },
+        "value_present": { "type": "boolean" },
+        "value_preview": {
+          "anyOf": [
+            { "$ref": "#/$defs/value_preview" },
+            { "type": "null" }
+          ]
+        },
+        "target_match": { "$ref": "#/$defs/target_match_class" },
+        "specificity_rank": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Higher value means more specific inside the same precedence rank, such as a deeper folder or exact remote target."
+        },
+        "freshness": { "$ref": "#/$defs/freshness_state" },
+        "schema_compatibility": { "$ref": "#/$defs/schema_compatibility" },
+        "source_revision_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "relation": { "$ref": "#/$defs/candidate_relation" },
+        "relation_reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "tie_break_applied": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tie_break_rule" },
+          "description": "Ordered tie-break rules that explain why this row won, lost, capped, or was blocked."
+        },
+        "lock_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lock_state_reason" }
+        }
+      },
+      "description": "One candidate source considered by the inspector."
+    },
+    "shadow_chain_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "scope",
+        "relation",
+        "visible_to_inspector",
+        "summary"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/opaque_ref" },
+        "scope": { "$ref": "#/$defs/resolution_scope" },
+        "relation": { "$ref": "#/$defs/candidate_relation" },
+        "shadowed_by_candidate_id": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "visible_to_inspector": {
+          "type": "boolean",
+          "const": true,
+          "description": "Every shadow-chain row remains visible to inspectors."
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "$ref": "./lock_state_reason.schema.json#/$defs/lock_reason_code"
+          }
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Compact chain row used by UI, CLI, support, and export. It points back to the full candidate row."
+    },
+    "blocked_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "source_ref",
+        "reason_codes",
+        "message"
+      ],
+      "properties": {
+        "scope": { "$ref": "#/$defs/resolution_scope" },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "./lock_state_reason.schema.json#/$defs/lock_reason_code"
+          }
+        },
+        "message": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One blocked source scope. Inspectors render these separately from ordinary shadowed scopes."
+    },
+    "final_effective_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "winning_candidate_id",
+        "final_source_scope",
+        "final_source_ref",
+        "value_preview",
+        "resolution_state"
+      ],
+      "properties": {
+        "winning_candidate_id": { "$ref": "#/$defs/opaque_ref" },
+        "final_source_scope": { "$ref": "#/$defs/resolution_scope" },
+        "final_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "value_preview": { "$ref": "#/$defs/value_preview" },
+        "resolution_state": { "$ref": "#/$defs/resolution_state" },
+        "policy_ceiling_candidate_id": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "emergency_override_candidate_id": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "stale_read_disclosure": {
+          "anyOf": [
+            { "$ref": "#/$defs/reviewable_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Final value and source summary. Policy and emergency ceilings are named explicitly when they cap or replace the layered winner."
+    },
+    "downgrade_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgrade_reasons",
+        "inspection_honesty",
+        "writes_allowed"
+      ],
+      "properties": {
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" },
+          "description": "Reasons that reduce certainty or writeability. Empty means exact."
+        },
+        "inspection_honesty": { "$ref": "#/$defs/reviewable_sentence" },
+        "writes_allowed": {
+          "type": "boolean",
+          "description": "False when the current read is inspect-only until freshness, compatibility, dependency, or alias repair completes."
+        }
+      },
+      "description": "Downgrade disclosure. Mixed versions, absent capabilities, imported aliases, and stale reads must be visible here."
+    },
+    "precedence_resolution_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_precedence_schema_version",
+        "resolution_id",
+        "setting_id",
+        "target_context",
+        "candidates",
+        "shadow_chain",
+        "blocked_scopes",
+        "final_effective",
+        "downgrade",
+        "generated_at",
+        "schema_version"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "precedence_resolution_packet"
+        },
+        "settings_precedence_schema_version": { "$ref": "#/$defs/settings_precedence_schema_version" },
+        "resolution_id": { "$ref": "#/$defs/opaque_ref" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "target_context": { "$ref": "#/$defs/target_context" },
+        "candidates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/candidate_source" }
+        },
+        "shadow_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/shadow_chain_entry" }
+        },
+        "blocked_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_scope_entry" }
+        },
+        "final_effective": { "$ref": "#/$defs/final_effective_block" },
+        "downgrade": { "$ref": "#/$defs/downgrade_block" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_version": {
+          "type": "string",
+          "const": "1"
+        }
+      },
+      "description": "One inspector-facing precedence resolution packet."
+    },
+    "requested_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_by",
+        "requested_scope",
+        "setting_id",
+        "new_value_preview"
+      ],
+      "properties": {
+        "requested_by": { "$ref": "#/$defs/opaque_ref" },
+        "requested_scope": { "$ref": "#/$defs/write_target_scope" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "new_value_preview": { "$ref": "#/$defs/value_preview" },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "The initiating edit before fan-out evaluation."
+    },
+    "scope_write_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_scope",
+        "write_ref_kind",
+        "write_ref",
+        "authority_ref",
+        "will_write",
+        "blocked",
+        "lock_reasons",
+        "review_requirements",
+        "exact_change_summary"
+      ],
+      "properties": {
+        "target_scope": { "$ref": "#/$defs/write_target_scope" },
+        "write_ref_kind": { "$ref": "#/$defs/write_ref_kind" },
+        "write_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Exact logical file or authority ref the write would touch."
+        },
+        "authority_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Authority that owns the write target."
+        },
+        "will_write": {
+          "type": "boolean",
+          "description": "True only when the write is admitted and would change this target."
+        },
+        "blocked": {
+          "type": "boolean",
+          "description": "True when this target is refused. Blocked targets remain visible."
+        },
+        "lock_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lock_state_reason" }
+        },
+        "review_requirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_requirement" }
+        },
+        "checkpoint_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ]
+        },
+        "exact_change_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One file or authority that a write preview considered. Admitted and blocked targets use the same row shape."
+    },
+    "fanout_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_scope",
+        "effective_write_scope",
+        "exact_write_count",
+        "blocked_count",
+        "touches_shared_scope",
+        "touches_policy_controlled_scope",
+        "broadens_from_local_to_shared"
+      ],
+      "properties": {
+        "requested_scope": { "$ref": "#/$defs/write_target_scope" },
+        "effective_write_scope": { "$ref": "#/$defs/write_target_scope" },
+        "exact_write_count": { "type": "integer", "minimum": 0 },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "touches_shared_scope": { "type": "boolean" },
+        "touches_policy_controlled_scope": { "type": "boolean" },
+        "broadens_from_local_to_shared": {
+          "type": "boolean",
+          "description": "True when the admitted write set would broaden from local-only to shared or tenant authority. Such packets require explicit review and may be denied."
+        }
+      },
+      "description": "Review header. Surfaces render this before apply so local edits cannot silently fan out into shared or policy-controlled scopes."
+    },
+    "write_scope_review_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_precedence_schema_version",
+        "review_id",
+        "setting_id",
+        "target_context",
+        "requested_change",
+        "fanout_summary",
+        "scope_writes",
+        "review_requirements",
+        "downgrade",
+        "generated_at",
+        "schema_version"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "write_scope_review_packet"
+        },
+        "settings_precedence_schema_version": { "$ref": "#/$defs/settings_precedence_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_ref" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "target_context": { "$ref": "#/$defs/target_context" },
+        "requested_change": { "$ref": "#/$defs/requested_change" },
+        "fanout_summary": { "$ref": "#/$defs/fanout_summary" },
+        "scope_writes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_write_entry" }
+        },
+        "review_requirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_requirement" }
+        },
+        "downgrade": { "$ref": "#/$defs/downgrade_block" },
+        "precedence_resolution_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_ref" },
+            { "type": "null" }
+          ],
+          "description": "Optional resolution_id for the effective-setting read that this write preview was computed against."
+        },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_version": {
+          "type": "string",
+          "const": "1"
+        }
+      },
+      "description": "One write-scope review packet. It names every exact file or authority that would change and every blocked scope."
+    }
+  }
+}

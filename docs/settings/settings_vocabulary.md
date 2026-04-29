@@ -33,6 +33,23 @@ must be updated in the same change.
   `checkpoint` block (rollback checkpoint and approval ticket
   refs), and the structured change-preview delta every
   preview, apply, and rollback surface reads.
+- [`/docs/settings/precedence_lock_and_write_scope_contract.md`](./precedence_lock_and_write_scope_contract.md)
+  — inspector and mutation-review contract that separates schema truth
+  from user-visible resolution truth. It names the precedence lattice
+  across product defaults, packages, templates, imports, profile,
+  user, device, workspace, folder, environment, remote target, policy,
+  and emergency overrides; the lock-state reason grammar; and the
+  write-scope review packet.
+- [`/schemas/settings/precedence_resolution.schema.json`](../../schemas/settings/precedence_resolution.schema.json)
+  — boundary schema for `precedence_resolution_packet` and
+  `write_scope_review_packet`. Inspectors use it to show which scope
+  won, which scopes were shadowed or blocked, and which exact files or
+  authorities a proposed write would change.
+- [`/schemas/settings/lock_state_reason.schema.json`](../../schemas/settings/lock_state_reason.schema.json)
+  — boundary schema for reusable lock-state reason rows such as
+  `inherited`, `policy_locked`, `unsupported_scope`, `wrong_target`,
+  `secret_required`, `missing_dependency`, `degraded_read_only`, and
+  `migration_alias_only`.
 - [`/docs/settings/schema_registry_seed.md`](./schema_registry_seed.md)
   — schema registry publishing contract. Names `$id` / version URI
   conventions, the unknown-field policy, the JSONC
@@ -60,6 +77,11 @@ must be updated in the same change.
   — six short fixtures exercising the scope set, the precedence order,
   the effective-setting record shape, the lock states, the denial
   reasons, the preview classes, and the control-stack fields.
+- [`/fixtures/settings/precedence_cases/`](../../fixtures/settings/precedence_cases/)
+  — worked fixtures for inspector precedence packets and write-scope
+  review packets, including blocked scopes, policy and emergency
+  ceilings, stale reads, mixed-version downgrades, alias-only imports,
+  and fan-out reviews.
 - [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
   — class-level registry the schema-registry and support-bundle
   exporter quote when a settings-related export, sync packet, or
