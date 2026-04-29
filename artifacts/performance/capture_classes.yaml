@@ -1,0 +1,466 @@
+# Performance capture-class registry.
+#
+# Machine-readable companion to
+# docs/performance/profiling_trace_replay_contract.md. Consumers resolve
+# capture classes, replay support levels, export postures, comparison
+# effects, and required evidence fields from this file instead of
+# inventing viewer-local vocabulary.
+
+schema_version: 1
+registry_id: aureline.performance_capture_classes
+registry_revision: 1
+status: seeded
+
+contract_doc_ref: docs/performance/profiling_trace_replay_contract.md
+capture_session_schema_ref: schemas/performance/capture_session.schema.json
+regression_baseline_schema_ref: schemas/performance/regression_baseline.schema.json
+fixture_manifest_ref: fixtures/performance/capture_cases/manifest.yaml
+
+shared_required_field_groups:
+  exact_build_identity:
+    required_fields:
+      - exact_build_identity_ref
+      - build_id
+      - source_revision_ref
+      - build_mode
+      - symbol_manifest_ref
+      - source_map_manifest_ref
+      - debug_artifact_manifest_ref
+  target_context:
+    required_fields:
+      - execution_context_id
+      - target_ref
+      - target_kind
+      - workspace_ref
+      - workset_ref
+      - runtime_ref
+      - toolchain_ref
+      - deployment_profile_class
+      - local_remote_class
+  environment_fingerprint:
+    required_fields:
+      - environment_fingerprint_id
+      - host_os
+      - architecture
+      - hardware_profile_ref
+      - power_posture_ref
+      - thermal_posture_ref
+      - network_posture_ref
+      - container_or_remote_ref
+      - environment_digest_ref
+      - capture_clock
+  retention_and_redaction:
+    required_fields:
+      - record_class_ref
+      - retention_class
+      - retained_until
+      - expiry_status
+      - redaction_profile_ref
+      - data_class_ceiling
+      - secret_class_ceiling
+      - redaction_status
+      - omitted_sensitive_fields
+  recording_replay_integrity:
+    required_fields:
+      - recording_mode_state
+      - chronology_support_class
+      - reverse_step_available
+      - reverse_step_availability_reason
+      - support_level
+      - allowed_verbs
+      - digest_verification_status
+      - artifact_mismatch_status
+  overhead_storage:
+    required_fields:
+      - overhead_class
+      - storage_band
+      - overhead_note_ref
+      - storage_note_ref
+      - raw_payload_size_bytes
+
+capture_classes:
+  - class_id: cpu_profile
+    title: CPU sample profile
+    evidence_shape: sampled_stacks_or_wall_time_profile
+    default_replay_support_level: not_replayable
+    required_field_groups:
+      - exact_build_identity
+      - target_context
+      - environment_fingerprint
+      - retention_and_redaction
+      - recording_replay_integrity
+      - overhead_storage
+    required_class_fields:
+      - sampling_period_ref
+      - symbol_manifest_ref
+      - source_map_manifest_ref
+    default_export_posture:
+      summary: manifest_with_digests
+      raw: local_only_raw
+    open_format_compatibility:
+      claimed_formats:
+        - pprof_profile
+        - speedscope_json
+      compatibility_rule: >
+        A format claim is valid only when the exporter version,
+        sample-unit mapping, folded-stack transform, redaction
+        transform, digest refs, and omitted fields are recorded in the
+        capture session.
+    downgrade_rule: >
+      Unsymbolized stacks remain raw-address or module-range views and
+      do not become source-linked flamegraphs.
+
+  - class_id: memory_sample
+    title: Memory or allocation sample
+    evidence_shape: heap_sample_allocation_trace_or_leak_snapshot
+    default_replay_support_level: not_replayable
+    required_field_groups:
+      - exact_build_identity
+      - target_context
+      - environment_fingerprint
+      - retention_and_redaction
+      - recording_replay_integrity
+      - overhead_storage
+    required_class_fields:
+      - allocator_runtime_ref
+      - allocation_mode_ref
+      - truncation_state_ref
+    default_export_posture:
+      summary: manifest_with_digests
+      raw: admin_policy_required
+    open_format_compatibility:
+      claimed_formats:
+        - documented_aureline_json
+      compatibility_rule: >
+        Memory payloads often contain user content or class/value names;
+        upload-safe claims require an explicit omitted-sensitive-fields
+        list and redaction report.
+    downgrade_rule: >
+      Redacted or truncated samples keep an incomplete state and cannot
+      be compared as full heap snapshots.
+
+  - class_id: render_timeline
+    title: Render timeline
+    evidence_shape: frame_paint_compositor_or_surface_timeline
+    default_replay_support_level: not_replayable
+    required_field_groups:
+      - exact_build_identity
+      - target_context
+      - environment_fingerprint
+      - retention_and_redaction
+      - recording_replay_integrity
+      - overhead_storage
+    required_class_fields:
+      - display_class_ref
+      - clock_domain_ref
+      - frame_sequence_ref
+    default_export_posture:
+      summary: manifest_with_digests
+      raw: upload_safe_after_redaction
+    open_format_compatibility:
+      claimed_formats:
+        - chrome_trace_json
+        - perfetto_trace
+      compatibility_rule: >
+        Exporters must record clock-domain translation, dropped-frame
+        treatment, display class, and any omitted surface names.
+    downgrade_rule: >
+      Partial frame captures are advisory only unless the baseline key
+      declares the same partial capture mode.
+
+  - class_id: trace_span_set
+    title: Trace span set
+    evidence_shape: scheduler_task_runtime_or_distributed_span_set
+    default_replay_support_level: not_replayable
+    required_field_groups:
+      - exact_build_identity
+      - target_context
+      - environment_fingerprint
+      - retention_and_redaction
+      - recording_replay_integrity
+      - overhead_storage
+    required_class_fields:
+      - trace_backend_family_ref
+      - clock_source_ref
+      - span_correlation_refs
+      - chunk_manifest_ref
+    default_export_posture:
+      summary: manifest_with_digests
+      raw: upload_safe_after_redaction
+    open_format_compatibility:
+      claimed_formats:
+        - otlp_trace
+        - chrome_trace_json
+      compatibility_rule: >
+        Format claims must preserve span ids, parent ids, clock source,
+        trace-id hashing, redaction transform, and omitted attributes.
+    downgrade_rule: >
+      Partial span sets remain explicitly partial and do not enter
+      blocking comparisons by default.
+
+  - class_id: io_capture
+    title: I/O capture
+    evidence_shape: filesystem_network_terminal_database_or_package_io_summary
+    default_replay_support_level: not_replayable
+    required_field_groups:
+      - exact_build_identity
+      - target_context
+      - environment_fingerprint
+      - retention_and_redaction
+      - recording_replay_integrity
+      - overhead_storage
+    required_class_fields:
+      - io_surface_ref
+      - side_effect_class_ref
+      - payload_summary_ref
+    default_export_posture:
+      summary: summary_only
+      raw: blocked_sensitive
+    open_format_compatibility:
+      claimed_formats:
+        - documented_aureline_json
+      compatibility_rule: >
+        Raw I/O payloads may include command lines, SQL text,
+        filesystem paths, or secret-adjacent values. Upload-safe export
+        is summary-first and must list every omitted field class.
+    downgrade_rule: >
+      Captures with raw payloads omitted are comparable only on the
+      summarized metric dimensions they still carry.
+
+  - class_id: replay_capture
+    title: Record and replay capture
+    evidence_shape: replay_sidecar_chronology_descriptor_and_checkpoint_map
+    default_replay_support_level: record_only
+    required_field_groups:
+      - exact_build_identity
+      - target_context
+      - environment_fingerprint
+      - retention_and_redaction
+      - recording_replay_integrity
+      - overhead_storage
+    required_class_fields:
+      - replay_session_id
+      - source_capture_session_ref
+      - backend_runtime_tuple_ref
+      - checkpoint_map_ref
+      - allowed_verbs
+      - collaboration_shareability
+      - notebook_parity
+      - runtime_parity
+    default_export_posture:
+      summary: manifest_with_digests
+      raw: local_only_raw
+    open_format_compatibility:
+      claimed_formats:
+        - documented_aureline_json
+      compatibility_rule: >
+        Replay sidecars are local-only by default. Mirroring or support
+        upload requires explicit policy or consent plus backend version,
+        runtime/toolchain tuple, determinism caveats, and digest refs.
+    downgrade_rule: >
+      Unsupported reverse step becomes record_only, profile_only, or
+      unsupported_mismatch. It never collapses to a generic debug state.
+
+  - class_id: regression_baseline
+    title: Regression baseline
+    evidence_shape: baseline_key_metric_set_variance_and_comparison_records
+    default_replay_support_level: not_replayable
+    required_field_groups:
+      - exact_build_identity
+      - target_context
+      - environment_fingerprint
+      - retention_and_redaction
+      - recording_replay_integrity
+      - overhead_storage
+    required_class_fields:
+      - workload_id
+      - corpus_ref
+      - corpus_revision
+      - baseline_key
+      - metric_set
+      - sample_statistics
+      - comparison_policy
+      - change_records
+    default_export_posture:
+      summary: manifest_with_digests
+      raw: local_only_raw
+    open_format_compatibility:
+      claimed_formats:
+        - documented_aureline_json
+      compatibility_rule: >
+        Baseline exports claim only the schema-bound JSON/YAML record
+        unless a linked raw capture separately claims a specific open
+        format.
+    downgrade_rule: >
+      Corpus, hardware, build, environment, runtime, capture backend,
+      recording mode, or redaction drift must be typed before a delta is
+      interpreted.
+
+replay_support_levels:
+  - support_level: not_replayable
+    visible_controls: []
+    rule: No replay controls may be shown.
+  - support_level: record_only
+    visible_controls:
+      - inspect_timeline
+      - export_bookmark
+    rule: Recording exists but reverse execution or deterministic replay is not claimed.
+  - support_level: profile_only
+    visible_controls:
+      - inspect_timeline
+    rule: Capture can explain profile chronology but cannot replay execution.
+  - support_level: replay_view_only
+    visible_controls:
+      - inspect_timeline
+      - scrub_timeline
+      - inspect_frame
+    rule: Read-only chronology inspection is allowed; execution control is hidden.
+  - support_level: replay_read_only
+    visible_controls:
+      - inspect_timeline
+      - scrub_timeline
+      - step_forward
+      - reverse_step
+      - inspect_frame
+      - share_read_only_session
+    rule: Read-only replay controls may be shared; live debug control handoff is separate.
+  - support_level: replay_interactive
+    visible_controls:
+      - inspect_timeline
+      - scrub_timeline
+      - step_forward
+      - reverse_step
+      - reverse_continue
+      - inspect_frame
+      - inspect_memory
+      - share_read_only_session
+    rule: Interactive controls require backend, runtime, toolchain, artifact, and policy match.
+  - support_level: unsupported_mismatch
+    visible_controls:
+      - restart_with_recording
+    rule: Existing artifact is inspectable only as mismatch evidence.
+
+reverse_step_availability_reasons:
+  - supported
+  - not_replay_capture
+  - backend_not_supported
+  - recording_not_started
+  - recording_expired
+  - artifact_mismatch
+  - symbols_or_runtime_mismatch
+  - policy_disabled
+  - capture_mode_summary_only
+
+recording_mode_states:
+  - not_recording
+  - live_recording
+  - recorded
+  - imported_recording
+  - recording_unavailable
+  - expired
+  - artifact_mismatch
+
+export_rules:
+  - rule_id: export.summary_first
+    applies_to:
+      - cpu_profile
+      - memory_sample
+      - render_timeline
+      - trace_span_set
+      - io_capture
+      - replay_capture
+      - regression_baseline
+    default_summary_posture: manifest_with_digests
+    requirement: >
+      Review, support, and release packets should cite summary
+      manifests and digests before considering raw payload export.
+  - rule_id: export.raw_local_first
+    applies_to:
+      - memory_sample
+      - io_capture
+      - replay_capture
+    default_raw_posture: local_only_raw
+    requirement: >
+      Raw payloads stay local unless explicit consent or admin policy
+      records the upload decision and redaction report.
+  - rule_id: export.omitted_fields_visible
+    applies_to:
+      - cpu_profile
+      - memory_sample
+      - render_timeline
+      - trace_span_set
+      - io_capture
+      - replay_capture
+      - regression_baseline
+    requirement: >
+      Redacted exports must list omitted_sensitive_fields; an empty list
+      means nothing was omitted, not that the producer forgot to report.
+  - rule_id: export.open_format_claims_are_narrow
+    applies_to:
+      - cpu_profile
+      - render_timeline
+      - trace_span_set
+    requirement: >
+      Open-format compatibility is claimed only for the named format
+      profile and exporter version. Redacted or summarized exports must
+      record which native fields did not survive the transform.
+
+comparison_effects:
+  - effect_class: block_comparison
+    meaning: Numeric deltas must not be interpreted until the axis matches or a new baseline is created.
+  - effect_class: advisory_only
+    meaning: Side-by-side display is allowed with a visible mismatch label.
+  - effect_class: quarantine
+    meaning: Capture or baseline is retained for diagnosis but excluded from trend and gate decisions.
+  - effect_class: reset_baseline
+    meaning: A new baseline must be recorded before future blocking comparison resumes.
+  - effect_class: no_effect
+    meaning: Axis change was declared and approved as non-material for this baseline key.
+
+baseline_change_axes:
+  - axis: workload_id
+    default_effect: block_comparison
+  - axis: corpus_ref
+    default_effect: reset_baseline
+  - axis: corpus_revision
+    default_effect: reset_baseline
+  - axis: execution_location
+    default_effect: advisory_only
+  - axis: runtime_ref
+    default_effect: advisory_only
+  - axis: toolchain_ref
+    default_effect: advisory_only
+  - axis: capture_backend_family
+    default_effect: block_comparison
+  - axis: build_mode
+    default_effect: advisory_only
+  - axis: exact_build_lineage
+    default_effect: block_comparison
+  - axis: hardware_profile
+    default_effect: advisory_only
+  - axis: power_posture
+    default_effect: advisory_only
+  - axis: thermal_posture
+    default_effect: advisory_only
+  - axis: environment_fingerprint
+    default_effect: advisory_only
+  - axis: recording_mode
+    default_effect: block_comparison
+  - axis: redaction_profile
+    default_effect: advisory_only
+
+packet_reuse_rules:
+  - consumer_family: support_bundle
+    rule: >
+      Support bundles cite capture_session_id or baseline_id by
+      reference and include raw payloads only under the capture export
+      policy.
+  - consumer_family: review_packet
+    rule: >
+      Review packets cite comparison_id and baseline_id rather than
+      copying trace bodies into review metadata.
+  - consumer_family: release_evidence_packet
+    rule: >
+      Release evidence may aggregate summaries but must preserve source
+      capture refs, baseline lineage, variance note, and redaction
+      posture.

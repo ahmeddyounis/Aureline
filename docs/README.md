@@ -1110,6 +1110,15 @@ code.
   reference rows without pretending they are identical. Reuses the same
   hardware rows, environment rows, display classes, and lab-image
   revisions the benchmark dashboard and publication packet now cite.
+- [`performance/profiling_trace_replay_contract.md`](./performance/profiling_trace_replay_contract.md)
+  — shared contract for governed CPU profiles, memory samples, render
+  timelines, trace span sets, I/O captures, replay captures, regression
+  baselines, comparison records, raw/summary export posture, retention,
+  redaction, and artifact mismatch. Boundary schemas live in
+  [`/schemas/performance/`](../schemas/performance/); class registry in
+  [`/artifacts/performance/capture_classes.yaml`](../artifacts/performance/capture_classes.yaml);
+  worked cases in
+  [`/fixtures/performance/capture_cases/`](../fixtures/performance/capture_cases/).
 - [`commands/command_descriptor_contract.md`](./commands/command_descriptor_contract.md)
   — command-descriptor contract every palette, application /
   context menu, keybinding / shortcut-help layer, CLI help, AI-

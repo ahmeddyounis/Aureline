@@ -1,0 +1,660 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/performance/capture_session.schema.json",
+  "title": "Aureline performance capture-session contract",
+  "description": "Boundary schema for one governed performance capture session. Profiles, traces, replay captures, imported artifacts, support-bundle evidence, review packets, and regression summaries use this manifest so every artifact carries exact build, target context, environment fingerprint, capture class, recording mode, replay capability, retention, redaction, export posture, and artifact-integrity state without relying on free-form notes.",
+  "$ref": "#/$defs/performance_capture_session_record",
+  "$defs": {
+    "capture_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the performance capture-session contract."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "performance_capture_session_record"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable ref. Raw paths, raw URLs, raw command lines, raw payload bytes, raw environment values, and raw secret material never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "short_note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "capture_class": {
+      "type": "string",
+      "enum": [
+        "cpu_profile",
+        "memory_sample",
+        "render_timeline",
+        "trace_span_set",
+        "io_capture",
+        "replay_capture",
+        "regression_baseline"
+      ]
+    },
+    "capture_origin_class": {
+      "type": "string",
+      "enum": [
+        "live_capture",
+        "imported_artifact",
+        "cached_local_evidence",
+        "support_retained_artifact",
+        "review_packet_projection",
+        "baseline_store_projection"
+      ]
+    },
+    "capture_status_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "partial",
+        "failed",
+        "expired",
+        "artifact_mismatch",
+        "source_unavailable"
+      ]
+    },
+    "build_mode_class": {
+      "type": "string",
+      "enum": ["debug", "release", "instrumented", "asan", "tsan", "profiled", "unknown"]
+    },
+    "target_kind_class": {
+      "type": "string",
+      "enum": [
+        "process",
+        "task_run",
+        "render_surface",
+        "io_stream",
+        "notebook_kernel",
+        "remote_agent",
+        "benchmark_harness",
+        "imported_artifact"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "enterprise_online",
+        "self_hosted",
+        "managed_workspace",
+        "air_gapped",
+        "unknown"
+      ]
+    },
+    "local_remote_class": {
+      "type": "string",
+      "enum": ["local_desktop", "remote_workspace", "managed_workspace", "ci_runner", "imported_only"]
+    },
+    "host_os_class": {
+      "type": "string",
+      "enum": ["macos", "linux", "windows", "unknown"]
+    },
+    "architecture_class": {
+      "type": "string",
+      "enum": ["aarch64", "x86_64", "wasm32", "unknown"]
+    },
+    "capture_clock_class": {
+      "type": "string",
+      "enum": ["monotonic_single_host", "wall_clock_utc", "distributed_trace_clock", "synthetic_fixture_clock", "unknown"]
+    },
+    "recording_mode_state": {
+      "type": "string",
+      "enum": [
+        "not_recording",
+        "live_recording",
+        "recorded",
+        "imported_recording",
+        "recording_unavailable",
+        "expired",
+        "artifact_mismatch"
+      ]
+    },
+    "chronology_support_class": {
+      "type": "string",
+      "enum": ["none", "wall_clock_only", "monotonic_timeline", "partial_replay", "deterministic_replay"]
+    },
+    "reverse_step_availability_reason": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "not_replay_capture",
+        "backend_not_supported",
+        "recording_not_started",
+        "recording_expired",
+        "artifact_mismatch",
+        "symbols_or_runtime_mismatch",
+        "policy_disabled",
+        "capture_mode_summary_only"
+      ]
+    },
+    "replay_support_level": {
+      "type": "string",
+      "enum": [
+        "not_replayable",
+        "record_only",
+        "profile_only",
+        "replay_view_only",
+        "replay_read_only",
+        "replay_interactive",
+        "unsupported_mismatch"
+      ]
+    },
+    "replay_verb": {
+      "type": "string",
+      "enum": [
+        "inspect_timeline",
+        "scrub_timeline",
+        "step_forward",
+        "reverse_step",
+        "reverse_continue",
+        "inspect_frame",
+        "inspect_memory",
+        "export_bookmark",
+        "share_read_only_session",
+        "restart_with_recording"
+      ]
+    },
+    "shareability_class": {
+      "type": "string",
+      "enum": ["not_shareable", "local_read_only", "team_read_only", "support_case_read_only", "managed_archive_read_only"]
+    },
+    "parity_class": {
+      "type": "string",
+      "enum": ["not_applicable", "parity_confirmed", "parity_degraded", "bridge_missing", "runtime_mismatch", "kernel_mismatch"]
+    },
+    "overhead_class": {
+      "type": "string",
+      "enum": ["negligible", "low", "moderate", "high", "unknown", "not_measured"]
+    },
+    "storage_band_class": {
+      "type": "string",
+      "enum": ["metadata_only", "small_under_10mb", "medium_under_250mb", "large_under_5gb", "very_large_over_5gb", "unknown"]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": ["ephemeral", "local_hot_cache", "pinned_local_evidence", "support_case_retained", "review_packet_retained", "release_evidence_retained"]
+    },
+    "expiry_status_class": {
+      "type": "string",
+      "enum": ["active", "expiring", "expired", "pinned", "held", "artifact_mismatch", "source_unavailable"]
+    },
+    "data_class": {
+      "type": "string",
+      "enum": ["metadata_only", "workspace_metadata", "user_content_possible", "memory_payload_possible", "secret_material_possible"]
+    },
+    "secret_class": {
+      "type": "string",
+      "enum": ["no_secret_material", "handle_only", "secret_names_possible", "raw_secret_possible"]
+    },
+    "redaction_status_class": {
+      "type": "string",
+      "enum": ["not_required", "pending_review", "redacted", "omitted_sensitive_fields", "blocked_sensitive", "policy_denied"]
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": ["summary_only", "manifest_with_digests", "local_only_raw", "upload_safe_after_redaction", "admin_policy_required", "blocked_sensitive", "not_applicable"]
+    },
+    "open_format_claim_class": {
+      "type": "string",
+      "enum": ["none", "pprof_profile", "speedscope_json", "chrome_trace_json", "otlp_trace", "perfetto_trace", "documented_aureline_json"]
+    },
+    "digest_status_class": {
+      "type": "string",
+      "enum": ["not_applicable", "verified", "not_checked", "digest_mismatch", "missing_digest"]
+    },
+    "artifact_mismatch_status_class": {
+      "type": "string",
+      "enum": ["none", "source_capture_missing", "digest_mismatch", "schema_mismatch", "symbol_or_build_mismatch", "environment_mismatch", "expired_reference"]
+    },
+    "comparison_kind": {
+      "type": "string",
+      "enum": ["side_by_side_capture", "baseline_delta", "replay_vs_live", "imported_vs_local", "summary_only"]
+    },
+    "comparability_class": {
+      "type": "string",
+      "enum": ["comparable", "advisory_only", "exploratory_only", "not_comparable", "quarantined"]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["reference_grade", "directional", "trend_only", "not_comparable", "unknown"]
+    },
+    "exact_build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_ref",
+        "build_id",
+        "source_revision_ref",
+        "build_mode",
+        "symbol_manifest_ref",
+        "source_map_manifest_ref",
+        "debug_artifact_manifest_ref"
+      ],
+      "properties": {
+        "exact_build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "build_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "build_mode": { "$ref": "#/$defs/build_mode_class" },
+        "symbol_manifest_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "source_map_manifest_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "debug_artifact_manifest_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+    "target_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_id",
+        "target_ref",
+        "target_kind",
+        "workspace_ref",
+        "workset_ref",
+        "runtime_ref",
+        "toolchain_ref",
+        "deployment_profile_class",
+        "local_remote_class"
+      ],
+      "properties": {
+        "execution_context_id": { "$ref": "#/$defs/opaque_ref" },
+        "target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_kind": { "$ref": "#/$defs/target_kind_class" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "workset_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "runtime_ref": { "$ref": "#/$defs/opaque_ref" },
+        "toolchain_ref": { "$ref": "#/$defs/opaque_ref" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "local_remote_class": { "$ref": "#/$defs/local_remote_class" }
+      }
+    },
+    "environment_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_fingerprint_id",
+        "host_os",
+        "architecture",
+        "hardware_profile_ref",
+        "power_posture_ref",
+        "thermal_posture_ref",
+        "network_posture_ref",
+        "container_or_remote_ref",
+        "environment_digest_ref",
+        "capture_clock"
+      ],
+      "properties": {
+        "environment_fingerprint_id": { "$ref": "#/$defs/opaque_ref" },
+        "host_os": { "$ref": "#/$defs/host_os_class" },
+        "architecture": { "$ref": "#/$defs/architecture_class" },
+        "hardware_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "power_posture_ref": { "$ref": "#/$defs/opaque_ref" },
+        "thermal_posture_ref": { "$ref": "#/$defs/opaque_ref" },
+        "network_posture_ref": { "$ref": "#/$defs/opaque_ref" },
+        "container_or_remote_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "environment_digest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "capture_clock": { "$ref": "#/$defs/capture_clock_class" }
+      }
+    },
+    "capture_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "ended_at", "duration_ms"],
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "recording_mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recording_mode_state",
+        "chronology_support_class",
+        "reverse_step_available",
+        "reverse_step_availability_reason",
+        "recording_mode_note_ref"
+      ],
+      "properties": {
+        "recording_mode_state": { "$ref": "#/$defs/recording_mode_state" },
+        "chronology_support_class": { "$ref": "#/$defs/chronology_support_class" },
+        "reverse_step_available": { "type": "boolean" },
+        "reverse_step_availability_reason": { "$ref": "#/$defs/reverse_step_availability_reason" },
+        "recording_mode_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+    "replay_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_level",
+        "allowed_verbs",
+        "backend_ref",
+        "source_capture_session_ref",
+        "replay_session_ref",
+        "collaboration_shareability",
+        "notebook_parity",
+        "runtime_parity"
+      ],
+      "properties": {
+        "support_level": { "$ref": "#/$defs/replay_support_level" },
+        "allowed_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_verb" },
+          "uniqueItems": true
+        },
+        "backend_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "source_capture_session_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "replay_session_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "collaboration_shareability": { "$ref": "#/$defs/shareability_class" },
+        "notebook_parity": { "$ref": "#/$defs/parity_class" },
+        "runtime_parity": { "$ref": "#/$defs/parity_class" }
+      }
+    },
+    "replay_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replay_session_id",
+        "source_capture_session_ref",
+        "support_level",
+        "allowed_verbs",
+        "collaboration_shareability",
+        "notebook_parity",
+        "runtime_parity",
+        "artifact_mismatch_status"
+      ],
+      "properties": {
+        "replay_session_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_capture_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "support_level": { "$ref": "#/$defs/replay_support_level" },
+        "allowed_verbs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/replay_verb" },
+          "uniqueItems": true
+        },
+        "collaboration_shareability": { "$ref": "#/$defs/shareability_class" },
+        "notebook_parity": { "$ref": "#/$defs/parity_class" },
+        "runtime_parity": { "$ref": "#/$defs/parity_class" },
+        "artifact_mismatch_status": { "$ref": "#/$defs/artifact_mismatch_status_class" }
+      }
+    },
+    "overhead_storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overhead_class", "storage_band", "overhead_note_ref", "storage_note_ref", "raw_payload_size_bytes"],
+      "properties": {
+        "overhead_class": { "$ref": "#/$defs/overhead_class" },
+        "storage_band": { "$ref": "#/$defs/storage_band_class" },
+        "overhead_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "storage_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "raw_payload_size_bytes": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_class_ref", "retention_class", "retained_until", "expiry_status"],
+      "properties": {
+        "record_class_ref": { "$ref": "#/$defs/opaque_ref" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retained_until": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "expiry_status": { "$ref": "#/$defs/expiry_status_class" }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["redaction_profile_ref", "data_class_ceiling", "secret_class_ceiling", "redaction_status", "omitted_sensitive_fields", "local_only_reason_ref"],
+      "properties": {
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "data_class_ceiling": { "$ref": "#/$defs/data_class" },
+        "secret_class_ceiling": { "$ref": "#/$defs/secret_class" },
+        "redaction_status": { "$ref": "#/$defs/redaction_status_class" },
+        "omitted_sensitive_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "local_only_reason_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+    "export_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary_export_posture", "raw_export_posture", "open_format_claims", "compatibility_note_refs"],
+      "properties": {
+        "summary_export_posture": { "$ref": "#/$defs/export_posture_class" },
+        "raw_export_posture": { "$ref": "#/$defs/export_posture_class" },
+        "open_format_claims": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_format_claim_class" },
+          "uniqueItems": true
+        },
+        "compatibility_note_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "artifact_integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_verification_status", "artifact_mismatch_status", "mismatch_reason_refs"],
+      "properties": {
+        "digest_verification_status": { "$ref": "#/$defs/digest_status_class" },
+        "artifact_mismatch_status": { "$ref": "#/$defs/artifact_mismatch_status_class" },
+        "mismatch_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "artifact_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_artifact_refs", "summary_artifact_refs", "derived_artifact_refs", "digest_refs", "support_bundle_refs", "review_packet_refs"],
+      "properties": {
+        "raw_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "summary_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "derived_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "digest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "support_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "review_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "comparison_dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workload_ref",
+        "corpus_ref",
+        "build_lineage_ref",
+        "hardware_profile_ref",
+        "environment_fingerprint_id",
+        "runtime_ref",
+        "toolchain_ref",
+        "capture_backend_family_ref",
+        "recording_mode_state",
+        "redaction_profile_ref"
+      ],
+      "properties": {
+        "workload_ref": { "$ref": "#/$defs/opaque_ref" },
+        "corpus_ref": { "$ref": "#/$defs/opaque_ref" },
+        "build_lineage_ref": { "$ref": "#/$defs/opaque_ref" },
+        "hardware_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "environment_fingerprint_id": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_ref": { "$ref": "#/$defs/opaque_ref" },
+        "toolchain_ref": { "$ref": "#/$defs/opaque_ref" },
+        "capture_backend_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "recording_mode_state": { "$ref": "#/$defs/recording_mode_state" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "comparison_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comparison_id",
+        "comparison_kind",
+        "left_capture_session_ref",
+        "right_capture_session_ref",
+        "baseline_record_ref",
+        "comparability_class",
+        "comparison_dimensions",
+        "confidence_class",
+        "variance_note_ref",
+        "mismatch_reason_refs"
+      ],
+      "properties": {
+        "comparison_id": { "$ref": "#/$defs/opaque_ref" },
+        "comparison_kind": { "$ref": "#/$defs/comparison_kind" },
+        "left_capture_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "right_capture_session_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "baseline_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "comparability_class": { "$ref": "#/$defs/comparability_class" },
+        "comparison_dimensions": { "$ref": "#/$defs/comparison_dimensions" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "variance_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "mismatch_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "performance_capture_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_session_schema_version",
+        "record_kind",
+        "capture_session_id",
+        "capture_class",
+        "capture_origin_class",
+        "capture_status_class",
+        "exact_build_identity",
+        "target_context",
+        "environment_fingerprint",
+        "capture_window",
+        "recording_mode",
+        "replay_capability",
+        "overhead_storage",
+        "retention",
+        "redaction",
+        "export_policy",
+        "artifact_integrity",
+        "artifact_refs",
+        "comparison_records"
+      ],
+      "properties": {
+        "capture_session_schema_version": { "$ref": "#/$defs/capture_session_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "capture_session_id": { "$ref": "#/$defs/opaque_ref" },
+        "capture_class": { "$ref": "#/$defs/capture_class" },
+        "capture_origin_class": { "$ref": "#/$defs/capture_origin_class" },
+        "capture_status_class": { "$ref": "#/$defs/capture_status_class" },
+        "summary": { "$ref": "#/$defs/short_note" },
+        "exact_build_identity": { "$ref": "#/$defs/exact_build_identity" },
+        "target_context": { "$ref": "#/$defs/target_context" },
+        "environment_fingerprint": { "$ref": "#/$defs/environment_fingerprint" },
+        "capture_window": { "$ref": "#/$defs/capture_window" },
+        "recording_mode": { "$ref": "#/$defs/recording_mode" },
+        "replay_capability": { "$ref": "#/$defs/replay_capability" },
+        "replay_session": { "$ref": "#/$defs/replay_session" },
+        "overhead_storage": { "$ref": "#/$defs/overhead_storage" },
+        "retention": { "$ref": "#/$defs/retention" },
+        "redaction": { "$ref": "#/$defs/redaction" },
+        "export_policy": { "$ref": "#/$defs/export_policy" },
+        "artifact_integrity": { "$ref": "#/$defs/artifact_integrity" },
+        "artifact_refs": { "$ref": "#/$defs/artifact_refs" },
+        "comparison_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/comparison_record" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "capture_class": { "const": "replay_capture" }
+            },
+            "required": ["capture_class"]
+          },
+          "then": {
+            "required": ["replay_session"],
+            "properties": {
+              "replay_capability": {
+                "properties": {
+                  "support_level": { "not": { "const": "not_replayable" } },
+                  "source_capture_session_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              },
+              "recording_mode": {
+                "properties": {
+                  "chronology_support_class": {
+                    "enum": ["partial_replay", "deterministic_replay"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

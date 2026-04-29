@@ -55,6 +55,7 @@ drift into product behavior first:
 |---|---|---|---|
 | `telemetry_contract_schema` | local authoritative descriptor, optional managed mirror | exportable schema/taxonomy row; cited by usage/offboarding packets | schema registry, telemetry inspection, support export |
 | `crash_diagnostic_payload` | local authoritative payload, optional managed escalation copy | exportable on request; may require manual local capture | Doctor, support bundle, case export |
+| `performance_capture_evidence` | local authoritative capture manifests and payload refs, optional managed export copy | exportable on request; raw payloads require manifest and redaction posture | profiler, trace viewer, replay, review, support, regression baseline |
 | `support_bundle_archive` | local authoritative bundle, optional managed case copy | the bundle is itself an export packet | Support Center, escalation, parity audit |
 | `collaboration_evidence_packet` | managed archive authoritative, local replay/cache separate | exportable evidence packet, offboarding-visible | collaboration review, access export |
 | `ai_retained_evidence_packet` | local and managed copies distinct, managed retention when enabled | the evidence packet is the export shape | review, support replay, AI audit |
