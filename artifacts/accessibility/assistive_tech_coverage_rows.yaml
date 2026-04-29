@@ -1,0 +1,356 @@
+# Assistive-technology coverage rows for announcement and live-region parity.
+#
+# Machine-readable companion to
+# docs/accessibility/screen_reader_and_live_region_contract.md.
+#
+# Rules.
+#   - Rows compose over platform_input_matrix.yaml and
+#     assistive_tech_matrix.yaml. They do not widen platform claims by
+#     themselves.
+#   - A row must keep degraded, partial, blocked, failed, pending, and
+#     unclaimed states explicit so support packets do not infer parity.
+#   - JAWS is tracked as an explicit unclaimed row until a dedicated
+#     current evidence row is admitted.
+#   - High-risk operational surfaces are first-class coverage targets,
+#     not follow-up polish.
+
+schema_version: 1
+artifact_id: aureline.assistive_tech_coverage_rows
+status: seeded
+
+contract_source: docs/accessibility/screen_reader_and_live_region_contract.md
+announcement_schema_source: schemas/accessibility/announcement_event.schema.json
+announcement_fixture_source_dir: fixtures/accessibility/announcement_cases
+platform_input_matrix_source: artifacts/accessibility/platform_input_matrix.yaml
+assistive_tech_matrix_source: artifacts/accessibility/assistive_tech_matrix.yaml
+accessibility_tree_coverage_source: artifacts/accessibility/accessibility_tree_coverage_rows.yaml
+shell_checklist_source: artifacts/accessibility/shell_conformance_checklist.yaml
+task_corpus_manifest_source: fixtures/accessibility/task_corpus_manifest.yaml
+review_charter_source: docs/accessibility/review_charter.md
+
+support_class_vocabulary:
+  - claimed
+  - claimed_narrow
+  - best_effort
+  - unclaimed
+
+coverage_state_vocabulary:
+  - pending_evidence
+  - passed
+  - degraded
+  - partial
+  - blocked
+  - failed
+  - unclaimed
+
+coverage_state_meanings:
+  - state: pending_evidence
+    matrix_result_state_equivalent: pending_evidence
+    meaning: >
+      The row and fixtures exist, but no claim-bearing packet has
+      current manual or automated assistive-technology evidence yet.
+  - state: passed
+    matrix_result_state_equivalent: passed
+    meaning: >
+      The named journey completed inside the row scope and all required
+      announcement, keyboard, zoom, and recovery cues remained available.
+  - state: degraded
+    matrix_result_state_equivalent: degraded
+    meaning: >
+      A usable path remained, but a live-region, keyboard, zoom, or
+      recovery dimension narrowed visibly and must be recorded.
+  - state: partial
+    matrix_result_state_equivalent: degraded
+    meaning: >
+      The row covers some launch-critical journeys or surfaces, but not
+      every required dimension. Older result-state vocabularies should
+      map this to degraded with this note.
+  - state: blocked
+    matrix_result_state_equivalent: blocked
+    meaning: >
+      Policy, platform state, missing adapter support, or a broken
+      prerequisite prevented completion. Silent fallback is forbidden.
+  - state: failed
+    matrix_result_state_equivalent: failed
+    meaning: >
+      A claimed path regressed or announced incorrect, spammy, or
+      contradictory output.
+  - state: unclaimed
+    matrix_result_state_equivalent: unclaimed
+    meaning: >
+      Outside the defended support scope. Docs, support, and release
+      packets must not imply parity.
+
+launch_critical_journey_refs:
+  - corpus.accessibility.command_discovery.palette_and_quick_open
+  - corpus.accessibility.project_entry.open_import_restore
+  - corpus.accessibility.trust.permission_prompt_recovery
+  - corpus.accessibility.docs.docs_help_reading
+  - corpus.accessibility.execution.task_run_review
+  - corpus.accessibility.execution.terminal_review_follow_up
+  - corpus.accessibility.review.dense_collection_batch_review
+
+required_announcement_event_types:
+  - diagnostic_entered_active_line
+  - diagnostic_left_active_line
+  - breakpoint_added
+  - breakpoint_removed
+  - breakpoint_verified
+  - breakpoint_unverified
+  - task_started
+  - task_completed
+  - task_failed
+  - task_blocked
+  - trust_entered_restricted_mode
+  - trust_granted
+  - trust_revoked
+  - remote_attach_connecting
+  - remote_attach_connected
+  - remote_attach_degraded
+  - remote_attach_disconnected
+  - collaboration_control_requested
+  - collaboration_control_granted
+  - collaboration_control_revoked
+  - collaboration_control_handoff_failed
+  - ai_patch_ready
+  - ai_patch_apply_succeeded
+  - ai_patch_revert_succeeded
+  - ai_patch_apply_failed
+  - vcs_worktree_state_changed
+  - vcs_stash_state_changed
+  - vcs_sequence_state_changed
+  - recovery_state_changed
+  - conflict_state_changed
+
+high_risk_operational_surface_rows:
+  - surface_row_id: at_surface.worktree_manager
+    surface_family: worktree_manager
+    minimum_keyboard_routes:
+      - move between worktree rows
+      - inspect dirty state and target branch
+      - open diff or terminal for the selected worktree
+      - remove or repair only after preview
+    required_plain_language_labels:
+      - Continue
+      - Abort
+      - Restore checkpoint
+      - Review conflict
+    zoom_resilience: 50_to_400_percent
+    live_region_rule: >
+      Announce dirty, blocked, conflict, or removal-preview state changes
+      once per meaning change. Do not announce every status poll.
+
+  - surface_row_id: at_surface.stash_shelf
+    surface_family: stash_shelf
+    minimum_keyboard_routes:
+      - move between stash entries
+      - inspect path scope and untracked-state summary
+      - apply, pop, drop, compare, or create branch from stash through
+        distinct commands
+    required_plain_language_labels:
+      - Continue
+      - Abort
+      - Restore checkpoint
+      - Review conflict
+    zoom_resilience: 50_to_400_percent
+    live_region_rule: >
+      Applying, popping, or dropping a stash announces result and
+      recovery path once. Row refreshes with unchanged meaning stay
+      silent.
+
+  - surface_row_id: at_surface.sequence_editor
+    surface_family: sequence_editor
+    minimum_keyboard_routes:
+      - move by sequence step
+      - reorder through keyboard commands
+      - continue, abort, skip, edit, or restore from checkpoint
+      - open conflict detail for the current step
+    required_plain_language_labels:
+      - Continue
+      - Abort
+      - Skip
+      - Restore checkpoint
+      - Review conflict
+    zoom_resilience: 50_to_400_percent
+    live_region_rule: >
+      Announce operation kind, current step, conflict blockers, and
+      checkpoint availability when meaning changes. Reorder paint updates
+      do not announce unless focus changes to a different step.
+
+  - surface_row_id: at_surface.recovery_pane
+    surface_family: recovery_pane
+    minimum_keyboard_routes:
+      - move through recovery options
+      - inspect checkpoint or reflog source
+      - restore, continue, abort, export diagnostics, or open details
+    required_plain_language_labels:
+      - Continue
+      - Abort
+      - Restore checkpoint
+      - Open details
+    zoom_resilience: 50_to_400_percent
+    live_region_rule: >
+      Recovery posture, checkpoint expiry, and successful restore
+      announce once. Visible countdown-only refreshes stay silent unless
+      the safe action changes.
+
+  - surface_row_id: at_surface.conflict_resolution_view
+    surface_family: conflict_resolution_view
+    minimum_keyboard_routes:
+      - move between conflicts
+      - inspect base, current, incoming, and result summaries
+      - choose accept-left, accept-right, accept-both, manual, or
+        regenerate paths where offered
+      - return to the originating file or sequence step
+    required_plain_language_labels:
+      - Continue
+      - Abort
+      - Skip
+      - Restore checkpoint
+      - Review conflict
+    zoom_resilience: 50_to_400_percent
+    live_region_rule: >
+      Announce unresolved-count changes and selected conflict identity.
+      Do not repeat stable file chrome for every hunk movement.
+
+assistive_technology_coverage_rows:
+  - coverage_row_id: at_coverage.nvda.windows.launch_critical_announcements
+    assistive_technology: NVDA
+    platform_scope_ref: windows_claimed_desktop
+    platform_review_row_ref: at_matrix.windows.core_shell
+    assistive_technology_row_ref: at.nvda.windows.core_shell
+    support_class: claimed
+    coverage_state: degraded
+    matrix_result_state_equivalent: degraded
+    state_reason: >
+      The existing Windows row is claimed for core shell journeys, but
+      announcement parity now also names breakpoint, AI patch, remote
+      attach, collaboration handoff, and high-risk VCS or recovery
+      surfaces that still require current evidence.
+    required_journey_refs:
+      - corpus.accessibility.command_discovery.palette_and_quick_open
+      - corpus.accessibility.trust.permission_prompt_recovery
+      - corpus.accessibility.execution.task_run_review
+      - corpus.accessibility.execution.terminal_review_follow_up
+      - corpus.accessibility.review.dense_collection_batch_review
+    required_surface_row_refs:
+      - at_surface.worktree_manager
+      - at_surface.stash_shelf
+      - at_surface.sequence_editor
+      - at_surface.recovery_pane
+      - at_surface.conflict_resolution_view
+    required_fixture_refs:
+      - fixtures/accessibility/announcement_cases/task_burst_coalescing.yaml
+      - fixtures/accessibility/announcement_cases/trust_mode_change.yaml
+      - fixtures/accessibility/announcement_cases/breakpoint_toggle.yaml
+      - fixtures/accessibility/announcement_cases/shared_control_handoff.yaml
+      - fixtures/accessibility/announcement_cases/ai_patch_ready_and_apply_success.yaml
+    support_export_fields:
+      announcement_contract_id: aureline.accessibility.screen_reader_live_region
+      announcement_contract_revision: 1
+      schema_ref: schemas/accessibility/announcement_event.schema.json
+      raw_private_material_excluded: true
+
+  - coverage_row_id: at_coverage.jaws.windows.launch_critical_announcements
+    assistive_technology: JAWS
+    platform_scope_ref: windows_claimed_desktop
+    platform_review_row_ref: at_matrix.windows.core_shell
+    assistive_technology_row_ref: at.jaws.windows.launch_critical_announcements
+    support_class: unclaimed
+    coverage_state: unclaimed
+    matrix_result_state_equivalent: unclaimed
+    state_reason: >
+      JAWS is named by the product accessibility target, but there is no
+      current platform-input or assistive-tech matrix row. Support,
+      docs, and release packets must not imply JAWS parity until a
+      dedicated row and evidence packet land.
+    required_journey_refs:
+      - corpus.accessibility.command_discovery.palette_and_quick_open
+      - corpus.accessibility.trust.permission_prompt_recovery
+      - corpus.accessibility.execution.task_run_review
+      - corpus.accessibility.review.dense_collection_batch_review
+    required_surface_row_refs:
+      - at_surface.worktree_manager
+      - at_surface.stash_shelf
+      - at_surface.sequence_editor
+      - at_surface.recovery_pane
+      - at_surface.conflict_resolution_view
+    required_fixture_refs:
+      - fixtures/accessibility/announcement_cases/task_burst_coalescing.yaml
+      - fixtures/accessibility/announcement_cases/trust_mode_change.yaml
+    support_export_fields:
+      announcement_contract_id: aureline.accessibility.screen_reader_live_region
+      announcement_contract_revision: 1
+      schema_ref: schemas/accessibility/announcement_event.schema.json
+      raw_private_material_excluded: true
+
+  - coverage_row_id: at_coverage.voiceover.macos.launch_critical_announcements
+    assistive_technology: VoiceOver
+    platform_scope_ref: macos_claimed_desktop
+    platform_review_row_ref: at_matrix.macos.core_shell
+    assistive_technology_row_ref: at.voiceover.macos.core_shell
+    support_class: claimed
+    coverage_state: partial
+    matrix_result_state_equivalent: degraded
+    state_reason: >
+      The macOS row is claimed for core shell journeys, while this
+      announcement contract expands the launch-critical surface set to
+      include collaboration handoff, remote attach, breakpoint, AI patch,
+      and risky VCS or repair workflows. Treat the row as partial until
+      all named surfaces have current evidence.
+    required_journey_refs:
+      - corpus.accessibility.project_entry.open_import_restore
+      - corpus.accessibility.trust.permission_prompt_recovery
+      - corpus.accessibility.execution.task_run_review
+      - corpus.accessibility.execution.terminal_review_follow_up
+      - corpus.accessibility.review.dense_collection_batch_review
+    required_surface_row_refs:
+      - at_surface.worktree_manager
+      - at_surface.stash_shelf
+      - at_surface.sequence_editor
+      - at_surface.recovery_pane
+      - at_surface.conflict_resolution_view
+    required_fixture_refs:
+      - fixtures/accessibility/announcement_cases/trust_mode_change.yaml
+      - fixtures/accessibility/announcement_cases/shared_control_handoff.yaml
+      - fixtures/accessibility/announcement_cases/ai_patch_ready_and_apply_success.yaml
+    support_export_fields:
+      announcement_contract_id: aureline.accessibility.screen_reader_live_region
+      announcement_contract_revision: 1
+      schema_ref: schemas/accessibility/announcement_event.schema.json
+      raw_private_material_excluded: true
+
+  - coverage_row_id: at_coverage.orca.linux_gnome.launch_critical_announcements
+    assistive_technology: Orca
+    platform_scope_ref: linux_claimed_gnome_desktop
+    platform_review_row_ref: at_matrix.linux_gnome.core_shell
+    assistive_technology_row_ref: at.orca.linux.gnome.core_shell
+    support_class: claimed
+    coverage_state: degraded
+    matrix_result_state_equivalent: degraded
+    state_reason: >
+      The Linux GNOME row is claimed only for the named GNOME profiles.
+      Announcement parity remains degraded until remote attach,
+      collaboration handoff, and VCS or recovery live-region behavior is
+      verified across the claimed GNOME Wayland and X11 rows.
+    required_journey_refs:
+      - corpus.accessibility.command_discovery.palette_and_quick_open
+      - corpus.accessibility.trust.permission_prompt_recovery
+      - corpus.accessibility.execution.task_run_review
+      - corpus.accessibility.execution.terminal_review_follow_up
+      - corpus.accessibility.review.dense_collection_batch_review
+    required_surface_row_refs:
+      - at_surface.worktree_manager
+      - at_surface.stash_shelf
+      - at_surface.sequence_editor
+      - at_surface.recovery_pane
+      - at_surface.conflict_resolution_view
+    required_fixture_refs:
+      - fixtures/accessibility/announcement_cases/task_burst_coalescing.yaml
+      - fixtures/accessibility/announcement_cases/breakpoint_toggle.yaml
+      - fixtures/accessibility/announcement_cases/shared_control_handoff.yaml
+    support_export_fields:
+      announcement_contract_id: aureline.accessibility.screen_reader_live_region
+      announcement_contract_revision: 1
+      schema_ref: schemas/accessibility/announcement_event.schema.json
+      raw_private_material_excluded: true

@@ -20,9 +20,19 @@ Companion artifacts:
   — standing forum cadence, packet profile, and escalation rules.
 - [`/docs/accessibility/a11y_ime_packet_template.md`](./a11y_ime_packet_template.md)
   — reviewer-facing packet template and shared evidence-header shape.
+- [`/docs/accessibility/screen_reader_and_live_region_contract.md`](./screen_reader_and_live_region_contract.md)
+  — shared screen-reader announcement, live-region, dedupe/coalescing,
+  assistive-tech parity, and support/export contract.
+- [`/schemas/accessibility/announcement_event.schema.json`](../../schemas/accessibility/announcement_event.schema.json)
+  and
+  [`/fixtures/accessibility/announcement_cases/`](../../fixtures/accessibility/announcement_cases)
+  — reusable announcement-event schema and worked live-region cases.
 - [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml)
   — machine-readable review-planning matrix for macOS, Windows, and
   Linux accessibility coverage rows.
+- [`/artifacts/accessibility/assistive_tech_coverage_rows.yaml`](../../artifacts/accessibility/assistive_tech_coverage_rows.yaml)
+  — launch-critical assistive-technology coverage rows for announcement
+  parity, including degraded, partial, and unclaimed states.
 - [`/artifacts/accessibility/platform_input_matrix.yaml`](../../artifacts/accessibility/platform_input_matrix.yaml)
   — canonical AT, input-method, and locale row registry.
 - [`/docs/i18n/locale_input_readiness.md`](../i18n/locale_input_readiness.md),

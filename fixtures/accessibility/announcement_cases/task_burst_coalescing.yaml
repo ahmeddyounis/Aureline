@@ -1,0 +1,260 @@
+# yaml-language-server: $schema=../../../schemas/accessibility/announcement_event.schema.json
+record_kind: announcement_case_record
+announcement_event_schema_version: 1
+__fixture__:
+  name: task_burst_coalescing
+  scenario: >
+    A task burst emits a start, a superseded shard completion, and a
+    final failure. The live region must not leave contradictory output
+    in the screen-reader queue.
+  contract_sections:
+    - Live-region policy
+    - Fixture expectations
+case_id: a11y.announcement.case.task_burst_coalescing
+title: Task burst coalescing suppresses superseded intermediate states
+scenario: >
+  The task runner emits rapid state changes for one canonical task
+  target. The start and final failure are meaningful, while an
+  intermediate completion is superseded before delivery.
+contract_refs:
+  - docs/accessibility/screen_reader_and_live_region_contract.md
+  - schemas/accessibility/announcement_event.schema.json
+events:
+  - record_kind: announcement_event_record
+    announcement_event_schema_version: 1
+    announcement_event_id: a11y.event.task_burst.started
+    announcement_contract_id: aureline.accessibility.screen_reader_live_region
+    announcement_contract_revision: 1
+    announcement_event_type: task_started
+    announcement_event_class: task_lifecycle
+    source_context:
+      source_subsystem: task_runner
+      surface_family: task_row
+      canonical_event_id: event.task.test_run.burst
+      target_ref: task.run.test_suite
+      target_label: Test run
+      scope_label: Current workspace
+      durable_fallback_ref: activity.task.test_run
+    state_context:
+      state_label: Started
+      state_changed: true
+      visible_state_already_covers_change: false
+      available_next_actions:
+        - Open output
+      count_label: 1 task
+    phrasing:
+      message_id: a11y.announcement.task.started
+      locale: en-US
+      template: "Task {target_label} started."
+      placeholders:
+        - name: target_label
+          value_class: bounded_label
+          example_value: Test run
+      spoken_example: Test run started.
+      stable_nouns:
+        - task
+        - output
+      plain_language_next_action: Open output
+    live_region_policy:
+      channel: polite
+      urgency_class: progress
+      delivery_timing: immediate
+      interrupts_current_speech: false
+      coalescing_strategy: start_and_terminal_only
+      coalesce_window_ms: 2000
+      max_announcements_per_burst: 2
+      silence_reason: not_silent
+      dedupe_key: dedupe.task.test_run
+      meaning_hash_ref: meaning.task.started
+      supersedes_event_refs: []
+    assistive_tech_context:
+      assistive_tech_coverage_row_ref: at_coverage.nvda.windows.launch_critical_announcements
+      platform_review_row_ref: at_matrix.windows.core_shell
+      assistive_technology_row_ref: at.nvda.windows.core_shell
+      parity_support_state: degraded
+      keyboard_traversal_required: true
+      zoom_resilience_required: true
+      plain_language_action_labels_required: true
+    support_export:
+      include_in_accessibility_packet: true
+      include_in_repro_bundle: true
+      announcement_contract_id: aureline.accessibility.screen_reader_live_region
+      announcement_contract_revision: 1
+      schema_ref: schemas/accessibility/announcement_event.schema.json
+      task_corpus_ref: corpus.accessibility.execution.task_run_review
+      checklist_refs:
+        - shell_conformance.run_task_and_review_output
+      redaction_class: support_packet_redacted
+      raw_private_material_excluded: true
+      export_field_refs:
+        - export.a11y.announcement.contract
+        - export.a11y.announcement.live_region
+        - export.a11y.at_row
+    minted_at: "2026-04-29T12:00:00Z"
+
+  - record_kind: announcement_event_record
+    announcement_event_schema_version: 1
+    announcement_event_id: a11y.event.task_burst.superseded_completed
+    announcement_contract_id: aureline.accessibility.screen_reader_live_region
+    announcement_contract_revision: 1
+    announcement_event_type: task_completed
+    announcement_event_class: task_lifecycle
+    source_context:
+      source_subsystem: task_runner
+      surface_family: task_row
+      canonical_event_id: event.task.test_run.burst
+      target_ref: task.run.test_suite
+      target_label: Test run
+      scope_label: Current workspace
+      durable_fallback_ref: activity.task.test_run
+    state_context:
+      state_label: Superseded completion
+      state_changed: true
+      visible_state_already_covers_change: false
+      available_next_actions:
+        - Open output
+      count_label: 1 shard completed
+    phrasing:
+      message_id: a11y.announcement.task.completed
+      locale: en-US
+      template: "Task {target_label} completed."
+      placeholders:
+        - name: target_label
+          value_class: bounded_label
+          example_value: Test run
+      spoken_example: Test run completed.
+      stable_nouns:
+        - task
+        - output
+      plain_language_next_action: Open output
+    live_region_policy:
+      channel: silent
+      urgency_class: completion
+      delivery_timing: not_delivered_silent
+      interrupts_current_speech: false
+      coalescing_strategy: start_and_terminal_only
+      coalesce_window_ms: 2000
+      max_announcements_per_burst: 2
+      silence_reason: superseded_by_coalesced_terminal_state
+      dedupe_key: dedupe.task.test_run
+      meaning_hash_ref: meaning.task.completed.superseded
+      supersedes_event_refs: []
+    assistive_tech_context:
+      assistive_tech_coverage_row_ref: at_coverage.nvda.windows.launch_critical_announcements
+      platform_review_row_ref: at_matrix.windows.core_shell
+      assistive_technology_row_ref: at.nvda.windows.core_shell
+      parity_support_state: degraded
+      keyboard_traversal_required: true
+      zoom_resilience_required: true
+      plain_language_action_labels_required: true
+    support_export:
+      include_in_accessibility_packet: true
+      include_in_repro_bundle: true
+      announcement_contract_id: aureline.accessibility.screen_reader_live_region
+      announcement_contract_revision: 1
+      schema_ref: schemas/accessibility/announcement_event.schema.json
+      task_corpus_ref: corpus.accessibility.execution.task_run_review
+      checklist_refs:
+        - shell_conformance.run_task_and_review_output
+      redaction_class: support_packet_redacted
+      raw_private_material_excluded: true
+      export_field_refs:
+        - export.a11y.announcement.contract
+        - export.a11y.announcement.coalescing
+        - export.a11y.at_row
+    minted_at: "2026-04-29T12:00:01Z"
+
+  - record_kind: announcement_event_record
+    announcement_event_schema_version: 1
+    announcement_event_id: a11y.event.task_burst.failed
+    announcement_contract_id: aureline.accessibility.screen_reader_live_region
+    announcement_contract_revision: 1
+    announcement_event_type: task_failed
+    announcement_event_class: task_lifecycle
+    source_context:
+      source_subsystem: task_runner
+      surface_family: task_row
+      canonical_event_id: event.task.test_run.burst
+      target_ref: task.run.test_suite
+      target_label: Test run
+      scope_label: Current workspace
+      durable_fallback_ref: activity.task.test_run
+    state_context:
+      state_label: Failed
+      severity_label: Error
+      state_changed: true
+      visible_state_already_covers_change: false
+      available_next_actions:
+        - Open output
+        - Retry
+      blocked_reason_label: Test failure
+      count_label: 1 failed task
+    phrasing:
+      message_id: a11y.announcement.task.failed
+      locale: en-US
+      template: "Task {target_label} failed. {next_action_label}"
+      placeholders:
+        - name: target_label
+          value_class: bounded_label
+          example_value: Test run
+        - name: next_action_label
+          value_class: action_label
+          example_value: Open output
+      spoken_example: Test run failed. Open output.
+      stable_nouns:
+        - task
+        - output
+      plain_language_next_action: Open output
+    live_region_policy:
+      channel: polite
+      urgency_class: completion
+      delivery_timing: coalesced
+      interrupts_current_speech: false
+      coalescing_strategy: start_and_terminal_only
+      coalesce_window_ms: 2000
+      max_announcements_per_burst: 2
+      silence_reason: not_silent
+      dedupe_key: dedupe.task.test_run
+      meaning_hash_ref: meaning.task.failed
+      supersedes_event_refs:
+        - a11y.event.task_burst.superseded_completed
+    assistive_tech_context:
+      assistive_tech_coverage_row_ref: at_coverage.nvda.windows.launch_critical_announcements
+      platform_review_row_ref: at_matrix.windows.core_shell
+      assistive_technology_row_ref: at.nvda.windows.core_shell
+      parity_support_state: degraded
+      keyboard_traversal_required: true
+      zoom_resilience_required: true
+      plain_language_action_labels_required: true
+    support_export:
+      include_in_accessibility_packet: true
+      include_in_repro_bundle: true
+      announcement_contract_id: aureline.accessibility.screen_reader_live_region
+      announcement_contract_revision: 1
+      schema_ref: schemas/accessibility/announcement_event.schema.json
+      task_corpus_ref: corpus.accessibility.execution.task_run_review
+      checklist_refs:
+        - shell_conformance.run_task_and_review_output
+      redaction_class: support_packet_redacted
+      raw_private_material_excluded: true
+      export_field_refs:
+        - export.a11y.announcement.contract
+        - export.a11y.announcement.live_region
+        - export.a11y.announcement.coalescing
+        - export.a11y.at_row
+    minted_at: "2026-04-29T12:00:02Z"
+expected_delivery:
+  delivered_event_refs:
+    - a11y.event.task_burst.started
+    - a11y.event.task_burst.failed
+  suppressed_event_refs:
+    - a11y.event.task_burst.superseded_completed
+  assertive_event_refs: []
+  polite_event_refs:
+    - a11y.event.task_burst.started
+    - a11y.event.task_burst.failed
+  final_spoken_order:
+    - Test run started.
+    - Test run failed. Open output.
+  spam_forbidden: true
+  contradictory_output_forbidden: true
