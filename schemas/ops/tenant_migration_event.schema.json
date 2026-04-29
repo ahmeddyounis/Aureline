@@ -1,0 +1,1059 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/tenant_migration_event.schema.json",
+  "title": "Aureline tenant-migration and failover communication event",
+  "description": "Boundary schema for tenant_migration_event_record, the migration / drain-before-failover / failover / reconciliation card frozen in docs/ops/maintenance_migration_failover_contract.md. The event is intentionally separate from the unplanned outage notice and from the planned maintenance notice so a tenant migration, drain-before-failover, regional failover, or post-failover reconciliation cannot be communicated with the same vague language used for incidents or generic offline banners. Records carry exact UTC times, the IANA display timezone with the UTC offset that applied at cutover, the affected tenant / region / residency / endpoint / key-ownership scope, the closed list of boundary axes that changed (or are unknown and require recheck), the route-review and approval-renewal posture under the new boundary, the local-safe continuity that survives the cutover, and the lifecycle / supersession / historical-retention state so completed migration cards remain inspectable after a boundary change. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw endpoint credentials, raw policy bodies, and raw secret material never cross this boundary; the record carries opaque refs and redaction-aware labels only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "event_id",
+    "event_kind_class",
+    "event_state_class",
+    "title",
+    "summary",
+    "created_at",
+    "updated_at",
+    "schedule",
+    "affected_scope",
+    "boundary_change",
+    "approval_and_route_review",
+    "post_event_continuity",
+    "blocked_action_classes",
+    "follow_up_actions",
+    "lifecycle",
+    "display_copy",
+    "evidence_refs",
+    "narrative_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "tenant_migration_event_record"
+    },
+    "event_id": {
+      "$ref": "#/$defs/stable_token"
+    },
+    "event_kind_class": {
+      "$ref": "#/$defs/event_kind_class"
+    },
+    "event_state_class": {
+      "$ref": "#/$defs/event_state_class"
+    },
+    "title": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "summary": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "created_at": {
+      "$ref": "#/$defs/utc_date_time"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/utc_date_time"
+    },
+    "schedule": {
+      "$ref": "#/$defs/event_schedule"
+    },
+    "affected_scope": {
+      "$ref": "#/$defs/affected_scope"
+    },
+    "boundary_change": {
+      "$ref": "#/$defs/boundary_change"
+    },
+    "approval_and_route_review": {
+      "$ref": "#/$defs/approval_and_route_review"
+    },
+    "post_event_continuity": {
+      "$ref": "#/$defs/local_continuity"
+    },
+    "blocked_action_classes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Managed action classes that wait for boundary review, drain completion, or failover reconciliation before they may resume.",
+      "items": {
+        "$ref": "#/$defs/blocked_action_class"
+      }
+    },
+    "follow_up_actions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Closed list of follow-up rows: continue-local, review-new-boundary, reconnect-later, publish-later, export-before-cutover, retry-after-event, open-history, no-action-required.",
+      "items": {
+        "$ref": "#/$defs/follow_up_action"
+      }
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/event_lifecycle"
+    },
+    "display_copy": {
+      "$ref": "#/$defs/display_copy"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "description": "Opaque drill, change-request, support-bundle, runbook, boundary-recheck-packet, or continuity-packet refs justifying the event.",
+      "items": {
+        "$ref": "#/$defs/stable_token"
+      }
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Repo-relative pointers into companion narrative contracts.",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block. Never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Migration, drain-before-failover, and failover events MUST require boundary review and a review-new-boundary follow-up.",
+      "if": {
+        "properties": {
+          "event_state_class": {
+            "enum": [
+              "drain_before_failover",
+              "in_progress_migration",
+              "in_progress_failover"
+            ]
+          }
+        },
+        "required": [
+          "event_state_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "boundary_change": {
+            "properties": {
+              "review_status_class": {
+                "not": {
+                  "const": "not_required"
+                }
+              }
+            }
+          },
+          "follow_up_actions": {
+            "contains": {
+              "properties": {
+                "action_class": {
+                  "const": "review_new_boundary"
+                }
+              },
+              "required": [
+                "action_class"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "If at least one boundary axis is changed or unknown_recheck_required, the change must be marked required and the review status cannot claim not_required.",
+      "if": {
+        "properties": {
+          "boundary_change": {
+            "properties": {
+              "boundary_axes": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "axis_state_class": {
+                      "enum": [
+                        "changed",
+                        "unknown_recheck_required"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "axis_state_class"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "boundary_change": {
+            "properties": {
+              "boundary_change_required": {
+                "const": true
+              },
+              "review_status_class": {
+                "not": {
+                  "const": "not_required"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "When boundary_change_required is true, fresh-approval and route-review posture cannot be both not-required; at least one must require review.",
+      "if": {
+        "properties": {
+          "boundary_change": {
+            "properties": {
+              "boundary_change_required": {
+                "const": true
+              }
+            },
+            "required": [
+              "boundary_change_required"
+            ]
+          }
+        },
+        "required": [
+          "boundary_change"
+        ]
+      },
+      "then": {
+        "properties": {
+          "approval_and_route_review": {
+            "properties": {
+              "fresh_approval_required_class": {
+                "not": {
+                  "const": "not_required"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Reconciling state requires a non-null cached_status_class on post_event_continuity and a publish-later, reconnect-later, or review-new-boundary follow-up.",
+      "if": {
+        "properties": {
+          "event_state_class": {
+            "const": "reconciling"
+          }
+        },
+        "required": [
+          "event_state_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "follow_up_actions": {
+            "contains": {
+              "properties": {
+                "action_class": {
+                  "enum": [
+                    "publish_later",
+                    "reconnect_later",
+                    "review_new_boundary",
+                    "open_history"
+                  ]
+                }
+              },
+              "required": [
+                "action_class"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Completed and superseded events must carry a stale label.",
+      "if": {
+        "properties": {
+          "lifecycle": {
+            "properties": {
+              "freshness_class": {
+                "not": {
+                  "const": "active_current"
+                }
+              }
+            },
+            "required": [
+              "freshness_class"
+            ]
+          }
+        },
+        "required": [
+          "lifecycle"
+        ]
+      },
+      "then": {
+        "properties": {
+          "display_copy": {
+            "properties": {
+              "stale_label": {
+                "$ref": "#/$defs/reviewable_sentence"
+              }
+            },
+            "required": [
+              "stale_label"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stable_token": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "utc_date_time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "nullable_utc_date_time": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/utc_date_time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timezone_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(UTC|[A-Za-z_]+/[A-Za-z0-9_+.-]+(?:/[A-Za-z0-9_+.-]+)*)$"
+    },
+    "utc_offset": {
+      "type": "string",
+      "pattern": "^(Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$"
+    },
+    "event_kind_class": {
+      "type": "string",
+      "enum": [
+        "tenant_migration",
+        "region_migration",
+        "residency_migration",
+        "key_ownership_migration",
+        "endpoint_migration",
+        "drain_before_failover",
+        "regional_failover",
+        "control_plane_failover",
+        "post_event_reconciliation"
+      ],
+      "description": "Closed migration / failover / reconciliation kinds. Generic outage and degraded-mode communication uses the unplanned outage notice contract instead."
+    },
+    "event_state_class": {
+      "type": "string",
+      "enum": [
+        "announced",
+        "drain_before_failover",
+        "in_progress_migration",
+        "in_progress_failover",
+        "reconciling",
+        "completed_boundary_changed",
+        "completed_boundary_unchanged"
+      ]
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_exact",
+        "detected_exact",
+        "in_progress_exact",
+        "completed_exact",
+        "historical_exact"
+      ]
+    },
+    "event_schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_basis_class",
+        "announced_at",
+        "drain_starts_at",
+        "cutover_at",
+        "expected_or_actual_ends_at",
+        "completed_at",
+        "timezone_id",
+        "utc_offset_at_cutover",
+        "export_deadline_at"
+      ],
+      "properties": {
+        "time_basis_class": {
+          "$ref": "#/$defs/time_basis_class"
+        },
+        "announced_at": {
+          "$ref": "#/$defs/utc_date_time"
+        },
+        "drain_starts_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "cutover_at": {
+          "$ref": "#/$defs/utc_date_time"
+        },
+        "expected_or_actual_ends_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "completed_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "timezone_id": {
+          "$ref": "#/$defs/timezone_id"
+        },
+        "utc_offset_at_cutover": {
+          "$ref": "#/$defs/utc_offset"
+        },
+        "export_deadline_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        }
+      }
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "residency_scope_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "customer_region_pinned",
+        "vendor_region_default",
+        "sovereign_region_pinned",
+        "tenant_residency_recheck_required",
+        "residency_changed_review_required"
+      ]
+    },
+    "control_plane_service_class": {
+      "type": "string",
+      "enum": [
+        "sync_service",
+        "registry_service",
+        "relay_service",
+        "ai_broker_service",
+        "auth_identity_service",
+        "policy_service",
+        "docs_pack_service",
+        "catalog_service",
+        "telemetry_sink_service",
+        "workspace_control_plane_service",
+        "provider_review_service",
+        "merge_queue_service",
+        "support_ingest_service"
+      ]
+    },
+    "affected_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profiles",
+        "tenant_refs",
+        "org_refs",
+        "workspace_refs",
+        "region_refs",
+        "residency_scope_classes",
+        "service_classes",
+        "endpoint_refs",
+        "scope_summary"
+      ],
+      "properties": {
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/deployment_profile_class"
+          }
+        },
+        "tenant_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "org_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "workspace_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "region_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "residency_scope_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/residency_scope_class"
+          }
+        },
+        "service_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/control_plane_service_class"
+          }
+        },
+        "endpoint_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "scope_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "boundary_axis_class": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "region",
+        "residency",
+        "key_ownership",
+        "endpoint_identity"
+      ]
+    },
+    "boundary_axis_state_class": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "changed",
+        "unknown_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "boundary_review_status_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_pending",
+        "reviewed_accepted",
+        "stale_event_requires_review",
+        "unknown_requires_review"
+      ]
+    },
+    "follow_up_action_class": {
+      "type": "string",
+      "enum": [
+        "continue_local",
+        "export_before_cutover",
+        "publish_later",
+        "reconnect_later",
+        "review_new_boundary",
+        "retry_after_event",
+        "open_history",
+        "no_action_required"
+      ]
+    },
+    "boundary_axis_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis_class",
+        "axis_state_class",
+        "previous_ref",
+        "current_ref",
+        "required_follow_up_action",
+        "summary"
+      ],
+      "properties": {
+        "axis_class": {
+          "$ref": "#/$defs/boundary_axis_class"
+        },
+        "axis_state_class": {
+          "$ref": "#/$defs/boundary_axis_state_class"
+        },
+        "previous_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "required_follow_up_action": {
+          "$ref": "#/$defs/follow_up_action_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "boundary_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_change_required",
+        "boundary_effective_at",
+        "review_status_class",
+        "boundary_axes",
+        "summary"
+      ],
+      "properties": {
+        "boundary_change_required": {
+          "type": "boolean"
+        },
+        "boundary_effective_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "review_status_class": {
+          "$ref": "#/$defs/boundary_review_status_class"
+        },
+        "boundary_axes": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Closed list of boundary axes (tenant, region, residency, key ownership, endpoint identity). Every axis MUST appear so unknown_recheck_required cannot be silently omitted.",
+          "items": {
+            "$ref": "#/$defs/boundary_axis_change"
+          }
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "fresh_approval_required_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_for_managed_lifecycle",
+        "required_for_policy_admin",
+        "required_for_publish_writes",
+        "required_for_remote_attach",
+        "required_for_all_managed_routes"
+      ]
+    },
+    "route_review_required_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_for_data_plane_reconnect",
+        "required_for_control_plane_reconnect",
+        "required_for_replay_queue_resume",
+        "required_for_token_reissue",
+        "required_for_all_managed_routes"
+      ]
+    },
+    "approval_and_route_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fresh_approval_required_class",
+        "route_review_required_class",
+        "replay_queue_review_refs",
+        "reconnect_token_review_refs",
+        "summary"
+      ],
+      "properties": {
+        "fresh_approval_required_class": {
+          "$ref": "#/$defs/fresh_approval_required_class"
+        },
+        "route_review_required_class": {
+          "$ref": "#/$defs/route_review_required_class"
+        },
+        "replay_queue_review_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "reconnect_token_review_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "local_core_status_class": {
+      "type": "string",
+      "enum": [
+        "local_core_unaffected",
+        "meaningful_safe_subset_available",
+        "local_only_available",
+        "no_safe_local_subset",
+        "unknown_requires_review"
+      ]
+    },
+    "cached_status_class": {
+      "type": "string",
+      "enum": [
+        "no_cached_state",
+        "cached_pre_event_stale",
+        "cached_managed_acknowledgement_pending",
+        "cached_replay_review_pending",
+        "cached_resolved_consistent"
+      ]
+    },
+    "local_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_core_status_class",
+        "cached_status_class",
+        "continue_local_guidance_required",
+        "retained_local_safe_capabilities",
+        "blocked_managed_only_capabilities",
+        "continuity_summary"
+      ],
+      "properties": {
+        "local_core_status_class": {
+          "$ref": "#/$defs/local_core_status_class"
+        },
+        "cached_status_class": {
+          "$ref": "#/$defs/cached_status_class"
+        },
+        "continue_local_guidance_required": {
+          "type": "boolean"
+        },
+        "retained_local_safe_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        },
+        "blocked_managed_only_capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        },
+        "continuity_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "managed_action_class": {
+      "type": "string",
+      "enum": [
+        "managed_review_comment_publish",
+        "managed_review_approval",
+        "merge_queue_enqueue",
+        "collaboration_presence_write",
+        "remote_control_session_join",
+        "profile_settings_sync_write",
+        "policy_admin_write",
+        "extension_registry_publish_or_install",
+        "managed_workspace_lifecycle_write",
+        "ai_gateway_prompt_submit",
+        "support_bundle_upload",
+        "telemetry_upload"
+      ]
+    },
+    "block_state_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_to_block",
+        "blocked_drain_new_actions",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_by_policy",
+        "draining_existing_only",
+        "unknown_requires_review"
+      ]
+    },
+    "deferral_path_class": {
+      "type": "string",
+      "enum": [
+        "publish_later",
+        "reconnect_later",
+        "export_before_cutover",
+        "no_deferral_requires_export",
+        "blocked_no_safe_retry",
+        "not_applicable"
+      ]
+    },
+    "local_capture_class": {
+      "type": "string",
+      "enum": [
+        "capture_allowed_local_queue",
+        "capture_allowed_export_only",
+        "capture_blocked_boundary_unknown",
+        "capture_not_applicable"
+      ]
+    },
+    "resume_trigger_class": {
+      "type": "string",
+      "enum": [
+        "cutover_completes",
+        "drain_completes",
+        "reconciliation_completes",
+        "boundary_review_completed",
+        "fresh_approval_issued",
+        "manual_reconnect_required",
+        "manual_export_required",
+        "not_applicable"
+      ]
+    },
+    "blocked_action_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "block_state_class",
+        "deferral_path_class",
+        "local_capture_class",
+        "resume_trigger_class",
+        "affected_queue_ref",
+        "note"
+      ],
+      "properties": {
+        "action_class": {
+          "$ref": "#/$defs/managed_action_class"
+        },
+        "block_state_class": {
+          "$ref": "#/$defs/block_state_class"
+        },
+        "deferral_path_class": {
+          "$ref": "#/$defs/deferral_path_class"
+        },
+        "local_capture_class": {
+          "$ref": "#/$defs/local_capture_class"
+        },
+        "resume_trigger_class": {
+          "$ref": "#/$defs/resume_trigger_class"
+        },
+        "affected_queue_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "action_phase_class": {
+      "type": "string",
+      "enum": [
+        "pre_cutover",
+        "during_event",
+        "post_cutover",
+        "any_phase"
+      ]
+    },
+    "action_requirement_class": {
+      "type": "string",
+      "enum": [
+        "required",
+        "recommended",
+        "available",
+        "not_applicable"
+      ]
+    },
+    "follow_up_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "phase_class",
+        "requirement_class",
+        "target_action_classes",
+        "due_before_at",
+        "message"
+      ],
+      "properties": {
+        "action_class": {
+          "$ref": "#/$defs/follow_up_action_class"
+        },
+        "phase_class": {
+          "$ref": "#/$defs/action_phase_class"
+        },
+        "requirement_class": {
+          "$ref": "#/$defs/action_requirement_class"
+        },
+        "target_action_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/managed_action_class"
+          }
+        },
+        "due_before_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "message": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "active_current",
+        "superseded_stale",
+        "completed_historical",
+        "imported_historical"
+      ]
+    },
+    "retention_reason_class": {
+      "type": "string",
+      "enum": [
+        "active_event",
+        "audit_history",
+        "boundary_change_history",
+        "support_export_history",
+        "imported_offline_history"
+      ]
+    },
+    "event_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "supersedes_event_id",
+        "superseded_by_event_id",
+        "retained_until_at",
+        "retention_reason_class",
+        "history_event_refs",
+        "linked_maintenance_notice_refs"
+      ],
+      "properties": {
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "supersedes_event_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "superseded_by_event_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retained_until_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "retention_reason_class": {
+          "$ref": "#/$defs/retention_reason_class"
+        },
+        "history_event_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "linked_maintenance_notice_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        }
+      }
+    },
+    "display_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_status_line",
+        "local_continuity_line",
+        "boundary_change_line",
+        "follow_up_line",
+        "stale_label",
+        "all_work_broken_implied",
+        "incident_language_used",
+        "generic_all_clear_used"
+      ],
+      "properties": {
+        "primary_status_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "local_continuity_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "boundary_change_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "follow_up_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "stale_label": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "all_work_broken_implied": {
+          "type": "boolean",
+          "const": false
+        },
+        "incident_language_used": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Migration / failover events cannot reuse incident or unplanned-degradation language."
+        },
+        "generic_all_clear_used": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Completed events with changed boundaries cannot use a generic all-clear."
+        }
+      }
+    }
+  }
+}

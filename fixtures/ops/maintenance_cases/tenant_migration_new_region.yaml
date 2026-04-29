@@ -1,0 +1,209 @@
+__fixture__:
+  name: tenant_migration_new_region
+  scenario: >
+    A tenant migration moves the tenant authority and control-plane
+    region from EU-west to EU-central, with residency posture changing
+    to follow the new region. Local-first work continues; managed
+    lifecycle, profile sync, and policy admin writes wait for boundary
+    review under the new region. Customer-managed key ownership is
+    preserved.
+  contract_sections:
+    - Migration and failover event kinds and required disclosure
+    - Boundary axes and approval / route review
+    - Required disclosure on every notice and event
+schema_refs:
+  tenant_migration_event: schemas/ops/tenant_migration_event.schema.json
+
+tenant_migration_event:
+  schema_version: 1
+  record_kind: tenant_migration_event_record
+  event_id: tenant_migration_event.tenant_migration_eu_west_to_eu_central
+  event_kind_class: tenant_migration
+  event_state_class: in_progress_migration
+  title: Tenant migration to EU-central
+  summary: >
+    Tenant authority and the control-plane region are moving from
+    EU-west to EU-central with residency following the new region.
+    Local work continues; managed routes wait for boundary review under
+    the new region.
+  created_at: "2026-05-12T05:30:00Z"
+  updated_at: "2026-05-12T06:05:00Z"
+  schedule:
+    time_basis_class: in_progress_exact
+    announced_at: "2026-05-05T09:00:00Z"
+    drain_starts_at: "2026-05-12T05:45:00Z"
+    cutover_at: "2026-05-12T06:00:00Z"
+    expected_or_actual_ends_at: "2026-05-12T07:30:00Z"
+    completed_at: null
+    timezone_id: UTC
+    utc_offset_at_cutover: Z
+    export_deadline_at: "2026-05-12T05:55:00Z"
+  affected_scope:
+    deployment_profiles:
+      - enterprise_online
+    tenant_refs:
+      - tenant.ref.prior
+      - tenant.ref.next
+    org_refs:
+      - org.ref.enterprise
+    workspace_refs: []
+    region_refs:
+      - region.ref.eu-west
+      - region.ref.eu-central
+    residency_scope_classes:
+      - residency_changed_review_required
+    service_classes:
+      - auth_identity_service
+      - policy_service
+      - workspace_control_plane_service
+      - sync_service
+    endpoint_refs:
+      - endpoint.ref.workspace.control.eu-west
+      - endpoint.ref.workspace.control.eu-central
+    scope_summary: >
+      Enterprise tenant migration affecting identity, policy,
+      workspace control, and sync services across the EU regions.
+  boundary_change:
+    boundary_change_required: true
+    boundary_effective_at: "2026-05-12T06:00:00Z"
+    review_status_class: required_pending
+    boundary_axes:
+      - axis_class: tenant
+        axis_state_class: changed
+        previous_ref: tenant.ref.prior
+        current_ref: tenant.ref.next
+        required_follow_up_action: review_new_boundary
+        summary: Tenant authority changes at cutover.
+      - axis_class: region
+        axis_state_class: changed
+        previous_ref: region.ref.eu-west
+        current_ref: region.ref.eu-central
+        required_follow_up_action: review_new_boundary
+        summary: Control-plane region moves to EU-central.
+      - axis_class: residency
+        axis_state_class: changed
+        previous_ref: residency.ref.eu-west
+        current_ref: residency.ref.eu-central
+        required_follow_up_action: review_new_boundary
+        summary: Residency posture changes with the new region.
+      - axis_class: key_ownership
+        axis_state_class: unchanged
+        previous_ref: key.ref.customer.managed
+        current_ref: key.ref.customer.managed
+        required_follow_up_action: open_history
+        summary: Customer-managed key ownership is preserved across the migration.
+      - axis_class: endpoint_identity
+        axis_state_class: changed
+        previous_ref: endpoint.ref.workspace.control.eu-west
+        current_ref: endpoint.ref.workspace.control.eu-central
+        required_follow_up_action: review_new_boundary
+        summary: Workspace control endpoint identity changes at cutover.
+    summary: >
+      Tenant, region, residency, and endpoint identity change; key
+      ownership is preserved.
+  approval_and_route_review:
+    fresh_approval_required_class: required_for_all_managed_routes
+    route_review_required_class: required_for_all_managed_routes
+    replay_queue_review_refs:
+      - queue.ref.workspace.lifecycle.boundary_review
+      - queue.ref.profile.sync.boundary_review
+    reconnect_token_review_refs:
+      - reconnect_token.ref.control.eu-central
+    summary: >
+      Every managed route requires fresh approval and a route review
+      under the new tenant, region, residency, and endpoint identity
+      before reconnect or replay.
+  post_event_continuity:
+    local_core_status_class: meaningful_safe_subset_available
+    cached_status_class: cached_managed_acknowledgement_pending
+    continue_local_guidance_required: true
+    retained_local_safe_capabilities:
+      - continue local edits, save, search, Git, diagnostics, and export across the migration cutover
+    blocked_managed_only_capabilities:
+      - resume managed workspace orchestration before boundary review
+      - sync profile or policy writes under the new residency posture without review
+      - replay prior approval-backed managed actions under the old boundary
+    continuity_summary: >
+      Local-first work remains safe across the migration; managed
+      writes and reconnects wait for boundary review under the new
+      region and residency.
+  blocked_action_classes:
+    - action_class: managed_workspace_lifecycle_write
+      block_state_class: blocked_pending_boundary_recheck
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_blocked_boundary_unknown
+      resume_trigger_class: boundary_review_completed
+      affected_queue_ref: queue.ref.workspace.lifecycle.boundary_review
+      note: Workspace lifecycle writes cannot replay under the prior tenant boundary.
+    - action_class: profile_settings_sync_write
+      block_state_class: blocked_pending_boundary_recheck
+      deferral_path_class: export_before_cutover
+      local_capture_class: capture_allowed_export_only
+      resume_trigger_class: boundary_review_completed
+      affected_queue_ref: queue.ref.profile.sync.boundary_review
+      note: Export profile and settings state before sync replays under the new residency posture.
+    - action_class: policy_admin_write
+      block_state_class: blocked_pending_boundary_recheck
+      deferral_path_class: blocked_no_safe_retry
+      local_capture_class: capture_blocked_boundary_unknown
+      resume_trigger_class: boundary_review_completed
+      affected_queue_ref: null
+      note: Policy admin writes require explicit boundary review before any retry.
+  follow_up_actions:
+    - action_class: continue_local
+      phase_class: during_event
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Continue local work while managed reconnect waits for boundary review.
+    - action_class: export_before_cutover
+      phase_class: pre_cutover
+      requirement_class: required
+      target_action_classes:
+        - profile_settings_sync_write
+      due_before_at: "2026-05-12T05:55:00Z"
+      message: Export profile and settings state before the migration cutover.
+    - action_class: review_new_boundary
+      phase_class: post_cutover
+      requirement_class: required
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+        - profile_settings_sync_write
+        - policy_admin_write
+      due_before_at: null
+      message: Review the new tenant, region, residency, and endpoint identity before reconnect or replay.
+    - action_class: reconnect_later
+      phase_class: post_cutover
+      requirement_class: required
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+      due_before_at: null
+      message: Reconnect managed workspaces only after the boundary review completes.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_event_id: null
+    superseded_by_event_id: null
+    retained_until_at: "2027-05-12T07:30:00Z"
+    retention_reason_class: boundary_change_history
+    history_event_refs: []
+    linked_maintenance_notice_refs: []
+  display_copy:
+    primary_status_line: Tenant migration to EU-central is in progress from May 12, 2026 06:00 UTC.
+    local_continuity_line: Local editing, save, search, Git, diagnostics, and export remain available.
+    boundary_change_line: Tenant, region, residency, and endpoint identity change; key ownership is preserved.
+    follow_up_line: Export profile state before cutover and review the new boundary before reconnect.
+    stale_label: null
+    all_work_broken_implied: false
+    incident_language_used: false
+    generic_all_clear_used: false
+  evidence_refs:
+    - boundary_recheck_packet.tenant_migration.eu_central
+    - change_request.ref.tenant_migration.may_2026
+  narrative_refs:
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/deployment/locality_and_continuity_seed.md
+
+expected_surface_contract:
+  every_boundary_axis_restated: true
+  fresh_approval_required_for_all_managed_routes: true
+  cached_status_pending_review: true

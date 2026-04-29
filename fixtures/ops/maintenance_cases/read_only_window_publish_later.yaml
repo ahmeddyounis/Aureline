@@ -1,0 +1,182 @@
+__fixture__:
+  name: read_only_window_publish_later
+  scenario: >
+    A planned read-only window for hosted review and merge queue. Reads
+    remain available, managed writes are paused, local editing and Git
+    are unaffected, and publish-later is the required deferral path
+    for queued review and merge intents.
+  contract_sections:
+    - Notice kind, state, and required disclosure
+    - Read-only versus drain versus migration versus failover versus reconciled
+    - Display-copy invariants
+schema_refs:
+  maintenance_notice: schemas/ops/maintenance_notice.schema.json
+
+maintenance_notice:
+  schema_version: 1
+  record_kind: maintenance_notice_record
+  notice_id: maintenance_notice.read_only_window_publish_later
+  maintenance_kind_class: scheduled_read_only_window
+  maintenance_state_class: read_only_window
+  title: Hosted review and merge queue are read-only for the planned window
+  summary: >
+    Reads remain available for hosted review and merge queue during the
+    planned window; new comment, approval, and merge writes are held for
+    publish-later. Local editing, save, search, Git, and export remain
+    unaffected.
+  created_at: "2026-05-04T07:55:00Z"
+  updated_at: "2026-05-04T08:05:00Z"
+  schedule:
+    time_basis_class: in_progress_exact
+    announced_at: "2026-04-28T16:00:00Z"
+    starts_at: "2026-05-04T08:00:00Z"
+    expected_or_actual_ends_at: "2026-05-04T08:30:00Z"
+    completed_at: null
+    timezone_id: America/Los_Angeles
+    utc_offset_at_start: "-07:00"
+    export_deadline_at: "2026-05-04T07:45:00Z"
+    drain_deadline_at: null
+  affected_scope:
+    deployment_profiles:
+      - enterprise_online
+      - managed_cloud
+    tenant_refs:
+      - tenant.ref.enterprise.review
+    org_refs:
+      - org.ref.platform
+    workspace_refs:
+      - workspace.ref.payments
+    region_refs:
+      - region.ref.us-west
+    residency_scope_classes:
+      - customer_region_pinned
+    service_classes:
+      - provider_review_service
+      - merge_queue_service
+    endpoint_refs:
+      - endpoint.ref.review.publish
+    scope_summary: >
+      Hosted review publish and merge queue writes for the pinned
+      enterprise review scope on the affected route.
+  plane_effects:
+    control_plane:
+      - service_class: provider_review_service
+        effect_state: read_only
+        recovery_trigger_class: window_ends
+        note: Review metadata is readable; write admission is paused.
+      - service_class: merge_queue_service
+        effect_state: read_only
+        recovery_trigger_class: window_ends
+        note: Merge queue admission is paused for the window.
+    data_plane:
+      - capability_class: local_editing
+        effect_state: available_local_safe
+        recovery_trigger_class: not_applicable
+        note: Local buffers and local save are unaffected.
+      - capability_class: hosted_review_publish
+        effect_state: reduced_read_only
+        recovery_trigger_class: window_ends
+        note: Review drafts can be captured locally and published after the window.
+      - capability_class: merge_queue
+        effect_state: reduced_read_only
+        recovery_trigger_class: window_ends
+        note: Merge queue intent is held locally and replayed after the window.
+  local_continuity:
+    local_core_status_class: meaningful_safe_subset_available
+    continue_local_guidance_required: true
+    retained_local_safe_capabilities:
+      - continue local edits, save, search, run local Git, and capture review drafts locally
+    blocked_managed_only_capabilities:
+      - publish hosted review comments during the window
+      - submit hosted review approvals during the window
+      - enqueue merge queue entries during the window
+    continuity_summary: >
+      Local-first work is unaffected by the planned read-only window;
+      only managed publish and merge writes are paused.
+  blocked_action_classes:
+    - action_class: managed_review_comment_publish
+      block_state_class: blocked_read_only
+      deferral_path_class: publish_later
+      local_capture_class: capture_allowed_local_queue
+      resume_trigger_class: window_ends
+      affected_queue_ref: queue.ref.review.comment.publish_later
+      note: Comment drafts are captured locally for publish-later review.
+    - action_class: managed_review_approval
+      block_state_class: blocked_read_only
+      deferral_path_class: publish_later
+      local_capture_class: capture_allowed_local_queue
+      resume_trigger_class: window_ends
+      affected_queue_ref: queue.ref.review.approval.publish_later
+      note: Approval intent is held locally and reviewed before publish.
+    - action_class: merge_queue_enqueue
+      block_state_class: blocked_read_only
+      deferral_path_class: publish_later
+      local_capture_class: capture_allowed_local_queue
+      resume_trigger_class: window_ends
+      affected_queue_ref: queue.ref.merge.publish_later
+      note: Merge queue intent is held locally until the window ends.
+  follow_up_actions:
+    - action_class: continue_local
+      phase_class: in_window
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Continue local edits, save, search, Git, and diagnostics.
+    - action_class: publish_later
+      phase_class: in_window
+      requirement_class: required
+      target_action_classes:
+        - managed_review_comment_publish
+        - managed_review_approval
+        - merge_queue_enqueue
+      due_before_at: null
+      message: Hold review and merge intents locally and review them before publish after the window.
+    - action_class: export_before_maintenance
+      phase_class: pre_window
+      requirement_class: recommended
+      target_action_classes:
+        - managed_review_comment_publish
+      due_before_at: "2026-05-04T07:45:00Z"
+      message: Export pending review drafts before the freeze if they must survive the window offline.
+    - action_class: retry_after_window
+      phase_class: post_window
+      requirement_class: recommended
+      target_action_classes:
+        - merge_queue_enqueue
+      due_before_at: null
+      message: Replay queued merge intents after the window ends.
+  post_window_restate:
+    cached_status_class: cached_replay_review_pending
+    boundary_change_required_class: no_boundary_change_planned
+    linked_migration_event_refs: []
+    summary: >
+      No tenant, region, residency, key-ownership, or endpoint identity
+      change is planned for this window; queued intents will be reviewed
+      before replay.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_notice_id: null
+    superseded_by_notice_id: null
+    retained_until_at: "2026-06-04T08:30:00Z"
+    retention_reason_class: active_window
+    history_notice_refs: []
+  display_copy:
+    primary_status_line: Hosted review and merge queue are read-only May 4, 2026 01:00–01:30 America/Los_Angeles.
+    local_continuity_line: Local edits, save, search, Git, and draft capture remain available.
+    blocked_actions_line: Review comments, approvals, and merge queue writes use publish-later for the window.
+    follow_up_line: Capture review drafts and merge intents locally; replay after the window.
+    stale_label: null
+    all_work_broken_implied: false
+    incident_language_used: false
+    generic_offline_banner_used: false
+  evidence_refs:
+    - drill.ref.read_only_window
+    - change_request.ref.review_publish_freeze.may_2026
+  narrative_refs:
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/ux/control_data_plane_status_contract.md
+
+expected_surface_contract:
+  separates_planned_from_incident: true
+  retains_local_safe_capabilities: true
+  declares_publish_later_deferral: true

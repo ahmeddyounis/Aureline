@@ -1,0 +1,334 @@
+__fixture__:
+  name: cached_stale_status_after_event
+  scenario: >
+    A post-event reconciliation card after the EU-central tenant
+    migration completes. The cached pre-event managed-route status is
+    stale; cached approvals and replay queues require explicit review
+    before any managed write resumes. The card carries a stale label
+    and links the historical migration event so users do not confuse
+    the cached snapshot with the live state.
+  contract_sections:
+    - Notice kind, state, and required disclosure
+    - Local-safe continuity is mandatory
+    - Historical retention and stale labelling
+schema_refs:
+  maintenance_notice: schemas/ops/maintenance_notice.schema.json
+  tenant_migration_event: schemas/ops/tenant_migration_event.schema.json
+
+maintenance_notice:
+  schema_version: 1
+  record_kind: maintenance_notice_record
+  notice_id: maintenance_notice.cached_stale_status_after_event
+  maintenance_kind_class: post_maintenance_reconciliation
+  maintenance_state_class: reconciling_after_window
+  title: Reconciling cached managed-route status after tenant migration
+  summary: >
+    The migration window has closed, but the cached pre-event
+    managed-route status is stale. Cached approvals and replay queues
+    require explicit review before managed writes resume.
+  created_at: "2026-05-12T07:35:00Z"
+  updated_at: "2026-05-12T07:50:00Z"
+  schedule:
+    time_basis_class: in_progress_exact
+    announced_at: "2026-05-12T07:35:00Z"
+    starts_at: "2026-05-12T07:30:00Z"
+    expected_or_actual_ends_at: "2026-05-12T09:30:00Z"
+    completed_at: null
+    timezone_id: UTC
+    utc_offset_at_start: Z
+    export_deadline_at: null
+    drain_deadline_at: null
+  affected_scope:
+    deployment_profiles:
+      - enterprise_online
+    tenant_refs:
+      - tenant.ref.next
+    org_refs:
+      - org.ref.enterprise
+    workspace_refs: []
+    region_refs:
+      - region.ref.eu-central
+    residency_scope_classes:
+      - residency_changed_review_required
+    service_classes:
+      - workspace_control_plane_service
+      - policy_service
+      - sync_service
+    endpoint_refs:
+      - endpoint.ref.workspace.control.eu-central
+    scope_summary: >
+      Reconciliation scope after the EU-central tenant migration:
+      managed workspace control, policy refresh, and profile sync.
+  plane_effects:
+    control_plane:
+      - service_class: workspace_control_plane_service
+        effect_state: reconciling
+        recovery_trigger_class: reconciliation_completes
+        note: Managed workspace control reconciles cached approvals against the new boundary.
+      - service_class: policy_service
+        effect_state: reconciling
+        recovery_trigger_class: reconciliation_completes
+        note: Policy refresh reconciles cached bundles against the new residency posture.
+      - service_class: sync_service
+        effect_state: reconciling
+        recovery_trigger_class: reconciliation_completes
+        note: Profile sync compares cached state against the new region.
+    data_plane:
+      - capability_class: local_editing
+        effect_state: available_local_safe
+        recovery_trigger_class: not_applicable
+        note: Local editing, save, search, and Git remain unaffected.
+      - capability_class: managed_runtime
+        effect_state: blocked_pending_reconnect
+        recovery_trigger_class: manual_reconnect_required
+        note: Managed runtime reconnect waits for reconciliation review.
+  local_continuity:
+    local_core_status_class: meaningful_safe_subset_available
+    continue_local_guidance_required: true
+    retained_local_safe_capabilities:
+      - continue local edits, save, search, Git, diagnostics, and export while reconciliation runs
+    blocked_managed_only_capabilities:
+      - resume managed workspace orchestration before reconciliation review
+      - publish or replay queued managed writes against the cached pre-event status
+    continuity_summary: >
+      The cached pre-event managed-route status is stale; local-first
+      work is unaffected, but managed writes wait for review.
+  blocked_action_classes:
+    - action_class: managed_workspace_lifecycle_write
+      block_state_class: blocked_pending_reconnect
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_blocked_boundary_unknown
+      resume_trigger_class: reconciliation_completes
+      affected_queue_ref: queue.ref.workspace.lifecycle.boundary_review
+      note: Lifecycle writes wait for reconciliation review under the new boundary.
+    - action_class: profile_settings_sync_write
+      block_state_class: blocked_pending_reconnect
+      deferral_path_class: publish_later
+      local_capture_class: capture_allowed_local_queue
+      resume_trigger_class: reconciliation_completes
+      affected_queue_ref: queue.ref.profile.sync.boundary_review
+      note: Profile sync writes wait for reconciliation review.
+  follow_up_actions:
+    - action_class: continue_local
+      phase_class: post_window
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Continue local work while reconciliation runs.
+    - action_class: review_new_boundary
+      phase_class: post_window
+      requirement_class: required
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+        - profile_settings_sync_write
+      due_before_at: null
+      message: Review the new tenant, region, residency, and endpoint identity before resuming managed writes.
+    - action_class: publish_later
+      phase_class: post_window
+      requirement_class: recommended
+      target_action_classes:
+        - profile_settings_sync_write
+      due_before_at: null
+      message: Hold profile sync writes for publish-later review under the new boundary.
+    - action_class: open_history
+      phase_class: post_window
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Open the historical migration event to inspect the boundary axes that changed.
+  post_window_restate:
+    cached_status_class: cached_pre_window_stale
+    boundary_change_required_class: boundary_change_handled_by_migration_event
+    linked_migration_event_refs:
+      - tenant_migration_event.tenant_migration_eu_west_to_eu_central
+    summary: >
+      The cached pre-event status is stale; the linked migration event
+      records every boundary axis that changed and is the source of
+      truth for review.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_notice_id: null
+    superseded_by_notice_id: null
+    retained_until_at: "2027-05-12T09:30:00Z"
+    retention_reason_class: boundary_change_history
+    history_notice_refs: []
+  display_copy:
+    primary_status_line: Reconciliation is in progress after the May 12 EU-central tenant migration.
+    local_continuity_line: Local editing, save, search, Git, diagnostics, and export remain available.
+    blocked_actions_line: Managed lifecycle and profile sync writes wait for reconciliation review.
+    follow_up_line: Review the linked migration event before resuming managed writes.
+    stale_label: Cached pre-migration status is stale; review the new boundary before treating it as live.
+    all_work_broken_implied: false
+    incident_language_used: false
+    generic_offline_banner_used: false
+  evidence_refs:
+    - boundary_recheck_packet.tenant_migration.eu_central
+    - drill.ref.post_event_reconciliation
+  narrative_refs:
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/ux/control_data_plane_status_contract.md
+
+linked_historical_migration_event:
+  schema_version: 1
+  record_kind: tenant_migration_event_record
+  event_id: tenant_migration_event.tenant_migration_eu_west_to_eu_central.historical
+  event_kind_class: tenant_migration
+  event_state_class: completed_boundary_changed
+  title: Tenant migration to EU-central completed with boundary change
+  summary: >
+    The EU-central tenant migration completed; tenant, region,
+    residency, and endpoint identity changed. The historical event is
+    retained so users who have not reviewed the new boundary still see
+    the review-new-boundary follow-up.
+  created_at: "2026-05-12T07:30:00Z"
+  updated_at: "2026-05-12T07:50:00Z"
+  schedule:
+    time_basis_class: completed_exact
+    announced_at: "2026-05-05T09:00:00Z"
+    drain_starts_at: "2026-05-12T05:45:00Z"
+    cutover_at: "2026-05-12T06:00:00Z"
+    expected_or_actual_ends_at: "2026-05-12T07:30:00Z"
+    completed_at: "2026-05-12T07:30:00Z"
+    timezone_id: UTC
+    utc_offset_at_cutover: Z
+    export_deadline_at: "2026-05-12T05:55:00Z"
+  affected_scope:
+    deployment_profiles:
+      - enterprise_online
+    tenant_refs:
+      - tenant.ref.prior
+      - tenant.ref.next
+    org_refs:
+      - org.ref.enterprise
+    workspace_refs: []
+    region_refs:
+      - region.ref.eu-west
+      - region.ref.eu-central
+    residency_scope_classes:
+      - residency_changed_review_required
+    service_classes:
+      - auth_identity_service
+      - policy_service
+      - workspace_control_plane_service
+      - sync_service
+    endpoint_refs:
+      - endpoint.ref.workspace.control.eu-west
+      - endpoint.ref.workspace.control.eu-central
+    scope_summary: >
+      Historical EU-central tenant migration retained for boundary
+      review.
+  boundary_change:
+    boundary_change_required: true
+    boundary_effective_at: "2026-05-12T06:00:00Z"
+    review_status_class: stale_event_requires_review
+    boundary_axes:
+      - axis_class: tenant
+        axis_state_class: changed
+        previous_ref: tenant.ref.prior
+        current_ref: tenant.ref.next
+        required_follow_up_action: review_new_boundary
+        summary: Tenant authority changed at cutover.
+      - axis_class: region
+        axis_state_class: changed
+        previous_ref: region.ref.eu-west
+        current_ref: region.ref.eu-central
+        required_follow_up_action: review_new_boundary
+        summary: Control-plane region changed during migration.
+      - axis_class: residency
+        axis_state_class: changed
+        previous_ref: residency.ref.eu-west
+        current_ref: residency.ref.eu-central
+        required_follow_up_action: review_new_boundary
+        summary: Residency posture changed with the new region.
+      - axis_class: key_ownership
+        axis_state_class: unchanged
+        previous_ref: key.ref.customer.managed
+        current_ref: key.ref.customer.managed
+        required_follow_up_action: open_history
+        summary: Customer-managed key ownership preserved across the migration.
+      - axis_class: endpoint_identity
+        axis_state_class: changed
+        previous_ref: endpoint.ref.workspace.control.eu-west
+        current_ref: endpoint.ref.workspace.control.eu-central
+        required_follow_up_action: review_new_boundary
+        summary: Workspace control endpoint identity changed at cutover.
+    summary: Tenant, region, residency, and endpoint identity changed; key ownership preserved.
+  approval_and_route_review:
+    fresh_approval_required_class: required_for_all_managed_routes
+    route_review_required_class: required_for_all_managed_routes
+    replay_queue_review_refs:
+      - queue.ref.workspace.lifecycle.boundary_review
+      - queue.ref.profile.sync.boundary_review
+    reconnect_token_review_refs:
+      - reconnect_token.ref.control.eu-central
+    summary: >
+      Stale managed routes still require fresh approval and route
+      review under the new boundary.
+  post_event_continuity:
+    local_core_status_class: meaningful_safe_subset_available
+    cached_status_class: cached_pre_event_stale
+    continue_local_guidance_required: true
+    retained_local_safe_capabilities:
+      - continue local edits, save, search, Git, diagnostics, and export while the historical event remains under review
+    blocked_managed_only_capabilities:
+      - reconnect managed workspaces without reviewing the new boundary
+      - replay prior approval-backed managed actions under the old boundary
+    continuity_summary: >
+      The historical event is retained for boundary review; cached
+      pre-event status is stale.
+  blocked_action_classes:
+    - action_class: managed_workspace_lifecycle_write
+      block_state_class: blocked_pending_boundary_recheck
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_blocked_boundary_unknown
+      resume_trigger_class: boundary_review_completed
+      affected_queue_ref: queue.ref.workspace.lifecycle.boundary_review
+      note: Reconnect waits for review of the new boundary.
+  follow_up_actions:
+    - action_class: continue_local
+      phase_class: post_cutover
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Continue local work while the historical event remains under review.
+    - action_class: review_new_boundary
+      phase_class: post_cutover
+      requirement_class: required
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+      due_before_at: null
+      message: Review the new tenant, region, residency, and endpoint identity before reconnect.
+    - action_class: open_history
+      phase_class: post_cutover
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Open the historical migration event to inspect the boundary axes that changed.
+  lifecycle:
+    freshness_class: completed_historical
+    supersedes_event_id: null
+    superseded_by_event_id: null
+    retained_until_at: "2027-05-12T07:30:00Z"
+    retention_reason_class: boundary_change_history
+    history_event_refs: []
+    linked_maintenance_notice_refs:
+      - maintenance_notice.cached_stale_status_after_event
+  display_copy:
+    primary_status_line: Tenant migration to EU-central completed May 12, 2026 07:30 UTC.
+    local_continuity_line: Local editing, save, search, Git, diagnostics, and export remain available.
+    boundary_change_line: Tenant, region, residency, and endpoint identity changed; key ownership preserved.
+    follow_up_line: Review the new boundary before reconnect; the historical event is retained.
+    stale_label: Historical migration event retained for boundary review; do not treat as a generic all-clear.
+    all_work_broken_implied: false
+    incident_language_used: false
+    generic_all_clear_used: false
+  evidence_refs:
+    - boundary_recheck_packet.tenant_migration.eu_central
+  narrative_refs:
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/ux/control_data_plane_status_contract.md
+
+expected_surface_contract:
+  cached_status_marked_stale: true
+  historical_event_retained: true
+  review_new_boundary_remains_required: true

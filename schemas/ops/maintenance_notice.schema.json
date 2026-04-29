@@ -1,0 +1,1018 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/maintenance_notice.schema.json",
+  "title": "Aureline scheduled-maintenance notice",
+  "description": "Boundary schema for maintenance_notice_record, the planned-operations notice frozen in docs/ops/maintenance_migration_failover_contract.md. This schema is intentionally separate from the unplanned outage notice contract so planned maintenance, drain windows, scheduled read-only periods, scheduled export freezes, and post-window reconciliation cannot be communicated with the same vague language used for incidents or generic offline banners. Records carry exact UTC times, an IANA display timezone with the UTC offset that applied at window start, affected scope, separate control-plane and data-plane effects, retained local-safe continuity, blocked action classes with explicit deferral paths and resume triggers, follow-up action rows including export-before-maintenance and reconnect-later, and immutable lifecycle / supersession / historical-retention state so completed maintenance notices remain inspectable after the window closes. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw endpoint credentials, raw policy bodies, and raw secret material never cross this boundary; the record carries opaque refs and redaction-aware labels only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "notice_id",
+    "maintenance_kind_class",
+    "maintenance_state_class",
+    "title",
+    "summary",
+    "created_at",
+    "updated_at",
+    "schedule",
+    "affected_scope",
+    "plane_effects",
+    "local_continuity",
+    "blocked_action_classes",
+    "follow_up_actions",
+    "post_window_restate",
+    "lifecycle",
+    "display_copy",
+    "evidence_refs",
+    "narrative_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this maintenance notice record. Additive-minor changes bump this integer."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "maintenance_notice_record"
+    },
+    "notice_id": {
+      "$ref": "#/$defs/stable_token"
+    },
+    "maintenance_kind_class": {
+      "$ref": "#/$defs/maintenance_kind_class"
+    },
+    "maintenance_state_class": {
+      "$ref": "#/$defs/maintenance_state_class"
+    },
+    "title": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "summary": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "created_at": {
+      "$ref": "#/$defs/utc_date_time"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/utc_date_time"
+    },
+    "schedule": {
+      "$ref": "#/$defs/maintenance_schedule"
+    },
+    "affected_scope": {
+      "$ref": "#/$defs/affected_scope"
+    },
+    "plane_effects": {
+      "$ref": "#/$defs/plane_effects"
+    },
+    "local_continuity": {
+      "$ref": "#/$defs/local_continuity"
+    },
+    "blocked_action_classes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Every managed action class blocked or deferred for the window. Each row pins the block state, deferral path, local-capture posture, and resume trigger so users can tell what is paused versus permanently denied.",
+      "items": {
+        "$ref": "#/$defs/blocked_action_class"
+      }
+    },
+    "follow_up_actions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Closed list of follow-up action rows: continue-local, export-before-maintenance, publish-later, reconnect-later, retry-after-window, review-new-boundary, open-history, and explicit no-action-required. Pre-window, in-window, and post-window phases are admitted by phase_class.",
+      "items": {
+        "$ref": "#/$defs/follow_up_action"
+      }
+    },
+    "post_window_restate": {
+      "$ref": "#/$defs/post_window_restate"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/notice_lifecycle"
+    },
+    "display_copy": {
+      "$ref": "#/$defs/display_copy"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "description": "Opaque drill, change-request, support-bundle, runbook, or continuity-packet refs justifying the notice.",
+      "items": {
+        "$ref": "#/$defs/stable_token"
+      }
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Repo-relative pointers into companion narrative contracts.",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block. Never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Read-only-window and drain-window states must list at least one blocked action class and at least one explicit deferral path follow-up.",
+      "if": {
+        "properties": {
+          "maintenance_state_class": {
+            "enum": [
+              "read_only_window",
+              "drain_window"
+            ]
+          }
+        },
+        "required": [
+          "maintenance_state_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "blocked_action_classes": {
+            "minItems": 1
+          },
+          "follow_up_actions": {
+            "contains": {
+              "properties": {
+                "action_class": {
+                  "enum": [
+                    "publish_later",
+                    "reconnect_later",
+                    "export_before_maintenance"
+                  ]
+                }
+              },
+              "required": [
+                "action_class"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Pre-window export-before-maintenance kind requires a non-null schedule.export_deadline_at and at least one export_before_maintenance follow-up.",
+      "if": {
+        "properties": {
+          "maintenance_kind_class": {
+            "const": "scheduled_export_freeze"
+          }
+        },
+        "required": [
+          "maintenance_kind_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "schedule": {
+            "properties": {
+              "export_deadline_at": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            },
+            "required": [
+              "export_deadline_at"
+            ]
+          },
+          "follow_up_actions": {
+            "contains": {
+              "properties": {
+                "action_class": {
+                  "const": "export_before_maintenance"
+                }
+              },
+              "required": [
+                "action_class"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Reconciling-after-window states must label the cached/stale snapshot posture and admit a publish-later or reconnect-later follow-up.",
+      "if": {
+        "properties": {
+          "maintenance_state_class": {
+            "const": "reconciling_after_window"
+          }
+        },
+        "required": [
+          "maintenance_state_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "post_window_restate": {
+            "properties": {
+              "cached_status_class": {
+                "enum": [
+                  "cached_pre_window_stale",
+                  "cached_managed_acknowledgement_pending",
+                  "cached_replay_review_pending"
+                ]
+              }
+            },
+            "required": [
+              "cached_status_class"
+            ]
+          },
+          "follow_up_actions": {
+            "contains": {
+              "properties": {
+                "action_class": {
+                  "enum": [
+                    "publish_later",
+                    "reconnect_later",
+                    "review_new_boundary",
+                    "open_history"
+                  ]
+                }
+              },
+              "required": [
+                "action_class"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Completed and superseded notices must carry a stale label so a closed window cannot be confused with an active state.",
+      "if": {
+        "properties": {
+          "lifecycle": {
+            "properties": {
+              "freshness_class": {
+                "not": {
+                  "const": "active_current"
+                }
+              }
+            },
+            "required": [
+              "freshness_class"
+            ]
+          }
+        },
+        "required": [
+          "lifecycle"
+        ]
+      },
+      "then": {
+        "properties": {
+          "display_copy": {
+            "properties": {
+              "stale_label": {
+                "$ref": "#/$defs/reviewable_sentence"
+              }
+            },
+            "required": [
+              "stale_label"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stable_token": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "description": "Opaque stable token. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw endpoint credentials, raw policy bodies, and raw secret material never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware sentence safe for UI, support export, and admin review surfaces."
+    },
+    "utc_date_time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "description": "RFC 3339 / ISO 8601 UTC timestamp."
+    },
+    "nullable_utc_date_time": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/utc_date_time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timezone_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(UTC|[A-Za-z_]+/[A-Za-z0-9_+.-]+(?:/[A-Za-z0-9_+.-]+)*)$",
+      "description": "IANA timezone id or UTC."
+    },
+    "utc_offset": {
+      "type": "string",
+      "pattern": "^(Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$",
+      "description": "UTC offset in force at the window start."
+    },
+    "maintenance_kind_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_maintenance_window",
+        "scheduled_read_only_window",
+        "scheduled_drain_window",
+        "scheduled_export_freeze",
+        "post_maintenance_reconciliation"
+      ],
+      "description": "Closed maintenance kinds. Tenant migration and failover events live on tenant_migration_event_record so unplanned-degradation language cannot be reused for planned operations."
+    },
+    "maintenance_state_class": {
+      "type": "string",
+      "enum": [
+        "announced",
+        "pre_window_export",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling_after_window",
+        "completed"
+      ]
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_exact",
+        "rescheduled_exact",
+        "in_progress_exact",
+        "completed_exact",
+        "historical_exact"
+      ]
+    },
+    "maintenance_schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_basis_class",
+        "announced_at",
+        "starts_at",
+        "expected_or_actual_ends_at",
+        "completed_at",
+        "timezone_id",
+        "utc_offset_at_start",
+        "export_deadline_at",
+        "drain_deadline_at"
+      ],
+      "properties": {
+        "time_basis_class": {
+          "$ref": "#/$defs/time_basis_class"
+        },
+        "announced_at": {
+          "$ref": "#/$defs/utc_date_time"
+        },
+        "starts_at": {
+          "$ref": "#/$defs/utc_date_time"
+        },
+        "expected_or_actual_ends_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "completed_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "timezone_id": {
+          "$ref": "#/$defs/timezone_id"
+        },
+        "utc_offset_at_start": {
+          "$ref": "#/$defs/utc_offset"
+        },
+        "export_deadline_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "drain_deadline_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        }
+      }
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "residency_scope_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "customer_region_pinned",
+        "vendor_region_default",
+        "sovereign_region_pinned",
+        "tenant_residency_recheck_required",
+        "residency_changed_review_required"
+      ]
+    },
+    "control_plane_service_class": {
+      "type": "string",
+      "enum": [
+        "sync_service",
+        "registry_service",
+        "relay_service",
+        "ai_broker_service",
+        "auth_identity_service",
+        "policy_service",
+        "docs_pack_service",
+        "catalog_service",
+        "telemetry_sink_service",
+        "workspace_control_plane_service",
+        "provider_review_service",
+        "merge_queue_service",
+        "support_ingest_service"
+      ]
+    },
+    "data_plane_capability_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "local_save",
+        "local_search",
+        "local_git",
+        "local_tasks",
+        "local_docs_inspect",
+        "local_export",
+        "local_diagnostics",
+        "remote_attach",
+        "managed_runtime",
+        "collaboration_session",
+        "hosted_review_publish",
+        "merge_queue",
+        "ai_gateway_prompt",
+        "extension_install_update",
+        "settings_profile_sync",
+        "support_bundle_upload"
+      ]
+    },
+    "affected_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profiles",
+        "tenant_refs",
+        "org_refs",
+        "workspace_refs",
+        "region_refs",
+        "residency_scope_classes",
+        "service_classes",
+        "endpoint_refs",
+        "scope_summary"
+      ],
+      "properties": {
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/deployment_profile_class"
+          }
+        },
+        "tenant_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "org_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "workspace_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "region_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "residency_scope_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/residency_scope_class"
+          }
+        },
+        "service_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/control_plane_service_class"
+          }
+        },
+        "endpoint_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "scope_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "control_plane_effect_state": {
+      "type": "string",
+      "enum": [
+        "unaffected",
+        "scheduled_impact",
+        "read_only",
+        "drain",
+        "reconciling",
+        "completed",
+        "unknown_requires_review"
+      ]
+    },
+    "data_plane_effect_state": {
+      "type": "string",
+      "enum": [
+        "unaffected_local_safe",
+        "available_local_safe",
+        "available_mirror_backed",
+        "reduced_read_only",
+        "blocked_pending_reconnect",
+        "blocked_by_policy",
+        "completed",
+        "unknown_requires_review"
+      ]
+    },
+    "recovery_trigger_class": {
+      "type": "string",
+      "enum": [
+        "window_starts",
+        "window_ends",
+        "drain_completes",
+        "reconciliation_completes",
+        "operator_marks_completed",
+        "manual_reconnect_required",
+        "manual_export_required",
+        "not_applicable"
+      ]
+    },
+    "control_plane_effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_class",
+        "effect_state",
+        "recovery_trigger_class",
+        "note"
+      ],
+      "properties": {
+        "service_class": {
+          "$ref": "#/$defs/control_plane_service_class"
+        },
+        "effect_state": {
+          "$ref": "#/$defs/control_plane_effect_state"
+        },
+        "recovery_trigger_class": {
+          "$ref": "#/$defs/recovery_trigger_class"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "data_plane_effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class",
+        "effect_state",
+        "recovery_trigger_class",
+        "note"
+      ],
+      "properties": {
+        "capability_class": {
+          "$ref": "#/$defs/data_plane_capability_class"
+        },
+        "effect_state": {
+          "$ref": "#/$defs/data_plane_effect_state"
+        },
+        "recovery_trigger_class": {
+          "$ref": "#/$defs/recovery_trigger_class"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "plane_effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_plane",
+        "data_plane"
+      ],
+      "properties": {
+        "control_plane": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/control_plane_effect"
+          }
+        },
+        "data_plane": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/data_plane_effect"
+          }
+        }
+      }
+    },
+    "local_core_status_class": {
+      "type": "string",
+      "enum": [
+        "local_core_unaffected",
+        "meaningful_safe_subset_available",
+        "local_only_available",
+        "no_safe_local_subset",
+        "unknown_requires_review"
+      ]
+    },
+    "local_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_core_status_class",
+        "continue_local_guidance_required",
+        "retained_local_safe_capabilities",
+        "blocked_managed_only_capabilities",
+        "continuity_summary"
+      ],
+      "properties": {
+        "local_core_status_class": {
+          "$ref": "#/$defs/local_core_status_class"
+        },
+        "continue_local_guidance_required": {
+          "type": "boolean"
+        },
+        "retained_local_safe_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        },
+        "blocked_managed_only_capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        },
+        "continuity_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "managed_action_class": {
+      "type": "string",
+      "enum": [
+        "managed_review_comment_publish",
+        "managed_review_approval",
+        "merge_queue_enqueue",
+        "collaboration_presence_write",
+        "remote_control_session_join",
+        "profile_settings_sync_write",
+        "policy_admin_write",
+        "extension_registry_publish_or_install",
+        "managed_workspace_lifecycle_write",
+        "ai_gateway_prompt_submit",
+        "support_bundle_upload",
+        "telemetry_upload"
+      ]
+    },
+    "block_state_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_to_block",
+        "blocked_read_only",
+        "blocked_drain_new_actions",
+        "blocked_pending_reconnect",
+        "blocked_by_policy",
+        "draining_existing_only",
+        "unknown_requires_review"
+      ]
+    },
+    "deferral_path_class": {
+      "type": "string",
+      "enum": [
+        "publish_later",
+        "reconnect_later",
+        "export_before_maintenance",
+        "no_deferral_requires_export",
+        "blocked_no_safe_retry",
+        "not_applicable"
+      ]
+    },
+    "local_capture_class": {
+      "type": "string",
+      "enum": [
+        "capture_allowed_local_queue",
+        "capture_allowed_export_only",
+        "capture_blocked_boundary_unknown",
+        "capture_not_applicable"
+      ]
+    },
+    "blocked_action_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "block_state_class",
+        "deferral_path_class",
+        "local_capture_class",
+        "resume_trigger_class",
+        "affected_queue_ref",
+        "note"
+      ],
+      "properties": {
+        "action_class": {
+          "$ref": "#/$defs/managed_action_class"
+        },
+        "block_state_class": {
+          "$ref": "#/$defs/block_state_class"
+        },
+        "deferral_path_class": {
+          "$ref": "#/$defs/deferral_path_class"
+        },
+        "local_capture_class": {
+          "$ref": "#/$defs/local_capture_class"
+        },
+        "resume_trigger_class": {
+          "$ref": "#/$defs/recovery_trigger_class"
+        },
+        "affected_queue_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "follow_up_action_class": {
+      "type": "string",
+      "enum": [
+        "continue_local",
+        "export_before_maintenance",
+        "publish_later",
+        "reconnect_later",
+        "retry_after_window",
+        "review_new_boundary",
+        "open_history",
+        "no_action_required"
+      ]
+    },
+    "action_phase_class": {
+      "type": "string",
+      "enum": [
+        "pre_window",
+        "in_window",
+        "post_window",
+        "any_phase"
+      ]
+    },
+    "action_requirement_class": {
+      "type": "string",
+      "enum": [
+        "required",
+        "recommended",
+        "available",
+        "not_applicable"
+      ]
+    },
+    "follow_up_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "phase_class",
+        "requirement_class",
+        "target_action_classes",
+        "due_before_at",
+        "message"
+      ],
+      "properties": {
+        "action_class": {
+          "$ref": "#/$defs/follow_up_action_class"
+        },
+        "phase_class": {
+          "$ref": "#/$defs/action_phase_class"
+        },
+        "requirement_class": {
+          "$ref": "#/$defs/action_requirement_class"
+        },
+        "target_action_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/managed_action_class"
+          }
+        },
+        "due_before_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "message": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "cached_status_class": {
+      "type": "string",
+      "enum": [
+        "no_cached_state",
+        "cached_pre_window_stale",
+        "cached_managed_acknowledgement_pending",
+        "cached_replay_review_pending",
+        "cached_resolved_consistent"
+      ]
+    },
+    "boundary_change_required_class": {
+      "type": "string",
+      "enum": [
+        "no_boundary_change_planned",
+        "boundary_change_pending_external_event",
+        "boundary_change_handled_by_migration_event"
+      ]
+    },
+    "post_window_restate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cached_status_class",
+        "boundary_change_required_class",
+        "linked_migration_event_refs",
+        "summary"
+      ],
+      "properties": {
+        "cached_status_class": {
+          "$ref": "#/$defs/cached_status_class"
+        },
+        "boundary_change_required_class": {
+          "$ref": "#/$defs/boundary_change_required_class"
+        },
+        "linked_migration_event_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "active_current",
+        "superseded_stale",
+        "completed_historical",
+        "imported_historical"
+      ]
+    },
+    "retention_reason_class": {
+      "type": "string",
+      "enum": [
+        "active_window",
+        "audit_history",
+        "drill_history",
+        "boundary_change_history",
+        "support_export_history",
+        "imported_offline_history"
+      ]
+    },
+    "notice_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "supersedes_notice_id",
+        "superseded_by_notice_id",
+        "retained_until_at",
+        "retention_reason_class",
+        "history_notice_refs"
+      ],
+      "properties": {
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "supersedes_notice_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "superseded_by_notice_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/stable_token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retained_until_at": {
+          "$ref": "#/$defs/nullable_utc_date_time"
+        },
+        "retention_reason_class": {
+          "$ref": "#/$defs/retention_reason_class"
+        },
+        "history_notice_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_token"
+          }
+        }
+      }
+    },
+    "display_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_status_line",
+        "local_continuity_line",
+        "blocked_actions_line",
+        "follow_up_line",
+        "stale_label",
+        "all_work_broken_implied",
+        "incident_language_used",
+        "generic_offline_banner_used"
+      ],
+      "properties": {
+        "primary_status_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "local_continuity_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "blocked_actions_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "follow_up_line": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "stale_label": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "all_work_broken_implied": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Maintenance notices cannot imply all work is broken when local continuity is available."
+        },
+        "incident_language_used": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Planned maintenance notices cannot reuse incident or unplanned-degradation language."
+        },
+        "generic_offline_banner_used": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Maintenance notices cannot collapse into a generic offline banner."
+        }
+      }
+    }
+  }
+}

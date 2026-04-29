@@ -1,0 +1,183 @@
+__fixture__:
+  name: export_before_maintenance
+  scenario: >
+    A scheduled export freeze for hosted review and merge queue. Users
+    must export pending review drafts and merge intents before the
+    freeze deadline if those intents must survive the maintenance
+    window offline. Local-first work remains unaffected; the freeze is
+    advertised days ahead of the window so the export-before-maintenance
+    follow-up has a non-null due_before_at.
+  contract_sections:
+    - Notice kind, state, and required disclosure
+    - Required disclosure on every notice and event
+    - Display-copy invariants
+schema_refs:
+  maintenance_notice: schemas/ops/maintenance_notice.schema.json
+
+maintenance_notice:
+  schema_version: 1
+  record_kind: maintenance_notice_record
+  notice_id: maintenance_notice.export_before_maintenance
+  maintenance_kind_class: scheduled_export_freeze
+  maintenance_state_class: pre_window_export
+  title: Export hosted review drafts before the maintenance freeze
+  summary: >
+    Hosted review and merge queue writes will pause during the
+    scheduled window. Users must export pending review drafts and
+    merge intents before the freeze deadline if they must survive the
+    window offline. Local edits, save, Git, and search remain
+    unaffected.
+  created_at: "2026-04-29T18:00:00Z"
+  updated_at: "2026-04-29T18:00:00Z"
+  schedule:
+    time_basis_class: scheduled_exact
+    announced_at: "2026-04-29T18:00:00Z"
+    starts_at: "2026-05-04T08:00:00Z"
+    expected_or_actual_ends_at: "2026-05-04T08:30:00Z"
+    completed_at: null
+    timezone_id: America/Los_Angeles
+    utc_offset_at_start: "-07:00"
+    export_deadline_at: "2026-05-04T07:45:00Z"
+    drain_deadline_at: null
+  affected_scope:
+    deployment_profiles:
+      - enterprise_online
+      - managed_cloud
+    tenant_refs:
+      - tenant.ref.enterprise.review
+    org_refs:
+      - org.ref.platform
+    workspace_refs: []
+    region_refs:
+      - region.ref.us-west
+    residency_scope_classes:
+      - customer_region_pinned
+    service_classes:
+      - provider_review_service
+      - merge_queue_service
+    endpoint_refs:
+      - endpoint.ref.review.publish
+    scope_summary: >
+      Hosted review publish and merge queue writes for the pinned
+      enterprise review scope.
+  plane_effects:
+    control_plane:
+      - service_class: provider_review_service
+        effect_state: scheduled_impact
+        recovery_trigger_class: window_ends
+        note: Review publish admission will pause during the scheduled window.
+      - service_class: merge_queue_service
+        effect_state: scheduled_impact
+        recovery_trigger_class: window_ends
+        note: Merge queue admission will pause during the scheduled window.
+    data_plane:
+      - capability_class: local_editing
+        effect_state: available_local_safe
+        recovery_trigger_class: not_applicable
+        note: Local buffers and local save are unaffected by the planned freeze.
+      - capability_class: hosted_review_publish
+        effect_state: reduced_read_only
+        recovery_trigger_class: window_ends
+        note: Drafts can be prepared locally and exported before the freeze.
+      - capability_class: merge_queue
+        effect_state: reduced_read_only
+        recovery_trigger_class: window_ends
+        note: Merge queue intents can be captured locally before the window.
+  local_continuity:
+    local_core_status_class: meaningful_safe_subset_available
+    continue_local_guidance_required: true
+    retained_local_safe_capabilities:
+      - continue local edits, save, search, run local Git, and export pending review drafts and merge intents before the freeze deadline
+    blocked_managed_only_capabilities:
+      - publish hosted review comments during the window
+      - submit hosted review approvals during the window
+      - enqueue merge queue entries during the window
+    continuity_summary: >
+      Local-first work continues; managed publish and merge writes
+      will pause for the planned window.
+  blocked_action_classes:
+    - action_class: managed_review_comment_publish
+      block_state_class: scheduled_to_block
+      deferral_path_class: export_before_maintenance
+      local_capture_class: capture_allowed_export_only
+      resume_trigger_class: window_ends
+      affected_queue_ref: queue.ref.review.publish
+      note: Export pending review drafts before the freeze deadline if they must survive the window.
+    - action_class: managed_review_approval
+      block_state_class: scheduled_to_block
+      deferral_path_class: export_before_maintenance
+      local_capture_class: capture_allowed_export_only
+      resume_trigger_class: window_ends
+      affected_queue_ref: queue.ref.review.approval.publish
+      note: Export pending approvals before the freeze deadline.
+    - action_class: merge_queue_enqueue
+      block_state_class: scheduled_to_block
+      deferral_path_class: publish_later
+      local_capture_class: capture_allowed_local_queue
+      resume_trigger_class: window_ends
+      affected_queue_ref: queue.ref.merge.enqueue
+      note: Merge queue intent can be captured locally and replayed after the window.
+  follow_up_actions:
+    - action_class: export_before_maintenance
+      phase_class: pre_window
+      requirement_class: required
+      target_action_classes:
+        - managed_review_comment_publish
+        - managed_review_approval
+      due_before_at: "2026-05-04T07:45:00Z"
+      message: Export pending review drafts and approvals before the freeze deadline.
+    - action_class: continue_local
+      phase_class: any_phase
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Continue local edits, save, search, Git, and diagnostics before, during, and after the window.
+    - action_class: publish_later
+      phase_class: post_window
+      requirement_class: recommended
+      target_action_classes:
+        - merge_queue_enqueue
+      due_before_at: null
+      message: Replay queued merge intents after the window ends.
+    - action_class: retry_after_window
+      phase_class: post_window
+      requirement_class: recommended
+      target_action_classes:
+        - managed_review_comment_publish
+      due_before_at: null
+      message: Retry hosted review publishes after the window ends.
+  post_window_restate:
+    cached_status_class: no_cached_state
+    boundary_change_required_class: no_boundary_change_planned
+    linked_migration_event_refs: []
+    summary: >
+      No tenant, region, residency, key-ownership, or endpoint identity
+      change is planned for this window; only an export freeze is
+      required.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_notice_id: null
+    superseded_by_notice_id: null
+    retained_until_at: "2026-06-04T08:30:00Z"
+    retention_reason_class: active_window
+    history_notice_refs: []
+  display_copy:
+    primary_status_line: Hosted review export freeze deadline is May 4, 2026 00:45 America/Los_Angeles.
+    local_continuity_line: Local edits, save, search, Git, diagnostics, and export remain available.
+    blocked_actions_line: Review publishes and approvals pause for the window; export pending intents before the freeze.
+    follow_up_line: Export pending review drafts and approvals before the freeze deadline.
+    stale_label: null
+    all_work_broken_implied: false
+    incident_language_used: false
+    generic_offline_banner_used: false
+  evidence_refs:
+    - change_request.ref.review_publish_freeze.may_2026
+    - drill.ref.export_before_maintenance
+  narrative_refs:
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/ux/control_data_plane_status_contract.md
+
+expected_surface_contract:
+  declares_export_deadline: true
+  required_export_before_maintenance_action: true
+  no_boundary_change_planned: true

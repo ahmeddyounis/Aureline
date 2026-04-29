@@ -1,0 +1,356 @@
+__fixture__:
+  name: drain_before_failover
+  scenario: >
+    A planned drain window precedes a regional failover. Existing
+    collaboration sessions can finish during the drain, new joins are
+    blocked, and the linked tenant_migration_event_record names the
+    failover boundary review users must complete after cutover.
+  contract_sections:
+    - Notice kind, state, and required disclosure
+    - Migration and failover event kinds and required disclosure
+    - Boundary axes and approval / route review
+schema_refs:
+  maintenance_notice: schemas/ops/maintenance_notice.schema.json
+  tenant_migration_event: schemas/ops/tenant_migration_event.schema.json
+
+maintenance_notice:
+  schema_version: 1
+  record_kind: maintenance_notice_record
+  notice_id: maintenance_notice.drain_before_failover
+  maintenance_kind_class: scheduled_drain_window
+  maintenance_state_class: drain_window
+  title: Collaboration relay drain ahead of regional failover
+  summary: >
+    Existing collaboration sessions may finish during the drain; new
+    joins and remote-control session starts are blocked until reconnect
+    after the failover cutover. Local-first work is unaffected.
+  created_at: "2026-05-09T05:00:00Z"
+  updated_at: "2026-05-09T05:30:00Z"
+  schedule:
+    time_basis_class: in_progress_exact
+    announced_at: "2026-05-08T20:00:00Z"
+    starts_at: "2026-05-09T05:30:00Z"
+    expected_or_actual_ends_at: "2026-05-09T06:00:00Z"
+    completed_at: null
+    timezone_id: UTC
+    utc_offset_at_start: Z
+    export_deadline_at: "2026-05-09T05:25:00Z"
+    drain_deadline_at: "2026-05-09T05:55:00Z"
+  affected_scope:
+    deployment_profiles:
+      - enterprise_online
+      - managed_cloud
+    tenant_refs:
+      - tenant.ref.collab.failover
+    org_refs:
+      - org.ref.collab
+    workspace_refs: []
+    region_refs:
+      - region.ref.us-west
+    residency_scope_classes:
+      - customer_region_pinned
+    service_classes:
+      - relay_service
+      - workspace_control_plane_service
+    endpoint_refs:
+      - endpoint.ref.relay.us-west
+    scope_summary: >
+      Collaboration relay joins and remote-control session starts on the
+      US-west route ahead of the planned failover.
+  plane_effects:
+    control_plane:
+      - service_class: relay_service
+        effect_state: drain
+        recovery_trigger_class: drain_completes
+        note: The US-west relay is draining active sessions and refusing new joins.
+      - service_class: workspace_control_plane_service
+        effect_state: drain
+        recovery_trigger_class: drain_completes
+        note: Workspace control admission is draining ahead of the failover.
+    data_plane:
+      - capability_class: local_editing
+        effect_state: available_local_safe
+        recovery_trigger_class: not_applicable
+        note: Local editing, save, search, and Git remain available.
+      - capability_class: collaboration_session
+        effect_state: blocked_pending_reconnect
+        recovery_trigger_class: manual_reconnect_required
+        note: Existing sessions may finish; new joins reconnect after the failover.
+      - capability_class: remote_attach
+        effect_state: blocked_pending_reconnect
+        recovery_trigger_class: manual_reconnect_required
+        note: Managed remote attach reconnects after the failover boundary review.
+  local_continuity:
+    local_core_status_class: meaningful_safe_subset_available
+    continue_local_guidance_required: true
+    retained_local_safe_capabilities:
+      - continue local edits, save, search, Git, diagnostics, and export while the relay drains
+    blocked_managed_only_capabilities:
+      - start new collaboration sessions
+      - join remote-control sessions through the draining relay
+    continuity_summary: >
+      Local work is unaffected during the drain; only managed joins
+      and remote attach wait for the failover reconnect.
+  blocked_action_classes:
+    - action_class: collaboration_presence_write
+      block_state_class: blocked_drain_new_actions
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_not_applicable
+      resume_trigger_class: manual_reconnect_required
+      affected_queue_ref: null
+      note: New presence joins wait until reconnect after the failover.
+    - action_class: remote_control_session_join
+      block_state_class: blocked_drain_new_actions
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_not_applicable
+      resume_trigger_class: manual_reconnect_required
+      affected_queue_ref: null
+      note: New remote-control joins are blocked during drain.
+    - action_class: managed_workspace_lifecycle_write
+      block_state_class: draining_existing_only
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_blocked_boundary_unknown
+      resume_trigger_class: manual_reconnect_required
+      affected_queue_ref: queue.ref.workspace.lifecycle.failover
+      note: Workspace lifecycle writes wait for the post-failover route review.
+  follow_up_actions:
+    - action_class: continue_local
+      phase_class: in_window
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Continue local work while the relay drains.
+    - action_class: reconnect_later
+      phase_class: post_window
+      requirement_class: required
+      target_action_classes:
+        - collaboration_presence_write
+        - remote_control_session_join
+        - managed_workspace_lifecycle_write
+      due_before_at: null
+      message: Reconnect collaboration after the failover boundary review completes.
+    - action_class: export_before_maintenance
+      phase_class: pre_window
+      requirement_class: recommended
+      target_action_classes:
+        - collaboration_presence_write
+      due_before_at: "2026-05-09T05:25:00Z"
+      message: Export shared session notes before the drain if they must survive offline.
+    - action_class: review_new_boundary
+      phase_class: post_window
+      requirement_class: required
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+      due_before_at: null
+      message: Review the post-failover region and endpoint boundary before reconnect.
+  post_window_restate:
+    cached_status_class: cached_replay_review_pending
+    boundary_change_required_class: boundary_change_handled_by_migration_event
+    linked_migration_event_refs:
+      - tenant_migration_event.regional_failover_us_west_to_us_east
+    summary: >
+      The drain ends at the failover cutover; the linked migration
+      event records the post-failover boundary axes that change.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_notice_id: null
+    superseded_by_notice_id: null
+    retained_until_at: "2026-08-09T06:00:00Z"
+    retention_reason_class: active_window
+    history_notice_refs: []
+  display_copy:
+    primary_status_line: Collaboration relay drain is active until May 9, 2026 06:00 UTC.
+    local_continuity_line: Local edits, save, search, Git, diagnostics, and export remain available.
+    blocked_actions_line: New collaboration joins and managed lifecycle writes wait for reconnect after failover.
+    follow_up_line: Reconnect after the failover boundary review completes.
+    stale_label: null
+    all_work_broken_implied: false
+    incident_language_used: false
+    generic_offline_banner_used: false
+  evidence_refs:
+    - drill.ref.relay_drain_before_failover
+    - change_request.ref.regional_failover.may_2026
+  narrative_refs:
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/deployment/locality_and_continuity_seed.md
+
+tenant_migration_event:
+  schema_version: 1
+  record_kind: tenant_migration_event_record
+  event_id: tenant_migration_event.regional_failover_us_west_to_us_east
+  event_kind_class: regional_failover
+  event_state_class: drain_before_failover
+  title: Regional failover from US-west to US-east
+  summary: >
+    The control plane is draining ahead of a regional failover from
+    US-west to US-east. Region and endpoint identity will change at
+    cutover; tenant authority and customer-managed key ownership remain
+    unchanged.
+  created_at: "2026-05-08T20:00:00Z"
+  updated_at: "2026-05-09T05:30:00Z"
+  schedule:
+    time_basis_class: in_progress_exact
+    announced_at: "2026-05-08T20:00:00Z"
+    drain_starts_at: "2026-05-09T05:30:00Z"
+    cutover_at: "2026-05-09T06:00:00Z"
+    expected_or_actual_ends_at: "2026-05-09T06:30:00Z"
+    completed_at: null
+    timezone_id: UTC
+    utc_offset_at_cutover: Z
+    export_deadline_at: "2026-05-09T05:25:00Z"
+  affected_scope:
+    deployment_profiles:
+      - enterprise_online
+      - managed_cloud
+    tenant_refs:
+      - tenant.ref.collab.failover
+    org_refs:
+      - org.ref.collab
+    workspace_refs: []
+    region_refs:
+      - region.ref.us-west
+      - region.ref.us-east
+    residency_scope_classes:
+      - tenant_residency_recheck_required
+    service_classes:
+      - relay_service
+      - workspace_control_plane_service
+      - auth_identity_service
+    endpoint_refs:
+      - endpoint.ref.control.us-west
+      - endpoint.ref.control.us-east
+    scope_summary: >
+      Failing over the managed control plane from US-west to US-east
+      for the affected tenant.
+  boundary_change:
+    boundary_change_required: true
+    boundary_effective_at: "2026-05-09T06:00:00Z"
+    review_status_class: required_pending
+    boundary_axes:
+      - axis_class: tenant
+        axis_state_class: unchanged
+        previous_ref: tenant.ref.collab.failover
+        current_ref: tenant.ref.collab.failover
+        required_follow_up_action: open_history
+        summary: Tenant authority remains unchanged.
+      - axis_class: region
+        axis_state_class: changed
+        previous_ref: region.ref.us-west
+        current_ref: region.ref.us-east
+        required_follow_up_action: review_new_boundary
+        summary: Control-plane region moves from US-west to US-east at cutover.
+      - axis_class: residency
+        axis_state_class: unknown_recheck_required
+        previous_ref: residency.ref.us-west
+        current_ref: residency.ref.us-east
+        required_follow_up_action: review_new_boundary
+        summary: Residency posture must be rechecked under the new region.
+      - axis_class: key_ownership
+        axis_state_class: unchanged
+        previous_ref: key.ref.customer.managed
+        current_ref: key.ref.customer.managed
+        required_follow_up_action: open_history
+        summary: Customer-managed key ownership is preserved across the failover.
+      - axis_class: endpoint_identity
+        axis_state_class: changed
+        previous_ref: endpoint.ref.control.us-west
+        current_ref: endpoint.ref.control.us-east
+        required_follow_up_action: review_new_boundary
+        summary: Control-plane endpoint identity changes at cutover.
+    summary: Region and endpoint identity change; residency requires recheck.
+  approval_and_route_review:
+    fresh_approval_required_class: required_for_managed_lifecycle
+    route_review_required_class: required_for_control_plane_reconnect
+    replay_queue_review_refs:
+      - queue.ref.workspace.lifecycle.failover
+    reconnect_token_review_refs:
+      - reconnect_token.ref.control.us-east
+    summary: >
+      Managed lifecycle writes require a fresh approval before reconnect;
+      the control-plane reconnect route is reviewed under the new
+      region and endpoint identity.
+  post_event_continuity:
+    local_core_status_class: meaningful_safe_subset_available
+    cached_status_class: cached_pre_event_stale
+    continue_local_guidance_required: true
+    retained_local_safe_capabilities:
+      - continue local edits, save, search, Git, diagnostics, and export across the failover
+    blocked_managed_only_capabilities:
+      - reconnect managed workspaces under the new region without boundary review
+      - replay prior approval-backed managed actions across the failover
+    continuity_summary: >
+      Local-first work continues across the failover; managed routes
+      wait for review of the new region and endpoint identity.
+  blocked_action_classes:
+    - action_class: managed_workspace_lifecycle_write
+      block_state_class: blocked_pending_boundary_recheck
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_blocked_boundary_unknown
+      resume_trigger_class: boundary_review_completed
+      affected_queue_ref: queue.ref.workspace.lifecycle.failover
+      note: Workspace lifecycle writes wait for review of the new region and endpoint identity.
+    - action_class: collaboration_presence_write
+      block_state_class: blocked_drain_new_actions
+      deferral_path_class: reconnect_later
+      local_capture_class: capture_not_applicable
+      resume_trigger_class: cutover_completes
+      affected_queue_ref: null
+      note: New collaboration joins reconnect after cutover and route review.
+  follow_up_actions:
+    - action_class: continue_local
+      phase_class: during_event
+      requirement_class: available
+      target_action_classes: []
+      due_before_at: null
+      message: Continue local work across the failover.
+    - action_class: review_new_boundary
+      phase_class: post_cutover
+      requirement_class: required
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+      due_before_at: null
+      message: Review the new region and endpoint identity before reconnect.
+    - action_class: reconnect_later
+      phase_class: post_cutover
+      requirement_class: required
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+        - collaboration_presence_write
+      due_before_at: null
+      message: Reconnect managed routes after the boundary review completes.
+    - action_class: export_before_cutover
+      phase_class: pre_cutover
+      requirement_class: recommended
+      target_action_classes:
+        - managed_workspace_lifecycle_write
+      due_before_at: "2026-05-09T05:25:00Z"
+      message: Export pending lifecycle intents before the failover cutover if they must survive offline.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_event_id: null
+    superseded_by_event_id: null
+    retained_until_at: "2027-05-09T06:30:00Z"
+    retention_reason_class: boundary_change_history
+    history_event_refs: []
+    linked_maintenance_notice_refs:
+      - maintenance_notice.drain_before_failover
+  display_copy:
+    primary_status_line: Regional failover is in progress; cutover at May 9, 2026 06:00 UTC.
+    local_continuity_line: Local editing, save, search, Git, diagnostics, and export remain available.
+    boundary_change_line: Region and endpoint identity change at cutover; residency requires recheck.
+    follow_up_line: Review the new region and endpoint identity before reconnect.
+    stale_label: null
+    all_work_broken_implied: false
+    incident_language_used: false
+    generic_all_clear_used: false
+  evidence_refs:
+    - drill.ref.regional_failover
+    - boundary_recheck_packet.ref.us_east
+  narrative_refs:
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/ops/event_provenance_and_route_inspector_contract.md
+
+expected_surface_contract:
+  drain_before_failover_links_migration_event: true
+  boundary_axes_restated: true
+  fresh_approval_required_for_lifecycle: true
