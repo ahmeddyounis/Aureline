@@ -45,15 +45,22 @@ Companion artifacts:
   disabled-state explainers, diagnostics, and machine-facing names
   attached to the canonical command id instead of reauthoring them per
   surface.
+- [`/docs/commands/palette_row_and_modifier_contract.md`](./palette_row_and_modifier_contract.md),
+  [`/schemas/commands/palette_row.schema.json`](../../schemas/commands/palette_row.schema.json),
+  and
+  [`/fixtures/commands/palette_row_cases/`](../../fixtures/commands/palette_row_cases/)
+  — the governed command-palette row, modifier-action, automation-cue,
+  no-bypass, and degraded-state projection contract that desktop rows,
+  docs examples, CLI discovery, automation explainers, and support
+  captures render from the same registry/shareability records.
 - [`/docs/commands/palette_row_contract.md`](./palette_row_contract.md),
   [`/schemas/commands/palette_result.schema.json`](../../schemas/commands/palette_result.schema.json),
   [`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json),
   and
   [`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/)
-  — the governed command-palette row and action-footer projection
-  contract that renders command rows in palette, docs/help, settings,
-  keybinding help, migration guidance, automation explainers, and
-  support export from the same registry/shareability records.
+  — detailed split query-session/result-row and selected-row footer
+  materializations that must stay aligned with the combined row
+  contract.
 - [`/docs/ux/menu_command_bar_contract.md`](../ux/menu_command_bar_contract.md),
   [`/schemas/commands/menu_item.schema.json`](../../schemas/commands/menu_item.schema.json),
   and

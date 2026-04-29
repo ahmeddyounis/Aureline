@@ -7,12 +7,26 @@ resolver output, enablement decisions, and shareability metadata; it is
 not a second command registry, a hidden launcher, or a fuzzy-search
 surface with private dispatch rules.
 
+Compatibility note: the combined row, modifier-action, automation-cue,
+no-bypass, and degraded-state contract now lives in
+[`/docs/commands/palette_row_and_modifier_contract.md`](./palette_row_and_modifier_contract.md)
+and
+[`/schemas/commands/palette_row.schema.json`](../../schemas/commands/palette_row.schema.json).
+This document remains the detailed split projection for query sessions,
+result rows, and selected-row action footers; it must not diverge from
+the combined contract.
+
 Machine-readable companions:
 
+- [`/schemas/commands/palette_row.schema.json`](../../schemas/commands/palette_row.schema.json)
+  defines the combined row/modifier/automation-cue record that desktop,
+  docs, CLI discovery, support, and automation surfaces can all cite.
 - [`/schemas/commands/palette_result.schema.json`](../../schemas/commands/palette_result.schema.json)
   defines query-session and result-row records.
 - [`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json)
   defines selected-row footer actions and alternate invocation rows.
+- [`/fixtures/commands/palette_row_cases/`](../../fixtures/commands/palette_row_cases/)
+  contains combined row/modifier examples.
 - [`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/)
   contains seed rows and footer variants projected from the existing
   command-registry seed records.

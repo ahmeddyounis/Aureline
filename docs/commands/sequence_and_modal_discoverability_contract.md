@@ -231,8 +231,12 @@ after stripping fixture-only `$schema` and `__fixture__` keys.
 
 - [`/docs/commands/command_descriptor_contract.md`](./command_descriptor_contract.md)
   owns command semantics.
+- [`/docs/commands/palette_row_and_modifier_contract.md`](./palette_row_and_modifier_contract.md)
+  owns the combined palette row, modifier-action, automation-cue, and
+  degraded-state projection.
 - [`/docs/commands/palette_row_contract.md`](./palette_row_contract.md)
-  owns palette row projection.
+  owns detailed query-session/result-row and action-footer projections
+  that must stay aligned with the combined row contract.
 - [`/docs/ux/keybinding_resolver_contract.md`](../ux/keybinding_resolver_contract.md)
   owns precedence, conflict-review, disabled-command, and import-bridge
   resolver packets.

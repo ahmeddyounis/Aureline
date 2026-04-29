@@ -5,6 +5,12 @@ These fixtures exercise the palette projection contract in
 They are projected from existing command-registry seed records rather
 than authored as independent command definitions.
 
+The combined row/modifier/automation-cue cases live in
+[`fixtures/commands/palette_row_cases/`](../palette_row_cases/) and are
+the cross-surface row records desktop, docs, CLI discovery, support, and
+automation surfaces may all cite. The fixtures in this directory remain
+the split query-result and action-footer materializations.
+
 | Fixture | Schema | Purpose |
 |---|---|---|
 | [`workspace_open_folder_enabled.palette_row.json`](./workspace_open_folder_enabled.palette_row.json) | `palette_result.schema.json` | Enabled core row with assigned shortcut, badges, docs anchor, and multi-surface projection targets. |

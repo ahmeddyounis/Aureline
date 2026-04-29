@@ -1168,6 +1168,18 @@ code.
   evidence success, approval-required pending, and disabled-with-
   reason trust denial) in
   [`/fixtures/commands/command_descriptor_examples/`](../fixtures/commands/command_descriptor_examples/).
+- [`commands/palette_row_and_modifier_contract.md`](./commands/palette_row_and_modifier_contract.md)
+  — combined command-palette row, modifier-action, and automation-cue
+  contract for desktop palette rows, docs examples, CLI discovery,
+  automation explainers, and support captures. Freezes required row
+  elements (primary label, secondary scope detail, origin badge,
+  winning shortcut hint, reason chip, automation labels, lifecycle cue,
+  target/authority hint), modifier/footer actions, no-bypass guards,
+  disabled/automation/command-ID cross-links, and hidden/deprecated/
+  provider-backed/UI-only degraded states. Boundary schema in
+  [`/schemas/commands/palette_row.schema.json`](../schemas/commands/palette_row.schema.json);
+  worked fixtures in
+  [`/fixtures/commands/palette_row_cases/`](../fixtures/commands/palette_row_cases/).
 - [`commands/command_graph_and_ui_slots_seed.md`](./commands/command_graph_and_ui_slots_seed.md)
   — slot-taxonomy seed translating the command-descriptor
   contract's coarse `ui_slot_hints` into stable shell/help/

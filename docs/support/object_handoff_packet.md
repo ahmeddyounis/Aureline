@@ -42,6 +42,11 @@ Companion artifacts:
 - [`/docs/migration/migration_center_object_model.md`](../migration/migration_center_object_model.md)
   — migration packet/report linkage vocabulary reused for migration
   launches.
+- [`/docs/commands/palette_row_and_modifier_contract.md`](../commands/palette_row_and_modifier_contract.md)
+  — command-row, modifier-action, automation-cue, and degraded-state
+  projection vocabulary command detail sheets preserve when an issue or
+  support packet starts from palette, docs, CLI discovery, or automation
+  surfaces.
 
 Normative sources this contract projects from:
 
@@ -200,6 +205,10 @@ flattening them:
   import, open, and resume failures preserve source identity, checkout
   plan, trust stage, mirror/public route, resumability, prerequisites,
   and reason codes without copying raw secrets or source bodies.
+- command palette rows via the combined row contract so handoff packets
+  preserve command ID, modifier action, disabled reason, automation cue,
+  origin badge, lifecycle cue, and target/authority hint without
+  rewording the palette row locally.
 
 If a linked record is unavailable, the packet may omit the ref, but it
 must keep the relevant state row and summary honest about the gap.

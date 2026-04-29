@@ -127,7 +127,7 @@ Recommended object types:
 
 | Object type | Minimum handoff context |
 |---|---|
-| **Command or task** | `command_id`, `invocation_session_id`, route context, target identity, exact-build identity, finding codes |
+| **Command or task** | `command_id`, `invocation_session_id`, palette row or modifier-action ref, route context, target identity, exact-build identity, finding codes |
 | **Extension or runtime host** | extension/host id, version, permission or runtime class, quarantine/bisect state, exact build |
 | **Route or remote target** | origin/target/route/exposure classes, target identity ref, approval or authority linkage, drift or expiry state |
 | **Docs/help or known-limit row** | docs-pack ref, docs/help version-match state, page or citation ref, exact build |
@@ -142,6 +142,12 @@ The concrete packet and route contract for these handoffs lives in
 [`docs/support/object_handoff_packet.md`](./object_handoff_packet.md)
 and
 [`schemas/support/object_handoff_packet.schema.json`](../../schemas/support/object_handoff_packet.schema.json).
+Command-origin handoffs also preserve the combined palette row contract
+from
+[`docs/commands/palette_row_and_modifier_contract.md`](../commands/palette_row_and_modifier_contract.md)
+so support packets can reconstruct origin badge, disabled reason,
+automation posture, shortcut hint, and no-bypass modifier semantics
+without inventing support-only wording.
 
 ## Repair-preview direction
 

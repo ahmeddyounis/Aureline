@@ -25,14 +25,21 @@ explainers, diagnostics, and machine-facing names lives in
 [`/fixtures/commands/seed_commands/`](../../fixtures/commands/seed_commands/),
 and
 [`/artifacts/commands/command_registry_seed.yaml`](../../artifacts/commands/command_registry_seed.yaml).
-The governed palette projection for result rows, selected-row action
-footers, alternate invocation rows, and cross-surface row rendering now
-lives in
+The governed palette projection for required row anatomy,
+modifier/footer actions, automation cues, no-bypass rules, degraded
+states, and cross-surface row rendering now lives in
+[`/docs/commands/palette_row_and_modifier_contract.md`](./palette_row_and_modifier_contract.md),
+[`/schemas/commands/palette_row.schema.json`](../../schemas/commands/palette_row.schema.json),
+and
+[`/fixtures/commands/palette_row_cases/`](../../fixtures/commands/palette_row_cases/).
+The detailed split query-session/result-row and selected-row footer
+materializations remain in
 [`/docs/commands/palette_row_contract.md`](./palette_row_contract.md),
 [`/schemas/commands/palette_result.schema.json`](../../schemas/commands/palette_result.schema.json),
 [`/schemas/commands/palette_action_footer.schema.json`](../../schemas/commands/palette_action_footer.schema.json),
 and
-[`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/).
+[`/fixtures/commands/palette_rows/`](../../fixtures/commands/palette_rows/);
+they must not diverge from the combined row contract.
 The governed projection for application menus, context menus, inline
 toolbars, command bars, and overflow menus now lives in
 [`/docs/ux/menu_command_bar_contract.md`](../ux/menu_command_bar_contract.md),
