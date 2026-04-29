@@ -1,0 +1,1244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/package_change_plan.schema.json",
+  "title": "Aureline package-change plan boundary",
+  "description": "Boundary schema for package_change_plan_record as frozen in docs/execution/package_manager_and_lockfile_safety_contract.md. A package-change plan is the pre-apply or imported-evidence object shared by package UI, CLI/headless, AI tools, automation, CI/provider projections, hosted review, admin audit, and support exports for install, update, remove, audit, and fix flows. The record carries manifest scope, registry source, advisory/license delta, lockfile impact, review-sheet risk fields, rollback/checkpoint refs, target context, no-hidden-mutation guards, and attribution linkage. Raw manifests, raw lockfiles, raw lifecycle scripts, raw package-manager cache paths, raw registry URLs, raw host names, raw tokens, raw certificate material, raw package-manager logs, and raw sidecar payloads never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "package_change_plan_schema_version",
+    "package_change_plan_id",
+    "action_class",
+    "package_manager_family",
+    "issuing_surface",
+    "actor_ref",
+    "command_id_ref",
+    "change_visibility_classes",
+    "target_context",
+    "manifest_scope",
+    "registry_source",
+    "advisory_or_license_delta",
+    "lockfile_impact",
+    "review_sheet",
+    "no_hidden_mutation_guards",
+    "rollback_and_checkpoint",
+    "linkage",
+    "plan_outcome_class",
+    "redaction_class",
+    "minted_at",
+    "narrative_refs"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "package_change_plan_record"
+    },
+    "package_change_plan_schema_version": {
+      "$ref": "#/$defs/package_change_plan_schema_version"
+    },
+    "package_change_plan_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "action_class": {
+      "$ref": "#/$defs/package_change_action_class"
+    },
+    "package_manager_family": {
+      "$ref": "#/$defs/package_manager_family"
+    },
+    "issuing_surface": {
+      "$ref": "#/$defs/issuing_surface"
+    },
+    "actor_ref": {
+      "$ref": "#/$defs/nullable_opaque_id"
+    },
+    "command_id_ref": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "change_visibility_classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/change_visibility_class"
+      },
+      "uniqueItems": true,
+      "description": "Visible consequence classes. A generic dependency-update label is intentionally not an enum value."
+    },
+    "target_context": {
+      "$ref": "#/$defs/target_context"
+    },
+    "manifest_scope": {
+      "$ref": "#/$defs/manifest_scope"
+    },
+    "registry_source": {
+      "$ref": "#/$defs/registry_source_summary"
+    },
+    "advisory_or_license_delta": {
+      "$ref": "#/$defs/advisory_or_license_delta"
+    },
+    "lockfile_impact": {
+      "$ref": "#/$defs/lockfile_impact"
+    },
+    "review_sheet": {
+      "$ref": "#/$defs/package_change_review_sheet"
+    },
+    "no_hidden_mutation_guards": {
+      "$ref": "#/$defs/no_hidden_mutation_guards"
+    },
+    "rollback_and_checkpoint": {
+      "$ref": "#/$defs/rollback_and_checkpoint"
+    },
+    "linkage": {
+      "$ref": "#/$defs/package_change_linkage"
+    },
+    "plan_outcome_class": {
+      "$ref": "#/$defs/plan_outcome_class"
+    },
+    "redaction_class": {
+      "$ref": "#/$defs/redaction_class"
+    },
+    "minted_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "notes": {
+      "$ref": "#/$defs/nullable_reviewable_sentence"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Audit-only plans are read-only projections: no lockfile write and no rollback handle.",
+      "if": {
+        "properties": {
+          "action_class": {
+            "const": "audit_dependency_state"
+          }
+        },
+        "required": [
+          "action_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "change_visibility_classes": {
+            "contains": {
+              "const": "read_only_audit_no_mutation"
+            }
+          },
+          "lockfile_impact": {
+            "properties": {
+              "lockfile_impact_class": {
+                "const": "no_lockfile_change_inspection_only"
+              }
+            },
+            "required": [
+              "lockfile_impact_class"
+            ]
+          },
+          "rollback_and_checkpoint": {
+            "properties": {
+              "rollback_posture_class": {
+                "const": "rollback_not_applicable_read_only"
+              }
+            },
+            "required": [
+              "rollback_posture_class"
+            ]
+          },
+          "plan_outcome_class": {
+            "enum": [
+              "audit_reported_read_only",
+              "blocked_pending_review",
+              "denied_by_policy_or_trust"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Fix plans must cite either an advisory delta or a license delta.",
+      "if": {
+        "properties": {
+          "action_class": {
+            "const": "fix_dependency_issue"
+          }
+        },
+        "required": [
+          "action_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "advisory_or_license_delta": {
+            "anyOf": [
+              {
+                "properties": {
+                  "advisory_delta_class": {
+                    "not": {
+                      "const": "no_advisory_delta"
+                    }
+                  }
+                },
+                "required": [
+                  "advisory_delta_class"
+                ]
+              },
+              {
+                "properties": {
+                  "license_delta_class": {
+                    "not": {
+                      "const": "no_license_delta"
+                    }
+                  }
+                },
+                "required": [
+                  "license_delta_class"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Plans that observe raw workspace registry secrets cannot be admitted to apply.",
+      "if": {
+        "properties": {
+          "registry_source": {
+            "properties": {
+              "auth_source_class": {
+                "const": "raw_secret_workspace_observed_blocked"
+              }
+            },
+            "required": [
+              "auth_source_class"
+            ]
+          }
+        },
+        "required": [
+          "registry_source"
+        ]
+      },
+      "then": {
+        "properties": {
+          "plan_outcome_class": {
+            "enum": [
+              "blocked_pending_policy",
+              "denied_by_policy_or_trust"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "package_change_plan_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for package-change plans. Additive enum values require a version bump."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, non-secret id safe for logs, support bundles, admin audit, and cross-surface refs."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_id"
+        }
+      ]
+    },
+    "opaque_id_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/opaque_id"
+      },
+      "uniqueItems": true
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short review-safe sentence. Raw URLs, raw lockfile bodies, raw manifest bodies, raw command lines, raw script bodies, and raw secrets are forbidden."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "package_change_action_class": {
+      "type": "string",
+      "enum": [
+        "install_dependency",
+        "update_dependency",
+        "remove_dependency",
+        "audit_dependency_state",
+        "fix_dependency_issue"
+      ]
+    },
+    "package_manager_family": {
+      "type": "string",
+      "enum": [
+        "cargo",
+        "npm",
+        "pnpm",
+        "yarn",
+        "bun",
+        "pip",
+        "uv",
+        "poetry",
+        "go_modules",
+        "maven",
+        "gradle",
+        "bundler",
+        "nuget",
+        "system_package_manager",
+        "mixed_workspace",
+        "package_manager_unknown_requires_review"
+      ]
+    },
+    "issuing_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_package_ui",
+        "cli_headless",
+        "ai_tool",
+        "automation_recipe",
+        "ci_provider_import",
+        "hosted_review",
+        "support_export",
+        "admin_policy",
+        "package_adapter"
+      ]
+    },
+    "change_visibility_class": {
+      "type": "string",
+      "enum": [
+        "manifest_and_lockfile_delta_explicit",
+        "script_or_native_build_delta_explicit",
+        "advisory_or_license_delta_explicit",
+        "registry_or_auth_delta_explicit",
+        "read_only_audit_no_mutation",
+        "blocked_unknown_requires_review"
+      ]
+    },
+    "target_context_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace",
+        "container_workspace",
+        "remote_workspace",
+        "managed_workspace",
+        "ci_provider_job",
+        "provider_import_projection",
+        "support_export_projection"
+      ]
+    },
+    "trust_state_class": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted",
+        "session_temporary",
+        "revoked",
+        "trust_state_unknown_requires_review"
+      ]
+    },
+    "manifest_scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace_root_manifest",
+        "workspace_member_manifest",
+        "monorepo_root_manifest",
+        "application_only_dev_dependency_manifest",
+        "vendored_or_offline_manifest",
+        "out_of_tree_global_manifest_admin_only",
+        "manifest_scope_unknown_requires_review"
+      ]
+    },
+    "manifest_delta_class": {
+      "type": "string",
+      "enum": [
+        "dependency_entry_added",
+        "dependency_entry_updated",
+        "dependency_entry_removed",
+        "manifest_unchanged_audit_only",
+        "manifest_fix_patch",
+        "manifest_delta_unknown_requires_review"
+      ]
+    },
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_default_registry",
+        "public_alternate_registry",
+        "vendor_published_mirror",
+        "customer_operated_mirror",
+        "private_internal_registry",
+        "managed_org_curated_registry",
+        "offline_bundle_registry",
+        "vendored_directory_no_registry",
+        "git_or_path_dependency_no_registry",
+        "registry_source_unknown_requires_review"
+      ]
+    },
+    "registry_remapping_class": {
+      "type": "string",
+      "enum": [
+        "no_registry_remapping",
+        "direct_origin_to_mirror",
+        "public_registry_to_private_registry",
+        "mirror_to_offline_bundle",
+        "package_manager_config_override",
+        "provider_injected_registry_override",
+        "registry_remapping_unknown_requires_review"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_required",
+        "secret_broker_handle",
+        "delegated_identity",
+        "policy_injected_credential",
+        "managed_service_identity",
+        "mtls_client_certificate",
+        "device_flow_callback",
+        "raw_secret_workspace_observed_blocked",
+        "unsupported_auth_blocked",
+        "auth_source_unknown_requires_review"
+      ]
+    },
+    "network_egress_class": {
+      "type": "string",
+      "enum": [
+        "no_network_read_only",
+        "public_internet",
+        "org_approved_external",
+        "mirror_only",
+        "offline_bundle_only",
+        "provider_managed_egress",
+        "deny_all_blocked",
+        "network_egress_unknown_requires_review"
+      ]
+    },
+    "advisory_delta_class": {
+      "type": "string",
+      "enum": [
+        "no_advisory_delta",
+        "advisory_added",
+        "advisory_removed",
+        "advisory_severity_changed",
+        "advisory_fix_available",
+        "advisory_suppression_changed",
+        "advisory_delta_unknown_requires_review"
+      ]
+    },
+    "license_delta_class": {
+      "type": "string",
+      "enum": [
+        "no_license_delta",
+        "license_added",
+        "license_removed",
+        "license_expression_changed",
+        "license_policy_decision_changed",
+        "license_delta_unknown_requires_review"
+      ]
+    },
+    "lockfile_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_lockfile_change_inspection_only",
+        "new_lockfile_entries_added",
+        "existing_lockfile_entries_updated",
+        "lockfile_entries_removed",
+        "lockfile_resolver_strategy_changed",
+        "lockfile_format_migration",
+        "lockfile_absent_will_be_created",
+        "lockfile_regenerated_from_manifest",
+        "lockfile_impact_unknown_requires_review"
+      ]
+    },
+    "generated_artifact_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_generated_artifact_fallout",
+        "lockfile_only_generated_artifact",
+        "package_cache_only_generated_artifact",
+        "sidecar_download_generated_artifact",
+        "generated_source_or_config_fallout",
+        "generated_docs_or_sbom_fallout",
+        "generated_artifact_fallout_unknown_requires_review"
+      ]
+    },
+    "lifecycle_script_class": {
+      "type": "string",
+      "enum": [
+        "no_lifecycle_scripts",
+        "sandboxed_lifecycle_scripts",
+        "unsandboxed_lifecycle_scripts_consent_required",
+        "lifecycle_scripts_blocked_by_policy",
+        "lifecycle_scripts_unknown_requires_review"
+      ]
+    },
+    "postinstall_hook_class": {
+      "type": "string",
+      "enum": [
+        "no_postinstall_hooks",
+        "sandboxed_postinstall_hooks",
+        "unsandboxed_postinstall_hooks_consent_required",
+        "postinstall_hooks_blocked_by_policy",
+        "postinstall_hooks_unknown_requires_review"
+      ]
+    },
+    "native_build_class": {
+      "type": "string",
+      "enum": [
+        "no_native_build",
+        "local_toolchain_native_build",
+        "container_native_build",
+        "prebuilt_binary_loader",
+        "provider_managed_native_build",
+        "native_build_blocked_by_policy",
+        "native_build_unknown_requires_review"
+      ]
+    },
+    "mirror_usage_class": {
+      "type": "string",
+      "enum": [
+        "direct_origin_no_mirror",
+        "mirror_pinned_no_direct_origin",
+        "offline_bundle_only",
+        "provider_injected_mirror",
+        "registry_remapped_requires_review",
+        "mirror_usage_unknown_requires_review"
+      ]
+    },
+    "package_cache_write_class": {
+      "type": "string",
+      "enum": [
+        "cache_read_only",
+        "cache_write_declared",
+        "cache_bypass_declared",
+        "cache_write_blocked_by_policy",
+        "cache_posture_unknown_requires_review"
+      ]
+    },
+    "sidecar_download_class": {
+      "type": "string",
+      "enum": [
+        "no_sidecar_downloads",
+        "sidecar_downloads_declared",
+        "sidecar_downloads_blocked_by_policy",
+        "sidecar_downloads_unknown_requires_review"
+      ]
+    },
+    "workspace_script_class": {
+      "type": "string",
+      "enum": [
+        "no_workspace_scripts",
+        "workspace_scripts_sandboxed",
+        "workspace_scripts_consent_required",
+        "workspace_scripts_blocked_by_policy",
+        "workspace_scripts_unknown_requires_review"
+      ]
+    },
+    "rollback_posture_class": {
+      "type": "string",
+      "enum": [
+        "rollback_via_lockfile_checkpoint",
+        "rollback_via_workspace_snapshot",
+        "rollback_via_cache_checkpoint",
+        "rollback_requires_reresolve",
+        "rollback_unavailable_missing_checkpoint",
+        "rollback_blocked_by_policy_or_trust",
+        "rollback_not_applicable_read_only",
+        "rollback_unknown_requires_review"
+      ]
+    },
+    "plan_outcome_class": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "admitted_for_apply",
+        "blocked_pending_policy",
+        "blocked_pending_review",
+        "denied_by_policy_or_trust",
+        "audit_reported_read_only",
+        "applied_evidence_imported_read_only"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "target_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_context_class",
+        "execution_context_ref",
+        "target_identity_ref",
+        "workspace_scope_ref",
+        "trust_state",
+        "policy_epoch_ref"
+      ],
+      "properties": {
+        "target_context_class": {
+          "$ref": "#/$defs/target_context_class"
+        },
+        "execution_context_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "target_identity_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "workspace_scope_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "environment_capsule_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state_class"
+        },
+        "policy_epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+    "manifest_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_scope_class",
+        "manifest_locator_ref",
+        "workspace_member_ref",
+        "package_coordinate_refs",
+        "manifest_delta_class"
+      ],
+      "properties": {
+        "manifest_scope_class": {
+          "$ref": "#/$defs/manifest_scope_class"
+        },
+        "manifest_locator_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "workspace_member_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "package_coordinate_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "manifest_delta_class": {
+          "$ref": "#/$defs/manifest_delta_class"
+        }
+      }
+    },
+    "registry_source_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_source_record_ref",
+        "registry_source_class",
+        "registry_remapping_class",
+        "auth_source_class",
+        "network_egress_class",
+        "registry_disclosure"
+      ],
+      "properties": {
+        "registry_source_record_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "registry_source_class": {
+          "$ref": "#/$defs/registry_source_class"
+        },
+        "registry_remapping_class": {
+          "$ref": "#/$defs/registry_remapping_class"
+        },
+        "auth_source_class": {
+          "$ref": "#/$defs/auth_source_class"
+        },
+        "network_egress_class": {
+          "$ref": "#/$defs/network_egress_class"
+        },
+        "registry_disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "advisory_or_license_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_delta_class",
+        "license_delta_class",
+        "affected_package_count_bucket",
+        "advisory_refs",
+        "license_refs",
+        "policy_decision_refs"
+      ],
+      "properties": {
+        "advisory_delta_class": {
+          "$ref": "#/$defs/advisory_delta_class"
+        },
+        "license_delta_class": {
+          "$ref": "#/$defs/license_delta_class"
+        },
+        "affected_package_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "advisory_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "license_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "policy_decision_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "delta_disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "lockfile_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lockfile_impact_class",
+        "prior_lockfile_snapshot_ref",
+        "proposed_lockfile_snapshot_ref",
+        "resolver_identity_ref",
+        "environment_factor_refs",
+        "added_entry_count_bucket",
+        "updated_entry_count_bucket",
+        "removed_entry_count_bucket",
+        "generated_artifact_posture_class"
+      ],
+      "properties": {
+        "lockfile_impact_class": {
+          "$ref": "#/$defs/lockfile_impact_class"
+        },
+        "prior_lockfile_snapshot_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "proposed_lockfile_snapshot_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "resolver_identity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "environment_factor_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "added_entry_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updated_entry_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed_entry_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "generated_artifact_posture_class": {
+          "$ref": "#/$defs/generated_artifact_posture_class"
+        },
+        "lockfile_impact_disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "package_change_review_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_scripts",
+        "postinstall_hooks",
+        "native_builds",
+        "mirror_usage",
+        "auth_source",
+        "network_egress",
+        "generated_artifact_fallout",
+        "package_manager_cache",
+        "sidecar_downloads",
+        "workspace_scripts"
+      ],
+      "properties": {
+        "lifecycle_scripts": {
+          "$ref": "#/$defs/lifecycle_scripts_review"
+        },
+        "postinstall_hooks": {
+          "$ref": "#/$defs/postinstall_hooks_review"
+        },
+        "native_builds": {
+          "$ref": "#/$defs/native_builds_review"
+        },
+        "mirror_usage": {
+          "$ref": "#/$defs/mirror_usage_review"
+        },
+        "auth_source": {
+          "$ref": "#/$defs/auth_source_review"
+        },
+        "network_egress": {
+          "$ref": "#/$defs/network_egress_review"
+        },
+        "generated_artifact_fallout": {
+          "$ref": "#/$defs/generated_artifact_fallout_review"
+        },
+        "package_manager_cache": {
+          "$ref": "#/$defs/package_manager_cache_review"
+        },
+        "sidecar_downloads": {
+          "$ref": "#/$defs/sidecar_downloads_review"
+        },
+        "workspace_scripts": {
+          "$ref": "#/$defs/workspace_scripts_review"
+        }
+      }
+    },
+    "lifecycle_scripts_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_script_class",
+        "script_descriptor_refs",
+        "sandbox_profile_ref",
+        "consent_ticket_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "lifecycle_script_class": {
+          "$ref": "#/$defs/lifecycle_script_class"
+        },
+        "script_descriptor_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "sandbox_profile_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "consent_ticket_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "postinstall_hooks_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postinstall_hook_class",
+        "hook_descriptor_refs",
+        "sandbox_profile_ref",
+        "consent_ticket_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "postinstall_hook_class": {
+          "$ref": "#/$defs/postinstall_hook_class"
+        },
+        "hook_descriptor_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "sandbox_profile_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "consent_ticket_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "native_builds_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_build_class",
+        "toolchain_ref",
+        "prebuilt_binary_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "native_build_class": {
+          "$ref": "#/$defs/native_build_class"
+        },
+        "toolchain_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "prebuilt_binary_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "mirror_usage_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_usage_class",
+        "mirror_snapshot_ref",
+        "upstream_registry_ref",
+        "registry_remapping_class",
+        "disclosure"
+      ],
+      "properties": {
+        "mirror_usage_class": {
+          "$ref": "#/$defs/mirror_usage_class"
+        },
+        "mirror_snapshot_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "upstream_registry_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "registry_remapping_class": {
+          "$ref": "#/$defs/registry_remapping_class"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "auth_source_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auth_source_class",
+        "credential_handle_ref",
+        "policy_injected_credential_ref",
+        "raw_secret_observed",
+        "disclosure"
+      ],
+      "properties": {
+        "auth_source_class": {
+          "$ref": "#/$defs/auth_source_class"
+        },
+        "credential_handle_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "policy_injected_credential_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "raw_secret_observed": {
+          "type": "boolean"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "network_egress_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network_egress_class",
+        "endpoint_class_refs",
+        "network_attribution_record_refs",
+        "approval_ticket_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "network_egress_class": {
+          "$ref": "#/$defs/network_egress_class"
+        },
+        "endpoint_class_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "network_attribution_record_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "generated_artifact_fallout_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generated_artifact_posture_class",
+        "artifact_refs",
+        "fallout_count_bucket",
+        "disclosure"
+      ],
+      "properties": {
+        "generated_artifact_posture_class": {
+          "$ref": "#/$defs/generated_artifact_posture_class"
+        },
+        "artifact_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "fallout_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "package_manager_cache_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cache_write_class",
+        "cache_scope_ref",
+        "cache_checkpoint_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "cache_write_class": {
+          "$ref": "#/$defs/package_cache_write_class"
+        },
+        "cache_scope_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "cache_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "sidecar_downloads_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sidecar_download_class",
+        "sidecar_download_count_bucket",
+        "download_artifact_refs",
+        "disclosure"
+      ],
+      "properties": {
+        "sidecar_download_class": {
+          "$ref": "#/$defs/sidecar_download_class"
+        },
+        "sidecar_download_count_bucket": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "download_artifact_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "workspace_scripts_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_script_class",
+        "workspace_script_refs",
+        "consent_ticket_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "workspace_script_class": {
+          "$ref": "#/$defs/workspace_script_class"
+        },
+        "workspace_script_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "consent_ticket_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "no_hidden_mutation_guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lockfile_diff_precomputed",
+        "package_cache_writes_declared",
+        "sidecar_downloads_declared",
+        "workspace_scripts_declared",
+        "registry_remapping_declared",
+        "auth_source_declared",
+        "network_egress_declared",
+        "generated_artifact_fallout_declared",
+        "target_context_bound_before_network",
+        "cross_surface_comparison_ready"
+      ],
+      "properties": {
+        "lockfile_diff_precomputed": {
+          "type": "boolean",
+          "const": true
+        },
+        "package_cache_writes_declared": {
+          "type": "boolean",
+          "const": true
+        },
+        "sidecar_downloads_declared": {
+          "type": "boolean",
+          "const": true
+        },
+        "workspace_scripts_declared": {
+          "type": "boolean",
+          "const": true
+        },
+        "registry_remapping_declared": {
+          "type": "boolean",
+          "const": true
+        },
+        "auth_source_declared": {
+          "type": "boolean",
+          "const": true
+        },
+        "network_egress_declared": {
+          "type": "boolean",
+          "const": true
+        },
+        "generated_artifact_fallout_declared": {
+          "type": "boolean",
+          "const": true
+        },
+        "target_context_bound_before_network": {
+          "type": "boolean",
+          "const": true
+        },
+        "cross_surface_comparison_ready": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "rollback_and_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_posture_class",
+        "lockfile_checkpoint_ref",
+        "workspace_snapshot_checkpoint_ref",
+        "cache_checkpoint_ref",
+        "generated_artifact_checkpoint_ref",
+        "rollback_blocker_note"
+      ],
+      "properties": {
+        "rollback_posture_class": {
+          "$ref": "#/$defs/rollback_posture_class"
+        },
+        "lockfile_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "workspace_snapshot_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "cache_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "generated_artifact_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "rollback_blocker_note": {
+          "$ref": "#/$defs/nullable_reviewable_sentence"
+        }
+      }
+    },
+    "package_change_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_ledger_refs",
+        "policy_block_refs",
+        "support_export_refs",
+        "command_result_packet_refs",
+        "rollback_handle_refs",
+        "package_action_record_refs",
+        "package_review_packet_refs",
+        "run_record_refs",
+        "attempt_record_refs",
+        "task_event_refs",
+        "evidence_link_refs",
+        "network_attribution_record_refs"
+      ],
+      "properties": {
+        "dependency_ledger_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "policy_block_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "support_export_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "command_result_packet_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "rollback_handle_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "package_action_record_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "package_review_packet_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "run_record_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "attempt_record_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "task_event_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "evidence_link_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "network_attribution_record_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        }
+      }
+    }
+  }
+}

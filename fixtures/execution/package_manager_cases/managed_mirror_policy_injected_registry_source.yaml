@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../../../schemas/execution/registry_source.schema.json
+__fixture__:
+  name: managed_mirror_policy_injected_registry_source
+  scenario: >
+    Managed workspace registry source where public-origin package
+    resolution is remapped to an organization-managed mirror and auth is
+    injected by policy. The record is visible before writes and before
+    network access, and it is comparable across local, CI/provider,
+    support, and admin surfaces.
+
+record_kind: registry_source_record
+registry_source_schema_version: 1
+registry_source_id: registry.source.managed.mirror.policy_injected.0001
+package_manager_family: pnpm
+registry_source_class: managed_org_curated_registry
+source_identity:
+  registry_endpoint_ref: registry.endpoint.managed.curated.pnpm
+  mirror_endpoint_ref: mirror.endpoint.managed.curated.pnpm
+  upstream_registry_ref: registry.endpoint.public.origin.pnpm
+  registry_authority_ref: registry.authority.managed.curated
+  publisher_namespace_ref: publisher.namespace.redacted.workspace
+  content_trust_class: content_trust_policy_pinned
+  content_trust_ref: content.trust.policy.pnpm.curated
+  freshness_class: mirror_snapshot_within_policy_window
+  freshness_evidence_ref: freshness.evidence.mirror.snapshot.current
+  revocation_status_class: revocation_checked_from_mirror
+  revocation_evidence_ref: revocation.evidence.mirror.snapshot.current
+auth_source:
+  auth_source_class: policy_injected_credential
+  credential_handle_ref: null
+  delegated_identity_ref: null
+  policy_injected_credential_ref: policy.credential.registry.mirror.read
+  managed_service_identity_ref: null
+  mtls_certificate_ref: null
+  device_flow_callback_ref: null
+  raw_secret_observed: false
+  disclosure: Registry auth is injected by managed policy; raw credentials are not persisted in workspace state.
+network:
+  network_egress_class: mirror_only
+  route_class: mirror_route
+  proxy_config_ref: proxy.config.managed.default
+  trust_store_ref: trust.store.managed.ca_bundle
+  endpoint_class_refs:
+    - endpoint.class.managed_registry_mirror
+  network_attribution_record_refs:
+    - network.attribution.registry.managed.mirror.0001
+  disclosure: Egress is constrained to the managed mirror route and is visible before package resolution.
+remapping:
+  registry_remapping_class: direct_origin_to_mirror
+  config_source_ref: package_manager.config.policy_overlay
+  prior_registry_source_ref: registry.endpoint.public.origin.pnpm
+  proposed_registry_source_ref: registry.endpoint.managed.curated.pnpm
+  review_required_before_source_change: true
+  disclosure: Policy overlay remaps public-origin package resolution to the managed curated mirror.
+visibility:
+  visible_before_write: true
+  visible_before_network: true
+  compared_on_surfaces:
+    - local_package_ui
+    - cli_headless
+    - ci_provider
+    - hosted_review
+    - support_export
+    - admin_audit
+redaction_class: operator_only_restricted
+minted_at: "2026-04-29T12:50:00Z"
+narrative_refs:
+  - docs/execution/package_manager_and_lockfile_safety_contract.md
+  - schemas/execution/registry_source.schema.json
+notes: >
+  This registry-source record can be embedded by reference from package
+  change plans that run in managed or mirror-only contexts.

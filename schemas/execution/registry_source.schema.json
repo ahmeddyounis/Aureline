@@ -1,0 +1,527 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/registry_source.schema.json",
+  "title": "Aureline package registry-source boundary",
+  "description": "Boundary schema for registry_source_record as frozen in docs/execution/package_manager_and_lockfile_safety_contract.md. Registry source records preserve package-manager source, mirror, auth, freshness, network, and remapping truth before package-change plans write files or open network routes. Raw registry URLs, hostnames, IP addresses, tokens, certificate material, package-manager config bodies, lockfile bodies, manifest bodies, and sidecar payloads never cross this boundary; records carry opaque refs, class labels, timestamps, counts, and review-safe disclosures only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "registry_source_schema_version",
+    "registry_source_id",
+    "package_manager_family",
+    "registry_source_class",
+    "source_identity",
+    "auth_source",
+    "network",
+    "remapping",
+    "visibility",
+    "redaction_class",
+    "minted_at",
+    "narrative_refs"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "registry_source_record"
+    },
+    "registry_source_schema_version": {
+      "$ref": "#/$defs/registry_source_schema_version"
+    },
+    "registry_source_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "package_manager_family": {
+      "$ref": "#/$defs/package_manager_family"
+    },
+    "registry_source_class": {
+      "$ref": "#/$defs/registry_source_class"
+    },
+    "source_identity": {
+      "$ref": "#/$defs/source_identity"
+    },
+    "auth_source": {
+      "$ref": "#/$defs/auth_source"
+    },
+    "network": {
+      "$ref": "#/$defs/network_source"
+    },
+    "remapping": {
+      "$ref": "#/$defs/remapping"
+    },
+    "visibility": {
+      "$ref": "#/$defs/visibility"
+    },
+    "redaction_class": {
+      "$ref": "#/$defs/redaction_class"
+    },
+    "minted_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "notes": {
+      "$ref": "#/$defs/nullable_reviewable_sentence"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Raw-secret observations must resolve to the blocked auth source class.",
+      "if": {
+        "properties": {
+          "auth_source": {
+            "properties": {
+              "raw_secret_observed": {
+                "const": true
+              }
+            },
+            "required": [
+              "raw_secret_observed"
+            ]
+          }
+        },
+        "required": [
+          "auth_source"
+        ]
+      },
+      "then": {
+        "properties": {
+          "auth_source": {
+            "properties": {
+              "auth_source_class": {
+                "const": "raw_secret_workspace_observed_blocked"
+              }
+            },
+            "required": [
+              "auth_source_class"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Any source remapping other than none requires an explicit source-change review.",
+      "if": {
+        "properties": {
+          "remapping": {
+            "properties": {
+              "registry_remapping_class": {
+                "not": {
+                  "const": "no_registry_remapping"
+                }
+              }
+            },
+            "required": [
+              "registry_remapping_class"
+            ]
+          }
+        },
+        "required": [
+          "remapping"
+        ]
+      },
+      "then": {
+        "properties": {
+          "remapping": {
+            "properties": {
+              "review_required_before_source_change": {
+                "const": true
+              }
+            },
+            "required": [
+              "review_required_before_source_change"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "registry_source_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for registry-source records. Additive enum values require a version bump."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, non-secret id safe for logs, support exports, admin audit, and cross-surface refs."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_id"
+        }
+      ]
+    },
+    "opaque_id_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/opaque_id"
+      },
+      "uniqueItems": true
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short review-safe sentence. Raw URLs, package-manager config bodies, tokens, certificates, and lockfile or manifest bodies are forbidden."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "package_manager_family": {
+      "type": "string",
+      "enum": [
+        "cargo",
+        "npm",
+        "pnpm",
+        "yarn",
+        "bun",
+        "pip",
+        "uv",
+        "poetry",
+        "go_modules",
+        "maven",
+        "gradle",
+        "bundler",
+        "nuget",
+        "system_package_manager",
+        "mixed_workspace",
+        "package_manager_unknown_requires_review"
+      ]
+    },
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_default_registry",
+        "public_alternate_registry",
+        "vendor_published_mirror",
+        "customer_operated_mirror",
+        "private_internal_registry",
+        "managed_org_curated_registry",
+        "offline_bundle_registry",
+        "vendored_directory_no_registry",
+        "git_or_path_dependency_no_registry",
+        "registry_source_unknown_requires_review"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "cached_within_freshness_window",
+        "mirror_snapshot_within_policy_window",
+        "stale_requires_review",
+        "offline_bundle_pinned",
+        "freshness_unknown_requires_review"
+      ]
+    },
+    "revocation_status_class": {
+      "type": "string",
+      "enum": [
+        "revocation_checked_current",
+        "revocation_checked_from_mirror",
+        "revocation_check_unavailable_stale",
+        "revocation_blocked_by_policy",
+        "revocation_status_unknown_requires_review"
+      ]
+    },
+    "content_trust_class": {
+      "type": "string",
+      "enum": [
+        "content_trust_verified",
+        "content_trust_verified_from_mirror",
+        "content_trust_policy_pinned",
+        "content_trust_not_available_read_only",
+        "content_trust_unknown_requires_review"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_required",
+        "secret_broker_handle",
+        "delegated_identity",
+        "policy_injected_credential",
+        "managed_service_identity",
+        "mtls_client_certificate",
+        "device_flow_callback",
+        "raw_secret_workspace_observed_blocked",
+        "unsupported_auth_blocked",
+        "auth_source_unknown_requires_review"
+      ]
+    },
+    "network_egress_class": {
+      "type": "string",
+      "enum": [
+        "no_network_read_only",
+        "public_internet",
+        "org_approved_external",
+        "mirror_only",
+        "offline_bundle_only",
+        "provider_managed_egress",
+        "deny_all_blocked",
+        "network_egress_unknown_requires_review"
+      ]
+    },
+    "route_class": {
+      "type": "string",
+      "enum": [
+        "direct_registry_route",
+        "proxy_governed_route",
+        "mirror_route",
+        "offline_bundle_route",
+        "provider_managed_route",
+        "route_blocked_by_policy",
+        "route_unknown_requires_review"
+      ]
+    },
+    "registry_remapping_class": {
+      "type": "string",
+      "enum": [
+        "no_registry_remapping",
+        "direct_origin_to_mirror",
+        "public_registry_to_private_registry",
+        "mirror_to_offline_bundle",
+        "package_manager_config_override",
+        "provider_injected_registry_override",
+        "registry_remapping_unknown_requires_review"
+      ]
+    },
+    "comparison_surface": {
+      "type": "string",
+      "enum": [
+        "local_package_ui",
+        "cli_headless",
+        "ci_provider",
+        "hosted_review",
+        "support_export",
+        "admin_audit"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_endpoint_ref",
+        "mirror_endpoint_ref",
+        "upstream_registry_ref",
+        "registry_authority_ref",
+        "publisher_namespace_ref",
+        "content_trust_class",
+        "freshness_class",
+        "revocation_status_class"
+      ],
+      "properties": {
+        "registry_endpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "mirror_endpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "upstream_registry_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "registry_authority_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "publisher_namespace_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "content_trust_class": {
+          "$ref": "#/$defs/content_trust_class"
+        },
+        "content_trust_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "freshness_evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "revocation_status_class": {
+          "$ref": "#/$defs/revocation_status_class"
+        },
+        "revocation_evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      }
+    },
+    "auth_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auth_source_class",
+        "credential_handle_ref",
+        "delegated_identity_ref",
+        "policy_injected_credential_ref",
+        "managed_service_identity_ref",
+        "mtls_certificate_ref",
+        "device_flow_callback_ref",
+        "raw_secret_observed",
+        "disclosure"
+      ],
+      "properties": {
+        "auth_source_class": {
+          "$ref": "#/$defs/auth_source_class"
+        },
+        "credential_handle_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "delegated_identity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "policy_injected_credential_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "managed_service_identity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "mtls_certificate_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "device_flow_callback_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "raw_secret_observed": {
+          "type": "boolean"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "network_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network_egress_class",
+        "route_class",
+        "proxy_config_ref",
+        "trust_store_ref",
+        "endpoint_class_refs",
+        "network_attribution_record_refs",
+        "disclosure"
+      ],
+      "properties": {
+        "network_egress_class": {
+          "$ref": "#/$defs/network_egress_class"
+        },
+        "route_class": {
+          "$ref": "#/$defs/route_class"
+        },
+        "proxy_config_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "trust_store_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "endpoint_class_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "network_attribution_record_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "remapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_remapping_class",
+        "config_source_ref",
+        "prior_registry_source_ref",
+        "proposed_registry_source_ref",
+        "review_required_before_source_change",
+        "disclosure"
+      ],
+      "properties": {
+        "registry_remapping_class": {
+          "$ref": "#/$defs/registry_remapping_class"
+        },
+        "config_source_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "prior_registry_source_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "proposed_registry_source_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "review_required_before_source_change": {
+          "type": "boolean"
+        },
+        "disclosure": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_before_write",
+        "visible_before_network",
+        "compared_on_surfaces"
+      ],
+      "properties": {
+        "visible_before_write": {
+          "type": "boolean",
+          "const": true
+        },
+        "visible_before_network": {
+          "type": "boolean",
+          "const": true
+        },
+        "compared_on_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/comparison_surface"
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
