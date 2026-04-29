@@ -1,0 +1,193 @@
+# yaml-language-server: $schema=../../../schemas/service/meter_row.schema.json
+__fixture__:
+  name: ai_gateway_quota_exhaustion
+  scenario: >
+    The enterprise tenant has reached the daily inference budget on
+    the managed AI gateway. The meter row resolves through
+    authoritative measurement authority but the linked operating-mode
+    card carries a quota_throttle_banner with capacity_state
+    quota_exhausted. Managed inference fails closed; AI evidence
+    retention, sync, registry, relay, remote, and telemetry families
+    remain healthy. The prompt list preserves continue-local-work,
+    export-usage-summary, export-support-bundle, and delete-data
+    ahead of increase-budget, upgrade-plan, and add-payment-method.
+  contract_sections:
+    - Required surfaces — Usage and forecast view
+    - Prompt ordering rules
+    - Display-copy invariants
+    - Fail-open / fail-closed rules for stale or unreachable metering
+
+schema_version: 1
+record_kind: meter_row_record
+meter_row_id: meter_row.ai_gateway_quota_exhaustion
+operating_mode_class: enterprise_saas
+meter_family_class: ai_gateway_meter_family
+linked_service_family_class: ai_gateway_family
+linked_service_ids:
+  - managed_ai_broker
+meter_unit_class: tokens
+aggregation_window_class: rolling_24h
+owner_scope:
+  scope_class: organization
+  scope_ref: scope.organization.example
+  parent_scope_refs:
+    - scope.tenant.example
+  scope_label: Enterprise organization scope.
+title: AI gateway inference — daily token budget exhausted
+summary: >
+  The enterprise tenant reached the daily inference budget for the
+  managed AI gateway. Managed inference is paused for the rest of
+  the rolling window; BYOK and local AI providers continue without
+  the managed gateway, and the prompt list keeps export and
+  continue-local-work ahead of budget-pressure prompts.
+issued_at: "2026-04-29T17:00:00Z"
+as_of_time: "2026-04-29T16:58:00Z"
+measurement_authority_class: authoritative
+meter_freshness_class: fresh
+quota_owner_class: enterprise_tenant
+linked_quota_state_refs:
+  - quota_state.ai_gateway.org.exhausted
+linked_usage_export_row_refs:
+  - usage_export_row.ai_gateway.org.daily.exhausted
+entitlement_summary:
+  entitlement_state_class: entitlement_active
+  summary: >
+    Entitlement remains active; today's daily inference budget is
+    exhausted on the managed gateway and refreshes at the next
+    rolling-window boundary.
+  linked_managed_session_state_ref: managed_session_state.example.fresh
+  linked_quota_state_refs:
+    - quota_state.ai_gateway.org.exhausted
+  entitlement_grace_until_at: null
+  policy_ref: null
+  recovery_cue: >
+    Managed inference is paused for the rest of the window. Switch
+    to BYOK or local AI, request an admin to raise the
+    organization-owned budget, or wait for the next rolling-window
+    reset.
+usage_and_forecast:
+  usage_value: 100000
+  usage_limit_value: 100000
+  usage_remaining_value: 0
+  usage_unit_class: tokens
+  aggregation_window_class: rolling_24h
+  current_window_start_at: "2026-04-28T17:00:00Z"
+  current_window_end_at: "2026-04-29T17:00:00Z"
+  next_reset_at: "2026-04-29T17:00:00Z"
+  as_of_time: "2026-04-29T16:58:00Z"
+  precision_class: exact
+  forecast:
+    forecast_confidence_class: forecast_authoritative
+    forecast_value: 100000
+    forecast_horizon_summary: >
+      End-of-window total equals the budget; managed inference is
+      paused until the next rolling window.
+    forecast_caveats: []
+  usage_summary: >
+    Daily inference budget exhausted at 16:58 UTC; the rolling
+    window resets at 17:00 UTC.
+chargeback_scope_switcher:
+  current_scope: organization_scope
+  offered_scopes:
+    - chargeback_scope_class: organization_scope
+      scope_ref: scope.organization.example
+      offer_summary: >
+        Enterprise organization scope; the daily inference budget
+        is owned by the enterprise tenant.
+      linked_quota_state_ref: quota_state.ai_gateway.org.exhausted
+    - chargeback_scope_class: byok_external_scope
+      scope_ref: scope.user.byok_external
+      offer_summary: >
+        BYOK and external AI providers bill outside the managed
+        gateway; their usage is reported by the provider.
+      linked_quota_state_ref: null
+  spend_attribution_dimensions:
+    - tenant
+    - organization
+    - user
+    - feature
+    - provider
+    - model
+    - quota_family
+  split_recovery_cue: null
+grace_or_offboarding_card: null
+export_parity:
+  export_parity_class: parity_with_csv_and_json
+  summary: >
+    The displayed exhausted-window usage summary exports with
+    parity in CSV and JSON; both exports preserve the
+    quota-exhausted caveat.
+  csv_manifest_ref: export_manifest.ai_gateway.csv.v1
+  json_manifest_ref: export_manifest.ai_gateway.json.v1
+  policy_ref: null
+fail_posture: fail_closed_managed_only
+prompt_ordering:
+  ordered_prompts:
+    - prompt_class: continue_local_work
+      priority_index: 1
+      label: Continue local edit, save, search, BYOK AI, and local export.
+      destination_ref: navigation.local_continuation
+    - prompt_class: export_usage_summary
+      priority_index: 2
+      label: Export the daily inference usage summary as CSV or JSON.
+      destination_ref: navigation.export_usage_summary
+    - prompt_class: export_support_bundle
+      priority_index: 3
+      label: Attach the meter row to a support bundle for review.
+      destination_ref: navigation.export_support_bundle
+    - prompt_class: request_admin_review
+      priority_index: 7
+      label: Ask an admin to raise the organization-owned daily inference budget.
+      destination_ref: navigation.request_admin_review
+    - prompt_class: increase_budget
+      priority_index: 8
+      label: Open the budget review (only after export, support, and continuation prompts).
+      destination_ref: navigation.increase_budget
+    - prompt_class: upgrade_plan
+      priority_index: 9
+      label: Review plan options for higher per-window budgets.
+      destination_ref: navigation.upgrade_plan
+  preserves_user_options_first: true
+  rationale: >
+    The exhausted budget must not lead the user straight into an
+    upgrade or budget-pressure prompt; export, support, and
+    continue-local-work prompts come first.
+local_continuation:
+  - Continue local edit, save, undo, search, Git, and local export.
+  - Use BYOK or fully local AI providers without the managed gateway.
+  - Switch the active provider to an externally billed model for the rest of the window.
+blocked_managed_only_actions:
+  - Managed AI inference that requires bounded spend pauses until the rolling window resets.
+freshness_posture:
+  staleness_class: fresh
+  freshness_floor_summary: null
+  staleness_rationale: null
+  last_authoritative_fetch_at: "2026-04-29T16:58:00Z"
+display_copy:
+  whole_product_failure_implied: false
+  as_of_time_omitted: false
+  measurement_unit_omitted: false
+  owner_scope_omitted: false
+  personal_workspace_org_collapsed: false
+  forecast_under_unauthoritative_state: false
+  upgrade_prompted_before_export_or_support: false
+  local_continuation_path_obscured: false
+  local_core_blocking: false
+  stale_label: null
+linked_operating_mode_card_refs:
+  - operating_mode_card.ai_quota_exhaustion
+linked_region_key_state_refs: []
+linked_slo_row_refs:
+  - artifacts/service/slo_rows.yaml#managed_ai_broker
+  - artifacts/service/slo_rows.yaml#managed_entitlement_usage
+linked_api_surface_refs:
+  - artifacts/service/api_surface_rows.yaml#ai_broker_api_family.inference
+narrative_refs:
+  - docs/service/metering_and_chargeback_contract.md
+  - docs/service/operating_mode_and_capacity_contract.md
+  - docs/managed/metering_and_usage_export_contract.md
+  - docs/service/managed_service_seed.md
+notes: >
+  The fixture composes against the operating-mode card fixture
+  ai_quota_exhaustion.yaml so the meter-row and capacity-row
+  surfaces resolve to consistent state.

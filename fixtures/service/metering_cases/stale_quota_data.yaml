@@ -1,0 +1,192 @@
+# yaml-language-server: $schema=../../../schemas/service/meter_row.schema.json
+__fixture__:
+  name: stale_quota_data
+  scenario: >
+    The managed entitlement-and-usage service has been unreachable
+    long enough that the cached AI gateway meter is now beyond its
+    freshness floor. The meter row resolves through cached
+    measurement authority, surfaces the
+    cached_beyond_freshness_floor freshness class, and fails closed
+    only for managed inference that requires bounded spend. Local
+    edit, save, search, BYOK AI, and the export-usage-summary
+    prompt remain available; the upgrade and budget-pressure prompts
+    do not precede the export, support, delete, or
+    continue-local-work prompts. The forecast block carries
+    forecast_unavailable confidence so no numeric projection
+    renders.
+  contract_sections:
+    - Fail-open / fail-closed rules for stale or unreachable metering
+    - Required surfaces — Usage and forecast view
+    - Prompt ordering rules
+    - Display-copy invariants
+
+schema_version: 1
+record_kind: meter_row_record
+meter_row_id: meter_row.stale_quota_data
+operating_mode_class: enterprise_saas
+meter_family_class: ai_gateway_meter_family
+linked_service_family_class: ai_gateway_family
+linked_service_ids:
+  - managed_ai_broker
+  - managed_entitlement_usage
+meter_unit_class: tokens
+aggregation_window_class: rolling_24h
+owner_scope:
+  scope_class: organization
+  scope_ref: scope.organization.example
+  parent_scope_refs:
+    - scope.tenant.example
+  scope_label: Enterprise organization scope.
+title: AI gateway inference — cached meter beyond freshness floor
+summary: >
+  The managed AI gateway meter is cached beyond the declared
+  freshness floor because the entitlement-and-usage service has
+  been unreachable. Managed inference requiring bounded spend is
+  paused; local edit, BYOK AI, and the export-usage-summary
+  prompt remain available.
+issued_at: "2026-04-29T18:30:00Z"
+as_of_time: "2026-04-29T16:00:00Z"
+measurement_authority_class: cached
+meter_freshness_class: cached_beyond_freshness_floor
+quota_owner_class: enterprise_tenant
+linked_quota_state_refs:
+  - quota_state.ai_gateway.org.cached_beyond_floor
+linked_usage_export_row_refs: []
+entitlement_summary:
+  entitlement_state_class: entitlement_active
+  summary: >
+    Entitlement is active per the cached snapshot; the snapshot has
+    aged beyond the freshness floor while the managed
+    entitlement-and-usage service is unreachable.
+  linked_managed_session_state_ref: managed_session_state.example.cached
+  linked_quota_state_refs:
+    - quota_state.ai_gateway.org.cached_beyond_floor
+  entitlement_grace_until_at: null
+  policy_ref: null
+  recovery_cue: >
+    Managed inference requiring bounded spend is paused until the
+    meter refreshes. Continue local edit, BYOK AI, and personal-pool
+    inference, or wait for the managed entitlement-and-usage service
+    to reach the meter row again.
+usage_and_forecast:
+  usage_value: 41200
+  usage_limit_value: 100000
+  usage_remaining_value: 58800
+  usage_unit_class: tokens
+  aggregation_window_class: rolling_24h
+  current_window_start_at: "2026-04-28T18:30:00Z"
+  current_window_end_at: "2026-04-29T18:30:00Z"
+  next_reset_at: "2026-04-29T18:30:00Z"
+  as_of_time: "2026-04-29T16:00:00Z"
+  precision_class: rounded
+  forecast:
+    forecast_confidence_class: forecast_unavailable
+    forecast_value: null
+    forecast_horizon_summary: >
+      Forecast is unavailable while the upstream meter is cached
+      beyond its freshness floor.
+    forecast_caveats:
+      - The cached usage value is shown for context; it MUST NOT be treated as the current authoritative quota.
+  usage_summary: >
+    Cached usage as of 2026-04-29 16:00 UTC. The forecast view is
+    held until the upstream meter refreshes.
+chargeback_scope_switcher:
+  current_scope: organization_scope
+  offered_scopes:
+    - chargeback_scope_class: personal_scope
+      scope_ref: scope.user.example
+      offer_summary: >
+        Personal-pool inference uses the user's BYOK budget and is
+        not metered through the managed gateway.
+      linked_quota_state_ref: null
+    - chargeback_scope_class: organization_scope
+      scope_ref: scope.organization.example
+      offer_summary: >
+        Enterprise organization scope; the displayed value is the
+        cached snapshot beyond the freshness floor.
+      linked_quota_state_ref: quota_state.ai_gateway.org.cached_beyond_floor
+  spend_attribution_dimensions:
+    - tenant
+    - organization
+    - user
+    - feature
+    - provider
+    - model
+    - quota_family
+    - source_class
+  split_recovery_cue: null
+grace_or_offboarding_card: null
+export_parity:
+  export_parity_class: parity_with_csv_and_json
+  summary: >
+    Export of the displayed cached usage summary remains available
+    in CSV and JSON; both exports preserve the cached source class
+    and the staleness caveat.
+  csv_manifest_ref: export_manifest.ai_gateway.csv.v1
+  json_manifest_ref: export_manifest.ai_gateway.json.v1
+  policy_ref: null
+fail_posture: fail_closed_managed_only
+prompt_ordering:
+  ordered_prompts:
+    - prompt_class: continue_local_work
+      priority_index: 1
+      label: Continue local edit, save, search, BYOK AI, and local export.
+      destination_ref: navigation.local_continuation
+    - prompt_class: export_usage_summary
+      priority_index: 2
+      label: Export the cached usage summary as CSV or JSON.
+      destination_ref: navigation.export_usage_summary
+    - prompt_class: export_support_bundle
+      priority_index: 3
+      label: Attach the meter row to a support bundle for review.
+      destination_ref: navigation.export_support_bundle
+    - prompt_class: request_admin_review
+      priority_index: 7
+      label: Ask an admin to refresh the entitlement-and-usage cache.
+      destination_ref: navigation.request_admin_review
+  preserves_user_options_first: true
+  rationale: >
+    The cached-beyond-floor posture must not lead the user into a
+    billing-pressure prompt; the export, support, and
+    continue-local-work prompts come first.
+local_continuation:
+  - Continue local edit, save, undo, search, Git, and local export.
+  - Use BYOK or fully local AI providers without the managed gateway.
+  - Export the cached usage summary as CSV or JSON for offline review.
+blocked_managed_only_actions:
+  - Managed AI inference that requires bounded spend pauses until the meter refreshes.
+freshness_posture:
+  staleness_class: unbounded_stale
+  freshness_floor_summary: null
+  staleness_rationale: >
+    Cached AI gateway meter is beyond its declared freshness floor
+    because the managed entitlement-and-usage service has been
+    unreachable.
+  last_authoritative_fetch_at: "2026-04-29T15:55:00Z"
+display_copy:
+  whole_product_failure_implied: false
+  as_of_time_omitted: false
+  measurement_unit_omitted: false
+  owner_scope_omitted: false
+  personal_workspace_org_collapsed: false
+  forecast_under_unauthoritative_state: false
+  upgrade_prompted_before_export_or_support: false
+  local_continuation_path_obscured: false
+  local_core_blocking: false
+  stale_label: Cached usage beyond freshness floor.
+linked_operating_mode_card_refs: []
+linked_region_key_state_refs: []
+linked_slo_row_refs:
+  - artifacts/service/slo_rows.yaml#managed_ai_broker
+  - artifacts/service/slo_rows.yaml#managed_entitlement_usage
+linked_api_surface_refs:
+  - artifacts/service/api_surface_rows.yaml#ai_broker_api_family.inference
+narrative_refs:
+  - docs/service/metering_and_chargeback_contract.md
+  - docs/service/operating_mode_and_capacity_contract.md
+  - docs/managed/metering_and_usage_export_contract.md
+  - docs/service/managed_service_seed.md
+notes: >
+  The fixture exercises the row's behaviour under
+  cached_beyond_freshness_floor without flipping the operating-mode
+  card. Local-core workflows remain non-blocking.

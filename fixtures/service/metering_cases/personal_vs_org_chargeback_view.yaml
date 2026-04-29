@@ -1,0 +1,185 @@
+# yaml-language-server: $schema=../../../schemas/service/meter_row.schema.json
+__fixture__:
+  name: personal_vs_org_chargeback_view
+  scenario: >
+    A signed-in user reaches the AI gateway meter row in
+    enterprise_saas mode. The chargeback scope switcher exposes both
+    a personal_scope view (the user's BYOK and personal-budget AI
+    inference) and an organization_scope view (the enterprise tenant
+    chargeback for managed-gateway inference) side-by-side. Personal,
+    workspace, and organization usage are not collapsed into a single
+    misleading total. The meter is fresh and entitlement is active;
+    prompts preserve export and continue-local-work ahead of any
+    upgrade or budget-pressure prompt.
+  contract_sections:
+    - The five questions every meter row answers
+    - Required surfaces — Chargeback scope switcher
+    - Display-copy invariants
+    - Prompt ordering rules
+
+schema_version: 1
+record_kind: meter_row_record
+meter_row_id: meter_row.personal_vs_org_chargeback_view
+operating_mode_class: enterprise_saas
+meter_family_class: ai_gateway_meter_family
+linked_service_family_class: ai_gateway_family
+linked_service_ids:
+  - managed_ai_broker
+meter_unit_class: tokens
+aggregation_window_class: rolling_24h
+owner_scope:
+  scope_class: organization
+  scope_ref: scope.organization.example
+  parent_scope_refs:
+    - scope.tenant.example
+  scope_label: Enterprise organization scope on the customer-pinned region.
+title: AI gateway inference — personal and organization chargeback views
+summary: >
+  Personal and organization chargeback views are exposed side-by-side
+  for the AI gateway meter. The user can see what is on their
+  personal budget versus the enterprise tenant before taking any
+  managed inference action. The two scopes do not collapse into a
+  single combined total.
+issued_at: "2026-04-29T17:00:00Z"
+as_of_time: "2026-04-29T16:55:00Z"
+measurement_authority_class: authoritative
+meter_freshness_class: fresh
+quota_owner_class: enterprise_tenant
+linked_quota_state_refs:
+  - quota_state.ai_gateway.org.authoritative
+  - quota_state.ai_gateway.user.byok_authoritative
+linked_usage_export_row_refs:
+  - usage_export_row.ai_gateway.org.daily
+  - usage_export_row.ai_gateway.user.byok.daily
+entitlement_summary:
+  entitlement_state_class: entitlement_active
+  summary: >
+    Enterprise entitlement is active; AI inference may proceed inside
+    the per-scope rolling window.
+  linked_managed_session_state_ref: managed_session_state.example.fresh
+  linked_quota_state_refs:
+    - quota_state.ai_gateway.org.authoritative
+  entitlement_grace_until_at: null
+  policy_ref: null
+  recovery_cue: null
+usage_and_forecast:
+  usage_value: 42000
+  usage_limit_value: 100000
+  usage_remaining_value: 58000
+  usage_unit_class: tokens
+  aggregation_window_class: rolling_24h
+  current_window_start_at: "2026-04-28T17:00:00Z"
+  current_window_end_at: "2026-04-29T17:00:00Z"
+  next_reset_at: "2026-04-29T17:00:00Z"
+  as_of_time: "2026-04-29T16:55:00Z"
+  precision_class: exact
+  forecast:
+    forecast_confidence_class: forecast_authoritative
+    forecast_value: 88000
+    forecast_horizon_summary: Projected end-of-window organization-scope token usage.
+    forecast_caveats: []
+  usage_summary: >
+    Organization-scope inference is on track for end-of-window usage
+    inside the rolling daily budget; personal-scope BYOK inference is
+    metered separately and is not added to the organization total.
+chargeback_scope_switcher:
+  current_scope: organization_scope
+  offered_scopes:
+    - chargeback_scope_class: personal_scope
+      scope_ref: scope.user.example
+      offer_summary: >
+        Personal budget covers BYOK and personal-pool AI inference.
+        Personal usage does not roll up into the enterprise total.
+      linked_quota_state_ref: quota_state.ai_gateway.user.byok_authoritative
+    - chargeback_scope_class: workspace_scope
+      scope_ref: scope.workspace.example
+      offer_summary: >
+        Workspace-attributed AI inference is itemised for the project
+        admin; the workspace total is shown separately from the
+        organization total.
+      linked_quota_state_ref: quota_state.ai_gateway.workspace.authoritative
+    - chargeback_scope_class: organization_scope
+      scope_ref: scope.organization.example
+      offer_summary: >
+        Enterprise organization budget covers managed-gateway
+        inference for org-attributed actions.
+      linked_quota_state_ref: quota_state.ai_gateway.org.authoritative
+  spend_attribution_dimensions:
+    - tenant
+    - organization
+    - user
+    - workspace
+    - feature
+    - provider
+    - model
+    - quota_family
+  split_recovery_cue: null
+grace_or_offboarding_card: null
+export_parity:
+  export_parity_class: parity_with_csv_and_json
+  summary: >
+    Both CSV and JSON exports of the displayed usage summary preserve
+    the row's fields, including caveats, source class, and
+    chargeback scope.
+  csv_manifest_ref: export_manifest.ai_gateway.csv.v1
+  json_manifest_ref: export_manifest.ai_gateway.json.v1
+  policy_ref: null
+fail_posture: not_applicable
+prompt_ordering:
+  ordered_prompts:
+    - prompt_class: continue_local_work
+      priority_index: 1
+      label: Continue local edit, save, search, BYOK AI, and local export.
+      destination_ref: navigation.local_continuation
+    - prompt_class: export_usage_summary
+      priority_index: 2
+      label: Export the displayed usage summary as CSV or JSON.
+      destination_ref: navigation.export_usage_summary
+    - prompt_class: manage_entitlement
+      priority_index: 6
+      label: Open managed entitlement settings (admin).
+      destination_ref: navigation.manage_entitlement
+  preserves_user_options_first: true
+  rationale: >
+    The row is healthy and entitlement is active, but the prompt
+    list still leads with continue-local-work and export so users
+    are never surprised by a billing-pressure prompt.
+local_continuation:
+  - Continue local edit, save, undo, search, Git, and local export.
+  - Use BYOK or local AI providers without the managed gateway.
+  - Inspect the personal and organization chargeback views without consuming managed inference.
+blocked_managed_only_actions: []
+freshness_posture:
+  staleness_class: fresh
+  freshness_floor_summary: null
+  staleness_rationale: null
+  last_authoritative_fetch_at: "2026-04-29T16:55:00Z"
+display_copy:
+  whole_product_failure_implied: false
+  as_of_time_omitted: false
+  measurement_unit_omitted: false
+  owner_scope_omitted: false
+  personal_workspace_org_collapsed: false
+  forecast_under_unauthoritative_state: false
+  upgrade_prompted_before_export_or_support: false
+  local_continuation_path_obscured: false
+  local_core_blocking: false
+  stale_label: null
+linked_operating_mode_card_refs:
+  - operating_mode_card.enterprise_saas_with_region_strip
+linked_region_key_state_refs: []
+linked_slo_row_refs:
+  - artifacts/service/slo_rows.yaml#managed_ai_broker
+  - artifacts/service/slo_rows.yaml#managed_entitlement_usage
+linked_api_surface_refs:
+  - artifacts/service/api_surface_rows.yaml#ai_broker_api_family.inference
+narrative_refs:
+  - docs/service/metering_and_chargeback_contract.md
+  - docs/service/operating_mode_and_capacity_contract.md
+  - docs/managed/metering_and_usage_export_contract.md
+  - docs/service/managed_service_seed.md
+notes: >
+  The personal-scope view does not display zero or "not applicable"
+  for org-attributed inference; the user's personal budget is
+  itemised independently so they can decide which scope to draw
+  from.

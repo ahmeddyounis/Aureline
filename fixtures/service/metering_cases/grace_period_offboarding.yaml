@@ -1,0 +1,225 @@
+# yaml-language-server: $schema=../../../schemas/service/meter_row.schema.json
+__fixture__:
+  name: grace_period_offboarding
+  scenario: >
+    The enterprise tenant entered a documented grace_window after a
+    seat downgrade. Entitlement is in_grace; the grace-or-offboarding
+    card cites the offboarding-export SLO row and the deletion-job
+    record. Prompts surface continue-local-work,
+    export-usage-summary, export-support-bundle,
+    export-offboarding-packet, and delete-data ahead of any
+    manage-entitlement, increase-budget, upgrade-plan, or
+    add-payment-method prompt. AI evidence retention and local
+    export remain available; managed inference that requires
+    bounded spend is paused under the grace posture.
+  contract_sections:
+    - Required surfaces — Grace-period or offboarding card
+    - Prompt ordering rules
+    - Display-copy invariants
+
+schema_version: 1
+record_kind: meter_row_record
+meter_row_id: meter_row.grace_period_offboarding
+operating_mode_class: enterprise_saas
+meter_family_class: support_ingest_meter_family
+linked_service_family_class: telemetry_or_support_ingest_family
+linked_service_ids:
+  - managed_entitlement_usage
+  - managed_offboarding_export
+  - managed_support_export
+meter_unit_class: support_bundle_count
+aggregation_window_class: contract_term
+owner_scope:
+  scope_class: organization
+  scope_ref: scope.organization.example
+  parent_scope_refs:
+    - scope.tenant.example
+  scope_label: Enterprise organization scope under offboarding grace.
+title: Entitlement grace window — offboarding export and support paths preserved
+summary: >
+  The enterprise organization is in a documented grace window.
+  Entitlement reads as in_grace, with the grace-or-offboarding card
+  citing the offboarding-export and deletion-job records. The
+  prompt list leads with continue-local-work, export-usage-summary,
+  export-support-bundle, export-offboarding-packet, and delete-data
+  before any manage-entitlement or upgrade prompt.
+issued_at: "2026-04-29T20:00:00Z"
+as_of_time: "2026-04-29T19:55:00Z"
+measurement_authority_class: authoritative
+meter_freshness_class: fresh
+quota_owner_class: enterprise_tenant
+linked_quota_state_refs:
+  - quota_state.entitlement_usage.org.in_grace
+linked_usage_export_row_refs:
+  - usage_export_row.entitlement_usage.org.contract_term
+entitlement_summary:
+  entitlement_state_class: entitlement_in_grace
+  summary: >
+    Enterprise entitlement is in a documented grace window after a
+    seat downgrade; managed inference and managed publish paths
+    pause but export, support, delete, and local-continuation
+    actions remain available.
+  linked_managed_session_state_ref: managed_session_state.example.in_grace
+  linked_quota_state_refs:
+    - quota_state.entitlement_usage.org.in_grace
+  entitlement_grace_until_at: "2026-05-13T00:00:00Z"
+  policy_ref: null
+  recovery_cue: >
+    Export the offboarding packet, the support bundle, and the
+    usage summary before the grace window ends, or open managed
+    entitlement to confirm the next step.
+usage_and_forecast:
+  usage_value: 3
+  usage_limit_value: 12
+  usage_remaining_value: 9
+  usage_unit_class: support_bundle_count
+  aggregation_window_class: contract_term
+  current_window_start_at: "2026-01-01T00:00:00Z"
+  current_window_end_at: "2026-12-31T23:59:59Z"
+  next_reset_at: "2026-12-31T23:59:59Z"
+  as_of_time: "2026-04-29T19:55:00Z"
+  precision_class: exact
+  forecast:
+    forecast_confidence_class: forecast_best_effort_local
+    forecast_value: 7
+    forecast_horizon_summary: >
+      End-of-contract-term projection from the local rolling counter;
+      labelled as best-effort because the grace window changes the
+      ingest rate.
+    forecast_caveats:
+      - Forecast is a local projection during grace; reconcile against the managed snapshot when the entitlement service refreshes.
+  usage_summary: >
+    Three support bundles ingested this contract term out of twelve;
+    grace-window adjustments are reflected on the linked
+    entitlement-usage quota state record.
+chargeback_scope_switcher:
+  current_scope: organization_scope
+  offered_scopes:
+    - chargeback_scope_class: organization_scope
+      scope_ref: scope.organization.example
+      offer_summary: >
+        Enterprise organization scope; support-ingest usage is
+        attributed to the contract-term envelope.
+      linked_quota_state_ref: quota_state.entitlement_usage.org.in_grace
+    - chargeback_scope_class: tenant_scope
+      scope_ref: scope.tenant.example
+      offer_summary: >
+        Tenant-level rollup is shown for admin review; tenant and
+        organization totals are itemised separately.
+      linked_quota_state_ref: quota_state.entitlement_usage.tenant.in_grace
+  spend_attribution_dimensions:
+    - tenant
+    - organization
+    - feature
+    - managed_service
+    - quota_family
+  split_recovery_cue: null
+grace_or_offboarding_card:
+  offboarding_phase_class: grace_window
+  phase_until_at: "2026-05-13T00:00:00Z"
+  summary: >
+    Grace window covers the next two weeks. Local-core work
+    continues; the offboarding export remains available and the
+    deletion-job record is held until the user confirms.
+  retained_action_summary:
+    - Continue local edit, save, undo, search, Git, and local export.
+    - Export the offboarding packet, the support bundle, and the usage summary.
+    - Confirm or schedule the deletion job for managed-aggregate retention.
+  paused_action_summary:
+    - Managed AI inference that requires bounded spend is paused.
+    - Managed marketplace publish is paused under the grace posture.
+  affected_action_families:
+    - ai_inference_action_family
+    - marketplace_publish_action_family
+    - support_export_action_family
+    - offboarding_export_action_family
+  linked_offboarding_export_ref: offboarding_export.example.org
+  linked_deletion_job_ref: deletion_job.example.org.grace
+export_parity:
+  export_parity_class: parity_with_csv_and_json
+  summary: >
+    The displayed usage summary, the support bundle index, and the
+    offboarding packet index export with parity in CSV and JSON;
+    both exports preserve caveats and source-class fields.
+  csv_manifest_ref: export_manifest.support_ingest.csv.v1
+  json_manifest_ref: export_manifest.support_ingest.json.v1
+  policy_ref: null
+fail_posture: fail_closed_managed_only
+prompt_ordering:
+  ordered_prompts:
+    - prompt_class: continue_local_work
+      priority_index: 1
+      label: Continue local edit, save, search, BYOK AI, and local export.
+      destination_ref: navigation.local_continuation
+    - prompt_class: export_usage_summary
+      priority_index: 2
+      label: Export the displayed contract-term usage summary as CSV or JSON.
+      destination_ref: navigation.export_usage_summary
+    - prompt_class: export_support_bundle
+      priority_index: 3
+      label: Export the support bundle for ongoing or recent cases.
+      destination_ref: navigation.export_support_bundle
+    - prompt_class: export_offboarding_packet
+      priority_index: 4
+      label: Export the offboarding packet now while access is preserved.
+      destination_ref: navigation.export_offboarding_packet
+    - prompt_class: delete_data
+      priority_index: 5
+      label: Confirm or schedule the deletion job for managed-aggregate retention.
+      destination_ref: navigation.delete_data
+    - prompt_class: manage_entitlement
+      priority_index: 6
+      label: Open managed entitlement settings to review the grace posture.
+      destination_ref: navigation.manage_entitlement
+    - prompt_class: request_admin_review
+      priority_index: 7
+      label: Ask an admin to review the seat downgrade.
+      destination_ref: navigation.request_admin_review
+    - prompt_class: upgrade_plan
+      priority_index: 9
+      label: Review plan options (only after export, support, delete, and continuation prompts).
+      destination_ref: navigation.upgrade_plan
+  preserves_user_options_first: true
+  rationale: >
+    The grace window must not lead the user into an upgrade prompt
+    before they have exported the offboarding packet, the support
+    bundle, and the usage summary, and confirmed the deletion job.
+local_continuation:
+  - Continue local edit, save, undo, search, Git, and local export.
+  - Use BYOK or fully local AI providers without the managed gateway.
+  - Inspect AI evidence retention records that were captured before the grace window.
+blocked_managed_only_actions:
+  - Managed AI inference that requires bounded spend pauses while the entitlement is in_grace.
+  - Managed marketplace publish pauses while the entitlement is in_grace.
+freshness_posture:
+  staleness_class: fresh
+  freshness_floor_summary: null
+  staleness_rationale: null
+  last_authoritative_fetch_at: "2026-04-29T19:55:00Z"
+display_copy:
+  whole_product_failure_implied: false
+  as_of_time_omitted: false
+  measurement_unit_omitted: false
+  owner_scope_omitted: false
+  personal_workspace_org_collapsed: false
+  forecast_under_unauthoritative_state: false
+  upgrade_prompted_before_export_or_support: false
+  local_continuation_path_obscured: false
+  local_core_blocking: false
+  stale_label: null
+linked_operating_mode_card_refs: []
+linked_region_key_state_refs: []
+linked_slo_row_refs:
+  - artifacts/service/slo_rows.yaml#managed_entitlement_usage
+  - artifacts/service/slo_rows.yaml#managed_offboarding_export
+  - artifacts/service/slo_rows.yaml#managed_support_export
+linked_api_surface_refs: []
+narrative_refs:
+  - docs/service/metering_and_chargeback_contract.md
+  - docs/service/operating_mode_and_capacity_contract.md
+  - docs/managed/metering_and_usage_export_contract.md
+  - docs/service/managed_service_seed.md
+notes: >
+  The fixture demonstrates that grace-window posture preserves
+  export, support, delete, and continue-local-work prompts ahead of
+  any upgrade prompt.
