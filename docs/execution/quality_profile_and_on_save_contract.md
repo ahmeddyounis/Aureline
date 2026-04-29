@@ -31,6 +31,13 @@ Machine-readable companions:
   `on_save_participant_result_record`,
   `additional_edit_review_record`, and
   `on_save_execution_event_record`.
+- [`/schemas/execution/save_participant_plan.schema.json`](../../schemas/execution/save_participant_plan.schema.json)
+  and
+  [`/schemas/execution/fix_safety_class.schema.json`](../../schemas/execution/fix_safety_class.schema.json)
+  - hot-path save-participant phases, fix-safety classes,
+  no-hidden-mutation guards, whole-file rewrite disclosure,
+  generated companion update posture, external-change conflict
+  handling, and review triggers.
 - [`/fixtures/execution/quality_profile_cases/`](../../fixtures/execution/quality_profile_cases/)
   - worked YAML fixtures covering locked profile selection, imported
   config downgrade, scanner import delta comparison, safe on-save apply,
@@ -54,6 +61,10 @@ This contract composes with and does not replace:
 - [`/docs/settings/settings_vocabulary.md`](../settings/settings_vocabulary.md)
   and ADR-0008 for effective setting source chains. Quality-profile
   precedence reuses the same source-label and policy-ceiling discipline.
+- [`/docs/execution/save_participant_and_fix_safety_contract.md`](./save_participant_and_fix_safety_contract.md)
+  for the narrower save hot-path phase order, fix-safety classes,
+  no-hidden-mutation rules, and whole-file/generated/multi-file/
+  external-change review triggers.
 - [`/docs/admin/policy_explainability_contract.md`](../admin/policy_explainability_contract.md)
   for policy locks, effective-state labels, and escalation routes.
 - [`/schemas/filesystem/save_target_token.schema.json`](../../schemas/filesystem/save_target_token.schema.json)

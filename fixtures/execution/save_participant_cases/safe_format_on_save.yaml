@@ -1,0 +1,324 @@
+# yaml-language-server: $schema=../../../schemas/execution/save_participant_plan.schema.json
+__fixture__:
+  name: safe_format_on_save
+  scenario: >
+    A normal explicit save runs a deterministic imported formatter against
+    one staged buffer, validates the result, rechecks the save target, writes
+    the file, and refreshes indexes without hidden participants.
+
+record_kind: save_participant_plan_record
+save_participant_plan_schema_version: 1
+save_participant_plan_id: save_participant.plan.safe_format.lib_rs.0001
+workspace_ref: workspace.repo.aureline
+trigger_class: explicit_save
+target_scope_class: current_file
+quality_on_save_plan_ref: on_save.plan.lib_rs.trivia_safe.0001
+save_target_summary:
+  logical_document_ref: logical_document.lib_rs
+  canonical_write_target_ref: save_target.canonical.src_lib_rs
+  staged_buffer_ref: staged_buffer.lib_rs.save.0001
+  compare_before_write_token_ref: save_token.src_lib_rs.0001
+  base_revision_ref: file_revision.src_lib_rs.before_save
+  observed_revision_ref: file_revision.src_lib_rs.current
+  external_change_event_ref: null
+effective_quality_profile_ref: quality.profile.effective.rust.policy_locked.0001
+
+phase_order:
+  - phase_class: preflight
+    order_index: 0
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    summary: Preflight binds the staged buffer, canonical target, and participant list.
+  - phase_class: format_fix
+    order_index: 1
+    may_mutate_staged_buffer: true
+    may_write_durable_target: false
+    rollback_boundary_class: recovery_journal
+    checkpoint_hooks:
+      rollback_boundary_class: recovery_journal
+      pre_apply_checkpoint_ref: recovery_journal.lib_rs.before_format
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: rollback.plan.lib_rs.recovery_journal
+      mutation_group_ref: mutation_group.format_on_save.lib_rs.0001
+      local_history_group_ref: null
+    summary: The formatter may mutate only the staged buffer inside the declared one-file scope.
+  - phase_class: validation
+    order_index: 2
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    summary: Validation checks formatter idempotence and syntax without mutation.
+  - phase_class: compare_before_write
+    order_index: 3
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    summary: The save target token is revalidated immediately before write.
+  - phase_class: durable_write
+    order_index: 4
+    may_mutate_staged_buffer: false
+    may_write_durable_target: true
+    rollback_boundary_class: recovery_journal
+    checkpoint_hooks:
+      rollback_boundary_class: recovery_journal
+      pre_apply_checkpoint_ref: recovery_journal.lib_rs.before_write
+      post_apply_checkpoint_ref: recovery_journal.lib_rs.after_write
+      rollback_plan_ref: rollback.plan.lib_rs.recovery_journal
+      mutation_group_ref: mutation_group.format_on_save.lib_rs.0001
+      local_history_group_ref: null
+    summary: Durable write commits only the staged file admitted by the plan.
+  - phase_class: post_save_indexing_refresh
+    order_index: 5
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    summary: Post-save refresh updates indexes and diagnostics without file mutation.
+
+participant_order:
+  - step_id: save_participant.step.preflight.lib_rs.0001
+    order_index: 0
+    phase_class: preflight
+    participant_class: save_target_preflight
+    provider_tool_ref: null
+    output_origin_class: read_only_validation
+    output_origin_ref: save_target_token.src_lib_rs.0001
+    exact_rule_or_config_ref: null
+    fix_safety_class: safe_local_text_edit
+    review_trigger_classes:
+      - not_required
+    declared_file_effect_summary:
+      files_touched: 0
+      files_created: 0
+      files_deleted: 0
+      changed_bytes: 0
+      whole_file_rewrite: false
+      generated_artifacts_touched: 0
+      protected_paths_touched: 0
+      may_touch_outside_visible_file: false
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    timeout_ms: 50
+    run_if_precondition_refs:
+      - precondition.save_target_token_present
+    visible_disclosure: Save target and participant list are visible before formatting starts.
+    summary: Preflight opens the plan without mutating content.
+  - step_id: save_participant.step.formatter.rustfmt.0001
+    order_index: 1
+    phase_class: format_fix
+    participant_class: formatter
+    provider_tool_ref: quality.binding.formatter.rustfmt.policy
+    output_origin_class: imported_config
+    output_origin_ref: quality.config.rustfmt.workspace
+    exact_rule_or_config_ref: quality.config.rustfmt.workspace
+    fix_safety_class: safe_local_text_edit
+    review_trigger_classes:
+      - not_required
+    declared_file_effect_summary:
+      files_touched: 1
+      files_created: 0
+      files_deleted: 0
+      changed_bytes: 96
+      whole_file_rewrite: false
+      generated_artifacts_touched: 0
+      protected_paths_touched: 0
+      may_touch_outside_visible_file: false
+    checkpoint_hooks:
+      rollback_boundary_class: recovery_journal
+      pre_apply_checkpoint_ref: recovery_journal.lib_rs.before_format
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: rollback.plan.lib_rs.recovery_journal
+      mutation_group_ref: mutation_group.format_on_save.lib_rs.0001
+      local_history_group_ref: null
+    timeout_ms: 750
+    run_if_precondition_refs:
+      - precondition.profile_allows_formatter
+      - precondition.compare_token_current_at_plan_open
+    visible_disclosure: rustfmt from workspace config will format one staged file.
+    summary: Formatter applies a bounded local text edit from imported config.
+  - step_id: save_participant.step.validation.rustfmt.0001
+    order_index: 2
+    phase_class: validation
+    participant_class: validation_after_apply
+    provider_tool_ref: quality.binding.formatter.rustfmt.policy
+    output_origin_class: read_only_validation
+    output_origin_ref: validation.formatter_idempotence.rustfmt.0001
+    exact_rule_or_config_ref: quality.config.rustfmt.workspace
+    fix_safety_class: safe_local_text_edit
+    review_trigger_classes:
+      - not_required
+    declared_file_effect_summary:
+      files_touched: 0
+      files_created: 0
+      files_deleted: 0
+      changed_bytes: 0
+      whole_file_rewrite: false
+      generated_artifacts_touched: 0
+      protected_paths_touched: 0
+      may_touch_outside_visible_file: false
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    timeout_ms: 250
+    run_if_precondition_refs:
+      - precondition.formatter_completed
+    visible_disclosure: Formatter idempotence validation runs read-only.
+    summary: Validation confirms the formatter output is stable before write.
+  - step_id: save_participant.step.compare.lib_rs.0001
+    order_index: 3
+    phase_class: compare_before_write
+    participant_class: compare_before_write
+    provider_tool_ref: null
+    output_origin_class: read_only_validation
+    output_origin_ref: save_token.src_lib_rs.0001
+    exact_rule_or_config_ref: null
+    fix_safety_class: safe_local_text_edit
+    review_trigger_classes:
+      - not_required
+    declared_file_effect_summary:
+      files_touched: 0
+      files_created: 0
+      files_deleted: 0
+      changed_bytes: 0
+      whole_file_rewrite: false
+      generated_artifacts_touched: 0
+      protected_paths_touched: 0
+      may_touch_outside_visible_file: false
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    timeout_ms: 50
+    run_if_precondition_refs:
+      - precondition.validation_completed
+    visible_disclosure: Save target token is compared before the durable write.
+    summary: Compare-before-write proves no external change raced the save.
+  - step_id: save_participant.step.write.lib_rs.0001
+    order_index: 4
+    phase_class: durable_write
+    participant_class: durable_writer
+    provider_tool_ref: null
+    output_origin_class: exact_rule
+    output_origin_ref: save_pipeline.atomic_replace.local
+    exact_rule_or_config_ref: save_pipeline.atomic_replace.local
+    fix_safety_class: safe_local_text_edit
+    review_trigger_classes:
+      - not_required
+    declared_file_effect_summary:
+      files_touched: 1
+      files_created: 0
+      files_deleted: 0
+      changed_bytes: 96
+      whole_file_rewrite: false
+      generated_artifacts_touched: 0
+      protected_paths_touched: 0
+      may_touch_outside_visible_file: false
+    checkpoint_hooks:
+      rollback_boundary_class: recovery_journal
+      pre_apply_checkpoint_ref: recovery_journal.lib_rs.before_write
+      post_apply_checkpoint_ref: recovery_journal.lib_rs.after_write
+      rollback_plan_ref: rollback.plan.lib_rs.recovery_journal
+      mutation_group_ref: mutation_group.format_on_save.lib_rs.0001
+      local_history_group_ref: null
+    timeout_ms: 500
+    run_if_precondition_refs:
+      - precondition.compare_before_write_current
+    visible_disclosure: Atomic save writes the single admitted file.
+    summary: Durable write commits the staged formatter result.
+  - step_id: save_participant.step.refresh.lib_rs.0001
+    order_index: 5
+    phase_class: post_save_indexing_refresh
+    participant_class: post_save_index_refresh
+    provider_tool_ref: graph.indexer.workspace.default
+    output_origin_class: read_only_validation
+    output_origin_ref: refresh.index.graph.after_save.0001
+    exact_rule_or_config_ref: null
+    fix_safety_class: safe_local_text_edit
+    review_trigger_classes:
+      - not_required
+    declared_file_effect_summary:
+      files_touched: 0
+      files_created: 0
+      files_deleted: 0
+      changed_bytes: 0
+      whole_file_rewrite: false
+      generated_artifacts_touched: 0
+      protected_paths_touched: 0
+      may_touch_outside_visible_file: false
+    checkpoint_hooks:
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    timeout_ms: 1000
+    run_if_precondition_refs:
+      - precondition.durable_write_committed
+    visible_disclosure: Index and diagnostic refresh is read-only for workspace files.
+    summary: Post-save refresh updates derived state without mutating files.
+
+no_hidden_mutation_guards:
+  user_visible_participant_list: true
+  ran_skipped_blocked_states_exported: true
+  output_origin_exported: true
+  exact_rule_or_config_refs_exported: true
+  heuristic_or_ai_never_silent: true
+  declared_scope_ceiling_enforced: true
+  actual_effects_compared_to_plan: true
+  post_save_refresh_read_only: true
+  summary: The plan exports every participant, origin, scope ceiling, and read-only refresh guarantee.
+review_policy:
+  whole_file_rewrite_requires_review: true
+  generated_artifact_impact_requires_review: true
+  multi_file_edit_requires_review: true
+  external_change_race_requires_review: true
+  policy_or_trust_narrowing_blocks: true
+  heuristic_or_ai_requires_review_when_not_safe_local: true
+  summary: No review triggers are active; stricter classes would stop the save.
+opened_at: "2026-04-29T06:30:00Z"
+plan_outcome_class: committed
+audit_event_refs:
+  - audit.save_participant.plan_opened.safe_format
+  - audit.save_participant.durable_write_committed.safe_format
+summary: Safe format-on-save applies one deterministic local edit and writes after compare-before-write succeeds.

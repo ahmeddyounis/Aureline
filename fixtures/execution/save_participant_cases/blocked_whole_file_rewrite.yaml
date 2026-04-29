@@ -1,0 +1,142 @@
+# yaml-language-server: $schema=../../../schemas/execution/save_participant_plan.schema.json
+__fixture__:
+  name: blocked_whole_file_rewrite
+  scenario: >
+    A formatter can only return a whole-file rewrite for a large file.
+    The plan discloses the rewrite class and blocks durable write until
+    the user opens review or invokes a manual command.
+
+record_kind: save_participant_plan_record
+save_participant_plan_schema_version: 1
+save_participant_plan_id: save_participant.plan.blocked_whole_rewrite.0001
+workspace_ref: workspace.repo.aureline
+trigger_class: explicit_save
+target_scope_class: current_file
+quality_on_save_plan_ref: on_save.plan.large_file.formatter.0001
+save_target_summary:
+  logical_document_ref: logical_document.generated_bundle
+  canonical_write_target_ref: save_target.canonical.generated_bundle
+  staged_buffer_ref: staged_buffer.generated_bundle.save.0001
+  compare_before_write_token_ref: save_token.generated_bundle.0001
+  base_revision_ref: file_revision.generated_bundle.before_save
+  observed_revision_ref: file_revision.generated_bundle.current
+  external_change_event_ref: null
+effective_quality_profile_ref: quality.profile.effective.web.large_file.0001
+
+phase_order:
+  - phase_class: preflight
+    order_index: 0
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks: &none_hooks
+      rollback_boundary_class: none_read_only
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    summary: Preflight detects large-file posture and whole-file rewrite risk.
+  - phase_class: format_fix
+    order_index: 1
+    may_mutate_staged_buffer: true
+    may_write_durable_target: false
+    rollback_boundary_class: blocked_no_write
+    checkpoint_hooks: &blocked_hooks
+      rollback_boundary_class: blocked_no_write
+      pre_apply_checkpoint_ref: null
+      post_apply_checkpoint_ref: null
+      rollback_plan_ref: null
+      mutation_group_ref: null
+      local_history_group_ref: null
+    summary: Formatter is blocked before mutation because it would rewrite the whole file.
+  - phase_class: generated_artifact_update
+    order_index: 2
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks: *none_hooks
+    summary: No generated companion update is admitted after the blocked formatter.
+  - phase_class: validation
+    order_index: 3
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks: *none_hooks
+    summary: Validation is skipped because no formatter output is applied.
+  - phase_class: compare_before_write
+    order_index: 4
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks: *none_hooks
+    summary: Compare-before-write is not reached for blocked formatter output.
+  - phase_class: durable_write
+    order_index: 5
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: blocked_no_write
+    checkpoint_hooks: *blocked_hooks
+    summary: Durable write is blocked; no file mutation occurs.
+  - phase_class: post_save_indexing_refresh
+    order_index: 6
+    may_mutate_staged_buffer: false
+    may_write_durable_target: false
+    rollback_boundary_class: none_read_only
+    checkpoint_hooks: *none_hooks
+    summary: Refresh may report blocked save state but cannot mutate files.
+
+participant_order:
+  - step_id: save_participant.step.formatter.prettier.0001
+    order_index: 0
+    phase_class: format_fix
+    participant_class: formatter
+    provider_tool_ref: quality.binding.formatter.prettier.workspace
+    output_origin_class: imported_config
+    output_origin_ref: quality.config.prettier.workspace
+    exact_rule_or_config_ref: quality.config.prettier.workspace
+    fix_safety_class: whole_file_rewrite_disclosed
+    review_trigger_classes:
+      - whole_file_rewrite
+      - policy_or_trust_narrowing
+    declared_file_effect_summary:
+      files_touched: 1
+      files_created: 0
+      files_deleted: 0
+      changed_bytes: 912000
+      whole_file_rewrite: true
+      generated_artifacts_touched: 0
+      protected_paths_touched: 0
+      may_touch_outside_visible_file: false
+    checkpoint_hooks: *blocked_hooks
+    timeout_ms: 0
+    run_if_precondition_refs:
+      - precondition.large_file_mode_blocks_whole_file_rewrite
+      - precondition.manual_command_not_present
+    visible_disclosure: Formatter would rewrite the whole file and is blocked on save.
+    summary: Whole-file rewrite is disclosed and denied on the hot save path.
+
+no_hidden_mutation_guards:
+  user_visible_participant_list: true
+  ran_skipped_blocked_states_exported: true
+  output_origin_exported: true
+  exact_rule_or_config_refs_exported: true
+  heuristic_or_ai_never_silent: true
+  declared_scope_ceiling_enforced: true
+  actual_effects_compared_to_plan: true
+  post_save_refresh_read_only: true
+  summary: The blocked formatter still emits an explicit participant row and rewrite disclosure.
+review_policy:
+  whole_file_rewrite_requires_review: true
+  generated_artifact_impact_requires_review: true
+  multi_file_edit_requires_review: true
+  external_change_race_requires_review: true
+  policy_or_trust_narrowing_blocks: true
+  heuristic_or_ai_requires_review_when_not_safe_local: true
+  summary: Whole-file rewrite on this file class requires review or manual command posture.
+opened_at: "2026-04-29T06:32:00Z"
+plan_outcome_class: blocked_no_write
+audit_event_refs:
+  - audit.save_participant.plan_opened.whole_rewrite_blocked
+  - audit.save_participant.blocked.whole_rewrite
+summary: Save blocks before formatter mutation because whole-file rewrite is not safe on the hot path.

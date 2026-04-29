@@ -1,0 +1,828 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/save_participant_plan.schema.json",
+  "title": "Aureline save-participant plan boundary",
+  "description": "Boundary schema for the save-participant record family frozen in docs/execution/save_participant_and_fix_safety_contract.md. The records describe save phases, participant order, fix-safety classes, output origin, no-hidden-mutation guards, review triggers, compare-before-write posture, and checkpoint or rollback hooks for formatters, fixers, generators, validation passes, AI-assisted plans, durable writes, and post-save refresh. Raw source text, raw patches, raw paths, raw tool arguments, raw provider logs, raw environment variables, and secrets never cross this boundary; records carry opaque refs, class ids, counts, posture, and reviewable summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/save_participant_plan_record" },
+    { "$ref": "#/$defs/save_participant_result_record" },
+    { "$ref": "#/$defs/save_participant_review_record" },
+    { "$ref": "#/$defs/save_participant_execution_event_record" }
+  ],
+  "$defs": {
+    "save_participant_plan_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "opaque_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "$ref": "#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 700,
+      "description": "Reviewable summary safe for UI, CLI, support, and release exports. Raw source text, raw paths, raw patches, raw logs, and secrets are forbidden."
+    },
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "explicit_save",
+        "autosave",
+        "format_document_command",
+        "fix_all_command",
+        "organize_imports_command",
+        "cli_headless_save",
+        "review_apply_save",
+        "trigger_unknown_requires_review"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_selection",
+        "current_structured_node",
+        "current_notebook_cell",
+        "selected_workset",
+        "workspace",
+        "review_diff",
+        "target_scope_unknown_requires_review"
+      ]
+    },
+    "phase_class": {
+      "type": "string",
+      "enum": [
+        "preflight",
+        "format_fix",
+        "generated_artifact_update",
+        "validation",
+        "compare_before_write",
+        "durable_write",
+        "post_save_indexing_refresh"
+      ]
+    },
+    "participant_class": {
+      "type": "string",
+      "enum": [
+        "save_target_preflight",
+        "formatter",
+        "organize_imports",
+        "linter_autofix",
+        "code_action",
+        "generated_companion_sync",
+        "ai_apply",
+        "validation_after_apply",
+        "scanner_read_only",
+        "compare_before_write",
+        "durable_writer",
+        "post_save_index_refresh",
+        "participant_unknown_requires_review"
+      ]
+    },
+    "fix_safety_class": {
+      "type": "string",
+      "enum": [
+        "safe_local_text_edit",
+        "workspace_wide_preview_required",
+        "generated_companion_update",
+        "policy_blocked",
+        "whole_file_rewrite_disclosed",
+        "external_change_conflict_requires_review",
+        "fix_safety_unknown_requires_review"
+      ]
+    },
+    "output_origin_class": {
+      "type": "string",
+      "enum": [
+        "exact_rule",
+        "imported_config",
+        "heuristic_fallback",
+        "generated_lineage",
+        "policy_decision",
+        "ai_suggestion",
+        "read_only_validation",
+        "origin_unknown_requires_review"
+      ]
+    },
+    "review_trigger_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "whole_file_rewrite",
+        "generated_artifact_impact",
+        "multi_file_edit",
+        "external_change_race",
+        "policy_or_trust_narrowing",
+        "provider_dependency_or_semantic_freshness_gap",
+        "source_fidelity_conversion",
+        "output_origin_heuristic_or_ai",
+        "unknown_requires_review"
+      ]
+    },
+    "participant_run_state_class": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "ran",
+        "skipped_by_profile",
+        "skipped_by_timeout_policy",
+        "skipped_by_policy",
+        "blocked_before_run",
+        "timed_out",
+        "failed",
+        "held_for_review"
+      ]
+    },
+    "plan_outcome_class": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "committed",
+        "committed_with_skipped_participants",
+        "preview_required",
+        "blocked_no_write",
+        "aborted",
+        "rebase_required",
+        "failed"
+      ]
+    },
+    "source_fidelity_rewrite_class": {
+      "type": "string",
+      "enum": [
+        "no_write_needed",
+        "targeted_content_patch",
+        "whole_file_rewrite_declared",
+        "whole_file_rewrite_fallback",
+        "generator_regeneration_write",
+        "merge_resolution_write",
+        "blocked_no_write"
+      ]
+    },
+    "rollback_boundary_class": {
+      "type": "string",
+      "enum": [
+        "none_read_only",
+        "recovery_journal",
+        "local_history_checkpoint",
+        "workspace_checkpoint_group",
+        "generator_regeneration_checkpoint",
+        "metadata_only_checkpoint",
+        "blocked_no_write"
+      ]
+    },
+    "checkpoint_hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_boundary_class",
+        "pre_apply_checkpoint_ref",
+        "post_apply_checkpoint_ref",
+        "rollback_plan_ref",
+        "mutation_group_ref",
+        "local_history_group_ref"
+      ],
+      "properties": {
+        "rollback_boundary_class": {
+          "$ref": "#/$defs/rollback_boundary_class"
+        },
+        "pre_apply_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "post_apply_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "rollback_plan_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "mutation_group_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "local_history_group_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        }
+      }
+    },
+    "save_target_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_document_ref",
+        "canonical_write_target_ref",
+        "staged_buffer_ref",
+        "compare_before_write_token_ref",
+        "base_revision_ref",
+        "observed_revision_ref",
+        "external_change_event_ref"
+      ],
+      "properties": {
+        "logical_document_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "canonical_write_target_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "staged_buffer_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "compare_before_write_token_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "base_revision_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "observed_revision_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "external_change_event_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        }
+      }
+    },
+    "file_effect_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files_touched",
+        "files_created",
+        "files_deleted",
+        "changed_bytes",
+        "whole_file_rewrite",
+        "generated_artifacts_touched",
+        "protected_paths_touched",
+        "may_touch_outside_visible_file"
+      ],
+      "properties": {
+        "files_touched": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "files_created": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "files_deleted": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "changed_bytes": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "whole_file_rewrite": {
+          "type": "boolean"
+        },
+        "generated_artifacts_touched": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "protected_paths_touched": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "may_touch_outside_visible_file": {
+          "type": "boolean"
+        }
+      }
+    },
+    "phase_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase_class",
+        "order_index",
+        "may_mutate_staged_buffer",
+        "may_write_durable_target",
+        "rollback_boundary_class",
+        "checkpoint_hooks",
+        "summary"
+      ],
+      "properties": {
+        "phase_class": {
+          "$ref": "#/$defs/phase_class"
+        },
+        "order_index": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "may_mutate_staged_buffer": {
+          "type": "boolean"
+        },
+        "may_write_durable_target": {
+          "type": "boolean"
+        },
+        "rollback_boundary_class": {
+          "$ref": "#/$defs/rollback_boundary_class"
+        },
+        "checkpoint_hooks": {
+          "$ref": "#/$defs/checkpoint_hooks"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    },
+    "participant_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "order_index",
+        "phase_class",
+        "participant_class",
+        "provider_tool_ref",
+        "output_origin_class",
+        "output_origin_ref",
+        "exact_rule_or_config_ref",
+        "fix_safety_class",
+        "review_trigger_classes",
+        "declared_file_effect_summary",
+        "checkpoint_hooks",
+        "timeout_ms",
+        "run_if_precondition_refs",
+        "visible_disclosure",
+        "summary"
+      ],
+      "properties": {
+        "step_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "order_index": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "phase_class": {
+          "$ref": "#/$defs/phase_class"
+        },
+        "participant_class": {
+          "$ref": "#/$defs/participant_class"
+        },
+        "provider_tool_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "output_origin_class": {
+          "$ref": "#/$defs/output_origin_class"
+        },
+        "output_origin_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "exact_rule_or_config_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "fix_safety_class": {
+          "$ref": "#/$defs/fix_safety_class"
+        },
+        "review_trigger_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/review_trigger_class"
+          },
+          "uniqueItems": true
+        },
+        "declared_file_effect_summary": {
+          "$ref": "#/$defs/file_effect_summary"
+        },
+        "checkpoint_hooks": {
+          "$ref": "#/$defs/checkpoint_hooks"
+        },
+        "timeout_ms": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "run_if_precondition_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_ref"
+          },
+          "uniqueItems": true
+        },
+        "visible_disclosure": {
+          "$ref": "#/$defs/short_sentence"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    },
+    "no_hidden_mutation_guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_visible_participant_list",
+        "ran_skipped_blocked_states_exported",
+        "output_origin_exported",
+        "exact_rule_or_config_refs_exported",
+        "heuristic_or_ai_never_silent",
+        "declared_scope_ceiling_enforced",
+        "actual_effects_compared_to_plan",
+        "post_save_refresh_read_only",
+        "summary"
+      ],
+      "properties": {
+        "user_visible_participant_list": {
+          "type": "boolean"
+        },
+        "ran_skipped_blocked_states_exported": {
+          "type": "boolean"
+        },
+        "output_origin_exported": {
+          "type": "boolean"
+        },
+        "exact_rule_or_config_refs_exported": {
+          "type": "boolean"
+        },
+        "heuristic_or_ai_never_silent": {
+          "type": "boolean"
+        },
+        "declared_scope_ceiling_enforced": {
+          "type": "boolean"
+        },
+        "actual_effects_compared_to_plan": {
+          "type": "boolean"
+        },
+        "post_save_refresh_read_only": {
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    },
+    "review_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "whole_file_rewrite_requires_review",
+        "generated_artifact_impact_requires_review",
+        "multi_file_edit_requires_review",
+        "external_change_race_requires_review",
+        "policy_or_trust_narrowing_blocks",
+        "heuristic_or_ai_requires_review_when_not_safe_local",
+        "summary"
+      ],
+      "properties": {
+        "whole_file_rewrite_requires_review": {
+          "type": "boolean"
+        },
+        "generated_artifact_impact_requires_review": {
+          "type": "boolean"
+        },
+        "multi_file_edit_requires_review": {
+          "type": "boolean"
+        },
+        "external_change_race_requires_review": {
+          "type": "boolean"
+        },
+        "policy_or_trust_narrowing_blocks": {
+          "type": "boolean"
+        },
+        "heuristic_or_ai_requires_review_when_not_safe_local": {
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    },
+    "save_participant_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "save_participant_plan_schema_version",
+        "save_participant_plan_id",
+        "workspace_ref",
+        "trigger_class",
+        "target_scope_class",
+        "quality_on_save_plan_ref",
+        "save_target_summary",
+        "effective_quality_profile_ref",
+        "phase_order",
+        "participant_order",
+        "no_hidden_mutation_guards",
+        "review_policy",
+        "opened_at",
+        "plan_outcome_class",
+        "audit_event_refs",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": {
+          "const": "save_participant_plan_record"
+        },
+        "save_participant_plan_schema_version": {
+          "$ref": "#/$defs/save_participant_plan_schema_version"
+        },
+        "save_participant_plan_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "workspace_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "trigger_class": {
+          "$ref": "#/$defs/trigger_class"
+        },
+        "target_scope_class": {
+          "$ref": "#/$defs/target_scope_class"
+        },
+        "quality_on_save_plan_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "save_target_summary": {
+          "$ref": "#/$defs/save_target_summary"
+        },
+        "effective_quality_profile_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "phase_order": {
+          "type": "array",
+          "minItems": 6,
+          "items": {
+            "$ref": "#/$defs/phase_step"
+          }
+        },
+        "participant_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/participant_step"
+          }
+        },
+        "no_hidden_mutation_guards": {
+          "$ref": "#/$defs/no_hidden_mutation_guards"
+        },
+        "review_policy": {
+          "$ref": "#/$defs/review_policy"
+        },
+        "opened_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "plan_outcome_class": {
+          "$ref": "#/$defs/plan_outcome_class"
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_ref"
+          },
+          "uniqueItems": true
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    },
+    "save_participant_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "save_participant_plan_schema_version",
+        "save_participant_result_id",
+        "save_participant_plan_ref",
+        "step_id",
+        "run_state_class",
+        "plan_outcome_class",
+        "actual_file_effect_summary",
+        "output_origin_class",
+        "source_fidelity_rewrite_class",
+        "review_trigger_classes",
+        "checkpoint_hooks",
+        "started_at",
+        "completed_at",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": {
+          "const": "save_participant_result_record"
+        },
+        "save_participant_plan_schema_version": {
+          "$ref": "#/$defs/save_participant_plan_schema_version"
+        },
+        "save_participant_result_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "save_participant_plan_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "step_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "run_state_class": {
+          "$ref": "#/$defs/participant_run_state_class"
+        },
+        "plan_outcome_class": {
+          "$ref": "#/$defs/plan_outcome_class"
+        },
+        "actual_file_effect_summary": {
+          "$ref": "#/$defs/file_effect_summary"
+        },
+        "output_origin_class": {
+          "$ref": "#/$defs/output_origin_class"
+        },
+        "source_fidelity_rewrite_class": {
+          "$ref": "#/$defs/source_fidelity_rewrite_class"
+        },
+        "review_trigger_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/review_trigger_class"
+          },
+          "uniqueItems": true
+        },
+        "checkpoint_hooks": {
+          "$ref": "#/$defs/checkpoint_hooks"
+        },
+        "started_at": {
+          "$ref": "#/$defs/nullable_timestamp"
+        },
+        "completed_at": {
+          "$ref": "#/$defs/nullable_timestamp"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    },
+    "save_participant_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "save_participant_plan_schema_version",
+        "save_participant_review_id",
+        "save_participant_plan_ref",
+        "review_trigger_class",
+        "fix_safety_class",
+        "affected_participant_refs",
+        "file_effect_summary",
+        "checkpoint_hooks",
+        "external_change_event_ref",
+        "generated_artifact_lineage_refs",
+        "policy_decision_refs",
+        "review_surface_ref",
+        "opened_at",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": {
+          "const": "save_participant_review_record"
+        },
+        "save_participant_plan_schema_version": {
+          "$ref": "#/$defs/save_participant_plan_schema_version"
+        },
+        "save_participant_review_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "save_participant_plan_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "review_trigger_class": {
+          "$ref": "#/$defs/review_trigger_class"
+        },
+        "fix_safety_class": {
+          "$ref": "#/$defs/fix_safety_class"
+        },
+        "affected_participant_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/opaque_ref"
+          },
+          "uniqueItems": true
+        },
+        "file_effect_summary": {
+          "$ref": "#/$defs/file_effect_summary"
+        },
+        "checkpoint_hooks": {
+          "$ref": "#/$defs/checkpoint_hooks"
+        },
+        "external_change_event_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "generated_artifact_lineage_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_ref"
+          },
+          "uniqueItems": true
+        },
+        "policy_decision_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_ref"
+          },
+          "uniqueItems": true
+        },
+        "review_surface_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "opened_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    },
+    "save_participant_execution_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "save_participant_plan_schema_version",
+        "save_participant_execution_event_id",
+        "save_participant_plan_ref",
+        "step_id",
+        "phase_class",
+        "event_class",
+        "plan_outcome_class",
+        "emitted_at",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": {
+          "const": "save_participant_execution_event_record"
+        },
+        "save_participant_plan_schema_version": {
+          "$ref": "#/$defs/save_participant_plan_schema_version"
+        },
+        "save_participant_execution_event_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "save_participant_plan_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "step_id": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "phase_class": {
+          "$ref": "#/$defs/phase_class"
+        },
+        "event_class": {
+          "type": "string",
+          "enum": [
+            "plan_opened",
+            "phase_started",
+            "participant_started",
+            "participant_completed",
+            "participant_skipped",
+            "review_required",
+            "external_change_detected",
+            "checkpoint_created",
+            "rollback_completed",
+            "durable_write_committed",
+            "post_save_refresh_completed",
+            "plan_aborted",
+            "event_unknown_requires_review"
+          ]
+        },
+        "plan_outcome_class": {
+          "$ref": "#/$defs/plan_outcome_class"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_sentence"
+        }
+      }
+    }
+  }
+}
