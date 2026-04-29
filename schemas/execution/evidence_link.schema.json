@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/evidence_link.schema.json",
+  "title": "Aureline execution evidence-link record",
+  "description": "Boundary schema for the evidence_link_record frozen in docs/execution/task_event_and_evidence_contract.md. Evidence links are stable typed edges from commands, terminal sessions, runs, attempts, task channels, and task events to output viewers, result packets, created artifacts, support bundles, notification lineage, and history rows. They are the reconstruction contract for support exports, result packets, notifications, output viewers, replay, and timeline surfaces. Consumers must not infer lineage from freeform labels, viewer titles, provider URLs, output text, or exported prose. Imported CI snapshots, replay bundles, exported snapshots, and provider overlays carry explicit read-only disclosure classes and source refs. Raw stdout / stderr bytes, provider log bodies, command lines, env bodies, absolute paths, URLs, and secrets never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/evidence_link_record" }
+  ],
+  "$defs": {
+    "evidence_link_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "evidence_link_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 360
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-f]+$"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "evidence_link_kind": {
+      "type": "string",
+      "enum": [
+        "command_session_to_output_viewer",
+        "task_session_to_output_viewer",
+        "task_session_to_result_packet",
+        "attempt_to_created_artifact",
+        "task_session_to_support_bundle",
+        "task_event_to_history_row",
+        "command_session_to_history_row",
+        "task_channel_to_notification_mirror",
+        "imported_ci_to_result_packet",
+        "provider_overlay_to_task_channel",
+        "replay_bundle_to_task_event"
+      ]
+    },
+    "link_route_class": {
+      "type": "string",
+      "enum": [
+        "live_execution_route",
+        "live_mirror_route",
+        "imported_ci_snapshot_route",
+        "provider_overlay_route",
+        "support_bundle_export_route",
+        "support_bundle_replay_route",
+        "history_timeline_route"
+      ]
+    },
+    "live_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "live_local_or_remote",
+        "live_buffered_or_backlogged",
+        "provider_overlay_read_only",
+        "imported_snapshot_read_only",
+        "replayed_snapshot_read_only",
+        "exported_snapshot_read_only"
+      ]
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "command_invocation",
+        "terminal_session",
+        "run_record",
+        "attempt_record",
+        "task_channel",
+        "task_event",
+        "output_viewer",
+        "result_packet",
+        "artifact_event",
+        "created_artifact",
+        "support_bundle",
+        "history_row",
+        "notification_lineage",
+        "provider_event",
+        "imported_ci_log",
+        "replay_bundle",
+        "execution_context"
+      ]
+    },
+    "actor_kind": {
+      "type": "string",
+      "enum": [
+        "user_actor",
+        "system_actor",
+        "ai_agent_actor",
+        "remote_service_actor",
+        "admin_policy_actor",
+        "extension_actor",
+        "provider_actor",
+        "unknown_actor"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "not_retained_ephemeral",
+        "retained_local_support_bundle_only",
+        "retained_local_with_replay_opt_in",
+        "retained_managed_with_redaction",
+        "retained_managed_with_broadened_capture",
+        "retention_class_unknown_requires_review"
+      ]
+    },
+    "truncation_class": {
+      "type": "string",
+      "enum": [
+        "not_truncated",
+        "truncated_head",
+        "truncated_middle",
+        "truncated_tail",
+        "sampled_summary",
+        "omitted_by_policy",
+        "provider_retention_boundary"
+      ]
+    },
+    "linked_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_kind", "object_ref"],
+      "properties": {
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "object_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "stable_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_invocation_ref",
+        "terminal_session_ref",
+        "parent_run_ref",
+        "parent_attempt_ref",
+        "execution_context_ref",
+        "task_channel_ref",
+        "task_event_ref",
+        "output_viewer_ref",
+        "result_packet_ref",
+        "artifact_event_ref",
+        "created_artifact_ref",
+        "support_bundle_ref",
+        "history_row_ref",
+        "notification_lineage_ref"
+      ],
+      "properties": {
+        "command_invocation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "terminal_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "task_channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "task_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "output_viewer_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "result_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "created_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_bundle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "history_row_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notification_lineage_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      },
+      "description": "Stable linkage fields shared across command, task, run, artifact, notification, support, and history consumers. Freeform cross-reference text is non-conforming."
+    },
+    "integrity_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_hash",
+        "summary_hash",
+        "truncation_class",
+        "omitted_field_classes",
+        "buffer_snapshot_class"
+      ],
+      "properties": {
+        "content_hash": {
+          "oneOf": [
+            { "$ref": "#/$defs/hex_hash" },
+            { "type": "null" }
+          ]
+        },
+        "summary_hash": {
+          "oneOf": [
+            { "$ref": "#/$defs/hex_hash" },
+            { "type": "null" }
+          ]
+        },
+        "truncation_class": { "$ref": "#/$defs/truncation_class" },
+        "omitted_field_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "raw_stdout",
+              "raw_stderr",
+              "raw_command_line",
+              "raw_environment",
+              "raw_provider_payload",
+              "raw_absolute_path",
+              "raw_url",
+              "raw_secret",
+              "none"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "buffer_snapshot_class": {
+          "type": "string",
+          "enum": [
+            "not_buffered_live_pointer",
+            "buffer_snapshot_complete",
+            "buffer_snapshot_partial",
+            "metadata_only_snapshot",
+            "provider_retention_snapshot",
+            "replay_synthesized_snapshot"
+          ]
+        }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_kind", "actor_ref"],
+      "properties": {
+        "actor_kind": { "$ref": "#/$defs/actor_kind" },
+        "actor_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "evidence_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "evidence_link_schema_version",
+        "evidence_link_id",
+        "evidence_link_kind",
+        "link_route_class",
+        "live_disclosure_class",
+        "source",
+        "target",
+        "stable_linkage",
+        "integrity_summary",
+        "actor",
+        "retention_class",
+        "redaction_class",
+        "created_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "evidence_link_record" },
+        "evidence_link_schema_version": { "$ref": "#/$defs/evidence_link_schema_version" },
+        "evidence_link_id": { "$ref": "#/$defs/opaque_id" },
+        "evidence_link_kind": { "$ref": "#/$defs/evidence_link_kind" },
+        "link_route_class": { "$ref": "#/$defs/link_route_class" },
+        "live_disclosure_class": { "$ref": "#/$defs/live_disclosure_class" },
+        "source": { "$ref": "#/$defs/linked_object" },
+        "target": { "$ref": "#/$defs/linked_object" },
+        "stable_linkage": { "$ref": "#/$defs/stable_linkage" },
+        "integrity_summary": { "$ref": "#/$defs/integrity_summary" },
+        "actor": { "$ref": "#/$defs/actor" },
+        "imported_source_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_replay_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "link_route_class": { "const": "imported_ci_snapshot_route" } },
+            "required": ["link_route_class"]
+          },
+          "then": {
+            "required": ["imported_source_ref"],
+            "properties": {
+              "live_disclosure_class": { "const": "imported_snapshot_read_only" },
+              "imported_source_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "link_route_class": { "const": "provider_overlay_route" } },
+            "required": ["link_route_class"]
+          },
+          "then": {
+            "required": ["provider_event_ref"],
+            "properties": {
+              "live_disclosure_class": { "const": "provider_overlay_read_only" },
+              "provider_event_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "link_route_class": { "const": "support_bundle_replay_route" } },
+            "required": ["link_route_class"]
+          },
+          "then": {
+            "required": ["support_replay_ref"],
+            "properties": {
+              "live_disclosure_class": { "const": "replayed_snapshot_read_only" },
+              "support_replay_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "link_route_class": { "const": "support_bundle_export_route" } },
+            "required": ["link_route_class"]
+          },
+          "then": {
+            "required": ["export_ref"],
+            "properties": {
+              "live_disclosure_class": { "const": "exported_snapshot_read_only" },
+              "export_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

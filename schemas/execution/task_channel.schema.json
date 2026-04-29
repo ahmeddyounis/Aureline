@@ -1,0 +1,446 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/task_channel.schema.json",
+  "title": "Aureline task-channel record",
+  "description": "Boundary schema for the task_channel_record frozen in docs/execution/task_event_and_evidence_contract.md. A task channel is one logical execution stream or mirror: terminal stdout, terminal stderr, combined terminal stdio, structured task events, diagnostics, artifacts, notification mirrors, imported CI logs, or provider-backed execution overlays. It binds command invocation, terminal session, run, attempt, execution context, tooling-event trace, output viewers, result packets, artifact events, notifications, support bundles, and history rows through stable refs so consumers do not parse viewer labels or provider payloads to reconstruct lineage. Imported CI logs, support-bundle replay, exported snapshots, and provider overlays are read-only channel origins and cannot be widened into live local execution truth. Raw stdout / stderr bytes, provider log bodies, command lines, env bodies, absolute paths, URLs, and secrets never cross this boundary; records carry ids, hashes, counts, and typed disclosure classes only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/task_channel_record" }
+  ],
+  "$defs": {
+    "task_channel_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Additive optional fields and additive enum values are additive-minor; repurposing a value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "task_channel_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support bundles, manifests, and RPC. Raw paths, URLs, command lines, and secrets never appear here."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 360,
+      "description": "Short export-safe sentence. Raw output, raw paths, URLs, env bodies, command lines, and secret material are forbidden."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-f]+$"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "terminal_stdout_stream",
+        "terminal_stderr_stream",
+        "terminal_combined_stdio_stream",
+        "structured_task_event_stream",
+        "diagnostics_feed",
+        "artifact_stream",
+        "notification_mirror",
+        "imported_ci_log",
+        "provider_backed_execution_overlay"
+      ],
+      "description": "Closed channel-class vocabulary. A channel names how execution evidence flows, not the viewer that renders it."
+    },
+    "channel_origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_execution",
+        "live_remote_execution",
+        "live_managed_execution",
+        "provider_overlay_live",
+        "provider_overlay_cached",
+        "imported_ci_snapshot",
+        "support_bundle_replay",
+        "exported_evidence_snapshot"
+      ],
+      "description": "Origin posture of the channel. Imported, replayed, exported, and provider-overlay origins are read-only evidence origins even when their source is currently reachable."
+    },
+    "channel_liveness_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative",
+        "live_buffering",
+        "live_backlog_lagging",
+        "live_paused",
+        "live_disconnected_cached",
+        "provider_overlay_read_only",
+        "imported_snapshot_read_only",
+        "replayed_snapshot_read_only",
+        "exported_snapshot_read_only"
+      ],
+      "description": "Current liveness and authority posture. Provider overlays and imported snapshots do not become local live execution truth."
+    },
+    "import_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "not_imported_live_channel",
+        "imported_ci_snapshot_disclosed",
+        "provider_overlay_disclosed",
+        "support_replay_disclosed",
+        "exported_snapshot_disclosed"
+      ],
+      "description": "Disclosure class every viewer, export, and notification route must preserve."
+    },
+    "buffering_policy_class": {
+      "type": "string",
+      "enum": [
+        "direct_tail_no_buffer",
+        "bounded_ring_buffer",
+        "durable_append_log",
+        "provider_retention_window",
+        "metadata_only_no_payload",
+        "no_buffer_imported_snapshot"
+      ]
+    },
+    "backlog_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_backlog_expected",
+        "backlog_count_known",
+        "backlog_count_unknown",
+        "backlog_drains_in_order",
+        "backlog_may_drop_with_event",
+        "source_is_snapshot_no_backlog"
+      ]
+    },
+    "truncation_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_truncation_expected",
+        "truncate_head_with_counts",
+        "truncate_tail_with_counts",
+        "truncate_middle_with_window",
+        "summarize_and_hash_omitted",
+        "provider_retention_boundary",
+        "metadata_only"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "not_retained_ephemeral",
+        "retained_local_support_bundle_only",
+        "retained_local_with_replay_opt_in",
+        "retained_managed_with_redaction",
+        "retained_managed_with_broadened_capture",
+        "retention_class_unknown_requires_review"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "parent_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "command_invocation_ref",
+        "terminal_session_ref",
+        "parent_run_ref",
+        "parent_attempt_ref",
+        "task_event_envelope_trace_ref",
+        "provider_event_ref",
+        "imported_ci_run_ref"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "command_invocation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "terminal_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "task_event_envelope_trace_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "imported_ci_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "channel_route_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_viewer_refs",
+        "result_packet_refs",
+        "artifact_event_refs",
+        "notification_lineage_refs",
+        "support_bundle_refs",
+        "history_row_refs",
+        "evidence_link_refs"
+      ],
+      "properties": {
+        "output_viewer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "result_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "artifact_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "notification_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "support_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "history_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "evidence_link_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "stream_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buffering_policy_class",
+        "backlog_policy_class",
+        "truncation_policy_class",
+        "viewer_sync_required",
+        "export_sync_required"
+      ],
+      "properties": {
+        "buffering_policy_class": { "$ref": "#/$defs/buffering_policy_class" },
+        "backlog_policy_class": { "$ref": "#/$defs/backlog_policy_class" },
+        "truncation_policy_class": { "$ref": "#/$defs/truncation_policy_class" },
+        "max_buffered_event_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "max_buffered_byte_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "viewer_sync_required": {
+          "type": "boolean",
+          "description": "True when output viewers must render the channel's buffer, backlog, and truncation posture from task events."
+        },
+        "export_sync_required": {
+          "type": "boolean",
+          "description": "True when support exports and result packets must preserve the same disclosure posture."
+        }
+      }
+    },
+    "imported_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "source_ref",
+        "captured_at",
+        "source_revision_ref"
+      ],
+      "properties": {
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "ci_check_run",
+            "provider_pipeline_log",
+            "support_bundle",
+            "exported_evidence_snapshot",
+            "manual_import_bundle"
+          ]
+        },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "content_hash": {
+          "oneOf": [
+            { "$ref": "#/$defs/hex_hash" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "provider_overlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_kind",
+        "provider_event_ref",
+        "provider_revision_ref",
+        "local_truth_ref"
+      ],
+      "properties": {
+        "provider_kind": {
+          "type": "string",
+          "enum": [
+            "code_host_check_run",
+            "ci_pipeline",
+            "managed_workspace_job",
+            "external_provider_task"
+          ]
+        },
+        "provider_event_ref": { "$ref": "#/$defs/opaque_ref" },
+        "provider_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "local_truth_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "staleness_note": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "task_channel_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_channel_schema_version",
+        "task_channel_id",
+        "channel_class",
+        "channel_origin_class",
+        "channel_liveness_class",
+        "import_disclosure_class",
+        "parent_refs",
+        "channel_route_refs",
+        "stream_policy",
+        "retention_class",
+        "redaction_class",
+        "created_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "task_channel_record" },
+        "task_channel_schema_version": { "$ref": "#/$defs/task_channel_schema_version" },
+        "task_channel_id": { "$ref": "#/$defs/opaque_id" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "channel_origin_class": { "$ref": "#/$defs/channel_origin_class" },
+        "channel_liveness_class": { "$ref": "#/$defs/channel_liveness_class" },
+        "import_disclosure_class": { "$ref": "#/$defs/import_disclosure_class" },
+        "parent_refs": { "$ref": "#/$defs/parent_refs" },
+        "channel_route_refs": { "$ref": "#/$defs/channel_route_refs" },
+        "stream_policy": { "$ref": "#/$defs/stream_policy" },
+        "imported_source": {
+          "oneOf": [
+            { "$ref": "#/$defs/imported_source" },
+            { "type": "null" }
+          ]
+        },
+        "provider_overlay": {
+          "oneOf": [
+            { "$ref": "#/$defs/provider_overlay" },
+            { "type": "null" }
+          ]
+        },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "channel_origin_class": { "const": "imported_ci_snapshot" } },
+            "required": ["channel_origin_class"]
+          },
+          "then": {
+            "required": ["imported_source"],
+            "properties": {
+              "channel_liveness_class": { "const": "imported_snapshot_read_only" },
+              "import_disclosure_class": { "const": "imported_ci_snapshot_disclosed" },
+              "imported_source": { "$ref": "#/$defs/imported_source" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "channel_origin_class": {
+                "enum": ["provider_overlay_live", "provider_overlay_cached"]
+              }
+            },
+            "required": ["channel_origin_class"]
+          },
+          "then": {
+            "required": ["provider_overlay"],
+            "properties": {
+              "channel_liveness_class": { "const": "provider_overlay_read_only" },
+              "import_disclosure_class": { "const": "provider_overlay_disclosed" },
+              "provider_overlay": { "$ref": "#/$defs/provider_overlay" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "channel_origin_class": { "const": "support_bundle_replay" } },
+            "required": ["channel_origin_class"]
+          },
+          "then": {
+            "required": ["imported_source"],
+            "properties": {
+              "channel_liveness_class": { "const": "replayed_snapshot_read_only" },
+              "import_disclosure_class": { "const": "support_replay_disclosed" },
+              "imported_source": { "$ref": "#/$defs/imported_source" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "channel_origin_class": { "const": "exported_evidence_snapshot" } },
+            "required": ["channel_origin_class"]
+          },
+          "then": {
+            "required": ["imported_source"],
+            "properties": {
+              "channel_liveness_class": { "const": "exported_snapshot_read_only" },
+              "import_disclosure_class": { "const": "exported_snapshot_disclosed" },
+              "imported_source": { "$ref": "#/$defs/imported_source" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

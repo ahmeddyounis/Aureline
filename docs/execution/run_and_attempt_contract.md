@@ -81,6 +81,19 @@ This contract composes with and does not replace:
   payload. The two layers do not collapse; the envelope retains
   source / adapter / confidence truth, and the run / attempt retains
   the user-visible request truth.
+- [`/schemas/execution/task_channel.schema.json`](../../schemas/execution/task_channel.schema.json),
+  [`/schemas/execution/task_event.schema.json`](../../schemas/execution/task_event.schema.json),
+  [`/schemas/execution/evidence_link.schema.json`](../../schemas/execution/evidence_link.schema.json),
+  and
+  [`/docs/execution/task_event_and_evidence_contract.md`](./task_event_and_evidence_contract.md)
+  — the execution channel / task-event / evidence-link layer that ties
+  terminal stdout / stderr, structured task-event streams, diagnostics
+  feeds, artifact streams, notification mirrors, imported CI logs,
+  provider overlays, output viewers, result packets, support bundles,
+  and history rows to the same run / attempt lineage. The run and
+  attempt records stay the user-visible execution truth; channels and
+  evidence links carry stream, route, buffer, truncation, imported,
+  provider-overlay, export, and replay disclosure.
 - [`/schemas/ux/activity_event_envelope.schema.json`](../../schemas/ux/activity_event_envelope.schema.json)
   and
   [`/docs/ux/attention_activity_taxonomy.md`](../ux/attention_activity_taxonomy.md)

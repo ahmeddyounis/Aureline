@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/task_event.schema.json",
+  "title": "Aureline task-event record",
+  "description": "Boundary schema for the task_event_record frozen in docs/execution/task_event_and_evidence_contract.md. A task event is one chronology-bearing event on a task channel. It records queued, started, waiting, progress, retry, partial, paused, cancelled, completed, imported, exported, and replayed states with actor, route refs, source disclosure, buffering, backlog, truncation, and evidence refs. It does not replace run / attempt / artifact-event records or the lower-level tooling task-event envelope; it binds them into one append-only execution lineage vocabulary for output viewers, result packets, notification mirrors, support exports, and timeline/history rows. Raw stdout / stderr bytes, command lines, provider log bodies, env bodies, absolute paths, URLs, and secrets never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/task_event_record" }
+  ],
+  "$defs": {
+    "task_event_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "task_event_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 360
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "task_event_type": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "started",
+        "waiting",
+        "progress",
+        "retry",
+        "partial",
+        "paused",
+        "cancelled",
+        "completed",
+        "imported",
+        "exported",
+        "replayed"
+      ],
+      "description": "Closed event type vocabulary shared by live, imported, exported, and replayed task-event streams."
+    },
+    "task_event_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "waiting_input",
+        "partially_complete",
+        "paused",
+        "cancelled",
+        "completed_success",
+        "completed_failure",
+        "completed_unknown",
+        "imported_snapshot",
+        "exported_snapshot",
+        "replayed_snapshot"
+      ]
+    },
+    "actor_kind": {
+      "type": "string",
+      "enum": [
+        "user_actor",
+        "system_actor",
+        "ai_agent_actor",
+        "remote_service_actor",
+        "admin_policy_actor",
+        "extension_actor",
+        "provider_actor",
+        "unknown_actor"
+      ]
+    },
+    "source_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "live_local_authoritative",
+        "live_remote_authoritative",
+        "live_managed_authoritative",
+        "live_buffered",
+        "live_backlog_lagging",
+        "provider_overlay_read_only",
+        "imported_ci_snapshot_read_only",
+        "support_replay_read_only",
+        "exported_snapshot_read_only"
+      ],
+      "description": "Disclosure class every viewer, notification, support export, and history row must preserve."
+    },
+    "buffering_state_class": {
+      "type": "string",
+      "enum": [
+        "not_buffered",
+        "buffering_live",
+        "backlog_lagging",
+        "backlog_replay_in_progress",
+        "paused_buffering",
+        "source_snapshot_no_buffering",
+        "dropped_overflow_emitted",
+        "source_unavailable_cached"
+      ]
+    },
+    "backlog_state_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "count_known",
+        "count_unknown",
+        "drained",
+        "abandoned",
+        "not_applicable_snapshot"
+      ]
+    },
+    "truncation_class": {
+      "type": "string",
+      "enum": [
+        "not_truncated",
+        "truncated_head",
+        "truncated_middle",
+        "truncated_tail",
+        "sampled_summary",
+        "omitted_by_policy",
+        "provider_retention_boundary"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "producer_clock_class": {
+      "type": "string",
+      "enum": [
+        "local_monotonic_clock",
+        "remote_monotonic_clock",
+        "provider_reported_clock",
+        "imported_snapshot_clock",
+        "replay_synthesized_clock"
+      ]
+    },
+    "chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_at",
+        "emitted_at",
+        "ingested_at",
+        "producer_clock_class",
+        "predecessor_event_ref",
+        "causal_parent_event_ref"
+      ],
+      "properties": {
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ingested_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "producer_clock_class": { "$ref": "#/$defs/producer_clock_class" },
+        "predecessor_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "causal_parent_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_kind",
+        "actor_ref",
+        "initiating_surface_ref"
+      ],
+      "properties": {
+        "actor_kind": { "$ref": "#/$defs/actor_kind" },
+        "actor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "initiating_surface_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "route_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_invocation_ref",
+        "terminal_session_ref",
+        "parent_run_ref",
+        "parent_attempt_ref",
+        "execution_context_ref",
+        "output_viewer_refs",
+        "notification_lineage_refs",
+        "history_row_refs",
+        "task_event_envelope_event_ref"
+      ],
+      "properties": {
+        "command_invocation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "terminal_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parent_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_viewer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "notification_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "history_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "task_event_envelope_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "buffering_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buffering_state_class",
+        "backlog_state_class",
+        "truncation_class",
+        "emitted_event_count",
+        "omitted_event_count",
+        "backlog_event_count",
+        "truncation_note"
+      ],
+      "properties": {
+        "buffering_state_class": { "$ref": "#/$defs/buffering_state_class" },
+        "backlog_state_class": { "$ref": "#/$defs/backlog_state_class" },
+        "truncation_class": { "$ref": "#/$defs/truncation_class" },
+        "emitted_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "omitted_event_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "backlog_event_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "truncation_note": {
+          "oneOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "result_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_packet_refs",
+        "artifact_event_refs",
+        "created_artifact_refs",
+        "support_bundle_refs",
+        "evidence_link_refs"
+      ],
+      "properties": {
+        "result_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "artifact_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "created_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "support_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "evidence_link_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "event_payload_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "progress_fraction",
+        "retry_of_event_ref",
+        "partial_reason_class",
+        "completion_result_class"
+      ],
+      "properties": {
+        "summary": { "$ref": "#/$defs/short_sentence" },
+        "progress_fraction": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "retry_of_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "partial_reason_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "declared_subset_pending",
+            "artifact_channel_failed",
+            "diagnostic_feed_degraded",
+            "provider_result_partial",
+            "output_truncated_or_sampled",
+            "policy_omitted_subset",
+            null
+          ]
+        },
+        "completion_result_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "success",
+            "failure",
+            "cancelled",
+            "partial_success",
+            "unknown_requires_review",
+            null
+          ]
+        }
+      }
+    },
+    "task_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_schema_version",
+        "task_event_id",
+        "task_channel_ref",
+        "task_event_sequence",
+        "task_event_type",
+        "task_event_state_class",
+        "source_disclosure_class",
+        "chronology",
+        "actor",
+        "route_refs",
+        "buffering_state",
+        "result_refs",
+        "event_payload_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "task_event_record" },
+        "task_event_schema_version": { "$ref": "#/$defs/task_event_schema_version" },
+        "task_event_id": { "$ref": "#/$defs/opaque_id" },
+        "task_channel_ref": { "$ref": "#/$defs/opaque_ref" },
+        "task_event_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "task_event_type": { "$ref": "#/$defs/task_event_type" },
+        "task_event_state_class": { "$ref": "#/$defs/task_event_state_class" },
+        "source_disclosure_class": { "$ref": "#/$defs/source_disclosure_class" },
+        "chronology": { "$ref": "#/$defs/chronology" },
+        "actor": { "$ref": "#/$defs/actor" },
+        "route_refs": { "$ref": "#/$defs/route_refs" },
+        "buffering_state": { "$ref": "#/$defs/buffering_state" },
+        "result_refs": { "$ref": "#/$defs/result_refs" },
+        "event_payload_summary": { "$ref": "#/$defs/event_payload_summary" },
+        "imported_source_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_replay_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "task_event_type": { "const": "imported" } },
+            "required": ["task_event_type"]
+          },
+          "then": {
+            "required": ["imported_source_ref"],
+            "properties": {
+              "task_event_state_class": { "const": "imported_snapshot" },
+              "source_disclosure_class": { "const": "imported_ci_snapshot_read_only" },
+              "imported_source_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "task_event_type": { "const": "exported" } },
+            "required": ["task_event_type"]
+          },
+          "then": {
+            "required": ["export_ref"],
+            "properties": {
+              "task_event_state_class": { "const": "exported_snapshot" },
+              "source_disclosure_class": { "const": "exported_snapshot_read_only" },
+              "export_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "task_event_type": { "const": "replayed" } },
+            "required": ["task_event_type"]
+          },
+          "then": {
+            "required": ["support_replay_ref"],
+            "properties": {
+              "task_event_state_class": { "const": "replayed_snapshot" },
+              "source_disclosure_class": { "const": "support_replay_read_only" },
+              "support_replay_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "source_disclosure_class": { "const": "provider_overlay_read_only" } },
+            "required": ["source_disclosure_class"]
+          },
+          "then": {
+            "required": ["provider_event_ref"],
+            "properties": {
+              "provider_event_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "buffering_state": {
+                "properties": {
+                  "truncation_class": {
+                    "not": { "const": "not_truncated" }
+                  }
+                },
+                "required": ["truncation_class"]
+              }
+            },
+            "required": ["buffering_state"]
+          },
+          "then": {
+            "properties": {
+              "buffering_state": {
+                "properties": {
+                  "truncation_note": { "$ref": "#/$defs/short_sentence" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "task_event_type": { "const": "retry" } },
+            "required": ["task_event_type"]
+          },
+          "then": {
+            "properties": {
+              "event_payload_summary": {
+                "properties": {
+                  "retry_of_event_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
