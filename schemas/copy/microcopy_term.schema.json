@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/copy/microcopy_term.schema.json",
+  "title": "Aureline count, scope, freshness, and chronology microcopy terms",
+  "description": "Boundary schema for the controlled microcopy term set and worked microcopy cases used by dense UI, CLI, export, accessibility, and support surfaces. Records preserve object, scope, count status, freshness, omission, and chronology context so compact copy cannot overclaim results, selection, synced state, or event outcomes.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/microcopy_term_set_record" },
+    { "$ref": "#/$defs/microcopy_case_record" }
+  ],
+  "$defs": {
+    "microcopy_term_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the microcopy term family. Additive vocabulary growth bumps this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "microcopy_term_set_record",
+        "microcopy_case_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id safe for support, docs, fixtures, and review artifacts. Raw source text, raw paths, provider URLs, secrets, and customer identifiers do not belong here."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware human-facing label or example copy."
+    },
+    "microcopy_term_id": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "loaded",
+        "all_matching",
+        "selected",
+        "hidden_by_policy",
+        "outside_current_workset",
+        "approx",
+        "exact",
+        "partial_data",
+        "cached_data",
+        "streaming",
+        "warming",
+        "stale",
+        "provider_limited",
+        "unknown"
+      ],
+      "description": "Controlled user-facing term ids. Labels may localize, ids do not."
+    },
+    "term_kind": {
+      "type": "string",
+      "enum": [
+        "count_scope",
+        "count_status",
+        "data_state",
+        "omission_reason",
+        "chronology_modifier"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "batch_action",
+        "search_summary",
+        "queue_row",
+        "dashboard_card",
+        "export_header",
+        "chronology_row",
+        "selection_bar",
+        "accessibility_label",
+        "cli_summary",
+        "support_export"
+      ]
+    },
+    "count_term": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "loaded",
+        "all_matching",
+        "selected",
+        "included",
+        "excluded",
+        "blocked",
+        "skipped",
+        "hidden_selected",
+        "not_loaded",
+        "hidden_by_policy",
+        "outside_current_workset",
+        "unavailable"
+      ],
+      "description": "Copy-facing count term. all_matching is the presentation term for the collection matching population."
+    },
+    "count_status": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "provider_limited",
+        "stale",
+        "cached",
+        "partial",
+        "unknown"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_exact",
+        "snapshot_exact",
+        "partial",
+        "stale",
+        "approximate_derived",
+        "cached",
+        "streaming",
+        "warming",
+        "imported",
+        "replayed",
+        "unknown"
+      ]
+    },
+    "time_display_policy": {
+      "type": "string",
+      "enum": [
+        "relative_primary_exact_in_detail",
+        "relative_and_exact_same_row",
+        "exact_primary_utc",
+        "exact_primary_with_local_context",
+        "not_time_bearing"
+      ]
+    },
+    "count_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term",
+        "status"
+      ],
+      "properties": {
+        "term": { "$ref": "#/$defs/count_term" },
+        "status": { "$ref": "#/$defs/count_status" },
+        "value": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "display_value": { "$ref": "#/$defs/reviewable_label" },
+        "reason_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "One count with a scoped term and status. Unknown counts omit value or set it to null."
+    },
+    "freshness_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "time_display_policy",
+        "label"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "time_display_policy": { "$ref": "#/$defs/time_display_policy" },
+        "observed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "captured_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "last_known_good_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "omission_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term",
+        "count"
+      ],
+      "properties": {
+        "term": {
+          "type": "string",
+          "enum": [
+            "hidden_by_policy",
+            "outside_current_workset",
+            "outside_loaded_scope",
+            "redacted",
+            "provider_limited",
+            "not_loaded",
+            "none"
+          ]
+        },
+        "count": { "$ref": "#/$defs/count_fact" },
+        "cause_label": { "$ref": "#/$defs/reviewable_label" },
+        "inspect_action_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "chronology_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_label",
+        "action_label",
+        "object_label",
+        "outcome_label",
+        "cause_label",
+        "time_display_policy"
+      ],
+      "properties": {
+        "actor_label": { "$ref": "#/$defs/reviewable_label" },
+        "action_label": { "$ref": "#/$defs/reviewable_label" },
+        "object_label": { "$ref": "#/$defs/reviewable_label" },
+        "outcome_label": { "$ref": "#/$defs/reviewable_label" },
+        "cause_label": { "$ref": "#/$defs/reviewable_label" },
+        "original_event_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "recorded_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "time_display_policy": { "$ref": "#/$defs/time_display_policy" }
+      }
+    },
+    "input_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_label",
+        "scope_label",
+        "freshness",
+        "counts"
+      ],
+      "properties": {
+        "object_label": { "$ref": "#/$defs/reviewable_label" },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" },
+        "freshness": { "$ref": "#/$defs/freshness_fact" },
+        "counts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/count_fact" }
+        },
+        "omissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omission_fact" }
+        },
+        "chronology": { "$ref": "#/$defs/chronology_fact" }
+      }
+    },
+    "approved_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_label"
+      ],
+      "properties": {
+        "primary_label": { "$ref": "#/$defs/reviewable_label" },
+        "secondary_label": { "$ref": "#/$defs/reviewable_label" },
+        "action_label": { "$ref": "#/$defs/reviewable_label" },
+        "accessible_name": { "$ref": "#/$defs/reviewable_label" },
+        "export_label": { "$ref": "#/$defs/reviewable_label" },
+        "chronology_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "controlled_term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term_id",
+        "display_label",
+        "term_kind",
+        "definition",
+        "required_disclosures",
+        "forbidden_uses",
+        "allowed_surface_classes"
+      ],
+      "properties": {
+        "term_id": { "$ref": "#/$defs/microcopy_term_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_label" },
+        "term_kind": { "$ref": "#/$defs/term_kind" },
+        "definition": { "$ref": "#/$defs/reviewable_label" },
+        "required_disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        },
+        "forbidden_uses": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        },
+        "allowed_surface_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "surface_grammar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grammar_id",
+        "surface_class",
+        "required_slots",
+        "approved_patterns",
+        "forbidden_patterns"
+      ],
+      "properties": {
+        "grammar_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "required_slots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "actor",
+              "action",
+              "object",
+              "scope",
+              "count_status",
+              "freshness",
+              "omissions",
+              "cause",
+              "outcome",
+              "time",
+              "recovery_or_next_action"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "approved_patterns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        },
+        "forbidden_patterns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        }
+      }
+    },
+    "microcopy_term_set_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "microcopy_term_schema_version",
+        "term_set_id",
+        "sources",
+        "controlled_terms",
+        "surface_grammars",
+        "denial_rules"
+      ],
+      "properties": {
+        "record_kind": { "const": "microcopy_term_set_record" },
+        "microcopy_term_schema_version": { "$ref": "#/$defs/microcopy_term_schema_version" },
+        "term_set_id": { "$ref": "#/$defs/opaque_id" },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "controlled_terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/controlled_term" }
+        },
+        "surface_grammars": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_grammar" }
+        },
+        "denial_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        }
+      }
+    },
+    "microcopy_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "microcopy_term_schema_version",
+        "case_id",
+        "surface_class",
+        "scenario",
+        "input_truth",
+        "required_terms",
+        "forbidden_claims",
+        "approved_copy",
+        "conformance_expectations"
+      ],
+      "properties": {
+        "record_kind": { "const": "microcopy_case_record" },
+        "microcopy_term_schema_version": { "$ref": "#/$defs/microcopy_term_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scenario": { "$ref": "#/$defs/reviewable_label" },
+        "input_truth": { "$ref": "#/$defs/input_truth" },
+        "required_terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/microcopy_term_id" },
+          "uniqueItems": true
+        },
+        "forbidden_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        },
+        "approved_copy": { "$ref": "#/$defs/approved_copy" },
+        "conformance_expectations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        }
+      }
+    }
+  }
+}

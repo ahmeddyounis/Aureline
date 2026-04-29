@@ -176,7 +176,8 @@ seed, public-surface change-control matrix,
 the experiment/Labs control registers, the release-notice seed, the
 provenance-badge contract, the
 release-artifact graph, release evidence, docs and help truth, route
-and build-truth artifacts, subsystem contract cards,
+and build-truth artifacts, count/scope/freshness microcopy grammar,
+subsystem contract cards,
 accessibility review packets,
 surface-traceability artifacts, and frozen-surface manifests —
 appears as exactly one row in the index file. If two documents describe

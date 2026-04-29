@@ -1,0 +1,62 @@
+record_kind: microcopy_case_record
+microcopy_term_schema_version: 1
+case_id: copy.queue.approximate_count
+surface_class: queue_row
+scenario: A provider-backed publish queue streams a large backlog and exposes only an approximate all-matching count. The queue row keeps loaded and approximate all-matching counts separate.
+input_truth:
+  object_label: queued publish jobs
+  scope_label: provider publish queue for the current workspace
+  freshness:
+    freshness_class: streaming
+    time_display_policy: relative_primary_exact_in_detail
+    observed_at: "2026-04-29T20:08:00Z"
+    captured_at: null
+    last_known_good_at: null
+    label: Provider queue is still streaming; backlog count is approximate.
+  counts:
+    - term: loaded
+      status: exact
+      value: 420
+      display_value: "420"
+      reason_label: Queue jobs loaded in the current client window.
+    - term: all_matching
+      status: approximate
+      value: 3200
+      display_value: "3.2k"
+      reason_label: Provider exposes an approximate backlog count while the stream is active.
+    - term: visible
+      status: exact
+      value: 50
+      display_value: "50"
+      reason_label: Queue jobs visible in the current grid page.
+  omissions:
+    - term: provider_limited
+      count:
+        term: all_matching
+        status: approximate
+        value: 3200
+        display_value: "3.2k"
+        reason_label: Approximate all-matching provider backlog.
+      cause_label: Provider reports a rounded streaming backlog instead of an exact total.
+      inspect_action_ref: command:queue.open_provider_basis
+required_terms:
+  - approx
+  - loaded
+  - all_matching
+  - streaming
+forbidden_claims:
+  - "3,200 queued jobs"
+  - "3.2k total"
+  - "Queue synced"
+  - "All caught up"
+approved_copy:
+  primary_label: "Publish jobs - approx. 3.2k queued - 420 loaded - streaming from provider"
+  secondary_label: "50 visible now. Freeze the queue before reviewing a destructive batch action."
+  action_label: "Open queue basis"
+  accessible_name: "Publish jobs queue: approximately 3.2 thousand queued jobs, 420 loaded, provider stream still active."
+  export_label: "Queue export: approximate provider backlog, 3.2k all matching, 420 loaded, captured while streaming."
+conformance_expectations:
+  - The approximate marker appears next to the all-matching queue count.
+  - Loaded jobs remain separate from the approximate backlog.
+  - The row does not claim synced state while the provider stream is active.
+

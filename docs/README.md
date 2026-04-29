@@ -561,6 +561,21 @@ code.
   [`/schemas/docs/late_copy_change_packet.schema.json`](../schemas/docs/late_copy_change_packet.schema.json);
   worked fixtures in
   [`/fixtures/docs/late_copy_examples/`](../fixtures/docs/late_copy_examples/).
+- [`copy/count_scope_freshness_grammar.md`](./copy/count_scope_freshness_grammar.md)
+  — copy grammar and term contract for dense count, scope, freshness,
+  and chronology labels. Freezes controlled meanings for visible,
+  loaded, all matching, selected, hidden by policy, outside current
+  workset, approx., exact, partial, cached, streaming, warming, stale,
+  provider-limited, and unknown copy so search summaries, selection
+  bars, batch actions, queue rows, dashboard cards, export headers, CLI
+  summaries, accessibility labels, and support exports cannot overclaim
+  results, selected membership, synced state, or event outcomes.
+  Boundary schema in
+  [`/schemas/copy/microcopy_term.schema.json`](../schemas/copy/microcopy_term.schema.json);
+  machine-readable term set in
+  [`/artifacts/copy/count_scope_term_set.yaml`](../artifacts/copy/count_scope_term_set.yaml);
+  worked fixtures in
+  [`/fixtures/copy/microcopy_cases/`](../fixtures/copy/microcopy_cases/).
 - [`search/search_readiness_vocabulary.md`](./search/search_readiness_vocabulary.md)
   — copy-guidance companion to the search readiness, ranking-reason,
   hidden-scope, result-truth, and deep-link drift ADR. Frozen sentence

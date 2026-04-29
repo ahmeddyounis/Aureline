@@ -1,0 +1,63 @@
+record_kind: microcopy_case_record
+microcopy_term_schema_version: 1
+case_id: copy.search.loaded_vs_all_matching
+surface_class: search_summary
+scenario: A workspace search starts returning useful rows while the index is still warming. The compact summary distinguishes loaded results from all matching results and marks the current view partial.
+input_truth:
+  object_label: search results
+  scope_label: full workspace query snapshot
+  freshness:
+    freshness_class: warming
+    time_display_policy: relative_primary_exact_in_detail
+    observed_at: "2026-04-29T19:42:00Z"
+    captured_at: null
+    last_known_good_at: null
+    label: Index still warming; loaded results are usable but the full workspace is not complete.
+  counts:
+    - term: visible
+      status: exact
+      value: 24
+      display_value: "24"
+      reason_label: Rows currently visible in the result grid.
+    - term: loaded
+      status: exact
+      value: 84
+      display_value: "84"
+      reason_label: Rows materialized in the client.
+    - term: all_matching
+      status: partial
+      value: 1240
+      display_value: "1,240"
+      reason_label: Current planner estimate for the all-matching workspace set while indexing continues.
+  omissions:
+    - term: outside_loaded_scope
+      count:
+        term: not_loaded
+        status: partial
+        value: 1156
+        display_value: "1,156"
+        reason_label: Matching identities not loaded in this client yet.
+      cause_label: Remaining matches are outside the loaded client window while indexing warms.
+      inspect_action_ref: command:search.open_readiness_details
+required_terms:
+  - loaded
+  - all_matching
+  - partial_data
+  - warming
+  - exact
+forbidden_claims:
+  - "84 results"
+  - "1,240 results"
+  - "All results loaded"
+  - "No more results"
+approved_copy:
+  primary_label: "84 loaded results - 1,240 all matching results - partial while index warms"
+  secondary_label: "24 visible now. More matching results may appear as the workspace index finishes."
+  action_label: "Open search readiness"
+  accessible_name: "Search results: 84 loaded results, 1,240 all matching results, partial while the index warms."
+  export_label: "Search export would capture a partial warming result set: 84 loaded, 1,240 all matching, not exact."
+conformance_expectations:
+  - Loaded and all-matching counts remain separate.
+  - The summary may say results only when the count phrase includes loaded or all matching.
+  - The all-matching count carries partial status and warming freshness.
+
