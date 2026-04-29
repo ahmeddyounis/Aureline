@@ -25,6 +25,12 @@ document MUST be updated in the same change.
   — boundary schema for the `container_session_record`.
 - [`/schemas/runtime/devcontainer_profile.schema.json`](../../schemas/runtime/devcontainer_profile.schema.json)
   — boundary schema for the `devcontainer_profile_record`.
+- [`/docs/runtime/container_engine_and_preflight_contract.md`](./container_engine_and_preflight_contract.md),
+  [`/schemas/runtime/container_preflight_result.schema.json`](../../schemas/runtime/container_preflight_result.schema.json),
+  and [`/schemas/runtime/port_lease.schema.json`](../../schemas/runtime/port_lease.schema.json)
+  — standalone preflight, engine capability, port-lease, and
+  log-channel linkage records. The session keeps compact preflight
+  hooks; these records preserve the replayable support-packet body.
 - [`/fixtures/runtime/container_cases/`](../../fixtures/runtime/container_cases/)
   — concrete container-session and devcontainer-profile fixtures
   covering local Docker, rootless Podman, devcontainer reopen, compose
@@ -471,6 +477,16 @@ mirror or auth prerequisites are explicit before live attach. Any
 `blocking_pre_*` entry with a non-passed `preflight_result_class`
 strips `admissible_under_*` on every attach entry through the schema
 gate.
+
+The compact `preflight_results` list is intentionally not the full
+support-packet body. When a flow needs engine capability flags,
+compose/devcontainer parse details, no-hidden-sidecar attestations,
+mirror/credential prerequisites, replay omissions, or service-scoped
+port leases and log-channel linkage, the session cites
+`container_preflight_result_record_ref`, `port_lease_record_refs`, and
+`log_channel_record_refs` from the standalone preflight and port-lease
+contract. A support export can therefore reproduce why a target was
+blocked, degraded, or read-only without requiring a live engine.
 
 This satisfies the acceptance rule that **start and attach flows can
 already report why a target is blocked, degraded, or read-only

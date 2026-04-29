@@ -1,0 +1,101 @@
+# yaml-language-server: $schema=../../../schemas/runtime/port_lease.schema.json
+__fixture__:
+  name: port_lease_managed_route_restart_rebound
+  scenario: >
+    A managed API service restarts and rebinds the same managed route.
+    The lease preserves service identity, restart evidence, route refs,
+    and log-channel linkage across the rebind.
+  exercised_contract_sections:
+    - Port lease and log-channel linkage
+    - Support packet replay
+    - No-hidden-sidecar and no-ambient-privilege rules
+
+record_kind: port_lease_record
+port_lease_schema_version: 1
+port_lease_id: "runtime:port_lease:managed_api:route_rebound:01"
+captured_at: "2026-04-29T12:25:00Z"
+lease_state_class: active_bound
+service_binding:
+  service_identity_class: api_service
+  service_handle_ref: "runtime:service:managed_api:01"
+  service_label: "managed API service"
+  container_session_record_ref: "runtime:container_session:managed_workspace_provisioned:01"
+  devcontainer_profile_record_ref: "runtime:devcontainer_profile:managed_workspace_pinned:01"
+  container_preflight_result_ref: "runtime:container_preflight:managed_api_ready:01"
+  execution_context_record_ref: "runtime:execution_context:managed_workspace:01"
+  summary: "Managed API service owns this route lease after restart."
+exposure_binding:
+  exposure_class: managed_workspace_route
+  bind_interface_class: managed_route_bound
+  container_port_handle_ref: "runtime:port:container:managed_api:01"
+  host_port_handle_ref: "runtime:port:managed_route:api:01"
+  preview_route_record_ref: "runtime:preview_route:managed_api:active:01"
+  forwarded_endpoint_ref: "remote:forwarded_endpoint:managed_api:01"
+  route_handle_ref: "runtime:route:managed_api:active:01"
+  created_at: "2026-04-29T12:25:00Z"
+  expires_at: "2026-04-29T14:25:00Z"
+  revocation_ref: "runtime:route_revocation:managed_api:01"
+  policy_ref: "policy:managed_routes:workspace_only:01"
+  summary: "Managed route is active with policy-owned expiry and revocation refs."
+collision_binding:
+  collision_state_class: no_collision_observed
+  colliding_lease_refs: []
+  colliding_process_ref: null
+  preflight_finding_ref: null
+  repair_hook_ref: null
+  summary: "No collision was observed before or after restart."
+restart_binding:
+  restart_state_class: restarted_rebound_same_route
+  previous_lease_ref: "runtime:port_lease:managed_api:route_before_restart:01"
+  restart_attempt_ref: "runtime:restart_attempt:managed_api:01"
+  restart_evidence_refs:
+    - "evidence:restart:managed_api:completed:01"
+    - "evidence:route:managed_api:rebound_same_route:01"
+  summary: "Managed API service restarted and re-bound the same route identity."
+log_channel_linkages:
+  - log_channel_class: service_stdout
+    log_state_class: live
+    service_handle_ref: "runtime:service:managed_api:01"
+    task_channel_ref: "execution:task_channel:managed_api:stdout:01"
+    output_viewer_ref: "ux:output_viewer:managed_api_stdout:01"
+    evidence_ref: "evidence:managed_api:stdout:live:01"
+    support_export_ref: "support:export:managed_api:stdout:01"
+    retention_window_ref: "retention:logs:managed_api:stdout:01"
+    redaction_class: structured_fields_with_path_redaction
+    summary: "Live stdout channel is tied to the managed API service lease."
+  - log_channel_class: health_probe_log
+    log_state_class: buffered
+    service_handle_ref: "runtime:service:managed_api:01"
+    task_channel_ref: "execution:task_channel:managed_api:health_probe:01"
+    output_viewer_ref: "ux:output_viewer:managed_api_health:01"
+    evidence_ref: "evidence:managed_api:health_probe:01"
+    support_export_ref: "support:export:managed_api:health_probe:01"
+    retention_window_ref: "retention:logs:managed_api:health_probe:01"
+    redaction_class: metadata_and_hashes_only
+    summary: "Health probe log records readiness after route rebind."
+  - log_channel_class: route_audit_log
+    log_state_class: snapshot
+    service_handle_ref: "runtime:service:managed_api:01"
+    task_channel_ref: "execution:task_channel:managed_api:route_audit:01"
+    output_viewer_ref: "ux:output_viewer:managed_api_route_audit:01"
+    evidence_ref: "evidence:managed_api:route_audit:01"
+    support_export_ref: "support:export:managed_api:route_audit:01"
+    retention_window_ref: "retention:logs:managed_api:route_audit:01"
+    redaction_class: support_bundle_scoped
+    summary: "Route audit snapshot preserves the rebind event for support replay."
+sidecar_visibility:
+  sidecar_visibility_class: declared_helper_container
+  helper_refs:
+    - "runtime:helper:managed_route_proxy:01"
+  policy_ref: "policy:managed_routes:declared_proxy:01"
+  summary: "Managed route proxy helper is declared and policy-owned."
+support_replay:
+  support_replay_class: replayable_with_redacted_channels
+  support_packet_refs:
+    - "support:packet:managed_api_route_rebound:01"
+  evidence_refs:
+    - "evidence:restart:managed_api:completed:01"
+    - "evidence:route:managed_api:rebound_same_route:01"
+    - "evidence:managed_api:route_audit:01"
+  summary: "Support replay preserves route, restart, and log-channel linkage without requiring the managed control plane."
+summary: "Managed API route lease stays active after restart with service-scoped logs, restart evidence, and declared helper visibility."

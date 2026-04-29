@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=../../../schemas/runtime/port_lease.schema.json
+__fixture__:
+  name: port_lease_compose_web_collision
+  scenario: >
+    A compose web service requests a lease that collides with an
+    existing Aureline lease. The collision is attributed to the web
+    service, linked to the preflight finding, and paired with log and
+    viewer refs instead of a generic workspace-start banner.
+  exercised_contract_sections:
+    - Port lease and log-channel linkage
+    - Support packet replay
+
+record_kind: port_lease_record
+port_lease_schema_version: 1
+port_lease_id: "runtime:port_lease:compose_web:collision:01"
+captured_at: "2026-04-29T12:20:00Z"
+lease_state_class: collision_detected
+service_binding:
+  service_identity_class: web_app_service
+  service_handle_ref: "runtime:service:compose_web:01"
+  service_label: "web app service"
+  container_session_record_ref: "runtime:container_session:compose_orchestrated:01"
+  devcontainer_profile_record_ref: "runtime:devcontainer_profile:compose_with_services:01"
+  container_preflight_result_ref: "runtime:container_preflight:compose_web_collision:01"
+  execution_context_record_ref: "runtime:execution_context:compose_local:01"
+  summary: "Lease belongs to the compose web service, not to the whole workspace."
+exposure_binding:
+  exposure_class: loopback_local_only
+  bind_interface_class: loopback_dual_stack
+  container_port_handle_ref: "runtime:port:container:web:01"
+  host_port_handle_ref: "runtime:port:host:web:requested:01"
+  preview_route_record_ref: "runtime:preview_route:compose_web:pending:01"
+  forwarded_endpoint_ref: null
+  route_handle_ref: "runtime:route:compose_web:pending:01"
+  created_at: "2026-04-29T12:20:00Z"
+  expires_at: null
+  revocation_ref: "runtime:route_revocation:compose_web:pending:01"
+  policy_ref: "policy:ports:loopback_only:01"
+  summary: "Requested loopback exposure is blocked until the collision is resolved."
+collision_binding:
+  collision_state_class: collision_with_existing_aureline_lease
+  colliding_lease_refs:
+    - "runtime:port_lease:devcontainer_web:local:01"
+  colliding_process_ref: null
+  preflight_finding_ref: "runtime:preflight_finding:port_collision:compose_web:01"
+  repair_hook_ref: "runtime:repair_hook:choose_available_loopback_lease:01"
+  summary: "Requested lease collides with an existing tracked lease."
+restart_binding:
+  restart_state_class: not_restarting
+  previous_lease_ref: null
+  restart_attempt_ref: null
+  restart_evidence_refs: []
+  summary: "No restart is in progress for this collision case."
+log_channel_linkages:
+  - log_channel_class: compose_orchestrator_log
+    log_state_class: buffered
+    service_handle_ref: "runtime:service:compose_web:01"
+    task_channel_ref: "execution:task_channel:compose:web:orchestrator:01"
+    output_viewer_ref: "ux:output_viewer:compose_web_orchestrator:01"
+    evidence_ref: "evidence:port_lease:compose_web:collision:01"
+    support_export_ref: "support:export:compose_web:collision_log:01"
+    retention_window_ref: "retention:logs:bounded:compose_web:01"
+    redaction_class: metadata_and_hashes_only
+    summary: "Compose orchestration log is attributed to the web service lease collision."
+  - log_channel_class: port_forward_proxy_log
+    log_state_class: snapshot
+    service_handle_ref: "runtime:service:compose_web:01"
+    task_channel_ref: "execution:task_channel:compose:web:port_proxy:01"
+    output_viewer_ref: "ux:output_viewer:compose_web_port_proxy:01"
+    evidence_ref: "evidence:port_proxy:compose_web:collision:01"
+    support_export_ref: "support:export:compose_web:port_proxy:01"
+    retention_window_ref: "retention:logs:bounded:compose_web_proxy:01"
+    redaction_class: metadata_and_hashes_only
+    summary: "Port-forward proxy evidence is captured as a snapshot for support replay."
+sidecar_visibility:
+  sidecar_visibility_class: no_helper_sidecar
+  helper_refs: []
+  policy_ref: "policy:no_hidden_sidecars:01"
+  summary: "No helper sidecar is involved in the collision."
+support_replay:
+  support_replay_class: replayable_without_live_engine
+  support_packet_refs:
+    - "support:packet:compose_web_collision:01"
+  evidence_refs:
+    - "evidence:port_lease:compose_web:collision:01"
+    - "evidence:port_proxy:compose_web:collision:01"
+  summary: "Support replay can explain the collision without the compose engine."
+summary: "Compose web service port lease collision remains attributable to the service, route, preflight finding, and log channels."

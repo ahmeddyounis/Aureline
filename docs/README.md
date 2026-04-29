@@ -1099,6 +1099,20 @@ code.
   [`/schemas/runtime/terminal_restore_metadata.schema.json`](../schemas/runtime/terminal_restore_metadata.schema.json);
   worked fixtures in
   [`/fixtures/runtime/context_cache_cases/`](../fixtures/runtime/context_cache_cases/).
+- [`runtime/container_engine_and_preflight_contract.md`](./runtime/container_engine_and_preflight_contract.md)
+  — container engine, devcontainer preflight, port-lease, and
+  log-channel contract. Freezes engine support posture and capability
+  flags for Docker, Podman, remote daemons, managed executors, custom
+  backends, and unsupported backends; preflight findings for
+  reachability, parse state, unsupported directives, mount/path risk,
+  port collisions, mirror/credential prerequisites, and inspect-only
+  fallback; and service-attributed port leases with route, restart,
+  collision, viewer, evidence, and log-channel refs. Boundary schemas in
+  [`/schemas/runtime/container_preflight_result.schema.json`](../schemas/runtime/container_preflight_result.schema.json)
+  and
+  [`/schemas/runtime/port_lease.schema.json`](../schemas/runtime/port_lease.schema.json);
+  worked fixtures in
+  [`/fixtures/runtime/container_preflight_cases/`](../fixtures/runtime/container_preflight_cases/).
 - [`remote/attach_tunnel_port_forward_contract.md`](./remote/attach_tunnel_port_forward_contract.md)
   — remote attach, reconnect, tunnel, port-forward, service-discovery,
   and browser-preview route-truth contract. Freezes attach-session and

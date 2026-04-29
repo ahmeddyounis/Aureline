@@ -1,0 +1,809 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/container_preflight_result.schema.json",
+  "title": "Aureline container engine and devcontainer preflight result record",
+  "description": "Boundary schema for the container_preflight_result_record frozen in docs/runtime/container_engine_and_preflight_contract.md. The record is emitted before container/devcontainer start, attach, exec, forward, inspect-only, and support-replay flows so engine class, engine reachability, engine capabilities, compose/devcontainer parse state, unsupported directives, mount/path risks, port collisions, credential or mirror prerequisites, degraded inspect-only fallback, helper sidecars, and elevated-permission requests are visible before execution begins. Raw socket paths, raw context names, raw URLs, raw hostnames, raw IPs, raw ports, raw absolute paths, raw compose/devcontainer bodies, raw command lines, raw log bodies, raw credentials, and raw author identity strings never cross this boundary; opaque engine, endpoint, input, parser, directive, mount, port, credential, mirror, helper, policy, evidence, support, route, and repair refs do. Adding a new engine class, support posture, capability flag, parse state, finding class, severity, blocking class, fallback class, action admissibility, sidecar state, privilege state, replay class, omission class, or outcome value is additive-minor and bumps container_preflight_schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/container_preflight_result_record" }
+  ],
+  "$defs": {
+    "container_preflight_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this preflight contract. Current value is 1. Additive optional fields and additive enum values do not bump this version; breaking payload changes do."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "container_preflight_result_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw paths, ports, URLs, socket paths, command lines, credentials, and author identity strings never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 520,
+      "description": "Reviewer-facing sentence safe for UI and support export. Raw engine errors, raw paths, raw port numbers, raw command lines, raw log bodies, and secret values never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at preflight assembly."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "subject_class": {
+      "type": "string",
+      "enum": [
+        "start_flow",
+        "attach_flow",
+        "exec_flow",
+        "forward_flow",
+        "inspect_only_flow",
+        "support_replay_flow"
+      ],
+      "description": "Flow being evaluated by this preflight record."
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ]
+    },
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_managed_locked"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "container_local",
+        "devcontainer",
+        "managed_workspace",
+        "remote_workspace_vm",
+        "prebuild_runtime",
+        "custom_backend",
+        "unsupported_backend"
+      ]
+    },
+    "container_engine_class": {
+      "type": "string",
+      "enum": [
+        "docker_local_engine",
+        "docker_remote_daemon",
+        "podman_local_engine",
+        "podman_remote_daemon",
+        "managed_executor_runtime",
+        "custom_engine_backend",
+        "unsupported_engine_backend",
+        "engine_class_unknown_requires_review"
+      ],
+      "description": "Closed engine-class vocabulary. Remote daemon classes require explicit remote boundary refs; custom backends must declare capabilities; unsupported and unknown backends cannot start or attach live."
+    },
+    "engine_support_posture_class": {
+      "type": "string",
+      "enum": [
+        "supported_full_contract",
+        "supported_with_degraded_capabilities",
+        "preview_supported_requires_review",
+        "inspect_only_supported",
+        "blocked_unsupported",
+        "support_posture_unknown_requires_review"
+      ]
+    },
+    "engine_reachability_class": {
+      "type": "string",
+      "enum": [
+        "engine_reachable_verified",
+        "engine_warming_provisioning",
+        "engine_degraded_pending_diagnostics",
+        "engine_unreachable_socket_missing",
+        "engine_unreachable_permission_denied",
+        "engine_unreachable_remote_endpoint",
+        "engine_blocked_by_workspace_trust",
+        "engine_blocked_by_policy",
+        "engine_reachability_unknown_requires_review"
+      ]
+    },
+    "engine_capability_flag": {
+      "type": "string",
+      "enum": [
+        "devcontainer_parse",
+        "compose_parse",
+        "image_build",
+        "container_run",
+        "container_inspect",
+        "exec_attach",
+        "port_forward",
+        "log_stream",
+        "volume_mount",
+        "secret_mount_via_broker",
+        "rootless_mode",
+        "remote_context",
+        "managed_route",
+        "custom_backend_adapter",
+        "capability_unknown_requires_review"
+      ]
+    },
+    "engine_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "container_engine_class",
+        "engine_support_posture_class",
+        "engine_reachability_class",
+        "engine_build_identity_ref",
+        "engine_endpoint_ref",
+        "engine_capability_flags",
+        "missing_capability_flags",
+        "support_note"
+      ],
+      "properties": {
+        "container_engine_class": { "$ref": "#/$defs/container_engine_class" },
+        "engine_support_posture_class": { "$ref": "#/$defs/engine_support_posture_class" },
+        "engine_reachability_class": { "$ref": "#/$defs/engine_reachability_class" },
+        "engine_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque engine-build identity handle. Raw version strings, socket paths, and context names never appear here."
+        },
+        "engine_endpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque endpoint/context handle. Null for imported support replay when no live endpoint is available."
+        },
+        "engine_capability_flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/engine_capability_flag" },
+          "uniqueItems": true
+        },
+        "missing_capability_flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/engine_capability_flag" },
+          "uniqueItems": true
+        },
+        "support_note": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Unsupported engines cannot claim supported posture or verified reachability.",
+          "if": {
+            "properties": {
+              "container_engine_class": { "const": "unsupported_engine_backend" }
+            },
+            "required": ["container_engine_class"]
+          },
+          "then": {
+            "properties": {
+              "engine_support_posture_class": {
+                "enum": [
+                  "blocked_unsupported",
+                  "inspect_only_supported",
+                  "support_posture_unknown_requires_review"
+                ]
+              },
+              "engine_reachability_class": {
+                "not": { "const": "engine_reachable_verified" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Custom backends must explicitly carry the custom adapter capability or remain review-only.",
+          "if": {
+            "properties": {
+              "container_engine_class": { "const": "custom_engine_backend" }
+            },
+            "required": ["container_engine_class"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "engine_capability_flags": {
+                    "contains": { "const": "custom_backend_adapter" }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "engine_support_posture_class": {
+                    "enum": [
+                      "inspect_only_supported",
+                      "blocked_unsupported",
+                      "support_posture_unknown_requires_review"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "declarative_input_kind": {
+      "type": "string",
+      "enum": [
+        "devcontainer_json",
+        "dockerfile",
+        "compose_file",
+        "image_reference",
+        "environment_capsule",
+        "imported_handoff_packet",
+        "support_capture",
+        "input_kind_unknown_requires_review"
+      ]
+    },
+    "declarative_input_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declarative_input_kind", "input_handle_ref", "content_digest_ref"],
+      "properties": {
+        "declarative_input_kind": { "$ref": "#/$defs/declarative_input_kind" },
+        "input_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "content_digest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "source_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_record_ref",
+        "environment_capsule_ref",
+        "container_session_record_ref",
+        "devcontainer_profile_record_ref",
+        "support_packet_ref",
+        "declarative_input_refs"
+      ],
+      "properties": {
+        "execution_context_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "environment_capsule_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "container_session_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "devcontainer_profile_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "container_handoff_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "container_capture_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "declarative_input_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declarative_input_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "parse_state_class": {
+      "type": "string",
+      "enum": [
+        "not_present",
+        "parsed_supported",
+        "parsed_with_unsupported_directives",
+        "parse_failed_schema",
+        "parse_failed_missing_input",
+        "parse_skipped_inspect_only",
+        "parse_state_unknown_requires_review"
+      ]
+    },
+    "parse_state_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "devcontainer_parse_state_class",
+        "compose_parse_state_class",
+        "parser_identity_ref",
+        "unsupported_directive_count",
+        "summary"
+      ],
+      "properties": {
+        "devcontainer_parse_state_class": { "$ref": "#/$defs/parse_state_class" },
+        "compose_parse_state_class": { "$ref": "#/$defs/parse_state_class" },
+        "parser_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "unsupported_directive_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "engine_unreachable",
+        "engine_missing_capability",
+        "compose_parse_failed",
+        "devcontainer_parse_failed",
+        "unsupported_directive",
+        "mount_path_risk",
+        "port_collision",
+        "credential_prerequisite_missing",
+        "mirror_prerequisite_missing",
+        "service_readiness_unresolved",
+        "policy_blocked",
+        "workspace_trust_blocked",
+        "inspect_only_fallback",
+        "no_hidden_sidecar_violation",
+        "no_ambient_privilege_violation",
+        "finding_unknown_requires_review"
+      ]
+    },
+    "finding_severity_class": {
+      "type": "string",
+      "enum": [
+        "info",
+        "advisory",
+        "warning",
+        "blocking",
+        "admin_admit_required"
+      ]
+    },
+    "preflight_blocking_class": {
+      "type": "string",
+      "enum": [
+        "non_blocking_advisory",
+        "blocking_pre_start",
+        "blocking_pre_attach",
+        "blocking_pre_exec",
+        "blocking_pre_forward",
+        "support_replay_only"
+      ]
+    },
+    "degraded_fallback_class": {
+      "type": "string",
+      "enum": [
+        "no_degradation",
+        "inspect_only_metadata_available",
+        "external_handoff_only",
+        "support_packet_replay_only",
+        "blocked_until_user_review",
+        "blocked_until_policy_or_admin"
+      ]
+    },
+    "preflight_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_class",
+        "finding_severity_class",
+        "preflight_blocking_class",
+        "degraded_fallback_class",
+        "finding_handle_ref",
+        "summary"
+      ],
+      "properties": {
+        "finding_class": { "$ref": "#/$defs/finding_class" },
+        "finding_severity_class": { "$ref": "#/$defs/finding_severity_class" },
+        "preflight_blocking_class": { "$ref": "#/$defs/preflight_blocking_class" },
+        "degraded_fallback_class": { "$ref": "#/$defs/degraded_fallback_class" },
+        "finding_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "directive_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mount_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "port_lease_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "service_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "route_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "credential_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mirror_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "helper_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "repair_hook_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "preflight_outcome_class": {
+      "type": "string",
+      "enum": [
+        "admissible",
+        "admissible_with_warnings",
+        "degraded_inspect_only",
+        "external_handoff_only",
+        "blocked_user_review",
+        "blocked_policy",
+        "blocked_unsupported_engine",
+        "replay_only",
+        "outcome_unknown_requires_review"
+      ]
+    },
+    "action_admissibility_class": {
+      "type": "string",
+      "enum": [
+        "admissible_under_workspace_trust",
+        "admissible_under_session_only_override",
+        "admissible_under_approval_ticket",
+        "admissible_not_applicable",
+        "inspect_only",
+        "external_handoff_only",
+        "blocked_pending_user_review",
+        "blocked_pending_policy",
+        "blocked_unsupported",
+        "replay_only"
+      ]
+    },
+    "readiness_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preflight_outcome_class",
+        "start_admissibility_class",
+        "attach_admissibility_class",
+        "exec_admissibility_class",
+        "forward_admissibility_class",
+        "support_summary"
+      ],
+      "properties": {
+        "preflight_outcome_class": { "$ref": "#/$defs/preflight_outcome_class" },
+        "start_admissibility_class": { "$ref": "#/$defs/action_admissibility_class" },
+        "attach_admissibility_class": { "$ref": "#/$defs/action_admissibility_class" },
+        "exec_admissibility_class": { "$ref": "#/$defs/action_admissibility_class" },
+        "forward_admissibility_class": { "$ref": "#/$defs/action_admissibility_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "implicit_sidecar_state_class": {
+      "type": "string",
+      "enum": [
+        "no_implicit_sidecars_declared",
+        "declared_helper_review_required",
+        "implicit_helper_detected_blocked",
+        "sidecar_state_unknown_requires_review"
+      ]
+    },
+    "ambient_privilege_state_class": {
+      "type": "string",
+      "enum": [
+        "no_ambient_privilege_requested",
+        "privilege_request_declared_review_required",
+        "ambient_privilege_detected_blocked",
+        "ambient_privilege_state_unknown_requires_review"
+      ]
+    },
+    "sidecar_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implicit_sidecar_state_class",
+        "ambient_privilege_state_class",
+        "helper_containers_declared",
+        "helper_sockets_declared",
+        "elevated_permissions_declared",
+        "helper_refs",
+        "summary"
+      ],
+      "properties": {
+        "implicit_sidecar_state_class": { "$ref": "#/$defs/implicit_sidecar_state_class" },
+        "ambient_privilege_state_class": { "$ref": "#/$defs/ambient_privilege_state_class" },
+        "helper_containers_declared": { "type": "boolean" },
+        "helper_sockets_declared": { "type": "boolean" },
+        "elevated_permissions_declared": { "type": "boolean" },
+        "helper_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "A declared helper state must carry at least one helper ref.",
+          "if": {
+            "properties": {
+              "implicit_sidecar_state_class": { "const": "declared_helper_review_required" }
+            },
+            "required": ["implicit_sidecar_state_class"]
+          },
+          "then": {
+            "properties": {
+              "helper_refs": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "support_replay_capability_class": {
+      "type": "string",
+      "enum": [
+        "replayable_without_live_engine",
+        "replayable_with_redacted_fields",
+        "live_engine_required_blocked",
+        "not_exportable_by_policy"
+      ]
+    },
+    "support_replay_omission_class": {
+      "type": "string",
+      "enum": [
+        "no_omissions",
+        "raw_engine_error_omitted",
+        "raw_log_body_omitted",
+        "raw_path_or_mount_body_omitted",
+        "raw_network_endpoint_omitted",
+        "raw_secret_material_omitted",
+        "provider_payload_omitted",
+        "omission_unknown_requires_review"
+      ]
+    },
+    "support_replay_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_replay_capability_class",
+        "support_packet_refs",
+        "evidence_refs",
+        "omission_classes",
+        "summary"
+      ],
+      "properties": {
+        "support_replay_capability_class": { "$ref": "#/$defs/support_replay_capability_class" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "omission_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_replay_omission_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "container_preflight_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "container_preflight_schema_version",
+        "container_preflight_result_id",
+        "captured_at",
+        "subject_class",
+        "identity_mode",
+        "workspace_trust_state_class",
+        "target_class",
+        "engine_binding",
+        "source_binding",
+        "parse_state",
+        "findings",
+        "readiness_summary",
+        "port_lease_record_refs",
+        "related_log_channel_refs",
+        "no_hidden_sidecar_attestation",
+        "support_replay",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "container_preflight_schema_version": { "$ref": "#/$defs/container_preflight_schema_version" },
+        "container_preflight_result_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "subject_class": { "$ref": "#/$defs/subject_class" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "workspace_trust_state_class": { "$ref": "#/$defs/workspace_trust_state_class" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "engine_binding": { "$ref": "#/$defs/engine_binding" },
+        "source_binding": { "$ref": "#/$defs/source_binding" },
+        "parse_state": { "$ref": "#/$defs/parse_state_block" },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preflight_finding" },
+          "uniqueItems": true
+        },
+        "readiness_summary": { "$ref": "#/$defs/readiness_summary" },
+        "port_lease_record_refs": { "$ref": "#/$defs/ref_array" },
+        "related_log_channel_refs": { "$ref": "#/$defs/ref_array" },
+        "no_hidden_sidecar_attestation": { "$ref": "#/$defs/sidecar_attestation" },
+        "support_replay": { "$ref": "#/$defs/support_replay_block" },
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Unsupported engine outcomes cannot be reported as admissible.",
+          "if": {
+            "properties": {
+              "engine_binding": {
+                "properties": {
+                  "container_engine_class": { "const": "unsupported_engine_backend" }
+                },
+                "required": ["container_engine_class"]
+              }
+            },
+            "required": ["engine_binding"]
+          },
+          "then": {
+            "properties": {
+              "readiness_summary": {
+                "properties": {
+                  "preflight_outcome_class": {
+                    "enum": [
+                      "blocked_unsupported_engine",
+                      "blocked_user_review",
+                      "replay_only",
+                      "outcome_unknown_requires_review"
+                    ]
+                  },
+                  "start_admissibility_class": {
+                    "enum": [
+                      "blocked_unsupported",
+                      "blocked_pending_user_review",
+                      "replay_only"
+                    ]
+                  },
+                  "attach_admissibility_class": {
+                    "enum": [
+                      "blocked_unsupported",
+                      "blocked_pending_user_review",
+                      "replay_only"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-verified engine reachability must not produce live start or attach admissibility.",
+          "if": {
+            "properties": {
+              "engine_binding": {
+                "properties": {
+                  "engine_reachability_class": {
+                    "not": { "const": "engine_reachable_verified" }
+                  }
+                },
+                "required": ["engine_reachability_class"]
+              }
+            },
+            "required": ["engine_binding"]
+          },
+          "then": {
+            "properties": {
+              "readiness_summary": {
+                "properties": {
+                  "start_admissibility_class": {
+                    "not": {
+                      "enum": [
+                        "admissible_under_workspace_trust",
+                        "admissible_under_session_only_override",
+                        "admissible_under_approval_ticket"
+                      ]
+                    }
+                  },
+                  "attach_admissibility_class": {
+                    "not": {
+                      "enum": [
+                        "admissible_under_workspace_trust",
+                        "admissible_under_session_only_override",
+                        "admissible_under_approval_ticket"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Implicit helpers detected as blocked force a blocked outcome.",
+          "if": {
+            "properties": {
+              "no_hidden_sidecar_attestation": {
+                "properties": {
+                  "implicit_sidecar_state_class": { "const": "implicit_helper_detected_blocked" }
+                },
+                "required": ["implicit_sidecar_state_class"]
+              }
+            },
+            "required": ["no_hidden_sidecar_attestation"]
+          },
+          "then": {
+            "properties": {
+              "readiness_summary": {
+                "properties": {
+                  "preflight_outcome_class": {
+                    "enum": [
+                      "blocked_user_review",
+                      "blocked_policy",
+                      "blocked_unsupported_engine",
+                      "outcome_unknown_requires_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Ambient privilege detected as blocked forces a blocked outcome.",
+          "if": {
+            "properties": {
+              "no_hidden_sidecar_attestation": {
+                "properties": {
+                  "ambient_privilege_state_class": { "const": "ambient_privilege_detected_blocked" }
+                },
+                "required": ["ambient_privilege_state_class"]
+              }
+            },
+            "required": ["no_hidden_sidecar_attestation"]
+          },
+          "then": {
+            "properties": {
+              "readiness_summary": {
+                "properties": {
+                  "preflight_outcome_class": {
+                    "enum": [
+                      "blocked_user_review",
+                      "blocked_policy",
+                      "blocked_unsupported_engine",
+                      "outcome_unknown_requires_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Support replay flows must be replayable without a live engine or explicitly redacted.",
+          "if": {
+            "properties": {
+              "subject_class": { "const": "support_replay_flow" }
+            },
+            "required": ["subject_class"]
+          },
+          "then": {
+            "properties": {
+              "readiness_summary": {
+                "properties": {
+                  "preflight_outcome_class": {
+                    "enum": [
+                      "replay_only",
+                      "degraded_inspect_only",
+                      "blocked_policy"
+                    ]
+                  }
+                }
+              },
+              "support_replay": {
+                "properties": {
+                  "support_replay_capability_class": {
+                    "enum": [
+                      "replayable_without_live_engine",
+                      "replayable_with_redacted_fields",
+                      "not_exportable_by_policy"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

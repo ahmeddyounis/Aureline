@@ -1,0 +1,572 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/port_lease.schema.json",
+  "title": "Aureline port lease, exposure, restart, collision, and log-channel linkage record",
+  "description": "Boundary schema for the port_lease_record frozen in docs/runtime/container_engine_and_preflight_contract.md. A port lease binds one service identity to one claimed exposure, route refs, collision state, restart/rebind state, and log/evidence channel set so container/devcontainer/managed start and attach surfaces cannot collapse port ownership into an opaque workspace-start banner. Raw URLs, raw hostnames, raw IPs, raw integer port numbers, raw socket paths, raw process ids, raw log bodies, raw command lines, raw absolute paths, raw tokens, and raw author identity strings never cross this boundary; opaque service, session, profile, preflight, execution-context, route, forwarded-endpoint, port, lease, process, repair, restart, task-channel, viewer, evidence, support, helper, and policy refs do. Adding a new lease state, service identity class, exposure class, bind-interface class, collision state, restart state, log-channel class, log state, sidecar visibility class, or replay class value is additive-minor and bumps port_lease_schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/port_lease_record" }
+  ],
+  "$defs": {
+    "port_lease_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this port-lease contract. Current value is 1. Additive optional fields and additive enum values do not bump this version; breaking payload changes do."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "port_lease_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw hosts, raw IPs, raw ports, raw paths, raw process ids, raw log bodies, and secrets never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 520,
+      "description": "Reviewer-facing sentence safe for route chrome, log viewers, and support export. Raw URLs, raw ports, raw log bodies, raw paths, raw command lines, and secret values never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "lease_state_class": {
+      "type": "string",
+      "enum": [
+        "planned_requested",
+        "active_bound",
+        "collision_detected",
+        "restart_pending_rebind",
+        "suspended_by_policy",
+        "expired",
+        "revoked",
+        "released",
+        "replayed_from_support_packet",
+        "lease_state_unknown_requires_review"
+      ]
+    },
+    "service_identity_class": {
+      "type": "string",
+      "enum": [
+        "application_service",
+        "api_service",
+        "web_app_service",
+        "worker_or_queue_service",
+        "database_service",
+        "cache_service",
+        "message_broker_service",
+        "search_service",
+        "object_store_service",
+        "notebook_service",
+        "debugger_service",
+        "auth_callback_service",
+        "service_identity_unknown_requires_review"
+      ]
+    },
+    "service_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_identity_class",
+        "service_handle_ref",
+        "container_session_record_ref",
+        "devcontainer_profile_record_ref",
+        "container_preflight_result_ref",
+        "execution_context_record_ref"
+      ],
+      "properties": {
+        "service_identity_class": { "$ref": "#/$defs/service_identity_class" },
+        "service_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "service_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "container_session_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "devcontainer_profile_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "container_preflight_result_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "execution_context_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "exposure_class": {
+      "type": "string",
+      "enum": [
+        "no_exposure_internal_only",
+        "loopback_local_only",
+        "workspace_only_share",
+        "managed_workspace_route",
+        "remote_daemon_tunnel",
+        "public_preview_denied_pending_admin_admit",
+        "captured_no_live_route",
+        "exposure_unknown_requires_review"
+      ]
+    },
+    "bind_interface_class": {
+      "type": "string",
+      "enum": [
+        "loopback_v4_only",
+        "loopback_v6_only",
+        "loopback_dual_stack",
+        "workspace_proxy_bound",
+        "managed_route_bound",
+        "remote_daemon_tunnel_bound",
+        "host_unrestricted_bind_blocked",
+        "bind_interface_unknown_requires_review"
+      ]
+    },
+    "exposure_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exposure_class",
+        "bind_interface_class",
+        "container_port_handle_ref",
+        "host_port_handle_ref",
+        "preview_route_record_ref",
+        "forwarded_endpoint_ref",
+        "route_handle_ref",
+        "created_at",
+        "expires_at",
+        "revocation_ref",
+        "summary"
+      ],
+      "properties": {
+        "exposure_class": { "$ref": "#/$defs/exposure_class" },
+        "bind_interface_class": { "$ref": "#/$defs/bind_interface_class" },
+        "container_port_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_port_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preview_route_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "forwarded_endpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "route_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            { "type": "null" }
+          ]
+        },
+        "revocation_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "collision_state_class": {
+      "type": "string",
+      "enum": [
+        "no_collision_observed",
+        "collision_with_existing_aureline_lease",
+        "collision_with_external_process",
+        "collision_with_imported_capture",
+        "collision_check_unavailable_inspect_only",
+        "collision_unknown_requires_review"
+      ]
+    },
+    "collision_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "collision_state_class",
+        "colliding_lease_refs",
+        "colliding_process_ref",
+        "preflight_finding_ref",
+        "repair_hook_ref",
+        "summary"
+      ],
+      "properties": {
+        "collision_state_class": { "$ref": "#/$defs/collision_state_class" },
+        "colliding_lease_refs": { "$ref": "#/$defs/ref_array" },
+        "colliding_process_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preflight_finding_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "repair_hook_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Observed existing-lease collisions must cite at least one colliding lease.",
+          "if": {
+            "properties": {
+              "collision_state_class": { "const": "collision_with_existing_aureline_lease" }
+            },
+            "required": ["collision_state_class"]
+          },
+          "then": {
+            "properties": {
+              "colliding_lease_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Observed external-process collisions must cite an opaque process ref.",
+          "if": {
+            "properties": {
+              "collision_state_class": { "const": "collision_with_external_process" }
+            },
+            "required": ["collision_state_class"]
+          },
+          "then": {
+            "properties": {
+              "colliding_process_ref": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "restart_state_class": {
+      "type": "string",
+      "enum": [
+        "not_restarting",
+        "restart_requested_rebind_pending",
+        "restarted_rebound_same_route",
+        "restarted_rebound_new_route_review_required",
+        "restart_failed_route_suspended",
+        "session_ended_released",
+        "restart_state_unknown_requires_review"
+      ]
+    },
+    "restart_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restart_state_class",
+        "previous_lease_ref",
+        "restart_attempt_ref",
+        "restart_evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "restart_state_class": { "$ref": "#/$defs/restart_state_class" },
+        "previous_lease_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restart_attempt_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restart_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "log_channel_class": {
+      "type": "string",
+      "enum": [
+        "service_stdout",
+        "service_stderr",
+        "engine_event_stream",
+        "compose_orchestrator_log",
+        "devcontainer_lifecycle_log",
+        "port_forward_proxy_log",
+        "health_probe_log",
+        "route_audit_log",
+        "support_snapshot_log",
+        "log_channel_unknown_requires_review"
+      ]
+    },
+    "log_state_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "buffered",
+        "snapshot",
+        "redacted",
+        "unavailable",
+        "replayed"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "structured_fields_with_path_redaction",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "log_channel_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "log_channel_class",
+        "log_state_class",
+        "service_handle_ref",
+        "task_channel_ref",
+        "output_viewer_ref",
+        "evidence_ref",
+        "support_export_ref",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "log_channel_class": { "$ref": "#/$defs/log_channel_class" },
+        "log_state_class": { "$ref": "#/$defs/log_state_class" },
+        "service_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "task_channel_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "output_viewer_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_export_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "retention_window_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "sidecar_visibility_class": {
+      "type": "string",
+      "enum": [
+        "no_helper_sidecar",
+        "declared_helper_container",
+        "declared_helper_socket_or_proxy",
+        "implicit_helper_detected_blocked",
+        "sidecar_visibility_unknown_requires_review"
+      ]
+    },
+    "sidecar_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sidecar_visibility_class",
+        "helper_refs",
+        "policy_ref",
+        "summary"
+      ],
+      "properties": {
+        "sidecar_visibility_class": { "$ref": "#/$defs/sidecar_visibility_class" },
+        "helper_refs": { "$ref": "#/$defs/ref_array" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "support_replay_class": {
+      "type": "string",
+      "enum": [
+        "replayable_without_live_engine",
+        "replayable_with_redacted_channels",
+        "live_engine_required_blocked",
+        "not_exportable_by_policy"
+      ]
+    },
+    "support_replay_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_replay_class",
+        "support_packet_refs",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "support_replay_class": { "$ref": "#/$defs/support_replay_class" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "port_lease_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "port_lease_schema_version",
+        "port_lease_id",
+        "captured_at",
+        "lease_state_class",
+        "service_binding",
+        "exposure_binding",
+        "collision_binding",
+        "restart_binding",
+        "log_channel_linkages",
+        "sidecar_visibility",
+        "support_replay",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "port_lease_schema_version": { "$ref": "#/$defs/port_lease_schema_version" },
+        "port_lease_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "lease_state_class": { "$ref": "#/$defs/lease_state_class" },
+        "service_binding": { "$ref": "#/$defs/service_binding" },
+        "exposure_binding": { "$ref": "#/$defs/exposure_binding" },
+        "collision_binding": { "$ref": "#/$defs/collision_binding" },
+        "restart_binding": { "$ref": "#/$defs/restart_binding" },
+        "log_channel_linkages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/log_channel_linkage" },
+          "uniqueItems": true
+        },
+        "sidecar_visibility": { "$ref": "#/$defs/sidecar_visibility" },
+        "support_replay": { "$ref": "#/$defs/support_replay_block" },
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Active leases must have no observed collision.",
+          "if": {
+            "properties": {
+              "lease_state_class": { "const": "active_bound" }
+            },
+            "required": ["lease_state_class"]
+          },
+          "then": {
+            "properties": {
+              "collision_binding": {
+                "properties": {
+                  "collision_state_class": { "const": "no_collision_observed" }
+                },
+                "required": ["collision_state_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Collision leases must cite a collision state other than no_collision_observed.",
+          "if": {
+            "properties": {
+              "lease_state_class": { "const": "collision_detected" }
+            },
+            "required": ["lease_state_class"]
+          },
+          "then": {
+            "properties": {
+              "collision_binding": {
+                "properties": {
+                  "collision_state_class": {
+                    "not": { "const": "no_collision_observed" }
+                  }
+                },
+                "required": ["collision_state_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Public-preview-denied exposures must not be active-bound.",
+          "if": {
+            "properties": {
+              "exposure_binding": {
+                "properties": {
+                  "exposure_class": { "const": "public_preview_denied_pending_admin_admit" }
+                },
+                "required": ["exposure_class"]
+              }
+            },
+            "required": ["exposure_binding"]
+          },
+          "then": {
+            "properties": {
+              "lease_state_class": {
+                "enum": [
+                  "planned_requested",
+                  "suspended_by_policy",
+                  "revoked",
+                  "replayed_from_support_packet",
+                  "lease_state_unknown_requires_review"
+                ]
+              },
+              "exposure_binding": {
+                "properties": {
+                  "bind_interface_class": { "const": "host_unrestricted_bind_blocked" }
+                },
+                "required": ["bind_interface_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Captured routes cannot claim live active binding.",
+          "if": {
+            "properties": {
+              "exposure_binding": {
+                "properties": {
+                  "exposure_class": { "const": "captured_no_live_route" }
+                },
+                "required": ["exposure_class"]
+              }
+            },
+            "required": ["exposure_binding"]
+          },
+          "then": {
+            "properties": {
+              "lease_state_class": {
+                "enum": [
+                  "replayed_from_support_packet",
+                  "expired",
+                  "revoked",
+                  "released"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Restart-pending leases must carry restart state.",
+          "if": {
+            "properties": {
+              "lease_state_class": { "const": "restart_pending_rebind" }
+            },
+            "required": ["lease_state_class"]
+          },
+          "then": {
+            "properties": {
+              "restart_binding": {
+                "properties": {
+                  "restart_state_class": {
+                    "enum": [
+                      "restart_requested_rebind_pending",
+                      "restart_state_unknown_requires_review"
+                    ]
+                  }
+                },
+                "required": ["restart_state_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Implicit helper detection cannot remain an active lease.",
+          "if": {
+            "properties": {
+              "sidecar_visibility": {
+                "properties": {
+                  "sidecar_visibility_class": { "const": "implicit_helper_detected_blocked" }
+                },
+                "required": ["sidecar_visibility_class"]
+              }
+            },
+            "required": ["sidecar_visibility"]
+          },
+          "then": {
+            "properties": {
+              "lease_state_class": {
+                "not": { "const": "active_bound" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

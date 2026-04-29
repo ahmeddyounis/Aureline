@@ -1,0 +1,142 @@
+# yaml-language-server: $schema=../../../schemas/runtime/container_preflight_result.schema.json
+__fixture__:
+  name: preflight_custom_backend_privilege_blocked
+  scenario: >
+    A custom backend lacks an explicit adapter capability and attempts
+    to introduce an implicit helper plus elevated privilege. The
+    preflight blocks start and attach rather than treating the helper as
+    ambient runtime authority.
+  exercised_contract_sections:
+    - Engine classes and support posture
+    - Preflight result model
+    - No-hidden-sidecar and no-ambient-privilege rules
+    - Support packet replay
+
+record_kind: container_preflight_result_record
+container_preflight_schema_version: 1
+container_preflight_result_id: "runtime:container_preflight:custom_backend_privilege_blocked:01"
+captured_at: "2026-04-29T12:15:00Z"
+subject_class: start_flow
+identity_mode: self_hosted_org
+workspace_trust_state_class: workspace_trust_restricted
+target_class: custom_backend
+engine_binding:
+  container_engine_class: custom_engine_backend
+  engine_support_posture_class: blocked_unsupported
+  engine_reachability_class: engine_reachability_unknown_requires_review
+  engine_build_identity_ref: "runtime:engine_build:custom_backend:unknown:01"
+  engine_endpoint_ref: "runtime:engine_endpoint:custom_backend:review_required:01"
+  engine_capability_flags:
+    - capability_unknown_requires_review
+  missing_capability_flags:
+    - custom_backend_adapter
+    - devcontainer_parse
+    - compose_parse
+    - exec_attach
+    - port_forward
+    - log_stream
+  support_note: "Custom backend cannot be admitted until it declares the adapter capability set."
+source_binding:
+  execution_context_record_ref: "runtime:execution_context:custom_backend:01"
+  environment_capsule_ref: "runtime:environment_capsule:custom_backend:01"
+  container_session_record_ref: null
+  devcontainer_profile_record_ref: "runtime:devcontainer_profile:custom_backend:01"
+  container_handoff_packet_ref: null
+  container_capture_ref: null
+  support_packet_ref: "support:packet:custom_backend_blocked:01"
+  declarative_input_refs:
+    - declarative_input_kind: devcontainer_json
+      input_handle_ref: "runtime:input:custom_backend_devcontainer:01"
+      content_digest_ref: "digest:custom_backend_devcontainer:01"
+      summary: "Descriptor was captured, but backend-specific directives require review."
+parse_state:
+  devcontainer_parse_state_class: parsed_with_unsupported_directives
+  compose_parse_state_class: not_present
+  parser_identity_ref: "runtime:parser:devcontainer:stable:01"
+  unsupported_directive_count: 2
+  summary: "Devcontainer input requests unsupported backend and privilege directives."
+findings:
+  - finding_class: engine_missing_capability
+    finding_severity_class: blocking
+    preflight_blocking_class: blocking_pre_start
+    degraded_fallback_class: blocked_until_policy_or_admin
+    finding_handle_ref: "runtime:preflight_finding:custom_backend_missing_adapter:01"
+    directive_handle_ref: "runtime:directive:custom_backend_adapter:01"
+    mount_handle_ref: null
+    port_lease_record_ref: null
+    service_handle_ref: null
+    route_ref: null
+    credential_handle_ref: null
+    mirror_ref: null
+    helper_ref: null
+    policy_ref: "policy:custom_backend:adapter_required:01"
+    repair_hook_ref: "runtime:repair_hook:install_supported_backend_adapter:01"
+    evidence_ref: "evidence:preflight:custom_backend_missing_adapter:01"
+    summary: "Custom backend did not declare the adapter capability required for safe execution."
+  - finding_class: no_hidden_sidecar_violation
+    finding_severity_class: admin_admit_required
+    preflight_blocking_class: blocking_pre_start
+    degraded_fallback_class: blocked_until_policy_or_admin
+    finding_handle_ref: "runtime:preflight_finding:implicit_helper_blocked:01"
+    directive_handle_ref: "runtime:directive:implicit_helper:01"
+    mount_handle_ref: null
+    port_lease_record_ref: null
+    service_handle_ref: null
+    route_ref: null
+    credential_handle_ref: null
+    mirror_ref: null
+    helper_ref: "runtime:helper:implicit_custom_backend_proxy:01"
+    policy_ref: "policy:no_hidden_sidecars:01"
+    repair_hook_ref: "runtime:repair_hook:declare_helper_or_remove_directive:01"
+    evidence_ref: "evidence:preflight:implicit_helper_blocked:01"
+    summary: "Implicit helper proxy is blocked until declared and reviewed."
+  - finding_class: no_ambient_privilege_violation
+    finding_severity_class: admin_admit_required
+    preflight_blocking_class: blocking_pre_attach
+    degraded_fallback_class: blocked_until_policy_or_admin
+    finding_handle_ref: "runtime:preflight_finding:ambient_privilege_blocked:01"
+    directive_handle_ref: "runtime:directive:privileged_request:01"
+    mount_handle_ref: "runtime:mount:host_privilege_request:01"
+    port_lease_record_ref: null
+    service_handle_ref: null
+    route_ref: null
+    credential_handle_ref: null
+    mirror_ref: null
+    helper_ref: "runtime:helper:implicit_custom_backend_proxy:01"
+    policy_ref: "policy:no_ambient_privilege:01"
+    repair_hook_ref: "runtime:repair_hook:remove_privilege_request_or_request_admin_admit:01"
+    evidence_ref: "evidence:preflight:ambient_privilege_blocked:01"
+    summary: "Privilege-widening directive is blocked and cannot become an ambient shell capability."
+readiness_summary:
+  preflight_outcome_class: blocked_policy
+  start_admissibility_class: blocked_pending_policy
+  attach_admissibility_class: blocked_pending_policy
+  exec_admissibility_class: blocked_pending_policy
+  forward_admissibility_class: blocked_pending_policy
+  approval_ticket_ref: null
+  policy_ref: "policy:container_backend:restricted_workspace:01"
+  support_summary: "Custom backend is blocked by missing adapter declaration, hidden helper, and ambient privilege policy."
+port_lease_record_refs: []
+related_log_channel_refs: []
+no_hidden_sidecar_attestation:
+  implicit_sidecar_state_class: implicit_helper_detected_blocked
+  ambient_privilege_state_class: ambient_privilege_detected_blocked
+  helper_containers_declared: false
+  helper_sockets_declared: false
+  elevated_permissions_declared: true
+  helper_refs:
+    - "runtime:helper:implicit_custom_backend_proxy:01"
+  summary: "Implicit helper and elevated privilege request are both blocked before execution."
+support_replay:
+  support_replay_capability_class: replayable_with_redacted_fields
+  support_packet_refs:
+    - "support:packet:custom_backend_blocked:01"
+  evidence_refs:
+    - "evidence:preflight:custom_backend_missing_adapter:01"
+    - "evidence:preflight:implicit_helper_blocked:01"
+    - "evidence:preflight:ambient_privilege_blocked:01"
+  omission_classes:
+    - raw_engine_error_omitted
+    - raw_path_or_mount_body_omitted
+  summary: "Support replay preserves blockers without exporting backend payloads or mount bodies."
+summary: "Custom backend preflight blocks start and attach because helper and privilege effects are not declared as admissible."
