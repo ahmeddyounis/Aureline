@@ -1,0 +1,177 @@
+# Support-intake scenario case: network / CA / proxy / mirror failure.
+#
+# Companion to docs/support/support_intake_and_escalation_contract.md
+# §Scenario families and fixtures/support/scenario_matrix.yaml row
+# scenario_row:degraded_docs_mirror.
+
+schema_version: 1
+record_kind: support_escalation_packet_seed_case_record
+case_id: scenario_case:network_ca_proxy_mirror_failure.mirror_unreachable
+scenario_family_class: network_ca_proxy_mirror_failure
+title: Mirror or proxy unreachable; docs/help drift detected
+summary: >
+  A governed mirror, proxy, or CA path is unreachable, and the docs or
+  knowledge-pack snapshot has drifted from the loaded build. Intake
+  hands the user to a Doctor finding first; refresh runs only against
+  governed mirror snapshots and never edits authored docs.
+
+finding_codes:
+  - doctor.finding.docs_pack_version_mismatch
+  - doctor.finding.mirror_snapshot_unknown_revision
+
+build_profile_identity:
+  exact_build_identity_ref: exact_build:aureline.scenario_seed.network_ca_proxy_mirror_failure
+  install_mode_class: per_user_installed
+  install_channel_class: stable
+  deployment_profile_class: self_hosted
+  managed_admin_required: false
+  docs_pack_ref: docs_pack:scenario_seed.network_ca_proxy_mirror_failure.last_known_good
+  profile_summary: >
+    Self-hosted profile with a stale docs/help mirror; mirror
+    revision is unknown at intake time and resolves to a typed unknown
+    rather than blocking export.
+
+evidence_references:
+  selected_evidence_refs:
+    - evidence.support.scenario_seed.network.docs_pack_revision_row
+    - evidence.support.scenario_seed.network.mirror_snapshot_row
+    - evidence.support.scenario_seed.exact_build_identity
+  support_bundle_refs:
+    - support_bundle:scenario_seed.network_ca_proxy_mirror_failure
+  incident_workspace_packet_refs: []
+  repair_transaction_refs:
+    - repair_transaction:disposable_state_rebuild.docs_mirror_refresh
+  checkpoint_refs:
+    - checkpoint:scenario_seed.network_ca_proxy_mirror_failure.pre_apply
+  trace_capture_request_refs: []
+  crash_envelope_refs: []
+  withheld_artifact_refs: []
+  default_data_class_boundary: metadata_only
+  redaction_choice_class: metadata_only_default
+  redaction_widening_consent_marker: null
+  evidence_summary: >
+    Docs-pack revision row, mirror snapshot row, and exact-build
+    identity are sufficient. No raw URLs, raw certificate material, or
+    raw proxy logs cross the boundary.
+
+reproduction_steps:
+  - step_index: 0
+    step_class: user_action_observed
+    summary: User opened a docs/help anchor and the mirror returned a stale revision.
+    evidence_ref: evidence.support.scenario_seed.network_ca_proxy_mirror_failure.user_action
+    command_id: command:open.docs_anchor
+    invocation_session_id: invocation_session:scenario_seed.network_ca_proxy_mirror_failure
+    captured_at: null
+  - step_index: 1
+    step_class: background_event_observed
+    summary: Doctor probe observed a docs-pack revision drift relative to the loaded build.
+    evidence_ref: evidence.support.scenario_seed.network_ca_proxy_mirror_failure.doctor_probe
+    command_id: null
+    invocation_session_id: invocation_session:scenario_seed.network_ca_proxy_mirror_failure
+    captured_at: null
+  - step_index: 2
+    step_class: intermittent_or_unobserved
+    summary: Mirror reachability is intermittent; the typed unknown remote_route_reachability_intermittent applies.
+    evidence_ref: null
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+  - step_index: 3
+    step_class: actual_outcome_summary
+    summary: Docs anchor remained stale; refresh-only repair is offered behind a reviewed preview.
+    evidence_ref: null
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+
+recommended_repair_reviews:
+  - approved_repair_class: disposable_state_rebuild
+    preview_required: true
+    repair_transaction_ref: repair_transaction:disposable_state_rebuild.docs_mirror_refresh
+    why_safe_summary: >
+      Refreshes only the governed mirror snapshot the release packet
+      names; authored docs content is listed in the preserved-state
+      set.
+    what_may_change_summary: >
+      Touches only the disposable mirror snapshot named in the
+      finding; docs authoring stays untouched.
+    if_declined_rollback_summary: >
+      Mirror snapshot remains stale; user remains in typed_repair_flow
+      with the Doctor finding open.
+    if_declined_evidence_summary: >
+      Local-only review retains the support-bundle preview, the docs-
+      pack revision row, and the escalation packet draft.
+  - approved_repair_class: observe_only_no_repair
+    preview_required: false
+    repair_transaction_ref: null
+    why_safe_summary: >
+      Observe-only diagnosis runs no writes; the finding row and the
+      mirror snapshot evidence are read-only.
+    what_may_change_summary: >
+      Nothing changes; the audit log entry is the only emitted record.
+    if_declined_rollback_summary: >
+      Already a no-write path; declining drops the finding row from
+      the packet draft.
+    if_declined_evidence_summary: >
+      Mirror snapshot row and docs-pack revision row remain available
+      for a later support-bundle preview.
+
+delivery_posture:
+  selected_delivery_path_class: local_only_review
+  delivery_state_class: saved_local_only
+  local_only_path_available: true
+  vendor_case_path_available: true
+  user_upload_path_available: true
+  managed_admin_handoff_required: false
+  private_security_channel_required: false
+  delivery_summary: >
+    Default selection is local-only review; vendor-case and user-
+    initiated upload remain available at the same prominence.
+
+context_parity_rows:
+  - support_context_class: desktop
+    availability_class: available
+    narrowed_when_summary: not_narrowed; full picker, review, and timeline are available on desktop.
+    alternate_path_summary: not_applicable; desktop is the reference surface for this scenario.
+  - support_context_class: cli_headless
+    availability_class: available
+    narrowed_when_summary: not_narrowed; CLI exposes the same picker rows and review fields.
+    alternate_path_summary: CLI emits the packet to a local file users can attach later.
+  - support_context_class: remote_managed
+    availability_class: available
+    narrowed_when_summary: not_narrowed; mirror refresh respects managed mirror authority.
+    alternate_path_summary: Local-only review remains available at primary prominence.
+  - support_context_class: offline_local
+    availability_class: available_local_only
+    narrowed_when_summary: Mirror refresh and vendor-case handoff cannot run while offline.
+    alternate_path_summary: Local-only review records the packet for later handoff; refresh deferred until network returns.
+
+linkage:
+  scenario_picker_row_ref: support_scenario_picker:network_ca_proxy_mirror_failure
+  object_handoff_packet_ref: object_handoff_packet:scenario_seed.network_ca_proxy_mirror_failure
+  scenario_matrix_row_ref: scenario_row:degraded_docs_mirror
+  escalation_packet_completeness_case_ref: fixtures/support/escalation_packet_completeness_cases/degraded_docs_mirror_version_mismatch.yaml
+  support_bundle_record_ref: support_bundle:scenario_seed.network_ca_proxy_mirror_failure
+  incident_workspace_packet_ref: null
+  recovery_action_record_ref: recovery_action:typed_repair_flow.docs_mirror_refresh
+  repair_transaction_record_ref: repair_transaction:disposable_state_rebuild.docs_mirror_refresh
+
+completeness_outcome: complete_with_typed_unknowns
+typed_unknown_fields:
+  - evidence_references.support_bundle_refs.mirror_snapshot_revision
+
+governance_bindings:
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  support_packet_index_schema_ref: schemas/support/support_packet_index.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+
+notes: >
+  Network/CA/proxy/mirror escalations stay metadata-only by default.
+  The packet preserves the docs-pack revision row, the mirror snapshot
+  row, and the refresh-preview transaction ref so the user can choose
+  a refresh, a local-only review, or a deferred handoff later.
+emitted_at: 2026-04-29T00:00:00Z

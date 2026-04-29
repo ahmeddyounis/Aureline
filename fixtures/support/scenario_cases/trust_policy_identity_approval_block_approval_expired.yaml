@@ -1,0 +1,177 @@
+# Support-intake scenario case: trust / policy / identity / approval block.
+#
+# Companion to docs/support/support_intake_and_escalation_contract.md
+# §Scenario families and fixtures/support/scenario_matrix.yaml row
+# scenario_row:blocked_trust_state.
+
+schema_version: 1
+record_kind: support_escalation_packet_seed_case_record
+case_id: scenario_case:trust_policy_identity_approval_block.approval_expired
+scenario_family_class: trust_policy_identity_approval_block
+title: Approval ticket expired or policy floor blocking a route
+summary: >
+  Workspace trust, approval-ticket, identity, or policy state has
+  drifted and is blocking a route or capability the user expects to
+  be available. Intake routes the user to a Doctor finding and a
+  reapproval flow; trust is never silently widened.
+
+finding_codes:
+  - doctor.finding.trust_state_approval_expired
+  - doctor.finding.trust_state_policy_floor_blocked
+
+build_profile_identity:
+  exact_build_identity_ref: exact_build:aureline.scenario_seed.trust_policy_identity_approval_block
+  install_mode_class: managed_deployed
+  install_channel_class: stable
+  deployment_profile_class: enterprise_online
+  managed_admin_required: true
+  docs_pack_ref: null
+  profile_summary: >
+    Managed-deployed enterprise-online profile; managed admin sign-off
+    is required before vendor-case handoff because policy state drove
+    the block.
+
+evidence_references:
+  selected_evidence_refs:
+    - evidence.support.scenario_seed.trust_state.approval_ticket_row
+    - evidence.support.scenario_seed.trust_state.policy_epoch
+    - evidence.support.scenario_seed.exact_build_identity
+  support_bundle_refs:
+    - support_bundle:scenario_seed.trust_policy_identity_approval_block
+  incident_workspace_packet_refs: []
+  repair_transaction_refs:
+    - repair_transaction:policy_entitlement_refresh.trust_approval_reacquire
+  checkpoint_refs:
+    - checkpoint:scenario_seed.trust_policy_identity_approval_block.pre_apply
+  trace_capture_request_refs: []
+  crash_envelope_refs: []
+  withheld_artifact_refs:
+    - evidence.support.scenario_seed.trust_state.raw_approval_ticket_secret
+  default_data_class_boundary: environment_adjacent
+  redaction_choice_class: support_bundle_by_reference
+  redaction_widening_consent_marker: null
+  evidence_summary: >
+    Approval-ticket row, policy epoch, and exact-build identity are
+    embedded by reference. Raw approval-ticket secrets and raw
+    credentials are explicitly withheld.
+
+reproduction_steps:
+  - step_index: 0
+    step_class: user_action_observed
+    summary: User attempted to open a route that the workspace trust posture currently blocks.
+    evidence_ref: evidence.support.scenario_seed.trust_policy_identity_approval_block.user_action
+    command_id: command:open.route
+    invocation_session_id: invocation_session:scenario_seed.trust_policy_identity_approval_block
+    captured_at: null
+  - step_index: 1
+    step_class: background_event_observed
+    summary: Doctor probe observed an approval ticket past its freshness budget.
+    evidence_ref: evidence.support.scenario_seed.trust_policy_identity_approval_block.doctor_probe
+    command_id: null
+    invocation_session_id: invocation_session:scenario_seed.trust_policy_identity_approval_block
+    captured_at: null
+  - step_index: 2
+    step_class: blocked_by_consent_or_policy
+    summary: Policy floor refused to widen trust; intake refused to mint a new ticket without a reapproval flow.
+    evidence_ref: evidence.support.scenario_seed.trust_policy_identity_approval_block.policy_decision
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+  - step_index: 3
+    step_class: actual_outcome_summary
+    summary: Route remained blocked; Doctor opened a finding and the picker proposed a reapproval transaction.
+    evidence_ref: null
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+
+recommended_repair_reviews:
+  - approved_repair_class: policy_entitlement_refresh
+    preview_required: true
+    repair_transaction_ref: repair_transaction:policy_entitlement_refresh.trust_approval_reacquire
+    why_safe_summary: >
+      Reacquires the approval ticket through the published reapproval
+      flow; trust posture is never widened beyond the user's request.
+    what_may_change_summary: >
+      Touches only the approval-ticket and policy-entitlement handles
+      named in the finding; managed policy and credential store stay
+      preserved.
+    if_declined_rollback_summary: >
+      No mutation occurred; the workspace remains in restricted_reopen
+      with the route still blocked.
+    if_declined_evidence_summary: >
+      Support bundle by reference and the open Doctor finding remain
+      available; raw approval secrets stay withheld.
+  - approved_repair_class: guided_export_escalation
+    preview_required: false
+    repair_transaction_ref: null
+    why_safe_summary: >
+      No state mutation; the packet routes to managed-admin handoff or
+      vendor-case review with the trust evidence already attached.
+    what_may_change_summary: >
+      Nothing changes locally; the user signals that managed-admin
+      sign-off is required before further repair.
+    if_declined_rollback_summary: >
+      Workspace stays in restricted_reopen; the user can return to
+      reapproval at any time.
+    if_declined_evidence_summary: >
+      Local-only review retains the packet draft so the user can
+      escalate later without restating the case.
+
+delivery_posture:
+  selected_delivery_path_class: local_only_review
+  delivery_state_class: saved_local_only
+  local_only_path_available: true
+  vendor_case_path_available: true
+  user_upload_path_available: false
+  managed_admin_handoff_required: true
+  private_security_channel_required: false
+  delivery_summary: >
+    Local-only review is the default; managed-admin handoff is
+    required before the vendor-case path because policy state caused
+    the block. User-initiated upload is unavailable for this scenario.
+
+context_parity_rows:
+  - support_context_class: desktop
+    availability_class: available
+    narrowed_when_summary: not_narrowed; full picker, review, and timeline are available on desktop.
+    alternate_path_summary: not_applicable; desktop is the reference surface for this scenario.
+  - support_context_class: cli_headless
+    availability_class: available
+    narrowed_when_summary: not_narrowed; CLI exposes the same picker rows and packet preview.
+    alternate_path_summary: CLI emits the packet to a local file users can attach later.
+  - support_context_class: remote_managed
+    availability_class: limited_available
+    narrowed_when_summary: Reapproval flows route through managed-admin sign-off.
+    alternate_path_summary: Managed-admin handoff is presented at primary prominence next to local-only review.
+  - support_context_class: offline_local
+    availability_class: available_read_only
+    narrowed_when_summary: Reapproval and vendor-case handoff cannot run while offline; only local review.
+    alternate_path_summary: Local-only review records the packet for later handoff once the user is online.
+
+linkage:
+  scenario_picker_row_ref: support_scenario_picker:trust_policy_identity_approval_block
+  object_handoff_packet_ref: object_handoff_packet:scenario_seed.trust_policy_identity_approval_block
+  scenario_matrix_row_ref: scenario_row:blocked_trust_state
+  escalation_packet_completeness_case_ref: fixtures/support/escalation_packet_completeness_cases/blocked_trust_state_approval_expired.yaml
+  support_bundle_record_ref: support_bundle:scenario_seed.trust_policy_identity_approval_block
+  incident_workspace_packet_ref: null
+  recovery_action_record_ref: recovery_action:restricted_reopen.trust_state_blocked
+  repair_transaction_record_ref: repair_transaction:policy_entitlement_refresh.trust_approval_reacquire
+
+completeness_outcome: complete
+
+governance_bindings:
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  support_packet_index_schema_ref: schemas/support/support_packet_index.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+
+notes: >
+  Trust-state escalations default to support_bundle_by_reference. The
+  packet carries approval-ticket and policy-epoch ids by reference but
+  never embeds raw approval secrets or raw credential material.
+emitted_at: 2026-04-29T00:00:00Z

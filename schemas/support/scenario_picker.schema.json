@@ -1,0 +1,728 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/scenario_picker.schema.json",
+  "title": "Aureline support-intake scenario picker, capability card, and parity contract",
+  "description": "Boundary schema for the support_scenario_picker_record, support_capability_card_record, and support_scenario_intake_index_record frozen in docs/support/support_intake_and_escalation_contract.md. Turns the support-intake surface (scenario picker, issue-report builder, escalation-packet review, handoff timeline) into a versioned decision object: every scenario family declares its first actionable diagnosis target, the closed set of approved repair classes, the closed set of forbidden 'fix' classes, the minimum escalation-packet completeness case it projects onto, the required stable finding codes its picker row may emit, the default data-class boundary, and the per-environment parity notes (desktop, CLI/headless, managed, offline). Reuses the closed vocabularies already frozen in schemas/support/doctor_finding.schema.json, schemas/support/repair_transaction.schema.json, schemas/support/object_handoff_packet.schema.json, schemas/support/support_bundle.schema.json, and schemas/support/support_packet_index.schema.json rather than minting parallel tokens.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/support_scenario_picker_record"
+    },
+    {
+      "$ref": "#/$defs/support_capability_card_record"
+    },
+    {
+      "$ref": "#/$defs/support_scenario_intake_index_record"
+    }
+  ],
+  "$defs": {
+    "scenario_picker_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for this scenario-picker contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewer-facing sentence safe to render in support-intake previews, escalation-packet review surfaces, and CLI/headless output."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable lowercase id that permits `:` as a prefix separator so picker ids match the `support_scenario_picker:<family>` and capability_card:<surface>` fixture conventions."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "doctor_finding_code": {
+      "type": "string",
+      "pattern": "^doctor\\.finding\\.[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable Doctor finding code (re-exported from schemas/support/doctor_finding.schema.json)."
+    },
+    "scenario_family_class": {
+      "type": "string",
+      "enum": [
+        "execution_context_mismatch",
+        "trust_policy_identity_approval_block",
+        "network_ca_proxy_mirror_failure",
+        "extension_or_host_regression",
+        "state_corruption_schema_drift_low_disk_recovery",
+        "remote_route_collaboration_mismatch"
+      ],
+      "description": "Closed set of scenario families the support-intake picker offers. Tokens are pinned to the milestone spec; adding a token is breaking and requires a new decision row in artifacts/governance/decision_index.yaml."
+    },
+    "support_intake_surface_class": {
+      "type": "string",
+      "enum": [
+        "scenario_picker_surface",
+        "issue_report_builder_surface",
+        "escalation_packet_review_surface",
+        "handoff_timeline_surface"
+      ],
+      "description": "Required surfaces a conforming support-intake flow exposes. The four-surface set is closed; intake flows that hide any surface (for example, jump straight from picker to upload without a review surface) are non-conforming."
+    },
+    "support_capability_class": {
+      "type": "string",
+      "enum": [
+        "doctor",
+        "safe_mode",
+        "extension_bisect",
+        "support_bundle",
+        "crash_triage",
+        "guided_repair",
+        "issue_escalation"
+      ],
+      "description": "Closed set of Support Center capability cards an intake flow MUST be able to route from a symptom to. Tokens are reserved by the Support Center concept (docs/support/support_center_concept.md)."
+    },
+    "support_context_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli_headless",
+        "remote_managed",
+        "offline_local"
+      ],
+      "description": "Re-exported from schemas/support/doctor_finding.schema.json. Every scenario row MUST carry one parity note per token."
+    },
+    "support_context_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "available_local_only",
+        "limited_available",
+        "read_only",
+        "unavailable"
+      ],
+      "description": "Re-exported from schemas/support/doctor_finding.schema.json availability_class."
+    },
+    "delivery_path_class": {
+      "type": "string",
+      "enum": [
+        "local_only_review",
+        "vendor_case_handoff",
+        "user_initiated_upload",
+        "managed_admin_handoff",
+        "private_security_channel"
+      ],
+      "description": "Closed set of delivery paths the issue-report builder offers. local_only_review MUST appear on every scenario row and MUST be presented at the same prominence as vendor_case_handoff and user_initiated_upload (no hidden default upload). Adding a token is additive-minor; repurposing is breaking."
+    },
+    "delivery_path_prominence_class": {
+      "type": "string",
+      "enum": [
+        "primary_equal_prominence",
+        "secondary_user_choice",
+        "narrowed_unavailable_in_context"
+      ],
+      "description": "Prominence pin for a delivery path within the picker. local_only_review MUST be at primary_equal_prominence on every scenario row."
+    },
+    "first_actionable_diagnosis_target_class": {
+      "type": "string",
+      "enum": [
+        "doctor_finding_record",
+        "support_bundle_preview_item",
+        "recovery_action_record",
+        "repair_preview_record",
+        "object_handoff_packet_record",
+        "trace_capture_request",
+        "crash_envelope_ref"
+      ],
+      "description": "What an intake picker row resolves to as its first actionable diagnosis target. The token names the record kind (and schema) the picker hands the user to before any repair is proposed."
+    },
+    "approved_repair_class": {
+      "type": "string",
+      "enum": [
+        "observe_only_no_repair",
+        "disposable_state_rebuild",
+        "extension_isolation",
+        "extension_rollback_reinstall",
+        "execution_context_reresolve",
+        "remote_runtime_repair",
+        "policy_entitlement_refresh",
+        "guided_export_escalation",
+        "support_bundle_export",
+        "trace_capture"
+      ],
+      "description": "Re-exported from schemas/support/doctor_finding.schema.json repair_class. A scenario row MAY only list repair classes from this set; adding a class is additive-minor and requires updating the doctor_finding schema in the same change."
+    },
+    "forbidden_fix_class": {
+      "type": "string",
+      "enum": [
+        "widen_workspace_trust",
+        "publish_route",
+        "run_repo_hook_silently",
+        "silent_extension_reinstall",
+        "silent_helper_rebind",
+        "mutate_managed_policy",
+        "mutate_user_authored_files",
+        "read_or_rotate_credentials",
+        "auto_retarget_without_user",
+        "mutate_authoritative_profile_store",
+        "embed_raw_secret_in_export",
+        "auto_widen_redaction_choice",
+        "auto_upload_without_user_review",
+        "factory_reset_as_first_offer"
+      ],
+      "description": "Re-exported from schemas/support/repair_transaction.schema.json forbidden_action_class with two intake-specific additions: auto_upload_without_user_review (prevents the picker from skipping the review surface) and factory_reset_as_first_offer (prevents the picker from defaulting to a destructive reset before a narrower repair). Adding a token is additive-minor."
+    },
+    "data_class_boundary_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ],
+      "description": "Re-exported from schemas/support/doctor_finding.schema.json diagnostic_data_class. The field names the default ceiling; widening past it requires an explicit user consent marker."
+    },
+    "redaction_choice_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "selected_reference_only",
+        "support_bundle_by_reference",
+        "manual_review_required",
+        "broadened_capture_opt_in"
+      ],
+      "description": "Re-exported from schemas/support/object_handoff_packet.schema.json."
+    },
+    "recovery_rung_class": {
+      "type": "string",
+      "enum": [
+        "safe_mode",
+        "extension_bisect",
+        "extension_quarantine",
+        "open_without_restore",
+        "cache_reset_candidate",
+        "restricted_reopen",
+        "rollback_reinstall_candidate",
+        "typed_repair_flow"
+      ],
+      "description": "Re-exported from schemas/support/support_bundle.schema.json."
+    },
+    "scenario_family_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_family_class",
+        "summary"
+      ],
+      "properties": {
+        "scenario_family_class": {
+          "$ref": "#/$defs/scenario_family_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "delivery_path_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delivery_path_class",
+        "prominence_class",
+        "user_facing_label",
+        "summary"
+      ],
+      "properties": {
+        "delivery_path_class": {
+          "$ref": "#/$defs/delivery_path_class"
+        },
+        "prominence_class": {
+          "$ref": "#/$defs/delivery_path_prominence_class"
+        },
+        "user_facing_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewer-safe label the picker renders. MUST NOT carry milestone or task identifiers."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "delivery_path_row_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/delivery_path_row"
+      }
+    },
+    "approved_repair_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approved_repair_class",
+        "why_safe_summary",
+        "what_may_change_summary",
+        "declined_rollback_summary",
+        "declined_evidence_summary"
+      ],
+      "properties": {
+        "approved_repair_class": {
+          "$ref": "#/$defs/approved_repair_class"
+        },
+        "preview_required": {
+          "type": "boolean"
+        },
+        "why_safe_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that explains why this repair class is safe for the scenario family."
+        },
+        "what_may_change_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the impacted state classes the repair may touch."
+        },
+        "declined_rollback_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the rollback path that remains if the user declines this repair."
+        },
+        "declined_evidence_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the evidence path the user keeps if they decline (for example, support bundle preview, escalation packet, or local-only review)."
+        }
+      }
+    },
+    "approved_repair_row_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/approved_repair_row"
+      }
+    },
+    "minimum_escalation_packet_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_packet_completeness_case_ref",
+        "scenario_family_class",
+        "minimum_required_finding_codes",
+        "default_redaction_choice_class",
+        "minimum_required_provenance_bindings",
+        "summary"
+      ],
+      "properties": {
+        "escalation_packet_completeness_case_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative ref to one fixtures/support/escalation_packet_completeness_cases/*.yaml case the picker projects onto."
+        },
+        "scenario_family_class": {
+          "$ref": "#/$defs/scenario_family_class"
+        },
+        "minimum_required_finding_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/doctor_finding_code"
+          }
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/redaction_choice_class"
+        },
+        "minimum_required_provenance_bindings": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Stable provenance binding ids the exported escalation packet MUST carry (for example scenario_row_ref, finding_code_ref, support_bundle_ref)."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "support_capability_link_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_capability_class",
+        "capability_card_ref",
+        "summary"
+      ],
+      "properties": {
+        "support_capability_class": {
+          "$ref": "#/$defs/support_capability_class"
+        },
+        "capability_card_ref": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id of the support_capability_card_record the picker links to for this capability."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "support_capability_link_row_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/support_capability_link_row"
+      }
+    },
+    "context_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_context_class",
+        "availability_class",
+        "narrowed_when_summary",
+        "alternate_path_summary"
+      ],
+      "properties": {
+        "support_context_class": {
+          "$ref": "#/$defs/support_context_class"
+        },
+        "availability_class": {
+          "$ref": "#/$defs/support_context_availability_class"
+        },
+        "narrowed_when_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the conditions under which this context is narrowed or unavailable for the row. Use 'not_narrowed' wording when the path is fully available."
+        },
+        "alternate_path_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the alternate path (for example, local-only review, manifest-only export, or out-of-band handoff) when the context is narrowed."
+        }
+      }
+    },
+    "context_parity_row_array": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/context_parity_row"
+      },
+      "description": "Every scenario picker row and every capability card MUST carry exactly one parity row per support_context_class so a desktop-only happy path cannot be implied."
+    },
+    "governance_bindings_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doctor_finding_schema_ref",
+        "object_handoff_packet_schema_ref",
+        "support_bundle_schema_ref",
+        "support_packet_index_schema_ref",
+        "repair_transaction_schema_ref",
+        "scenario_matrix_ref",
+        "support_center_concept_ref"
+      ],
+      "properties": {
+        "doctor_finding_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/doctor_finding.schema.json"
+        },
+        "object_handoff_packet_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/object_handoff_packet.schema.json"
+        },
+        "support_bundle_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/support_bundle.schema.json"
+        },
+        "support_packet_index_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/support_packet_index.schema.json"
+        },
+        "repair_transaction_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/repair_transaction.schema.json"
+        },
+        "scenario_matrix_ref": {
+          "type": "string",
+          "const": "fixtures/support/scenario_matrix.yaml"
+        },
+        "support_center_concept_ref": {
+          "type": "string",
+          "const": "docs/support/support_center_concept.md"
+        }
+      }
+    },
+    "support_scenario_picker_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "picker_row_id",
+        "scenario_family_class",
+        "title",
+        "user_facing_question",
+        "summary",
+        "first_actionable_diagnosis_target_class",
+        "first_actionable_diagnosis_target_ref",
+        "required_finding_codes",
+        "approved_repairs",
+        "forbidden_fix_classes",
+        "default_data_class_boundary",
+        "default_redaction_choice_class",
+        "default_recovery_rung_class",
+        "minimum_escalation_packet",
+        "delivery_paths",
+        "capability_card_links",
+        "context_parity_rows",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/scenario_picker_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_scenario_picker_record"
+        },
+        "picker_row_id": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id following the support_scenario_picker:<scenario_family> convention."
+        },
+        "scenario_family_class": {
+          "$ref": "#/$defs/scenario_family_class"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Short reviewer-facing title the picker renders. MUST NOT carry milestone or task identifiers."
+        },
+        "user_facing_question": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence the picker shows the user (for example, 'My toolchain or runtime is not behaving as expected'). Used by both desktop and CLI/headless surfaces."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "first_actionable_diagnosis_target_class": {
+          "$ref": "#/$defs/first_actionable_diagnosis_target_class"
+        },
+        "first_actionable_diagnosis_target_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable id of the first record the picker hands the user to (for example, a Doctor finding id, a recovery action id, or a support bundle preview manifest id)."
+        },
+        "required_finding_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/doctor_finding_code"
+          },
+          "description": "Stable Doctor finding codes the picker row may surface. Every code MUST exist in fixtures/support/scenario_matrix.yaml."
+        },
+        "approved_repairs": {
+          "$ref": "#/$defs/approved_repair_row_array",
+          "description": "Closed list of approved repair classes for the scenario family. Each row MUST explain why_safe, what_may_change, declined_rollback, and declined_evidence so users do not have to guess what they keep if they decline."
+        },
+        "forbidden_fix_classes": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "$ref": "#/$defs/forbidden_fix_class"
+          },
+          "description": "Closed list of forbidden actions the picker MUST NOT propose. By rule the list MUST include at least widen_workspace_trust, publish_route, mutate_user_authored_files, read_or_rotate_credentials, and factory_reset_as_first_offer."
+        },
+        "default_data_class_boundary": {
+          "$ref": "#/$defs/data_class_boundary_class"
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/redaction_choice_class"
+        },
+        "default_recovery_rung_class": {
+          "$ref": "#/$defs/recovery_rung_class"
+        },
+        "minimum_escalation_packet": {
+          "$ref": "#/$defs/minimum_escalation_packet_block"
+        },
+        "delivery_paths": {
+          "$ref": "#/$defs/delivery_path_row_array",
+          "description": "Every scenario row MUST list local_only_review at primary_equal_prominence so the local-only path is presented at the same level as upload or vendor-case paths."
+        },
+        "capability_card_links": {
+          "$ref": "#/$defs/support_capability_link_row_array",
+          "description": "Every scenario row MUST link at least the doctor, support_bundle, and issue_escalation capability cards."
+        },
+        "context_parity_rows": {
+          "$ref": "#/$defs/context_parity_row_array"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_capability_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "capability_card_id",
+        "support_capability_class",
+        "title",
+        "summary",
+        "primary_target_record_kind",
+        "primary_target_schema_ref",
+        "default_data_class_boundary",
+        "default_redaction_choice_class",
+        "context_parity_rows",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/scenario_picker_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_capability_card_record"
+        },
+        "capability_card_id": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id following the capability_card:<support_capability_class> convention."
+        },
+        "support_capability_class": {
+          "$ref": "#/$defs/support_capability_class"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "primary_target_record_kind": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The record kind this capability card hands the user to (for example doctor_finding_record, support_bundle_record, recovery_action_record, repair_preview_record, object_handoff_packet_record, trace_capture_request, crash_envelope_ref)."
+        },
+        "primary_target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative ref to the schema that boundary-checks the primary target record."
+        },
+        "linked_scenario_family_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scenario_family_class"
+          },
+          "description": "Scenario families this capability card supports. Empty when the card is universally available (for example doctor)."
+        },
+        "default_data_class_boundary": {
+          "$ref": "#/$defs/data_class_boundary_class"
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/redaction_choice_class"
+        },
+        "context_parity_rows": {
+          "$ref": "#/$defs/context_parity_row_array"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_scenario_intake_index_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "index_id",
+        "title",
+        "summary",
+        "required_intake_surfaces",
+        "scenario_family_summary_rows",
+        "scenario_picker_row_refs",
+        "capability_card_refs",
+        "delivery_path_invariants",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/scenario_picker_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_scenario_intake_index_record"
+        },
+        "index_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "required_intake_surfaces": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/support_intake_surface_class"
+          },
+          "description": "Every conforming intake flow MUST expose all four required surfaces."
+        },
+        "scenario_family_summary_rows": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/scenario_family_summary_row"
+          },
+          "description": "One summary row per scenario family. The set is closed at six per the milestone spec."
+        },
+        "scenario_picker_row_refs": {
+          "type": "array",
+          "minItems": 6,
+          "items": {
+            "$ref": "#/$defs/stable_ref_id"
+          },
+          "description": "Stable picker_row_id references for every scenario family row."
+        },
+        "capability_card_refs": {
+          "type": "array",
+          "minItems": 7,
+          "items": {
+            "$ref": "#/$defs/stable_ref_id"
+          },
+          "description": "Stable capability_card_id references for the seven required Support Center capability cards."
+        },
+        "delivery_path_invariants": {
+          "$ref": "#/$defs/delivery_path_row_array",
+          "description": "Cross-row invariant: local_only_review MUST appear at primary_equal_prominence in the index."
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,182 @@
+# Support-intake scenario case: remote / route / collaboration mismatch.
+#
+# Companion to docs/support/support_intake_and_escalation_contract.md
+# §Scenario families and fixtures/support/scenario_matrix.yaml row
+# scenario_row:failed_helper_attach.
+
+schema_version: 1
+record_kind: support_escalation_packet_seed_case_record
+case_id: scenario_case:remote_route_collaboration_mismatch.helper_attach_required
+scenario_family_class: remote_route_collaboration_mismatch
+title: Remote helper attach failed; route/collaboration mismatch detected
+summary: >
+  A remote helper, language-service helper, debug adapter, or shared
+  collaboration route failed: adapter confidence below floor, approval
+  expired, or session suspended. Intake routes the user to a Doctor
+  finding first; reattach runs only behind explicit reapproval and
+  never silently rebinds a session.
+
+finding_codes:
+  - doctor.finding.helper_attach_approval_required
+  - doctor.finding.wrong_target_detected_requires_reapproval
+
+build_profile_identity:
+  exact_build_identity_ref: exact_build:aureline.scenario_seed.remote_route_collaboration_mismatch
+  install_mode_class: managed_deployed
+  install_channel_class: stable
+  deployment_profile_class: managed_cloud
+  managed_admin_required: false
+  docs_pack_ref: null
+  profile_summary: >
+    Managed-deployed managed-cloud profile; remote helper attach
+    refused after approval drift, and wrong-target route correction
+    is recommended before any reattach.
+
+evidence_references:
+  selected_evidence_refs:
+    - evidence.support.scenario_seed.remote.helper_session_row
+    - evidence.support.scenario_seed.remote.target_identity_row
+    - evidence.support.scenario_seed.remote.route_decision_row
+    - evidence.support.scenario_seed.exact_build_identity
+  support_bundle_refs:
+    - support_bundle:scenario_seed.remote_route_collaboration_mismatch
+  incident_workspace_packet_refs: []
+  repair_transaction_refs:
+    - repair_transaction:remote_runtime_repair.remote_agent_rollback
+  checkpoint_refs:
+    - checkpoint:scenario_seed.remote_route_collaboration_mismatch.pre_apply
+  trace_capture_request_refs: []
+  crash_envelope_refs: []
+  withheld_artifact_refs:
+    - evidence.support.scenario_seed.remote.raw_helper_session_secret
+    - evidence.support.scenario_seed.remote.raw_route_body
+  default_data_class_boundary: environment_adjacent
+  redaction_choice_class: support_bundle_by_reference
+  redaction_widening_consent_marker: null
+  evidence_summary: >
+    Helper session row, target identity row, route decision row, and
+    exact-build identity are embedded by reference. Raw session
+    secrets and raw route bodies are explicitly withheld.
+
+reproduction_steps:
+  - step_index: 0
+    step_class: user_action_observed
+    summary: User attempted to attach a remote helper or open a shared collaboration route.
+    evidence_ref: evidence.support.scenario_seed.remote_route_collaboration_mismatch.user_action
+    command_id: command:attach.remote_helper
+    invocation_session_id: invocation_session:scenario_seed.remote_route_collaboration_mismatch
+    captured_at: null
+  - step_index: 1
+    step_class: background_event_observed
+    summary: Doctor probe observed adapter confidence below floor and an expired helper approval.
+    evidence_ref: evidence.support.scenario_seed.remote_route_collaboration_mismatch.doctor_probe
+    command_id: null
+    invocation_session_id: invocation_session:scenario_seed.remote_route_collaboration_mismatch
+    captured_at: null
+  - step_index: 2
+    step_class: background_event_observed
+    summary: Route packet recorded a wrong-target correction; reapproval flow opened.
+    evidence_ref: evidence.support.scenario_seed.remote_route_collaboration_mismatch.route_correction
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+  - step_index: 3
+    step_class: actual_outcome_summary
+    summary: Helper stayed unattached; restricted_reopen retained, reattach offered behind reapproval.
+    evidence_ref: null
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+
+recommended_repair_reviews:
+  - approved_repair_class: remote_runtime_repair
+    preview_required: true
+    repair_transaction_ref: repair_transaction:remote_runtime_repair.remote_agent_rollback
+    why_safe_summary: >
+      Runs the published reattach flow under explicit reapproval; the
+      remote helper authorization is never silently rebound.
+    what_may_change_summary: >
+      Touches only the remote helper session handle named in the
+      finding; managed control plane and credential store stay
+      preserved.
+    if_declined_rollback_summary: >
+      Helper stays detached; user remains in restricted_reopen with
+      the Doctor finding open.
+    if_declined_evidence_summary: >
+      Support bundle by reference, the helper session row, and the
+      target identity row stay attached to the escalation packet.
+  - approved_repair_class: policy_entitlement_refresh
+    preview_required: true
+    repair_transaction_ref: null
+    why_safe_summary: >
+      Refreshes the approval ticket through the published reapproval
+      flow; trust posture is never widened.
+    what_may_change_summary: >
+      Touches only the approval-ticket and policy-entitlement handles;
+      the remote target identity stays untouched.
+    if_declined_rollback_summary: >
+      No mutation; helper remains unattached and target stays in
+      restricted_reopen.
+    if_declined_evidence_summary: >
+      Local-only review keeps the route decision row and the target
+      identity row available for later handoff.
+
+delivery_posture:
+  selected_delivery_path_class: local_only_review
+  delivery_state_class: saved_local_only
+  local_only_path_available: true
+  vendor_case_path_available: true
+  user_upload_path_available: false
+  managed_admin_handoff_required: false
+  private_security_channel_required: false
+  delivery_summary: >
+    Default selection is local-only review; vendor-case is available
+    at the same prominence. User-initiated upload is unavailable for
+    this scenario because raw route bodies must not leave the machine.
+
+context_parity_rows:
+  - support_context_class: desktop
+    availability_class: available
+    narrowed_when_summary: not_narrowed; full picker, review, and timeline are available on desktop.
+    alternate_path_summary: not_applicable; desktop is the reference surface for this scenario.
+  - support_context_class: cli_headless
+    availability_class: available
+    narrowed_when_summary: not_narrowed; CLI exposes the same picker rows and review fields.
+    alternate_path_summary: CLI emits the packet to a local file users can attach later.
+  - support_context_class: remote_managed
+    availability_class: limited_available
+    narrowed_when_summary: Reattach must respect managed control-plane authority and never auto-retarget.
+    alternate_path_summary: Local-only review and managed-admin handoff remain available at primary prominence.
+  - support_context_class: offline_local
+    availability_class: available_read_only
+    narrowed_when_summary: Reapproval and remote reattach cannot run while offline; only local review.
+    alternate_path_summary: Local-only review records the packet for later handoff once the user is online.
+
+linkage:
+  scenario_picker_row_ref: support_scenario_picker:remote_route_collaboration_mismatch
+  object_handoff_packet_ref: object_handoff_packet:scenario_seed.remote_route_collaboration_mismatch
+  scenario_matrix_row_ref: scenario_row:failed_helper_attach
+  escalation_packet_completeness_case_ref: fixtures/support/escalation_packet_completeness_cases/failed_helper_attach_approval_required.yaml
+  support_bundle_record_ref: support_bundle:scenario_seed.remote_route_collaboration_mismatch
+  incident_workspace_packet_ref: null
+  recovery_action_record_ref: recovery_action:restricted_reopen.helper_attach_approval_required
+  repair_transaction_record_ref: repair_transaction:remote_runtime_repair.remote_agent_rollback
+
+completeness_outcome: complete
+
+governance_bindings:
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  support_packet_index_schema_ref: schemas/support/support_packet_index.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+
+notes: >
+  Remote / route / collaboration mismatch escalations default to
+  support_bundle_by_reference. Raw helper session secrets and raw
+  route bodies stay local-only; the packet carries helper session id,
+  target identity row, route decision row, and reattach-preview
+  transaction ref for handoff.
+emitted_at: 2026-04-29T00:00:00Z

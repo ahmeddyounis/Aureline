@@ -118,6 +118,25 @@ shared record-class registry
 so support exports do not invent their own retention or offboarding
 labels.
 
+## Support intake, scenario picker, and escalation packet
+
+The Support Center's symptom-to-evidence routing runs through the
+support-intake contract in
+[`docs/support/support_intake_and_escalation_contract.md`](./support_intake_and_escalation_contract.md)
+and the schemas
+[`schemas/support/scenario_picker.schema.json`](../../schemas/support/scenario_picker.schema.json)
+and
+[`schemas/support/escalation_packet.schema.json`](../../schemas/support/escalation_packet.schema.json).
+The picker pins six scenario families, the four required intake
+surfaces (picker, builder, review, timeline), the seven capability
+cards (Doctor, safe mode, bisect, support bundle, crash triage,
+guided repair, issue escalation), the closed approved/forbidden fix
+sets, the local-only delivery prominence pin, and per-environment
+parity rows. The escalation packet preserves stable scenario family,
+finding ids, build/profile identity, deployment class, evidence ids,
+reproduction steps, recommended-repair review rows, and per-context
+parity so a user does not restate their case after handoff.
+
 ## Object-specific issue handoff
 
 "Report issue" should preserve the object that failed. The Support Center

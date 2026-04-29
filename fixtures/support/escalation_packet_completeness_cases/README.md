@@ -36,3 +36,12 @@ Case list:
 Every case cites its scenario row by stable id so the
 [`diagnosis_latency_scoreboard.yaml`](../../../artifacts/support/diagnosis_latency_scoreboard.yaml)
 escalation-packet-completeness rows can bind 1:1.
+
+The support-intake scenario picker and escalation-packet contract
+([`docs/support/support_intake_and_escalation_contract.md`](../../../docs/support/support_intake_and_escalation_contract.md),
+[`schemas/support/scenario_picker.schema.json`](../../../schemas/support/scenario_picker.schema.json),
+[`schemas/support/escalation_packet.schema.json`](../../../schemas/support/escalation_packet.schema.json),
+[`fixtures/support/scenario_cases/`](../scenario_cases/))
+binds each scenario family to one case in this directory by
+`escalation_packet_completeness_case_ref`. New picker rows or
+escalation-packet seed cases MUST resolve to a case here.

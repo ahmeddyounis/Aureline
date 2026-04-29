@@ -1,0 +1,176 @@
+# Support-intake scenario case: extension or host regression.
+#
+# Companion to docs/support/support_intake_and_escalation_contract.md
+# §Scenario families and fixtures/support/scenario_matrix.yaml row
+# scenario_row:extension_regression.
+
+schema_version: 1
+record_kind: support_escalation_packet_seed_case_record
+case_id: scenario_case:extension_or_host_regression.crash_loop_quarantined
+scenario_family_class: extension_or_host_regression
+title: Extension or runtime host regressed and was quarantined
+summary: >
+  An extension or runtime host hit a crash loop, exceeded its
+  activation budget, or was quarantined by the supervisor. Intake
+  routes to a Doctor finding first; quarantine and bisect run only
+  behind a reviewed preview and never silently re-enable the host.
+
+finding_codes:
+  - doctor.finding.extension_host_crash_loop_quarantined
+  - doctor.finding.extension_activation_budget_exceeded
+
+build_profile_identity:
+  exact_build_identity_ref: exact_build:aureline.scenario_seed.extension_or_host_regression
+  install_mode_class: per_user_installed
+  install_channel_class: stable
+  deployment_profile_class: individual_local
+  managed_admin_required: false
+  docs_pack_ref: null
+  profile_summary: >
+    Per-user installed stable build; extension host crashed within
+    its restart budget and the supervisor moved it to quarantine.
+
+evidence_references:
+  selected_evidence_refs:
+    - evidence.support.scenario_seed.extension.host_id_row
+    - evidence.support.scenario_seed.extension.fault_domain_row
+    - evidence.support.scenario_seed.extension.crash_envelope_ref
+    - evidence.support.scenario_seed.exact_build_identity
+  support_bundle_refs:
+    - support_bundle:scenario_seed.extension_or_host_regression
+  incident_workspace_packet_refs: []
+  repair_transaction_refs:
+    - repair_transaction:extension_isolation.suspect_host_quarantine
+  checkpoint_refs:
+    - checkpoint:scenario_seed.extension_or_host_regression.pre_apply
+  trace_capture_request_refs: []
+  crash_envelope_refs:
+    - crash_envelope:scenario_seed.extension_or_host_regression
+  withheld_artifact_refs:
+    - evidence.support.scenario_seed.extension.raw_extension_memory_dump
+  default_data_class_boundary: metadata_only
+  redaction_choice_class: metadata_only_default
+  redaction_widening_consent_marker: null
+  evidence_summary: >
+    Host id, fault-domain row, crash-envelope ref, and exact-build
+    identity are sufficient. Raw memory dumps stay local-only per the
+    support-bundle contract.
+
+reproduction_steps:
+  - step_index: 0
+    step_class: user_action_observed
+    summary: User opened a workspace that activated the extension host.
+    evidence_ref: evidence.support.scenario_seed.extension_or_host_regression.user_action
+    command_id: command:open.workspace
+    invocation_session_id: invocation_session:scenario_seed.extension_or_host_regression
+    captured_at: null
+  - step_index: 1
+    step_class: background_event_observed
+    summary: Extension host crashed repeatedly within the supervisor's restart budget.
+    evidence_ref: evidence.support.scenario_seed.extension_or_host_regression.crash_loop_event
+    command_id: null
+    invocation_session_id: invocation_session:scenario_seed.extension_or_host_regression
+    captured_at: null
+  - step_index: 2
+    step_class: background_event_observed
+    summary: Supervisor moved the host into extension_quarantine and emitted the Doctor finding.
+    evidence_ref: evidence.support.scenario_seed.extension_or_host_regression.quarantine_event
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+  - step_index: 3
+    step_class: actual_outcome_summary
+    summary: Extension host stayed quarantined; bisect is offered behind a reviewed preview.
+    evidence_ref: null
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+
+recommended_repair_reviews:
+  - approved_repair_class: extension_isolation
+    preview_required: true
+    repair_transaction_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+    why_safe_summary: >
+      Quarantines a suspect extension and offers bisect; marketplace
+      install state stays in the preserved-state set.
+    what_may_change_summary: >
+      Touches only the extension-quarantine handle named in the
+      finding; user-authored files and trust state stay untouched.
+    if_declined_rollback_summary: >
+      Host remains quarantined; user can choose escalation or stay
+      with the narrower bisect candidate.
+    if_declined_evidence_summary: >
+      Support-bundle preview, crash envelope ref, and Doctor finding
+      remain available for later handoff.
+  - approved_repair_class: extension_rollback_reinstall
+    preview_required: true
+    repair_transaction_ref: null
+    why_safe_summary: >
+      Rolls back the extension to a prior good version under explicit
+      user consent; never silently reinstalls.
+    what_may_change_summary: >
+      Touches only the extension install set named by the user; the
+      marketplace state stays under user authority.
+    if_declined_rollback_summary: >
+      Host stays quarantined; bisect or escalation remain available.
+    if_declined_evidence_summary: >
+      Crash envelope and fault-domain rows stay attached to the
+      escalation packet draft.
+
+delivery_posture:
+  selected_delivery_path_class: local_only_review
+  delivery_state_class: saved_local_only
+  local_only_path_available: true
+  vendor_case_path_available: true
+  user_upload_path_available: true
+  managed_admin_handoff_required: false
+  private_security_channel_required: false
+  delivery_summary: >
+    Default selection is local-only review; vendor-case and user-
+    initiated upload remain available at the same prominence.
+
+context_parity_rows:
+  - support_context_class: desktop
+    availability_class: available
+    narrowed_when_summary: not_narrowed; full picker, review, and timeline are available on desktop.
+    alternate_path_summary: not_applicable; desktop is the reference surface for this scenario.
+  - support_context_class: cli_headless
+    availability_class: available
+    narrowed_when_summary: not_narrowed; CLI exposes the same picker rows and review fields.
+    alternate_path_summary: CLI emits the packet to a local file users can attach later.
+  - support_context_class: remote_managed
+    availability_class: limited_available
+    narrowed_when_summary: Extension rollback may need managed-admin sign-off when policy pins extension versions.
+    alternate_path_summary: Local-only review and managed-admin handoff remain available at primary prominence.
+  - support_context_class: offline_local
+    availability_class: available_local_only
+    narrowed_when_summary: Vendor-case and user-upload paths are unavailable while offline.
+    alternate_path_summary: Local-only review records the packet; quarantine remains in effect.
+
+linkage:
+  scenario_picker_row_ref: support_scenario_picker:extension_or_host_regression
+  object_handoff_packet_ref: object_handoff_packet:scenario_seed.extension_or_host_regression
+  scenario_matrix_row_ref: scenario_row:extension_regression
+  escalation_packet_completeness_case_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+  support_bundle_record_ref: support_bundle:scenario_seed.extension_or_host_regression
+  incident_workspace_packet_ref: null
+  recovery_action_record_ref: recovery_action:extension_quarantine.crash_loop
+  repair_transaction_record_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+
+completeness_outcome: complete
+
+governance_bindings:
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  support_packet_index_schema_ref: schemas/support/support_packet_index.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+
+notes: >
+  Extension or host regression escalations stay metadata-only by
+  default. The packet preserves host id, fault domain id, crash
+  envelope ref, and quarantine lineage so support review can pivot
+  from finding to bisect without reloading the user's case.
+emitted_at: 2026-04-29T00:00:00Z

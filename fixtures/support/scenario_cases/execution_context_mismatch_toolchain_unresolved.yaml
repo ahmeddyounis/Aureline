@@ -1,0 +1,177 @@
+# Support-intake scenario case: execution-context mismatch.
+#
+# Companion to docs/support/support_intake_and_escalation_contract.md
+# §Scenario families and fixtures/support/scenario_matrix.yaml row
+# scenario_row:missing_toolchain.
+
+schema_version: 1
+record_kind: support_escalation_packet_seed_case_record
+case_id: scenario_case:execution_context_mismatch.toolchain_unresolved
+scenario_family_class: execution_context_mismatch
+title: Required toolchain component missing or version-mismatched
+summary: >
+  The declared target requires a toolchain or runtime that Doctor
+  cannot find or finds at an incompatible version. Intake routes the
+  user to a Doctor finding first; install/repair runs only behind a
+  reviewed preview.
+
+finding_codes:
+  - doctor.finding.toolchain_missing_required_component
+  - doctor.finding.toolchain_version_out_of_range
+
+build_profile_identity:
+  exact_build_identity_ref: exact_build:aureline.scenario_seed.execution_context_mismatch
+  install_mode_class: per_user_installed
+  install_channel_class: stable
+  deployment_profile_class: individual_local
+  managed_admin_required: false
+  docs_pack_ref: null
+  profile_summary: >
+    Per-user installed stable build on an individual-local profile;
+    docs-pack ref unknown at intake time and resolves to a typed
+    unknown rather than blocking export.
+
+evidence_references:
+  selected_evidence_refs:
+    - evidence.support.scenario_seed.toolchain_manifest_row
+    - evidence.support.scenario_seed.exact_build_identity
+  support_bundle_refs:
+    - support_bundle:scenario_seed.execution_context_mismatch
+  incident_workspace_packet_refs: []
+  repair_transaction_refs:
+    - repair_transaction:execution_context_reresolve.toolchain_required_component
+  checkpoint_refs:
+    - checkpoint:scenario_seed.execution_context_mismatch.pre_apply
+  trace_capture_request_refs: []
+  crash_envelope_refs: []
+  withheld_artifact_refs: []
+  default_data_class_boundary: metadata_only
+  redaction_choice_class: metadata_only_default
+  redaction_widening_consent_marker: null
+  evidence_summary: >
+    Toolchain manifest row, exact-build identity, and repair-preview
+    refs are sufficient. No raw credentials, source bodies, or shell
+    history cross the boundary by default.
+
+reproduction_steps:
+  - step_index: 0
+    step_class: user_action_observed
+    summary: User opened the workspace and the target's run command failed at toolchain resolution.
+    evidence_ref: evidence.support.scenario_seed.execution_context_mismatch.user_action
+    command_id: command:run.target
+    invocation_session_id: invocation_session:scenario_seed.execution_context_mismatch
+    captured_at: null
+  - step_index: 1
+    step_class: command_invocation_observed
+    summary: Doctor probe for the toolchain family resolved to a missing required component.
+    evidence_ref: evidence.support.scenario_seed.execution_context_mismatch.doctor_probe
+    command_id: null
+    invocation_session_id: invocation_session:scenario_seed.execution_context_mismatch
+    captured_at: null
+  - step_index: 2
+    step_class: expected_outcome_summary
+    summary: User expected the run command to start the workspace target without intervention.
+    evidence_ref: null
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+  - step_index: 3
+    step_class: actual_outcome_summary
+    summary: Run command failed with a toolchain-resolution error and Doctor opened a finding.
+    evidence_ref: evidence.support.scenario_seed.execution_context_mismatch.run_failure
+    command_id: null
+    invocation_session_id: null
+    captured_at: null
+
+recommended_repair_reviews:
+  - approved_repair_class: execution_context_reresolve
+    preview_required: true
+    repair_transaction_ref: repair_transaction:execution_context_reresolve.toolchain_required_component
+    why_safe_summary: >
+      Re-resolves the toolchain handle against the declared target;
+      authored files, trust state, and credentials are listed in the
+      preserved-state set.
+    what_may_change_summary: >
+      Touches only the execution-context handle and the toolchain
+      install set named in the finding evidence.
+    if_declined_rollback_summary: >
+      No mutation occurred; user remains in restricted_reopen with the
+      Doctor finding open and the support-bundle preview retained.
+    if_declined_evidence_summary: >
+      Local-only review keeps the support-bundle preview, the Doctor
+      finding, and the escalation packet draft for later handoff.
+  - approved_repair_class: observe_only_no_repair
+    preview_required: false
+    repair_transaction_ref: null
+    why_safe_summary: >
+      Observe-only diagnosis runs no writes; it only emits the Doctor
+      finding and supporting evidence row.
+    what_may_change_summary: >
+      Nothing changes; the finding is read-only and the audit log
+      entry is the only emitted record.
+    if_declined_rollback_summary: >
+      Already a no-write path; declining drops the finding row from
+      the packet draft.
+    if_declined_evidence_summary: >
+      The exact-build identity ref and the toolchain manifest row
+      remain available for a later support-bundle preview.
+
+delivery_posture:
+  selected_delivery_path_class: local_only_review
+  delivery_state_class: saved_local_only
+  local_only_path_available: true
+  vendor_case_path_available: true
+  user_upload_path_available: true
+  managed_admin_handoff_required: false
+  private_security_channel_required: false
+  delivery_summary: >
+    Default selection is local-only review; vendor-case and user-
+    initiated upload remain available at the same prominence.
+
+context_parity_rows:
+  - support_context_class: desktop
+    availability_class: available
+    narrowed_when_summary: not_narrowed; full picker, review, and timeline are available on desktop.
+    alternate_path_summary: not_applicable; desktop is the reference surface for this scenario.
+  - support_context_class: cli_headless
+    availability_class: available
+    narrowed_when_summary: not_narrowed; CLI exposes the same picker rows, review fields, and packet preview.
+    alternate_path_summary: CLI emits the packet to a local file users can attach later.
+  - support_context_class: remote_managed
+    availability_class: limited_available
+    narrowed_when_summary: Toolchain install/repair may need managed-admin sign-off before apply.
+    alternate_path_summary: Local-only review and managed-admin handoff remain available at primary prominence.
+  - support_context_class: offline_local
+    availability_class: available_local_only
+    narrowed_when_summary: Vendor-case and user-upload paths are unavailable while offline.
+    alternate_path_summary: Local-only review records the packet for later handoff once the user is online.
+
+linkage:
+  scenario_picker_row_ref: support_scenario_picker:execution_context_mismatch
+  object_handoff_packet_ref: object_handoff_packet:scenario_seed.execution_context_mismatch
+  scenario_matrix_row_ref: scenario_row:missing_toolchain
+  escalation_packet_completeness_case_ref: fixtures/support/escalation_packet_completeness_cases/missing_toolchain_required_component.yaml
+  support_bundle_record_ref: support_bundle:scenario_seed.execution_context_mismatch
+  incident_workspace_packet_ref: null
+  recovery_action_record_ref: recovery_action:typed_repair_flow.execution_context_reresolve
+  repair_transaction_record_ref: repair_transaction:execution_context_reresolve.toolchain_required_component
+
+completeness_outcome: complete_with_typed_unknowns
+typed_unknown_fields:
+  - build_profile_identity.docs_pack_ref
+
+governance_bindings:
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  support_packet_index_schema_ref: schemas/support/support_packet_index.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+
+notes: >
+  Toolchain mismatches stay metadata-only by default. The escalation
+  packet preserves the Doctor finding, the toolchain manifest row, the
+  repair-preview transaction ref, and the local-only review state so
+  the user keeps full evidence even if they decline the install.
+emitted_at: 2026-04-29T00:00:00Z

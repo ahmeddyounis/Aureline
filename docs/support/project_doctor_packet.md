@@ -55,6 +55,15 @@ Companion artifacts:
   — one completeness case per scenario family showing which exact-
   build, route/boundary, redaction, and fixture-id fields an exported
   issue handoff must carry, and which fields may be typed-unknown.
+- [`/docs/support/support_intake_and_escalation_contract.md`](./support_intake_and_escalation_contract.md),
+  [`/schemas/support/scenario_picker.schema.json`](../../schemas/support/scenario_picker.schema.json),
+  [`/schemas/support/escalation_packet.schema.json`](../../schemas/support/escalation_packet.schema.json),
+  and
+  [`/fixtures/support/scenario_cases/`](../../fixtures/support/scenario_cases/)
+  — support-intake scenario picker, capability-card, escalation-
+  packet, and field-readiness contract that reuses the Doctor finding,
+  repair-class, recovery-rung, and no-touch boundary vocabularies
+  this packet pins.
 - [`/docs/support/support_center_concept.md`](./support_center_concept.md)
   — product-facing Support Center concept that reserves Project Doctor
   as the canonical diagnosis surface and binds it to the recovery
