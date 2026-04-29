@@ -1,0 +1,644 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/restore_provenance_record.schema.json",
+  "title": "Aureline restore-provenance and missing-dependency placeholder record",
+  "description": "Boundary schema for the cross-surface restore-provenance, compatibility-restore downgrade, and missing-dependency placeholder contract. Captures source, created-at, producer build, source schema version, redaction class, resulting fidelity, restore level, missing-dependency classes, missing-dependency placeholder cards (preserving original pane role and recovery actions), schema-migration notes, preserved-prior-artifact refs, rollback and equivalence-map handles, intentional exclusions, and compare/export hooks. The closed five-class fidelity vocabulary (exact, compatible, layout_only, recovered_drafts, evidence_only) is the same one used by startup, support, and docs/help flows. See docs/state/restore_provenance_and_placeholder_contract.md.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/restore_provenance_record" }
+  ],
+  "$defs": {
+    "restore_provenance_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the restore-provenance and placeholder record. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "state_restore_provenance_and_placeholder_record",
+      "description": "Discriminator for the restore-provenance and placeholder record."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, manifests, support exports, and compare handles. Raw paths, raw URLs, credentials, source content, command lines, and live authority handles never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ],
+      "description": "Opaque handle or null when the handle is intentionally absent."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply the active redaction policy before crossing this boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "producer_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer name, e.g. 'aureline'. Never a raw hostname."
+        },
+        "producer_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer version string. Opaque at the schema boundary."
+        },
+        "producer_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null]
+        },
+        "producer_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null]
+        },
+        "producer_instance_handle": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque pseudonymous producer-instance handle."
+        }
+      },
+      "description": "Producer build stamp."
+    },
+
+    "artifact_family": {
+      "type": "string",
+      "enum": [
+        "portable_state_package",
+        "portable_profile",
+        "profile_sync_snapshot",
+        "layout_snapshot",
+        "session_restore_manifest",
+        "workspace_manifest_bundle",
+        "support_recovery_bundle",
+        "import_bridge_bundle"
+      ],
+      "description": "High-level artifact family the provenance record describes."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "aureline_portable_state_package",
+        "aureline_portable_profile",
+        "aureline_profile_sync_snapshot",
+        "aureline_layout_snapshot",
+        "aureline_session_restore_manifest",
+        "aureline_workspace_manifest_bundle",
+        "support_recovery_bundle",
+        "imported_competitor_profile",
+        "imported_competitor_layout_bundle",
+        "mixed_state_export_bundle"
+      ],
+      "description": "Concrete source-class label for the artifact the restore consumed."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "Shared redaction-class set reused by support export and state portability surfaces."
+    },
+
+    "fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compatible",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ],
+      "description": "Closed five-class compatibility-restore downgrade vocabulary. Display copy may render Exact, Compatible, Layout only, Recovered drafts, and Evidence only."
+    },
+
+    "restore_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ],
+      "description": "Restore-level vocabulary aligned with the fidelity class. The closed set is fixed; partial/best_effort labels are non-conforming."
+    },
+
+    "source_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_family", "source_class", "source_artifact_ref"],
+      "properties": {
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref for the source artifact the restore consumed."
+        }
+      },
+      "description": "What the restore was asked to reopen."
+    },
+
+    "missing_dependency_class": {
+      "type": "string",
+      "enum": [
+        "absent_extension",
+        "absent_remote_target",
+        "revoked_permission",
+        "stale_service_dependency",
+        "missing_workspace_authority",
+        "missing_schema_equivalence_map"
+      ],
+      "description": "Closed taxonomy of missing-dependency classes that drive a placeholder card."
+    },
+
+    "preserved_pane_role": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "terminal",
+        "debugger",
+        "notebook",
+        "search",
+        "problems",
+        "scm",
+        "docs",
+        "preview",
+        "ai_panel",
+        "explorer",
+        "test",
+        "custom_extension"
+      ],
+      "description": "Original pane role the placeholder card stands in for. Re-export of the workspace-shell pane-tree role vocabulary minus 'placeholder' (a placeholder card never stands in for another placeholder)."
+    },
+
+    "preserved_surface_class": {
+      "type": "string",
+      "enum": [
+        "text_editor",
+        "diff_editor",
+        "terminal_view",
+        "debug_view",
+        "notebook_view",
+        "search_results",
+        "problems_panel",
+        "scm_panel",
+        "docs_browser",
+        "preview_canvas",
+        "ai_panel",
+        "explorer_tree",
+        "test_results",
+        "extension_view"
+      ],
+      "description": "Original surface class the placeholder card stands in for. Re-export of the workspace-shell pane-tree class vocabulary minus 'placeholder_card'."
+    },
+
+    "recovery_action": {
+      "type": "string",
+      "enum": [
+        "retry_hydrate",
+        "locate_extension",
+        "install_extension",
+        "open_without",
+        "reconnect_remote",
+        "reauthenticate",
+        "open_restricted",
+        "rebind_existing_session",
+        "rerun_explicitly",
+        "compare_with_preserved_artifact",
+        "open_repair_instructions",
+        "escalate_to_manual_repair",
+        "export_evidence",
+        "remove_pane"
+      ],
+      "description": "Closed recovery-action vocabulary on a placeholder card. Aligned with the placeholder-action set frozen on the window-topology snapshot."
+    },
+
+    "missing_dependency_placeholder_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "placeholder_card_id",
+        "missing_dependency_class",
+        "preserved_pane_id",
+        "preserved_pane_role",
+        "preserved_surface_class",
+        "evidence_retained",
+        "recovery_actions"
+      ],
+      "properties": {
+        "placeholder_card_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the placeholder card row. Survives across compare/export and re-render."
+        },
+        "missing_dependency_class": { "$ref": "#/$defs/missing_dependency_class" },
+        "missing_dependency_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque handle for the missing dependency (extension manifest entry, remote-target descriptor, permission ticket, service-dependency descriptor, schema-equivalence map). Null when the producer could not name a stable handle."
+        },
+        "preserved_pane_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "The original stable pane id the placeholder card stands in for. A new pane id minted to substitute for a missing pane is non-conforming."
+        },
+        "preserved_pane_role": { "$ref": "#/$defs/preserved_pane_role" },
+        "preserved_surface_class": { "$ref": "#/$defs/preserved_surface_class" },
+        "preserved_title_hint": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Best-effort title hint preserved from the original pane. May be null."
+        },
+        "evidence_retained": {
+          "type": "boolean",
+          "description": "Whether a transcript, snapshot, or metadata-only summary of the original surface remained available behind the placeholder."
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the retained evidence body, when one exists."
+        },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/recovery_action" },
+          "description": "Closed recovery actions surfaced on the placeholder card."
+        },
+        "last_known_provenance_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Short label describing the last-known live provenance of the surface (e.g. 'rust analyzer extension', 'remote python kernel'). Redaction-aware."
+        },
+        "note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short reviewer note. Redaction-aware."
+        }
+      },
+      "description": "One missing-dependency placeholder card. Preserves the original pane role, evidence posture, and recovery actions instead of silently collapsing the surface out of the layout."
+    },
+
+    "schema_migration_note_class": {
+      "type": "string",
+      "enum": [
+        "no_migration_required",
+        "schema_translation_applied",
+        "schema_meaning_changed",
+        "blocked_pending_review",
+        "producer_schema_downgrade_refused"
+      ],
+      "description": "Closed taxonomy of schema-migration outcomes."
+    },
+
+    "schema_migration_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_class",
+        "source_schema_version",
+        "target_schema_version",
+        "equivalence_map_ref",
+        "rollback_checkpoint_ref",
+        "preserved_prior_artifact_ref"
+      ],
+      "properties": {
+        "note_class": { "$ref": "#/$defs/schema_migration_note_class" },
+        "source_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "equivalence_map_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preserved_prior_artifact_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Schema-migration posture and the handles that explain how meaning travelled across versions."
+    },
+
+    "intentional_exclusion_class": {
+      "type": "string",
+      "enum": [
+        "non_portable_live_authority",
+        "secret_or_credential_material",
+        "delegated_approval_or_ticket",
+        "machine_unique_handle",
+        "raw_provider_payload",
+        "raw_path_or_url",
+        "raw_command_line",
+        "raw_log_or_trace",
+        "raw_source_content",
+        "user_declined",
+        "policy_excluded"
+      ],
+      "description": "Closed taxonomy of intentional exclusions surfaced alongside missing dependencies. Intentional exclusions never imply a missing-dependency placeholder card."
+    },
+
+    "intentional_exclusion_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exclusion_id", "exclusion_class"],
+      "properties": {
+        "exclusion_id": { "$ref": "#/$defs/opaque_id" },
+        "exclusion_class": { "$ref": "#/$defs/intentional_exclusion_class" },
+        "scope_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short scope note. Redaction-aware."
+        }
+      },
+      "description": "One intentionally-excluded class. Distinct from a missing dependency: the producer did not claim to carry this state in the first place."
+    },
+
+    "preservation_reason": {
+      "type": "string",
+      "enum": [
+        "schema_meaning_changed",
+        "downgraded_for_compare",
+        "support_export",
+        "manual_repair_escalation",
+        "rollback_retained"
+      ],
+      "description": "Why the prior artifact was preserved by reference."
+    },
+
+    "preserved_prior_artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_ref", "artifact_family", "preservation_reason", "redaction_class"],
+      "properties": {
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "preservation_reason": { "$ref": "#/$defs/preservation_reason" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "compare_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short retained rollback note describing why the prior artifact remains reachable. Redaction-aware."
+        },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Ref and metadata for a prior artifact preserved before mutation."
+    },
+
+    "restore_provenance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "restore_provenance_schema_version",
+        "restore_provenance_id",
+        "source",
+        "created_at",
+        "producer_build",
+        "source_schema_version",
+        "redaction_class",
+        "resulting_fidelity",
+        "restore_level",
+        "missing_dependency_classes",
+        "missing_dependency_placeholder_cards",
+        "schema_migration_note",
+        "preserved_prior_artifacts",
+        "intentional_exclusions",
+        "rollback_checkpoint_ref",
+        "equivalence_map_ref",
+        "compare_ref",
+        "export_ref",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema hint carried on worked fixtures."
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "restore_provenance_schema_version": { "$ref": "#/$defs/restore_provenance_schema_version" },
+        "restore_provenance_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the restore-provenance record."
+        },
+        "source": { "$ref": "#/$defs/source_summary" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "source_schema_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Source schema-version string from the producer artifact."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "resulting_fidelity": { "$ref": "#/$defs/fidelity_class" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "missing_dependency_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/missing_dependency_class" },
+          "description": "Aggregate inventory of missing-dependency classes detected by the restore. Empty when nothing was missing. Every class listed here MUST be the class of at least one row in missing_dependency_placeholder_cards."
+        },
+        "missing_dependency_placeholder_cards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_dependency_placeholder_card" },
+          "description": "One placeholder-card row per pane that reopened only as a placeholder/context because of a missing dependency. Empty when no placeholder cards were emitted."
+        },
+        "schema_migration_note": { "$ref": "#/$defs/schema_migration_note" },
+        "preserved_prior_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preserved_prior_artifact_record" },
+          "description": "Prior artifacts retained for compare/export/rollback before mutation."
+        },
+        "intentional_exclusions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/intentional_exclusion_row" },
+          "description": "Closed-class rows describing what the source intentionally never claimed to carry. Distinct from missing dependencies."
+        },
+        "rollback_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Rollback checkpoint handle. Required for compatible, recovered-drafts, and evidence-only restores; null on exact restore."
+        },
+        "equivalence_map_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Equivalence-map handle that explains the compatibility translation, if any. Required when schema_migration_note.note_class is schema_translation_applied or schema_meaning_changed."
+        },
+        "compare_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Top-level compare handle for the resulting restore. Required on every fidelity above exact."
+        },
+        "export_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Top-level export handle for the resulting restore. Required on every fidelity above exact."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short reviewer note."
+        }
+      },
+
+      "allOf": [
+        {
+          "if": {
+            "properties": { "resulting_fidelity": { "const": "exact" } }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "exact_restore" },
+              "missing_dependency_classes": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "missing_dependency_placeholder_cards": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "rollback_checkpoint_ref": { "type": "null" },
+              "equivalence_map_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "resulting_fidelity": { "const": "compatible" } }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "compatible_restore" },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "resulting_fidelity": { "const": "layout_only" } }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "layout_only" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "resulting_fidelity": { "const": "recovered_drafts" } }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "recovered_drafts" },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifacts": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "resulting_fidelity": { "const": "evidence_only" } }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "evidence_only" },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_migration_note": {
+                "properties": {
+                  "note_class": { "const": "schema_translation_applied" }
+                },
+                "required": ["note_class"]
+              }
+            },
+            "required": ["schema_migration_note"]
+          },
+          "then": {
+            "properties": {
+              "schema_migration_note": {
+                "properties": {
+                  "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" },
+                  "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_migration_note": {
+                "properties": {
+                  "note_class": { "const": "schema_meaning_changed" }
+                },
+                "required": ["note_class"]
+              }
+            },
+            "required": ["schema_migration_note"]
+          },
+          "then": {
+            "properties": {
+              "schema_migration_note": {
+                "properties": {
+                  "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" },
+                  "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+                  "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+                }
+              },
+              "preserved_prior_artifacts": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+
+      "description": "Restore-provenance and missing-dependency placeholder record. Carries source, created-at, producer build, source schema version, redaction class, resulting fidelity, restore level, missing-dependency classes and placeholder cards, schema-migration notes, preserved-prior-artifact refs, intentional exclusions, and compare/export hooks so partial restores stay explicit instead of silent."
+    }
+  }
+}
