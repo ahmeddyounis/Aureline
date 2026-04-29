@@ -1,0 +1,1502 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/durable_job_envelope.schema.json",
+  "title": "Aureline durable-job envelope contract",
+  "description": "Boundary schema for one durable_job_envelope_record frozen in docs/ux/durable_job_envelope_contract.md. Every long-running, queued, reviewable, held, or suppressed piece of work mints exactly one envelope under one canonical_event_id and one canonical_object_target_ref. Toasts, modal spinners, status-bar flickers, OS notifications, lock-screen summaries, companion push, badges, and durable rows derive their state from this envelope; a surface that renders durable work without naming an upstream envelope is non-conforming. The record composes with schemas/ux/activity_event_envelope.schema.json for delivery-surface, quiet-hours, suppression, dedupe, dismissal, privacy-payload, badge-class, and source-subsystem vocabulary, with schemas/ux/job_row.schema.json for the render-level row that projects this envelope, with schemas/ux/notification_event.schema.json for surface-class routing, and with schemas/ux/event_lineage.schema.json for cross-client lineage. Raw bodies, raw paths, raw URLs, raw provider payloads, raw prompt or completion text, raw command bodies, raw logs, tokens, credential material, and secret values never cross this boundary. Adding a new phase class, progress form class, badge source class, fanout receipt state, action kind, sensitivity axis, or expected boundary class is additive-minor and bumps durable_job_envelope_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "durable_job_envelope_schema_version",
+    "envelope_id",
+    "durable_job_id",
+    "canonical_event_id",
+    "canonical_object_target_ref",
+    "subject_class",
+    "actor",
+    "target",
+    "phase",
+    "progress",
+    "sensitivity",
+    "affordances",
+    "badge_source",
+    "notification_linkage",
+    "lineage",
+    "audit",
+    "support_export",
+    "policy_context",
+    "timestamps",
+    "narrative_refs"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "type": "string", "const": "durable_job_envelope_record" },
+    "durable_job_envelope_schema_version": { "$ref": "#/$defs/durable_job_envelope_schema_version" },
+    "envelope_id": { "$ref": "#/$defs/opaque_id" },
+    "durable_job_id": { "$ref": "#/$defs/opaque_id" },
+    "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+    "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+    "subject_class": { "$ref": "#/$defs/durable_job_subject_class" },
+    "actor": { "$ref": "#/$defs/actor_summary" },
+    "target": { "$ref": "#/$defs/target_summary" },
+    "phase": { "$ref": "#/$defs/phase_summary" },
+    "progress": { "$ref": "#/$defs/progress_summary" },
+    "sensitivity": { "$ref": "#/$defs/sensitivity_summary" },
+    "affordances": { "$ref": "#/$defs/affordances_summary" },
+    "badge_source": { "$ref": "#/$defs/badge_source_summary" },
+    "notification_linkage": { "$ref": "#/$defs/notification_linkage_summary" },
+    "lineage": { "$ref": "#/$defs/lineage_summary" },
+    "audit": { "$ref": "#/$defs/audit_summary" },
+    "support_export": { "$ref": "#/$defs/support_export_summary" },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "timestamps": { "$ref": "#/$defs/timestamp_summary" },
+    "narrative_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "description": "queued envelopes MUST name queue_reason_label and expected_boundary_class.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "queued" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["queue_reason_label", "expected_boundary_class"],
+            "properties": {
+              "queue_reason_label": { "$ref": "#/$defs/reviewable_sentence" },
+              "expected_boundary_class": { "$ref": "#/$defs/expected_boundary_class" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "running envelopes MUST carry phase_label and exactly one of labeled_progress_bar (with progress_bar) or spinner_only (with indeterminate_reason_label).",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "running" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["phase_label"],
+            "properties": { "phase_label": { "$ref": "#/$defs/short_label_text" } }
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "properties": {
+                  "progress_form_class": { "const": "labeled_progress_bar" },
+                  "progress_bar": { "$ref": "#/$defs/progress_bar" }
+                },
+                "required": ["progress_form_class", "progress_bar"]
+              },
+              {
+                "properties": {
+                  "progress_form_class": { "const": "spinner_only" },
+                  "indeterminate_reason_label": { "$ref": "#/$defs/short_label_text" }
+                },
+                "required": ["progress_form_class", "indeterminate_reason_label"]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "preparing envelopes MUST carry phase_label and a phase_only or spinner_only progress form with an indeterminate reason when spinner_only.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "preparing" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["phase_label"],
+            "properties": { "phase_label": { "$ref": "#/$defs/short_label_text" } }
+          },
+          "progress": {
+            "properties": {
+              "progress_form_class": { "enum": ["phase_only", "spinner_only", "labeled_progress_bar"] }
+            },
+            "required": ["progress_form_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "spinner_only progress MUST carry indeterminate_reason_label.",
+      "if": {
+        "properties": { "progress": { "properties": { "progress_form_class": { "const": "spinner_only" } }, "required": ["progress_form_class"] } },
+        "required": ["progress"]
+      },
+      "then": {
+        "properties": {
+          "progress": {
+            "required": ["indeterminate_reason_label"],
+            "properties": { "indeterminate_reason_label": { "$ref": "#/$defs/short_label_text" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "labeled_progress_bar progress MUST carry progress_bar.",
+      "if": {
+        "properties": { "progress": { "properties": { "progress_form_class": { "const": "labeled_progress_bar" } }, "required": ["progress_form_class"] } },
+        "required": ["progress"]
+      },
+      "then": {
+        "properties": {
+          "progress": {
+            "required": ["progress_bar"],
+            "properties": { "progress_bar": { "$ref": "#/$defs/progress_bar" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "waiting_input envelopes MUST carry waiting_for_label and approval_source_label and expose review_approval (or other typed handoff) in additional_action_kinds.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "waiting_input" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["waiting_for_label", "approval_source_label"],
+            "properties": {
+              "waiting_for_label": { "$ref": "#/$defs/reviewable_sentence" },
+              "approval_source_label": { "$ref": "#/$defs/short_label_text" }
+            }
+          },
+          "affordances": {
+            "properties": {
+              "additional_action_kinds": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "enum": [
+                    "review_approval",
+                    "inspect_policy",
+                    "release_hold",
+                    "open_evidence",
+                    "open_history"
+                  ]
+                }
+              }
+            },
+            "required": ["additional_action_kinds"]
+          }
+        }
+      }
+    },
+    {
+      "description": "failed envelopes MUST carry failure_or_partial_summary_label and finished_at.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "failed" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["failure_or_partial_summary_label"],
+            "properties": { "failure_or_partial_summary_label": { "$ref": "#/$defs/reviewable_sentence" } }
+          },
+          "timestamps": {
+            "required": ["finished_at"],
+            "properties": { "finished_at": { "$ref": "#/$defs/monotonic_timestamp" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "partially_complete envelopes MUST carry failure_or_partial_summary_label and counts.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "partially_complete" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["failure_or_partial_summary_label"],
+            "properties": { "failure_or_partial_summary_label": { "$ref": "#/$defs/reviewable_sentence" } }
+          },
+          "progress": {
+            "required": ["included_count", "excluded_count", "failed_count"],
+            "properties": {
+              "included_count": { "type": "integer", "minimum": 0 },
+              "excluded_count": { "type": "integer", "minimum": 0 },
+              "failed_count": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "timestamps": {
+            "required": ["finished_at"],
+            "properties": { "finished_at": { "$ref": "#/$defs/monotonic_timestamp" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "completed envelopes MUST carry completion_summary_label and finished_at.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "completed" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["completion_summary_label"],
+            "properties": { "completion_summary_label": { "$ref": "#/$defs/reviewable_sentence" } }
+          },
+          "timestamps": {
+            "required": ["finished_at"],
+            "properties": { "finished_at": { "$ref": "#/$defs/monotonic_timestamp" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "cancelled envelopes MUST carry failure_or_partial_summary_label naming the cancellation actor and finished_at.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "cancelled" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["failure_or_partial_summary_label"],
+            "properties": { "failure_or_partial_summary_label": { "$ref": "#/$defs/reviewable_sentence" } }
+          },
+          "timestamps": {
+            "required": ["finished_at"],
+            "properties": { "finished_at": { "$ref": "#/$defs/monotonic_timestamp" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "held envelopes MUST carry hold_or_suppression_reason_label, name at least one suppression reason, and have non-empty audit refs.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "held" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["hold_or_suppression_reason_label", "suppression_reasons", "quiet_hours_modes"],
+            "properties": {
+              "hold_or_suppression_reason_label": { "$ref": "#/$defs/reviewable_sentence" },
+              "suppression_reasons": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/suppression_reason" },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "quiet_hours_modes": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/quiet_hours_mode" },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            }
+          },
+          "audit": {
+            "required": ["audit_event_refs"],
+            "properties": {
+              "audit_event_refs": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/opaque_id" },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "suppressed envelopes MUST carry hold_or_suppression_reason_label, a non-null policy_source_ref, and non-empty audit refs.",
+      "if": {
+        "properties": { "phase": { "properties": { "phase_class": { "const": "suppressed" } }, "required": ["phase_class"] } },
+        "required": ["phase"]
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "required": ["hold_or_suppression_reason_label", "policy_source_ref"],
+            "properties": {
+              "hold_or_suppression_reason_label": { "$ref": "#/$defs/reviewable_sentence" },
+              "policy_source_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          },
+          "audit": {
+            "required": ["audit_event_refs"],
+            "properties": {
+              "audit_event_refs": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/opaque_id" },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Any sensitive axis (cost, policy, network, trust, provider state, recovery posture) requires detail_or_evidence_required true and a non-null detail_or_evidence_ref.",
+      "if": {
+        "properties": {
+          "sensitivity": {
+            "anyOf": [
+              { "properties": { "affects_cost": { "const": true } }, "required": ["affects_cost"] },
+              { "properties": { "affects_policy": { "const": true } }, "required": ["affects_policy"] },
+              { "properties": { "affects_network": { "const": true } }, "required": ["affects_network"] },
+              { "properties": { "affects_trust": { "const": true } }, "required": ["affects_trust"] },
+              { "properties": { "affects_provider_state": { "const": true } }, "required": ["affects_provider_state"] },
+              { "properties": { "affects_recovery_posture": { "const": true } }, "required": ["affects_recovery_posture"] }
+            ]
+          }
+        },
+        "required": ["sensitivity"]
+      },
+      "then": {
+        "properties": {
+          "sensitivity": {
+            "required": ["detail_or_evidence_required", "detail_or_evidence_ref"],
+            "properties": {
+              "detail_or_evidence_required": { "const": true },
+              "detail_or_evidence_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "open_details affordance MUST always be present.",
+      "properties": {
+        "affordances": {
+          "required": ["open_details"],
+          "properties": {
+            "open_details": {
+              "required": ["availability_class", "label", "target_ref"],
+              "properties": {
+                "availability_class": { "const": "enabled" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "When the envelope's cancel affordance is enabled, an open-details affordance MUST also be enabled and the cancel command_id MUST be non-null.",
+      "if": {
+        "properties": {
+          "affordances": {
+            "properties": {
+              "cancel": {
+                "properties": { "availability_class": { "const": "enabled" } },
+                "required": ["availability_class"]
+              }
+            },
+            "required": ["cancel"]
+          }
+        },
+        "required": ["affordances"]
+      },
+      "then": {
+        "properties": {
+          "affordances": {
+            "properties": {
+              "cancel": {
+                "required": ["command_id", "cancellability_class"],
+                "properties": {
+                  "command_id": { "$ref": "#/$defs/opaque_id" },
+                  "cancellability_class": { "const": "cancellable" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "When the envelope's retry affordance is enabled, the retry command_id MUST be non-null and the retry availability MUST be enabled.",
+      "if": {
+        "properties": {
+          "affordances": {
+            "properties": {
+              "retry": {
+                "properties": { "availability_class": { "const": "enabled" } },
+                "required": ["availability_class"]
+              }
+            },
+            "required": ["retry"]
+          }
+        },
+        "required": ["affordances"]
+      },
+      "then": {
+        "properties": {
+          "affordances": {
+            "properties": {
+              "retry": {
+                "required": ["command_id"],
+                "properties": { "command_id": { "$ref": "#/$defs/opaque_id" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "badge_source = derived_from_envelope_state requires emitted_badge_classes non-empty and a partition_rule_label.",
+      "if": {
+        "properties": {
+          "badge_source": {
+            "properties": { "badge_source_class": { "const": "derived_from_envelope_state" } },
+            "required": ["badge_source_class"]
+          }
+        },
+        "required": ["badge_source"]
+      },
+      "then": {
+        "properties": {
+          "badge_source": {
+            "required": ["emitted_badge_classes", "partition_rule_label"],
+            "properties": {
+              "emitted_badge_classes": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/badge_class" },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "partition_rule_label": { "$ref": "#/$defs/short_label_text" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "badge_source = derived_from_canonical_object requires emitted_badge_classes non-empty and a partition_rule_label.",
+      "if": {
+        "properties": {
+          "badge_source": {
+            "properties": { "badge_source_class": { "const": "derived_from_canonical_object" } },
+            "required": ["badge_source_class"]
+          }
+        },
+        "required": ["badge_source"]
+      },
+      "then": {
+        "properties": {
+          "badge_source": {
+            "required": ["emitted_badge_classes", "partition_rule_label"],
+            "properties": {
+              "emitted_badge_classes": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/badge_class" },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "partition_rule_label": { "$ref": "#/$defs/short_label_text" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "badge_source = aggregated_grouped_burst requires grouped_burst_id_ref non-null and dedupe_key_scheme = grouped_burst_id.",
+      "if": {
+        "properties": {
+          "badge_source": {
+            "properties": { "badge_source_class": { "const": "aggregated_grouped_burst" } },
+            "required": ["badge_source_class"]
+          }
+        },
+        "required": ["badge_source"]
+      },
+      "then": {
+        "properties": {
+          "badge_source": {
+            "required": ["grouped_burst_id_ref", "dedupe_key_scheme"],
+            "properties": {
+              "grouped_burst_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "dedupe_key_scheme": { "const": "grouped_burst_id" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "badge_source = not_a_badge_source requires emitted_badge_classes empty.",
+      "if": {
+        "properties": {
+          "badge_source": {
+            "properties": { "badge_source_class": { "const": "not_a_badge_source" } },
+            "required": ["badge_source_class"]
+          }
+        },
+        "required": ["badge_source"]
+      },
+      "then": {
+        "properties": {
+          "badge_source": {
+            "properties": {
+              "emitted_badge_classes": { "type": "array", "maxItems": 0 }
+            },
+            "required": ["emitted_badge_classes"]
+          }
+        }
+      }
+    },
+    {
+      "description": "notification_linkage.shared_canonical_event_id MUST mirror the envelope's canonical_event_id.",
+      "properties": {
+        "notification_linkage": {
+          "required": ["shared_canonical_event_id", "shared_canonical_object_target_ref"],
+          "properties": {
+            "shared_canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+            "shared_canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "durable_job_envelope_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for logs, RPC, support bundles, manifests, OS notification payloads, and lock-screen summaries. Never contains raw paths, raw URLs, raw secret material, raw provider payloads, raw prompt or completion text, or raw logs."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json without modification."
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+    "execution_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_initiated",
+        "system_background",
+        "extension_initiated",
+        "remote_agent_initiated",
+        "managed_policy_initiated",
+        "ai_agent_initiated",
+        "provider_callback"
+      ]
+    },
+    "durable_job_subject_class": {
+      "type": "string",
+      "enum": [
+        "build",
+        "test",
+        "debug_session",
+        "task_run",
+        "indexer_pass",
+        "save_or_sync",
+        "update_install",
+        "restore_or_recovery",
+        "download_or_upload",
+        "notebook_execution",
+        "ai_apply_execution",
+        "review_apply_execution",
+        "provider_handoff",
+        "remote_attach",
+        "collaboration_session",
+        "admin_policy_refresh"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json without modification."
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "build",
+        "test_run",
+        "debug_session",
+        "task_run",
+        "workspace_index",
+        "save_or_sync",
+        "package_action",
+        "provider_publish",
+        "ai_apply",
+        "review_apply",
+        "remote_attach",
+        "collaboration_session",
+        "notebook_execution",
+        "support_export",
+        "policy_decision",
+        "update_install",
+        "download_upload",
+        "recovery_action"
+      ]
+    },
+    "phase_class": {
+      "type": "string",
+      "enum": [
+        "preparing",
+        "queued",
+        "running",
+        "waiting_input",
+        "partially_complete",
+        "completed",
+        "failed",
+        "cancelled",
+        "held",
+        "suppressed"
+      ],
+      "description": "Frozen progress-phase grammar. Every envelope resolves to exactly one phase class. Phase splits emit a new envelope under the same durable_job_id and canonical_event_id."
+    },
+    "progress_form_class": {
+      "type": "string",
+      "enum": [
+        "labeled_progress_bar",
+        "spinner_only",
+        "phase_only",
+        "queue_only",
+        "approval_only",
+        "hold_only",
+        "completion_only",
+        "failure_only",
+        "cancelled_only"
+      ],
+      "description": "Frozen progress-form grammar. labeled_progress_bar is preferred for measurable work; spinner_only is allowed only with an indeterminate reason and a phase label; phase_only / queue_only / approval_only / hold_only / completion_only / failure_only / cancelled_only render terminal-or-blocked states without a numeric bar."
+    },
+    "expected_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local",
+        "remote",
+        "provider",
+        "approval",
+        "policy",
+        "network",
+        "managed_service",
+        "unknown_requires_review"
+      ]
+    },
+    "cancellability_class": {
+      "type": "string",
+      "enum": [
+        "cancellable",
+        "not_cancellable_named_reason",
+        "cancel_requires_review",
+        "already_terminal"
+      ]
+    },
+    "retry_class": {
+      "type": "string",
+      "enum": [
+        "retry_offered",
+        "retry_pending_review",
+        "retry_denied_named_reason",
+        "retry_not_applicable"
+      ]
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "cancel_job",
+        "open_details",
+        "open_evidence",
+        "retry",
+        "review_approval",
+        "acknowledge",
+        "export_support",
+        "open_history",
+        "release_hold",
+        "inspect_policy",
+        "none_available"
+      ],
+      "description": "Re-exported from schemas/ux/job_row.schema.json without modification."
+    },
+    "action_availability_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_with_reason",
+        "requires_review",
+        "hidden_by_policy",
+        "not_applicable"
+      ]
+    },
+    "dismissal_verb": {
+      "type": "string",
+      "enum": [
+        "acknowledge",
+        "resolve",
+        "dismiss",
+        "snooze",
+        "mute",
+        "suppress"
+      ]
+    },
+    "privacy_payload_class": {
+      "type": "string",
+      "enum": [
+        "lock_screen_safe_generic",
+        "lock_screen_safe_scoped",
+        "in_product_only",
+        "redacted_metadata_only",
+        "policy_forbidden_on_lock_screen"
+      ]
+    },
+    "quiet_hours_mode": {
+      "type": "string",
+      "enum": [
+        "mode_none",
+        "mode_quiet_hours_user",
+        "mode_do_not_disturb_user",
+        "mode_focus_mode_user",
+        "mode_presentation",
+        "mode_screen_share",
+        "mode_privacy_mode",
+        "mode_reduced_attention_policy",
+        "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ]
+    },
+    "suppression_reason": {
+      "type": "string",
+      "enum": [
+        "quiet_hours_user_policy",
+        "do_not_disturb_user_policy",
+        "focus_mode_user_policy",
+        "presentation_mode_active",
+        "screen_share_active",
+        "privacy_mode_active",
+        "admin_policy_suppression",
+        "reduced_attention_posture",
+        "power_saver_background_pause",
+        "dedupe_same_canonical_event",
+        "dedupe_same_grouped_burst",
+        "class_muted_by_user",
+        "class_snoozed_by_user",
+        "release_pending_next_unsuppressed_surface"
+      ]
+    },
+    "dedupe_key_scheme": {
+      "type": "string",
+      "enum": [
+        "canonical_event_id",
+        "canonical_object_target_plus_event_class",
+        "grouped_burst_id",
+        "subsystem_plus_object_plus_phase",
+        "cross_client_canonical_event_id"
+      ]
+    },
+    "badge_class": {
+      "type": "string",
+      "enum": [
+        "needs_review",
+        "failed_runs",
+        "mentions",
+        "security_notices",
+        "session_requests",
+        "offline_publish_pending",
+        "durable_running_count",
+        "held_or_suppressed_count",
+        "completion_unread"
+      ]
+    },
+    "badge_source_class": {
+      "type": "string",
+      "enum": [
+        "derived_from_envelope_state",
+        "derived_from_canonical_object",
+        "aggregated_grouped_burst",
+        "not_a_badge_source"
+      ]
+    },
+    "fanout_surface_class": {
+      "type": "string",
+      "enum": [
+        "durable_job_row",
+        "status_strip",
+        "status_item",
+        "activity_center_digest_card",
+        "toast",
+        "contextual_banner",
+        "os_notification",
+        "lock_screen_summary",
+        "companion_push",
+        "digest_group_row",
+        "not_delivered_held"
+      ]
+    },
+    "fanout_receipt_state": {
+      "type": "string",
+      "enum": [
+        "delivered",
+        "held_quiet_hours",
+        "suppressed_policy",
+        "deduped_canonical_event",
+        "deduped_grouped_burst",
+        "released_from_hold",
+        "not_attempted_no_route"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "actor_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_subsystem",
+        "actor_identity_ref",
+        "actor_label",
+        "execution_origin_class",
+        "client_scope"
+      ],
+      "properties": {
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_label": { "$ref": "#/$defs/short_label_text" },
+        "execution_origin_class": { "$ref": "#/$defs/execution_origin_class" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "originating_surface_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        }
+      }
+    },
+    "target_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_identity_ref",
+        "target_kind",
+        "scope_label",
+        "object_label",
+        "redaction_class"
+      ],
+      "properties": {
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "scope_label": { "$ref": "#/$defs/short_label_text" },
+        "object_label": { "$ref": "#/$defs/short_label_text" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "source_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "phase_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase_class",
+        "phase_age_label"
+      ],
+      "properties": {
+        "phase_class": { "$ref": "#/$defs/phase_class" },
+        "phase_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "phase_age_label": { "$ref": "#/$defs/short_label_text" },
+        "expected_boundary_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/expected_boundary_class" }
+          ]
+        },
+        "queue_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "waiting_for_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "approval_source_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "failure_or_partial_summary_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "completion_summary_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "hold_or_suppression_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "quiet_hours_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/quiet_hours_mode" },
+          "uniqueItems": true
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_reason" },
+          "uniqueItems": true
+        },
+        "policy_source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "progress_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "numerator", "denominator", "unit_label"],
+      "properties": {
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "numerator": { "type": "integer", "minimum": 0 },
+        "denominator": { "type": "integer", "minimum": 1 },
+        "unit_label": { "$ref": "#/$defs/short_label_text" },
+        "percent_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        }
+      }
+    },
+    "progress_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["progress_form_class"],
+      "properties": {
+        "progress_form_class": { "$ref": "#/$defs/progress_form_class" },
+        "progress_bar": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/progress_bar" }
+          ]
+        },
+        "indeterminate_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "included_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "excluded_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "failed_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        }
+      }
+    },
+    "sensitivity_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "privacy_payload_class",
+        "affects_cost",
+        "affects_policy",
+        "affects_network",
+        "affects_trust",
+        "affects_provider_state",
+        "affects_recovery_posture",
+        "detail_or_evidence_required",
+        "sensitivity_summary_sentence"
+      ],
+      "properties": {
+        "privacy_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "affects_cost": { "type": "boolean" },
+        "affects_policy": { "type": "boolean" },
+        "affects_network": { "type": "boolean" },
+        "affects_trust": { "type": "boolean" },
+        "affects_provider_state": { "type": "boolean" },
+        "affects_recovery_posture": { "type": "boolean" },
+        "detail_or_evidence_required": { "type": "boolean" },
+        "detail_or_evidence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "sensitivity_summary_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "open_details_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "command_id",
+        "availability_class",
+        "target_ref",
+        "preserves_durable_history"
+      ],
+      "properties": {
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "availability_class": { "$ref": "#/$defs/action_availability_class" },
+        "disabled_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserves_durable_history": { "type": "boolean", "const": true }
+      }
+    },
+    "cancel_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "availability_class",
+        "cancellability_class",
+        "target_ref",
+        "preserves_durable_history"
+      ],
+      "properties": {
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "availability_class": { "$ref": "#/$defs/action_availability_class" },
+        "cancellability_class": { "$ref": "#/$defs/cancellability_class" },
+        "disabled_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserves_durable_history": { "type": "boolean", "const": true }
+      }
+    },
+    "retry_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "availability_class",
+        "retry_class",
+        "target_ref",
+        "preserves_durable_history"
+      ],
+      "properties": {
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "availability_class": { "$ref": "#/$defs/action_availability_class" },
+        "retry_class": { "$ref": "#/$defs/retry_class" },
+        "disabled_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserves_durable_history": { "type": "boolean", "const": true }
+      }
+    },
+    "affordances_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "open_details",
+        "cancel",
+        "retry",
+        "additional_action_kinds",
+        "dismissal_verbs_available"
+      ],
+      "properties": {
+        "open_details": { "$ref": "#/$defs/open_details_affordance" },
+        "cancel": { "$ref": "#/$defs/cancel_affordance" },
+        "retry": { "$ref": "#/$defs/retry_affordance" },
+        "additional_action_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_kind" },
+          "uniqueItems": true
+        },
+        "dismissal_verbs_available": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dismissal_verb" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "badge_source_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "badge_source_class",
+        "emitted_badge_classes",
+        "dedupe_key_scheme",
+        "partition_rule_label"
+      ],
+      "properties": {
+        "badge_source_class": { "$ref": "#/$defs/badge_source_class" },
+        "emitted_badge_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/badge_class" },
+          "uniqueItems": true
+        },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "partition_rule_label": { "$ref": "#/$defs/short_label_text" },
+        "source_of_truth_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "fanout_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fanout_surface_class",
+        "delivery_envelope_ref",
+        "receipt_state",
+        "dedupe_key_scheme",
+        "redaction_class",
+        "client_scope"
+      ],
+      "properties": {
+        "fanout_surface_class": { "$ref": "#/$defs/fanout_surface_class" },
+        "delivery_envelope_ref": { "$ref": "#/$defs/opaque_id" },
+        "receipt_state": { "$ref": "#/$defs/fanout_receipt_state" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "suppression_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_reason" },
+          "uniqueItems": true
+        },
+        "release_rule_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "notification_linkage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_canonical_event_id",
+        "shared_canonical_object_target_ref",
+        "notification_envelope_refs",
+        "status_strip_envelope_refs",
+        "os_notification_envelope_refs",
+        "lock_screen_summary_envelope_refs",
+        "companion_push_envelope_refs",
+        "fanout_receipts"
+      ],
+      "properties": {
+        "shared_canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "shared_canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "notification_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "status_strip_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "os_notification_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "lock_screen_summary_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "companion_push_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "fanout_receipts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fanout_receipt" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "lineage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_lineage_id_ref",
+        "dedupe_key_scheme",
+        "source_envelope_refs"
+      ],
+      "properties": {
+        "event_lineage_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "source_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "cross_client_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "audit_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_event_refs",
+        "preserves_durable_history"
+      ],
+      "properties": {
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "last_phase_change_audit_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "preserves_durable_history": { "type": "boolean", "const": true }
+      }
+    },
+    "support_export_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportable",
+        "redaction_class",
+        "export_field_refs",
+        "notification_dedupe_ref",
+        "carries_target_source_phase_progress_sensitivity_detail",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "exportable": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_field_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "notification_dedupe_ref": { "$ref": "#/$defs/opaque_id" },
+        "carries_target_source_phase_progress_sensitivity_detail": { "type": "boolean", "const": true },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "timestamp_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minted_at",
+        "last_phase_changed_at"
+      ],
+      "properties": {
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "queued_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "started_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "held_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "last_phase_changed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "finished_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      }
+    }
+  }
+}
