@@ -15,6 +15,12 @@ Companion artifacts:
 - [`/fixtures/support/pack_inclusion_cases/`](../../fixtures/support/pack_inclusion_cases/)
   - seeded assembly cases for extension, toolchain, renderer, and
   network failures.
+- [`/docs/support/support_bundle_preview_contract.md`](./support_bundle_preview_contract.md)
+  and
+  [`/fixtures/support/support_bundle_preview_cases/`](../../fixtures/support/support_bundle_preview_cases/)
+  - preview/export manifest cases that show how matrix item ids,
+  deselection posture, redaction states, and actionability warnings
+  survive local review and post-export intake.
 - [`/docs/support/supportability_slo_and_pack_contract.md`](./supportability_slo_and_pack_contract.md)
   - pack-class, preview-manifest, reopen-manifest, SLO, drill, and
   waiver contract that consumes these item rows.

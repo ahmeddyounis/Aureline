@@ -10,6 +10,13 @@ Companion artifacts:
 - [`/schemas/support/support_bundle.schema.json`](../../schemas/support/support_bundle.schema.json)
   — machine-readable boundary for the bundle record and the bundle
   redaction-profile record.
+- [`/docs/support/support_bundle_preview_contract.md`](./support_bundle_preview_contract.md),
+  [`/schemas/support/support_bundle_manifest.schema.json`](../../schemas/support/support_bundle_manifest.schema.json),
+  [`/schemas/support/support_bundle_preview_item.schema.json`](../../schemas/support/support_bundle_preview_item.schema.json),
+  and
+  [`/fixtures/support/support_bundle_preview_cases/`](../../fixtures/support/support_bundle_preview_cases/)
+  — local review surface, preview-item, manifest, and parity fixtures
+  that make bundle contents inspectable before export.
 - [`/docs/support/diagnostic_artifact_matrix.md`](./diagnostic_artifact_matrix.md),
   [`/artifacts/support/support_evidence_pack_matrix.yaml`](../../artifacts/support/support_evidence_pack_matrix.yaml),
   and
