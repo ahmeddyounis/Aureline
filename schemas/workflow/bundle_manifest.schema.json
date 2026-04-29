@@ -1,0 +1,1266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workflow/bundle_manifest.schema.json",
+  "title": "Aureline workflow-bundle manifest, component inventory, and source-class contract",
+  "description": "Boundary schema for one workflow_bundle_manifest_record as frozen in docs/workflow/workflow_bundle_object_model.md. Every Launch, Imported-user, Org-approved, Design-partner, and Local-draft bundle that may project onto Start Center, browse-bundles, project-doctor, support-export, claim-manifest, certified-archetype-report, removal, rollback, or CLI/headless surfaces MUST make bundle identity (id, revision, class, source class, status class, signer source, signer continuity, channel relation, compatible Aureline range, archetype bindings, support class, mirror or offline packaging posture, dependency markers, evidence-link refs), component inventory (extension sets, profile/surface presets, task/launch/debug recipes, template/scaffold refs, docs/tour/glossary packs, migration mappings, certification targets, evidence links), source/status truth, lifecycle posture (state class, evidence age, retest-needed posture, successor recommendation, certification-sheet refs, removal/rollback surface kinds), and class linkage all inspectable and diffable. Raw signing keys, raw certificate material, raw repository URLs, raw absolute paths, raw manifest bodies, raw extension binaries, raw secrets, and raw user-authored content never cross this boundary; records carry opaque refs, content digests, closed vocabulary, timestamps, and short reviewable summaries only. Adding a new bundle_class, bundle_source_class, bundle_status_class, mirror_or_offline_packaging_posture, bundle_signer_source_class, bundle_channel_relation_class, bundle_dependency_marker_kind, bundle_component_kind, evidence_link_kind, lifecycle_state_class, successor_recommendation_class, evidence_age_class, retest_needed_posture, removal_surface_kind, or rollback_surface_kind value is additive-minor and bumps workflow_bundle_manifest_schema_version; repurposing an existing value or class linkage pairing is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/workflow_bundle_manifest_record",
+  "$defs": {
+    "workflow_bundle_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this boundary. Current value is 1. Bumped on additive-minor enum or field additions; repurposing or removal is breaking and requires a decision row."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support bundles, registry records, and review packets. Raw paths, URLs, payloads, secrets, key material, and user content never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Reviewer-facing sentence already scrubbed by the producer. Raw paths, URLs, secrets, command lines, and manifest bodies never appear here."
+    },
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Short reviewer-facing summary already scrubbed by the producer."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "semver_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "bundle_class": {
+      "type": "string",
+      "enum": [
+        "launch_bundle",
+        "imported_user_bundle",
+        "org_approved_bundle",
+        "design_partner_bundle",
+        "local_draft_bundle"
+      ],
+      "description": "Stable product row class projected onto Start Center, diagnostics, claim, removal, rollback, and CLI/headless surfaces. Frozen in docs/workflow/workflow_bundle_object_model.md §3.1."
+    },
+    "bundle_source_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "managed_approved",
+        "community",
+        "imported",
+        "local_draft"
+      ],
+      "description": "Author / trust class. Re-exported on per-component entries when a component carries a stricter source than the manifest. Frozen in docs/workflow/workflow_bundle_object_model.md §3.2."
+    },
+    "bundle_status_class": {
+      "type": "string",
+      "enum": [
+        "certified_current",
+        "certified_retest_pending",
+        "managed_approved_current",
+        "community_reviewed",
+        "community_unreviewed",
+        "imported_pending_review",
+        "local_draft",
+        "deprecated_or_archived",
+        "retest_needed",
+        "status_unknown"
+      ],
+      "description": "Operational status at minted_at. Frozen in docs/workflow/workflow_bundle_object_model.md §3.3."
+    },
+    "mirror_or_offline_packaging_posture": {
+      "type": "string",
+      "enum": [
+        "live_origin_only",
+        "live_or_mirror",
+        "mirror_only",
+        "signed_offline_bundle",
+        "offline_no_bundle",
+        "packaging_posture_unknown"
+      ]
+    },
+    "bundle_signer_source_class": {
+      "type": "string",
+      "enum": [
+        "core_signing_root",
+        "core_signing_root_via_mirror",
+        "org_policy_signing_root",
+        "org_mirror_signing_root",
+        "community_channel_signature",
+        "signed_offline_bundle_root",
+        "repo_local_workspace_trust",
+        "local_user_trust_only",
+        "unsigned_user_review_required",
+        "trust_source_unknown_review_required"
+      ]
+    },
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "continuous_with_previous_acquisition",
+        "first_acquisition_no_prior_signer",
+        "signer_changed_review_required",
+        "signer_unknown_user_review_required",
+        "signer_continuity_not_applicable"
+      ]
+    },
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "unsigned",
+        "author_signature",
+        "author_and_organization_signature",
+        "organization_signature_only",
+        "managed_only_channel_signature",
+        "quarantined_no_signature"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "officially_supported",
+        "community_supported",
+        "experimental",
+        "legacy_deprecated",
+        "unsupported",
+        "support_unknown"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.3."
+    },
+    "bundle_channel_relation_class": {
+      "type": "string",
+      "enum": [
+        "same_channel_revision",
+        "cross_channel_promotion",
+        "cross_channel_demotion",
+        "branch_or_fork_revision",
+        "not_applicable_local_draft"
+      ]
+    },
+    "bundle_dependency_marker_kind": {
+      "type": "string",
+      "enum": [
+        "requires_runtime_range",
+        "requires_extension_set",
+        "requires_template_ref",
+        "requires_archetype_binding",
+        "requires_companion_bundle",
+        "optional_companion_bundle",
+        "replaces_bundle",
+        "conflicts_with_bundle",
+        "recommends_against_bundle"
+      ]
+    },
+    "bundle_component_kind": {
+      "type": "string",
+      "enum": [
+        "extension_set",
+        "profile_preset",
+        "surface_preset",
+        "task_recipe",
+        "launch_recipe",
+        "debug_recipe",
+        "template_or_scaffold_ref",
+        "docs_pack",
+        "tour_pack",
+        "glossary_pack",
+        "migration_mapping",
+        "certification_target",
+        "evidence_link"
+      ]
+    },
+    "evidence_link_kind": {
+      "type": "string",
+      "enum": [
+        "certification_sheet",
+        "compatibility_report",
+        "benchmark_packet",
+        "migration_note",
+        "docs_version_match",
+        "support_export_reference",
+        "known_limit_note",
+        "scoreboard_packet",
+        "claim_manifest_row",
+        "decision_row_ref"
+      ]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "active_supported",
+        "soft_deprecated_with_successor",
+        "hard_deprecated_remove_recommended",
+        "retest_needed",
+        "evidence_aged",
+        "removed_unavailable",
+        "rollback_recommended",
+        "lifecycle_unknown"
+      ]
+    },
+    "successor_recommendation_class": {
+      "type": "string",
+      "enum": [
+        "no_successor",
+        "successor_recommended_same_class",
+        "successor_recommended_different_class",
+        "successor_recommended_first_party_native",
+        "successor_unknown"
+      ]
+    },
+    "evidence_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh_current",
+        "aging_within_window",
+        "stale_past_window",
+        "age_unknown"
+      ]
+    },
+    "retest_needed_posture": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "retest_recommended",
+        "retest_required",
+        "retest_blocked"
+      ]
+    },
+    "removal_surface_kind": {
+      "type": "string",
+      "enum": [
+        "start_center_browse_bundles",
+        "bundle_detail_panel",
+        "project_doctor_recommended_action",
+        "support_export_recommendation",
+        "cli_or_headless_remove",
+        "org_policy_recall",
+        "not_applicable_local_draft"
+      ]
+    },
+    "rollback_surface_kind": {
+      "type": "string",
+      "enum": [
+        "bundle_detail_panel",
+        "project_doctor_recommended_action",
+        "support_export_recommendation",
+        "cli_or_headless_rollback",
+        "org_policy_pinned_revision",
+        "not_applicable_no_prior_revision"
+      ]
+    },
+    "pilot_expiry_or_review_class": {
+      "type": "string",
+      "enum": [
+        "quarterly",
+        "semiannual",
+        "annual",
+        "on_named_event"
+      ]
+    },
+    "disabled_reason_code": {
+      "type": "string",
+      "enum": [
+        "policy_narrowed_fleet",
+        "policy_narrowed_admin",
+        "policy_narrowed_workspace_trust",
+        "mirror_only_cached_subset",
+        "signature_review_required",
+        "uncertified_excluded",
+        "target_runtime_unavailable",
+        "network_unreachable",
+        "rebuild_required"
+      ]
+    },
+    "scoreboard_family_id": {
+      "type": "string",
+      "enum": [
+        "bootstrap_and_entry_parity_scoreboard",
+        "migration_fidelity_scoreboard",
+        "task_run_test_debug_parity_scoreboard",
+        "extension_or_package_bridge_parity_scoreboard",
+        "workflow_bundle_or_archetype_proof_scoreboard",
+        "benchmark_and_public_proof_packet_scoreboard",
+        "docs_known_limits_support_copy_alignment_scoreboard"
+      ]
+    },
+    "public_proof_packet_shape": {
+      "type": "string",
+      "enum": [
+        "bootstrap_entry_parity_packet",
+        "migration_fidelity_packet",
+        "task_run_test_debug_parity_packet",
+        "extension_or_package_bridge_parity_packet",
+        "workflow_bundle_or_archetype_proof_packet",
+        "benchmark_public_proof_packet",
+        "docs_known_limits_support_copy_alignment_packet"
+      ]
+    },
+    "runtime_compatibility_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_aureline_runtime_version",
+        "maximum_aureline_runtime_version_exclusive",
+        "compatible_release_channel_refs"
+      ],
+      "properties": {
+        "minimum_aureline_runtime_version": { "$ref": "#/$defs/semver_string" },
+        "maximum_aureline_runtime_version_exclusive": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver_string" }
+          ]
+        },
+        "compatible_release_channel_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "compatibility_note_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "archetype_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archetype_row_id", "archetype_revision"],
+      "properties": {
+        "archetype_row_id": { "$ref": "#/$defs/opaque_id" },
+        "archetype_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "binding_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_summary" }
+          ]
+        }
+      }
+    },
+    "dependency_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["marker_kind", "target_ref", "marker_summary_ref"],
+      "properties": {
+        "marker_kind": { "$ref": "#/$defs/bundle_dependency_marker_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "marker_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "marker_reason_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_summary" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Bundle-targeting markers cite a target revision; runtime/extension/template/archetype markers may omit it.",
+          "if": {
+            "properties": {
+              "marker_kind": {
+                "enum": [
+                  "requires_companion_bundle",
+                  "optional_companion_bundle",
+                  "replaces_bundle",
+                  "conflicts_with_bundle",
+                  "recommends_against_bundle"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["target_revision_ref"],
+            "properties": {
+              "target_revision_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "evidence_link_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_link_kind", "evidence_ref", "evidence_summary_ref"],
+      "properties": {
+        "evidence_link_kind": { "$ref": "#/$defs/evidence_link_kind" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "scoreboard_family_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/scoreboard_family_id" }
+          ]
+        },
+        "public_proof_packet_shape": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/public_proof_packet_shape" }
+          ]
+        }
+      }
+    },
+    "bundle_component_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_id",
+        "component_kind",
+        "component_revision",
+        "component_summary_ref",
+        "component_source_class",
+        "component_disclosure_required",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "component_id": { "$ref": "#/$defs/opaque_id" },
+        "component_kind": { "$ref": "#/$defs/bundle_component_kind" },
+        "component_revision": { "$ref": "#/$defs/opaque_id" },
+        "component_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "component_source_class": { "$ref": "#/$defs/bundle_source_class" },
+        "component_signer_source_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bundle_signer_source_class" }
+          ]
+        },
+        "component_signer_continuity_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/signer_continuity_class" }
+          ]
+        },
+        "component_evidence_link_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_link_ref" },
+          "uniqueItems": false
+        },
+        "template_or_scaffold_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required when component_kind is template_or_scaffold_ref. Resolves to a template_registry_entry_record id."
+        },
+        "migration_source_object_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Required when component_kind is migration_mapping. Source-object class quoted from the migration contract."
+        },
+        "migration_target_component_kind": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bundle_component_kind" }
+          ],
+          "description": "Required when component_kind is migration_mapping. Target component kind in the bundle inventory."
+        },
+        "certification_scoreboard_family_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/scoreboard_family_id" }
+          ],
+          "description": "Required when component_kind is certification_target."
+        },
+        "certification_packet_shape": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/public_proof_packet_shape" }
+          ],
+          "description": "Required when component_kind is certification_target."
+        },
+        "certification_workflow_bundle_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required when component_kind is certification_target. Cites the workflow_bundle_id this certification target binds to (typically the manifest's own bundle_id)."
+        },
+        "component_disclosure_required": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "Template-or-scaffold components cite a registry entry.",
+          "if": {
+            "properties": {
+              "component_kind": { "const": "template_or_scaffold_ref" }
+            }
+          },
+          "then": {
+            "required": ["template_or_scaffold_target_ref"],
+            "properties": {
+              "template_or_scaffold_target_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Migration-mapping components cite source object class and target component kind.",
+          "if": {
+            "properties": {
+              "component_kind": { "const": "migration_mapping" }
+            }
+          },
+          "then": {
+            "required": [
+              "migration_source_object_class",
+              "migration_target_component_kind"
+            ],
+            "properties": {
+              "migration_source_object_class": { "type": "string", "minLength": 1 },
+              "migration_target_component_kind": { "$ref": "#/$defs/bundle_component_kind" }
+            }
+          }
+        },
+        {
+          "description": "Certification-target components cite scoreboard family, packet shape, and workflow_bundle_id.",
+          "if": {
+            "properties": {
+              "component_kind": { "const": "certification_target" }
+            }
+          },
+          "then": {
+            "required": [
+              "certification_scoreboard_family_id",
+              "certification_packet_shape",
+              "certification_workflow_bundle_id"
+            ],
+            "properties": {
+              "certification_scoreboard_family_id": { "$ref": "#/$defs/scoreboard_family_id" },
+              "certification_packet_shape": { "$ref": "#/$defs/public_proof_packet_shape" },
+              "certification_workflow_bundle_id": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Community or imported components carry a typed signer continuity class.",
+          "if": {
+            "properties": {
+              "component_source_class": {
+                "enum": ["community", "imported"]
+              }
+            }
+          },
+          "then": {
+            "required": ["component_signer_continuity_class"],
+            "properties": {
+              "component_signer_continuity_class": { "$ref": "#/$defs/signer_continuity_class" }
+            }
+          }
+        }
+      ]
+    },
+    "bundle_component_inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extension_sets",
+        "profile_presets",
+        "surface_presets",
+        "task_recipes",
+        "launch_recipes",
+        "debug_recipes",
+        "template_or_scaffold_refs",
+        "docs_packs",
+        "tour_packs",
+        "glossary_packs",
+        "migration_mappings",
+        "certification_targets",
+        "evidence_links"
+      ],
+      "properties": {
+        "extension_sets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "profile_presets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "surface_presets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "task_recipes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "launch_recipes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "debug_recipes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "template_or_scaffold_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "docs_packs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "tour_packs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "glossary_packs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "migration_mappings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "certification_targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        },
+        "evidence_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bundle_component_record" }
+        }
+      }
+    },
+    "successor_recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["successor_recommendation_class", "successor_summary_ref"],
+      "properties": {
+        "successor_recommendation_class": {
+          "$ref": "#/$defs/successor_recommendation_class"
+        },
+        "successor_bundle_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "successor_bundle_revision": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "successor_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "decision_row_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "Successor-recommended classes cite a stable successor id and revision.",
+          "if": {
+            "properties": {
+              "successor_recommendation_class": {
+                "enum": [
+                  "successor_recommended_same_class",
+                  "successor_recommended_different_class",
+                  "successor_recommended_first_party_native"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["successor_bundle_id", "successor_bundle_revision"],
+            "properties": {
+              "successor_bundle_id": { "$ref": "#/$defs/opaque_id" },
+              "successor_bundle_revision": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        {
+          "description": "First-party-native successors and cross-class successors cite a decision row.",
+          "if": {
+            "properties": {
+              "successor_recommendation_class": {
+                "enum": [
+                  "successor_recommended_first_party_native",
+                  "successor_recommended_different_class"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["decision_row_ref"],
+            "properties": {
+              "decision_row_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "bundle_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_state_class",
+        "evidence_age_class",
+        "retest_needed_posture",
+        "successor_recommendation",
+        "certification_sheet_refs",
+        "removal_surface_kind",
+        "rollback_surface_kind",
+        "disclosed_freshness_window_class",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "evidence_age_class": { "$ref": "#/$defs/evidence_age_class" },
+        "retest_needed_posture": { "$ref": "#/$defs/retest_needed_posture" },
+        "successor_recommendation": { "$ref": "#/$defs/successor_recommendation" },
+        "certification_sheet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "removal_surface_kind": { "$ref": "#/$defs/removal_surface_kind" },
+        "rollback_surface_kind": { "$ref": "#/$defs/rollback_surface_kind" },
+        "disclosed_freshness_window_class": { "$ref": "#/$defs/opaque_id" },
+        "retest_blocked_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disabled_reason_code" }
+          ]
+        },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "Retest-blocked rows cite a typed disabled reason code.",
+          "if": {
+            "properties": {
+              "retest_needed_posture": { "const": "retest_blocked" }
+            }
+          },
+          "then": {
+            "required": ["retest_blocked_reason_code"],
+            "properties": {
+              "retest_blocked_reason_code": { "$ref": "#/$defs/disabled_reason_code" }
+            }
+          }
+        },
+        {
+          "description": "Deprecated lifecycle states with a successor cite a non-unknown successor recommendation.",
+          "if": {
+            "properties": {
+              "lifecycle_state_class": {
+                "enum": [
+                  "soft_deprecated_with_successor",
+                  "hard_deprecated_remove_recommended"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "successor_recommendation": {
+                "properties": {
+                  "successor_recommendation_class": {
+                    "not": { "const": "successor_unknown" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "design_partner_pilot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design_partner_pilot_scope_ref", "pilot_expiry_or_review_class"],
+      "properties": {
+        "design_partner_pilot_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "pilot_expiry_or_review_class": { "$ref": "#/$defs/pilot_expiry_or_review_class" },
+        "pilot_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "named_event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required when pilot_expiry_or_review_class is on_named_event."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "pilot_expiry_or_review_class": { "const": "on_named_event" }
+            }
+          },
+          "then": {
+            "required": ["named_event_ref"],
+            "properties": {
+              "named_event_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "imported_source_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_object_ref", "source_object_class", "ingress_review_state"],
+      "properties": {
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_object_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_summary" }
+          ]
+        },
+        "source_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "ingress_review_state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "in_review",
+            "review_completed_pass",
+            "review_completed_with_known_limit",
+            "review_failed",
+            "review_blocked"
+          ]
+        },
+        "ingress_review_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "workflow_bundle_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workflow_bundle_manifest_schema_version",
+        "bundle_id",
+        "bundle_revision",
+        "bundle_class",
+        "bundle_source_class",
+        "bundle_status_class",
+        "bundle_signer_source_class",
+        "signer_continuity_class",
+        "signature_class",
+        "support_class",
+        "bundle_channel_relation_class",
+        "previous_revision_ref",
+        "compatible_aureline_range",
+        "archetype_bindings",
+        "mirror_or_offline_packaging_posture",
+        "mirror_freshness_ref",
+        "dependency_markers",
+        "evidence_link_refs",
+        "component_inventory",
+        "lifecycle",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "workflow_bundle_manifest_record" },
+        "workflow_bundle_manifest_schema_version": {
+          "$ref": "#/$defs/workflow_bundle_manifest_schema_version"
+        },
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "bundle_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bundle_revision_semver": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver_string" }
+          ]
+        },
+        "bundle_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_summary" }
+          ]
+        },
+        "bundle_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "bundle_class": { "$ref": "#/$defs/bundle_class" },
+        "bundle_source_class": { "$ref": "#/$defs/bundle_source_class" },
+        "bundle_status_class": { "$ref": "#/$defs/bundle_status_class" },
+        "bundle_signer_source_class": {
+          "$ref": "#/$defs/bundle_signer_source_class"
+        },
+        "signer_continuity_class": { "$ref": "#/$defs/signer_continuity_class" },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "bundle_channel_relation_class": {
+          "$ref": "#/$defs/bundle_channel_relation_class"
+        },
+        "previous_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "compatible_aureline_range": {
+          "$ref": "#/$defs/runtime_compatibility_range"
+        },
+        "archetype_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/archetype_binding" },
+          "uniqueItems": false
+        },
+        "workflow_bundle_id_register_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "cutline_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "mirror_or_offline_packaging_posture": {
+          "$ref": "#/$defs/mirror_or_offline_packaging_posture"
+        },
+        "mirror_freshness_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "offline_bundle_freshness_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "policy_notice_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "status_unknown_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disabled_reason_code" }
+          ]
+        },
+        "dependency_markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dependency_marker" }
+        },
+        "evidence_link_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_link_ref" }
+        },
+        "component_inventory": { "$ref": "#/$defs/bundle_component_inventory" },
+        "lifecycle": { "$ref": "#/$defs/bundle_lifecycle" },
+        "imported_source": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/imported_source_object" }
+          ]
+        },
+        "design_partner_pilot": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/design_partner_pilot" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Launch bundles bind to the certified source class, the core signing root, at least one archetype row, the workflow_bundle_id register, and at least one cutline.",
+          "if": {
+            "properties": { "bundle_class": { "const": "launch_bundle" } }
+          },
+          "then": {
+            "required": ["workflow_bundle_id_register_ref", "cutline_refs"],
+            "properties": {
+              "bundle_source_class": { "const": "certified" },
+              "bundle_signer_source_class": {
+                "enum": ["core_signing_root", "core_signing_root_via_mirror"]
+              },
+              "archetype_bindings": {
+                "type": "array",
+                "minItems": 1
+              },
+              "cutline_refs": {
+                "type": "array",
+                "minItems": 1
+              },
+              "bundle_status_class": {
+                "enum": [
+                  "certified_current",
+                  "certified_retest_pending",
+                  "retest_needed",
+                  "deprecated_or_archived",
+                  "status_unknown"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Org-approved bundles resolve through an org signer and accept managed-approved or certified source.",
+          "if": {
+            "properties": { "bundle_class": { "const": "org_approved_bundle" } }
+          },
+          "then": {
+            "properties": {
+              "bundle_source_class": {
+                "enum": ["managed_approved", "certified"]
+              },
+              "bundle_signer_source_class": {
+                "enum": ["org_policy_signing_root", "org_mirror_signing_root", "core_signing_root", "core_signing_root_via_mirror"]
+              },
+              "bundle_status_class": {
+                "enum": [
+                  "managed_approved_current",
+                  "certified_current",
+                  "certified_retest_pending",
+                  "retest_needed",
+                  "deprecated_or_archived",
+                  "status_unknown"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Imported-user bundles carry the imported source object and an imported / community status.",
+          "if": {
+            "properties": { "bundle_class": { "const": "imported_user_bundle" } }
+          },
+          "then": {
+            "required": ["imported_source"],
+            "properties": {
+              "bundle_source_class": { "const": "imported" },
+              "imported_source": { "$ref": "#/$defs/imported_source_object" },
+              "bundle_signer_source_class": {
+                "enum": [
+                  "unsigned_user_review_required",
+                  "trust_source_unknown_review_required",
+                  "signed_offline_bundle_root",
+                  "community_channel_signature"
+                ]
+              },
+              "bundle_status_class": {
+                "enum": [
+                  "imported_pending_review",
+                  "community_unreviewed",
+                  "community_reviewed",
+                  "retest_needed",
+                  "deprecated_or_archived",
+                  "status_unknown"
+                ]
+              },
+              "signer_continuity_class": {
+                "enum": [
+                  "first_acquisition_no_prior_signer",
+                  "signer_unknown_user_review_required",
+                  "signer_changed_review_required",
+                  "signer_continuity_not_applicable"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Design-partner bundles carry a typed pilot block.",
+          "if": {
+            "properties": { "bundle_class": { "const": "design_partner_bundle" } }
+          },
+          "then": {
+            "required": ["design_partner_pilot"],
+            "properties": {
+              "design_partner_pilot": { "$ref": "#/$defs/design_partner_pilot" },
+              "bundle_source_class": {
+                "enum": ["managed_approved", "community"]
+              },
+              "bundle_status_class": {
+                "enum": [
+                  "managed_approved_current",
+                  "community_reviewed",
+                  "community_unreviewed",
+                  "retest_needed",
+                  "deprecated_or_archived",
+                  "status_unknown"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Local-draft bundles never carry install authority and resolve only through local trust.",
+          "if": {
+            "properties": { "bundle_class": { "const": "local_draft_bundle" } }
+          },
+          "then": {
+            "properties": {
+              "bundle_source_class": { "const": "local_draft" },
+              "bundle_signer_source_class": {
+                "enum": [
+                  "local_user_trust_only",
+                  "unsigned_user_review_required",
+                  "repo_local_workspace_trust"
+                ]
+              },
+              "bundle_status_class": {
+                "enum": ["local_draft", "deprecated_or_archived"]
+              },
+              "bundle_channel_relation_class": {
+                "const": "not_applicable_local_draft"
+              },
+              "lifecycle": {
+                "properties": {
+                  "removal_surface_kind": {
+                    "const": "not_applicable_local_draft"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Mirror-only and signed-offline-bundle posture cites a freshness ref.",
+          "if": {
+            "properties": {
+              "mirror_or_offline_packaging_posture": {
+                "enum": ["mirror_only", "live_or_mirror"]
+              }
+            }
+          },
+          "then": {
+            "required": ["mirror_freshness_ref"],
+            "properties": {
+              "mirror_freshness_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Signed-offline-bundle posture cites an offline-bundle freshness ref.",
+          "if": {
+            "properties": {
+              "mirror_or_offline_packaging_posture": {
+                "const": "signed_offline_bundle"
+              }
+            }
+          },
+          "then": {
+            "required": ["offline_bundle_freshness_ref"],
+            "properties": {
+              "offline_bundle_freshness_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Status-unknown rows cite a typed disabled reason code.",
+          "if": {
+            "properties": {
+              "bundle_status_class": { "const": "status_unknown" }
+            }
+          },
+          "then": {
+            "required": ["status_unknown_reason_code"],
+            "properties": {
+              "status_unknown_reason_code": { "$ref": "#/$defs/disabled_reason_code" }
+            }
+          }
+        },
+        {
+          "description": "Cross-channel promotion or demotion cites a previous revision.",
+          "if": {
+            "properties": {
+              "bundle_channel_relation_class": {
+                "enum": ["cross_channel_promotion", "cross_channel_demotion"]
+              }
+            }
+          },
+          "then": {
+            "required": ["previous_revision_ref"],
+            "properties": {
+              "previous_revision_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Local-draft channel relation does not cite a previous revision.",
+          "if": {
+            "properties": {
+              "bundle_channel_relation_class": {
+                "const": "not_applicable_local_draft"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "previous_revision_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Stale-evidence age requires retest-needed lifecycle and retest-needed status.",
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "properties": {
+                  "evidence_age_class": { "const": "stale_past_window" }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bundle_status_class": {
+                "enum": ["retest_needed", "certified_retest_pending"]
+              },
+              "lifecycle": {
+                "properties": {
+                  "lifecycle_state_class": {
+                    "enum": ["retest_needed", "evidence_aged"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Removed-unavailable or rollback-recommended lifecycle resolves typed removal and rollback surfaces.",
+          "if": {
+            "properties": {
+              "lifecycle": {
+                "properties": {
+                  "lifecycle_state_class": {
+                    "enum": ["removed_unavailable", "rollback_recommended"]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "lifecycle": {
+                "properties": {
+                  "removal_surface_kind": {
+                    "not": { "const": "not_applicable_local_draft" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
