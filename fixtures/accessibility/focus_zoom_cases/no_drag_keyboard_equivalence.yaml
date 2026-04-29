@@ -1,0 +1,59 @@
+fixture_id: a11y_focus_zoom.no_drag_keyboard_equivalence
+title: Reorder, selection, pane resize, and review actions do not depend on drag
+contract_ref: docs/accessibility/focus_zoom_and_pointer_independence_contract.md
+inventory_ref: artifacts/accessibility/no_drag_only_inventory.yaml
+schema_ref: schemas/accessibility/focus_owner.schema.json
+scenario: >
+  Pointer gestures remain accelerators, but launch-critical reorder,
+  selection, pane resize, and review actions all expose equivalent
+  keyboard or command routes with visible focus and stable return
+  behavior.
+surface_groups:
+  - editor_group
+  - dense_collection_batch_review
+  - diff_review
+  - task_and_debug
+platform_profile_scope: all_claimed_desktop_profiles
+pointer_independence:
+  no_critical_drag_only_dependency: true
+  keyboard_equivalents:
+    - action_class: reorder
+      route_label: Move tab left or right through focused tab menu
+      command_ref: command.tabs.move_left_or_right
+      equivalence_state: command_route_verified
+    - action_class: range_selection
+      route_label: Extend range with Shift plus arrow keys and inspect hidden selected count
+      command_ref: command.collection.extend_range_selection
+      equivalence_state: keyboard_equivalent_verified
+    - action_class: pane_resize
+      route_label: Focus splitter, grow or shrink by step, and reset size
+      command_ref: command.layout.resize_focused_pane
+      equivalence_state: keyboard_equivalent_verified
+    - action_class: review_action
+      route_label: Approve, reject, comment, apply, revert, and export from focused controls
+      command_ref: command.review.invoke_focused_action
+      equivalence_state: command_route_verified
+steps:
+  - step_id: reorder_editor_tab
+    action: Focus an editor tab and move it after the next tab without dragging.
+    expected_focus_owner: focus.editor_tab.moved_tab
+    expected_text_result: tab order changes and focus remains on the moved tab
+  - step_id: extend_dense_selection
+    action: Use keyboard range extension across virtualized rows.
+    expected_focus_owner: focus.dense_collection.current_row
+    expected_text_result: selected count, hidden count, and range anchor remain explicit
+  - step_id: resize_pane
+    action: Focus the splitter and grow the editor group by one step.
+    expected_focus_owner: focus.layout.splitter
+    expected_text_result: pane size changes without requiring drag; reset command remains visible
+  - step_id: complete_review_action
+    action: Approve or reject a review item from the focused review toolbar.
+    expected_focus_owner: focus.diff_review.originating_hunk
+    expected_text_result: focus returns to the originating hunk or review card after decision
+expected_results:
+  result_state_when_claimed: passed
+  failure_class_refs:
+    - keyboard_route_missing
+    - focus_return_regression
+  drag_only_critical_path_denied: true
+  no_pointer_only_debt_in_launch_critical_rows: true

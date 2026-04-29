@@ -1,0 +1,58 @@
+fixture_id: a11y_focus_zoom.larger_text_cursor_line_height
+title: Larger text, line height, and cursor controls preserve orientation
+contract_ref: docs/accessibility/focus_zoom_and_pointer_independence_contract.md
+schema_ref: schemas/accessibility/focus_owner.schema.json
+scenario: >
+  The editor, terminal, and dense list surfaces apply larger text,
+  increased line height, thick cursor, and disabled cursor blink without
+  losing visible focus, caret location, row identity, or keyboard
+  traversal.
+surface_groups:
+  - editor_group
+  - terminal_output
+  - dense_collection_batch_review
+platform_profile_scope: all_claimed_desktop_profiles
+environment:
+  effective_zoom_percent: 200
+  text_scale_percent: 175
+  platform_scale_percent: 125
+  density_state: comfortable
+  contrast_state: dark_high_contrast
+  line_height_mode: comfortable_editor
+  cursor_control_states:
+    - thick_cursor_enabled
+    - blink_disabled
+    - animation_reduced
+focus_expectations:
+  exactly_one_primary_focus_owner_per_window: true
+  focus_indicator_minimum_thickness_px: 2
+  focus_indicator_minimum_contrast_ratio: 3
+  focus_selection_current_item_distinct: true
+  caret_visible_without_blink: true
+zoom_expectations:
+  reflow_before_clipping: true
+  editor_line_height_minimum_range: 1.55_to_1.65_default_or_user_higher
+  ui_line_height_floor: 1.35
+  row_height_expands_before_text_overlap: true
+  labels_wrap_or_move_before_clipping: true
+steps:
+  - step_id: edit_with_thick_non_blinking_cursor
+    action: Type in the editor with thick cursor enabled and cursor blink disabled.
+    expected_focus_owner: focus.editor.primary_insertion_point
+    expected_text_result: caret location remains visible through geometry and active-region cue
+  - step_id: traverse_terminal_output
+    action: Move by command boundary in a terminal transcript at increased line height.
+    expected_focus_owner: focus.terminal.command_boundary
+    expected_text_result: command boundary, target identity, and copy/export actions remain readable
+  - step_id: inspect_dense_row
+    action: Move through a dense review list with larger text and increased row height.
+    expected_focus_owner: focus.dense_collection.current_row
+    expected_text_result: row identity, selected count, blocked reason, and focus outline remain distinct
+expected_results:
+  result_state_when_claimed: passed
+  failure_class_refs:
+    - zoom_instability
+    - focus_order_regression
+    - announcement_missing
+  cursor_blink_not_required_for_orientation: true
+  text_overlap_denied: true

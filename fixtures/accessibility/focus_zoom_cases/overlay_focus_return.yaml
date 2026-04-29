@@ -1,0 +1,60 @@
+fixture_id: a11y_focus_zoom.overlay_focus_return
+title: Overlay focus return never targets hidden or destroyed controls
+contract_ref: docs/accessibility/focus_zoom_and_pointer_independence_contract.md
+schema_ref: schemas/accessibility/focus_owner.schema.json
+scenario: >
+  A command palette opens a review sheet from a dense collection. The
+  sheet owns focus while active. When it closes, focus returns exactly
+  if the invoking row still exists, or to the nearest safe owner with an
+  announcement when filtering removed the row.
+surface_groups:
+  - palette_search
+  - dense_collection_batch_review
+  - diff_review
+platform_profile_scope: all_claimed_desktop_profiles
+focus_owner_rules:
+  exactly_one_primary_focus_owner_per_window: true
+  overlay_owns_focus_while_modal: true
+  hidden_or_destroyed_targets_denied: true
+  focus_loss_denied_when_no_safe_target: true
+  visible_focus_indicator_minimum_px: 2
+overlay_stack:
+  - overlay_ref: overlay.command_palette
+    overlay_kind: command_palette
+    modal: true
+    owns_focus: true
+    invoker_target_ref: focus.dense_collection.current_row
+  - overlay_ref: overlay.review_sheet
+    overlay_kind: sheet
+    modal: true
+    owns_focus: true
+    invoker_target_ref: focus.dense_collection.current_row
+steps:
+  - step_id: open_palette_from_row
+    action: Open the command palette from the focused dense-collection row.
+    expected_focus_owner: focus.palette.input
+    expected_announcement: command palette opened from current review row
+    expected_text_result: invoking row remains the recorded return target
+  - step_id: open_review_sheet
+    action: Invoke the keyboard route for opening the review sheet.
+    expected_focus_owner: focus.review_sheet.first_meaningful_control
+    expected_announcement: review sheet title and scope are announced
+    expected_text_result: modal sheet owns focus inside the originating window
+  - step_id: close_sheet_exact_return
+    action: Close the review sheet while the invoking row is still visible.
+    expected_focus_owner: focus.dense_collection.current_row
+    expected_announcement: null
+    expected_text_result: focus_return_state is returned_exact
+  - step_id: close_sheet_after_filter_removes_row
+    action: Reopen the sheet, apply a filter that removes the invoking row, then close the sheet.
+    expected_focus_owner: focus.dense_collection.safe_collection_owner
+    expected_announcement: invoking row is no longer visible; focus returned to review list
+    expected_text_result: focus_return_state is returned_nearest_safe_ancestor
+expected_results:
+  result_state_when_claimed: passed
+  failure_class_refs:
+    - focus_return_regression
+    - focus_order_regression
+    - announcement_missing
+  no_hidden_focus_targets: true
+  return_path_preserved_or_disclosed: true

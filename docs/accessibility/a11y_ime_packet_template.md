@@ -11,6 +11,16 @@ Companion artifacts:
 - [`/docs/accessibility/review_charter.md`](./review_charter.md)
   — named review-lane charter covering owner, cadence,
   acceptance-pack families, public backlog mapping, and waiver posture.
+- [`/docs/accessibility/focus_zoom_and_pointer_independence_contract.md`](./focus_zoom_and_pointer_independence_contract.md)
+  — shared focus-owner, zoom/scaling, cursor/line-height, and
+  pointer-independence contract that keyboard-only and high-zoom rows
+  cite.
+- [`/schemas/accessibility/focus_owner.schema.json`](../../schemas/accessibility/focus_owner.schema.json),
+  [`/fixtures/accessibility/focus_zoom_cases/`](../../fixtures/accessibility/focus_zoom_cases),
+  and
+  [`/artifacts/accessibility/no_drag_only_inventory.yaml`](../../artifacts/accessibility/no_drag_only_inventory.yaml)
+  — focus-owner snapshot schema, seed high-zoom fixtures, and
+  no-drag-only inventory.
 - [`/artifacts/accessibility/platform_input_matrix.yaml`](../../artifacts/accessibility/platform_input_matrix.yaml)
   — machine-readable platform, assistive-technology, locale, and
   input-path matrix with the shared result-state vocabulary.
@@ -55,8 +65,8 @@ Normative sources projected here:
   — desktop support contract, accessibility signoff, assistive-tech and
   inclusive-learning lanes, and IME/input fidelity rules.
 - `.t2/docs/Aureline_UI_UX_Spec_Document.md`
-  — Appendix G, Appendix CD, Appendix CL, Appendix EL, Section 19.12,
-  Section 23.31, and Section 23.41.
+  — Appendix G, Appendix CD, Appendix CL, Appendix EL, Appendix EP,
+  Section 19.12, Section 23.31, and Section 23.41.
 
 ## Shared result states
 

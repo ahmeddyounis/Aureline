@@ -23,10 +23,19 @@ Companion artifacts:
 - [`/docs/accessibility/screen_reader_and_live_region_contract.md`](./screen_reader_and_live_region_contract.md)
   — shared screen-reader announcement, live-region, dedupe/coalescing,
   assistive-tech parity, and support/export contract.
+- [`/docs/accessibility/focus_zoom_and_pointer_independence_contract.md`](./focus_zoom_and_pointer_independence_contract.md)
+  — shared visible-focus, 50-400% zoom/scaling, cursor/line-height,
+  and no-drag-only interaction contract.
 - [`/schemas/accessibility/announcement_event.schema.json`](../../schemas/accessibility/announcement_event.schema.json)
   and
   [`/fixtures/accessibility/announcement_cases/`](../../fixtures/accessibility/announcement_cases)
   — reusable announcement-event schema and worked live-region cases.
+- [`/schemas/accessibility/focus_owner.schema.json`](../../schemas/accessibility/focus_owner.schema.json),
+  [`/fixtures/accessibility/focus_zoom_cases/`](../../fixtures/accessibility/focus_zoom_cases),
+  and
+  [`/artifacts/accessibility/no_drag_only_inventory.yaml`](../../artifacts/accessibility/no_drag_only_inventory.yaml)
+  — machine-readable focus-owner snapshots, high-zoom cases, and
+  pointer-independence debt ledger.
 - [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml)
   — machine-readable review-planning matrix for macOS, Windows, and
   Linux accessibility coverage rows.

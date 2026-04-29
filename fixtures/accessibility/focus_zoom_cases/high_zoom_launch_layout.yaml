@@ -1,0 +1,87 @@
+fixture_id: a11y_focus_zoom.high_zoom_launch_layout
+title: High zoom preserves editor and critical side surface
+contract_ref: docs/accessibility/focus_zoom_and_pointer_independence_contract.md
+schema_ref: schemas/accessibility/focus_owner.schema.json
+scenario: >
+  A launch-critical workspace opens at 400 percent effective zoom with
+  larger text enabled. The shell keeps one editor group and one critical
+  side surface visible, moves low-frequency chrome to overflow, and
+  keeps the primary focus ring visible.
+surface_groups:
+  - editor_group
+  - shell_workspace_launcher
+platform_profile_scope: all_claimed_desktop_profiles
+environment:
+  effective_zoom_percent: 400
+  text_scale_percent: 150
+  platform_scale_percent: 100
+  density_state: comfortable
+  contrast_state: high_contrast_supported
+  line_height_mode: default_editor_1_55_to_1_65
+  cursor_control_states:
+    - thick_cursor_enabled
+    - high_contrast_caret
+focus_owner_snapshot:
+  record_kind: focus_owner_snapshot_record
+  focus_zoom_pointer_contract_id: aureline.accessibility.focus_zoom_pointer_independence
+  focus_zoom_pointer_contract_revision: 1
+  focus_owner_schema_version: 1
+  window_ref: window.primary_workspace
+  window_role: primary_workspace_window
+  surface_family: editor_group
+  primary_focus_owner_ref: focus.editor.primary_insertion_point
+  exactly_one_primary_focus_owner: true
+  focus_indicator:
+    minimum_thickness_px: 2
+    contrast_ratio: 3
+    non_color_cues:
+      - caret_geometry
+      - active_region_boundary
+  return_path:
+    expected_return_state: returned_exact
+    origin_target_ref: focus.editor.primary_insertion_point
+    fallback_target_ref: focus.editor.primary_group
+    announcement_required: false
+zoom_expectations:
+  reflow_before_clipping: true
+  editor_group_visible: true
+  critical_side_surface_visible: true
+  critical_side_surface: workspace_explorer_or_review_queue
+  preserved_primary_state:
+    - active_file_identity
+    - trust_or_policy_state
+    - blocked_reason_if_any
+    - recovery_action
+  safe_simplifications:
+    - low_frequency_actions_to_overflow
+    - secondary_panel_to_sheet
+    - minimap_simplified
+  disclosure_rows:
+    - disclosure_id: disclosure.minimap_simplified_at_400
+      disclosure_class: minimap_simplified
+      reason_class: high_zoom
+      replacement_path_label: Open diagnostics and changes summary
+      keyboard_route_ref: command.editor.open_overview_summary
+      can_continue_without_pointer: true
+steps:
+  - step_id: launch_at_high_zoom
+    action: Open a recent workspace while the effective zoom is 400 percent.
+    expected_focus_owner: focus.editor.primary_insertion_point
+    expected_text_result: editor group and critical side surface remain visible
+  - step_id: inspect_overflowed_actions
+    action: Move focus to the region action menu and inspect overflowed actions.
+    expected_focus_owner: focus.editor.region_actions
+    expected_text_result: overflow route names moved actions without hover-only dependence
+  - step_id: open_side_surface
+    action: Use region navigation to move to the critical side surface.
+    expected_focus_owner: focus.side_surface.primary_row
+    expected_text_result: side surface has visible focus and its row labels are not clipped
+expected_results:
+  result_state_when_claimed: passed
+  failure_class_refs:
+    - zoom_instability
+    - focus_order_regression
+    - tree_node_missing
+  editor_group_must_remain_visible: true
+  critical_side_surface_must_remain_visible: true
+  silent_clipping_denied: true
