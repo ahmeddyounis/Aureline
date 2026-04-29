@@ -1,0 +1,643 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/fleet_status_row.schema.json",
+  "title": "Aureline fleet ring dashboard and device or install enrollment row records",
+  "description": "Boundary schema for the fleet-governance records frozen in docs/admin/org_admin_seat_and_fleet_contract.md. The schema covers the fleet ring dashboard record and the device or install enrollment row record so fleet console, project doctor, support packets, admin handoff exports, and audit readers reuse the same vocabulary. Records carry ring class, lane scope, device population by enrollment state class, stale and offline cohorts as first-class state, mirror posture, trust-root state, bundle freshness, compliance state, install-profile card refs, seat lifecycle row refs, exportable evidence refs, and a local-continuity assertion. Raw device hostnames, raw IP addresses, raw serial numbers, raw geolocation, raw user identifiers, raw mirror hostnames, raw URLs, raw paths, and raw signing material never cross this boundary; records carry opaque refs, typed vocabulary, and reviewable summaries only. Adding a new record_kind, ring_class, lane_scope_class, enrollment_state_class, mirror_posture_class, trust_root_state_class, bundle_freshness_class, compliance_state_class, deep_link_class, or export_format_class is additive-minor and bumps org_admin_seat_and_fleet_schema_version; repurposing an existing value is breaking and requires a governance decision.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/fleet_ring_dashboard_record" },
+    { "$ref": "#/$defs/device_enrollment_row_record" }
+  ],
+  "$defs": {
+    "org_admin_seat_and_fleet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the organization-administration vocabulary; shared with schemas/admin/seat_lifecycle_row.schema.json."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, export, and deep-link. Raw device hostnames, raw IP addresses, raw serial numbers, raw user identifiers, raw mirror URLs, raw signing material, raw paths, and raw tokens never appear here."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured from a monotonic or bounded-skew source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe for UI, CLI, admin export, and support packet surfaces. Raw secrets, raw policy bodies, raw tenant data, and raw private payloads MUST NOT appear."
+    },
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short export-safe label."
+    },
+    "non_negative_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "policy_epoch_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^policy_epoch(\\.[a-z0-9_]+)+$"
+    },
+    "ring_class": {
+      "type": "string",
+      "enum": [
+        "canary",
+        "pilot",
+        "broad",
+        "stable",
+        "preview",
+        "beta",
+        "lts",
+        "custom_named_lane"
+      ]
+    },
+    "lane_scope_class": {
+      "type": "string",
+      "enum": [
+        "deployment_exposure",
+        "release_channel_population",
+        "long_term_support_population",
+        "air_gapped_population",
+        "mirrored_population"
+      ]
+    },
+    "enrollment_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "pending_enrollment",
+        "stale_within_grace",
+        "stale_past_grace",
+        "offline_last_known_good",
+        "offline_unverified",
+        "drifted",
+        "quarantined",
+        "deprovisioned",
+        "unknown"
+      ]
+    },
+    "mirror_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror",
+        "customer_managed_mirror_current",
+        "customer_managed_mirror_stale",
+        "vendor_managed_mirror_current",
+        "offline_bundle_only",
+        "mirror_unreachable"
+      ]
+    },
+    "trust_root_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_rotating",
+        "stale_within_grace",
+        "stale_past_grace",
+        "verification_failed",
+        "unknown_offline"
+      ]
+    },
+    "bundle_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "mirrored_current",
+        "mirrored_stale_within_grace",
+        "mirrored_stale_past_grace",
+        "manual_snapshot_current",
+        "manual_snapshot_stale",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "not_yet_synced",
+        "unknown"
+      ]
+    },
+    "compliance_state_class": {
+      "type": "string",
+      "enum": [
+        "compliant",
+        "compliant_with_grace",
+        "non_compliant_remediation_pending",
+        "non_compliant_blocked",
+        "not_evaluated_offline"
+      ]
+    },
+    "quarantine_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "emergency_admin_action",
+        "trust_anchor_failure",
+        "policy_violation_detected",
+        "supply_chain_evidence_missing",
+        "manual_review_pending"
+      ]
+    },
+    "deep_link_class": {
+      "type": "string",
+      "enum": [
+        "organization_overview",
+        "directory_provider_card",
+        "seat_lifecycle_row",
+        "group_policy_targeting_sheet",
+        "fleet_ring_dashboard",
+        "device_enrollment_row",
+        "install_profile_card",
+        "rollout_ring_row",
+        "ring_history_packet",
+        "effective_policy_card",
+        "audit_event_explorer",
+        "admin_handoff_export",
+        "support_packet",
+        "cli_json_output",
+        "docs_anchor"
+      ]
+    },
+    "export_format_class": {
+      "type": "string",
+      "enum": [
+        "markdown_summary",
+        "json_packet",
+        "jsonl_history",
+        "clipboard_text",
+        "support_bundle_reference",
+        "cli_json_stdout"
+      ]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "desktop_admin_center",
+        "desktop_policy_center",
+        "cli_json_reader",
+        "support_bundle_exporter",
+        "admin_audit_reader",
+        "project_doctor",
+        "automated_policy_diff_tool",
+        "automated_seat_roster_tool",
+        "fleet_console"
+      ]
+    },
+    "evidence_link_kind": {
+      "type": "string",
+      "enum": [
+        "rollout_ring_row",
+        "ring_history_packet",
+        "install_topology_card",
+        "release_evidence_packet",
+        "admin_audit_packet",
+        "support_bundle",
+        "decision_history_row",
+        "policy_diff_view",
+        "rollout_decision",
+        "seat_lifecycle_row"
+      ]
+    },
+    "tenant_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_or_org_ref",
+        "tenant_label",
+        "identity_mode",
+        "deployment_profile_class",
+        "policy_epoch",
+        "trust_state"
+      ],
+      "properties": {
+        "tenant_or_org_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_label": { "$ref": "#/$defs/export_safe_label" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" }
+      }
+    },
+    "redaction_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "included_data_classes",
+        "omitted_data_classes",
+        "redaction_note"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "included_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "omitted_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "redaction_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "deep_link_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_class",
+        "route_ref",
+        "target_record_ref",
+        "label",
+        "available_offline"
+      ],
+      "properties": {
+        "link_class": { "$ref": "#/$defs/deep_link_class" },
+        "route_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/export_safe_label" },
+        "available_offline": { "type": "boolean" },
+        "unavailable_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "export_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "human_summary_ref",
+        "machine_packet_ref",
+        "machine_schema_ref",
+        "formats",
+        "redaction_summary",
+        "compatible_consumer_classes"
+      ],
+      "properties": {
+        "human_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "machine_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "machine_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "formats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_format_class" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "compatible_consumer_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_class" }
+        }
+      }
+    },
+    "local_continuity_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edit_local_artifacts",
+        "save_local_artifacts",
+        "undo_redo_local_artifacts",
+        "export_user_owned_artifacts",
+        "retained_local_capabilities",
+        "paused_managed_capabilities",
+        "continuity_note"
+      ],
+      "properties": {
+        "edit_local_artifacts": { "type": "boolean", "const": true },
+        "save_local_artifacts": { "type": "boolean", "const": true },
+        "undo_redo_local_artifacts": { "type": "boolean", "const": true },
+        "export_user_owned_artifacts": { "type": "boolean", "const": true },
+        "retained_local_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "uniqueItems": true
+        },
+        "paused_managed_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "uniqueItems": true
+        },
+        "continuity_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "device_population_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enrollment_state_class",
+        "device_count",
+        "summary"
+      ],
+      "properties": {
+        "enrollment_state_class": { "$ref": "#/$defs/enrollment_state_class" },
+        "device_count": { "$ref": "#/$defs/non_negative_count" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "device_population_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_device_count",
+        "by_enrollment_state",
+        "summary"
+      ],
+      "properties": {
+        "total_device_count": { "$ref": "#/$defs/non_negative_count" },
+        "by_enrollment_state": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/device_population_row" }
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "staleness_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deepest_stale_age_seconds",
+        "stale_within_grace_count",
+        "stale_past_grace_count",
+        "summary"
+      ],
+      "properties": {
+        "deepest_stale_age_seconds": { "$ref": "#/$defs/non_negative_count" },
+        "stale_within_grace_count": { "$ref": "#/$defs/non_negative_count" },
+        "stale_past_grace_count": { "$ref": "#/$defs/non_negative_count" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "offline_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline_last_known_good_count",
+        "offline_unverified_count",
+        "preserved_evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "offline_last_known_good_count": { "$ref": "#/$defs/non_negative_count" },
+        "offline_unverified_count": { "$ref": "#/$defs/non_negative_count" },
+        "preserved_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "mirror_posture_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_posture_class",
+        "mirror_count",
+        "summary"
+      ],
+      "properties": {
+        "mirror_posture_class": { "$ref": "#/$defs/mirror_posture_class" },
+        "mirror_count": { "$ref": "#/$defs/non_negative_count" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "preserved_evidence_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_kind",
+        "link_ref",
+        "preserved",
+        "freshness_state",
+        "note"
+      ],
+      "properties": {
+        "evidence_kind": { "$ref": "#/$defs/evidence_link_kind" },
+        "link_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserved": { "type": "boolean" },
+        "freshness_state": {
+          "type": "string",
+          "enum": ["current", "reserved", "stale", "seeded"]
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "fleet_ring_dashboard_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "org_admin_seat_and_fleet_schema_version",
+        "dashboard_id",
+        "title",
+        "tenant_identity",
+        "ring_class",
+        "lane_scope_class",
+        "rollout_ring_row_ref",
+        "device_population",
+        "staleness",
+        "offline",
+        "mirror_postures",
+        "last_successful_sync_at",
+        "preserved_evidence_links",
+        "device_enrollment_row_refs",
+        "exportable_evidence_refs",
+        "export_pair",
+        "deep_links",
+        "local_continuity",
+        "redaction_summary",
+        "rendered_summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string", "format": "uri-reference" },
+        "__fixture__": { "type": "object", "additionalProperties": true },
+        "record_kind": { "const": "fleet_ring_dashboard_record" },
+        "org_admin_seat_and_fleet_schema_version": { "$ref": "#/$defs/org_admin_seat_and_fleet_schema_version" },
+        "dashboard_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/export_safe_label" },
+        "tenant_identity": { "$ref": "#/$defs/tenant_identity" },
+        "ring_class": { "$ref": "#/$defs/ring_class" },
+        "lane_scope_class": { "$ref": "#/$defs/lane_scope_class" },
+        "rollout_ring_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "device_population": { "$ref": "#/$defs/device_population_summary" },
+        "staleness": { "$ref": "#/$defs/staleness_summary" },
+        "offline": { "$ref": "#/$defs/offline_summary" },
+        "mirror_postures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mirror_posture_summary" }
+        },
+        "last_successful_sync_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "preserved_evidence_links": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/preserved_evidence_link" }
+        },
+        "device_enrollment_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "exportable_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "export_pair": { "$ref": "#/$defs/export_pair" },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "local_continuity": { "$ref": "#/$defs/local_continuity_assertion" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "rendered_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "device_enrollment_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "org_admin_seat_and_fleet_schema_version",
+        "device_enrollment_row_id",
+        "tenant_identity",
+        "device_id_ref",
+        "enrollment_state_class",
+        "install_profile_card_ref",
+        "mirror_posture_class",
+        "trust_root_state_class",
+        "bundle_freshness_class",
+        "last_successful_sync_at",
+        "compliance_state_class",
+        "quarantine_reason_class",
+        "fleet_ring_dashboard_ref",
+        "linked_seat_refs",
+        "audit_event_refs",
+        "policy_decision_history_row_refs",
+        "deep_links",
+        "local_continuity",
+        "redaction_summary",
+        "rendered_summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string", "format": "uri-reference" },
+        "__fixture__": { "type": "object", "additionalProperties": true },
+        "record_kind": { "const": "device_enrollment_row_record" },
+        "org_admin_seat_and_fleet_schema_version": { "$ref": "#/$defs/org_admin_seat_and_fleet_schema_version" },
+        "device_enrollment_row_id": { "$ref": "#/$defs/opaque_id" },
+        "tenant_identity": { "$ref": "#/$defs/tenant_identity" },
+        "device_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "enrollment_state_class": { "$ref": "#/$defs/enrollment_state_class" },
+        "install_profile_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_posture_class": { "$ref": "#/$defs/mirror_posture_class" },
+        "trust_root_state_class": { "$ref": "#/$defs/trust_root_state_class" },
+        "bundle_freshness_class": { "$ref": "#/$defs/bundle_freshness_class" },
+        "last_successful_sync_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "compliance_state_class": { "$ref": "#/$defs/compliance_state_class" },
+        "quarantine_reason_class": { "$ref": "#/$defs/quarantine_reason_class" },
+        "fleet_ring_dashboard_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_seat_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_decision_history_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "deep_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deep_link_ref" }
+        },
+        "local_continuity": { "$ref": "#/$defs/local_continuity_assertion" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "rendered_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enrollment_state_class": { "const": "quarantined" }
+            },
+            "required": ["enrollment_state_class"]
+          },
+          "then": {
+            "properties": {
+              "quarantine_reason_class": {
+                "enum": [
+                  "emergency_admin_action",
+                  "trust_anchor_failure",
+                  "policy_violation_detected",
+                  "supply_chain_evidence_missing",
+                  "manual_review_pending"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

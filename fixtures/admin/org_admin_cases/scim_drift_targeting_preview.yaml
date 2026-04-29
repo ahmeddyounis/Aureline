@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=../../../schemas/admin/seat_lifecycle_row.schema.json
+__fixture__:
+  name: scim_drift_targeting_preview
+  scenario: >
+    A managed deployment uses an OIDC identity provider plus a SCIM
+    provisioning provider. The SCIM seat roster has drifted from the
+    local install, so a group-to-policy targeting sheet runs in
+    previewed dry-run mode and reports drift before any commit.
+  exercised_contract_sections:
+    - directory_drift_detection
+    - group_policy_targeting_preview
+    - commit_gate_blocking_drift
+
+record_kind: group_policy_targeting_sheet_record
+org_admin_seat_and_fleet_schema_version: 1
+targeting_sheet_id: group-policy-targeting-sheet:scim-drift:0001
+title: AI provider narrowing targeting preview
+tenant_identity:
+  tenant_or_org_ref: tenant-or-org:managed:0001
+  tenant_label: Managed enterprise tenant
+  identity_mode: managed_workspace
+  deployment_profile_class: enterprise_online
+  policy_epoch: policy_epoch.managed.20260429.0001
+  trust_state: trusted
+targeting_state_class: blocked
+blocker_class: signer_continuity_broken
+group_selector_refs:
+  - group_ref: group-ref:engineering-platform
+    group_class: directory_synced_group
+    group_label: Engineering platform group
+    directory_provider_card_ref: directory-provider-card:scim-managed:0001
+  - group_ref: group-ref:design-systems
+    group_class: directory_synced_group
+    group_label: Design systems group
+    directory_provider_card_ref: directory-provider-card:scim-managed:0001
+affected_policy_refs:
+  - effective-policy-card:managed-ai-egress:0001
+policy_diff_refs:
+  - policy-diff-view:managed-ai-egress:proposed:0001
+affected_seat_summary:
+  total_seat_count: 184
+  by_seat_state:
+    - seat_state_class: active
+      seat_count: 162
+      summary: Active seats currently routed through the broad managed AI policy.
+    - seat_state_class: pending
+      seat_count: 14
+      summary: Seats awaiting first-time SCIM provisioning.
+    - seat_state_class: suspended
+      seat_count: 8
+      summary: Seats paused pending admin review.
+  summary: Engineering and design groups represent 184 seats; SCIM drift means the live count may not match the local snapshot.
+commit_gates:
+  - gate_class: signer_continuity_check
+    gate_state_class: blocked
+    gate_summary: SCIM provider rotated its trust anchor and the local install has not yet observed the new continuity proof.
+  - gate_class: mirror_freshness_check
+    gate_state_class: passing
+    gate_summary: The signed bundle mirror is current.
+  - gate_class: manual_admin_approval
+    gate_state_class: pending
+    gate_summary: Admin approval is held until directory drift is resolved.
+  - gate_class: conflicting_policy_resolution
+    gate_state_class: passing
+    gate_summary: No conflicting policy is currently in force on the affected groups.
+preview_continuity:
+  unchanged_seat_count: 162
+  would_change_seat_count: 22
+  would_pause_managed_capabilities:
+    - managed_ai
+  would_revoke_managed_capabilities: []
+  local_continuity:
+    edit_local_artifacts: true
+    save_local_artifacts: true
+    undo_redo_local_artifacts: true
+    export_user_owned_artifacts: true
+    retained_local_capabilities:
+      - Edit local files
+      - Save local files
+      - Undo and redo local edits
+      - Export user-owned local artifacts
+      - Use local Git
+    paused_managed_capabilities: []
+    continuity_note: Local edit, save, undo or redo, and export remain available; the preview does not change managed posture.
+  summary: Preview would narrow managed AI for 22 seats; no managed posture changes until drift is resolved and gates pass.
+audit_event_refs:
+  - admin-audit-packet:scim-drift:preview:0001
+policy_decision_history_row_refs:
+  - decision-history-row:scim-drift:preview:0001
+admin_handoff_export_ref: admin-handoff-export:scim-drift:preview:0001
+deep_links:
+  - link_class: directory_provider_card
+    route_ref: route-admin-directory-card-scim
+    target_record_ref: directory-provider-card:scim-managed:0001
+    label: Open SCIM provider card
+    available_offline: true
+    unavailable_reason: null
+  - link_class: policy_diff_view
+    route_ref: route-policy-diff-managed-ai-egress-proposed
+    target_record_ref: policy-diff-view:managed-ai-egress:proposed:0001
+    label: View proposed policy diff
+    available_offline: true
+    unavailable_reason: null
+  - link_class: audit_event_explorer
+    route_ref: route-audit-event-scim-drift-preview
+    target_record_ref: admin-audit-packet:scim-drift:preview:0001
+    label: Open audit event
+    available_offline: true
+    unavailable_reason: null
+  - link_class: admin_handoff_export
+    route_ref: route-admin-handoff-scim-drift-preview
+    target_record_ref: admin-handoff-export:scim-drift:preview:0001
+    label: Export targeting handoff
+    available_offline: true
+    unavailable_reason: null
+redaction_summary:
+  redaction_class: metadata_safe_default
+  included_data_classes:
+    - targeting.preview_state
+    - seat.counts
+    - audit.refs
+  omitted_data_classes:
+    - directory.attribute_payload
+    - directory.group_display_names_raw
+    - scim.endpoint_urls
+  redaction_note: Group selectors are export-safe labels; raw display names and endpoint URLs are omitted.
+rendered_summary: A SCIM drift event has blocked the targeting preview; gates remain blocked until signer continuity is reconciled.

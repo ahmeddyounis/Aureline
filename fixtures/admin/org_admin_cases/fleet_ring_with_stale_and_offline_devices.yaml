@@ -1,0 +1,179 @@
+# yaml-language-server: $schema=../../../schemas/admin/fleet_status_row.schema.json
+__fixture__:
+  name: fleet_ring_with_stale_and_offline_devices
+  scenario: >
+    A pilot rollout ring contains current devices, devices that are
+    stale within grace, devices that are stale past grace, one device
+    that is offline using a verified last-known-good cache, and one
+    device that is offline unverified. Each cohort is preserved as a
+    distinct first-class state.
+  exercised_contract_sections:
+    - fleet_ring_dashboard
+    - stale_and_offline_first_class_states
+    - exportable_evidence
+
+record_kind: fleet_ring_dashboard_record
+org_admin_seat_and_fleet_schema_version: 1
+dashboard_id: fleet-ring-dashboard:pilot:0001
+title: Pilot ring posture
+tenant_identity:
+  tenant_or_org_ref: tenant-or-org:managed:0001
+  tenant_label: Managed enterprise tenant
+  identity_mode: managed_workspace
+  deployment_profile_class: enterprise_online
+  policy_epoch: policy_epoch.managed.20260429.0001
+  trust_state: trusted
+ring_class: pilot
+lane_scope_class: deployment_exposure
+rollout_ring_row_ref: rollout_lane:pilot
+device_population:
+  total_device_count: 42
+  by_enrollment_state:
+    - enrollment_state_class: current
+      device_count: 30
+      summary: Devices that completed their most recent expected sync.
+    - enrollment_state_class: stale_within_grace
+      device_count: 6
+      summary: Devices whose freshness window has expired but remains within grace.
+    - enrollment_state_class: stale_past_grace
+      device_count: 3
+      summary: Devices past grace; new managed privilege is not granted from a stale source.
+    - enrollment_state_class: offline_last_known_good
+      device_count: 2
+      summary: Devices using a verified last-known-good cache while offline.
+    - enrollment_state_class: offline_unverified
+      device_count: 1
+      summary: A device with no verified path forward; local artifacts remain safe.
+  summary: Pilot ring shows 30 current devices and clearly distinguishes stale within grace, stale past grace, last-known-good offline, and offline unverified.
+staleness:
+  deepest_stale_age_seconds: 432000
+  stale_within_grace_count: 6
+  stale_past_grace_count: 3
+  summary: The deepest stale device has been stale for five days and is past grace.
+offline:
+  offline_last_known_good_count: 2
+  offline_unverified_count: 1
+  preserved_evidence_refs:
+    - evidence:last-known-good:pilot:0001
+    - evidence:offline-unverified-next-action:pilot:0001
+  summary: Offline last-known-good devices cite preserved evidence; the offline unverified device cites the next safe action.
+mirror_postures:
+  - mirror_posture_class: customer_managed_mirror_current
+    mirror_count: 28
+    summary: Twenty-eight pilot devices use a current customer-managed mirror.
+  - mirror_posture_class: customer_managed_mirror_stale
+    mirror_count: 6
+    summary: Six pilot devices report a stale customer-managed mirror.
+  - mirror_posture_class: offline_bundle_only
+    mirror_count: 2
+    summary: Two pilot devices are using offline bundles only.
+last_successful_sync_at: "2026-04-29T08:55:00Z"
+preserved_evidence_links:
+  - evidence_kind: rollout_ring_row
+    link_ref: rollout_lane:pilot
+    preserved: true
+    freshness_state: current
+    note: The rollout-ring row is the source of pilot lane membership.
+  - evidence_kind: ring_history_packet
+    link_ref: ring-history-packet:pilot:0001
+    preserved: true
+    freshness_state: current
+    note: Ring history packet preserves promotion and rollback evidence.
+  - evidence_kind: install_topology_card
+    link_ref: install-topology-card:pilot:0001
+    preserved: true
+    freshness_state: current
+    note: Install topology card carries the install profile cards admitted to pilot.
+  - evidence_kind: admin_audit_packet
+    link_ref: admin-audit-packet:pilot:fleet:0001
+    preserved: true
+    freshness_state: current
+    note: Audit packet records the most recent admin actions on the ring.
+device_enrollment_row_refs:
+  - device-enrollment-row:pilot:current:0001
+  - device-enrollment-row:pilot:stale-within-grace:0001
+  - device-enrollment-row:pilot:stale-past-grace:0001
+  - device-enrollment-row:pilot:offline-last-known-good:0001
+  - device-enrollment-row:pilot:offline-unverified:0001
+exportable_evidence_refs:
+  - admin-handoff-export:pilot-ring:0001
+  - support-packet:pilot-ring:0001
+export_pair:
+  human_summary_ref: human-summary:pilot-ring:0001
+  machine_packet_ref: machine-packet:pilot-ring:0001
+  machine_schema_ref: schemas/admin/fleet_status_row.schema.json
+  formats:
+    - markdown_summary
+    - json_packet
+    - cli_json_stdout
+  redaction_summary:
+    redaction_class: metadata_safe_default
+    included_data_classes:
+      - fleet.cohort_counts
+      - fleet.evidence_refs
+    omitted_data_classes:
+      - device.hostname_raw
+      - device.ip_address_raw
+      - device.serial_number_raw
+    redaction_note: The packet preserves cohort counts and evidence refs while omitting raw device identifiers.
+  compatible_consumer_classes:
+    - desktop_admin_center
+    - cli_json_reader
+    - support_bundle_exporter
+    - admin_audit_reader
+    - fleet_console
+deep_links:
+  - link_class: rollout_ring_row
+    route_ref: route-rollout-ring-row-pilot
+    target_record_ref: rollout_lane:pilot
+    label: Open rollout ring row
+    available_offline: true
+    unavailable_reason: null
+  - link_class: ring_history_packet
+    route_ref: route-ring-history-packet-pilot
+    target_record_ref: ring-history-packet:pilot:0001
+    label: Open ring history packet
+    available_offline: true
+    unavailable_reason: null
+  - link_class: device_enrollment_row
+    route_ref: route-device-enrollment-row-offline-unverified
+    target_record_ref: device-enrollment-row:pilot:offline-unverified:0001
+    label: Open offline unverified device row
+    available_offline: false
+    unavailable_reason: The device row cannot be opened until the device produces a verified posture report.
+  - link_class: admin_handoff_export
+    route_ref: route-admin-handoff-pilot-ring
+    target_record_ref: admin-handoff-export:pilot-ring:0001
+    label: Export pilot ring handoff
+    available_offline: true
+    unavailable_reason: null
+local_continuity:
+  edit_local_artifacts: true
+  save_local_artifacts: true
+  undo_redo_local_artifacts: true
+  export_user_owned_artifacts: true
+  retained_local_capabilities:
+    - Edit local files
+    - Save local files
+    - Undo and redo local edits
+    - Export user-owned local artifacts
+    - Use local Git
+  paused_managed_capabilities:
+    - Managed bundle refresh on stale-past-grace devices
+    - Managed bundle refresh on offline unverified devices
+  continuity_note: Local edit, save, undo or redo, and export remain available on every device in the ring regardless of mirror or freshness state.
+redaction_summary:
+  redaction_class: metadata_safe_default
+  included_data_classes:
+    - fleet.ring_class
+    - fleet.cohort_counts
+    - fleet.mirror_posture_counts
+    - fleet.audit_refs
+  omitted_data_classes:
+    - device.hostname_raw
+    - device.ip_address_raw
+    - device.serial_number_raw
+    - device.geolocation_raw
+    - mirror.hostname_raw
+  redaction_note: The dashboard preserves cohort counts and audit refs; raw device hostnames, IPs, serial numbers, and mirror hostnames are omitted.
+rendered_summary: Pilot ring shows 30 current devices, 9 stale, and 3 offline cohorts; stale and offline states are preserved as distinct first-class state.
