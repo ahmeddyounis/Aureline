@@ -207,6 +207,15 @@ code.
   [`/schemas/release/helper_version_negotiation.schema.json`](../schemas/release/helper_version_negotiation.schema.json);
   worked flow fixtures in
   [`/fixtures/release/upgrade_downgrade_cases/`](../fixtures/release/upgrade_downgrade_cases/).
+- [`release/update_ready_review_contract.md`](./release/update_ready_review_contract.md)
+  — pre-apply update review, extension/package impact forecast,
+  restart-required, side-by-side, emergency path, support-window risk,
+  and rollback-before-restart contract. Boundary schemas in
+  [`/schemas/release/update_ready_review.schema.json`](../schemas/release/update_ready_review.schema.json)
+  and
+  [`/schemas/release/extension_impact_forecast.schema.json`](../schemas/release/extension_impact_forecast.schema.json);
+  worked review fixtures in
+  [`/fixtures/release/update_ready_cases/`](../fixtures/release/update_ready_cases/).
 - [`release/release_evidence_packet_template.md`](./release/release_evidence_packet_template.md)
   — release-truth packet template and waiver-aware shiproom structure.
 - [`release/ring_progression_policy.md`](./release/ring_progression_policy.md)

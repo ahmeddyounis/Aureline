@@ -24,6 +24,16 @@ Companion artifacts:
 - [`/fixtures/release/upgrade_downgrade_cases/`](../../fixtures/release/upgrade_downgrade_cases/)
   - worked upgrade, blocked downgrade, helper-skew, mirror-fed update,
   and exact-build reconstruction cases.
+- [`/docs/release/update_ready_review_contract.md`](./update_ready_review_contract.md),
+  [`/schemas/release/update_ready_review.schema.json`](../../schemas/release/update_ready_review.schema.json),
+  [`/schemas/release/extension_impact_forecast.schema.json`](../../schemas/release/extension_impact_forecast.schema.json),
+  and
+  [`/fixtures/release/update_ready_cases/`](../../fixtures/release/update_ready_cases/)
+  - pre-apply update review, extension/package impact forecast,
+  restart-required, support-window, side-by-side, emergency, and
+  rollback-before-restart projection consumed by update center,
+  release notes, migration, compatibility, support, and headless dry
+  runs.
 - [`/docs/build/exact_build_identity_model.md`](../build/exact_build_identity_model.md)
   and
   [`/schemas/build/exact_build_identity.schema.json`](../../schemas/build/exact_build_identity.schema.json)
