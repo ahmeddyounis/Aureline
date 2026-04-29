@@ -21,6 +21,10 @@ package resolver, release signer, or support-bundle generator.
   - worked records covering signed official assets, mirrored assets,
   side-loaded local archives, third-party imports, stale review, and
   unknown provenance.
+- [`/docs/governance/post_install_notice_and_provenance_contract.md`](./post_install_notice_and_provenance_contract.md)
+  - durable post-install disclosure contract that consumes this
+  vocabulary for product builds, installers, extensions/framework
+  packs, mirrored or offline artifacts, and generated user exports.
 - [`/docs/governance/provenance_and_compliance_baseline.md`](./provenance_and_compliance_baseline.md)
   - repository provenance, license, notice, and placeholder SBOM
   baseline.

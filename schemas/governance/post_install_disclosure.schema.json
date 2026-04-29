@@ -1,0 +1,857 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/post_install_disclosure.schema.json",
+  "title": "Aureline post-install notice and provenance disclosure record",
+  "description": "Boundary schema for one post_install_disclosure_record frozen in docs/governance/post_install_notice_and_provenance_contract.md. The record is the durable post-install projection used by About, update center, installed-state inspectors, diagnostics exports, review sheets, extension details, installer receipts, and generated-artifact export review when they need to describe product builds, installers, extensions/framework packs, mirrored or offline artifacts, and generated user artifacts. Missing, partial, stale, unknown, or policy-hidden provenance, notice, license, SBOM, signature, attestation, generated-lineage, and revocation data is explicit. Raw artifacts, signatures, SBOM bodies, notice text, license files, private mirror endpoints, registry URLs, advisory payloads, and customer identifiers do not cross this boundary.",
+  "$ref": "#/$defs/post_install_disclosure_record",
+  "$defs": {
+    "post_install_disclosure_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Additive vocabulary additions bump this integer; repurposing existing values is breaking."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable ref safe for live surfaces, support bundles, public-proof packets, diagnostics exports, and offline review. Raw payloads and private endpoints do not appear here."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence. Raw secrets, raw license bodies, raw notices, raw URLs, raw advisory payloads, and raw artifact bytes MUST NOT appear."
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "disclosure_id": {
+      "type": "string",
+      "pattern": "^post_install_disclosure:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "surface_subject_kind": {
+      "type": "string",
+      "enum": [
+        "product_build",
+        "installer_payload",
+        "extension_package",
+        "framework_pack",
+        "mirrored_transport_artifact",
+        "generated_user_artifact"
+      ]
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "desktop_build",
+        "cli_build",
+        "installer",
+        "portable_bundle",
+        "extension_package",
+        "framework_pack",
+        "mirrored_transport_artifact",
+        "offline_bundle",
+        "docs_pack",
+        "generated_export",
+        "generated_artifact"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "official",
+        "mirrored",
+        "side_loaded",
+        "unknown_provenance"
+      ]
+    },
+    "source_label": {
+      "type": "string",
+      "enum": [
+        "Official",
+        "Mirrored",
+        "Side-loaded",
+        "Unknown provenance"
+      ]
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "local",
+        "external",
+        "not_applicable",
+        "unknown"
+      ]
+    },
+    "acquired_via": {
+      "type": "string",
+      "enum": [
+        "official_update_feed",
+        "official_download",
+        "platform_package_manager",
+        "public_registry",
+        "private_registry",
+        "enterprise_mirror",
+        "offline_bundle",
+        "air_gapped_media",
+        "local_file_picker",
+        "workspace_export",
+        "generated_export_flow",
+        "unknown"
+      ]
+    },
+    "signature_state": {
+      "type": "string",
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "signature_missing",
+        "signature_revoked",
+        "signature_mismatch",
+        "not_applicable"
+      ]
+    },
+    "attestation_state": {
+      "type": "string",
+      "enum": [
+        "attestation_verified",
+        "attestation_present_unverified",
+        "attestation_missing",
+        "attestation_stale",
+        "attestation_policy_blocked",
+        "not_applicable"
+      ]
+    },
+    "checksum_state": {
+      "type": "string",
+      "enum": [
+        "checksum_verified",
+        "checksum_present_unverified",
+        "checksum_missing",
+        "checksum_mismatch",
+        "not_applicable"
+      ]
+    },
+    "revocation_state": {
+      "type": "string",
+      "enum": [
+        "revocation_current",
+        "revocation_snapshot_current",
+        "revocation_snapshot_stale",
+        "revocation_snapshot_expired",
+        "revoked_or_yanked",
+        "revocation_unknown",
+        "not_applicable"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "warm_cached",
+        "stale_requires_review",
+        "expired",
+        "unknown",
+        "not_applicable"
+      ]
+    },
+    "license_state": {
+      "type": "string",
+      "enum": [
+        "license_allowed",
+        "license_allowed_with_notice",
+        "license_restricted",
+        "license_policy_blocked",
+        "license_unknown",
+        "not_applicable"
+      ]
+    },
+    "notice_state": {
+      "type": "string",
+      "enum": [
+        "notice_complete",
+        "notice_partial",
+        "notice_missing",
+        "notice_not_required",
+        "notice_policy_hidden",
+        "notice_unknown"
+      ]
+    },
+    "notice_inventory_state": {
+      "type": "string",
+      "enum": [
+        "inventory_available",
+        "inventory_partial",
+        "inventory_missing",
+        "inventory_policy_hidden",
+        "inventory_unknown",
+        "inventory_not_required"
+      ]
+    },
+    "sbom_state": {
+      "type": "string",
+      "enum": [
+        "sbom_attached_verified",
+        "sbom_attached_unverified",
+        "sbom_missing",
+        "sbom_stale",
+        "sbom_policy_blocked",
+        "not_applicable"
+      ]
+    },
+    "sbom_format": {
+      "type": "string",
+      "enum": [
+        "spdx_json",
+        "spdx_tag_value",
+        "spdx_rdf",
+        "cyclonedx_json",
+        "cyclonedx_xml"
+      ]
+    },
+    "access_point_class": {
+      "type": "string",
+      "enum": [
+        "about",
+        "update_center",
+        "installed_state_inspector",
+        "diagnostics_export",
+        "review_sheet",
+        "extension_details",
+        "installer_receipt",
+        "generated_artifact_viewer",
+        "export_review",
+        "marketplace_or_package_detail",
+        "support_bundle",
+        "offline_review"
+      ]
+    },
+    "reachability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "unavailable_visible",
+        "policy_hidden_visible",
+        "not_applicable_visible"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "open_about",
+        "open_update_center",
+        "open_installed_state_inspector",
+        "open_diagnostics_export",
+        "open_review_sheet",
+        "open_extension_details",
+        "open_installer_receipt",
+        "open_notices",
+        "export_notices",
+        "export_sbom",
+        "inspect_provenance",
+        "verify_now",
+        "refresh_revocation_snapshot",
+        "open_generated_lineage",
+        "open_source_inputs",
+        "open_redistribution_hint",
+        "copy_digest",
+        "export_disclosure_packet"
+      ]
+    },
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "provenance",
+        "signature",
+        "attestation",
+        "sbom",
+        "license",
+        "notice_inventory",
+        "revocation_snapshot",
+        "mirror_origin",
+        "generated_lineage",
+        "redistribution_terms"
+      ]
+    },
+    "missing_state": {
+      "type": "string",
+      "enum": [
+        "not_provided",
+        "partial",
+        "unknown",
+        "stale",
+        "expired",
+        "policy_hidden",
+        "not_applicable"
+      ]
+    },
+    "redistribution_hint_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "allowed_with_notice",
+        "review_before_redistribution",
+        "blocked_by_policy",
+        "unknown_review_required"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "public_proof_safe",
+        "support_redacted",
+        "internal_only"
+      ]
+    },
+    "review_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_subject_kind",
+        "surface_title",
+        "boundary_statement",
+        "primary_artifact_ref"
+      ],
+      "properties": {
+        "surface_subject_kind": { "$ref": "#/$defs/surface_subject_kind" },
+        "surface_title": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_statement": { "$ref": "#/$defs/reviewable_sentence" },
+        "primary_artifact_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_class",
+        "display_name",
+        "artifact_identity_ref",
+        "version_or_digest_ref",
+        "build_id",
+        "channel",
+        "exact_build_identity_ref",
+        "installer_receipt_ref",
+        "generated_artifact_lineage_ref"
+      ],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "version_or_digest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "build_id": { "$ref": "#/$defs/nullable_string" },
+        "channel": { "$ref": "#/$defs/channel_class" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/nullable_string" },
+        "installer_receipt_ref": { "$ref": "#/$defs/nullable_string" },
+        "generated_artifact_lineage_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "source_label",
+        "origin_ref",
+        "upstream_origin_ref",
+        "mirror_ref",
+        "side_load_review_ref",
+        "acquired_via",
+        "source_disclosure"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_label": { "$ref": "#/$defs/source_label" },
+        "origin_ref": { "$ref": "#/$defs/nullable_string" },
+        "upstream_origin_ref": { "$ref": "#/$defs/nullable_string" },
+        "mirror_ref": { "$ref": "#/$defs/nullable_string" },
+        "side_load_review_ref": { "$ref": "#/$defs/nullable_string" },
+        "acquired_via": { "$ref": "#/$defs/acquired_via" },
+        "source_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signature_state",
+        "attestation_state",
+        "checksum_state",
+        "revocation_state",
+        "revocation_freshness_class",
+        "revocation_snapshot_ref",
+        "checked_at",
+        "verification_evidence_refs",
+        "verification_disclosure"
+      ],
+      "properties": {
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "attestation_state": { "$ref": "#/$defs/attestation_state" },
+        "checksum_state": { "$ref": "#/$defs/checksum_state" },
+        "revocation_state": { "$ref": "#/$defs/revocation_state" },
+        "revocation_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "revocation_snapshot_ref": { "$ref": "#/$defs/nullable_string" },
+        "checked_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "verification_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "verification_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "notice_inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "license_state",
+        "license_expression_ref",
+        "notice_state",
+        "notice_inventory_state",
+        "notice_inventory_refs",
+        "sbom_state",
+        "sbom_formats",
+        "notice_disclosure"
+      ],
+      "properties": {
+        "license_state": { "$ref": "#/$defs/license_state" },
+        "license_expression_ref": { "$ref": "#/$defs/nullable_string" },
+        "notice_state": { "$ref": "#/$defs/notice_state" },
+        "notice_inventory_state": { "$ref": "#/$defs/notice_inventory_state" },
+        "notice_inventory_refs": { "$ref": "#/$defs/ref_array" },
+        "sbom_state": { "$ref": "#/$defs/sbom_state" },
+        "sbom_formats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sbom_format" },
+          "uniqueItems": true
+        },
+        "notice_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "missing_or_partial_data_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_class",
+        "missing_state",
+        "visible_label",
+        "disclosure",
+        "resolution_action_ref"
+      ],
+      "properties": {
+        "data_class": { "$ref": "#/$defs/data_class" },
+        "missing_state": { "$ref": "#/$defs/missing_state" },
+        "visible_label": { "$ref": "#/$defs/non_empty_string" },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "resolution_action_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "visible_cues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_cue",
+        "provenance_cue",
+        "license_cue",
+        "notice_cue",
+        "revocation_cue",
+        "missing_or_partial_data"
+      ],
+      "properties": {
+        "source_cue": { "$ref": "#/$defs/non_empty_string" },
+        "provenance_cue": { "$ref": "#/$defs/reviewable_sentence" },
+        "license_cue": { "$ref": "#/$defs/reviewable_sentence" },
+        "notice_cue": { "$ref": "#/$defs/reviewable_sentence" },
+        "revocation_cue": { "$ref": "#/$defs/reviewable_sentence" },
+        "missing_or_partial_data": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_or_partial_data_row" }
+        }
+      }
+    },
+    "access_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "access_point_class",
+        "reachability_class",
+        "action_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "access_point_class": { "$ref": "#/$defs/access_point_class" },
+        "reachability_class": { "$ref": "#/$defs/reachability_class" },
+        "action_ref": { "$ref": "#/$defs/nullable_string" },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_ref",
+        "action_class",
+        "label",
+        "target_ref",
+        "availability"
+      ],
+      "properties": {
+        "action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/nullable_string" },
+        "availability": { "$ref": "#/$defs/reachability_class" }
+      }
+    },
+    "redistribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redistribution_hint_class",
+        "redistribution_disclosure",
+        "required_notice_refs",
+        "required_license_refs",
+        "required_lineage_refs",
+        "policy_refs"
+      ],
+      "properties": {
+        "redistribution_hint_class": { "$ref": "#/$defs/redistribution_hint_class" },
+        "redistribution_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "required_notice_refs": { "$ref": "#/$defs/ref_array" },
+        "required_license_refs": { "$ref": "#/$defs/ref_array" },
+        "required_lineage_refs": { "$ref": "#/$defs/ref_array" },
+        "policy_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provenance_badge_refs",
+        "update_manifest_refs",
+        "install_review_refs",
+        "extension_or_pack_review_refs",
+        "generated_lineage_refs",
+        "release_evidence_refs",
+        "support_bundle_refs",
+        "diagnostics_export_refs",
+        "mirror_or_offline_receipt_refs"
+      ],
+      "properties": {
+        "provenance_badge_refs": { "$ref": "#/$defs/ref_array" },
+        "update_manifest_refs": { "$ref": "#/$defs/ref_array" },
+        "install_review_refs": { "$ref": "#/$defs/ref_array" },
+        "extension_or_pack_review_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_lineage_refs": { "$ref": "#/$defs/ref_array" },
+        "release_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "diagnostics_export_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_or_offline_receipt_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostics_export_refs",
+        "support_bundle_refs",
+        "public_proof_refs",
+        "offline_review_refs",
+        "redaction_class",
+        "omission_reasons"
+      ],
+      "properties": {
+        "diagnostics_export_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "public_proof_refs": { "$ref": "#/$defs/ref_array" },
+        "offline_review_refs": { "$ref": "#/$defs/ref_array" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "post_install_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "disclosure_id",
+        "emitted_at",
+        "review_context",
+        "artifact",
+        "source",
+        "verification",
+        "notice_inventory",
+        "visible_cues",
+        "access_points",
+        "actions",
+        "redistribution",
+        "linkage",
+        "export_projection",
+        "narrative_refs"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-fixture prelude. Runtime producers omit this field."
+        },
+        "schema_version": { "$ref": "#/$defs/post_install_disclosure_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "post_install_disclosure_record"
+        },
+        "disclosure_id": { "$ref": "#/$defs/disclosure_id" },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "review_context": { "$ref": "#/$defs/review_context" },
+        "artifact": { "$ref": "#/$defs/artifact" },
+        "source": { "$ref": "#/$defs/source" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "notice_inventory": { "$ref": "#/$defs/notice_inventory" },
+        "visible_cues": { "$ref": "#/$defs/visible_cues" },
+        "access_points": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/access_point" },
+          "allOf": [
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "about" } },
+                "required": ["access_point_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "update_center" } },
+                "required": ["access_point_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "installed_state_inspector" } },
+                "required": ["access_point_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "diagnostics_export" } },
+                "required": ["access_point_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "review_sheet" } },
+                "required": ["access_point_class"]
+              }
+            }
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "redistribution": { "$ref": "#/$defs/redistribution" },
+        "linkage": { "$ref": "#/$defs/linkage" },
+        "export_projection": { "$ref": "#/$defs/export_projection" },
+        "narrative_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_class": { "const": "official" }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_label": { "const": "Official" },
+                  "origin_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["source_label", "origin_ref"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_class": { "const": "mirrored" }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_label": { "const": "Mirrored" },
+                  "upstream_origin_ref": { "$ref": "#/$defs/non_empty_string" },
+                  "mirror_ref": { "$ref": "#/$defs/non_empty_string" }
+                }
+              },
+              "verification": {
+                "properties": {
+                  "revocation_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+                  "revocation_freshness_class": {
+                    "enum": [
+                      "current",
+                      "warm_cached",
+                      "stale_requires_review",
+                      "expired",
+                      "unknown"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_class": { "const": "side_loaded" }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_label": { "const": "Side-loaded" },
+                  "side_load_review_ref": { "$ref": "#/$defs/non_empty_string" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_class": { "const": "unknown_provenance" }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "properties": {
+                  "source_label": { "const": "Unknown provenance" }
+                }
+              },
+              "verification": {
+                "properties": {
+                  "signature_state": {
+                    "enum": [
+                      "signed_unverified",
+                      "signature_missing",
+                      "signature_mismatch",
+                      "not_applicable"
+                    ]
+                  },
+                  "attestation_state": {
+                    "enum": [
+                      "attestation_present_unverified",
+                      "attestation_missing",
+                      "attestation_stale",
+                      "not_applicable"
+                    ]
+                  },
+                  "revocation_freshness_class": {
+                    "enum": [
+                      "unknown",
+                      "stale_requires_review",
+                      "expired",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "review_context": {
+                "properties": {
+                  "surface_subject_kind": { "const": "generated_user_artifact" }
+                },
+                "required": ["surface_subject_kind"]
+              }
+            },
+            "required": ["review_context"]
+          },
+          "then": {
+            "properties": {
+              "artifact": {
+                "properties": {
+                  "generated_artifact_lineage_ref": { "$ref": "#/$defs/non_empty_string" }
+                }
+              },
+              "redistribution": {
+                "properties": {
+                  "redistribution_hint_class": {
+                    "enum": [
+                      "allowed_with_notice",
+                      "review_before_redistribution",
+                      "blocked_by_policy",
+                      "unknown_review_required"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

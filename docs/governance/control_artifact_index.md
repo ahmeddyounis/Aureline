@@ -174,7 +174,8 @@ scorecard, the maintainer-coverage policy, the signing-quorum matrix,
 the merge-control policy, protected merge class catalog, branch-protection
 seed, public-surface change-control matrix,
 the experiment/Labs control registers, the release-notice seed, the
-provenance-badge contract, the
+provenance-badge contract, the post-install notice and provenance
+disclosure contract, the
 release-artifact graph, release evidence, docs and help truth, route
 and build-truth artifacts, count/scope/freshness microcopy grammar,
 subsystem contract cards,

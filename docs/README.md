@@ -100,6 +100,13 @@ code.
   [`/schemas/governance/provenance_badge.schema.json`](../schemas/governance/provenance_badge.schema.json);
   worked fixtures in
   [`/fixtures/governance/provenance_badge_cases/`](../fixtures/governance/provenance_badge_cases/).
+- [`governance/post_install_notice_and_provenance_contract.md`](./governance/post_install_notice_and_provenance_contract.md)
+  — durable post-install disclosure contract for product builds,
+  installers, extensions/framework packs, mirrored or offline artifacts,
+  and generated user exports. Boundary schema in
+  [`/schemas/governance/post_install_disclosure.schema.json`](../schemas/governance/post_install_disclosure.schema.json);
+  worked fixtures in
+  [`/fixtures/governance/post_install_cases/`](../fixtures/governance/post_install_cases/).
 - [`architecture/build_vs_buy_register.md`](./architecture/build_vs_buy_register.md)
   — canonical launch-critical build-vs-buy register, scoring rubric,
   and dependency traceability for protected-path selections.
