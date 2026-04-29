@@ -15,6 +15,15 @@ Companion artifacts:
   — shared focus-owner, zoom/scaling, cursor/line-height, and
   pointer-independence contract that keyboard-only and high-zoom rows
   cite.
+- [`/docs/accessibility/accessibility_tree_contract.md`](./accessibility_tree_contract.md)
+  — shared accessibility-tree node taxonomy, role/name/state mapping,
+  virtualization truth, inspector snapshot, and downgrade contract.
+- [`/schemas/accessibility/tree_node.schema.json`](../../schemas/accessibility/tree_node.schema.json),
+  [`/schemas/accessibility/a11y_inspector_snapshot.schema.json`](../../schemas/accessibility/a11y_inspector_snapshot.schema.json),
+  and
+  [`/fixtures/accessibility/tree_node_cases/`](../../fixtures/accessibility/tree_node_cases/)
+  — machine-readable tree-node records, inspector snapshots, and seed
+  cases for custom-rendered surfaces.
 - [`/schemas/accessibility/focus_owner.schema.json`](../../schemas/accessibility/focus_owner.schema.json),
   [`/fixtures/accessibility/focus_zoom_cases/`](../../fixtures/accessibility/focus_zoom_cases),
   and
@@ -29,7 +38,7 @@ Companion artifacts:
   and
   [`/fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml`](../../fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml)
   — canonical locale/input readiness baseline, cross-surface
-  pseudoloc/RTL/CJK/IME test-mode rows, and the narrow M0 harness plan
+  pseudoloc/RTL/CJK/IME test-mode rows, and the narrow seed harness plan
   this packet family composes over.
 - [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml)
   — review-planning matrix tying each claimed desktop platform scope to

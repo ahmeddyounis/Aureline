@@ -26,6 +26,10 @@ Companion artifacts:
 - [`/docs/accessibility/focus_zoom_and_pointer_independence_contract.md`](./focus_zoom_and_pointer_independence_contract.md)
   — shared visible-focus, 50-400% zoom/scaling, cursor/line-height,
   and no-drag-only interaction contract.
+- [`/docs/accessibility/accessibility_tree_contract.md`](./accessibility_tree_contract.md)
+  — shared accessibility-tree node taxonomy, role/name/state mapping,
+  virtualization, inspector snapshot, and support-class downgrade
+  contract for custom-rendered surfaces.
 - [`/schemas/accessibility/announcement_event.schema.json`](../../schemas/accessibility/announcement_event.schema.json)
   and
   [`/fixtures/accessibility/announcement_cases/`](../../fixtures/accessibility/announcement_cases)
@@ -36,6 +40,12 @@ Companion artifacts:
   [`/artifacts/accessibility/no_drag_only_inventory.yaml`](../../artifacts/accessibility/no_drag_only_inventory.yaml)
   — machine-readable focus-owner snapshots, high-zoom cases, and
   pointer-independence debt ledger.
+- [`/schemas/accessibility/tree_node.schema.json`](../../schemas/accessibility/tree_node.schema.json),
+  [`/schemas/accessibility/a11y_inspector_snapshot.schema.json`](../../schemas/accessibility/a11y_inspector_snapshot.schema.json),
+  and
+  [`/fixtures/accessibility/tree_node_cases/`](../../fixtures/accessibility/tree_node_cases/)
+  — reusable accessibility-tree node, inspector snapshot, and fixture
+  records.
 - [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml)
   — machine-readable review-planning matrix for macOS, Windows, and
   Linux accessibility coverage rows.

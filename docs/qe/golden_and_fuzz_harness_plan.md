@@ -111,6 +111,9 @@ The accessibility-tree harness captures semantic roles, named
 regions, focus order, live-region announcements, and assistive-tech
 identity on core shell and editor surfaces. Categories below route
 through the `accessibility_regression` lane and compose against
+[`docs/accessibility/accessibility_tree_contract.md`](../accessibility/accessibility_tree_contract.md),
+[`schemas/accessibility/tree_node.schema.json`](../../schemas/accessibility/tree_node.schema.json),
+[`schemas/accessibility/a11y_inspector_snapshot.schema.json`](../../schemas/accessibility/a11y_inspector_snapshot.schema.json),
 [`artifacts/accessibility/accessibility_tree_coverage_rows.yaml`](../../artifacts/accessibility/accessibility_tree_coverage_rows.yaml)
 and the platform-input matrix.
 

@@ -14,6 +14,12 @@ Companion artifacts:
   defines the reusable event, fixture case, and support-export fields.
 - [`/fixtures/accessibility/announcement_cases/`](../../fixtures/accessibility/announcement_cases)
   contains worked announcement and live-region cases.
+- [`/docs/accessibility/accessibility_tree_contract.md`](./accessibility_tree_contract.md),
+  [`/schemas/accessibility/tree_node.schema.json`](../../schemas/accessibility/tree_node.schema.json),
+  and
+  [`/schemas/accessibility/a11y_inspector_snapshot.schema.json`](../../schemas/accessibility/a11y_inspector_snapshot.schema.json)
+  define the semantic tree and inspector fields that carry
+  live-region node refs and announcement contract versions.
 - [`/artifacts/accessibility/assistive_tech_coverage_rows.yaml`](../../artifacts/accessibility/assistive_tech_coverage_rows.yaml)
   defines launch-critical assistive-technology coverage rows.
 - [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml),
