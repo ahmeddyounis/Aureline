@@ -1,0 +1,712 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/import_review.schema.json",
+  "title": "Aureline import-review and handoff-artifact-inspection records",
+  "description": "Boundary schema for the two records frozen in docs/ux/import_handoff_review_contract.md. (1) The import_review_record is emitted by every import activation BEFORE Aureline writes files into a temporary or durable location, rehydrates state, or claims portability; it carries the artifact-class disclosure, schema / producer version, the inspect-only versus write-path class, the extraction / restore target, the lossy-mapping note, the machine-local exclusions, the cleanup posture, and the export / open-raw actions. (2) The handoff_artifact_inspection_record is emitted for portable-state packages, issue / support packets, archive imports, and bundle-like handoff objects; it carries the typed inspection rules, redaction class, and provenance labels each artifact class requires. The records mint no new entry-verb, target-kind, resulting-mode, trust-state, admission-class, restore-level, missing-target-state, recovery-class, next-step-decision-hook, artifact-family, source-class, state-plane, portability-class, redaction-class, fidelity-label, signature-state, or checksum-state value; those re-export from the upstream entry-restore object model, the persistence-inspector / portable-state schema, and the open-flow sheet schema. Adding a new import_review_class, inspect_or_write_class, extraction_target_class, lossy_mapping_class, cleanup_posture_class, raw_action_class, handoff_inspection_class, provenance_label_class, or import_review_requirement is additive-minor and bumps the corresponding *_schema_version; repurposing an existing value, weakening any §3.5 / §4.5 invariant, or relaxing the four 'no implicit unpack' booleans in §3 is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/import_review_record" },
+    { "$ref": "#/$defs/handoff_artifact_inspection_record" }
+  ],
+  "$defs": {
+    "import_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the import-review payload shape. Current value is 1."
+    },
+
+    "handoff_artifact_inspection_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the handoff-artifact-inspection payload shape. Current value is 1."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs with embedded credentials, and raw artifact bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__."
+    },
+
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "portable_state_package",
+        "portable_profile_body",
+        "handoff_packet",
+        "support_bundle_replay",
+        "issue_attachment_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "archive_bundle_unscoped",
+        "session_restore_manifest",
+        "workspace_manifest_bundle",
+        "mixed_state_export_bundle"
+      ],
+      "description": "Closed artifact-class set the import-review surface may resolve. The value is the typed projection of the upstream artifact_family, source_class, and target_kind vocabularies. See import_handoff_review_contract.md §3.2.1 and §4.2."
+    },
+
+    "schema_version_class": {
+      "type": "string",
+      "enum": [
+        "schema_version_match",
+        "schema_version_compatible_minor",
+        "schema_version_migrated_lossless",
+        "schema_version_migrated_lossy",
+        "schema_version_unknown",
+        "schema_version_unsupported_newer",
+        "schema_version_unsupported_older"
+      ],
+      "description": "Closed schema-version posture the import-review surface advertises. See §3.2.2."
+    },
+
+    "producer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "same_producer_same_build",
+        "same_producer_compatible_build",
+        "same_producer_unknown_build",
+        "different_producer_signed",
+        "different_producer_unsigned",
+        "producer_unknown",
+        "producer_explicitly_third_party"
+      ],
+      "description": "Closed producer-continuity posture. Distinct from signer continuity (which is about cryptographic identity); producer continuity records the build / vendor identity of the artifact."
+    },
+
+    "inspect_or_write_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only_no_write",
+        "write_to_labelled_inspection_staging",
+        "write_to_labelled_extraction_staging",
+        "write_to_user_destination_pending_review",
+        "write_to_durable_workspace_after_review",
+        "write_to_active_workspace_after_review"
+      ],
+      "description": "Closed inspect-or-write posture. inspect_only_no_write means no bytes land anywhere; the import is a metadata-only review. The labelled staging classes are non-durable; promotion to a durable destination requires a separate reviewed step. The durable / active-workspace classes are only allowed AFTER the user reviews and admits the import. See §3.2.3."
+    },
+
+    "extraction_target_class": {
+      "type": "string",
+      "enum": [
+        "no_extraction",
+        "ephemeral_inspection_only",
+        "labelled_inspection_staging",
+        "labelled_extraction_staging",
+        "user_chosen_durable_destination",
+        "active_workspace_in_place",
+        "preserved_prior_compare_only"
+      ],
+      "description": "Closed extraction-target / restore-target class. ephemeral_inspection_only means bytes are read into memory or a process-scoped tmpfs that disappears on exit / cancel. The labelled-staging classes are non-durable on disk. user_chosen_durable_destination and active_workspace_in_place are only allowed AFTER the user reviews. See §3.2.4."
+    },
+
+    "lossy_mapping_class": {
+      "type": "string",
+      "enum": [
+        "no_lossy_mapping",
+        "lossy_with_review",
+        "lossy_dropped_unsupported",
+        "schema_migrated_compatible",
+        "schema_migrated_lossy",
+        "competitor_mapping_partial",
+        "manual_review_required"
+      ],
+      "description": "Closed lossy-mapping note class. lossy_dropped_unsupported names items the importer cannot translate (e.g. competitor settings with no Aureline equivalent). schema_migrated_lossy names a successful schema migration that lost fidelity. See §3.2.5."
+    },
+
+    "cleanup_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_cleanup_required",
+        "cleanup_on_cancel",
+        "cleanup_on_failure",
+        "retain_for_review",
+        "retain_until_durable_promotion",
+        "manual_cleanup_required",
+        "rollback_checkpoint_retained"
+      ],
+      "description": "Closed cleanup-posture class. retain_for_review keeps the staged artifact reviewable until the user explicitly clears or promotes. rollback_checkpoint_retained pairs with the upstream rollback-checkpoint contract. See §3.2.7."
+    },
+
+    "raw_action_class": {
+      "type": "string",
+      "enum": [
+        "open_raw_inspector",
+        "export_inspection_bundle",
+        "export_redacted_summary",
+        "compare_against_active_workspace",
+        "reveal_in_filesystem",
+        "cancel_no_change",
+        "promote_to_durable_destination",
+        "discard_inspection",
+        "reroute_to_compare_before_restore",
+        "reroute_to_review_migration_report",
+        "request_admin_help"
+      ],
+      "description": "Closed raw / export action set. open_raw_inspector opens the artifact body as inspectable bytes (read-only) without rehydrating state. export_inspection_bundle emits a sharable redacted bundle for support / handoff. promote_to_durable_destination is the named bridge from non-durable staging to a durable workspace; it is always a separate reviewed step. See §3.2.8."
+    },
+
+    "machine_local_exclusion_class": {
+      "type": "string",
+      "enum": [
+        "no_exclusions",
+        "secret_material_excluded",
+        "live_handle_excluded",
+        "machine_unique_handle_excluded",
+        "credential_store_only_excluded",
+        "absolute_path_excluded",
+        "display_affinity_excluded",
+        "policy_excludes_artifact",
+        "user_declined_artifact"
+      ],
+      "description": "Closed machine-local-exclusion class set the import surface advertises. Re-uses the persistence-inspector exclusion vocabulary. See §3.2.6."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "Re-export of redaction_class from /schemas/state/portable_state_package.schema.json."
+    },
+
+    "signature_state": {
+      "type": "string",
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned",
+        "signature_missing",
+        "signature_mismatch",
+        "not_applicable",
+        "pending"
+      ],
+      "description": "Re-export of signature_state from /schemas/state/portable_state_package.schema.json."
+    },
+
+    "checksum_state": {
+      "type": "string",
+      "enum": [
+        "checksum_available",
+        "checksum_pending",
+        "not_applicable",
+        "omitted_by_policy",
+        "unavailable_preflight"
+      ],
+      "description": "Re-export of checksum_state from /schemas/state/portable_state_package.schema.json."
+    },
+
+    "next_step_decision_hook": {
+      "type": "string",
+      "enum": [
+        "continue_in_restricted_mode",
+        "review_trust_and_open",
+        "open_minimal",
+        "set_up_later",
+        "review_archetype_match",
+        "compare_before_restore",
+        "open_without_restore",
+        "safe_mode",
+        "reconnect_required",
+        "reauth_required",
+        "locate_missing_target",
+        "remove_from_recents",
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items"
+      ],
+      "description": "Re-export of next_step_decision_hook from /schemas/ux/open_flow_sheet.schema.json."
+    },
+
+    "fallback_action_class": {
+      "type": "string",
+      "enum": [
+        "cancel_no_change",
+        "reopen_previous_workspace",
+        "return_to_start_center",
+        "open_without_restore",
+        "compare_before_restore",
+        "continue_in_restricted_mode",
+        "open_in_safe_mode",
+        "open_minimal",
+        "inspect_only",
+        "review_migration_report",
+        "roll_back_import",
+        "remove_from_recents",
+        "locate_missing_target",
+        "set_up_later"
+      ],
+      "description": "Re-export of fallback_action_class from /schemas/ux/open_flow_sheet.schema.json."
+    },
+
+    "import_review_requirement": {
+      "type": "string",
+      "enum": [
+        "no_review_required",
+        "trust_review_required",
+        "policy_review_required",
+        "tenant_review_required",
+        "migration_review_required",
+        "rollback_checkpoint_review_required",
+        "competitor_mapping_review_required",
+        "support_redaction_review_required",
+        "schema_migration_review_required",
+        "unsupported_item_review_required"
+      ],
+      "description": "Closed review-requirement set the import-review surface may emit. A row whose disclosure axes cannot be populated MUST deny commit with a typed requirement instead of falling back to a generic 'Import anyway' path. See §3.5."
+    },
+
+    "handoff_inspection_class": {
+      "type": "string",
+      "enum": [
+        "portable_state_package_inspection",
+        "issue_or_support_packet_inspection",
+        "archive_bundle_inspection",
+        "bundle_like_handoff_inspection",
+        "competitor_config_inspection",
+        "template_or_prebuild_inspection"
+      ],
+      "description": "Closed handoff-inspection-class set. Each value names the inspection rule profile the artifact-class follows. See §4.2."
+    },
+
+    "provenance_label_class": {
+      "type": "string",
+      "enum": [
+        "first_party_signed",
+        "first_party_unsigned",
+        "third_party_signed",
+        "third_party_unsigned",
+        "support_bundle_redacted",
+        "support_bundle_unredacted",
+        "competitor_origin_declared",
+        "anonymous_origin",
+        "provenance_missing"
+      ],
+      "description": "Closed provenance-label class. Renders next to the artifact identity so a reviewer can see who produced the artifact and whether the producer signed it. See §4.3."
+    },
+
+    "redaction_posture_class": {
+      "type": "string",
+      "enum": [
+        "default_redaction_applied",
+        "support_redaction_applied",
+        "competitor_redaction_applied",
+        "redaction_skipped_by_user",
+        "redaction_skipped_by_policy",
+        "redaction_unavailable",
+        "redaction_partial"
+      ],
+      "description": "Closed redaction-posture class the inspection record advertises. See §4.4."
+    },
+
+    "artifact_class_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "summary"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "artifact_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_family_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every import review. See §3.2.1."
+    },
+
+    "version_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version_class", "producer_continuity_class", "summary"],
+      "properties": {
+        "schema_version_class": { "$ref": "#/$defs/schema_version_class" },
+        "schema_version_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_continuity_class": { "$ref": "#/$defs/producer_continuity_class" },
+        "producer_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_build_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "checksum_state": { "$ref": "#/$defs/checksum_state" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every import review. See §3.2.2."
+    },
+
+    "inspect_or_write_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inspect_or_write_class", "non_durable_label_visible", "durable_promotion_requires_review", "summary"],
+      "properties": {
+        "inspect_or_write_class": { "$ref": "#/$defs/inspect_or_write_class" },
+        "non_durable_label_visible": { "type": "boolean" },
+        "durable_promotion_requires_review": { "type": "boolean" },
+        "inspection_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "inspect_or_write_class": {
+                "enum": [
+                  "write_to_labelled_inspection_staging",
+                  "write_to_labelled_extraction_staging",
+                  "write_to_user_destination_pending_review"
+                ]
+              }
+            },
+            "required": ["inspect_or_write_class"]
+          },
+          "then": {
+            "required": ["inspection_label"],
+            "properties": {
+              "non_durable_label_visible": { "const": true },
+              "durable_promotion_requires_review": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "inspect_or_write_class": { "const": "inspect_only_no_write" } },
+            "required": ["inspect_or_write_class"]
+          },
+          "then": {
+            "properties": {
+              "durable_promotion_requires_review": { "const": true }
+            }
+          }
+        }
+      ],
+      "description": "Required on every import review. See §3.2.3."
+    },
+
+    "extraction_target_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extraction_target_class", "summary"],
+      "properties": {
+        "extraction_target_class": { "$ref": "#/$defs/extraction_target_class" },
+        "extraction_target_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "restore_target_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "active_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "extraction_target_class": {
+                "enum": [
+                  "labelled_inspection_staging",
+                  "labelled_extraction_staging",
+                  "user_chosen_durable_destination"
+                ]
+              }
+            },
+            "required": ["extraction_target_class"]
+          },
+          "then": { "required": ["extraction_target_label"] }
+        },
+        {
+          "if": {
+            "properties": { "extraction_target_class": { "const": "active_workspace_in_place" } },
+            "required": ["extraction_target_class"]
+          },
+          "then": { "required": ["active_workspace_ref"] }
+        }
+      ],
+      "description": "Required on every import review. See §3.2.4."
+    },
+
+    "lossy_mapping_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lossy_mapping_class", "summary"],
+      "properties": {
+        "lossy_mapping_class": { "$ref": "#/$defs/lossy_mapping_class" },
+        "lossy_item_count_class": {
+          "type": "string",
+          "enum": ["zero", "one", "few", "many", "unknown_until_extract"],
+          "description": "Coarse-grained count of items the mapping flagged as lossy. Exact counts cross the boundary as lossy_item_count_label only."
+        },
+        "lossy_item_count_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "unsupported_item_review_required": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "lossy_mapping_class": {
+                "enum": [
+                  "lossy_with_review",
+                  "lossy_dropped_unsupported",
+                  "schema_migrated_lossy",
+                  "competitor_mapping_partial",
+                  "manual_review_required"
+                ]
+              }
+            },
+            "required": ["lossy_mapping_class"]
+          },
+          "then": {
+            "properties": {
+              "unsupported_item_review_required": { "const": true }
+            },
+            "required": ["unsupported_item_review_required"]
+          }
+        }
+      ],
+      "description": "Required on every import review. See §3.2.5."
+    },
+
+    "machine_local_exclusion_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exclusion_classes", "summary"],
+      "properties": {
+        "exclusion_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/machine_local_exclusion_class" },
+          "uniqueItems": true
+        },
+        "exclusion_count_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every import review. The list of machine-local exclusions the importer applied or will apply. A review with no exclusions still emits the no_exclusions class. See §3.2.6."
+    },
+
+    "cleanup_posture_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cleanup_posture_class", "summary"],
+      "properties": {
+        "cleanup_posture_class": { "$ref": "#/$defs/cleanup_posture_class" },
+        "cleanup_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "cleanup_posture_class": { "const": "rollback_checkpoint_retained" } },
+            "required": ["cleanup_posture_class"]
+          },
+          "then": { "required": ["rollback_checkpoint_ref"] }
+        }
+      ],
+      "description": "Required on every import review. See §3.2.7."
+    },
+
+    "raw_action_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_actions_offered", "summary"],
+      "properties": {
+        "raw_actions_offered": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/raw_action_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every import review. The set of raw / export actions the surface offers. The set MUST include at least one of cancel_no_change or discard_inspection. See §3.2.8."
+    },
+
+    "import_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "import_review_schema_version",
+        "import_review_id",
+        "entry_chooser_row_ref",
+        "open_flow_sheet_ref",
+        "artifact_class_disclosure",
+        "version_disclosure",
+        "inspect_or_write_disclosure",
+        "extraction_target_disclosure",
+        "lossy_mapping_disclosure",
+        "machine_local_exclusion_disclosure",
+        "cleanup_posture_disclosure",
+        "raw_action_disclosure",
+        "handoff_artifact_inspection_ref",
+        "post_entry_handoff_card_ref",
+        "trust_unchanged_until_admit",
+        "no_durable_write_before_review",
+        "no_state_rehydration_before_review",
+        "no_portability_claim_before_review",
+        "fallback_actions",
+        "next_step_decision_hooks",
+        "presentation_label",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "import_review_record" },
+        "import_review_schema_version": { "$ref": "#/$defs/import_review_schema_version" },
+        "import_review_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_chooser_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "open_flow_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_class_disclosure": { "$ref": "#/$defs/artifact_class_disclosure" },
+        "version_disclosure": { "$ref": "#/$defs/version_disclosure" },
+        "inspect_or_write_disclosure": { "$ref": "#/$defs/inspect_or_write_disclosure" },
+        "extraction_target_disclosure": { "$ref": "#/$defs/extraction_target_disclosure" },
+        "lossy_mapping_disclosure": { "$ref": "#/$defs/lossy_mapping_disclosure" },
+        "machine_local_exclusion_disclosure": { "$ref": "#/$defs/machine_local_exclusion_disclosure" },
+        "cleanup_posture_disclosure": { "$ref": "#/$defs/cleanup_posture_disclosure" },
+        "raw_action_disclosure": { "$ref": "#/$defs/raw_action_disclosure" },
+        "handoff_artifact_inspection_ref": { "$ref": "#/$defs/opaque_id" },
+        "post_entry_handoff_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/import_review_requirement" },
+          "uniqueItems": true
+        },
+        "trust_unchanged_until_admit": { "type": "boolean", "const": true },
+        "no_durable_write_before_review": { "type": "boolean", "const": true },
+        "no_state_rehydration_before_review": { "type": "boolean", "const": true },
+        "no_portability_claim_before_review": { "type": "boolean", "const": true },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action_class" },
+          "uniqueItems": true
+        },
+        "next_step_decision_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_step_decision_hook" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One import review record. Emitted by every import activation BEFORE Aureline writes files into a temporary or durable location, rehydrates state, or claims portability. See docs/ux/import_handoff_review_contract.md §3."
+    },
+
+    "handoff_artifact_inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "handoff_artifact_inspection_schema_version",
+        "inspection_id",
+        "import_review_ref",
+        "handoff_inspection_class",
+        "artifact_class",
+        "provenance_label_class",
+        "redaction_class",
+        "redaction_posture_class",
+        "signature_state",
+        "checksum_state",
+        "raw_body_inspectable",
+        "redacted_summary_available",
+        "summary",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "handoff_artifact_inspection_record" },
+        "handoff_artifact_inspection_schema_version": { "$ref": "#/$defs/handoff_artifact_inspection_schema_version" },
+        "inspection_id": { "$ref": "#/$defs/opaque_id" },
+        "import_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "handoff_inspection_class": { "$ref": "#/$defs/handoff_inspection_class" },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "artifact_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "provenance_label_class": { "$ref": "#/$defs/provenance_label_class" },
+        "provenance_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "redaction_posture_class": { "$ref": "#/$defs/redaction_posture_class" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "checksum_state": { "$ref": "#/$defs/checksum_state" },
+        "raw_body_inspectable": { "type": "boolean" },
+        "redacted_summary_available": { "type": "boolean" },
+        "competitor_mapping_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_redaction_policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "handoff_inspection_class": { "const": "issue_or_support_packet_inspection" } },
+            "required": ["handoff_inspection_class"]
+          },
+          "then": {
+            "required": ["support_redaction_policy_ref"],
+            "properties": {
+              "redaction_posture_class": {
+                "enum": [
+                  "support_redaction_applied",
+                  "redaction_skipped_by_user",
+                  "redaction_skipped_by_policy",
+                  "redaction_partial"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "handoff_inspection_class": { "const": "competitor_config_inspection" } },
+            "required": ["handoff_inspection_class"]
+          },
+          "then": {
+            "required": ["competitor_mapping_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "handoff_inspection_class": { "const": "portable_state_package_inspection" } },
+            "required": ["handoff_inspection_class"]
+          },
+          "then": {
+            "properties": {
+              "artifact_class": {
+                "enum": [
+                  "portable_state_package",
+                  "portable_profile_body",
+                  "session_restore_manifest",
+                  "workspace_manifest_bundle",
+                  "mixed_state_export_bundle"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One handoff-artifact-inspection record. Emitted alongside the import_review_record to carry the typed inspection rules each artifact class requires. See docs/ux/import_handoff_review_contract.md §4."
+    }
+  }
+}

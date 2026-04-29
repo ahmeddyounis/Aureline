@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/post_entry_handoff_card.schema.json",
+  "title": "Aureline post-entry handoff-card record",
+  "description": "Boundary schema for the post_entry_handoff_card_record frozen in docs/ux/import_handoff_review_contract.md §5. The card is emitted AFTER the user activates an import row and BEFORE Aureline rehydrates state, writes durable bytes into a final home, or claims the artifact has been ingested. It summarises (1) what Aureline intentionally did NOT do yet, (2) what remains blocked or optional, and (3) what safe next action is available so the activation can be picked up later for support / export use without losing provenance, exclusions, or recommended next steps. The record mints no new entry-verb, target-kind, resulting-mode, trust-state, admission-class, restore-level, missing-target-state, recovery-class, next-step-decision-hook, fallback-action-class, redaction-class, fidelity-label, signature-state, checksum-state, artifact-class, lossy-mapping-class, cleanup-posture-class, raw-action-class, handoff-inspection-class, provenance-label-class, redaction-posture-class, or import-review-requirement value; those re-export from the upstream entry-restore object model, the persistence-inspector / portable-state schema, the open-flow sheet schema, and the import-review schema. Adding a new not_yet_done_class, blocked_or_optional_class, safest_next_action_class, or handoff_card_status_class is additive-minor and bumps post_entry_handoff_card_schema_version; repurposing an existing value, weakening any §5.4 invariant, or relaxing the four 'no implicit grant / write / rehydrate / portability claim' booleans is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/post_entry_handoff_card_record",
+  "$defs": {
+    "post_entry_handoff_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the post-entry handoff-card payload shape. Current value is 1."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs with embedded credentials, and raw artifact bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__."
+    },
+
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "portable_state_package",
+        "portable_profile_body",
+        "handoff_packet",
+        "support_bundle_replay",
+        "issue_attachment_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "archive_bundle_unscoped",
+        "session_restore_manifest",
+        "workspace_manifest_bundle",
+        "mixed_state_export_bundle"
+      ],
+      "description": "Re-export of artifact_class from /schemas/ux/import_review.schema.json."
+    },
+
+    "provenance_label_class": {
+      "type": "string",
+      "enum": [
+        "first_party_signed",
+        "first_party_unsigned",
+        "third_party_signed",
+        "third_party_unsigned",
+        "support_bundle_redacted",
+        "support_bundle_unredacted",
+        "competitor_origin_declared",
+        "anonymous_origin",
+        "provenance_missing"
+      ],
+      "description": "Re-export of provenance_label_class from /schemas/ux/import_review.schema.json."
+    },
+
+    "machine_local_exclusion_class": {
+      "type": "string",
+      "enum": [
+        "no_exclusions",
+        "secret_material_excluded",
+        "live_handle_excluded",
+        "machine_unique_handle_excluded",
+        "credential_store_only_excluded",
+        "absolute_path_excluded",
+        "display_affinity_excluded",
+        "policy_excludes_artifact",
+        "user_declined_artifact"
+      ],
+      "description": "Re-export of machine_local_exclusion_class from /schemas/ux/import_review.schema.json."
+    },
+
+    "next_step_decision_hook": {
+      "type": "string",
+      "enum": [
+        "continue_in_restricted_mode",
+        "review_trust_and_open",
+        "open_minimal",
+        "set_up_later",
+        "review_archetype_match",
+        "compare_before_restore",
+        "open_without_restore",
+        "safe_mode",
+        "reconnect_required",
+        "reauth_required",
+        "locate_missing_target",
+        "remove_from_recents",
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items"
+      ],
+      "description": "Re-export of next_step_decision_hook from /schemas/ux/open_flow_sheet.schema.json."
+    },
+
+    "fallback_action_class": {
+      "type": "string",
+      "enum": [
+        "cancel_no_change",
+        "reopen_previous_workspace",
+        "return_to_start_center",
+        "open_without_restore",
+        "compare_before_restore",
+        "continue_in_restricted_mode",
+        "open_in_safe_mode",
+        "open_minimal",
+        "inspect_only",
+        "review_migration_report",
+        "roll_back_import",
+        "remove_from_recents",
+        "locate_missing_target",
+        "set_up_later"
+      ],
+      "description": "Re-export of fallback_action_class from /schemas/ux/open_flow_sheet.schema.json."
+    },
+
+    "handoff_card_status_class": {
+      "type": "string",
+      "enum": [
+        "review_pending",
+        "compare_pending",
+        "user_paused_for_later",
+        "import_admitted_partial",
+        "import_admitted_full",
+        "import_rolled_back",
+        "import_failed_pending_recovery",
+        "import_blocked_by_policy",
+        "import_blocked_by_authority",
+        "import_blocked_by_unsupported_items",
+        "import_discarded_no_change"
+      ],
+      "description": "Closed status the post-entry handoff card advertises. Each value resolves to a typed safest_next_action and a typed list of what remains blocked / optional / done. See §5.2."
+    },
+
+    "not_yet_done_class": {
+      "type": "string",
+      "enum": [
+        "no_durable_write",
+        "no_state_rehydration",
+        "no_portability_claim",
+        "no_trust_grant",
+        "no_dependency_restore",
+        "no_extension_recommendation",
+        "no_hook_or_task_execution",
+        "no_active_workspace_replacement",
+        "no_profile_retarget",
+        "no_settings_overwrite",
+        "no_credential_admission",
+        "no_remote_attach",
+        "no_browser_handshake",
+        "no_telemetry_emission_for_admission"
+      ],
+      "description": "Closed set of side effects the import activation has intentionally NOT performed yet. The card MUST list every applicable class so the user can see exactly what was deferred. See §5.2.1."
+    },
+
+    "blocked_or_optional_class": {
+      "type": "string",
+      "enum": [
+        "trust_review_blocked",
+        "trust_review_optional",
+        "policy_review_blocked",
+        "policy_review_optional",
+        "tenant_review_blocked",
+        "migration_review_blocked",
+        "migration_review_optional",
+        "rollback_checkpoint_review_blocked",
+        "competitor_mapping_review_blocked",
+        "competitor_mapping_review_optional",
+        "support_redaction_review_blocked",
+        "schema_migration_review_blocked",
+        "unsupported_item_review_blocked",
+        "unsupported_item_review_optional",
+        "destination_choice_blocked",
+        "destination_choice_optional",
+        "credential_handoff_blocked",
+        "credential_handoff_optional",
+        "remote_authority_blocked",
+        "no_remaining_blockers"
+      ],
+      "description": "Closed set of items that remain blocked or optional after the post-entry handoff. The card MUST resolve each remaining concern into one of these classes; free-form 'You may want to do X' copy is non-conforming. See §5.2.2."
+    },
+
+    "safest_next_action_class": {
+      "type": "string",
+      "enum": [
+        "review_migration_report",
+        "compare_before_restore",
+        "review_unsupported_items",
+        "review_trust_and_open",
+        "promote_to_durable_destination",
+        "keep_imported_state",
+        "roll_back_import",
+        "set_up_later",
+        "open_minimal",
+        "inspect_only",
+        "return_to_start_center",
+        "request_admin_help",
+        "discard_inspection",
+        "no_action_required"
+      ],
+      "description": "Closed set of safe-next-action choices the post-entry handoff card may surface. The card's primary affordance MUST resolve to one of these. See §5.2.3."
+    },
+
+    "what_aureline_did_not_do_yet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["not_yet_done_classes", "summary"],
+      "properties": {
+        "not_yet_done_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/not_yet_done_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every post-entry handoff card. See §5.2.1."
+    },
+
+    "what_remains_blocked_or_optional": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocked_or_optional_classes", "summary"],
+      "properties": {
+        "blocked_or_optional_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/blocked_or_optional_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every post-entry handoff card. The list of items that remain blocked / optional after the handoff. A card whose only entry is no_remaining_blockers MUST still resolve a typed safest_next_action_class. See §5.2.2."
+    },
+
+    "safest_next_action_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["safest_next_action_class", "post_handoff_actions_offered", "summary"],
+      "properties": {
+        "safest_next_action_class": { "$ref": "#/$defs/safest_next_action_class" },
+        "post_handoff_actions_offered": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safest_next_action_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every post-entry handoff card. See §5.2.3."
+    },
+
+    "preserved_provenance_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "provenance_label_class", "exact_artifact_identity_preserved", "summary"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "provenance_label_class": { "$ref": "#/$defs/provenance_label_class" },
+        "provenance_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "artifact_identity_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "exact_artifact_identity_preserved": { "type": "boolean", "const": true },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every post-entry handoff card. The card preserves the exact artifact identity (artifact class, provenance label, producer label) so a later support / export retrieval cannot paraphrase it. A card that emits exact_artifact_identity_preserved = false is non-conforming. See §5.2.4."
+    },
+
+    "preserved_exclusions_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exclusion_classes", "summary"],
+      "properties": {
+        "exclusion_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/machine_local_exclusion_class" },
+          "uniqueItems": true
+        },
+        "exclusion_count_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every post-entry handoff card. The list of machine-local exclusions the import preserved on the activation. The list MUST agree with the upstream import_review_record.machine_local_exclusion_disclosure.exclusion_classes; a card that drops an exclusion is non-conforming. See §5.2.5."
+    },
+
+    "post_entry_handoff_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "post_entry_handoff_card_schema_version",
+        "card_id",
+        "import_review_ref",
+        "handoff_artifact_inspection_ref",
+        "handoff_card_status_class",
+        "what_aureline_did_not_do_yet",
+        "what_remains_blocked_or_optional",
+        "safest_next_action_disclosure",
+        "preserved_provenance_disclosure",
+        "preserved_exclusions_disclosure",
+        "trust_unchanged_until_admit",
+        "no_durable_write_at_handoff",
+        "no_state_rehydration_at_handoff",
+        "no_portability_claim_at_handoff",
+        "later_support_or_export_retrieval_supported",
+        "fallback_actions",
+        "next_step_decision_hooks",
+        "presentation_label",
+        "summary",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "post_entry_handoff_card_record" },
+        "post_entry_handoff_card_schema_version": { "$ref": "#/$defs/post_entry_handoff_card_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "import_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "handoff_artifact_inspection_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "handoff_card_status_class": { "$ref": "#/$defs/handoff_card_status_class" },
+        "what_aureline_did_not_do_yet": { "$ref": "#/$defs/what_aureline_did_not_do_yet" },
+        "what_remains_blocked_or_optional": { "$ref": "#/$defs/what_remains_blocked_or_optional" },
+        "safest_next_action_disclosure": { "$ref": "#/$defs/safest_next_action_disclosure" },
+        "preserved_provenance_disclosure": { "$ref": "#/$defs/preserved_provenance_disclosure" },
+        "preserved_exclusions_disclosure": { "$ref": "#/$defs/preserved_exclusions_disclosure" },
+        "trust_unchanged_until_admit": { "type": "boolean", "const": true },
+        "no_durable_write_at_handoff": { "type": "boolean", "const": true },
+        "no_state_rehydration_at_handoff": { "type": "boolean", "const": true },
+        "no_portability_claim_at_handoff": { "type": "boolean", "const": true },
+        "later_support_or_export_retrieval_supported": { "type": "boolean", "const": true },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action_class" },
+          "uniqueItems": true
+        },
+        "next_step_decision_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_step_decision_hook" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "handoff_card_status_class": { "const": "import_failed_pending_recovery" } },
+            "required": ["handoff_card_status_class"]
+          },
+          "then": {
+            "properties": {
+              "safest_next_action_disclosure": {
+                "properties": {
+                  "post_handoff_actions_offered": {
+                    "contains": { "const": "roll_back_import" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "handoff_card_status_class": { "const": "import_blocked_by_unsupported_items" } },
+            "required": ["handoff_card_status_class"]
+          },
+          "then": {
+            "properties": {
+              "what_remains_blocked_or_optional": {
+                "properties": {
+                  "blocked_or_optional_classes": {
+                    "contains": { "const": "unsupported_item_review_blocked" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "handoff_card_status_class": { "const": "user_paused_for_later" } },
+            "required": ["handoff_card_status_class"]
+          },
+          "then": {
+            "properties": {
+              "safest_next_action_disclosure": {
+                "properties": {
+                  "post_handoff_actions_offered": {
+                    "contains": { "const": "set_up_later" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One post-entry handoff-card record. Emitted AFTER the user activates an import row and BEFORE Aureline rehydrates state, writes durable bytes into a final home, or claims the artifact has been ingested. See docs/ux/import_handoff_review_contract.md §5."
+    }
+  }
+}

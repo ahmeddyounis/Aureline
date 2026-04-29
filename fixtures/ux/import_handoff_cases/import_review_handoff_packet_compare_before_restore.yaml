@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=../../../schemas/ux/import_review.schema.json
+__fixture__:
+  name: import_review_handoff_packet_compare_before_restore
+  scenario: >
+    User picks Import a signed handoff packet from a peer environment
+    and resolves the activation through compare-before-restore. The
+    importer flagged some items as lossy and retained a pre-import
+    rollback checkpoint. The import review emits one
+    import_review_record with inspect_or_write_class =
+    write_to_labelled_extraction_staging, lossy_mapping_class =
+    lossy_with_review, cleanup_posture_class =
+    rollback_checkpoint_retained with rollback_checkpoint_ref set,
+    machine-local exclusions listed. The four "no implicit unpack"
+    booleans are true. Demonstrates §3.2.5 lossy_mapping_disclosure,
+    §3.2.7 cleanup_posture (rollback_checkpoint_retained branch), §3.5
+    rule 7 (lossy mapping disclosed).
+  record_kind_exercised: import_review_record
+  doc_sections:
+    - "§3.2.5 lossy_mapping_disclosure"
+    - "§3.2.7 cleanup_posture_disclosure"
+    - "§3.5 Acceptance rule 7"
+
+record_kind: import_review_record
+import_review_schema_version: 1
+import_review_id: import-review-handoff-packet-compare-0001
+entry_chooser_row_ref: entry-chooser-row-import-handoff-archive-0001
+open_flow_sheet_ref: open-flow-sheet-import-artifact-compare-0001
+artifact_descriptor_ref: artifact-descriptor-handoff-packet-signed-0001
+
+artifact_class_disclosure:
+  artifact_class: handoff_packet
+  artifact_descriptor_ref: artifact-descriptor-handoff-packet-signed-0001
+  artifact_family_label: "Peer-environment handoff packet"
+  summary: "Bundle-like handoff packet from a peer Aureline environment. Signed."
+
+version_disclosure:
+  schema_version_class: schema_version_compatible_minor
+  schema_version_label: "handoff_packet v1 (minor n-1)"
+  producer_continuity_class: same_producer_compatible_build
+  producer_label: "Aureline (peer environment)"
+  producer_build_label: "Aureline 0.0.9 (stable)"
+  signature_state: signed_verified
+  checksum_state: checksum_available
+  summary: "Same producer family, compatible minor; signature verified; checksum verified."
+
+inspect_or_write_disclosure:
+  inspect_or_write_class: write_to_labelled_extraction_staging
+  non_durable_label_visible: true
+  durable_promotion_requires_review: true
+  inspection_label: "Labelled extraction staging (non-durable)"
+  summary: "Extracted contents land in labelled non-durable staging."
+
+extraction_target_disclosure:
+  extraction_target_class: labelled_extraction_staging
+  extraction_target_label: "~/Aureline/staging/handoff-packet-extract-0001"
+  summary: "Bytes land in labelled extraction staging for compare-before-restore."
+
+lossy_mapping_disclosure:
+  lossy_mapping_class: lossy_with_review
+  lossy_item_count_class: few
+  lossy_item_count_label: "3 items flagged as lossy"
+  unsupported_item_review_required: true
+  summary: "3 items will lose fidelity if applied as-is. The user reviews each in the migration report before commit."
+
+machine_local_exclusion_disclosure:
+  exclusion_classes:
+    - secret_material_excluded
+    - live_handle_excluded
+    - machine_unique_handle_excluded
+    - credential_store_only_excluded
+  exclusion_count_label: "4 machine-local classes excluded"
+  summary: "Packet declared exclusions for secrets, live handles, machine-unique handles, and credential-store entries."
+
+cleanup_posture_disclosure:
+  cleanup_posture_class: rollback_checkpoint_retained
+  cleanup_label: "Pre-import rollback checkpoint retained"
+  rollback_checkpoint_ref: rollback-checkpoint-pre-import-handoff-0001
+  summary: "Pre-import rollback checkpoint retained. Cancel restores the active workspace from the checkpoint."
+
+raw_action_disclosure:
+  raw_actions_offered:
+    - open_raw_inspector
+    - reveal_in_filesystem
+    - export_inspection_bundle
+    - compare_against_active_workspace
+    - reroute_to_review_migration_report
+    - cancel_no_change
+    - discard_inspection
+  summary: "User can inspect, reveal, export an inspection bundle, compare, route to the migration report, or cancel and roll back."
+
+handoff_artifact_inspection_ref: handoff-artifact-inspection-handoff-packet-0001
+post_entry_handoff_card_ref: post-entry-handoff-card-handoff-packet-compare-0001
+
+review_requirements:
+  - migration_review_required
+  - rollback_checkpoint_review_required
+  - unsupported_item_review_required
+
+trust_unchanged_until_admit: true
+no_durable_write_before_review: true
+no_state_rehydration_before_review: true
+no_portability_claim_before_review: true
+
+fallback_actions:
+  - cancel_no_change
+  - reopen_previous_workspace
+  - inspect_only
+  - compare_before_restore
+  - review_migration_report
+  - roll_back_import
+
+next_step_decision_hooks:
+  - review_migration_report
+  - compare_before_restore
+  - review_unsupported_items
+  - roll_back_import
+  - keep_imported_state
+
+presentation_label: "Compare handoff packet before applying"
+presentation_subtitle: "3 items flagged as lossy. Pre-import checkpoint retained for rollback."
+minted_at: "mono:0000:00:00:00.0000"
