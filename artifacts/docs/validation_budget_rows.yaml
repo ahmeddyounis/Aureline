@@ -1,0 +1,368 @@
+# Validation-budget rows for docs suggestions.
+#
+# This artifact is consumed by docs-suggestion publishers, docs-pack
+# validators, release-doc review packets, support exports, and public
+# proof review tooling. Rows describe when evidence must be refreshed
+# before a suggestion may present a change as ready to apply or publish.
+#
+# Rules:
+#   - Every docs_suggestion_record MUST cite exactly one budget row.
+#   - Expired, missing, unsupported, or unverified budgets cap
+#     suggestions at draft/review posture.
+#   - Rows gate claims; they do not grant authority to widen product,
+#     support, compatibility, or benchmark copy.
+#   - Planning identifiers MUST NOT appear in user-facing strings
+#     produced from this artifact.
+
+schema_version: 1
+artifact_id: aureline.docs.validation_budget_rows
+status: seeded
+
+policy_document: docs/docs/docs_suggestion_and_validation_budget_policy.md
+suggestion_schema: schemas/docs/docs_suggestion.schema.json
+stale_example_rules: artifacts/docs/stale_example_rules.yaml
+citation_contract: docs/docs_integrity/citation_and_reference_contract.md
+evidence_freshness_policy: docs/governance/evidence_freshness_policy.md
+claim_manifest_contract: docs/governance/claim_manifest_contract.md
+benchmark_publication_template: docs/benchmarks/benchmark_publication_pack_template.md
+
+validation_modes:
+  - id: rendered
+    proves: Markup rendered under the declared preview mode.
+    does_not_prove: Snippet behavior, command success, or output parity.
+  - id: syntax_checked
+    proves: Parser or syntax checker accepted the snippet.
+    does_not_prove: Runtime behavior or output match.
+  - id: executed_locally
+    proves: Example ran in the stated local toolchain or context.
+    does_not_prove: Remote, CI, managed, or cross-platform parity.
+  - id: executed_remotely
+    proves: Example ran in the stated remote or managed context.
+    does_not_prove: Desktop-local parity.
+  - id: unsupported_in_environment
+    proves: The validator could not run in this environment and recorded why.
+    does_not_prove: Any behavior claim.
+  - id: not_validated
+    proves: Static presence only.
+    does_not_prove: Correctness, freshness, support, or performance.
+
+freshness_states:
+  - id: current
+    meaning: Required validation exists and is inside both time and event budgets.
+  - id: within_validation_budget
+    meaning: Validation is not live-current but remains inside the allowed budget.
+  - id: revalidation_required
+    meaning: A time or event trigger fired; apply and publish are blocked.
+  - id: stale
+    meaning: Evidence exceeded its freshness window.
+  - id: unverified
+    meaning: Required proof is missing, incomplete, or unsupported.
+  - id: unsupported
+    meaning: The environment cannot run the required validation mode.
+
+apply_posture_caps:
+  current: apply_after_validation
+  within_validation_budget: review_diff_only
+  revalidation_required: review_diff_only
+  stale: draft_only
+  unverified: draft_only
+  unsupported: draft_only
+
+trigger_taxonomy:
+  - id: broken_link
+    stale_detection_state: proven_broken
+    description: Link target, anchor, destination descriptor, or allowed host failed resolution.
+  - id: renamed_command
+    stale_detection_state: proven_broken
+    description: Command descriptor or CLI/palette alias changed and the docs still cite the old command.
+  - id: renamed_setting
+    stale_detection_state: suspected_stale
+    description: Settings vocabulary changed and docs may cite an obsolete key or default.
+  - id: renamed_symbol
+    stale_detection_state: suspected_stale
+    description: Symbol-linked reference points at a renamed, moved, or removed symbol.
+  - id: stale_screenshot
+    stale_detection_state: suspected_stale
+    description: Screenshot anchor, surface route, or chip identity drifted from the current UI contract.
+  - id: missing_migration_note
+    stale_detection_state: unchanged_unverified
+    description: A breaking or support-window-affecting change lacks a cited migration note.
+  - id: support_window_mismatch
+    stale_detection_state: proven_broken
+    description: Docs/support copy disagrees with the compatibility or support-window source of truth.
+  - id: benchmark_reference_unverifiable
+    stale_detection_state: unchanged_unverified
+    description: Benchmark copy lacks current comparable publication evidence.
+  - id: api_contract_changed
+    stale_detection_state: suspected_stale
+    description: Public API/schema/packet contract changed and docs cite prior behavior.
+  - id: command_output_drift
+    stale_detection_state: suspected_stale
+    description: Example transcript output differs from current command output.
+  - id: docs_pack_freshness_expired
+    stale_detection_state: unchanged_unverified
+    description: Docs-pack freshness or version-match budget expired.
+  - id: version_mismatch
+    stale_detection_state: proven_broken
+    description: Target docs describe a different build, channel, or support window.
+  - id: claim_row_changed
+    stale_detection_state: unchanged_unverified
+    description: Claim-row posture, evidence links, known limits, or channel bindings changed.
+  - id: failing_snippet
+    stale_detection_state: proven_broken
+    description: Snippet validator ran and observed failure.
+  - id: stale_example
+    stale_detection_state: suspected_stale
+    description: Existing stale-example detector fired without a stronger trigger class.
+
+budget_rows:
+  - id: validation-budget:docs:examples
+    content_kind: example
+    covered_artifact_kinds:
+      - readme
+      - help_article
+      - module_doc
+      - onboarding_note
+      - docs_pack
+    required_validation_modes:
+      - syntax_checked
+      - executed_locally
+    max_age: P14D
+    event_revalidation_triggers:
+      - api_contract_changed
+      - renamed_symbol
+      - renamed_command
+      - renamed_setting
+      - failing_snippet
+      - version_mismatch
+      - docs_pack_freshness_expired
+    stale_detection_states_allowed:
+      - proven_broken
+      - suspected_stale
+      - unchanged_unverified
+    suggestion_posture_when_current: apply_after_validation
+    suggestion_posture_when_expired: review_diff_only
+    blocked_surfaces_when_expired:
+      - docs_pane
+      - docs_browser
+      - help_about
+      - release_notes
+      - cli_help
+    required_evidence_refs:
+      - citation_anchor_ref
+      - validation_output_ref
+      - source_revision_ref
+    notes: >
+      Examples may receive review diffs when the budget is expired, but
+      user-visible docs may not imply the example is verified until the
+      required syntax and execution evidence is current.
+
+  - id: validation-budget:docs:commands
+    content_kind: command_or_transcript
+    covered_artifact_kinds:
+      - readme
+      - changelog
+      - help_article
+      - module_doc
+      - release_notes
+    required_validation_modes:
+      - executed_locally
+    max_age: P14D
+    event_revalidation_triggers:
+      - renamed_command
+      - command_output_drift
+      - version_mismatch
+      - claim_row_changed
+    stale_detection_states_allowed:
+      - proven_broken
+      - suspected_stale
+      - unchanged_unverified
+    suggestion_posture_when_current: apply_after_validation
+    suggestion_posture_when_expired: review_diff_only
+    blocked_surfaces_when_expired:
+      - docs_pane
+      - help_about
+      - release_notes
+      - cli_help
+    required_evidence_refs:
+      - command_descriptor_ref
+      - generated_reference_ref
+      - validation_output_ref
+    notes: >
+      Renamed commands are proven broken only when the command graph or
+      generated reference no longer resolves the cited command or when
+      the alias policy says the old command is not user-facing.
+
+  - id: validation-budget:docs:snippets
+    content_kind: code_snippet
+    covered_artifact_kinds:
+      - readme
+      - help_article
+      - module_doc
+      - migration_notes
+      - docs_pack
+    required_validation_modes:
+      - syntax_checked
+      - executed_locally
+    max_age: P14D
+    event_revalidation_triggers:
+      - api_contract_changed
+      - failing_snippet
+      - renamed_symbol
+      - version_mismatch
+    stale_detection_states_allowed:
+      - proven_broken
+      - suspected_stale
+      - unchanged_unverified
+    suggestion_posture_when_current: apply_after_validation
+    suggestion_posture_when_expired: review_diff_only
+    blocked_surfaces_when_expired:
+      - docs_pane
+      - docs_browser
+      - release_notes
+      - support_export
+    required_evidence_refs:
+      - citation_anchor_ref
+      - snippet_validation_ref
+      - toolchain_identity_ref
+    notes: >
+      Snippets that cannot run locally may remain in review packets only
+      when the unsupported environment reason is visible and no runtime
+      success claim is added.
+
+  - id: validation-budget:docs:screenshots
+    content_kind: screenshot
+    covered_artifact_kinds:
+      - screenshot
+      - help_article
+      - onboarding_note
+      - docs_pack
+    required_validation_modes:
+      - rendered
+    max_age: P30D
+    event_revalidation_triggers:
+      - stale_screenshot
+      - version_mismatch
+      - docs_pack_freshness_expired
+      - claim_row_changed
+    stale_detection_states_allowed:
+      - suspected_stale
+      - unchanged_unverified
+    suggestion_posture_when_current: review_diff_only
+    suggestion_posture_when_expired: draft_only
+    blocked_surfaces_when_expired:
+      - docs_pane
+      - docs_browser
+      - help_about
+      - support_export
+    required_evidence_refs:
+      - destination_descriptor_ref
+      - screenshot_anchor_ref
+      - render_capture_ref
+    notes: >
+      Screenshot detection is anchor and route based. Pixel similarity
+      alone cannot prove the screenshot is current.
+
+  - id: validation-budget:docs:support-matrix
+    content_kind: support_matrix_or_window
+    covered_artifact_kinds:
+      - changelog
+      - help_article
+      - migration_notes
+      - release_notes
+      - support_runbook
+    required_validation_modes:
+      - not_validated
+    max_age: P14D
+    event_revalidation_triggers:
+      - support_window_mismatch
+      - missing_migration_note
+      - claim_row_changed
+      - version_mismatch
+    stale_detection_states_allowed:
+      - proven_broken
+      - unchanged_unverified
+    suggestion_posture_when_current: apply_after_owner_review
+    suggestion_posture_when_expired: review_diff_only
+    blocked_surfaces_when_expired:
+      - migration_notes
+      - support_export
+      - release_notes
+      - cli_help
+      - help_about
+    required_evidence_refs:
+      - compatibility_row_ref
+      - claim_row_ref
+      - reviewed_pack_ref
+    owner_review_required_roles:
+      - docs_public_truth_owner
+      - release_owner
+      - compatibility_owner
+    notes: >
+      Support-window copy is validated by source-of-truth alignment, not
+      runtime execution. Owner review is still required because support
+      language is claim-bearing.
+
+  - id: validation-budget:docs:benchmark-reference
+    content_kind: benchmark_reference
+    covered_artifact_kinds:
+      - readme
+      - changelog
+      - release_notes
+      - benchmark_copy
+    required_validation_modes:
+      - not_validated
+    max_age: P14D
+    event_revalidation_triggers:
+      - benchmark_reference_unverifiable
+      - claim_row_changed
+      - version_mismatch
+      - docs_pack_freshness_expired
+    stale_detection_states_allowed:
+      - unchanged_unverified
+      - proven_broken
+    suggestion_posture_when_current: apply_after_owner_review
+    suggestion_posture_when_expired: draft_only
+    blocked_surfaces_when_expired:
+      - docs_pane
+      - release_notes
+      - public_proof_packet
+      - evaluation_artifact
+    required_evidence_refs:
+      - benchmark_publication_pack_ref
+      - exact_build_identity_ref
+      - claim_row_ref
+    owner_review_required_roles:
+      - docs_public_truth_owner
+      - benchmark_owner
+      - release_owner
+    notes: >
+      Benchmark references are not made trustworthy by prose cleanup.
+      Missing or non-comparable benchmark-publication evidence blocks
+      new performance claims and allows only narrowing or removal.
+
+no_marketing_lift_rules:
+  - id: no_new_product_claim_without_claim_row
+    rule: >
+      A suggestion MUST NOT introduce a capability, stability, support,
+      compatibility, or release-readiness claim unless a cited claim row
+      already permits that posture.
+  - id: no_support_widening_without_compat_owner
+    rule: >
+      Support levels and support windows may not widen without a current
+      compatibility row, reviewed pack binding, and compatibility-owner
+      review.
+  - id: no_benchmark_claim_without_publication_pack
+    rule: >
+      Benchmark or performance copy may not widen without a current
+      benchmark-publication pack, exact-build refs, comparability
+      posture, and benchmark-owner review.
+  - id: no_known_limit_removal_without_evidence
+    rule: >
+      Known limits and exclusions may only be removed when the claim row
+      evidence supports the narrower caveat set.
+  - id: draft_copy_is_not_authority
+    rule: >
+      Draft generated prose, rendered markdown, and refreshed screenshots
+      never count as evidence; only cited source refs and validation
+      outputs do.
