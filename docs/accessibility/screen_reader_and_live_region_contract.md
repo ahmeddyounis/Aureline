@@ -20,6 +20,10 @@ Companion artifacts:
   [`/schemas/accessibility/a11y_inspector_snapshot.schema.json`](../../schemas/accessibility/a11y_inspector_snapshot.schema.json)
   define the semantic tree and inspector fields that carry
   live-region node refs and announcement contract versions.
+- [`/docs/accessibility/collection_announcement_contract.md`](./collection_announcement_contract.md)
+  defines the dense-collection projection that supplies row position,
+  selected-count, hidden-member, stale-query, and batch-scope facts to
+  live-region events and durable help surfaces.
 - [`/artifacts/accessibility/assistive_tech_coverage_rows.yaml`](../../artifacts/accessibility/assistive_tech_coverage_rows.yaml)
   defines launch-critical assistive-technology coverage rows.
 - [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml),

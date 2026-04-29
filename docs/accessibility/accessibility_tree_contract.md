@@ -32,6 +32,10 @@ Companion artifacts:
   log/notebook/status surfaces, and inspector snapshots.
 - [`/docs/accessibility/screen_reader_and_live_region_contract.md`](./screen_reader_and_live_region_contract.md)
   defines the live-region and announcement contract this tree carries.
+- [`/docs/accessibility/collection_announcement_contract.md`](./collection_announcement_contract.md)
+  defines the dense-collection announcement projection for row
+  position, selected count, hidden members, blocked/read-only state,
+  batch scope, stale query snapshots, and keyboard-help parity.
 - [`/docs/accessibility/focus_zoom_and_pointer_independence_contract.md`](./focus_zoom_and_pointer_independence_contract.md)
   defines focus-owner and zoom rules that tree snapshots must expose.
 - [`/artifacts/accessibility/accessibility_tree_coverage_rows.yaml`](../../artifacts/accessibility/accessibility_tree_coverage_rows.yaml)

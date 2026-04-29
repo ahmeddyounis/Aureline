@@ -1,0 +1,738 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/accessibility/collection_announcement.schema.json",
+  "title": "Aureline accessible collection announcement contract",
+  "description": "Boundary schema for collection_announcement_record and collection_announcement_case_record instances frozen in docs/accessibility/collection_announcement_contract.md. The schema projects dense collection position, selected state, blocked/read-only state, hidden-member count, batch scope, action scope, virtualization identity rules, stale query snapshot rules, and keyboard-help parity into one export-safe accessibility payload. Raw source text, raw paths, raw query bodies, raw provider URLs, terminal bytes, prompts, credentials, and unredacted user identifiers never cross this boundary; records carry opaque refs, bounded labels, counts, message IDs, and state classes only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/collection_announcement_record" },
+    { "$ref": "#/$defs/collection_announcement_case_record" }
+  ],
+  "$defs": {
+    "collection_announcement_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "collection_announcement_contract_id": {
+      "type": "string",
+      "const": "aureline.accessibility.collection_announcement"
+    },
+    "collection_announcement_contract_revision": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collection_announcement_record",
+        "collection_announcement_case_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 220,
+      "description": "Opaque stable id safe for fixtures, logs, support bundles, and release evidence."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "bounded_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "description": "Privacy-safe bounded label."
+    },
+    "bounded_note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900,
+      "description": "Privacy-safe explanation for fixtures and support packets."
+    },
+    "message_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable localized-message key. Logic must not depend on localized prose."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "search_collection",
+        "review_collection",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_collection",
+        "admin_or_settings_grid"
+      ]
+    },
+    "semantic_collection_role": {
+      "type": "string",
+      "enum": [
+        "list",
+        "tree",
+        "table_grid",
+        "log",
+        "result_grid",
+        "package_inventory",
+        "admin_table"
+      ]
+    },
+    "row_role": {
+      "type": "string",
+      "enum": [
+        "list_row",
+        "tree_row",
+        "table_row",
+        "grid_row",
+        "grid_cell",
+        "summary_row"
+      ]
+    },
+    "index_truth_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "estimated",
+        "stale",
+        "degraded",
+        "unknown",
+        "not_applicable"
+      ]
+    },
+    "nullable_positive_integer": {
+      "oneOf": [
+        { "type": "integer", "minimum": 1 },
+        { "type": "null" }
+      ]
+    },
+    "count_status": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "provider_limited",
+        "stale",
+        "cached",
+        "partial",
+        "unknown"
+      ]
+    },
+    "count_term": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "loaded",
+        "matching",
+        "selected",
+        "included",
+        "excluded",
+        "blocked",
+        "read_only",
+        "hidden_selected",
+        "not_loaded"
+      ]
+    },
+    "count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status", "value"],
+          "properties": {
+            "term": { "$ref": "#/$defs/count_term" },
+            "status": {
+              "type": "string",
+              "enum": [
+                "exact",
+                "approximate",
+                "provider_limited",
+                "stale",
+                "cached",
+                "partial"
+              ]
+            },
+            "value": { "type": "integer", "minimum": 0 },
+            "tolerance_label": { "$ref": "#/$defs/bounded_label" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status"],
+          "properties": {
+            "term": { "$ref": "#/$defs/count_term" },
+            "status": { "const": "unknown" },
+            "value": { "type": "null" },
+            "tolerance_label": { "$ref": "#/$defs/bounded_label" }
+          }
+        }
+      ]
+    },
+    "selection_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_item_only",
+        "visible_range",
+        "loaded_set",
+        "all_matching_query",
+        "explicit_custom_set"
+      ]
+    },
+    "action_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_item",
+        "visible_items",
+        "loaded_items",
+        "all_matching_items",
+        "explicit_custom_set",
+        "provider_side_query"
+      ]
+    },
+    "scope_truth_class": {
+      "type": "string",
+      "enum": [
+        "client_local_truth",
+        "provider_authoritative_truth",
+        "mixed_truth_resolved_by_provider"
+      ]
+    },
+    "execution_origin_class": {
+      "type": "string",
+      "enum": [
+        "client_local_execution",
+        "provider_authoritative_execution",
+        "mixed_client_then_provider"
+      ]
+    },
+    "selected_state_class": {
+      "type": "string",
+      "enum": [
+        "not_selectable",
+        "not_selected",
+        "selected",
+        "partially_selected",
+        "hidden_selected",
+        "not_loaded_selected"
+      ]
+    },
+    "blocked_state_class": {
+      "type": "string",
+      "enum": [
+        "not_blocked",
+        "blocked",
+        "unavailable"
+      ]
+    },
+    "read_only_state_class": {
+      "type": "string",
+      "enum": [
+        "editable",
+        "read_only",
+        "inspect_only",
+        "unknown"
+      ]
+    },
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "blocked_by_policy",
+        "blocked_by_ownership",
+        "blocked_by_protected_path",
+        "blocked_by_provider_unsupported",
+        "blocked_by_freshness_required",
+        "blocked_by_grant_missing",
+        "blocked_by_concurrent_edit",
+        "unavailable_provider_offline",
+        "dataset_identity_changed"
+      ]
+    },
+    "row_position_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_node_ref",
+        "stable_item_ref",
+        "row_role",
+        "position_in_set",
+        "set_size",
+        "row_index",
+        "row_count",
+        "column_index",
+        "column_count",
+        "level",
+        "index_truth_class",
+        "position_basis_label"
+      ],
+      "properties": {
+        "row_node_ref": { "$ref": "#/$defs/opaque_id" },
+        "stable_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "row_role": { "$ref": "#/$defs/row_role" },
+        "position_in_set": { "$ref": "#/$defs/nullable_positive_integer" },
+        "set_size": { "$ref": "#/$defs/nullable_positive_integer" },
+        "row_index": { "$ref": "#/$defs/nullable_positive_integer" },
+        "row_count": { "$ref": "#/$defs/nullable_positive_integer" },
+        "column_index": { "$ref": "#/$defs/nullable_positive_integer" },
+        "column_count": { "$ref": "#/$defs/nullable_positive_integer" },
+        "level": { "$ref": "#/$defs/nullable_positive_integer" },
+        "index_truth_class": { "$ref": "#/$defs/index_truth_class" },
+        "position_basis_label": { "$ref": "#/$defs/bounded_label" }
+      }
+    },
+    "announced_row_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_state",
+        "blocked_state",
+        "read_only_state",
+        "current",
+        "focused",
+        "blocked_reason",
+        "state_label"
+      ],
+      "properties": {
+        "selected_state": { "$ref": "#/$defs/selected_state_class" },
+        "blocked_state": { "$ref": "#/$defs/blocked_state_class" },
+        "read_only_state": { "$ref": "#/$defs/read_only_state_class" },
+        "current": { "type": "boolean" },
+        "focused": { "type": "boolean" },
+        "blocked_reason": { "$ref": "#/$defs/blocked_reason_class" },
+        "state_label": { "$ref": "#/$defs/bounded_label" }
+      }
+    },
+    "announced_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_count",
+        "hidden_member_count",
+        "not_loaded_count",
+        "visible_count",
+        "loaded_count",
+        "matching_count",
+        "included_count",
+        "blocked_count"
+      ],
+      "properties": {
+        "selected_count": { "$ref": "#/$defs/count_value" },
+        "hidden_member_count": { "$ref": "#/$defs/count_value" },
+        "not_loaded_count": { "$ref": "#/$defs/count_value" },
+        "visible_count": { "$ref": "#/$defs/count_value" },
+        "loaded_count": { "$ref": "#/$defs/count_value" },
+        "matching_count": { "$ref": "#/$defs/count_value" },
+        "included_count": { "$ref": "#/$defs/count_value" },
+        "blocked_count": { "$ref": "#/$defs/count_value" }
+      }
+    },
+    "batch_scope_announcement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_scope_class",
+        "action_scope_class",
+        "scope_truth_class",
+        "execution_origin_class",
+        "action_scope_label",
+        "announces_visible_vs_all_matching_before_execute",
+        "review_surface_ref",
+        "provider_authority_ref"
+      ],
+      "properties": {
+        "selection_scope_class": { "$ref": "#/$defs/selection_scope_class" },
+        "action_scope_class": { "$ref": "#/$defs/action_scope_class" },
+        "scope_truth_class": { "$ref": "#/$defs/scope_truth_class" },
+        "execution_origin_class": { "$ref": "#/$defs/execution_origin_class" },
+        "action_scope_label": { "$ref": "#/$defs/bounded_label" },
+        "announces_visible_vs_all_matching_before_execute": { "type": "boolean", "const": true },
+        "review_surface_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "provider_authority_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "row_mount_state": {
+      "type": "string",
+      "enum": [
+        "mounted_visible",
+        "mounted_offscreen",
+        "unmounted_represented",
+        "summary_only",
+        "not_yet_hydrated"
+      ]
+    },
+    "hydration_state": {
+      "type": "string",
+      "enum": [
+        "full_row_hydrated",
+        "identity_only_hydrated",
+        "pending_body_hydration",
+        "provider_cursor_unavailable"
+      ]
+    },
+    "virtualization_rule_class": {
+      "type": "string",
+      "enum": [
+        "row_identity_survives_sort_filter_scroll",
+        "indices_from_collection_model",
+        "selection_membership_by_identity",
+        "partial_hydration_preserves_scope",
+        "mount_index_forbidden_as_identity"
+      ]
+    },
+    "virtualization_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_mount_state",
+        "hydration_state",
+        "row_identity_survives_sort_filter_scroll",
+        "accessible_indices_come_from_model",
+        "unmounted_selected_members_represented",
+        "partial_hydration_preserves_scope",
+        "mount_index_used_as_identity",
+        "rules"
+      ],
+      "properties": {
+        "row_mount_state": { "$ref": "#/$defs/row_mount_state" },
+        "hydration_state": { "$ref": "#/$defs/hydration_state" },
+        "row_identity_survives_sort_filter_scroll": { "type": "boolean", "const": true },
+        "accessible_indices_come_from_model": { "type": "boolean", "const": true },
+        "unmounted_selected_members_represented": { "type": "boolean", "const": true },
+        "partial_hydration_preserves_scope": { "type": "boolean", "const": true },
+        "mount_index_used_as_identity": { "type": "boolean", "const": false },
+        "rules": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/virtualization_rule_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "staleness_class": {
+      "type": "string",
+      "enum": [
+        "current_basis",
+        "material_dataset_changed",
+        "prior_snapshot_pinned",
+        "stale_query_requires_review",
+        "stale_query_denied",
+        "revalidated_current"
+      ]
+    },
+    "query_change_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "filter_changed",
+        "sort_changed",
+        "dataset_epoch_changed",
+        "provider_cursor_expired",
+        "policy_epoch_changed",
+        "row_identity_namespace_changed",
+        "material_count_delta"
+      ]
+    },
+    "stale_query_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "staleness_class",
+        "dataset_identity_ref",
+        "query_basis_ref",
+        "prior_snapshot_ref",
+        "change_classes",
+        "material_change_requires_reannouncement",
+        "prior_snapshot_announced_when_used",
+        "destructive_action_requires_review_or_denial",
+        "reviewed_matching_count",
+        "current_matching_count"
+      ],
+      "properties": {
+        "staleness_class": { "$ref": "#/$defs/staleness_class" },
+        "dataset_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "query_basis_ref": { "$ref": "#/$defs/opaque_id" },
+        "prior_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "change_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/query_change_class" },
+          "uniqueItems": true
+        },
+        "material_change_requires_reannouncement": { "type": "boolean", "const": true },
+        "prior_snapshot_announced_when_used": { "type": "boolean", "const": true },
+        "destructive_action_requires_review_or_denial": { "type": "boolean", "const": true },
+        "reviewed_matching_count": { "$ref": "#/$defs/count_value" },
+        "current_matching_count": { "$ref": "#/$defs/count_value" }
+      }
+    },
+    "keyboard_action_kind": {
+      "type": "string",
+      "enum": [
+        "select_current_row",
+        "extend_range_from_anchor",
+        "toggle_focused_identity",
+        "clear_selection",
+        "reveal_hidden_selected",
+        "select_visible_rows",
+        "select_loaded_rows",
+        "select_all_matching",
+        "open_batch_review",
+        "open_row_details",
+        "explain_blocked_or_read_only_state"
+      ]
+    },
+    "help_surface_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "keyboard_shortcuts_help",
+        "row_accessible_description",
+        "screen_reader_action_menu",
+        "status_or_selection_bar",
+        "context_menu",
+        "docs_help"
+      ]
+    },
+    "keyboard_help_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_kind",
+        "command_id_ref",
+        "shortcut_label",
+        "available_help_surfaces",
+        "assistive_description_message_id",
+        "hover_only_forbidden",
+        "screen_reader_action_available"
+      ],
+      "properties": {
+        "action_kind": { "$ref": "#/$defs/keyboard_action_kind" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "shortcut_label": {
+          "oneOf": [
+            { "$ref": "#/$defs/bounded_label" },
+            { "type": "null" }
+          ]
+        },
+        "available_help_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/help_surface_class" },
+          "uniqueItems": true
+        },
+        "assistive_description_message_id": { "$ref": "#/$defs/message_id" },
+        "hover_only_forbidden": { "type": "boolean", "const": true },
+        "screen_reader_action_available": { "type": "boolean", "const": true }
+      }
+    },
+    "live_region_channel": {
+      "type": "string",
+      "enum": [
+        "polite",
+        "assertive",
+        "silent"
+      ]
+    },
+    "delivery_timing": {
+      "type": "string",
+      "enum": [
+        "on_focus",
+        "on_selection_change",
+        "on_scope_change",
+        "pre_execution_review",
+        "durable_surface_only"
+      ]
+    },
+    "coalescing_strategy": {
+      "type": "string",
+      "enum": [
+        "none",
+        "dedupe_same_meaning",
+        "last_meaning_wins",
+        "focused_surface_only"
+      ]
+    },
+    "announcement_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_id",
+        "live_region_channel",
+        "delivery_timing",
+        "coalescing_strategy",
+        "durable_fallback_ref",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "message_id": { "$ref": "#/$defs/message_id" },
+        "live_region_channel": { "$ref": "#/$defs/live_region_channel" },
+        "delivery_timing": { "$ref": "#/$defs/delivery_timing" },
+        "coalescing_strategy": { "$ref": "#/$defs/coalescing_strategy" },
+        "durable_fallback_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "collection_announcement_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "collection_announcement_schema_version",
+        "collection_announcement_contract_id",
+        "collection_announcement_contract_revision",
+        "collection_announcement_id",
+        "surface_class",
+        "semantic_collection_role",
+        "collection_instance_ref",
+        "accessibility_tree_node_ref",
+        "selection_state_ref",
+        "batch_review_packet_ref",
+        "row_position",
+        "row_state",
+        "counts",
+        "batch_scope",
+        "virtualization",
+        "stale_query",
+        "keyboard_help_actions",
+        "announcement_policy",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "collection_announcement_record" },
+        "collection_announcement_schema_version": { "$ref": "#/$defs/collection_announcement_schema_version" },
+        "collection_announcement_contract_id": { "$ref": "#/$defs/collection_announcement_contract_id" },
+        "collection_announcement_contract_revision": { "$ref": "#/$defs/collection_announcement_contract_revision" },
+        "collection_announcement_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "semantic_collection_role": { "$ref": "#/$defs/semantic_collection_role" },
+        "collection_instance_ref": { "$ref": "#/$defs/opaque_id" },
+        "accessibility_tree_node_ref": { "$ref": "#/$defs/opaque_id" },
+        "selection_state_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "batch_review_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "row_position": { "$ref": "#/$defs/row_position_context" },
+        "row_state": { "$ref": "#/$defs/announced_row_state" },
+        "counts": { "$ref": "#/$defs/announced_counts" },
+        "batch_scope": { "$ref": "#/$defs/batch_scope_announcement" },
+        "virtualization": { "$ref": "#/$defs/virtualization_contract" },
+        "stale_query": { "$ref": "#/$defs/stale_query_contract" },
+        "keyboard_help_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/keyboard_help_action" }
+        },
+        "announcement_policy": { "$ref": "#/$defs/announcement_policy" },
+        "summary_label": { "$ref": "#/$defs/bounded_label" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "batch_scope": {
+                "type": "object",
+                "properties": {
+                  "action_scope_class": {
+                    "enum": ["all_matching_items", "provider_side_query"]
+                  }
+                },
+                "required": ["action_scope_class"]
+              }
+            },
+            "required": ["batch_scope"]
+          },
+          "then": {
+            "properties": {
+              "counts": {
+                "type": "object",
+                "properties": {
+                  "matching_count": {
+                    "type": "object",
+                    "properties": {
+                      "term": { "const": "matching" }
+                    },
+                    "required": ["term"]
+                  }
+                },
+                "required": ["matching_count"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stale_query": {
+                "type": "object",
+                "properties": {
+                  "staleness_class": {
+                    "enum": [
+                      "material_dataset_changed",
+                      "prior_snapshot_pinned",
+                      "stale_query_requires_review",
+                      "stale_query_denied"
+                    ]
+                  }
+                },
+                "required": ["staleness_class"]
+              }
+            },
+            "required": ["stale_query"]
+          },
+          "then": {
+            "properties": {
+              "stale_query": {
+                "type": "object",
+                "properties": {
+                  "prior_snapshot_ref": { "$ref": "#/$defs/opaque_id" }
+                },
+                "required": ["prior_snapshot_ref"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "collection_announcement_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "collection_announcement_schema_version",
+        "case_id",
+        "title",
+        "scenario",
+        "contract_refs",
+        "records",
+        "expected_result"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "collection_announcement_case_record" },
+        "collection_announcement_schema_version": { "$ref": "#/$defs/collection_announcement_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/bounded_label" },
+        "scenario": { "$ref": "#/$defs/bounded_note" },
+        "contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/collection_announcement_record" }
+        },
+        "expected_result": { "$ref": "#/$defs/bounded_note" }
+      }
+    }
+  }
+}
