@@ -513,6 +513,16 @@ code.
   [`/schemas/navigation/breadcrumb_segment.schema.json`](../schemas/navigation/breadcrumb_segment.schema.json);
   worked fixtures in
   [`/fixtures/navigation/breadcrumb_examples/`](../fixtures/navigation/breadcrumb_examples/).
+- [`navigation/semantic_navigation_and_rename_contract.md`](./navigation/semantic_navigation_and_rename_contract.md)
+  — durable semantic-result identity and rename-preview contract for
+  definition, declaration, type-definition, implementation, reference,
+  hierarchy, call-site, alias, imported/generated reference, review,
+  support-export, and AI-citation lanes. Boundary schemas in
+  [`/schemas/navigation/semantic_result_ref.schema.json`](../schemas/navigation/semantic_result_ref.schema.json)
+  and
+  [`/schemas/navigation/rename_preview.schema.json`](../schemas/navigation/rename_preview.schema.json);
+  worked fixtures in
+  [`/fixtures/navigation/semantic_navigation_cases/`](../fixtures/navigation/semantic_navigation_cases/).
 - [`architecture/language_protocol_router_adr.md`](./architecture/language_protocol_router_adr.md)
   — typed language protocol-router ADR seed for LSP, DAP, formatter,
   linter, test, build, framework, native analyzer, project graph,
