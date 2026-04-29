@@ -1,0 +1,201 @@
+# Worked example: window-topology snapshot claiming Layout only after
+# missing extension, missing remote target, and display drift.
+#
+# Companion to docs/state/restore_artifact_family_contract.md and
+# schemas/state/window_topology_snapshot.schema.json.
+
+__fixture__:
+  name: layout_only_window_topology_snapshot
+  scenario: >
+    The auxiliary presentation window reopened on a different machine
+    after the saved external display went away, the topology preview
+    extension was not installed, and the remote notebook kernel could
+    not be reached. The packet preserves stable pane ids, tab order,
+    inspectors, and focus chain. Placeholders explain each missing
+    pane and topology adjustments record what changed spatially so
+    panes did not silently fall off-screen.
+  doc_sections:
+    - "§3 Window-topology snapshot packet"
+    - "§4 Restore-fidelity vocabulary"
+    - "§5 Placeholder and topology-adjustment behavior"
+
+record_kind: window_topology_snapshot_record
+topology_packet_schema_version: 1
+snapshot_id: window-topology-snapshot-layout-only-0001
+window_id: window-presentation-aux-0001
+window_role: presentation
+topology_family_ref: topology-family-workspace-rust-service-0001
+sibling_window_refs:
+  - window-rust-service-primary-0001
+producer_build:
+  producer_name: aureline
+  producer_version: 0.0.0-dev
+  producer_channel: experimental
+  producer_platform_class: macos
+  producer_instance_handle: producer-instance-handle-0103
+source_schema_version: window-topology-snapshot-schema-v1
+workspace_authority_checkpoint_ref: workspace-authority-checkpoint-clean-resume-0001
+pane_tree_schema_version: 1
+pane_tree_record_ref: pane-tree-record-presentation-aux-0001
+stable_pane_id_inventory:
+  - pane_id: pane-editor-main-0001
+    surface_role: editor
+    surface_class: text_editor
+    hydration_behavior: eager_lightweight
+    availability_state: ready
+    presentation_spotlighted: true
+    follow_anchor_candidate: true
+    title_hint: service.rs
+  - pane_id: pane-terminal-0001
+    surface_role: terminal
+    surface_class: terminal_view
+    hydration_behavior: evidence_only
+    availability_state: evidence_only
+    presentation_spotlighted: false
+    follow_anchor_candidate: false
+    title_hint: deploy shell
+  - pane_id: pane-notebook-0001
+    surface_role: notebook
+    surface_class: notebook_view
+    hydration_behavior: placeholder_only
+    availability_state: placeholder
+    presentation_spotlighted: false
+    follow_anchor_candidate: false
+    title_hint: rollout notes.ipynb
+  - pane_id: pane-preview-ext-0001
+    surface_role: preview
+    surface_class: extension_view
+    hydration_behavior: placeholder_only
+    availability_state: placeholder
+    presentation_spotlighted: false
+    follow_anchor_candidate: false
+    title_hint: Service topology preview
+tab_group_topology:
+  - group_id: group-editor-0001
+    ordered_tab_ids:
+      - tab-editor-main-0001
+      - tab-diff-0001
+    active_tab_id: tab-editor-main-0001
+    pinned_tab_ids:
+      - tab-editor-main-0001
+    close_empty_group: true
+  - group_id: group-tools-0001
+    ordered_tab_ids:
+      - tab-terminal-0001
+      - tab-notebook-0001
+    active_tab_id: tab-terminal-0001
+    pinned_tab_ids: []
+    close_empty_group: true
+visible_inspectors:
+  - inspector_id: inspector-outline-0001
+    inspector_kind: outline
+    target_pane_ref: pane-editor-main-0001
+    dock_position: right
+    visible: true
+  - inspector_id: inspector-restore-diagnostics-0001
+    inspector_kind: restore_diagnostics
+    target_pane_ref: null
+    dock_position: bottom
+    visible: true
+focus_chain:
+  - target_kind: pane
+    target_ref: pane-editor-main-0001
+    note: Primary focus restored.
+  - target_kind: tab
+    target_ref: tab-terminal-0001
+    note: Tool-strip focus preserved even though the live surface degraded.
+follow_presentation_state:
+  follow_mode: independent
+  presentation_mode: inactive
+  presenter_participant_ref: null
+  visible_role_badges: []
+  shared_control_badge_visible: false
+  audience_breakaway_allowed: true
+monitor_affinity_hint:
+  affinity_strength: prefer_same_class
+  display_class: projector_or_presentation
+  last_known_display_ref: display-external-projector-0001
+  last_known_topology_hash: display-topology-hash-studio-0001
+  preferred_scale_bucket: 1x
+  preferred_bounds_hint:
+    x: 2560
+    y: 0
+    width: 1920
+    height: 1080
+  best_effort_only: true
+placeholder_behaviors:
+  - pane_id: pane-terminal-0001
+    placeholder_reason: non_reentrant_live_surface
+    safe_actions:
+      - rerun_explicitly
+      - rebind_existing_session
+      - export_evidence
+      - remove_pane
+    evidence_retained: true
+    last_known_provenance_label: deploy shell on local-macos-dev
+    note: Transcript and cwd hint preserved; replaying commands is forbidden.
+  - pane_id: pane-notebook-0001
+    placeholder_reason: missing_remote
+    safe_actions:
+      - reconnect_remote
+      - reauthenticate
+      - export_evidence
+      - remove_pane
+    evidence_retained: true
+    last_known_provenance_label: remote python kernel on staging notebook host
+    note: Output snapshots retained; remote kernel was not silently reacquired.
+  - pane_id: pane-preview-ext-0001
+    placeholder_reason: missing_extension
+    safe_actions:
+      - locate_extension
+      - install_extension
+      - open_without
+      - export_evidence
+      - remove_pane
+    evidence_retained: true
+    last_known_provenance_label: topology preview provided by graph-preview extension
+    note: Pane slot, tab order, and title preserved despite the missing extension.
+topology_adjustments:
+  - adjustment_class: moved_to_primary_display
+    affected_pane_ids: []
+    note: Saved projector display was unavailable; window remapped to the primary display.
+  - adjustment_class: snapped_to_safe_bounds
+    affected_pane_ids: []
+    note: Saved fullscreen geometry was clamped to current safe bounds.
+  - adjustment_class: scale_normalized
+    affected_pane_ids:
+      - pane-editor-main-0001
+      - pane-terminal-0001
+      - pane-notebook-0001
+      - pane-preview-ext-0001
+    note: Original 1x display replaced by a 2x display; pane bounds normalized without changing pane order.
+  - adjustment_class: recentered_to_visible_region
+    affected_pane_ids: []
+    note: Window recentered to a visible region of the primary display so no pane drifted off-screen.
+  - adjustment_class: redocked_to_safe_pane
+    affected_pane_ids:
+      - pane-editor-main-0001
+    note: Outline inspector redocked to a safe pane after the original target shifted.
+restore_class: layout_only
+downgrade_triggers:
+  - trigger_class: missing_extension_dependency
+    affected_pane_ids:
+      - pane-preview-ext-0001
+    note: Extension host could not provide the preview; pane held its slot as a placeholder.
+  - trigger_class: missing_remote_session
+    affected_pane_ids:
+      - pane-notebook-0001
+    note: Remote notebook kernel was unreachable; pane held its slot as a placeholder.
+  - trigger_class: missing_remote_authority
+    affected_pane_ids:
+      - pane-notebook-0001
+    note: Remote authority for the kernel had expired; reauthentication is a new user action.
+  - trigger_class: unsupported_display_topology
+    affected_pane_ids: []
+    note: Saved projector display was absent; topology adjustments preserved layout truth.
+emitted_at: "mono:6102:00:10:30.0000"
+notes: >
+  Layout only. Pane identity, tab order, inspector identity, and focus
+  chain survived. Live surfaces degraded to placeholders or evidence
+  rather than collapsing layout. Topology adjustments record what
+  changed spatially so support can explain what the user is seeing.

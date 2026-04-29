@@ -1,0 +1,81 @@
+# Worked example: workspace-authority checkpoint claiming Recovered
+# drafts after a crash that left dirty buffers behind.
+#
+# Companion to docs/state/restore_artifact_family_contract.md and
+# schemas/state/workspace_authority_checkpoint.schema.json.
+
+__fixture__:
+  name: recovered_drafts_authority_checkpoint
+  scenario: >
+    A crash during a refactor left dirty frames in two buffer
+    journals. The checkpoint rehydrates them as drafts that the user
+    must compare or accept before they ride as workspace truth. Live
+    handles, secrets, and remote bindings stay excluded; rollback
+    checkpoint and preserved prior artifact refs let the user back
+    out without losing the original on-disk body.
+  doc_sections:
+    - "§2 Workspace-authority checkpoint"
+    - "§4 Restore-fidelity vocabulary"
+
+record_kind: workspace_authority_checkpoint_record
+checkpoint_schema_version: 1
+checkpoint_id: workspace-authority-checkpoint-recovered-drafts-0001
+workspace_authority_ref: workspace-authority-rust-service-0001
+producer_build:
+  producer_name: aureline
+  producer_version: 0.0.0-dev
+  producer_channel: experimental
+  producer_platform_class: macos
+  producer_instance_handle: producer-instance-handle-0104
+source_schema_version: workspace-authority-checkpoint-schema-v1
+restore_class: recovered_drafts
+trusted_root_refs:
+  - root_id: root-rust-service-primary-0001
+    trust_state: trusted
+    scope_ref: trust-scope-workspace-rust-service-0001
+    policy_epoch_ref: policy-epoch-stable-0002
+    note: Trust survived the crash unchanged.
+active_workset_ids:
+  - workset-rust-service-feature-staging-0001
+dirty_buffer_journal_identities:
+  - journal_id: journal-dirty-buffer-service-rs-0001
+    journal_kind: dirty_buffer_recovery_journal
+    last_known_revision_ref: revision-dirty-buffer-service-rs-0010
+    frame_count: 7
+    note: Seven dirty frames recovered as a draft for service.rs.
+  - journal_id: journal-dirty-buffer-handlers-rs-0001
+    journal_kind: dirty_buffer_recovery_journal
+    last_known_revision_ref: revision-dirty-buffer-handlers-rs-0004
+    frame_count: 4
+    note: Four dirty frames recovered as a draft for handlers.rs.
+recovery_journal_refs:
+  - recovery-journal-workspace-rust-service-0003
+local_history_snapshot_refs:
+  - local-history-snapshot-workspace-rust-service-0003
+evidence_bundle_refs:
+  - evidence-bundle-crash-recovery-0001
+excluded_live_authority_classes:
+  - raw_secret_material
+  - live_token_or_cookie
+  - delegated_approval_or_unspent_ticket
+  - machine_unique_handle
+  - live_process_or_session_handle
+  - live_remote_or_kernel_binding
+downgrade_triggers:
+  - trigger_class: manual_repair_required
+    affected_journal_ids:
+      - journal-dirty-buffer-service-rs-0001
+      - journal-dirty-buffer-handlers-rs-0001
+    affected_workset_ids:
+      - workset-rust-service-feature-staging-0001
+    note: Rehydrated frames are drafts; the user must compare or accept before they ride as workspace truth.
+rollback_checkpoint_ref: rollback-checkpoint-pre-recovery-0001
+preserved_prior_artifact_refs:
+  - preserved-artifact-on-disk-service-rs-0001
+  - preserved-artifact-on-disk-handlers-rs-0001
+emitted_at: "mono:6103:00:00:30.0000"
+notes: >
+  Recovered drafts. The on-disk body is preserved by ref so a
+  reviewer can roll back without losing the original. Drafts remain
+  inspectable and unaccepted until the user compares or discards
+  them.

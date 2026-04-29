@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/workspace_authority_checkpoint.schema.json",
+  "title": "Aureline workspace-authority checkpoint",
+  "description": "Boundary schema for the workspace-authority checkpoint frozen in docs/state/restore_artifact_family_contract.md. The checkpoint is the authoritative restorable body inside the restore artifact family. It carries dirty-buffer and recovery-journal identity, trusted-root state, active workset ids, related evidence refs, the closed restore-fidelity claim, the typed downgrade triggers that narrowed it, and the inventory of live-authority classes the producer intentionally excluded. Raw secrets, raw tokens, raw provider payloads, raw absolute paths, raw command lines, raw logs, and raw source content do not cross this boundary; only opaque refs and class-level inventories appear.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/workspace_authority_checkpoint_record" }
+  ],
+  "$defs": {
+    "checkpoint_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this packet shape. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in manifests, and safe in support bundles. Raw absolute paths, credentials, and authority tokens never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply the active redaction policy before crossing this boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "workspace_authority_checkpoint_record",
+      "description": "Discriminator for the workspace-authority checkpoint payload."
+    },
+
+    "producer_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer name, e.g. 'aureline'. Never a raw hostname."
+        },
+        "producer_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer version string. Opaque at the schema boundary."
+        },
+        "producer_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null],
+          "description": "Release channel hint for the producer."
+        },
+        "producer_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null],
+          "description": "Platform-class hint for the producer."
+        },
+        "producer_instance_handle": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque pseudonymous producer-instance handle."
+        }
+      },
+      "description": "Producer build stamp carried by every workspace-authority checkpoint."
+    },
+
+    "restore_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "Closed restore-fidelity vocabulary shared across the restore artifact family. Display copy may render Exact restore, Compatible restore, Layout only, Recovered drafts, Evidence only, or No restore."
+    },
+
+    "downgrade_trigger_class": {
+      "type": "string",
+      "enum": [
+        "schema_translation_required",
+        "schema_meaning_changed",
+        "missing_extension_dependency",
+        "missing_remote_session",
+        "missing_remote_authority",
+        "unsupported_display_topology",
+        "excluded_secret_material",
+        "excluded_live_handle",
+        "workspace_manifest_conflict",
+        "policy_narrowing",
+        "manual_repair_required",
+        "producer_schema_downgrade_refused"
+      ],
+      "description": "Typed reason the resulting restore class narrowed. Empty list when the checkpoint claims exact_restore."
+    },
+
+    "excluded_live_authority_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_material",
+        "live_token_or_cookie",
+        "delegated_approval_or_unspent_ticket",
+        "machine_unique_handle",
+        "live_process_or_session_handle",
+        "raw_provider_payload",
+        "raw_url_path_command_or_log",
+        "raw_source_or_user_content",
+        "live_remote_or_kernel_binding"
+      ],
+      "description": "Closed inventory of live-authority classes the producer intentionally left out. Re-export of the workspace-memory-contract excluded-material vocabulary so support and docs do not invent parallel labels."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"],
+      "description": "ADR-0001 trust state reused without redefinition."
+    },
+
+    "journal_kind": {
+      "type": "string",
+      "enum": [
+        "dirty_buffer_recovery_journal",
+        "local_history_journal",
+        "deferred_intent_outbox",
+        "session_restore_journal",
+        "terminal_scrollback_restore",
+        "notebook_output_snapshot",
+        "checkpoint_lineage_journal"
+      ],
+      "description": "Closed journal-kind taxonomy for dirty-buffer or recovery-journal streams referenced by the checkpoint."
+    },
+
+    "trusted_root_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_id", "trust_state", "scope_ref"],
+      "properties": {
+        "root_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the workspace root the trust decision applies to."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "scope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref describing the scope of the trust decision (per-root, per-workspace, per-project, etc.)."
+        },
+        "policy_epoch_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional opaque ref for the policy epoch the trust decision was evaluated against."
+        },
+        "note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One trusted-root entry. Carries trust state and scope; never inlines authority tokens."
+    },
+
+    "dirty_buffer_journal_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journal_id", "journal_kind", "last_known_revision_ref"],
+      "properties": {
+        "journal_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque journal stream id."
+        },
+        "journal_kind": { "$ref": "#/$defs/journal_kind" },
+        "last_known_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the last-known revision of the journal stream."
+        },
+        "frame_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional frame count; never inlines journal bodies."
+        },
+        "note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One dirty-buffer or recovery-journal stream the checkpoint can rehydrate. Journal bodies live elsewhere; only identity and revision refs cross this boundary."
+    },
+
+    "downgrade_trigger_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger_class"],
+      "properties": {
+        "trigger_class": { "$ref": "#/$defs/downgrade_trigger_class" },
+        "affected_journal_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional list of dirty-buffer or recovery-journal ids the trigger applied to."
+        },
+        "affected_workset_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional list of active workset ids the trigger applied to."
+        },
+        "note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One typed downgrade trigger explaining why the checkpoint's restore class narrowed."
+    },
+
+    "workspace_authority_checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "checkpoint_schema_version",
+        "checkpoint_id",
+        "workspace_authority_ref",
+        "producer_build",
+        "source_schema_version",
+        "restore_class",
+        "trusted_root_refs",
+        "active_workset_ids",
+        "dirty_buffer_journal_identities",
+        "recovery_journal_refs",
+        "local_history_snapshot_refs",
+        "evidence_bundle_refs",
+        "excluded_live_authority_classes",
+        "downgrade_triggers",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "checkpoint_schema_version": { "$ref": "#/$defs/checkpoint_schema_version" },
+        "checkpoint_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable checkpoint id."
+        },
+        "workspace_authority_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref for the workspace instance this checkpoint belongs to. Many checkpoints over time MAY share one authority ref."
+        },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "source_schema_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Opaque schema-version string the producer used."
+        },
+        "restore_class": { "$ref": "#/$defs/restore_class" },
+        "trusted_root_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trusted_root_record" },
+          "description": "Trusted-root rows the checkpoint considered authoritative."
+        },
+        "active_workset_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque workset ids the checkpoint considered active."
+        },
+        "dirty_buffer_journal_identities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dirty_buffer_journal_identity" },
+          "description": "One row per dirty-buffer or recovery-journal stream the checkpoint can rehydrate."
+        },
+        "recovery_journal_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to related recovery journals."
+        },
+        "local_history_snapshot_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to related local-history snapshots."
+        },
+        "evidence_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to related evidence bundles (support bundles, crash envelopes, repair packets)."
+        },
+        "excluded_live_authority_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/excluded_live_authority_class" },
+          "description": "Live-authority classes the producer intentionally left out. The list is the floor for what cannot ride as restored authority."
+        },
+        "downgrade_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger_record" },
+          "description": "Typed reasons that narrowed the restore class. MUST be empty when restore_class equals exact_restore."
+        },
+        "rollback_checkpoint_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional opaque ref to a rollback checkpoint emitted before any destructive migration."
+        },
+        "preserved_prior_artifact_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional opaque refs to prior artifacts preserved before mutation."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Short reviewer note."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "restore_class": { "const": "exact_restore" } }
+          },
+          "then": {
+            "properties": {
+              "downgrade_triggers": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "description": "Workspace-authority checkpoint record. Authoritative restorable body inside the restore artifact family. Pairs with one or more window_topology_snapshot_record packets that reference it by checkpoint_id."
+    }
+  }
+}

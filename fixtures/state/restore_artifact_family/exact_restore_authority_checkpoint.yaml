@@ -1,0 +1,81 @@
+# Worked example: workspace-authority checkpoint claiming Exact restore.
+#
+# Companion to docs/state/restore_artifact_family_contract.md and
+# schemas/state/workspace_authority_checkpoint.schema.json.
+#
+# Pairs with exact_restore_window_topology_snapshot.yaml: both bodies
+# declare exact_restore, share one workspace_authority_ref, carry empty
+# downgrade-trigger lists, and keep excluded live-authority classes
+# explicit instead of pretending they restored.
+
+__fixture__:
+  name: exact_restore_authority_checkpoint
+  scenario: >
+    A clean graceful-shutdown checkpoint reopens onto the same
+    installation. Trusted roots, active worksets, and dirty-buffer
+    journal identities all rehydrated without translation. Secrets,
+    live tokens, and machine-unique handles stay intentionally
+    excluded as the floor for what cannot ride as restored authority.
+  doc_sections:
+    - "§2 Workspace-authority checkpoint"
+    - "§4 Restore-fidelity vocabulary"
+    - "§6 Live-capability inventory rule"
+
+record_kind: workspace_authority_checkpoint_record
+checkpoint_schema_version: 1
+checkpoint_id: workspace-authority-checkpoint-clean-resume-0001
+workspace_authority_ref: workspace-authority-rust-service-0001
+producer_build:
+  producer_name: aureline
+  producer_version: 0.0.0-dev
+  producer_channel: experimental
+  producer_platform_class: macos
+  producer_instance_handle: producer-instance-handle-0101
+source_schema_version: workspace-authority-checkpoint-schema-v1
+restore_class: exact_restore
+trusted_root_refs:
+  - root_id: root-rust-service-primary-0001
+    trust_state: trusted
+    scope_ref: trust-scope-workspace-rust-service-0001
+    policy_epoch_ref: policy-epoch-stable-0001
+    note: Primary workspace root retained its trusted state across the resume.
+  - root_id: root-rust-service-shared-libs-0001
+    trust_state: trusted
+    scope_ref: trust-scope-shared-libs-0001
+    policy_epoch_ref: policy-epoch-stable-0001
+    note: Shared library root inherited trust through the workspace, not from sibling roots.
+active_workset_ids:
+  - workset-rust-service-feature-staging-0001
+  - workset-rust-service-incident-triage-0001
+dirty_buffer_journal_identities:
+  - journal_id: journal-dirty-buffer-service-rs-0001
+    journal_kind: dirty_buffer_recovery_journal
+    last_known_revision_ref: revision-dirty-buffer-service-rs-0001
+    frame_count: 0
+    note: No dirty frames were outstanding at shutdown.
+  - journal_id: journal-local-history-service-rs-0001
+    journal_kind: local_history_journal
+    last_known_revision_ref: revision-local-history-service-rs-0001
+    frame_count: 12
+    note: Local history is intact and inspectable; not a dirty stream.
+recovery_journal_refs:
+  - recovery-journal-workspace-rust-service-0001
+local_history_snapshot_refs:
+  - local-history-snapshot-workspace-rust-service-0001
+evidence_bundle_refs: []
+excluded_live_authority_classes:
+  - raw_secret_material
+  - live_token_or_cookie
+  - delegated_approval_or_unspent_ticket
+  - machine_unique_handle
+  - live_process_or_session_handle
+  - live_remote_or_kernel_binding
+downgrade_triggers: []
+rollback_checkpoint_ref: null
+preserved_prior_artifact_refs: []
+emitted_at: "mono:6100:00:00:00.0000"
+notes: >
+  Exact restore covers durable workspace authority only. Excluded
+  live-authority classes are recorded so support can tell at a glance
+  that the resume did not rehydrate secrets, tokens, kernel handles,
+  PTY handles, browser tokens, or remote bindings.
