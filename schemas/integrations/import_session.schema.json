@@ -1,0 +1,484 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/integrations/import_session.schema.json",
+  "title": "Aureline provider import session",
+  "description": "Boundary schema for import_session_record, frozen in docs/integrations/provider_event_ingestion_contract.md. Every first sync, incremental catch-up, manual backfill, webhook replay, rewind reconstruction, dry-run inspection, failed-partial import, or mirror sync that materializes or attempts to materialize provider state is represented by one import session. The record binds source provider, acting identity, object scope, source event refs, snapshot time, freshness state, partiality, rate-limit posture, cursor state, omissions, reconciliation counts, visibility truth, and export visibility. Imported provider state must cite this record and a provider event; a session is never a generic synced badge. Raw provider payloads, raw URLs, raw headers, tokens, delegated credentials, and provider-private profile bodies never appear here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "import_session_schema_version",
+    "import_session_id",
+    "session_intent_class",
+    "session_state_class",
+    "connected_provider_record_id",
+    "provider_identity",
+    "acting_identity",
+    "object_scope",
+    "source_event_refs",
+    "session_started_at",
+    "snapshot_time",
+    "freshness_state_class",
+    "partiality_class",
+    "rate_limit_posture_class",
+    "cursor_state",
+    "reconciliation_summary",
+    "visibility_truth_class",
+    "export_visibility",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "import_session_record" },
+    "import_session_schema_version": { "$ref": "#/$defs/import_session_schema_version" },
+    "import_session_id": { "$ref": "#/$defs/opaque_id" },
+    "session_intent_class": { "$ref": "#/$defs/session_intent_class" },
+    "session_state_class": { "$ref": "#/$defs/session_state_class" },
+    "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+    "provider_identity": { "$ref": "#/$defs/provider_identity" },
+    "acting_identity": { "$ref": "#/$defs/acting_identity" },
+    "object_scope": { "$ref": "#/$defs/object_scope" },
+    "source_event_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Provider event refs that caused or bounded this import session. First syncs use an import-request provider event ref."
+    },
+    "replay_record_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Replay ledger refs that caused, held, rewound, or replayed this session."
+    },
+    "session_started_at": { "$ref": "#/$defs/timestamp" },
+    "session_closed_at": { "$ref": "#/$defs/timestamp" },
+    "snapshot_time": { "$ref": "#/$defs/timestamp" },
+    "freshness_state_class": { "$ref": "#/$defs/freshness_state_class" },
+    "partiality_class": { "$ref": "#/$defs/partiality_class" },
+    "rate_limit_posture_class": { "$ref": "#/$defs/rate_limit_posture_class" },
+    "cursor_state": { "$ref": "#/$defs/cursor_state" },
+    "imported_object_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Provider-derived object refs materialized by this session. Empty for denied or dry-run sessions."
+    },
+    "omitted_scope_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scope_omission" },
+      "description": "Explicit omitted pages, object classes, scopes, or fields."
+    },
+    "degraded_import_classes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/degraded_import_class" },
+      "description": "Explicit degraded import reasons. Empty for completed full sessions."
+    },
+    "reconciliation_summary": { "$ref": "#/$defs/reconciliation_summary" },
+    "visibility_truth_class": { "$ref": "#/$defs/visibility_truth_class" },
+    "export_visibility": { "$ref": "#/$defs/export_visibility" },
+    "supersedes_import_session_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "superseded_by_import_session_ref": { "type": "string" },
+    "session_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" }
+  },
+  "allOf": [
+    {
+      "description": "Dry-run sessions must remain dry-run visibility with no imported objects.",
+      "if": {
+        "properties": {
+          "session_intent_class": { "const": "dry_run_inspection" }
+        },
+        "required": ["session_intent_class"]
+      },
+      "then": {
+        "properties": {
+          "visibility_truth_class": { "const": "dry_run_only" },
+          "partiality_class": { "const": "no_state_imported" },
+          "imported_object_refs": { "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "description": "Failed, denied, or partial sessions must carry degraded import classes.",
+      "if": {
+        "properties": {
+          "session_state_class": {
+            "enum": [
+              "completed_partial_degraded",
+              "failed_partial",
+              "denied_policy_blocked",
+              "replay_hold_pending_operator"
+            ]
+          }
+        },
+        "required": ["session_state_class"]
+      },
+      "then": {
+        "required": ["degraded_import_classes"],
+        "properties": {
+          "degraded_import_classes": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "Rewind sessions must render as replayed imports.",
+      "if": {
+        "properties": {
+          "session_intent_class": { "const": "rewind_reconstruction" }
+        },
+        "required": ["session_intent_class"]
+      },
+      "then": {
+        "properties": {
+          "visibility_truth_class": { "const": "replayed_import" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "import_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this import-session boundary."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_intent_class": {
+      "type": "string",
+      "enum": [
+        "first_sync",
+        "incremental_catch_up",
+        "manual_backfill",
+        "webhook_replay",
+        "rewind_reconstruction",
+        "dry_run_inspection",
+        "failed_partial_import",
+        "mirror_sync"
+      ]
+    },
+    "session_state_class": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "completed_full",
+        "completed_partial_degraded",
+        "failed_partial",
+        "denied_policy_blocked",
+        "dry_run_completed_no_write",
+        "replay_hold_pending_operator",
+        "rewind_completed",
+        "superseded"
+      ]
+    },
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "code_host",
+        "issue_or_planning",
+        "ci_or_checks",
+        "docs_or_portal",
+        "artifact_registry",
+        "release_publisher",
+        "identity_provider",
+        "ai_provider",
+        "managed_admin",
+        "mirror_adapter",
+        "other"
+      ]
+    },
+    "environment_class": {
+      "type": "string",
+      "enum": [
+        "public_saas",
+        "self_hosted",
+        "sovereign_hosted",
+        "customer_mirror",
+        "offline_bundle",
+        "local_test_harness"
+      ]
+    },
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "canonical_host",
+        "tenant_or_org_scope",
+        "provider_instance_ref",
+        "environment_class"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "$ref": "#/$defs/non_empty_string" },
+        "provider_instance_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_class": { "$ref": "#/$defs/environment_class" }
+      }
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "mirror_service_identity",
+        "unknown_actor_class"
+      ]
+    },
+    "acting_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_ref",
+        "effective_scope_ref",
+        "permission_snapshot_ref"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "permission_snapshot_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "object_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_ref",
+        "provider_object_classes",
+        "provider_scope_refs",
+        "local_scope_refs"
+      ],
+      "properties": {
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_object_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "pull_request",
+              "issue_or_work_item",
+              "check_run",
+              "release_artifact",
+              "docs_page",
+              "audit_entry",
+              "admin_surface",
+              "consent_flow",
+              "package_version",
+              "registry_entry",
+              "other"
+            ]
+          }
+        },
+        "provider_scope_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "local_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "scope_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "freshness_state_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "bounded_stale",
+        "unbounded_stale",
+        "partial_rate_limited",
+        "stale_permissions",
+        "mirror_lagging",
+        "cursor_reset_pending_backfill",
+        "dry_run_no_write"
+      ]
+    },
+    "partiality_class": {
+      "type": "string",
+      "enum": [
+        "full_import",
+        "bounded_partial_import",
+        "unbounded_partial_import",
+        "no_state_imported"
+      ]
+    },
+    "rate_limit_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_rate_limited",
+        "rate_limited_retry_scheduled",
+        "rate_limited_partial_frozen",
+        "provider_unreachable_retry_scheduled",
+        "mirror_lag_retry_scheduled"
+      ]
+    },
+    "cursor_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "cursor_advanced",
+        "cursor_reset_detected",
+        "page_gap_detected",
+        "rewind_cursor_pinned",
+        "missing_page_detected"
+      ]
+    },
+    "cursor_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cursor_state_class"],
+      "properties": {
+        "cursor_state_class": { "$ref": "#/$defs/cursor_state_class" },
+        "cursor_before_ref": { "type": "string" },
+        "cursor_after_ref": { "type": "string" },
+        "missing_page_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "cursor_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "scope_omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["omission_class", "scope_ref", "omission_summary"],
+      "properties": {
+        "omission_class": {
+          "type": "string",
+          "enum": [
+            "missing_page",
+            "rate_limited_page",
+            "policy_blocked_scope",
+            "permission_stale_scope",
+            "unsupported_object_class",
+            "raw_payload_denied",
+            "dry_run_not_written"
+          ]
+        },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "omission_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "degraded_import_class": {
+      "type": "string",
+      "enum": [
+        "missing_pages",
+        "partial_rate_limit",
+        "provider_unreachable",
+        "stale_permissions",
+        "cursor_reset",
+        "signature_denied",
+        "policy_blocked",
+        "raw_payload_quarantined",
+        "replay_hold",
+        "dry_run_no_write",
+        "unknown_fields_preserved_raw_ref"
+      ]
+    },
+    "reconciliation_result_class": {
+      "type": "string",
+      "enum": [
+        "created_or_updated",
+        "freshness_refreshed_only",
+        "deduped_without_write",
+        "held_for_backfill",
+        "failed_partial",
+        "denied_without_write",
+        "dry_run_no_write",
+        "rewind_materialized"
+      ]
+    },
+    "reconciliation_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_class",
+        "created_count",
+        "updated_count",
+        "skipped_count",
+        "denied_count",
+        "conflict_count"
+      ],
+      "properties": {
+        "result_class": { "$ref": "#/$defs/reconciliation_result_class" },
+        "created_count": { "type": "integer", "minimum": 0 },
+        "updated_count": { "type": "integer", "minimum": 0 },
+        "skipped_count": { "type": "integer", "minimum": 0 },
+        "denied_count": { "type": "integer", "minimum": 0 },
+        "conflict_count": { "type": "integer", "minimum": 0 },
+        "retryability_class": {
+          "type": "string",
+          "enum": [
+            "not_retryable",
+            "retry_after_backoff",
+            "retry_after_permission_refresh",
+            "manual_operator_review_required",
+            "replay_window_expired"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "visibility_truth_class": {
+      "type": "string",
+      "enum": [
+        "live_provider_overlay",
+        "cached_provider_overlay",
+        "imported_snapshot",
+        "replayed_import",
+        "dry_run_only",
+        "denied_no_local_mutation",
+        "failed_no_import"
+      ]
+    },
+    "export_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "desktop_label_class",
+        "cli_label_class",
+        "support_packet_label_class",
+        "ai_evidence_label_class"
+      ],
+      "properties": {
+        "desktop_label_class": { "$ref": "#/$defs/visibility_truth_class" },
+        "cli_label_class": { "$ref": "#/$defs/visibility_truth_class" },
+        "support_packet_label_class": { "$ref": "#/$defs/visibility_truth_class" },
+        "ai_evidence_label_class": { "$ref": "#/$defs/visibility_truth_class" },
+        "visibility_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Visibility labels that must remain consistent across UI, CLI, support, and AI evidence exports."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

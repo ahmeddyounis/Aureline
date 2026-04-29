@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/integrations/webhook_replay_record.schema.json",
+  "title": "Aureline webhook replay and redelivery ledger",
+  "description": "Boundary schema for webhook_replay_record, frozen in docs/integrations/provider_event_ingestion_contract.md. Every provider delivery that can be redelivered, replayed, held for ordering, rewound, inspected as a dry run, or manually replayed is represented by this ledger record. The record preserves original delivery id, dedupe key, first/last seen timestamps, replay reason and state, replay window, idempotency policy, duplicate suppression state, final disposition, blast radius, provider event refs, import session ref, audit refs, and operator review when applicable. The replay ledger prevents duplicate, delayed, denied, and replayed provider events from collapsing into generic sync failure. Raw webhook bodies, headers, URLs, tokens, delegated credentials, and provider-private payloads never appear here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "webhook_replay_record_schema_version",
+    "replay_record_id",
+    "connected_provider_record_id",
+    "provider_identity",
+    "original_delivery_id",
+    "dedupe_key",
+    "replay_reason_class",
+    "replay_state_class",
+    "first_seen_at",
+    "last_seen_at",
+    "replay_count",
+    "replay_window",
+    "idempotency_policy",
+    "disposition_class",
+    "blast_radius",
+    "reconciliation_rule_classes",
+    "import_session_ref",
+    "provider_event_refs",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "webhook_replay_record" },
+    "webhook_replay_record_schema_version": { "$ref": "#/$defs/webhook_replay_record_schema_version" },
+    "replay_record_id": { "$ref": "#/$defs/opaque_id" },
+    "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+    "provider_identity": { "$ref": "#/$defs/provider_identity" },
+    "original_delivery_id": { "$ref": "#/$defs/non_empty_string" },
+    "dedupe_key": { "$ref": "#/$defs/dedupe_key" },
+    "replay_reason_class": { "$ref": "#/$defs/replay_reason_class" },
+    "replay_state_class": { "$ref": "#/$defs/replay_state_class" },
+    "first_seen_at": { "$ref": "#/$defs/timestamp" },
+    "last_seen_at": { "$ref": "#/$defs/timestamp" },
+    "replay_count": { "type": "integer", "minimum": 0 },
+    "replay_window": { "$ref": "#/$defs/replay_window" },
+    "idempotency_policy": { "$ref": "#/$defs/idempotency_policy" },
+    "disposition_class": { "$ref": "#/$defs/disposition_class" },
+    "blast_radius": { "$ref": "#/$defs/blast_radius" },
+    "reconciliation_rule_classes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reconciliation_rule_class" }
+    },
+    "import_session_ref": { "$ref": "#/$defs/opaque_id" },
+    "provider_event_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "audit_event_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "operator_review_ref": {
+      "type": "string",
+      "description": "Opaque operator review ref required for manual operator replay."
+    },
+    "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" },
+    "replay_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" }
+  },
+  "allOf": [
+    {
+      "description": "Manual operator replay requires operator review and a non-empty audit trail.",
+      "if": {
+        "properties": {
+          "replay_reason_class": { "const": "manual_operator_replay" }
+        },
+        "required": ["replay_reason_class"]
+      },
+      "then": {
+        "required": ["operator_review_ref", "audit_event_refs"],
+        "properties": {
+          "operator_review_ref": { "minLength": 1 },
+          "audit_event_refs": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "Denied replay states must carry a denial reason and cannot claim a mutating disposition.",
+      "if": {
+        "properties": {
+          "replay_state_class": { "const": "replay_denied" }
+        },
+        "required": ["replay_state_class"]
+      },
+      "then": {
+        "required": ["denial_reason_class"],
+        "properties": {
+          "disposition_class": { "const": "denied_no_mutation" }
+        }
+      }
+    },
+    {
+      "description": "Duplicate-suppressed replay state must use the deduped disposition.",
+      "if": {
+        "properties": {
+          "replay_state_class": { "const": "duplicate_suppressed" }
+        },
+        "required": ["replay_state_class"]
+      },
+      "then": {
+        "properties": {
+          "disposition_class": { "const": "deduped_noop" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "webhook_replay_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this webhook-replay boundary."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "code_host",
+        "issue_or_planning",
+        "ci_or_checks",
+        "docs_or_portal",
+        "artifact_registry",
+        "release_publisher",
+        "identity_provider",
+        "ai_provider",
+        "managed_admin",
+        "mirror_adapter",
+        "other"
+      ]
+    },
+    "environment_class": {
+      "type": "string",
+      "enum": [
+        "public_saas",
+        "self_hosted",
+        "sovereign_hosted",
+        "customer_mirror",
+        "offline_bundle",
+        "local_test_harness"
+      ]
+    },
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "canonical_host",
+        "tenant_or_org_scope",
+        "provider_instance_ref",
+        "environment_class"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "$ref": "#/$defs/non_empty_string" },
+        "provider_instance_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_class": { "$ref": "#/$defs/environment_class" }
+      }
+    },
+    "dedupe_scope_class": {
+      "type": "string",
+      "enum": [
+        "provider_delivery_id",
+        "provider_event_id",
+        "provider_object_event_kind",
+        "import_session_page",
+        "replay_operator_intent",
+        "mirrored_delivery_id"
+      ]
+    },
+    "dedupe_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dedupe_key_id",
+        "dedupe_scope_class",
+        "scope_ref",
+        "first_seen_at",
+        "last_seen_at",
+        "occurrence_count"
+      ],
+      "properties": {
+        "dedupe_key_id": { "$ref": "#/$defs/opaque_id" },
+        "dedupe_scope_class": { "$ref": "#/$defs/dedupe_scope_class" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "first_seen_at": { "$ref": "#/$defs/timestamp" },
+        "last_seen_at": { "$ref": "#/$defs/timestamp" },
+        "occurrence_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "replay_reason_class": {
+      "type": "string",
+      "enum": [
+        "duplicate_delivery",
+        "out_of_order_delivery",
+        "missing_page_backfill",
+        "manual_operator_replay",
+        "cursor_reset_rewind",
+        "signature_failure_denied",
+        "stale_permission_recheck",
+        "policy_reconciliation",
+        "provider_redelivery"
+      ]
+    },
+    "replay_state_class": {
+      "type": "string",
+      "enum": [
+        "first_seen",
+        "duplicate_suppressed",
+        "held_for_backfill",
+        "replay_requested",
+        "replay_applied_once",
+        "replay_denied",
+        "rewind_materialized",
+        "dry_run_completed",
+        "failed_partial",
+        "superseded"
+      ]
+    },
+    "replay_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_started_at",
+        "window_expires_at",
+        "max_replay_count"
+      ],
+      "properties": {
+        "window_started_at": { "$ref": "#/$defs/timestamp" },
+        "window_expires_at": { "$ref": "#/$defs/timestamp" },
+        "max_replay_count": { "type": "integer", "minimum": 0 },
+        "window_policy_ref": { "type": "string" }
+      }
+    },
+    "mutation_guard_class": {
+      "type": "string",
+      "enum": [
+        "no_mutation_read_only",
+        "apply_once_per_delivery",
+        "apply_once_per_object_version",
+        "operator_confirmed_replay_only",
+        "dry_run_never_write"
+      ]
+    },
+    "duplicate_suppression_state": {
+      "type": "string",
+      "enum": [
+        "not_duplicate",
+        "duplicate_suppressed",
+        "duplicate_refresh_only",
+        "duplicate_outside_window_denied"
+      ]
+    },
+    "idempotency_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotency_key_ref",
+        "mutation_guard_class",
+        "duplicate_suppression_state"
+      ],
+      "properties": {
+        "idempotency_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "mutation_guard_class": { "$ref": "#/$defs/mutation_guard_class" },
+        "duplicate_suppression_state": { "$ref": "#/$defs/duplicate_suppression_state" },
+        "policy_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "disposition_class": {
+      "type": "string",
+      "enum": [
+        "applied_once",
+        "deduped_noop",
+        "held_pending_sequence",
+        "replayed_read_only",
+        "replayed_with_write_after_revalidation",
+        "denied_no_mutation",
+        "failed_partial_import",
+        "rewind_no_live_claim"
+      ]
+    },
+    "blast_radius_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_user_visible_mutation",
+        "freshness_refresh_only",
+        "imported_snapshot_replace",
+        "queued_local_reconciliation",
+        "provider_mutation_requires_new_authority",
+        "support_export_only"
+      ]
+    },
+    "blast_radius": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_scope_refs",
+        "max_provider_object_count",
+        "side_effect_class",
+        "blast_radius_summary"
+      ],
+      "properties": {
+        "affected_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "max_provider_object_count": { "type": "integer", "minimum": 0 },
+        "side_effect_class": { "$ref": "#/$defs/blast_radius_side_effect_class" },
+        "blast_radius_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Maximum allowed effect of replay, rewind, dedupe, or denial."
+    },
+    "reconciliation_rule_class": {
+      "type": "string",
+      "enum": [
+        "duplicate_suppression",
+        "out_of_order_hold",
+        "missing_page_backfill",
+        "signature_failure_deny",
+        "stale_permission_recheck",
+        "cursor_reset_backfill",
+        "manual_operator_replay_audited",
+        "dry_run_no_write"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "signature_invalid",
+        "signature_missing",
+        "host_mismatch",
+        "route_class_denied",
+        "scope_missing",
+        "policy_blocked",
+        "stale_permission",
+        "replay_window_expired",
+        "operator_review_missing",
+        "cursor_gap_unresolved"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

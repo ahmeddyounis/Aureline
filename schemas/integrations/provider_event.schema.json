@@ -1,0 +1,496 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/integrations/provider_event.schema.json",
+  "title": "Aureline provider event ingestion envelope",
+  "description": "Boundary schema for provider_event_record, frozen in docs/integrations/provider_event_ingestion_contract.md. Every inbound provider webhook, callback return, polling refresh, mirror sync, import file, manual backfill, operator replay, or provider stream delivery is normalized into this envelope before it can affect local state. The record preserves provider identity, acting identity, event kind, original delivery id, verification state, cursor or sequence hints, scope refs, dedupe key, raw-to-normalized linkage, import-session ref, replay-ledger ref, disposition, freshness, and visibility truth. Raw URLs, raw request headers, raw webhook bodies, raw provider payloads, raw OAuth tokens, raw delegated tokens, and provider-private profile data never appear here; records carry opaque refs, digests, closed vocabulary, and short reviewable summaries only. Adding enum values or optional fields is additive-minor and requires a provider_event_schema_version bump when payloads change; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "provider_event_schema_version",
+    "provider_event_id",
+    "connected_provider_record_id",
+    "provider_identity",
+    "acting_identity",
+    "event_source_class",
+    "event_kind",
+    "original_delivery_id",
+    "verification_state",
+    "event_time",
+    "received_at",
+    "cursor_or_sequence_hint",
+    "scope_refs",
+    "dedupe_key",
+    "raw_to_normalized_linkage",
+    "import_session_ref",
+    "replay_record_ref",
+    "processing_outcome_class",
+    "visibility_truth_class",
+    "freshness_class",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "provider_event_record" },
+    "provider_event_schema_version": { "$ref": "#/$defs/provider_event_schema_version" },
+    "provider_event_id": { "$ref": "#/$defs/opaque_id" },
+    "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+    "provider_identity": { "$ref": "#/$defs/provider_identity" },
+    "acting_identity": { "$ref": "#/$defs/acting_identity" },
+    "event_source_class": { "$ref": "#/$defs/event_source_class" },
+    "event_kind": { "$ref": "#/$defs/event_kind" },
+    "original_delivery_id": { "$ref": "#/$defs/non_empty_string" },
+    "provider_event_external_id": {
+      "type": "string",
+      "description": "Optional provider-side event id when distinct from the delivery id. Empty only when the provider exposes no event id."
+    },
+    "verification_state": { "$ref": "#/$defs/verification_state" },
+    "event_time": { "$ref": "#/$defs/timestamp" },
+    "received_at": { "$ref": "#/$defs/timestamp" },
+    "validated_at": { "$ref": "#/$defs/timestamp" },
+    "cursor_or_sequence_hint": { "$ref": "#/$defs/cursor_or_sequence_hint" },
+    "scope_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/scope_ref" },
+      "description": "Provider subscription, local object, provider object, import scope, permission scope, review anchor, support packet, or AI evidence scope refs that bound this delivery."
+    },
+    "dedupe_key": { "$ref": "#/$defs/dedupe_key" },
+    "raw_to_normalized_linkage": { "$ref": "#/$defs/raw_to_normalized_linkage" },
+    "import_session_ref": { "$ref": "#/$defs/opaque_id" },
+    "replay_record_ref": { "$ref": "#/$defs/opaque_id" },
+    "processing_outcome_class": { "$ref": "#/$defs/processing_outcome_class" },
+    "visibility_truth_class": { "$ref": "#/$defs/visibility_truth_class" },
+    "freshness_class": { "$ref": "#/$defs/freshness_class" },
+    "normalized_object_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Normalized provider-derived objects produced or refreshed by this event. Empty for denied or dry-run events."
+    },
+    "conflict_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Opaque refs to reconciliation conflicts, drift cards, compare views, or operator review rows."
+    },
+    "callback_deny_audit_event_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Audit refs emitted when verification, host, route, scope, policy, or permission state denies this delivery."
+    },
+    "degraded_import_classes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/degraded_import_class" },
+      "description": "Explicit degraded import reasons associated with this event. Empty for a fully applied event."
+    },
+    "operator_review_ref": {
+      "type": "string",
+      "description": "Opaque operator or admin review ref for manual replay, backfill, cursor reset, or policy reconciliation. Empty when not applicable."
+    },
+    "event_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" }
+  },
+  "allOf": [
+    {
+      "description": "Denied verification states must carry deny audit refs and the denied/no-mutation visibility class.",
+      "if": {
+        "properties": {
+          "verification_state": {
+            "enum": [
+              "signature_missing_denied",
+              "signature_invalid_denied",
+              "host_mismatch_denied",
+              "route_class_denied",
+              "stale_permission_denied"
+            ]
+          }
+        },
+        "required": ["verification_state"]
+      },
+      "then": {
+        "required": ["callback_deny_audit_event_refs"],
+        "properties": {
+          "visibility_truth_class": { "const": "denied_no_local_mutation" },
+          "callback_deny_audit_event_refs": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "Manual replay or manual backfill events must cite operator review.",
+      "if": {
+        "properties": {
+          "event_source_class": {
+            "enum": ["manual_backfill", "operator_replay"]
+          }
+        },
+        "required": ["event_source_class"]
+      },
+      "then": { "required": ["operator_review_ref"] }
+    },
+    {
+      "description": "Dry-run outcomes must render as dry-run only.",
+      "if": {
+        "properties": {
+          "processing_outcome_class": { "const": "dry_run_inspected_no_write" }
+        },
+        "required": ["processing_outcome_class"]
+      },
+      "then": {
+        "properties": {
+          "visibility_truth_class": { "const": "dry_run_only" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "provider_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this provider-event boundary."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, export, cite from support packets, and pass over RPC."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for desktop, CLI, support, and AI evidence output."
+    },
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "code_host",
+        "issue_or_planning",
+        "ci_or_checks",
+        "docs_or_portal",
+        "artifact_registry",
+        "release_publisher",
+        "identity_provider",
+        "ai_provider",
+        "managed_admin",
+        "mirror_adapter",
+        "other"
+      ]
+    },
+    "environment_class": {
+      "type": "string",
+      "enum": [
+        "public_saas",
+        "self_hosted",
+        "sovereign_hosted",
+        "customer_mirror",
+        "offline_bundle",
+        "local_test_harness"
+      ]
+    },
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "canonical_host",
+        "tenant_or_org_scope",
+        "provider_instance_ref",
+        "environment_class"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "$ref": "#/$defs/non_empty_string" },
+        "provider_instance_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_class": { "$ref": "#/$defs/environment_class" }
+      },
+      "description": "Provider identity used for host, tenant, and mirror/self-host disambiguation."
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "mirror_service_identity",
+        "unknown_actor_class"
+      ]
+    },
+    "acting_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_ref",
+        "effective_scope_ref",
+        "permission_snapshot_ref"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "permission_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "acting_as_label_redacted": {
+          "type": "string",
+          "description": "Optional redaction-safe label. Human names may be omitted by policy."
+        }
+      },
+      "description": "Provider-side acting identity and effective scope used for this event."
+    },
+    "event_source_class": {
+      "type": "string",
+      "enum": [
+        "webhook",
+        "callback_return",
+        "polling_refresh",
+        "manual_backfill",
+        "mirror_sync",
+        "import_file",
+        "operator_replay",
+        "provider_stream"
+      ]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "provider_object_created",
+        "provider_object_updated",
+        "provider_object_deleted",
+        "provider_object_restored",
+        "provider_comment_created",
+        "provider_comment_updated",
+        "provider_state_transitioned",
+        "provider_check_status_changed",
+        "provider_permission_changed",
+        "provider_callback_denied",
+        "provider_delivery_heartbeat",
+        "provider_cursor_reset",
+        "provider_unknown_event"
+      ]
+    },
+    "verification_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "unsigned_expected",
+        "signature_missing_denied",
+        "signature_invalid_denied",
+        "host_mismatch_denied",
+        "route_class_denied",
+        "stale_permission_denied",
+        "verification_unknown_pending_review"
+      ],
+      "description": "Verification/proof outcome. Only verified and unsigned_expected can advance without a deny path."
+    },
+    "cursor_hint_class": {
+      "type": "string",
+      "enum": [
+        "no_cursor_available",
+        "cursor_token_observed",
+        "sequence_number_observed",
+        "page_token_observed",
+        "provider_timestamp_only",
+        "cursor_reset_detected",
+        "sequence_gap_detected"
+      ]
+    },
+    "cursor_or_sequence_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hint_class"],
+      "properties": {
+        "hint_class": { "$ref": "#/$defs/cursor_hint_class" },
+        "cursor_ref": { "type": "string" },
+        "previous_cursor_ref": { "type": "string" },
+        "sequence_number": { "type": "integer", "minimum": 0 },
+        "page_ref": { "type": "string" },
+        "provider_event_time": { "$ref": "#/$defs/timestamp" },
+        "gap_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "hint_class": {
+                "enum": ["cursor_reset_detected", "sequence_gap_detected"]
+              }
+            },
+            "required": ["hint_class"]
+          },
+          "then": { "required": ["gap_summary"] }
+        }
+      ],
+      "description": "Cursor, sequence, page, or timestamp hint used to reconcile ordering."
+    },
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_ref"],
+      "properties": {
+        "scope_kind": {
+          "type": "string",
+          "enum": [
+            "provider_subscription",
+            "local_object",
+            "provider_object",
+            "import_scope",
+            "permission_scope",
+            "review_anchor",
+            "support_packet",
+            "ai_evidence_packet",
+            "policy_epoch",
+            "workspace"
+          ]
+        },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "dedupe_scope_class": {
+      "type": "string",
+      "enum": [
+        "provider_delivery_id",
+        "provider_event_id",
+        "provider_object_event_kind",
+        "import_session_page",
+        "replay_operator_intent",
+        "mirrored_delivery_id"
+      ]
+    },
+    "dedupe_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dedupe_key_id",
+        "dedupe_scope_class",
+        "scope_ref",
+        "first_seen_at",
+        "last_seen_at",
+        "occurrence_count"
+      ],
+      "properties": {
+        "dedupe_key_id": { "$ref": "#/$defs/opaque_id" },
+        "dedupe_scope_class": { "$ref": "#/$defs/dedupe_scope_class" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "first_seen_at": { "$ref": "#/$defs/timestamp" },
+        "last_seen_at": { "$ref": "#/$defs/timestamp" },
+        "occurrence_count": { "type": "integer", "minimum": 1 }
+      },
+      "description": "Dedupe key used to suppress duplicate or redelivered provider events."
+    },
+    "payload_storage_class": {
+      "type": "string",
+      "enum": [
+        "quarantined_redacted_ref",
+        "provider_payload_digest_only",
+        "mirror_bundle_ref",
+        "dropped_by_policy_denied"
+      ]
+    },
+    "parse_status_class": {
+      "type": "string",
+      "enum": [
+        "parsed_full",
+        "parsed_with_unknown_fields_preserved",
+        "parsed_partial",
+        "parse_failed_denied",
+        "not_parsed_dry_run"
+      ]
+    },
+    "raw_to_normalized_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_payload_ref",
+        "raw_payload_storage_class",
+        "normalized_record_refs",
+        "parse_status_class"
+      ],
+      "properties": {
+        "raw_payload_ref": { "$ref": "#/$defs/opaque_id" },
+        "raw_header_ref": { "type": "string" },
+        "payload_digest_ref": { "type": "string" },
+        "raw_payload_storage_class": { "$ref": "#/$defs/payload_storage_class" },
+        "normalized_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "parse_status_class": { "$ref": "#/$defs/parse_status_class" },
+        "normalizer_version_ref": { "type": "string" }
+      },
+      "description": "Raw-to-normalized linkage without carrying raw payload bytes."
+    },
+    "processing_outcome_class": {
+      "type": "string",
+      "enum": [
+        "applied_once",
+        "deduped_noop",
+        "held_pending_backfill",
+        "skipped_out_of_scope",
+        "denied_signature_failure",
+        "denied_policy_or_scope",
+        "delayed_permission_stale",
+        "failed_partial_import",
+        "dry_run_inspected_no_write",
+        "replayed_applied_once",
+        "rewind_materialized",
+        "cursor_reset_requires_backfill"
+      ]
+    },
+    "visibility_truth_class": {
+      "type": "string",
+      "enum": [
+        "live_provider_overlay",
+        "cached_provider_overlay",
+        "imported_snapshot",
+        "replayed_import",
+        "dry_run_only",
+        "denied_no_local_mutation"
+      ],
+      "description": "Truth class rendered on desktop, CLI, support, and AI evidence surfaces. Provider events cannot claim local live truth."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_live",
+        "imported_snapshot_current",
+        "imported_snapshot_partial",
+        "imported_snapshot_stale",
+        "replayed_import_not_live",
+        "dry_run_no_write",
+        "denied_no_state_change"
+      ]
+    },
+    "degraded_import_class": {
+      "type": "string",
+      "enum": [
+        "missing_pages",
+        "partial_rate_limit",
+        "provider_unreachable",
+        "stale_permissions",
+        "cursor_reset",
+        "signature_denied",
+        "policy_blocked",
+        "raw_payload_quarantined",
+        "replay_hold",
+        "dry_run_no_write",
+        "unknown_fields_preserved_raw_ref"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

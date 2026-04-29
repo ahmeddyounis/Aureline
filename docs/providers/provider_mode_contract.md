@@ -27,6 +27,14 @@ The machine-readable schemas live at:
   `account_mapping_binding_record`,
   `provider_object_relation_record`.
 
+The provider-event, webhook-replay, and import-session records that
+make freshness, redelivery, backfill, rewind, and dry-run import truth
+portable across desktop, CLI, support, review, and AI evidence surfaces
+are frozen in
+[`/docs/integrations/provider_event_ingestion_contract.md`](../integrations/provider_event_ingestion_contract.md).
+Those records compose with the broad callback envelope here; they do
+not replace provider-mode mutation modes or publish-later continuity.
+
 Worked fixtures live at:
 
 - [`/fixtures/providers/provider_mode_cases/`](../../fixtures/providers/provider_mode_cases/)
