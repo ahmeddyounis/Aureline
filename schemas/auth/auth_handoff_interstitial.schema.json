@@ -1,0 +1,936 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/auth_handoff_interstitial.schema.json",
+  "title": "Aureline auth-handoff interstitial review record",
+  "description": "Boundary schema for the auth-handoff interstitial frozen in docs/auth/auth_handoff_interstitial_contract.md. The interstitial is the host-rendered review surface shown before any sign-in, step-up, account-link, scope-grant, org-switch, recovery, or deprovision-acknowledge handoff widens authority or resumes a privileged flow. One auth_handoff_interstitial_record per pending review surfaces the callback origin, requested action class, provider/domain identity, target workspace or tenant scope, expiry/replay policy, system-browser/device-code/passkey availability disclosures, native-approval boundary linkage, optional embedded-auth exception register reference, and the typed confirm/reject actions reviewers exercise. Raw tokens, raw provider URLs, raw cookies, raw device codes, raw nonces, raw PKCE verifiers, raw passkey material, and raw provider query strings never cross this boundary; every correlation is opaque-id-aliased and every label is export-safe. The record composes with the system-browser callback packet (schemas/auth/auth_callback_state.schema.json), the managed-session state record (schemas/auth/managed_session_state.schema.json), the embedded-surface boundary record family (schemas/ux/embedded_surface_boundary.schema.json), and the embedded-auth exception register (schemas/auth/embedded_auth_exception.schema.json); it does not replace them. Live OAuth/OIDC/SAML/passkey provider implementations remain out of scope. Adding a new requested-action class, availability class, fallback rule class, native-approval boundary reason, audit-event id, or confirm/reject outcome is additive-minor and bumps auth_handoff_interstitial_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and the owning lane.",
+  "$ref": "#/$defs/auth_handoff_interstitial_record",
+  "$defs": {
+    "auth_handoff_interstitial_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this auth-handoff interstitial export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional $schema pointer carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets. Raw tokens, raw provider URLs, raw cookies, raw codes, and raw query strings never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable label safe to render on banners, support exports, release evidence, and audit streams. Raw secret material, raw URLs, raw query strings, raw codes, raw passkey bytes, and raw cookies MUST NOT appear."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001."
+    },
+
+    "account_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "self_hosted",
+        "managed",
+        "restricted_managed_only",
+        "grace_degraded_managed",
+        "unknown_boundary"
+      ],
+      "description": "Account-boundary class re-exported from the system-browser callback packet."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ],
+      "description": "Frozen deployment-profile vocabulary."
+    },
+
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted"]
+    },
+
+    "auth_flow_class": {
+      "type": "string",
+      "enum": [
+        "system_browser",
+        "device_code",
+        "platform_authenticator_native",
+        "embedded_session_refresh",
+        "embedded_password_exception",
+        "not_applicable"
+      ],
+      "description": "Auth-flow class re-exported from ADR-0015 and the system-browser callback packet."
+    },
+
+    "browser_launch_policy_class": {
+      "type": "string",
+      "enum": [
+        "system_default_browser_required",
+        "managed_approved_browser_allowed",
+        "separately_approved_boundary_contract",
+        "browser_launch_policy_blocked"
+      ],
+      "description": "Browser-launch policy class re-exported from the system-browser callback packet."
+    },
+
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "sign_in_new_session",
+        "resume_existing_session",
+        "step_up_authority",
+        "refresh_existing_session",
+        "link_account",
+        "scope_grant",
+        "switch_org_or_tenant",
+        "admin_step_up",
+        "credential_recovery",
+        "deprovision_acknowledge"
+      ],
+      "description": "Closed requested-action vocabulary the reviewer must approve before the handoff widens authority or resumes a privileged flow. Each class names exactly one widening or resumption family and never collapses two unrelated outcomes into one prompt."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Connected-provider class re-exported from ADR-0010."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Connected-provider actor class re-exported from ADR-0010."
+    },
+
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "provider_label",
+        "provider_domain_label",
+        "provider_actor_class"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "provider_label": { "$ref": "#/$defs/export_safe_label" },
+        "provider_domain_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Provider DNS domain label rendered for the reviewer (for example, 'login.acme.example'). Raw URLs, raw query strings, and raw redirect targets MUST NOT appear."
+        },
+        "provider_scope_label": { "$ref": "#/$defs/export_safe_label" },
+        "provider_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "connected_provider_record_id": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the upstream connected-provider record this handoff is bound to. Null only for pre-provider sign-in (account-free local pending an identity binding) or recovery flows that have not yet selected a provider."
+        }
+      },
+      "description": "Provider/domain identity rendered on the interstitial. Reviewers see provider class, label, domain, optional scope, and acting-actor class as separate slots so a generic 'Connected' chip is forbidden."
+    },
+
+    "callback_origin_class": {
+      "type": "string",
+      "enum": [
+        "loopback_http_origin",
+        "platform_deep_link_origin",
+        "device_code_poll_origin",
+        "manual_resume_origin",
+        "platform_authenticator_native_origin",
+        "not_applicable"
+      ],
+      "description": "Closed callback-origin class for the return route this interstitial pre-discloses."
+    },
+
+    "origin_verification_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "unverified",
+        "certificate_failed",
+        "policy_blocked",
+        "cross_origin_limited",
+        "offline_cached",
+        "not_applicable"
+      ],
+      "description": "Origin-verification state re-exported from the embedded-surface boundary vocabulary."
+    },
+
+    "callback_origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callback_origin_class",
+        "callback_origin_label",
+        "origin_verification_state",
+        "return_anchor_label"
+      ],
+      "properties": {
+        "callback_origin_class": { "$ref": "#/$defs/callback_origin_class" },
+        "callback_origin_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Plain-language label for the callback origin (for example, 'Aureline desktop loopback', 'aureline:// deep-link return'). Raw URLs and raw query strings MUST NOT appear."
+        },
+        "host_or_domain_label": { "$ref": "#/$defs/export_safe_label" },
+        "origin_verification_state": {
+          "$ref": "#/$defs/origin_verification_state"
+        },
+        "return_anchor_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Reviewable label naming where the user returns after the browser hop (for example, 'Aureline desktop – payments-prod workspace')."
+        },
+        "return_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "origin_disclosure_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Callback-origin disclosure carried by the interstitial so reviewers see the return route, anchor, host or domain, and verification state before authorising the handoff."
+    },
+
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_mode",
+        "account_boundary_class",
+        "scope_summary_label",
+        "bound_workspace_ref",
+        "bound_tenant_or_org_ref",
+        "bound_actor_subject_ref"
+      ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "account_boundary_class": {
+          "$ref": "#/$defs/account_boundary_class"
+        },
+        "scope_summary_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "One-sentence label naming the workspace, tenant, or org scope the handoff will operate against. Reviewers must be able to read this without visiting another surface."
+        },
+        "bound_workspace_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the originating Aureline workspace the pending handoff is bound to. Null only for pre-workspace sign-in and credential-recovery flows that pre-date workspace selection."
+        },
+        "bound_tenant_or_org_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the tenant or org scope the pending handoff is bound to. Null only for account_free_local."
+        },
+        "bound_actor_subject_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the acting subject the pending handoff is bound to. Null when the flow does not pre-bind a subject (for example, pre-provider sign-in)."
+        },
+        "active_org_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_scope_summary_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional refs to scope-summary rows reviewers can drill into without leaving the interstitial review object family."
+        }
+      },
+      "description": "Target workspace or tenant scope the handoff binds. The interstitial MUST disclose this scope before the reviewer confirms the action."
+    },
+
+    "expiry_replay_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issued_at",
+        "expires_at",
+        "replay_posture",
+        "single_use_required",
+        "expiry_summary_label"
+      ],
+      "properties": {
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "replay_posture": {
+          "type": "string",
+          "enum": ["single_use", "denied_on_any_replay"],
+          "description": "Replay posture re-exported from the system-browser callback packet. Both values guarantee a single redemption; denied_on_any_replay also fails closed if the interstitial is shown again after a partial confirm."
+        },
+        "single_use_required": {
+          "type": "boolean",
+          "description": "Whether the interstitial confirm action MUST consume the pending session in one redemption. Always true for sign-in, step-up, scope-grant, link-account, switch-org, admin-step-up, and credential-recovery flows."
+        },
+        "expiry_summary_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Reviewable summary of the expiry/replay posture (for example, 'This handoff expires in 10 minutes and may only be confirmed once.')."
+        },
+        "code_expiry_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Optional code-expiry label rendered for device-code flows. Raw codes MUST NOT appear; the visible cue is the only place a short-lived code is shown to the user."
+        }
+      },
+      "description": "Expiry and replay policy reviewers see before confirming. Reviewers may reject if the policy is wrong; they may not be silently re-prompted with a freshly minted policy after rejection."
+    },
+
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "unsupported_by_deployment",
+        "unsupported_by_platform_or_authenticator",
+        "policy_disabled",
+        "blocked_with_visible_recovery",
+        "unknown_with_disclosed_fallback",
+        "not_applicable"
+      ],
+      "description": "Closed availability vocabulary for the system-browser, device-code, and passkey rows on the interstitial. Each row is disclosed honestly: a path the deployment cannot honour MUST NOT be advertised as supported."
+    },
+
+    "availability_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system_browser_availability",
+        "device_code_availability",
+        "passkey_availability",
+        "preferred_flow_class",
+        "fallback_flow_order",
+        "availability_summary_label"
+      ],
+      "properties": {
+        "system_browser_availability": {
+          "$ref": "#/$defs/availability_class"
+        },
+        "device_code_availability": {
+          "$ref": "#/$defs/availability_class"
+        },
+        "passkey_availability": { "$ref": "#/$defs/availability_class" },
+        "preferred_flow_class": { "$ref": "#/$defs/auth_flow_class" },
+        "fallback_flow_order": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/auth_flow_class" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Ordered fallback flows the interstitial offers if the preferred flow is unavailable. The first entry MUST be the next-best honest path (for example, device_code when system_browser is blocked)."
+        },
+        "availability_summary_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Reviewable single-sentence summary of the system-browser/device-code/passkey availability posture. Surfaces quote this label rather than minting their own copy."
+        },
+        "browser_launch_policy_class": {
+          "$ref": "#/$defs/browser_launch_policy_class",
+          "description": "Browser-launch policy class for the system-browser path on this handoff. Required when system_browser_availability is supported, blocked_with_visible_recovery, or unknown_with_disclosed_fallback."
+        }
+      },
+      "description": "System-browser, device-code, and passkey-capable availability disclosure. The interstitial MUST render every row, even when one path is not applicable, so reviewers see the full honest posture."
+    },
+
+    "native_reserved_surface": {
+      "type": "string",
+      "enum": [
+        "product_security_messaging",
+        "update_verification",
+        "workspace_trust_elevation",
+        "rollback_or_restore_confirmation",
+        "ai_apply_review",
+        "high_risk_approval_sheet"
+      ],
+      "description": "Product-owned/native reserved surfaces re-exported from ADR-0015."
+    },
+
+    "native_approval_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_owned_native_required",
+        "embedded_handoff_forbidden",
+        "boundary_summary_label",
+        "reserved_native_surface_refs"
+      ],
+      "properties": {
+        "product_owned_native_required": {
+          "type": "boolean",
+          "description": "True when the requested action class crosses a product-owned/native boundary (step-up authority, admin step-up, deprovision acknowledge, scope grant for high-risk scopes). The interstitial MUST route the confirm action into the host-native review surface; an embedded confirm is forbidden."
+        },
+        "embedded_handoff_forbidden": {
+          "type": "boolean",
+          "description": "True for system_browser, device_code, and platform_authenticator_native flows. False is admissible only when an active embedded-auth exception register entry is referenced."
+        },
+        "host_native_step_up_required": {
+          "type": "boolean",
+          "description": "True when the reviewer must complete a host-native step-up sheet before the handoff can be confirmed (for example, after embedded_password_exception session refresh)."
+        },
+        "reserved_native_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/native_reserved_surface" },
+          "uniqueItems": true,
+          "description": "Closed list of host-owned native-reserved surfaces this interstitial keeps host-owned. Reviewers may follow the confirm action into one of these surfaces but may not be re-routed into an embedded substitute."
+        },
+        "product_owned_review_surface_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the host-native review surface the confirm action returns to (for example, an admin step-up sheet, an AI-apply review row, or a rollback confirmation). Null when the action does not need a downstream native review."
+        },
+        "boundary_summary_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Reviewable label naming where the confirm action lands and which native-reserved surface owns the final approval."
+        }
+      },
+      "description": "Native-approval boundary linkage. The interstitial declares whether the confirm action returns to a product-owned, host-native review surface so embedded content cannot impersonate the final approval."
+    },
+
+    "interstitial_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "confirmed",
+        "rejected_by_user",
+        "rejected_by_policy",
+        "expired_before_review",
+        "superseded",
+        "denied_origin_mismatch",
+        "denied_replay",
+        "denied_native_boundary"
+      ],
+      "description": "Closed interstitial-state vocabulary. denied_* states fail closed and MUST carry a typed denial reason. superseded fires when a newer interstitial replaces this one rather than silently overwriting."
+    },
+
+    "confirm_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_label",
+        "primary_action_class",
+        "host_native_target_required"
+      ],
+      "properties": {
+        "action_label": { "$ref": "#/$defs/export_safe_label" },
+        "primary_action_class": {
+          "type": "string",
+          "enum": [
+            "open_in_system_browser",
+            "switch_to_device_code",
+            "open_platform_authenticator",
+            "open_host_native_step_up",
+            "resume_after_step_up",
+            "open_embedded_session_refresh",
+            "open_embedded_password_exception",
+            "open_admin_step_up",
+            "open_deprovision_review",
+            "no_confirm_admissible"
+          ]
+        },
+        "host_native_target_required": {
+          "type": "boolean",
+          "description": "True when the confirm action MUST land on a host-native target (system browser, platform authenticator, host-native step-up sheet). False is admissible only inside an active embedded-auth exception register entry."
+        },
+        "hook_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the ADR-0010 browser_handoff_packet bound by the confirm action. Required for any system_browser confirm; null for device-code, embedded-exception, and host-native-only confirms."
+        }
+      },
+      "description": "Typed confirm-action row reviewers exercise to widen authority. The label, action class, and hook MUST be present; the action MUST NOT mutate state silently."
+    },
+
+    "reject_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_label",
+        "rejection_outcome_class"
+      ],
+      "properties": {
+        "action_label": { "$ref": "#/$defs/export_safe_label" },
+        "rejection_outcome_class": {
+          "type": "string",
+          "enum": [
+            "continue_local_without_sign_in",
+            "return_to_account_free_local",
+            "request_admin_policy_change",
+            "switch_to_device_code",
+            "contact_support_with_export",
+            "abort_pending_handoff_silently_forbidden"
+          ],
+          "description": "Closed rejection-outcome vocabulary. Silent abort is forbidden as a default; the surface MUST land on a typed local-continuity, fallback, or escalation outcome."
+        },
+        "hook_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preserves_local_work_assertion": {
+          "type": "boolean",
+          "description": "Reviewer assertion that rejecting the handoff preserves local work. Always true for account_free_local and any flow whose preserved-local-work block declares local_work_intact or local_work_intact_with_*_narrowed."
+        }
+      },
+      "description": "Typed reject-action row reviewers exercise to refuse the handoff. Rejection MUST NOT silently retry, silently downgrade to an embedded path, or silently strand the user."
+    },
+
+    "preserved_local_work_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "summary_label"],
+      "properties": {
+        "posture_class": {
+          "type": "string",
+          "enum": [
+            "local_work_intact",
+            "local_work_intact_with_managed_narrowed",
+            "local_work_intact_with_self_hosted_narrowed",
+            "local_work_narrowed_by_workspace_trust",
+            "local_work_blocked_by_policy"
+          ]
+        },
+        "summary_label": { "$ref": "#/$defs/export_safe_label" },
+        "preserved_local_work_block_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the canonical preserved_local_work block on the bound auth_callback_packet_record or managed_session_state_record. The interstitial quotes by ref rather than re-describing local-continuity locally."
+        }
+      },
+      "description": "Preserved-local-work summary the reviewer reads on the interstitial. The full preserved-local-work block lives on the bound callback or session record; this row is a quote-by-ref summary so the reviewer never needs to leave the interstitial."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "auth_handoff_interstitial_rendered",
+        "auth_handoff_interstitial_confirmed",
+        "auth_handoff_interstitial_rejected",
+        "auth_handoff_interstitial_expired",
+        "auth_handoff_interstitial_superseded",
+        "auth_handoff_interstitial_denied_origin",
+        "auth_handoff_interstitial_denied_replay",
+        "auth_handoff_interstitial_denied_native_boundary",
+        "auth_handoff_interstitial_routed_to_native_approval",
+        "auth_handoff_interstitial_routed_to_device_code",
+        "auth_handoff_interstitial_exception_register_quoted"
+      ],
+      "description": "Closed audit-event id vocabulary for the interstitial review lane. Audit rows carry typed vocabulary only; raw tokens, raw URLs, raw cookies, raw codes, raw passkey material, and raw provider query strings are forbidden."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "callback_origin_mismatch",
+        "callback_replay_denied",
+        "tenant_or_workspace_mismatch",
+        "embedded_handoff_without_exception",
+        "embedded_handoff_for_high_risk_action",
+        "system_browser_blocked_no_visible_fallback",
+        "device_code_unavailable_no_visible_fallback",
+        "passkey_unavailable_no_visible_fallback",
+        "native_approval_boundary_violation",
+        "expiry_or_replay_policy_violation",
+        "exception_register_entry_revoked_or_expired"
+      ],
+      "description": "Closed denial-reason vocabulary for fail-closed interstitial states. Surfaces MUST quote one reason; silent retry, silent downgrade, and silent embedded fallback are forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy, identity-mode, and trust-state context the interstitial was minted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the lifecycle/support/release vocabulary."
+    },
+
+    "auth_handoff_interstitial_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "auth_handoff_interstitial_schema_version",
+        "interstitial_id",
+        "interstitial_state",
+        "auth_flow_class",
+        "requested_action_class",
+        "requested_action_label",
+        "provider_identity",
+        "callback_origin_disclosure",
+        "target_scope",
+        "expiry_replay_policy",
+        "availability_disclosure",
+        "native_approval_boundary",
+        "confirm_action",
+        "reject_action",
+        "preserved_local_work_summary",
+        "auth_callback_packet_ref",
+        "embedded_auth_exception_ref",
+        "deployment_profile_scope",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "auth_handoff_interstitial_record" },
+        "auth_handoff_interstitial_schema_version": {
+          "$ref": "#/$defs/auth_handoff_interstitial_schema_version"
+        },
+        "interstitial_id": { "$ref": "#/$defs/opaque_id" },
+        "interstitial_state": {
+          "$ref": "#/$defs/interstitial_state_class"
+        },
+        "auth_flow_class": { "$ref": "#/$defs/auth_flow_class" },
+        "requested_action_class": {
+          "$ref": "#/$defs/requested_action_class"
+        },
+        "requested_action_label": { "$ref": "#/$defs/export_safe_label" },
+        "provider_identity": { "$ref": "#/$defs/provider_identity" },
+        "callback_origin_disclosure": {
+          "$ref": "#/$defs/callback_origin_disclosure"
+        },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "expiry_replay_policy": {
+          "$ref": "#/$defs/expiry_replay_policy"
+        },
+        "availability_disclosure": {
+          "$ref": "#/$defs/availability_disclosure"
+        },
+        "native_approval_boundary": {
+          "$ref": "#/$defs/native_approval_boundary"
+        },
+        "confirm_action": { "$ref": "#/$defs/confirm_action" },
+        "reject_action": { "$ref": "#/$defs/reject_action" },
+        "preserved_local_work_summary": {
+          "$ref": "#/$defs/preserved_local_work_summary"
+        },
+        "auth_callback_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the system_browser_callback_packet auth_callback_packet_record this interstitial pre-discloses. Null only for not_applicable interstitials and for credential-recovery flows that have not yet minted a callback packet."
+        },
+        "managed_session_state_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the bound managed_session_state_record (for resume_existing_session, refresh_existing_session, step_up_authority, switch_org_or_tenant, and deprovision_acknowledge actions). Null for sign_in_new_session before a managed session exists."
+        },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the ADR-0010 browser_handoff_packet bound by the confirm action. Null for device-code, embedded-exception, and host-native-only confirms."
+        },
+        "device_code_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the device-code companion record bound by the confirm action when the preferred flow is device_code. Null otherwise."
+        },
+        "embedded_auth_exception_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the embedded_auth_exception_register_record currently authorising an embedded auth path. Null is required for system_browser, device_code, and platform_authenticator_native flows. Required for embedded_session_refresh and embedded_password_exception flows."
+        },
+        "deployment_profile_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ],
+          "description": "Typed denial reason when interstitial_state is one of the denied_* / expired / superseded / rejected_by_policy values. Null while pending or after a clean confirm."
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Refs to support-export rows reviewers, support, admin, and release-evidence surfaces quote by stable id."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Refs to audit-event rows emitted by this interstitial. The audit row payloads are validated by the upstream audit schema; the interstitial holds opaque refs only."
+        },
+        "diagnostics_quote_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Refs the diagnostics, support, and docs/help surfaces quote so the interstitial copy is reusable without special-case wording per surface."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "system_browser, device_code, and platform_authenticator_native flows MUST forbid embedded handoff and MUST NOT cite an embedded-auth exception ref.",
+          "if": {
+            "properties": {
+              "auth_flow_class": {
+                "enum": [
+                  "system_browser",
+                  "device_code",
+                  "platform_authenticator_native"
+                ]
+              }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "native_approval_boundary": {
+                "properties": {
+                  "embedded_handoff_forbidden": { "const": true }
+                }
+              },
+              "embedded_auth_exception_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "embedded_session_refresh and embedded_password_exception flows MUST cite an embedded-auth exception register ref.",
+          "if": {
+            "properties": {
+              "auth_flow_class": {
+                "enum": [
+                  "embedded_session_refresh",
+                  "embedded_password_exception"
+                ]
+              }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "required": ["embedded_auth_exception_ref"],
+            "properties": {
+              "embedded_auth_exception_ref": { "type": "string" }
+            }
+          }
+        },
+        {
+          "description": "embedded_password_exception MUST require host-native step-up and a host-native confirm target.",
+          "if": {
+            "properties": {
+              "auth_flow_class": { "const": "embedded_password_exception" }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "native_approval_boundary": {
+                "properties": {
+                  "host_native_step_up_required": { "const": true }
+                }
+              },
+              "confirm_action": {
+                "properties": {
+                  "host_native_target_required": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "step_up_authority, admin_step_up, scope_grant, switch_org_or_tenant, and deprovision_acknowledge actions cross a product-owned/native boundary; the confirm action MUST land on a host-native target.",
+          "if": {
+            "properties": {
+              "requested_action_class": {
+                "enum": [
+                  "step_up_authority",
+                  "admin_step_up",
+                  "scope_grant",
+                  "switch_org_or_tenant",
+                  "deprovision_acknowledge"
+                ]
+              }
+            },
+            "required": ["requested_action_class"]
+          },
+          "then": {
+            "properties": {
+              "native_approval_boundary": {
+                "properties": {
+                  "product_owned_native_required": { "const": true }
+                }
+              },
+              "confirm_action": {
+                "properties": {
+                  "host_native_target_required": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "account_free_local identity mode requires local_only or unknown_boundary; tenant binding MUST be null.",
+          "if": {
+            "properties": {
+              "target_scope": {
+                "properties": {
+                  "identity_mode": { "const": "account_free_local" }
+                },
+                "required": ["identity_mode"]
+              }
+            },
+            "required": ["target_scope"]
+          },
+          "then": {
+            "properties": {
+              "target_scope": {
+                "properties": {
+                  "account_boundary_class": {
+                    "enum": ["local_only", "unknown_boundary"]
+                  },
+                  "bound_tenant_or_org_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Denied / expired / superseded / rejected_by_policy interstitial states MUST name a typed denial reason.",
+          "if": {
+            "properties": {
+              "interstitial_state": {
+                "enum": [
+                  "rejected_by_policy",
+                  "expired_before_review",
+                  "superseded",
+                  "denied_origin_mismatch",
+                  "denied_replay",
+                  "denied_native_boundary"
+                ]
+              }
+            },
+            "required": ["interstitial_state"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "string" }
+            },
+            "required": ["denial_reason_class"]
+          }
+        },
+        {
+          "description": "system_browser flows MUST disclose system-browser availability honestly: the row may not be unsupported_* or policy_disabled while the preferred flow is system_browser.",
+          "if": {
+            "properties": {
+              "auth_flow_class": { "const": "system_browser" }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "availability_disclosure": {
+                "properties": {
+                  "system_browser_availability": {
+                    "enum": [
+                      "supported",
+                      "blocked_with_visible_recovery",
+                      "unknown_with_disclosed_fallback"
+                    ]
+                  },
+                  "preferred_flow_class": { "const": "system_browser" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "device_code flows MUST disclose device-code availability as supported and MUST set the preferred flow to device_code.",
+          "if": {
+            "properties": {
+              "auth_flow_class": { "const": "device_code" }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "availability_disclosure": {
+                "properties": {
+                  "device_code_availability": {
+                    "enum": [
+                      "supported",
+                      "unknown_with_disclosed_fallback"
+                    ]
+                  },
+                  "preferred_flow_class": { "const": "device_code" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Auth-handoff interstitial review record. One record per pending review surfaces the typed inputs reviewers must approve before any sign-in, step-up, account-link, scope-grant, org-switch, recovery, or deprovision-acknowledge handoff widens authority. The record is reusable in diagnostics, support exports, and docs/help; it does not require special-case copy per surface."
+    }
+  }
+}

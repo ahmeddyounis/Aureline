@@ -1,0 +1,653 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/embedded_auth_exception.schema.json",
+  "title": "Aureline embedded-auth exception register record",
+  "description": "Boundary schema for the embedded-auth exception register frozen in docs/auth/auth_handoff_interstitial_contract.md. The register is the auth-lane source of truth for every approved embedded auth path: a system-browser-first deployment lands here only when an explicit register entry pins the exact reason, the allowed provider/domain, the fallback rule, and the visibly lower-trust presentation requirements. The record composes with the embedded-surface boundary record family (schemas/ux/embedded_surface_boundary.schema.json) — every register entry MUST be quotable by the host-rendered embedded_auth_exception_record carried on a boundary card — and with the auth-handoff interstitial (schemas/auth/auth_handoff_interstitial.schema.json), which cites the register entry id when its auth_flow_class is embedded_session_refresh or embedded_password_exception. Raw provider URLs, raw cookies, raw passwords, raw passkey material, raw nonces, raw PKCE verifiers, and raw provider error bodies never cross this boundary; every reference is opaque-id-aliased and every label is export-safe. Live IdP/OAuth/SAML/passkey integrations are out of scope. Adding a new exception reason, scope class, fallback rule class, lower-trust cue, review state, or audit-event id is additive-minor and bumps embedded_auth_exception_register_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and the owning lane.",
+  "$ref": "#/$defs/embedded_auth_exception_register_record",
+  "$defs": {
+    "embedded_auth_exception_register_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this embedded-auth exception register export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable label safe to render on banners, support exports, release evidence, and audit streams."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted"]
+    },
+
+    "auth_flow_class": {
+      "type": "string",
+      "enum": [
+        "system_browser",
+        "device_code",
+        "platform_authenticator_native",
+        "embedded_session_refresh",
+        "embedded_password_exception",
+        "not_applicable"
+      ],
+      "description": "Auth-flow class re-exported from ADR-0015 and the system-browser callback packet."
+    },
+
+    "approved_embedded_flow_class": {
+      "type": "string",
+      "enum": [
+        "embedded_session_refresh",
+        "embedded_password_exception"
+      ],
+      "description": "Closed embedded-flow class authorised by this register entry. system_browser, device_code, and platform_authenticator_native are NEVER admissible here; they do not require a register entry because they are the supported defaults."
+    },
+
+    "auth_exception_reason": {
+      "type": "string",
+      "enum": [
+        "legacy_provider_requires_embedded_password",
+        "managed_kiosk_or_browser_policy_blocks_launch",
+        "loopback_or_deep_link_return_unavailable",
+        "device_code_not_supported",
+        "session_refresh_without_password_only",
+        "temporary_enterprise_override"
+      ],
+      "description": "Closed exception-reason vocabulary re-exported from ADR-0015. Each reason names one and only one cause for departing from the system-browser-first default."
+    },
+
+    "exception_scope_class": {
+      "type": "string",
+      "enum": [
+        "session_refresh_only",
+        "limited_account_link",
+        "no_high_risk_actions"
+      ],
+      "description": "Closed scope-class vocabulary re-exported from ADR-0015. session_refresh_only authorises a narrow renewal inside an already-authenticated session; limited_account_link authorises one account-link without widening scope; no_high_risk_actions guarantees the embedded path can never raise trust, verify updates, confirm rollback, or apply AI changes."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Connected-provider class re-exported from ADR-0010."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "embedded_docs_help",
+        "embedded_marketplace_or_account",
+        "embedded_service_dashboard",
+        "embedded_auth_confirmation",
+        "extension_hosted_surface"
+      ],
+      "description": "Embedded-surface family vocabulary re-exported from ADR-0015."
+    },
+
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "sign_in_new_session",
+        "resume_existing_session",
+        "step_up_authority",
+        "refresh_existing_session",
+        "link_account",
+        "scope_grant",
+        "switch_org_or_tenant",
+        "admin_step_up",
+        "credential_recovery",
+        "deprovision_acknowledge"
+      ],
+      "description": "Requested-action vocabulary re-exported from the auth-handoff interstitial."
+    },
+
+    "lower_trust_cue": {
+      "type": "string",
+      "enum": [
+        "lower_trust_badge",
+        "system_browser_preferred_note",
+        "device_code_alternative_note",
+        "credential_entry_not_saved_note",
+        "host_native_approval_still_required",
+        "exception_id_visible",
+        "exportable_exception_record",
+        "no_password_save_to_credential_store",
+        "session_refresh_only_note"
+      ],
+      "description": "Closed lower-trust cue vocabulary re-exported from ADR-0015 and extended for the auth-lane register. Cues MUST render visibly; tooltip-only or inspector-only disclosure is non-conforming."
+    },
+
+    "capability_limitation": {
+      "type": "string",
+      "enum": [
+        "embedded_auth_lower_trust",
+        "no_password_persistence",
+        "no_high_risk_action_authority",
+        "no_workspace_trust_elevation",
+        "no_admin_step_up",
+        "no_scope_widening",
+        "session_refresh_only_capability",
+        "limited_account_link_capability"
+      ],
+      "description": "Closed capability-limitation vocabulary the register entry guarantees the host shell will display next to any flow that quotes it."
+    },
+
+    "fallback_rule_class": {
+      "type": "string",
+      "enum": [
+        "prefer_system_browser_when_unblocked",
+        "prefer_device_code_when_browser_blocked",
+        "prefer_platform_authenticator_when_supported",
+        "no_fallback_admissible_for_this_provider",
+        "fallback_to_continue_local_without_sign_in",
+        "fallback_to_admin_assisted_recovery",
+        "fallback_to_contact_support_with_export"
+      ],
+      "description": "Closed fallback-rule vocabulary. The fallback rule names what the host MUST offer when the embedded path is unavailable, declined, or revoked."
+    },
+
+    "fallback_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preferred_flow_order",
+        "fallback_rule_classes",
+        "no_fallback_admissible",
+        "fallback_summary_label"
+      ],
+      "properties": {
+        "preferred_flow_order": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/auth_flow_class" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Ordered preferred-flow list. The first entry is the supported default the host should offer when the embedded path is not strictly required (typically system_browser, then device_code, then platform_authenticator_native, then the approved embedded flow last)."
+        },
+        "fallback_rule_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_rule_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "no_fallback_admissible": {
+          "type": "boolean",
+          "description": "True only when the provider strictly forbids any non-embedded fallback (rare, requires temporary_enterprise_override or legacy_provider_requires_embedded_password reason). When true, the entry MUST still preserve continue_local_without_sign_in as a typed reject-action outcome on the upstream interstitial."
+        },
+        "fallback_summary_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Reviewable single-sentence summary of the fallback rule for support, admin, and release-evidence exports."
+        }
+      },
+      "description": "Fallback rule the register entry guarantees. Surfaces never invent their own fallback ordering."
+    },
+
+    "lower_trust_presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_lower_trust_cues",
+        "lower_trust_badge_required",
+        "host_native_step_up_required",
+        "visible_capability_limitations",
+        "presentation_summary_label"
+      ],
+      "properties": {
+        "required_lower_trust_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lower_trust_cue" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "lower_trust_badge_required": {
+          "type": "boolean",
+          "description": "Whether a visible lower-trust badge is required next to the embedded auth surface. Always true for embedded_password_exception; required where the deployment is enterprise_online or managed_cloud."
+        },
+        "host_native_step_up_required": {
+          "type": "boolean",
+          "description": "Whether the host shell MUST require a host-native step-up sheet before any high-risk action that follows from the embedded auth path."
+        },
+        "visible_capability_limitations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_limitation" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "presentation_summary_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Reviewable label support, admin, and release-evidence surfaces quote so a register entry never re-invents its own presentation copy."
+        },
+        "no_password_persistence_required": {
+          "type": "boolean",
+          "description": "Whether the embedded path MUST NOT persist any entered credential to the credential store. Required true for embedded_password_exception."
+        }
+      },
+      "description": "Visibly lower-trust presentation requirements. The register entry is the auth-lane source of truth; embedded boundary cards re-render these cues by ref rather than minting their own."
+    },
+
+    "exception_review_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "expiring",
+        "expired",
+        "revoked"
+      ],
+      "description": "Closed register-entry review-state vocabulary. Only active and (briefly) expiring entries authorise an in-product embedded auth path; draft, expired, and revoked entries MUST fail closed with a typed denial reason."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "embedded_auth_exception_registered",
+        "embedded_auth_exception_activated",
+        "embedded_auth_exception_expiring_warned",
+        "embedded_auth_exception_expired",
+        "embedded_auth_exception_revoked",
+        "embedded_auth_exception_quoted_by_interstitial",
+        "embedded_auth_exception_denied_outside_register"
+      ],
+      "description": "Closed audit-event id vocabulary for the register lane. Audit rows carry typed vocabulary only; raw passwords, raw cookies, raw provider URLs, and raw passkey material are forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "repair_hook_kind": {
+      "type": "string",
+      "enum": [
+        "open_in_system_browser",
+        "switch_to_device_code",
+        "open_platform_authenticator",
+        "open_host_native_step_up",
+        "request_admin_policy_change",
+        "continue_local_without_sign_in",
+        "view_auth_exception_record",
+        "open_support_evidence"
+      ],
+      "description": "Closed repair-hook kind vocabulary."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": { "$ref": "#/$defs/repair_hook_kind" },
+        "hook_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "embedded_auth_exception_register_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "embedded_auth_exception_register_schema_version",
+        "register_entry_id",
+        "approved_embedded_flow_class",
+        "exception_reason",
+        "exception_scope_class",
+        "allowed_provider_class",
+        "allowed_provider_domain_label",
+        "applies_to_surface_families",
+        "applies_to_action_classes",
+        "fallback_rule",
+        "lower_trust_presentation",
+        "host_native_approval_required",
+        "review_owner",
+        "review_state",
+        "review_at",
+        "review_expiry_at",
+        "deployment_profile_scope",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "const": "embedded_auth_exception_register_record"
+        },
+        "embedded_auth_exception_register_schema_version": {
+          "$ref": "#/$defs/embedded_auth_exception_register_schema_version"
+        },
+        "register_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "boundary_record_exception_id_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the host-rendered embedded_auth_exception_record carried on the embedded-surface boundary card schema. Null only for register entries that have not yet been rendered on a boundary card. The two records share vocabulary; this register entry is the auth-lane source of truth."
+        },
+        "approved_embedded_flow_class": {
+          "$ref": "#/$defs/approved_embedded_flow_class"
+        },
+        "exception_reason": { "$ref": "#/$defs/auth_exception_reason" },
+        "exception_scope_class": {
+          "$ref": "#/$defs/exception_scope_class"
+        },
+        "allowed_provider_class": { "$ref": "#/$defs/provider_class" },
+        "allowed_provider_label": { "$ref": "#/$defs/export_safe_label" },
+        "allowed_provider_domain_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Provider DNS domain label authorised by this register entry (for example, 'login.legacy-acme.example'). Wildcards MUST NOT appear; one register entry authorises one provider domain. Adding a sibling domain is a new register entry, not a wildcard expansion."
+        },
+        "allowed_provider_scope_label": {
+          "$ref": "#/$defs/export_safe_label"
+        },
+        "connected_provider_record_id": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the upstream connected-provider record this register entry is bound to. Null only for entries created before any provider record was minted (rare, requires draft review state)."
+        },
+        "applies_to_surface_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_family" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Closed list of surface families this register entry authorises an embedded auth path on. embedded_auth_confirmation is the typical entry; extension_hosted_surface is admissible only when the extension publisher boundary explicitly accepts the lower-trust cues."
+        },
+        "applies_to_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/requested_action_class" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Closed list of requested-action classes this register entry authorises. step_up_authority, admin_step_up, scope_grant, switch_org_or_tenant, and deprovision_acknowledge are forbidden inside this list because they cross a product-owned/native boundary."
+        },
+        "fallback_rule": { "$ref": "#/$defs/fallback_rule" },
+        "lower_trust_presentation": {
+          "$ref": "#/$defs/lower_trust_presentation"
+        },
+        "host_native_approval_required": {
+          "type": "boolean",
+          "description": "Whether the host shell MUST require a host-native review/approval surface before any downstream high-risk action. Always true for embedded_password_exception. Required true when applies_to_action_classes includes any class that admits credential entry."
+        },
+        "review_owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reviewer or review-team identifier (for example, 'security_trust_review'). Raw email addresses, raw user ids, and raw directory attributes MUST NOT appear."
+        },
+        "review_state": { "$ref": "#/$defs/exception_review_state" },
+        "review_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "review_expiry_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp the register entry expires. The host shell MUST emit an expiring warning before this time and MUST fail closed afterward."
+        },
+        "revoked_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "revoked_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/export_safe_label" }
+          ],
+          "description": "Reviewable revocation reason. Null while review_state is draft, active, or expiring."
+        },
+        "deployment_profile_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Refs to audit-event rows emitted by this register entry."
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "diagnostics_quote_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Refs the diagnostics, support, and docs/help surfaces quote so the register entry copy is reusable without special-case wording per surface."
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional reviewable note for the register entry. Raw provider error bodies, raw URLs, raw passwords, raw cookies, and raw passkey material MUST NOT appear."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "embedded_password_exception MUST require host-native approval, lower-trust badge, and no-password-persistence cues.",
+          "if": {
+            "properties": {
+              "approved_embedded_flow_class": {
+                "const": "embedded_password_exception"
+              }
+            },
+            "required": ["approved_embedded_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "host_native_approval_required": { "const": true },
+              "lower_trust_presentation": {
+                "properties": {
+                  "lower_trust_badge_required": { "const": true },
+                  "host_native_step_up_required": { "const": true },
+                  "no_password_persistence_required": { "const": true },
+                  "required_lower_trust_cues": {
+                    "allOf": [
+                      {
+                        "contains": {
+                          "const": "lower_trust_badge"
+                        }
+                      },
+                      {
+                        "contains": {
+                          "const": "host_native_approval_still_required"
+                        }
+                      },
+                      {
+                        "contains": {
+                          "const": "no_password_save_to_credential_store"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "embedded_session_refresh MUST forbid password-collection cues and MUST limit scope to session_refresh_only.",
+          "if": {
+            "properties": {
+              "approved_embedded_flow_class": {
+                "const": "embedded_session_refresh"
+              }
+            },
+            "required": ["approved_embedded_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "exception_scope_class": {
+                "const": "session_refresh_only"
+              },
+              "lower_trust_presentation": {
+                "properties": {
+                  "required_lower_trust_cues": {
+                    "contains": {
+                      "const": "session_refresh_only_note"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "applies_to_action_classes MUST NOT include any product-owned/native action that crosses a host-native boundary.",
+          "properties": {
+            "applies_to_action_classes": {
+              "items": {
+                "not": {
+                  "enum": [
+                    "step_up_authority",
+                    "admin_step_up",
+                    "scope_grant",
+                    "switch_org_or_tenant",
+                    "deprovision_acknowledge"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "exception_scope_class no_high_risk_actions MUST NOT include link_account or credential_recovery in applies_to_action_classes (those flows widen authority differently and require their own scope).",
+          "if": {
+            "properties": {
+              "exception_scope_class": {
+                "const": "no_high_risk_actions"
+              }
+            },
+            "required": ["exception_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "applies_to_action_classes": {
+                "items": {
+                  "enum": [
+                    "sign_in_new_session",
+                    "resume_existing_session",
+                    "refresh_existing_session"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Revoked entries MUST carry a revocation timestamp and reason label.",
+          "if": {
+            "properties": {
+              "review_state": { "const": "revoked" }
+            },
+            "required": ["review_state"]
+          },
+          "then": {
+            "required": ["revoked_at", "revoked_reason_label"],
+            "properties": {
+              "revoked_at": { "type": "string" },
+              "revoked_reason_label": { "type": "string" }
+            }
+          }
+        }
+      ],
+      "description": "Embedded-auth exception register record. One record per approved embedded auth path; the register is the auth-lane source of truth that the embedded-surface boundary card schema mirrors. Surfaces NEVER mint their own exception copy; they quote the register entry by id."
+    }
+  }
+}
