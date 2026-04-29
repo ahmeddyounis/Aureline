@@ -24,6 +24,10 @@ artifacts:
   [`schemas/search/search_explanation_capture.schema.json`](../../schemas/search/search_explanation_capture.schema.json)
   — stable result identity and reusable explanation-capture records for
   UI, CLI, export, AI evidence, and support surfaces.
+- [`schemas/search/search_explainability_panel.schema.json`](../../schemas/search/search_explainability_panel.schema.json)
+  — same-surface panel projection for ranking reasons, source mix,
+  hidden counts, policy-blocked counts, provider limits, and export-safe
+  evidence.
 
 and to the frozen result-truth vocabulary at
 [`docs/search/search_readiness_vocabulary.md`](./search_readiness_vocabulary.md)

@@ -21,6 +21,10 @@ The companion artifacts are:
   — the canonical query-session, result-identity, and
   explanation-capture contract that makes every surface cite one
   session object and one reusable explanation vocabulary.
+- [`docs/search/search_explainability_contract.md`](./search_explainability_contract.md)
+  — the same-surface explainability panel contract for ranking reasons,
+  source mix, hidden counts, policy-blocked counts, approximation notes,
+  and export-safe evidence.
 - [`docs/adr/0014-search-readiness-ranking-result-truth.md`](../adr/0014-search-readiness-ranking-result-truth.md)
   — the frozen decision. Read it first if you are changing
   anything mechanical.

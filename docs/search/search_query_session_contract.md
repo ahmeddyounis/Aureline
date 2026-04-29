@@ -16,9 +16,15 @@ Machine-readable companions:
   surfaces cite.
 - [`/schemas/search/search_explanation_capture.schema.json`](../../schemas/search/search_explanation_capture.schema.json)
   defines ranking and omission explanation captures with visibility tiers.
+- [`/schemas/search/search_explainability_panel.schema.json`](../../schemas/search/search_explainability_panel.schema.json)
+  defines the same-surface panel projection for ranking reasons, source mix,
+  hidden counts, policy-blocked counts, provider limits, and export-safe
+  evidence.
 - [`/fixtures/search/query_session_cases/`](../../fixtures/search/query_session_cases/)
   contains worked cases for partial-index, policy-limited, provider-limited,
   hidden-by-filter, and recentness-boosted sessions.
+- [`/fixtures/search/search_explainability_cases/`](../../fixtures/search/search_explainability_cases/)
+  contains same-surface panel cases over the same explanation vocabulary.
 
 This contract composes with, and does not replace:
 
@@ -28,6 +34,8 @@ This contract composes with, and does not replace:
 - [`query_planner_contract_seed.md`](./query_planner_contract_seed.md) for
   planner-pass, result-set, shard-snapshot, duplicate-merge, and streaming
   frame identity.
+- [`search_explainability_contract.md`](./search_explainability_contract.md)
+  for same-surface search explanation panels and export-safe panel evidence.
 - [`../ux/search_result_contract.md`](../ux/search_result_contract.md) for
   renderer-facing search rows and replace-scope counts.
 - [`../ux/quick_open_contract.md`](../ux/quick_open_contract.md) for quick-open

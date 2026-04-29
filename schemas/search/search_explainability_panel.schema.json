@@ -1,0 +1,817 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/search_explainability_panel.schema.json",
+  "title": "Aureline search explainability panel contract",
+  "description": "Renderer-facing contract for same-surface search explainability panels across quick open, global search, docs search, graph-backed discovery, AI context search, CLI explain, and support export preview. The panel projects canonical query-session, result-identity, planner, result packet, and explanation-capture refs into inspectable ranking reasons, boosted terms, recentness, source mix, freshness/scope state, hidden-result counts, policy-blocked counts, provider-limited counts, approximation notes, debug boundaries, and export-safe evidence state. Raw query text, hidden labels, hidden paths, raw provider payloads, raw source bodies, raw URLs, secrets, and numeric private ranking weights are forbidden.",
+  "type": "object",
+  "$ref": "#/$defs/search_explainability_panel_record",
+  "$defs": {
+    "search_explainability_panel_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for search explainability panels. Additive optional fields or enum values bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "search_explainability_panel_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, safe in support bundles, and safe in fixtures. Raw query text, raw source bodies, raw absolute paths, raw provider payloads, raw URLs, and hidden result labels do not appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_surface_class": {
+      "type": "string",
+      "enum": [
+        "quick_open",
+        "command_palette",
+        "global_search",
+        "file_search",
+        "symbol_search",
+        "docs_search",
+        "graph_search",
+        "ai_context_search",
+        "cli_search",
+        "saved_query_reopen",
+        "support_export"
+      ]
+    },
+    "panel_scope_class": {
+      "type": "string",
+      "enum": [
+        "row_ranking_detail",
+        "result_set_scope_detail",
+        "hidden_results_review",
+        "policy_block_review",
+        "provider_limit_review",
+        "freshness_scope_review",
+        "export_evidence_preview",
+        "parity_audit_review"
+      ]
+    },
+    "opened_from_class": {
+      "type": "string",
+      "enum": [
+        "row_reason_chip",
+        "result_list_scope_banner",
+        "hidden_count_chip",
+        "policy_block_chip",
+        "provider_limit_chip",
+        "freshness_chip",
+        "keyboard_inspect",
+        "support_export_preview"
+      ]
+    },
+    "same_surface_host_class": {
+      "type": "string",
+      "enum": [
+        "quick_open_panel",
+        "global_search_panel",
+        "docs_search_panel",
+        "graph_discovery_panel",
+        "ai_context_picker",
+        "cli_explain_inline",
+        "support_export_review"
+      ]
+    },
+    "same_surface_action_class": {
+      "type": "string",
+      "enum": [
+        "back_to_results",
+        "widen_scope",
+        "clear_filter",
+        "retry_provider",
+        "request_policy_change",
+        "rebuild_index",
+        "open_docs_help",
+        "copy_support_ref",
+        "inspect_scope",
+        "inspect_policy",
+        "open_graph_status",
+        "show_debug_reasons",
+        "export_redacted_evidence"
+      ]
+    },
+    "unrelated_handoff_class": {
+      "type": "string",
+      "enum": [
+        "settings_page",
+        "debug_console",
+        "support_only_tool",
+        "admin_policy_console",
+        "provider_admin_portal",
+        "external_browser"
+      ],
+      "description": "A destination that cannot be the only explanation path. Repair hooks may point at these destinations after the same-surface panel has disclosed the relevant count, reason, and owner boundary."
+    },
+    "term_material_class": {
+      "type": "string",
+      "enum": [
+        "redacted_literal",
+        "hashed_literal",
+        "operator_only"
+      ],
+      "description": "Panel-safe term material. raw_local_only terms from query-session records are not admitted on this renderer boundary."
+    },
+    "recentness_signal_class": {
+      "type": "string",
+      "enum": [
+        "recent_file",
+        "recent_edit",
+        "frequent_use",
+        "changed_in_branch",
+        "none"
+      ]
+    },
+    "source_locality_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "workspace_mirror",
+        "managed_tenant_scoped",
+        "provider_remote",
+        "imported_pack",
+        "not_applicable"
+      ]
+    },
+    "source_availability_class": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "partial",
+        "stale",
+        "policy_blocked",
+        "unauthorised",
+        "rate_limited",
+        "offline",
+        "unavailable"
+      ]
+    },
+    "count_basis_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "upper_bound",
+        "partial_index",
+        "provider_limited",
+        "unknown"
+      ]
+    },
+    "approximation_note_class": {
+      "type": "string",
+      "enum": [
+        "partial_index",
+        "stale_index",
+        "approximate_count",
+        "provider_limit",
+        "semantic_degraded",
+        "freshness_floor",
+        "graph_warming",
+        "hidden_count_exact",
+        "exported_snapshot_not_current_truth"
+      ]
+    },
+    "panel_field_class": {
+      "type": "string",
+      "enum": [
+        "primary_ranking_reasons",
+        "boosted_terms",
+        "recentness_signals",
+        "source_mix",
+        "freshness_class",
+        "scope_filter_class",
+        "result_truth_class",
+        "semantic_fallback_state",
+        "hidden_result_count",
+        "hidden_by_filter_count",
+        "policy_blocked_count",
+        "provider_limited_count",
+        "unknown_result_count",
+        "approximation_notes",
+        "partial_index_note",
+        "planner_refs",
+        "shard_snapshot_refs",
+        "normalized_term_hash_refs",
+        "policy_owner_boundary",
+        "provider_authority",
+        "export_policy"
+      ]
+    },
+    "forbidden_panel_field_class": {
+      "type": "string",
+      "enum": [
+        "raw_query_text",
+        "raw_document_body",
+        "raw_symbol_definition",
+        "raw_absolute_path",
+        "raw_provider_payload",
+        "raw_url",
+        "raw_secret",
+        "numeric_rank_weight",
+        "hidden_result_label",
+        "hidden_result_path",
+        "support_only_unexplained_heuristic"
+      ]
+    },
+    "hidden_details_export_class": {
+      "type": "string",
+      "enum": [
+        "counts_and_reasons_only",
+        "metadata_refs_only",
+        "redacted_summary_only",
+        "export_denied"
+      ]
+    },
+    "surface_parity_group": {
+      "type": "string",
+      "enum": [
+        "quick_open",
+        "global_search",
+        "docs_search",
+        "graph_backed_discovery",
+        "ai_context_search",
+        "support_export"
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "exercised_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "ranking_reason_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank_order",
+        "ranking_reason_class",
+        "explanation_signal_class",
+        "source_classes",
+        "explanation_weight_bucket",
+        "visibility_tier",
+        "display_copy_token"
+      ],
+      "properties": {
+        "rank_order": { "$ref": "#/$defs/non_negative_int" },
+        "ranking_reason_class": { "$ref": "search_result_truth.schema.json#/$defs/ranking_reason_class" },
+        "explanation_signal_class": { "$ref": "search_explanation_capture.schema.json#/$defs/explanation_signal_class" },
+        "source_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_identity.schema.json#/$defs/source_class" }
+        },
+        "explanation_weight_bucket": { "$ref": "search_explanation_capture.schema.json#/$defs/explanation_weight_bucket" },
+        "visibility_tier": { "$ref": "search_explanation_capture.schema.json#/$defs/visibility_tier" },
+        "display_copy_token": { "$ref": "search_explanation_capture.schema.json#/$defs/display_copy_token" },
+        "term_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "explanation_capture_entry_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "One ordered reason shown by the panel. Reasons use reusable classes and non-numeric buckets rather than private weights."
+    },
+    "boosted_term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term_ref",
+        "term_role",
+        "term_material_class",
+        "term_boost_class",
+        "visibility_tier"
+      ],
+      "properties": {
+        "term_ref": { "$ref": "#/$defs/opaque_id" },
+        "term_role": { "$ref": "query_session.schema.json#/$defs/normalized_term_role" },
+        "term_material_class": { "$ref": "#/$defs/term_material_class" },
+        "redacted_term_text": { "$ref": "#/$defs/non_empty_string" },
+        "term_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "term_boost_class": { "$ref": "query_session.schema.json#/$defs/term_boost_class" },
+        "visibility_tier": { "$ref": "search_explanation_capture.schema.json#/$defs/visibility_tier" },
+        "explanation_capture_entry_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Panel-safe term boost record. Raw local terms are excluded from this boundary."
+    },
+    "recentness_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recentness_signals",
+        "recentness_visible",
+        "recency_window_ref",
+        "explanation_capture_entry_refs"
+      ],
+      "properties": {
+        "recentness_signals": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/recentness_signal_class" }
+        },
+        "recentness_visible": { "type": "boolean" },
+        "recency_window_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "explanation_capture_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "source_mix_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "shard_contribution_role",
+        "result_count",
+        "freshness_class",
+        "readiness_state",
+        "source_locality_class",
+        "source_availability_class"
+      ],
+      "properties": {
+        "source_class": { "$ref": "search_result_identity.schema.json#/$defs/source_class" },
+        "shard_contribution_role": { "$ref": "result_fusion_record.schema.json#/$defs/shard_contribution_role" },
+        "result_count": { "$ref": "#/$defs/non_negative_int" },
+        "freshness_class": { "$ref": "search_result_truth.schema.json#/$defs/freshness_class" },
+        "readiness_state": { "$ref": "search_result_truth.schema.json#/$defs/readiness_state" },
+        "source_locality_class": { "$ref": "#/$defs/source_locality_class" },
+        "source_availability_class": { "$ref": "#/$defs/source_availability_class" },
+        "source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "source_mix_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_mix_is_complete",
+        "provider_limit_disclosed",
+        "entries"
+      ],
+      "properties": {
+        "source_mix_is_complete": { "type": "boolean" },
+        "provider_limit_disclosed": { "type": "boolean" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_mix_entry" }
+        }
+      }
+    },
+    "freshness_scope_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readiness_state",
+        "freshness_class",
+        "scope_filter_class",
+        "result_truth_class",
+        "semantic_fallback_state",
+        "stale_or_partial_explanation",
+        "scope_ref",
+        "index_epoch_ref",
+        "count_truth_is_partial"
+      ],
+      "properties": {
+        "readiness_state": { "$ref": "search_result_truth.schema.json#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "search_result_truth.schema.json#/$defs/freshness_class" },
+        "scope_filter_class": { "$ref": "search_result_truth.schema.json#/$defs/scope_filter_class" },
+        "result_truth_class": { "$ref": "search_result_truth.schema.json#/$defs/result_truth_class" },
+        "semantic_fallback_state": { "$ref": "search_result_truth.schema.json#/$defs/semantic_fallback_state" },
+        "stale_or_partial_explanation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/stale_or_partial_explanation" }
+          ]
+        },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "index_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "graph_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "docs_pack_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "count_truth_is_partial": { "type": "boolean" }
+      }
+    },
+    "policy_blocked_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocked_result_count",
+        "count_is_approximate",
+        "blocked_result_reasons"
+      ],
+      "properties": {
+        "blocked_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "count_is_approximate": { "type": "boolean" },
+        "blocked_result_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_identity.schema.json#/$defs/blocked_result_reason" }
+        }
+      }
+    },
+    "count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_result_count",
+        "matching_result_count",
+        "matching_result_count_known",
+        "hidden_result_disclosure",
+        "hidden_by_filter_count",
+        "policy_blocked_disclosure",
+        "provider_limited_count",
+        "unknown_result_count",
+        "count_basis_class"
+      ],
+      "properties": {
+        "visible_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "matching_result_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_negative_int" }
+          ]
+        },
+        "matching_result_count_known": { "type": "boolean" },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "hidden_by_filter_count": { "$ref": "#/$defs/non_negative_int" },
+        "policy_blocked_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/policy_blocked_disclosure" }
+          ]
+        },
+        "provider_limited_count": { "$ref": "#/$defs/non_negative_int" },
+        "unknown_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "count_basis_class": { "$ref": "#/$defs/count_basis_class" }
+      }
+    },
+    "approximation_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "approximation_note_class",
+        "visibility_tier"
+      ],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/opaque_id" },
+        "approximation_note_class": { "$ref": "#/$defs/approximation_note_class" },
+        "visibility_tier": { "$ref": "search_explanation_capture.schema.json#/$defs/visibility_tier" },
+        "partial_truth_causes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/partial_truth_cause" }
+        },
+        "summary_copy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "explanation_capture_entry_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "same_surface_inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "panel_host_class",
+        "opened_from",
+        "origin_result_list_ref",
+        "same_surface_required",
+        "back_to_results_action_ref",
+        "allowed_same_surface_actions",
+        "unrelated_handoffs_denied",
+        "focus_return_ref"
+      ],
+      "properties": {
+        "panel_host_class": { "$ref": "#/$defs/same_surface_host_class" },
+        "opened_from": { "$ref": "#/$defs/opened_from_class" },
+        "origin_result_list_ref": { "$ref": "#/$defs/opaque_id" },
+        "same_surface_required": { "type": "boolean", "const": true },
+        "back_to_results_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "allowed_same_surface_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/same_surface_action_class" }
+        },
+        "unrelated_handoffs_denied": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/unrelated_handoff_class" }
+        },
+        "focus_return_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "policy_block_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_context",
+        "policy_epoch_ref",
+        "owner_boundary_ref",
+        "blocked_disclosure",
+        "same_surface_review_required",
+        "hidden_details_redacted",
+        "support_safe_summary_ref",
+        "repair_hook_refs"
+      ],
+      "properties": {
+        "policy_context": { "$ref": "query_session.schema.json#/$defs/policy_context" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "owner_boundary_ref": { "$ref": "#/$defs/opaque_id" },
+        "blocked_disclosure": { "$ref": "#/$defs/policy_blocked_disclosure" },
+        "same_surface_review_required": { "type": "boolean", "const": true },
+        "hidden_details_redacted": { "type": "boolean", "const": true },
+        "support_safe_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "repair_hook_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "provider_limit_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_ref",
+        "provider_authority_ref",
+        "source_availability_class",
+        "provider_limited_count",
+        "count_is_approximate",
+        "same_surface_review_required",
+        "repair_hook_refs"
+      ],
+      "properties": {
+        "provider_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_availability_class": { "$ref": "#/$defs/source_availability_class" },
+        "provider_limited_count": { "$ref": "#/$defs/non_negative_int" },
+        "count_is_approximate": { "type": "boolean" },
+        "same_surface_review_required": { "type": "boolean", "const": true },
+        "repair_hook_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "visibility_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "always_visible_fields",
+        "detail_visible_fields",
+        "opt_in_debug_fields",
+        "support_export_fields",
+        "forbidden_fields",
+        "debug_mode_default_enabled",
+        "support_only_cannot_be_sole_explanation"
+      ],
+      "properties": {
+        "always_visible_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/panel_field_class" }
+        },
+        "detail_visible_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/panel_field_class" }
+        },
+        "opt_in_debug_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/panel_field_class" }
+        },
+        "support_export_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/panel_field_class" }
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/forbidden_panel_field_class" }
+        },
+        "debug_mode_default_enabled": { "type": "boolean", "const": false },
+        "support_only_cannot_be_sole_explanation": { "type": "boolean", "const": true }
+      }
+    },
+    "export_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_policy_class",
+        "raw_material_allowed",
+        "hidden_details_export_class",
+        "explanation_capture_refs",
+        "exported_state_fields"
+      ],
+      "properties": {
+        "export_policy_class": { "$ref": "search_explanation_capture.schema.json#/$defs/export_policy_class" },
+        "raw_material_allowed": { "type": "boolean", "const": false },
+        "hidden_details_export_class": { "$ref": "#/$defs/hidden_details_export_class" },
+        "explanation_capture_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "exported_state_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/panel_field_class" }
+        },
+        "export_denial_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "parity_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_parity_group",
+        "compatible_source_surfaces",
+        "primary_result_surface_class",
+        "reusable_explanation_terms",
+        "provider_specific_terms_allowed",
+        "provider_payload_allowed",
+        "missing_provider_disclosure_required"
+      ],
+      "properties": {
+        "surface_parity_group": { "$ref": "#/$defs/surface_parity_group" },
+        "compatible_source_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_surface_class" }
+        },
+        "primary_result_surface_class": { "$ref": "search_result_truth.schema.json#/$defs/surface_class" },
+        "reusable_explanation_terms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "search_explanation_capture.schema.json#/$defs/explanation_signal_class" }
+        },
+        "provider_specific_terms_allowed": { "type": "boolean", "const": false },
+        "provider_payload_allowed": { "type": "boolean", "const": false },
+        "missing_provider_disclosure_required": { "type": "boolean", "const": true },
+        "parity_notes_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "search_explainability_panel_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_explainability_panel_schema_version",
+        "panel_id",
+        "query_session_id_ref",
+        "source_surface_class",
+        "panel_scope_class",
+        "ranking_reasons",
+        "boosted_terms",
+        "recentness",
+        "source_mix",
+        "freshness_scope",
+        "counts",
+        "approximation_and_partial_notes",
+        "same_surface_inspection",
+        "policy_block_review",
+        "provider_limit_review",
+        "visibility_boundary",
+        "export_evidence",
+        "parity_mapping",
+        "policy_context",
+        "redaction_class",
+        "opened_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "search_explainability_panel_schema_version": { "$ref": "#/$defs/search_explainability_panel_schema_version" },
+        "panel_id": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_identity_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "search_result_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "panel_scope_class": { "$ref": "#/$defs/panel_scope_class" },
+        "ranking_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ranking_reason_entry" }
+        },
+        "boosted_terms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boosted_term" }
+        },
+        "recentness": { "$ref": "#/$defs/recentness_summary" },
+        "source_mix": { "$ref": "#/$defs/source_mix_summary" },
+        "freshness_scope": { "$ref": "#/$defs/freshness_scope_summary" },
+        "counts": { "$ref": "#/$defs/count_summary" },
+        "approximation_and_partial_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/approximation_note" }
+        },
+        "same_surface_inspection": { "$ref": "#/$defs/same_surface_inspection" },
+        "policy_block_review": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/policy_block_review" }
+          ]
+        },
+        "provider_limit_review": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/provider_limit_review" }
+          ]
+        },
+        "visibility_boundary": { "$ref": "#/$defs/visibility_boundary" },
+        "export_evidence": { "$ref": "#/$defs/export_evidence" },
+        "parity_mapping": { "$ref": "#/$defs/parity_mapping" },
+        "policy_context": { "$ref": "query_session.schema.json#/$defs/policy_context" },
+        "redaction_class": { "$ref": "search_result_truth.schema.json#/$defs/redaction_class" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Policy-block review panels must carry policy review detail.",
+          "if": {
+            "properties": { "panel_scope_class": { "const": "policy_block_review" } },
+            "required": ["panel_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "policy_block_review": { "$ref": "#/$defs/policy_block_review" }
+            }
+          }
+        },
+        {
+          "description": "Provider-limit panels must carry provider review detail.",
+          "if": {
+            "properties": { "panel_scope_class": { "const": "provider_limit_review" } },
+            "required": ["panel_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_limit_review": { "$ref": "#/$defs/provider_limit_review" }
+            }
+          }
+        }
+      ],
+      "description": "Same-surface explainability panel projection. This record explains ranking, source mix, omissions, policy blocks, provider limits, freshness/scope truth, debug boundaries, and export evidence by citing canonical search records rather than re-deriving private heuristics."
+    }
+  }
+}
