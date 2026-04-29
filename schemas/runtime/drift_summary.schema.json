@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/drift_summary.schema.json",
+  "title": "Aureline drift-summary record",
+  "description": "Boundary schema for desired/source, rendered, planned, live, cached, provider-limited, and imported-snapshot drift summaries. The record distinguishes source-versus-rendered drift, rendered-versus-live drift, source-versus-live drift, stale reads, partial provider authority, imported snapshots, unknown drift, and mismatches discovered after an action preview was generated.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/drift_summary_record" },
+    { "$ref": "#/$defs/drift_summary_audit_event_record" }
+  ],
+  "$defs": {
+    "drift_summary_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this drift-summary family. Additive optional fields or enum values bump this const; repurposing an existing value is breaking and requires a new governance decision."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "drift_summary_record",
+        "drift_summary_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw plans, provider responses, and secret-bearing payloads stay behind refs."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 420
+    },
+    "compare_mode": {
+      "type": "string",
+      "enum": [
+        "source_vs_rendered",
+        "rendered_vs_live",
+        "source_vs_live",
+        "rendered_vs_plan",
+        "plan_vs_live",
+        "all_layers",
+        "imported_snapshot_review",
+        "unknown"
+      ],
+      "description": "Comparison basis. A drift record must name which truth layers were compared rather than presenting a single unlabeled diff."
+    },
+    "overall_drift_posture": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "drifted",
+        "unknown",
+        "stale",
+        "partial",
+        "permission_limited",
+        "imported_snapshot",
+        "mismatch_after_preview",
+        "unavailable",
+        "no_source_match"
+      ]
+    },
+    "coverage_class": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial",
+        "permission_limited",
+        "provider_limited",
+        "imported_only",
+        "stale_snapshot",
+        "unknown"
+      ],
+      "description": "Coverage honesty for this comparison. Partial or provider-limited reads may still be useful, but they cannot claim exhaustive live truth."
+    },
+    "provider_authority_class": {
+      "type": "string",
+      "enum": [
+        "full_provider_authority",
+        "read_only_provider_authority",
+        "partial_provider_authority",
+        "provider_overlay_only",
+        "imported_snapshot_no_authority",
+        "no_live_authority",
+        "unknown"
+      ]
+    },
+    "drift_condition_type": {
+      "type": "string",
+      "enum": [
+        "source_versus_rendered",
+        "rendered_versus_live",
+        "source_versus_live",
+        "planned_versus_live",
+        "stale_read",
+        "partial_provider_authority",
+        "provider_overlay_only",
+        "imported_snapshot",
+        "desired_live_mismatch_after_preview",
+        "no_source_match",
+        "unknown_drift"
+      ]
+    },
+    "condition_severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "blocking"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "current_snapshot",
+        "cached_within_floor",
+        "stale",
+        "partial",
+        "offline",
+        "imported_read_only",
+        "unknown"
+      ]
+    },
+    "preview_mismatch_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "source_changed_after_preview",
+        "rendered_changed_after_preview",
+        "live_changed_after_preview",
+        "target_context_changed_after_preview",
+        "provider_authority_narrowed_after_preview",
+        "unknown_requires_review"
+      ]
+    },
+    "partial_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_partial",
+        "permission_limited",
+        "provider_api_limited",
+        "provider_timeout",
+        "policy_redacted",
+        "offline_cache_only",
+        "imported_snapshot_only",
+        "unknown_requires_review"
+      ]
+    },
+    "tool_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_ref",
+        "tool_name",
+        "tool_version",
+        "input_set_ref"
+      ],
+      "properties": {
+        "tool_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "tool_name": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "tool_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "input_set_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "drift_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "condition_type",
+        "severity",
+        "affected_resource_target_refs",
+        "freshness_class",
+        "provider_authority_class",
+        "partial_reason",
+        "source_ref",
+        "rendered_ref",
+        "live_handle_ref",
+        "evidence_refs",
+        "requires_review",
+        "blocks_mutation",
+        "summary"
+      ],
+      "properties": {
+        "condition_type": { "$ref": "#/$defs/drift_condition_type" },
+        "severity": { "$ref": "#/$defs/condition_severity" },
+        "affected_resource_target_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "provider_authority_class": { "$ref": "#/$defs/provider_authority_class" },
+        "partial_reason": { "$ref": "#/$defs/partial_reason_class" },
+        "source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rendered_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "live_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "requires_review": { "type": "boolean" },
+        "blocks_mutation": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One drift, stale-read, partial-authority, imported-snapshot, or unknown condition."
+    },
+    "preview_mismatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_ref",
+        "preview_generated_at",
+        "mismatch_detected_at",
+        "mismatch_class",
+        "stale_live_action_envelope_refs",
+        "summary"
+      ],
+      "properties": {
+        "preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preview_generated_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "mismatch_detected_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "mismatch_class": { "$ref": "#/$defs/preview_mismatch_class" },
+        "stale_live_action_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Mismatch discovered after an action preview was generated. Affected live-action envelopes must be renewed before mutation."
+    },
+    "drift_summary_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "drift_summary_schema_version",
+        "drift_summary_id",
+        "target_context_ref",
+        "compare_mode",
+        "overall_drift_posture",
+        "coverage_class",
+        "provider_authority_class",
+        "tool_identity",
+        "resource_target_refs",
+        "conditions",
+        "preview_mismatch",
+        "captured_at",
+        "expires_at",
+        "audit_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "drift_summary_record" },
+        "drift_summary_schema_version": {
+          "$ref": "#/$defs/drift_summary_schema_version"
+        },
+        "drift_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "target_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "compare_mode": { "$ref": "#/$defs/compare_mode" },
+        "overall_drift_posture": { "$ref": "#/$defs/overall_drift_posture" },
+        "coverage_class": { "$ref": "#/$defs/coverage_class" },
+        "provider_authority_class": { "$ref": "#/$defs/provider_authority_class" },
+        "tool_identity": { "$ref": "#/$defs/tool_identity" },
+        "resource_target_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/drift_condition" }
+        },
+        "preview_mismatch": { "$ref": "#/$defs/preview_mismatch" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "audit_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Imported snapshot posture requires imported-only coverage and no live authority.",
+          "if": {
+            "properties": {
+              "overall_drift_posture": { "const": "imported_snapshot" }
+            },
+            "required": ["overall_drift_posture"]
+          },
+          "then": {
+            "properties": {
+              "coverage_class": { "const": "imported_only" },
+              "provider_authority_class": { "const": "imported_snapshot_no_authority" }
+            }
+          }
+        },
+        {
+          "description": "Mismatch-after-preview summaries name the stale preview.",
+          "if": {
+            "properties": {
+              "overall_drift_posture": { "const": "mismatch_after_preview" }
+            },
+            "required": ["overall_drift_posture"]
+          },
+          "then": {
+            "properties": {
+              "preview_mismatch": {
+                "properties": {
+                  "mismatch_class": {
+                    "enum": [
+                      "source_changed_after_preview",
+                      "rendered_changed_after_preview",
+                      "live_changed_after_preview",
+                      "target_context_changed_after_preview",
+                      "provider_authority_narrowed_after_preview",
+                      "unknown_requires_review"
+                    ]
+                  }
+                },
+                "required": ["mismatch_class"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drift_summary_audit_event_class": {
+      "type": "string",
+      "enum": [
+        "drift_summary_captured",
+        "drift_summary_partial_authority_recorded",
+        "drift_summary_imported_snapshot_recorded",
+        "drift_summary_preview_invalidated",
+        "drift_summary_schema_version_bumped"
+      ]
+    },
+    "drift_summary_audit_event_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "drift_summary_schema_version",
+        "event_id",
+        "event_class",
+        "drift_summary_ref",
+        "occurred_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "drift_summary_audit_event_record" },
+        "drift_summary_schema_version": {
+          "$ref": "#/$defs/drift_summary_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/drift_summary_audit_event_class" },
+        "drift_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    }
+  }
+}

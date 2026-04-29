@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=../../../schemas/runtime/live_action_envelope.schema.json
+__fixture__:
+  name: checkout_api_restart_preview_invalidated
+  scenario: >
+    A restart preview was generated, then the live Deployment
+    generation changed before execution. The envelope is blocked and
+    requires a new preview or reapproval instead of reusing stale
+    desired-versus-live evidence.
+  exercised_contract_sections:
+    - Live-action envelopes - restart
+    - Honesty rules - desired-versus-live mismatch after preview
+    - Drift summaries - preview invalidation
+
+record_kind: live_action_envelope_record
+live_action_envelope_schema_version: 1
+live_action_envelope_id: "lae:k8s:checkout-api:restart:preview-invalidated"
+action_kind: restart
+action_risk_class: mutate
+result_state: blocked
+mutation_blockers:
+  - drift_mismatch_after_preview
+target_binding:
+  resource_target_ref: "rtgt:k8s:checkout-api"
+  target_context_ref: "tctx:k8s:staging:payments-us-1:checkout"
+  connector_session_ref: "csess:managed:k8s:checkout:20260428T182145Z"
+  route_truth_ref: "rt:20260428T184200Z:checkout-api:restart"
+  drift_summary_ref: "drift:k8s:checkout-api:post-preview-live-change:20260428T184210Z"
+  action_safety_review_ref: "arev:k8s:checkout-api:restart:preview-invalidated"
+approval_posture:
+  approval_state: reapproval_required
+  approval_ticket_ref: "approval:k8s:checkout-api:restart:20260428T184100Z"
+  policy_ref: "policy:infra-mutate:preview-current"
+  approved_by: "user:oncall"
+  approved_at: "2026-04-28T18:41:00Z"
+  expires_at: "2026-04-28T18:56:00Z"
+  summary: "Restart approval must be renewed because live generation changed after preview."
+actor_binding:
+  actor_class: human_user
+  actor_ref: "user:oncall"
+  originating_surface: desktop
+  on_behalf_of_ref: null
+  session_ref: "session:desktop:oncall:20260428"
+expiry_binding:
+  created_at: "2026-04-28T18:42:00Z"
+  expires_at: "2026-04-28T18:56:00Z"
+  ttl_seconds: 840
+  single_use: true
+  revocation_ref: "revoke:approval:k8s:checkout-api:restart:preview-invalidated"
+action_payload:
+  change_summary: "Restart checkout-api by rolling the pod-template annotation."
+  command_preview_ref: "cmdprev:kubectl-rollout-restart:checkout-api"
+  request_preview_ref: "reqprev:k8s:patch-deployment:restart-checkout-api"
+  preview_hash: "sha256:stale-preview-restart-checkout-api"
+  dry_run_result_ref: "dryrun:k8s:checkout-api:restart:stale"
+  planned_effect_ref: "effect:k8s:checkout-api:restart"
+  redaction_class: metadata_and_hashes
+rollback_guidance:
+  rollback_class: unknown_requires_review
+  rollback_plan_ref: null
+  checkpoint_ref: "checkpoint:k8s:checkout-api:generation-before-stale-preview"
+  rollback_expires_at: null
+  blocked_reason: drift_mismatch_after_preview
+  summary: "Rollback guidance must be recomputed against the new live generation before restart can proceed."
+result_binding:
+  result_packet_ref: null
+  provider_result_ref: null
+  evidence_refs:
+    - "evidence:k8s:checkout-api:preview-generation-42"
+    - "evidence:k8s:checkout-api:live-generation-43"
+  rollback_result_ref: null
+  support_export_refs:
+    - "support-export:checkout-api:restart-preview-invalidated:20260428T184210Z"
+  incident_refs:
+    - "incident:checkout-latency:20260428"
+audit_refs:
+  - "audit:live_action_preview_invalidated:20260428T184210Z:0001"
+notes: "The stale preview remains evidence, not executable authority."

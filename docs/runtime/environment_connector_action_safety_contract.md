@@ -32,6 +32,11 @@ change.
   scale, delete, publish, and rollback verbs to explicit target
   confirmation, approval posture, preview hashes, audit refs, and
   no-hidden-target-switch checks.
+- [`/docs/runtime/resource_drift_and_live_action_contract.md`](./resource_drift_and_live_action_contract.md)
+  — resource-target, drift-summary, and live-action envelope companion
+  contract. It keeps source refs, rendered refs, live handles, cached
+  or imported state, provider-limited reads, and post-preview drift
+  distinct before runtime surfaces broaden.
 - [`/fixtures/runtime/environment_target_cases/`](../../fixtures/runtime/environment_target_cases/)
   — fixture cases covering ready mutation, expired credentials,
   changed local cluster context, mixed local-plus-managed authority,
@@ -437,4 +442,3 @@ Conforming implementations must prove:
 7. Source-to-rendered-to-live relationships survive through target
    context, connector session, action review, support export, and
    runbook packets, including explicit `no_source_match` cases.
-

@@ -1,0 +1,578 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/live_action_envelope.schema.json",
+  "title": "Aureline live-action envelope record",
+  "description": "Boundary schema for live inspect, log tail, dashboard handoff, restart, scale, rollout, rollback, and edit envelopes. Each packet binds the action to an explicit resource target, target context, connector session, drift summary, approval posture, actor, expiry, preview or request refs, result refs, rollback guidance, evidence refs, and audit refs.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/live_action_envelope_record" },
+    { "$ref": "#/$defs/live_action_audit_event_record" }
+  ],
+  "$defs": {
+    "live_action_envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this live-action envelope family. Additive optional fields or enum values bump this const; repurposing an existing value is breaking and requires a new governance decision."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "live_action_envelope_record",
+        "live_action_audit_event_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw command bodies, tokens, cookies, private endpoint URLs, and provider payloads are forbidden."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 420
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "log_tail",
+        "open_dashboard",
+        "restart",
+        "scale",
+        "rollout",
+        "rollback",
+        "edit"
+      ]
+    },
+    "action_risk_class": {
+      "type": "string",
+      "enum": [
+        "observe",
+        "boundary_raise",
+        "handoff",
+        "mutate"
+      ]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_pending",
+        "approved",
+        "denied",
+        "expired",
+        "policy_blocked",
+        "reapproval_required"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_user",
+        "service_account",
+        "ai_tool",
+        "automation",
+        "runbook",
+        "support_operator",
+        "system_supervisor",
+        "unknown"
+      ]
+    },
+    "originating_surface": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli",
+        "incident_workspace",
+        "runbook",
+        "browser_companion",
+        "automation",
+        "ai_action_sheet",
+        "support_bundle",
+        "provider_console"
+      ]
+    },
+    "result_state": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "previewed",
+        "approved_ready",
+        "executing",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "blocked",
+        "downgraded_to_inspect",
+        "expired",
+        "superseded"
+      ]
+    },
+    "rollback_class": {
+      "type": "string",
+      "enum": [
+        "exact_rollback",
+        "compensating_action",
+        "rollback_not_claimed",
+        "handoff_required",
+        "read_only_no_rollback",
+        "unknown_requires_review"
+      ],
+      "description": "Rollback posture. A compensation or handoff is not the same as exact undo."
+    },
+    "mutation_blocker_class": {
+      "type": "string",
+      "enum": [
+        "no_blocker",
+        "approval_missing_or_expired",
+        "preview_missing",
+        "drift_mismatch_after_preview",
+        "stale_or_imported_live_state",
+        "partial_provider_authority",
+        "target_context_not_current",
+        "connector_not_active",
+        "policy_blocked",
+        "rollback_guidance_missing",
+        "unknown_requires_review"
+      ]
+    },
+    "target_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource_target_ref",
+        "target_context_ref",
+        "connector_session_ref",
+        "route_truth_ref",
+        "drift_summary_ref",
+        "action_safety_review_ref"
+      ],
+      "properties": {
+        "resource_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "connector_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "route_truth_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "drift_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "action_safety_review_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Target identity and safety joins for this action. Live mutation packets must include explicit target identity."
+    },
+    "approval_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_state",
+        "approval_ticket_ref",
+        "policy_ref",
+        "approved_by",
+        "approved_at",
+        "expires_at",
+        "summary"
+      ],
+      "properties": {
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approved_by": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approved_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "actor_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_ref",
+        "originating_surface",
+        "on_behalf_of_ref",
+        "session_ref"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "originating_surface": { "$ref": "#/$defs/originating_surface" },
+        "on_behalf_of_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "session_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "expiry_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "created_at",
+        "expires_at",
+        "ttl_seconds",
+        "single_use",
+        "revocation_ref"
+      ],
+      "properties": {
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "ttl_seconds": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "single_use": { "type": "boolean" },
+        "revocation_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "action_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_summary",
+        "command_preview_ref",
+        "request_preview_ref",
+        "preview_hash",
+        "dry_run_result_ref",
+        "planned_effect_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "change_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "command_preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "request_preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preview_hash": { "$ref": "#/$defs/nullable_opaque_id" },
+        "dry_run_result_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "planned_effect_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "metadata_and_hashes",
+            "redacted_summary",
+            "operator_restricted",
+            "support_restricted"
+          ]
+        }
+      },
+      "description": "Preview or request envelope. Raw command and provider payload bodies remain out-of-band."
+    },
+    "rollback_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_class",
+        "rollback_plan_ref",
+        "checkpoint_ref",
+        "rollback_expires_at",
+        "blocked_reason",
+        "summary"
+      ],
+      "properties": {
+        "rollback_class": { "$ref": "#/$defs/rollback_class" },
+        "rollback_plan_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "blocked_reason": { "$ref": "#/$defs/mutation_blocker_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "result_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_packet_ref",
+        "provider_result_ref",
+        "evidence_refs",
+        "rollback_result_ref",
+        "support_export_refs",
+        "incident_refs"
+      ],
+      "properties": {
+        "result_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "provider_result_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "rollback_result_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "incident_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "description": "Result, evidence, incident, and support refs sufficient to reconstruct the action without embedding raw provider payloads."
+    },
+    "live_action_envelope_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "live_action_envelope_schema_version",
+        "live_action_envelope_id",
+        "action_kind",
+        "action_risk_class",
+        "result_state",
+        "mutation_blockers",
+        "target_binding",
+        "approval_posture",
+        "actor_binding",
+        "expiry_binding",
+        "action_payload",
+        "rollback_guidance",
+        "result_binding",
+        "audit_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "live_action_envelope_record" },
+        "live_action_envelope_schema_version": {
+          "$ref": "#/$defs/live_action_envelope_schema_version"
+        },
+        "live_action_envelope_id": { "$ref": "#/$defs/opaque_id" },
+        "action_kind": { "$ref": "#/$defs/action_kind" },
+        "action_risk_class": { "$ref": "#/$defs/action_risk_class" },
+        "result_state": { "$ref": "#/$defs/result_state" },
+        "mutation_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/mutation_blocker_class" }
+        },
+        "target_binding": { "$ref": "#/$defs/target_binding" },
+        "approval_posture": { "$ref": "#/$defs/approval_posture" },
+        "actor_binding": { "$ref": "#/$defs/actor_binding" },
+        "expiry_binding": { "$ref": "#/$defs/expiry_binding" },
+        "action_payload": { "$ref": "#/$defs/action_payload" },
+        "rollback_guidance": { "$ref": "#/$defs/rollback_guidance" },
+        "result_binding": { "$ref": "#/$defs/result_binding" },
+        "audit_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Read-only inspect actions use observe risk.",
+          "if": {
+            "properties": {
+              "action_kind": { "const": "inspect" }
+            },
+            "required": ["action_kind"]
+          },
+          "then": {
+            "properties": {
+              "action_risk_class": { "const": "observe" }
+            }
+          }
+        },
+        {
+          "description": "Log tail is boundary-raising because it opens a live stream.",
+          "if": {
+            "properties": {
+              "action_kind": { "const": "log_tail" }
+            },
+            "required": ["action_kind"]
+          },
+          "then": {
+            "properties": {
+              "action_risk_class": { "const": "boundary_raise" }
+            }
+          }
+        },
+        {
+          "description": "Open dashboard is a handoff action.",
+          "if": {
+            "properties": {
+              "action_kind": { "const": "open_dashboard" }
+            },
+            "required": ["action_kind"]
+          },
+          "then": {
+            "properties": {
+              "action_risk_class": { "const": "handoff" }
+            }
+          }
+        },
+        {
+          "description": "Restart, scale, rollout, rollback, and edit are live mutations.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "enum": [
+                  "restart",
+                  "scale",
+                  "rollout",
+                  "rollback",
+                  "edit"
+                ]
+              }
+            },
+            "required": ["action_kind"]
+          },
+          "then": {
+            "properties": {
+              "action_risk_class": { "const": "mutate" },
+              "approval_posture": {
+                "properties": {
+                  "approval_state": {
+                    "enum": [
+                      "required_pending",
+                      "approved",
+                      "denied",
+                      "expired",
+                      "policy_blocked",
+                      "reapproval_required"
+                    ]
+                  }
+                },
+                "required": ["approval_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Approved-ready or executing mutations need a preview hash and usable rollback guidance.",
+          "if": {
+            "properties": {
+              "action_risk_class": { "const": "mutate" },
+              "result_state": {
+                "enum": [
+                  "approved_ready",
+                  "executing"
+                ]
+              }
+            },
+            "required": [
+              "action_risk_class",
+              "result_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "approval_posture": {
+                "properties": {
+                  "approval_state": { "const": "approved" }
+                },
+                "required": ["approval_state"]
+              },
+              "action_payload": {
+                "properties": {
+                  "preview_hash": { "$ref": "#/$defs/opaque_id" }
+                },
+                "required": ["preview_hash"]
+              },
+              "rollback_guidance": {
+                "properties": {
+                  "rollback_class": {
+                    "enum": [
+                      "exact_rollback",
+                      "compensating_action",
+                      "handoff_required"
+                    ]
+                  }
+                },
+                "required": ["rollback_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A preview drift mismatch blocks or requires reapproval.",
+          "if": {
+            "properties": {
+              "mutation_blockers": {
+                "contains": { "const": "drift_mismatch_after_preview" }
+              }
+            },
+            "required": ["mutation_blockers"]
+          },
+          "then": {
+            "properties": {
+              "result_state": {
+                "enum": [
+                  "blocked",
+                  "downgraded_to_inspect",
+                  "superseded"
+                ]
+              },
+              "approval_posture": {
+                "properties": {
+                  "approval_state": {
+                    "enum": [
+                      "reapproval_required",
+                      "denied",
+                      "policy_blocked",
+                      "expired"
+                    ]
+                  }
+                },
+                "required": ["approval_state"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "live_action_audit_event_class": {
+      "type": "string",
+      "enum": [
+        "live_action_envelope_created",
+        "live_action_approval_attached",
+        "live_action_preview_invalidated",
+        "live_action_executed",
+        "live_action_result_recorded",
+        "live_action_schema_version_bumped"
+      ]
+    },
+    "live_action_audit_event_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "live_action_envelope_schema_version",
+        "event_id",
+        "event_class",
+        "live_action_envelope_ref",
+        "occurred_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "live_action_audit_event_record" },
+        "live_action_envelope_schema_version": {
+          "$ref": "#/$defs/live_action_envelope_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/live_action_audit_event_class" },
+        "live_action_envelope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    }
+  }
+}
