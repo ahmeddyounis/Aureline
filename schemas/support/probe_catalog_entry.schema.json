@@ -1,0 +1,820 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/probe_catalog_entry.schema.json",
+  "title": "Aureline Project Doctor probe-catalog entry contract",
+  "description": "Boundary schema for one Project Doctor probe-catalog row. Catalog entries declare the probe family, rule ids, mutability class, prerequisites, latency target, evidence produced, local or remote support posture, redaction class, failure-mode handling, and the no-hidden-side-effects rule that blocks mutating probes in Doctor unless they are promoted into a reviewed repair action.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/probe_catalog_entry_record"
+    }
+  ],
+  "$defs": {
+    "probe_catalog_entry_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short redaction-safe sentence for reviewers, support exports, and CLI/headless summaries."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable reference. Raw paths, raw URLs, raw code bodies, raw provider payloads, and raw secrets never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "doctor_finding_code": {
+      "type": "string",
+      "pattern": "^doctor\\.finding\\.[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "probe_family_class": {
+      "type": "string",
+      "enum": [
+        "execution_context_toolchains",
+        "trust_identity_policy",
+        "filesystem_watchers",
+        "network_proxy_ca_transport",
+        "extension_runtime_health",
+        "caches_schema_local_state",
+        "remote_routes_collaboration",
+        "docs_mirror_help",
+        "crash_symbolication",
+        "support_bundle_integrity",
+        "trace_capture"
+      ]
+    },
+    "lifecycle_status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "deprecated",
+        "blocked"
+      ]
+    },
+    "mutability_class": {
+      "type": "string",
+      "enum": [
+        "non_mutating_read_only",
+        "metadata_write_local_evidence_only",
+        "mutates_disposable_cache",
+        "mutates_target_or_route",
+        "mutates_user_files",
+        "mutates_trust_policy_or_credentials",
+        "external_service_side_effect",
+        "prohibited"
+      ],
+      "description": "The broadest side effect the probe would need if run directly. Anything beyond metadata_write_local_evidence_only is blocked in Doctor unless promoted to a reviewed repair action."
+    },
+    "doctor_admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted_safe_probe",
+        "admitted_metadata_evidence_only",
+        "blocked_promote_to_repair",
+        "prohibited_probe"
+      ]
+    },
+    "prerequisite_class": {
+      "type": "string",
+      "enum": [
+        "exact_build_identity",
+        "support_context",
+        "local_evidence_store",
+        "workspace_trust_state",
+        "policy_epoch",
+        "redaction_profile",
+        "network_metadata_access",
+        "managed_admin_authority",
+        "user_consent",
+        "repair_transaction_contract"
+      ]
+    },
+    "unmet_prerequisite_behavior_class": {
+      "type": "string",
+      "enum": [
+        "emit_unsupported_finding",
+        "emit_insufficient_evidence",
+        "skip_probe_with_gap",
+        "block_and_offer_repair",
+        "stop_and_escalate"
+      ]
+    },
+    "latency_class": {
+      "type": "string",
+      "enum": [
+        "warm_metadata_under_2s",
+        "common_local_under_10s",
+        "deep_probe_streaming",
+        "remote_or_network_bounded",
+        "manual_or_escalation_only"
+      ]
+    },
+    "timeout_handling_class": {
+      "type": "string",
+      "enum": [
+        "emit_partial_evidence",
+        "emit_timeout_finding",
+        "defer_to_manual_escalation",
+        "refuse_until_prerequisite_available"
+      ]
+    },
+    "evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "probe_observation",
+        "existing_manifest",
+        "health_event",
+        "structured_log",
+        "metric_counter",
+        "trace_slice",
+        "crash_envelope",
+        "symbolication_report",
+        "policy_decision",
+        "route_decision",
+        "task_event",
+        "support_bundle_manifest",
+        "user_annotation"
+      ]
+    },
+    "signal_class": {
+      "type": "string",
+      "enum": [
+        "manifest",
+        "log",
+        "metric",
+        "trace",
+        "health_event",
+        "crash_envelope",
+        "symbolication_report",
+        "policy_decision",
+        "route_decision",
+        "task_event",
+        "probe_observation",
+        "user_report"
+      ]
+    },
+    "diagnostic_data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "support_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "support_pack_inclusion_class": {
+      "type": "string",
+      "enum": [
+        "included_by_default_metadata",
+        "included_by_reference",
+        "local_only_retained",
+        "review_required_before_export",
+        "opt_in_high_risk",
+        "excluded_always"
+      ]
+    },
+    "replayability_class": {
+      "type": "string",
+      "enum": [
+        "replayable_from_refs",
+        "replayable_from_hashes_only",
+        "requires_local_retained_artifact",
+        "requires_user_opt_in_payload",
+        "not_replayable_redacted"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "not_retained",
+        "local_session_only",
+        "local_policy_bounded",
+        "support_bundle_manifest_ref",
+        "repair_transaction_ref"
+      ]
+    },
+    "remote_or_local_support_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_and_remote_read_only",
+        "remote_managed_read_only",
+        "remote_requires_admin_policy",
+        "offline_cached_only",
+        "unsupported_in_context"
+      ]
+    },
+    "support_context_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli_headless",
+        "remote_managed",
+        "offline_local"
+      ]
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "available_local_only",
+        "limited_available",
+        "read_only",
+        "unavailable"
+      ]
+    },
+    "probe_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "read_existing_metadata",
+        "hash_existing_artifact",
+        "write_local_evidence_row",
+        "create_local_preview_manifest",
+        "run_network_reachability_check",
+        "execute_repo_owned_code",
+        "mutate_cache_or_index",
+        "mutate_target_or_route",
+        "mutate_user_files",
+        "mutate_trust_policy_or_credentials",
+        "external_service_mutation",
+        "activate_third_party_extension",
+        "collect_high_risk_payload"
+      ]
+    },
+    "mutating_probe_handling_class": {
+      "type": "string",
+      "enum": [
+        "no_mutating_effects_declared",
+        "blocked_in_doctor",
+        "promoted_to_reviewed_repair"
+      ]
+    },
+    "failure_mode_class": {
+      "type": "string",
+      "enum": [
+        "timeout",
+        "unsupported_context",
+        "prerequisite_missing",
+        "policy_denied",
+        "redaction_unverified",
+        "probe_runtime_error",
+        "partial_evidence",
+        "high_risk_side_effect_detected"
+      ]
+    },
+    "failure_handling_action_class": {
+      "type": "string",
+      "enum": [
+        "emit_finding",
+        "emit_typed_unknown",
+        "block_probe",
+        "promote_to_repair_preview",
+        "create_escalation_packet",
+        "stop_without_side_effect"
+      ]
+    },
+    "remaining_unknown_class": {
+      "type": "string",
+      "enum": [
+        "exact_build_identity_missing",
+        "probe_evidence_unavailable",
+        "policy_epoch_unknown",
+        "target_identity_unresolved",
+        "secret_redaction_not_verified",
+        "remote_route_reachability_intermittent",
+        "user_consent_not_collected",
+        "repair_reversal_not_proven"
+      ]
+    },
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_required_read_only",
+        "user_review_required",
+        "user_consent_required",
+        "managed_admin_required",
+        "high_friction_consent_required",
+        "prohibited"
+      ]
+    },
+    "suggested_repair_class": {
+      "type": "string",
+      "enum": [
+        "observe_only_no_repair",
+        "reacquire_trust_approval",
+        "restart_watcher_with_reseed",
+        "reset_ephemeral_cache",
+        "install_or_repair_toolchain",
+        "quarantine_and_bisect_extension",
+        "reapprove_target_or_route",
+        "reattach_helper_with_new_approval",
+        "refresh_docs_or_mirror_pack",
+        "defer_to_escalation_packet",
+        "rollback_or_reinstall_extension",
+        "rollback_remote_runtime",
+        "refresh_policy_entitlement"
+      ]
+    },
+    "prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prerequisite_id",
+        "prerequisite_class",
+        "required",
+        "unmet_behavior_class",
+        "description_key"
+      ],
+      "properties": {
+        "prerequisite_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "prerequisite_class": {
+          "$ref": "#/$defs/prerequisite_class"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "unmet_behavior_class": {
+          "$ref": "#/$defs/unmet_prerequisite_behavior_class"
+        },
+        "description_key": {
+          "$ref": "#/$defs/stable_dot_id"
+        }
+      }
+    },
+    "expected_latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "latency_class",
+        "p50_budget_ms",
+        "p90_budget_ms",
+        "timeout_ms",
+        "timeout_handling_class",
+        "first_actionable_target_ref"
+      ],
+      "properties": {
+        "latency_class": {
+          "$ref": "#/$defs/latency_class"
+        },
+        "p50_budget_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p90_budget_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timeout_handling_class": {
+          "$ref": "#/$defs/timeout_handling_class"
+        },
+        "first_actionable_target_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      }
+    },
+    "evidence_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_key",
+        "evidence_ref_contract",
+        "source_class",
+        "signal_class",
+        "data_class",
+        "redaction_class",
+        "support_pack_inclusion_class",
+        "replayability_class",
+        "retention_class",
+        "produced_when"
+      ],
+      "properties": {
+        "evidence_key": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "evidence_ref_contract": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "source_class": {
+          "$ref": "#/$defs/evidence_source_class"
+        },
+        "signal_class": {
+          "$ref": "#/$defs/signal_class"
+        },
+        "data_class": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/support_redaction_class"
+        },
+        "support_pack_inclusion_class": {
+          "$ref": "#/$defs/support_pack_inclusion_class"
+        },
+        "replayability_class": {
+          "$ref": "#/$defs/replayability_class"
+        },
+        "retention_class": {
+          "$ref": "#/$defs/retention_class"
+        },
+        "produced_when": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "support_context_availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_context_class",
+        "availability_class",
+        "remote_or_local_support_class",
+        "notes"
+      ],
+      "properties": {
+        "support_context_class": {
+          "$ref": "#/$defs/support_context_class"
+        },
+        "availability_class": {
+          "$ref": "#/$defs/availability_class"
+        },
+        "remote_or_local_support_class": {
+          "$ref": "#/$defs/remote_or_local_support_class"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "failure_mode_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "failure_mode_class",
+        "emitted_finding_code",
+        "handling_action_class",
+        "remaining_unknowns",
+        "message_key"
+      ],
+      "properties": {
+        "failure_mode_class": {
+          "$ref": "#/$defs/failure_mode_class"
+        },
+        "emitted_finding_code": {
+          "$ref": "#/$defs/doctor_finding_code"
+        },
+        "handling_action_class": {
+          "$ref": "#/$defs/failure_handling_action_class"
+        },
+        "remaining_unknowns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/remaining_unknown_class"
+          },
+          "uniqueItems": true
+        },
+        "message_key": {
+          "$ref": "#/$defs/stable_dot_id"
+        }
+      }
+    },
+    "repair_promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promotion_ref",
+        "suggested_repair_class",
+        "repair_transaction_schema_ref",
+        "required_approval_posture",
+        "rollback_ref",
+        "help_anchor_ref",
+        "runbook_ref",
+        "escalation_packet_template_ref"
+      ],
+      "properties": {
+        "promotion_ref": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "suggested_repair_class": {
+          "$ref": "#/$defs/suggested_repair_class"
+        },
+        "repair_transaction_schema_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "required_approval_posture": {
+          "$ref": "#/$defs/approval_posture_class"
+        },
+        "rollback_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "help_anchor_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "runbook_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "escalation_packet_template_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        }
+      }
+    },
+    "repair_promotion_nullable": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/repair_promotion"
+        }
+      ]
+    },
+    "no_hidden_side_effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "safe_probe_non_mutating",
+        "allowed_side_effects",
+        "forbidden_side_effects",
+        "mutating_probe_handling_class",
+        "side_effect_attestation_ref"
+      ],
+      "properties": {
+        "safe_probe_non_mutating": {
+          "type": "boolean"
+        },
+        "allowed_side_effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/probe_side_effect_class"
+          },
+          "uniqueItems": true
+        },
+        "forbidden_side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/probe_side_effect_class"
+          },
+          "uniqueItems": true
+        },
+        "mutating_probe_handling_class": {
+          "$ref": "#/$defs/mutating_probe_handling_class"
+        },
+        "side_effect_attestation_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      }
+    },
+    "probe_catalog_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_catalog_entry_schema_version",
+        "record_kind",
+        "probe_id",
+        "probe_family_class",
+        "probe_version",
+        "rule_ids",
+        "owner_ref",
+        "lifecycle_status",
+        "mutability_class",
+        "doctor_admission_class",
+        "prerequisites",
+        "expected_latency",
+        "evidence_produced",
+        "support_class",
+        "redaction_class",
+        "failure_modes",
+        "no_hidden_side_effects",
+        "context_availability",
+        "repair_promotion",
+        "emitted_at"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "doctor_admission_class": {
+                "enum": [
+                  "admitted_safe_probe",
+                  "admitted_metadata_evidence_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "mutability_class": {
+                "enum": [
+                  "non_mutating_read_only",
+                  "metadata_write_local_evidence_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mutability_class": {
+                "enum": [
+                  "mutates_disposable_cache",
+                  "mutates_target_or_route",
+                  "mutates_user_files",
+                  "mutates_trust_policy_or_credentials",
+                  "external_service_side_effect",
+                  "prohibited"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "doctor_admission_class": {
+                "enum": [
+                  "blocked_promote_to_repair",
+                  "prohibited_probe"
+                ]
+              },
+              "no_hidden_side_effects": {
+                "properties": {
+                  "safe_probe_non_mutating": {
+                    "const": false
+                  },
+                  "mutating_probe_handling_class": {
+                    "enum": [
+                      "blocked_in_doctor",
+                      "promoted_to_reviewed_repair"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "doctor_admission_class": {
+                "const": "blocked_promote_to_repair"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "repair_promotion": {
+                "$ref": "#/$defs/repair_promotion"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "doctor_admission_class": {
+                "const": "prohibited_probe"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "repair_promotion": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "probe_catalog_entry_schema_version": {
+          "$ref": "#/$defs/probe_catalog_entry_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "probe_catalog_entry_record"
+        },
+        "probe_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "probe_family_class": {
+          "$ref": "#/$defs/probe_family_class"
+        },
+        "probe_version": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "rule_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/stable_dot_id"
+          },
+          "uniqueItems": true
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "lifecycle_status": {
+          "$ref": "#/$defs/lifecycle_status"
+        },
+        "mutability_class": {
+          "$ref": "#/$defs/mutability_class"
+        },
+        "doctor_admission_class": {
+          "$ref": "#/$defs/doctor_admission_class"
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/prerequisite"
+          },
+          "uniqueItems": true
+        },
+        "expected_latency": {
+          "$ref": "#/$defs/expected_latency"
+        },
+        "evidence_produced": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_output"
+          }
+        },
+        "support_class": {
+          "$ref": "#/$defs/remote_or_local_support_class"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/support_redaction_class"
+        },
+        "failure_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/failure_mode_handling"
+          }
+        },
+        "no_hidden_side_effects": {
+          "$ref": "#/$defs/no_hidden_side_effects"
+        },
+        "context_availability": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/support_context_availability"
+          }
+        },
+        "repair_promotion": {
+          "$ref": "#/$defs/repair_promotion_nullable"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    }
+  }
+}

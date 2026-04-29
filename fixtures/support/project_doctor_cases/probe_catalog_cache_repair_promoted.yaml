@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=../../../schemas/support/probe_catalog_entry.schema.json
+# Project Doctor probe catalog seed: cache mutation is repair-only.
+
+probe_catalog_entry_schema_version: 1
+record_kind: probe_catalog_entry_record
+probe_id: doctor.probe.caches.schema_rebuild_candidate
+probe_family_class: caches_schema_local_state
+probe_version: probe.caches.schema_rebuild_candidate.v1
+rule_ids:
+  - doctor.rule.caches.schema_version_drift
+  - doctor.rule.caches.disposable_rebuild_candidate
+owner_ref: lane:support_export
+lifecycle_status: active
+
+mutability_class: mutates_disposable_cache
+doctor_admission_class: blocked_promote_to_repair
+
+prerequisites:
+  - prerequisite_id: prerequisite.local_evidence_store
+    prerequisite_class: local_evidence_store
+    required: true
+    unmet_behavior_class: emit_insufficient_evidence
+    description_key: doctor.probe.prereq.local_evidence_store
+  - prerequisite_id: prerequisite.repair_transaction_contract
+    prerequisite_class: repair_transaction_contract
+    required: true
+    unmet_behavior_class: block_and_offer_repair
+    description_key: doctor.probe.prereq.repair_transaction_contract
+  - prerequisite_id: prerequisite.user_repair_review
+    prerequisite_class: user_consent
+    required: true
+    unmet_behavior_class: block_and_offer_repair
+    description_key: doctor.probe.prereq.user_repair_review
+
+expected_latency:
+  latency_class: common_local_under_10s
+  p50_budget_ms: 1000
+  p90_budget_ms: 5000
+  timeout_ms: 10000
+  timeout_handling_class: emit_partial_evidence
+  first_actionable_target_ref: artifacts/support/diagnosis_slo_targets.yaml#support.slo.first_actionable_diagnosis.common.p90_10m
+
+evidence_produced:
+  - evidence_key: evidence.caches.schema_inventory
+    evidence_ref_contract: schemas/runtime/cache_entry_manifest.schema.json
+    source_class: existing_manifest
+    signal_class: manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    replayability_class: replayable_from_refs
+    retention_class: support_bundle_manifest_ref
+    produced_when: >
+      Doctor may read cache schema and storage-class inventory without
+      touching cache contents.
+  - evidence_key: evidence.caches.repair_preview
+    evidence_ref_contract: schemas/support/repair_preview.schema.json
+    source_class: support_bundle_manifest
+    signal_class: probe_observation
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_reference
+    replayability_class: replayable_from_refs
+    retention_class: repair_transaction_ref
+    produced_when: >
+      The preview manifest is produced only after the blocked mutation
+      is promoted into a reviewed repair transaction.
+
+support_class: local_only
+redaction_class: metadata_safe_default
+
+failure_modes:
+  - failure_mode_class: high_risk_side_effect_detected
+    emitted_finding_code: doctor.finding.cache_schema_version_drift
+    handling_action_class: promote_to_repair_preview
+    remaining_unknowns:
+      - repair_reversal_not_proven
+    message_key: doctor.probe.failure.cache_mutation_requires_repair
+  - failure_mode_class: prerequisite_missing
+    emitted_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+    handling_action_class: block_probe
+    remaining_unknowns:
+      - user_consent_not_collected
+    message_key: doctor.probe.failure.repair_review_missing
+
+no_hidden_side_effects:
+  safe_probe_non_mutating: false
+  allowed_side_effects:
+    - read_existing_metadata
+    - create_local_preview_manifest
+  forbidden_side_effects:
+    - execute_repo_owned_code
+    - mutate_cache_or_index
+    - mutate_target_or_route
+    - mutate_user_files
+    - mutate_trust_policy_or_credentials
+    - external_service_mutation
+    - activate_third_party_extension
+    - collect_high_risk_payload
+  mutating_probe_handling_class: promoted_to_reviewed_repair
+  side_effect_attestation_ref: docs/support/project_doctor_probe_contract.md#no-hidden-probe-side-effects
+
+context_availability:
+  - support_context_class: desktop
+    availability_class: limited_available
+    remote_or_local_support_class: local_only
+    notes: >
+      Doctor can identify the cache drift but the rebuild itself opens
+      the repair preview flow.
+  - support_context_class: cli_headless
+    availability_class: limited_available
+    remote_or_local_support_class: local_only
+    notes: >
+      Headless output can print the repair-preview ref and refuse to
+      clear cache state without explicit apply.
+  - support_context_class: remote_managed
+    availability_class: read_only
+    remote_or_local_support_class: remote_requires_admin_policy
+    notes: >
+      Managed support may inspect metadata; cache mutation requires
+      managed authority.
+  - support_context_class: offline_local
+    availability_class: limited_available
+    remote_or_local_support_class: offline_cached_only
+    notes: >
+      Offline local repair can proceed only through the checkpointed
+      repair transaction path.
+
+repair_promotion:
+  promotion_ref: repair_transaction:disposable_state_rebuild.cache_schema_drift
+  suggested_repair_class: reset_ephemeral_cache
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  required_approval_posture: user_review_required
+  rollback_ref: checkpoint:cache-schema-drift:seed
+  help_anchor_ref: docs/support/project_doctor_probe_contract.md#repair-handoff
+  runbook_ref: docs/support/runbook_execution_contract.md
+  escalation_packet_template_ref: fixtures/support/escalation_packet_completeness_cases/incompatible_cache_profile_schema_drift.yaml
+emitted_at: "2026-04-29T00:00:00Z"

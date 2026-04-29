@@ -21,6 +21,9 @@ Companion artifacts:
   - support-bundle manifest and redaction-profile contract.
 - [`/docs/support/project_doctor_packet.md`](./project_doctor_packet.md)
   - Project Doctor scenario, finding, repair, and completeness contract.
+- [`/docs/support/project_doctor_probe_contract.md`](./project_doctor_probe_contract.md)
+  - Project Doctor probe-catalog admission, finding explainability,
+    no-hidden-side-effect, and repair-handoff contract.
 - [`/docs/support/reconstruction_drill.md`](./reconstruction_drill.md)
   - post-export reconstruction drill.
 

@@ -22,6 +22,14 @@ change.
 
 Companion artifacts:
 
+- [`/docs/support/project_doctor_probe_contract.md`](./project_doctor_probe_contract.md),
+  [`/schemas/support/probe_catalog_entry.schema.json`](../../schemas/support/probe_catalog_entry.schema.json),
+  and
+  [`/schemas/support/doctor_explanation.schema.json`](../../schemas/support/doctor_explanation.schema.json)
+  — concrete probe-catalog and finding-explanation packet contracts
+  that project this scenario matrix into runnable Doctor admission
+  rules, evidence refs, no-hidden-side-effect handling, governed next
+  actions, and repair handoff anchors.
 - [`/fixtures/support/scenario_matrix.yaml`](../../fixtures/support/scenario_matrix.yaml)
   — machine-readable scenario matrix covering missing toolchain,
   blocked trust state, broken watcher, incompatible cache/profile,
@@ -40,6 +48,9 @@ Companion artifacts:
 - [`/fixtures/support/drill_scenarios/`](../../fixtures/support/drill_scenarios/)
   — drill packets covering extension regression, stale toolchain
   context, proxy or certificate failure, and renderer/trace escalation.
+- [`/fixtures/support/project_doctor_cases/`](../../fixtures/support/project_doctor_cases/)
+  — focused cases for probe-catalog admission, mutating-probe repair
+  promotion, finding explainability, and repair handoff linkage.
 - [`/fixtures/support/escalation_packet_completeness_cases/`](../../fixtures/support/escalation_packet_completeness_cases/)
   — one completeness case per scenario family showing which exact-
   build, route/boundary, redaction, and fixture-id fields an exported

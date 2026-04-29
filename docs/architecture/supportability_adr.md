@@ -26,6 +26,20 @@ redaction defaults, and action handoff rules.
 
 Companion artifacts:
 
+- [`docs/support/project_doctor_probe_contract.md`](../support/project_doctor_probe_contract.md)
+  publishes the focused Project Doctor probe-catalog, finding
+  explainability, no-hidden-side-effect, and repair-handoff contract.
+- [`schemas/support/probe_catalog_entry.schema.json`](../../schemas/support/probe_catalog_entry.schema.json)
+  defines the probe-catalog row that admits read-only probes, blocks
+  mutating probes, and promotes repairable mutations into repair
+  transactions.
+- [`schemas/support/doctor_explanation.schema.json`](../../schemas/support/doctor_explanation.schema.json)
+  defines the finding explanation packet that binds rule ids, evidence
+  refs, confidence, affected contracts, text keys, governed actions,
+  and handoff refs.
+- [`fixtures/support/project_doctor_cases/`](../../fixtures/support/project_doctor_cases/)
+  contains worked cases for read-only probe admission, mutating probe
+  promotion, finding explainability, and repair handoff.
 - [`schemas/support/doctor_finding.schema.json`](../../schemas/support/doctor_finding.schema.json)
   defines the shared finding, probe-catalog, evidence, redaction,
   latency, replayability, and governed-action hooks.
@@ -160,11 +174,23 @@ Each later probe-catalog row must include:
 - unsupported-state labels and remaining-unknown classes; and
 - next governed actions allowed by the probe.
 
+The concrete row shape lives in
+`schemas/support/probe_catalog_entry.schema.json`. Rows whose
+`mutability_class` can change caches, targets, files, trust, policy,
+credentials, routes, or external services are not runnable Doctor
+probes. They are either `prohibited_probe` rows or
+`blocked_promote_to_repair` rows with a repair-promotion link.
+
 Each finding explanation must answer: what was expected, what was
 observed, why Aureline believes it, how confident it is, what remains
 unknown, and what the safest next governed action is. Localized prose
 may vary, but IDs, JSON keys, exit semantics, and evidence refs are not
 localized.
+
+The concrete explanation shape lives in
+`schemas/support/doctor_explanation.schema.json`; it carries the
+repair handoff refs used by safe mode, bisect, repair transactions,
+runbooks, help articles, support bundles, and escalation packets.
 
 ## Recovery And Repair
 

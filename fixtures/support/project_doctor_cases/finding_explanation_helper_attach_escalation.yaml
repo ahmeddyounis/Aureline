@@ -1,0 +1,165 @@
+# yaml-language-server: $schema=../../../schemas/support/doctor_explanation.schema.json
+# Project Doctor explanation seed: remote helper attach requires approval.
+
+doctor_explanation_schema_version: 1
+record_kind: doctor_explanation_packet_record
+explanation_packet_id: doctor.explanation.helper_attach.approval_required
+finding_id: finding:helper_attach.approval_required
+finding_code: doctor.finding.helper_attach_approval_required
+rule_id: doctor.rule.remote_helper.attach_approval_required
+
+probe:
+  probe_id: doctor.probe.remote_routes.helper_attach
+  probe_version: probe.remote_routes.helper_attach.v1
+  probe_catalog_ref: schemas/support/probe_catalog_entry.schema.json#doctor.probe.remote_routes.helper_attach
+
+confidence:
+  confidence_class: observed_with_gap
+  confidence_score: 0.86
+  confidence_reason_class: partial_evidence_with_gap
+  remaining_unknowns:
+    - remote_route_reachability_intermittent
+
+affected_contract_ids:
+  - fixtures/support/scenario_matrix.yaml#scenario_row:failed_helper_attach
+  - docs/support/object_handoff_packet.md
+  - docs/support/repair_transaction_contract.md
+  - docs/support/recovery_ladder_packet.md
+  - docs/support/runbook_execution_contract.md
+  - docs/remote/attach_tunnel_port_forward_contract.md
+  - docs/support/project_doctor_probe_contract.md
+
+evidence_refs:
+  - evidence_ref: evidence:remote.helper.attach_denied.0001
+    evidence_role_class: primary
+    signal_class: route_decision
+    supports_text_key: doctor.explanation.helper_attach.observed
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_reference
+    replayability_class: replayable_from_refs
+  - evidence_ref: evidence:policy.approval_ticket.expired.0001
+    evidence_role_class: corroborating
+    signal_class: policy_decision
+    supports_text_key: doctor.explanation.helper_attach.belief_basis
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    replayability_class: replayable_from_refs
+  - evidence_ref: evidence:remote.route.reachability.gap.0001
+    evidence_role_class: typed_gap
+    signal_class: probe_observation
+    supports_text_key: doctor.explanation.helper_attach.remaining_unknowns
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: local_only_retained
+    replayability_class: requires_local_retained_artifact
+
+explanation_text_keys:
+  message_catalog_ref: schemas/ux/message_catalog_entry.schema.json#doctor.helper_attach
+  title_key: doctor.explanation.helper_attach.title
+  summary_key: doctor.explanation.helper_attach.summary
+  expected_key: doctor.explanation.helper_attach.expected
+  observed_key: doctor.explanation.helper_attach.observed
+  belief_basis_key: doctor.explanation.helper_attach.belief_basis
+  confidence_key: doctor.explanation.helper_attach.confidence
+  next_action_key: doctor.explanation.helper_attach.next_action
+  remaining_unknowns_key: doctor.explanation.helper_attach.remaining_unknowns
+
+explanation_factors:
+  - factor_id: factor.helper_attach.expected
+    factor_class: expected_state
+    text_key: doctor.explanation.helper_attach.expected
+    evidence_refs:
+      - evidence:policy.approval_ticket.expired.0001
+    summary: >
+      Remote helper attach requires a current approval ticket and route
+      identity before any reattach attempt.
+  - factor_id: factor.helper_attach.observed
+    factor_class: observed_state
+    text_key: doctor.explanation.helper_attach.observed
+    evidence_refs:
+      - evidence:remote.helper.attach_denied.0001
+    summary: >
+      The attach route was refused because the approval ticket is not
+      current for the target identity.
+  - factor_id: factor.helper_attach.limitation
+    factor_class: limitation
+    text_key: doctor.explanation.helper_attach.remaining_unknowns
+    evidence_refs:
+      - evidence:remote.route.reachability.gap.0001
+    summary: >
+      Reachability evidence is intermittent, so Doctor keeps the local
+      repair path gated and prepares a typed escalation packet.
+
+governed_next_actions:
+  - action_id: action.helper_attach.reapprove_route
+    action_class: open_repair_preview
+    recommendation_class: primary
+    governed_action_ref: repair_transaction:remote_runtime_repair.helper_attach_reapproval
+    approval_posture: managed_admin_required
+    rollback_ref: rollback:remote_helper.previous_authorization
+    checkpoint_ref: checkpoint:remote-helper-reattach:seed
+    repair_transaction_ref: repair_transaction:remote_runtime_repair.helper_attach_reapproval
+    runbook_ref: docs/support/runbook_execution_contract.md
+    help_article_ref: docs/remote/attach_tunnel_port_forward_contract.md
+    support_bundle_ref: support_bundle:managed.helper_attach.approval_required
+    escalation_packet_ref: fixtures/support/escalation_packet_completeness_cases/failed_helper_attach_approval_required.yaml
+    reason_key: doctor.explanation.helper_attach.action.reapprove_route.reason
+  - action_id: action.helper_attach.escalate_packet
+    action_class: create_escalation_packet
+    recommendation_class: secondary
+    governed_action_ref: escalation_packet:managed.helper_attach.approval_required
+    approval_posture: user_consent_required
+    rollback_ref: null
+    checkpoint_ref: null
+    repair_transaction_ref: null
+    runbook_ref: docs/support/runbook_execution_contract.md
+    help_article_ref: docs/remote/attach_tunnel_port_forward_contract.md
+    support_bundle_ref: support_bundle:managed.helper_attach.approval_required
+    escalation_packet_ref: fixtures/support/escalation_packet_completeness_cases/failed_helper_attach_approval_required.yaml
+    reason_key: doctor.explanation.helper_attach.action.escalate_packet.reason
+
+repair_handoff:
+  safe_mode_ref: null
+  bisect_ref: null
+  recovery_rung_ref: recovery_rung:restricted_reopen
+  repair_transaction_refs:
+    - repair_transaction:remote_runtime_repair.helper_attach_reapproval
+  runbook_refs:
+    - docs/support/runbook_execution_contract.md
+  help_article_refs:
+    - docs/remote/attach_tunnel_port_forward_contract.md
+  support_bundle_refs:
+    - support_bundle:managed.helper_attach.approval_required
+  escalation_packet_refs:
+    - fixtures/support/escalation_packet_completeness_cases/failed_helper_attach_approval_required.yaml
+  approval_posture: managed_admin_required
+  rollback_refs:
+    - rollback:remote_helper.previous_authorization
+  checkpoint_refs:
+    - checkpoint:remote-helper-reattach:seed
+  default_next_action_id: action.helper_attach.reapprove_route
+  handoff_contract_refs:
+    - schemas/support/repair_transaction.schema.json
+    - schemas/support/object_handoff_packet.schema.json
+    - schemas/support/runbook_packet.schema.json
+    - schemas/remote/attach_session.schema.json
+
+no_hidden_probe_side_effects:
+  source_probe_catalog_ref: schemas/support/probe_catalog_entry.schema.json#doctor.probe.remote_routes.helper_attach
+  mutability_class: non_mutating_read_only
+  doctor_admission_class: admitted_safe_probe
+  allowed_side_effects:
+    - read_existing_metadata
+    - run_network_reachability_check
+  forbidden_side_effects:
+    - execute_repo_owned_code
+    - mutate_cache_or_index
+    - mutate_target_or_route
+    - mutate_user_files
+    - mutate_trust_policy_or_credentials
+    - external_service_mutation
+    - activate_third_party_extension
+    - collect_high_risk_payload
+  repair_required_for_mutation: false
+
+packet_status: escalation_ready
+emitted_at: "2026-04-29T00:00:00Z"

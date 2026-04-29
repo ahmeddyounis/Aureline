@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../../../schemas/support/probe_catalog_entry.schema.json
+# Project Doctor probe catalog seed: read-only execution-context probe.
+
+probe_catalog_entry_schema_version: 1
+record_kind: probe_catalog_entry_record
+probe_id: doctor.probe.execution_context.toolchain_resolution
+probe_family_class: execution_context_toolchains
+probe_version: probe.execution_context.toolchain_resolution.v1
+rule_ids:
+  - doctor.rule.execution_context.required_component_missing
+  - doctor.rule.execution_context.version_out_of_range
+owner_ref: lane:support_export
+lifecycle_status: active
+
+mutability_class: non_mutating_read_only
+doctor_admission_class: admitted_safe_probe
+
+prerequisites:
+  - prerequisite_id: prerequisite.exact_build_identity
+    prerequisite_class: exact_build_identity
+    required: true
+    unmet_behavior_class: emit_insufficient_evidence
+    description_key: doctor.probe.prereq.exact_build_identity
+  - prerequisite_id: prerequisite.redaction_profile
+    prerequisite_class: redaction_profile
+    required: true
+    unmet_behavior_class: skip_probe_with_gap
+    description_key: doctor.probe.prereq.redaction_profile
+  - prerequisite_id: prerequisite.workspace_trust_snapshot
+    prerequisite_class: workspace_trust_state
+    required: false
+    unmet_behavior_class: emit_unsupported_finding
+    description_key: doctor.probe.prereq.workspace_trust_snapshot
+
+expected_latency:
+  latency_class: common_local_under_10s
+  p50_budget_ms: 1500
+  p90_budget_ms: 6000
+  timeout_ms: 10000
+  timeout_handling_class: emit_timeout_finding
+  first_actionable_target_ref: artifacts/support/diagnosis_slo_targets.yaml#support.slo.first_actionable_diagnosis.toolchain.p90_10m
+
+evidence_produced:
+  - evidence_key: evidence.execution_context.required_toolchain
+    evidence_ref_contract: schemas/runtime/execution_context.schema.json
+    source_class: existing_manifest
+    signal_class: manifest
+    data_class: environment_adjacent
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_reference
+    replayability_class: replayable_from_refs
+    retention_class: support_bundle_manifest_ref
+    produced_when: >
+      The probe reads existing execution-context and target manifests
+      and records the resolved component ids, versions, and disposition.
+  - evidence_key: evidence.execution_context.resolution_policy
+    evidence_ref_contract: schemas/governance/policy_decision_explain.schema.json
+    source_class: policy_decision
+    signal_class: policy_decision
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    replayability_class: replayable_from_refs
+    retention_class: support_bundle_manifest_ref
+    produced_when: >
+      The probe records policy denial or allow decisions by stable id,
+      not by raw policy payload.
+
+support_class: local_and_remote_read_only
+redaction_class: metadata_safe_default
+
+failure_modes:
+  - failure_mode_class: prerequisite_missing
+    emitted_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+    handling_action_class: emit_typed_unknown
+    remaining_unknowns:
+      - exact_build_identity_missing
+    message_key: doctor.probe.failure.exact_build_identity_missing
+  - failure_mode_class: partial_evidence
+    emitted_finding_code: doctor.finding.toolchain_version_out_of_range
+    handling_action_class: emit_finding
+    remaining_unknowns:
+      - probe_evidence_unavailable
+    message_key: doctor.probe.failure.toolchain_partial_evidence
+  - failure_mode_class: timeout
+    emitted_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+    handling_action_class: emit_typed_unknown
+    remaining_unknowns:
+      - probe_evidence_unavailable
+    message_key: doctor.probe.failure.timeout
+
+no_hidden_side_effects:
+  safe_probe_non_mutating: true
+  allowed_side_effects:
+    - read_existing_metadata
+    - hash_existing_artifact
+  forbidden_side_effects:
+    - execute_repo_owned_code
+    - mutate_cache_or_index
+    - mutate_target_or_route
+    - mutate_user_files
+    - mutate_trust_policy_or_credentials
+    - external_service_mutation
+    - activate_third_party_extension
+    - collect_high_risk_payload
+  mutating_probe_handling_class: no_mutating_effects_declared
+  side_effect_attestation_ref: docs/support/project_doctor_probe_contract.md#no-hidden-probe-side-effects
+
+context_availability:
+  - support_context_class: desktop
+    availability_class: available
+    remote_or_local_support_class: local_and_remote_read_only
+    notes: >
+      The desktop can run the probe using local manifests and display
+      the same finding ids as headless output.
+  - support_context_class: cli_headless
+    availability_class: available
+    remote_or_local_support_class: local_and_remote_read_only
+    notes: >
+      Headless mode emits the same rule ids, evidence refs, and exit
+      semantics without opening the desktop shell.
+  - support_context_class: remote_managed
+    availability_class: available_read_only
+    remote_or_local_support_class: remote_managed_read_only
+    notes: >
+      Managed support may inspect metadata refs; any toolchain install
+      or target mutation must route through repair.
+  - support_context_class: offline_local
+    availability_class: available_local_only
+    remote_or_local_support_class: offline_cached_only
+    notes: >
+      Offline mode can inspect cached execution-context snapshots and
+      emit typed unknowns for missing remote evidence.
+
+repair_promotion: null
+emitted_at: "2026-04-29T00:00:00Z"
