@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/reauth_requirement.schema.json",
+  "title": "Aureline reauthentication requirement record",
+  "description": "Boundary schema for one reauth_requirement_record frozen in docs/auth/managed_auth_and_session_continuity_contract.md. The record explains exactly why a managed action paused for fresh auth, which action scope is affected, what expiry or refresh boundary applies, which fallback paths are allowed, and whether local work may continue while managed capabilities pause. Raw tokens, raw cookies, raw provider URLs, raw passkey material, raw directory attributes, raw account identifiers, and raw IdP error bodies never cross this boundary.",
+  "$ref": "#/$defs/reauth_requirement_record",
+  "$defs": {
+    "reauth_requirement_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support exports, admin exports, and release evidence."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from an authoritative or monotonic timestamp source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short label safe for UI, support, admin, and release-evidence surfaces. Raw secret, tenant, account, URL, and provider-error payloads MUST NOT appear."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for product copy, diagnostics, and support export."
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "session_expired",
+        "session_expiring",
+        "step_up_required",
+        "policy_epoch_changed",
+        "tenant_policy_requires_reauth",
+        "password_reset_or_idp_rebind",
+        "missing_credential",
+        "credential_store_locked",
+        "authenticator_incompatible",
+        "revoked_session",
+        "seat_removed",
+        "account_deprovisioned",
+        "org_switch_requires_fresh_auth",
+        "network_unavailable_for_refresh",
+        "unknown_denied_no_generic_copy"
+      ],
+      "description": "Closed reason vocabulary. unknown_denied_no_generic_copy is a fail-closed diagnostic state and still requires visible cause investigation; surfaces may not render it as a generic auth error."
+    },
+    "affected_scope_class": {
+      "type": "string",
+      "enum": [
+        "managed_collaboration",
+        "managed_settings_sync",
+        "managed_ai_gateway",
+        "managed_workspace_create_attach",
+        "marketplace_publish",
+        "provider_publish",
+        "org_admin_console",
+        "all_managed_actions",
+        "single_command",
+        "no_local_artifact_scope"
+      ]
+    },
+    "fallback_class": {
+      "type": "string",
+      "enum": [
+        "passkey",
+        "system_browser",
+        "device_code_or_equivalent",
+        "credential_store_unlock",
+        "admin_assisted_recovery",
+        "continue_local_only",
+        "export_support_packet",
+        "contact_admin",
+        "no_managed_fallback"
+      ]
+    },
+    "expiry_or_refresh_state_class": {
+      "type": "string",
+      "enum": [
+        "already_expired",
+        "expires_at_known_time",
+        "refresh_required_now",
+        "policy_refresh_required",
+        "offline_refresh_unavailable",
+        "not_applicable"
+      ]
+    },
+    "support_export_failure_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "network_failure",
+        "tenant_policy_denied",
+        "missing_credential",
+        "authenticator_incompatibility",
+        "revoked_session",
+        "seat_loss",
+        "account_deprovisioned",
+        "credential_store_locked",
+        "callback_mismatch",
+        "unknown_auth_error_denied"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_mode",
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "affected_action_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "scope_ref",
+        "scope_label",
+        "affected_action_refs",
+        "managed_capabilities_paused",
+        "local_capabilities_unaffected"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/affected_scope_class" },
+        "scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_label": { "$ref": "#/$defs/export_safe_label" },
+        "affected_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "managed_capabilities_paused": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "uniqueItems": true
+        },
+        "local_capabilities_unaffected": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "expiry_or_refresh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_class",
+        "expires_at",
+        "refresh_after",
+        "refresh_deadline_at",
+        "refresh_note"
+      ],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/expiry_or_refresh_state_class" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "refresh_after": { "$ref": "#/$defs/nullable_timestamp" },
+        "refresh_deadline_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "refresh_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "allowed_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_fallback_class",
+        "fallback_classes",
+        "device_code_allowed",
+        "accessibility_note"
+      ],
+      "properties": {
+        "primary_fallback_class": { "$ref": "#/$defs/fallback_class" },
+        "fallback_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_class" },
+          "uniqueItems": true
+        },
+        "device_code_allowed": {
+          "type": "boolean",
+          "description": "Whether device-code or equivalent fallback is allowed for this deployment, IdP, and policy posture."
+        },
+        "accessibility_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "local_work_continuation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "may_continue_while_managed_paused",
+        "continuation_note",
+        "retained_local_capabilities",
+        "paused_managed_capabilities"
+      ],
+      "properties": {
+        "may_continue_while_managed_paused": {
+          "type": "boolean",
+          "const": true,
+          "description": "Reauth cannot sign the user out of local work. Local work continues while managed capabilities pause."
+        },
+        "continuation_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "retained_local_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "uniqueItems": true
+        },
+        "paused_managed_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_failure_class",
+        "diagnostic_event_refs",
+        "diagnostic_summary"
+      ],
+      "properties": {
+        "primary_failure_class": { "$ref": "#/$defs/support_export_failure_class" },
+        "diagnostic_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "diagnostic_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_summary_label",
+        "reauth_requirement_ref",
+        "network_failure_ref",
+        "tenant_policy_ref",
+        "missing_credential_ref",
+        "authenticator_incompatibility_ref",
+        "revoked_session_ref",
+        "seat_loss_ref",
+        "account_deprovisioning_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "support_summary_label": { "$ref": "#/$defs/export_safe_label" },
+        "reauth_requirement_ref": { "$ref": "#/$defs/opaque_id" },
+        "network_failure_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "tenant_policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "missing_credential_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "authenticator_incompatibility_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "revoked_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "seat_loss_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "account_deprovisioning_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Separate support-export slots prevent unlike auth failures from collapsing into a generic error."
+    },
+    "reauth_requirement_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "reauth_requirement_schema_version",
+        "requirement_id",
+        "reason_class",
+        "reason_label",
+        "affected_action_scope",
+        "expiry_or_refresh",
+        "allowed_fallback",
+        "local_work_continuation",
+        "diagnostics",
+        "support_export",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "reauth_requirement_record"
+        },
+        "reauth_requirement_schema_version": { "$ref": "#/$defs/reauth_requirement_schema_version" },
+        "requirement_id": { "$ref": "#/$defs/opaque_id" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "reason_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "affected_action_scope": { "$ref": "#/$defs/affected_action_scope" },
+        "expiry_or_refresh": { "$ref": "#/$defs/expiry_or_refresh" },
+        "allowed_fallback": { "$ref": "#/$defs/allowed_fallback" },
+        "local_work_continuation": { "$ref": "#/$defs/local_work_continuation" },
+        "diagnostics": { "$ref": "#/$defs/diagnostics" },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

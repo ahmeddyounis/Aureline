@@ -1,0 +1,55 @@
+schema_version: 1
+contract_ref: docs/auth/managed_auth_and_session_continuity_contract.md
+managed_session_state_schema_ref: schemas/auth/managed_session_state.schema.json
+reauth_requirement_schema_ref: schemas/auth/reauth_requirement.schema.json
+
+rules:
+  - Every case carries one managed_session_state_record.
+  - Local edit, save, undo, diagnostics, and user-owned export remain explicit in every state.
+  - Managed sign-in and reauth prefer system-browser or passkey-capable browser/platform paths where supported.
+  - Device-code or equivalent fallback is named when passkey or browser capability is blocked and policy allows it.
+  - Support-export diagnostics keep network, tenant policy, missing credential, authenticator incompatibility, revoked session, seat loss, and account deprovisioning separate.
+
+cases:
+  - fixture: local_only_mode.yaml
+    state_class: local_only
+    covers:
+      - account_free_local_mode
+      - no_hidden_sign_in_wall
+      - local_export_without_account
+  - fixture: passkey_capable_sign_in.yaml
+    state_class: signed_in
+    covers:
+      - passkey_capable_sign_in
+      - system_browser_first
+      - scoped_managed_session
+  - fixture: accessible_fallback_device_code.yaml
+    state_class: managed_blocked
+    covers:
+      - accessible_fallback
+      - authenticator_incompatibility_separated
+      - device_code_or_equivalent_path
+  - fixture: dirty_buffer_session_expiry.yaml
+    state_class: session_expiring
+    covers:
+      - dirty_buffer_session_expiry
+      - local_edit_save_undo_export
+      - reauth_requirement_object
+  - fixture: org_switch_preserves_local.yaml
+    state_class: reauth_required
+    covers:
+      - org_switch
+      - tenant_policy_requires_reauth
+      - no_silent_signout
+  - fixture: seat_transfer.yaml
+    state_class: reauth_required
+    covers:
+      - seat_transfer
+      - managed_capability_pause
+      - local_continuity
+  - fixture: seat_removal_deprovisioning_preserved_local_artifacts.yaml
+    state_class: deprovisioned
+    covers:
+      - seat_removal
+      - account_deprovisioning
+      - offboarding_export_without_live_seat
