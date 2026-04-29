@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/device_permission_row.schema.json",
+  "title": "Aureline device-permission row contract",
+  "description": "Boundary schema for device_permission_row_record entries frozen in docs/auth/device_permission_and_capture_boundary_contract.md. The record explains which device class is involved, what permission state applies, which actor/surface requested the permission, where processing happens, what retention/export note applies, and which revoke/system-settings/system-browser escape-hatch actions remain safe. Raw audio/video/screen bytes, raw transcripts, raw URLs, raw tokens, and raw credential material never cross this boundary; records carry opaque refs and export-safe labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/device_permission_row_record" }
+  ],
+  "$defs": {
+    "device_permission_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this device-permission row contract. Bump only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "device_permission_row_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional $schema pointer carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, and export/support packets. Raw device identifiers, raw URLs, raw transcripts, and raw credential material never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic or authoritative clock source."
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short label safe for UI, logs, support exports, and admin exports. Raw audio, raw transcripts, raw URLs, raw device identifiers, and raw secret material MUST NOT appear."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for product copy and export. Must not embed raw URLs, raw transcripts, or raw credential material."
+    },
+
+    "surface_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Product-surface redaction class used by settings, auth, support, admin, and evidence records."
+    },
+
+    "device_class": {
+      "type": "string",
+      "enum": [
+        "microphone",
+        "camera",
+        "screen_capture",
+        "system_audio_loopback",
+        "accessibility_input_monitoring",
+        "unknown_device_class"
+      ],
+      "description": "Closed device-class vocabulary for permission rows. Values are stable semantics; UI labels may localize."
+    },
+
+    "permission_state_class": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "request_in_flight",
+        "granted",
+        "denied",
+        "restricted",
+        "unavailable",
+        "policy_blocked",
+        "unknown_permission_state"
+      ],
+      "description": "Closed permission-state vocabulary for device permissions."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_user",
+        "org_admin",
+        "policy_service",
+        "first_party_adapter",
+        "extension",
+        "ai_agent",
+        "remote_agent",
+        "service_identity",
+        "automation_runner",
+        "support_operator",
+        "system_supervisor"
+      ],
+      "description": "Actor-class vocabulary reused across auth, capture, and consent surfaces."
+    },
+
+    "processing_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "local_companion_or_sandbox",
+        "enterprise_managed_service",
+        "byok_remote_provider",
+        "vendor_hosted_service",
+        "unknown_requires_review"
+      ],
+      "description": "Closed processing-locus vocabulary for capture/permission disclosure. Used to communicate where processing happens before capture begins."
+    },
+
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_ephemeral",
+        "local_only_persisted_user_visible",
+        "managed_retained_under_policy",
+        "provider_retained_under_terms",
+        "unknown_requires_review"
+      ],
+      "description": "Closed retention posture vocabulary for permission/capture disclosure. This is a summary posture; detailed record governance is handled elsewhere."
+    },
+
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "request_permission",
+        "open_system_settings",
+        "revoke_permission",
+        "stop_capture",
+        "open_system_browser_boundary",
+        "open_detail_view",
+        "dismiss_or_not_applicable"
+      ],
+      "description": "Closed action vocabulary for safe user-facing affordances attached to permission rows."
+    },
+
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+
+    "action_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "action_label", "command_id_ref", "route_ref"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "action_label": { "$ref": "#/$defs/export_safe_label" },
+        "command_id_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional canonical command id ref the host uses to invoke this action. When present, it must resolve to the command registry; embedded surfaces cannot mint their own command ids."
+        },
+        "route_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional opaque route ref or deep-link anchor. Never a raw URL."
+        }
+      },
+      "description": "User-facing affordance bound to a permission row."
+    },
+
+    "nullable_action_affordance": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/action_affordance" }
+      ]
+    },
+
+    "permission_actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_subject_ref", "actor_label", "surface_ref", "initiated_by_user"],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_label": { "$ref": "#/$defs/export_safe_label" },
+        "surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "initiated_by_user": {
+          "type": "boolean",
+          "description": "True only when the current request was user-initiated (for example via an explicit button). False for implicit extension/policy/system initiated requests."
+        }
+      },
+      "description": "Actor and surface attribution for a device permission request."
+    },
+
+    "processing_locus_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["processing_locus_class", "processing_locus_label"],
+      "properties": {
+        "processing_locus_class": { "$ref": "#/$defs/processing_locus_class" },
+        "processing_locus_label": { "$ref": "#/$defs/export_safe_label" }
+      },
+      "description": "Pre-capture disclosure of where processing happens."
+    },
+
+    "retention_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_posture_class", "retention_note"],
+      "properties": {
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "retention_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Retention/export disclosure attached to a permission row."
+    },
+
+    "policy_block_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_owner_ref", "policy_block_note"],
+      "properties": {
+        "policy_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_block_note": { "$ref": "#/$defs/nullable_string" }
+      },
+      "description": "Optional policy context that explains policy_blocked states without exposing raw policy bundle bytes."
+    },
+
+    "device_permission_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "device_permission_row_schema_version",
+        "permission_row_id",
+        "device_class",
+        "permission_state_class",
+        "display_label",
+        "actor",
+        "processing_locus",
+        "retention",
+        "revoke_action",
+        "open_system_settings_action",
+        "open_system_browser_action",
+        "policy_context",
+        "surface_redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "device_permission_row_record" },
+        "device_permission_row_schema_version": { "$ref": "#/$defs/device_permission_row_schema_version" },
+        "permission_row_id": { "$ref": "#/$defs/opaque_id" },
+        "device_class": { "$ref": "#/$defs/device_class" },
+        "permission_state_class": { "$ref": "#/$defs/permission_state_class" },
+        "display_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Export-safe label shown on device-permission rows (for example \"Microphone access\")."
+        },
+        "permission_reason_label": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional export-safe reason label the row can quote without exposing raw prompts or user data."
+        },
+        "actor": { "$ref": "#/$defs/permission_actor" },
+        "processing_locus": { "$ref": "#/$defs/processing_locus_disclosure" },
+        "retention": { "$ref": "#/$defs/retention_disclosure" },
+        "revoke_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "open_system_settings_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "open_system_browser_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "policy_context": { "$ref": "#/$defs/policy_block_context" },
+        "embedded_surface_limitations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "description": "Optional limitations that apply when the permission request is rendered inside an embedded surface (for example \"Credentials cannot be collected here\")."
+        },
+        "surface_redaction_class": { "$ref": "#/$defs/surface_redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Device-permission row required by the capture boundary honesty contract."
+    }
+  }
+}
+

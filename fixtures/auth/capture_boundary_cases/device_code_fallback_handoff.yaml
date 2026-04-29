@@ -1,0 +1,207 @@
+__fixture__:
+  name: device_code_fallback_handoff
+  scenario: >
+    Device-code fallback: browser launch is blocked, so the handoff uses
+    device code. The auth handoff packet remains explicit about the flow
+    kind, provider identity, return posture, local continuity, and
+    recovery actions. Capture stays unavailable until the handoff
+    completes.
+  exercised_axes:
+    record_kinds:
+      - auth_callback_packet_record
+      - device_permission_row_record
+      - mic_state_record
+    auth_flow_class: device_code
+    return_mode_class: device_code_poll_return
+  contract_sections:
+    - "Browser/device-code handoff card"
+    - "Device-permission row"
+    - "Mic-state pill"
+
+records:
+  - $schema: ../../../schemas/auth/auth_callback_state.schema.json
+    record_kind: auth_callback_packet_record
+    auth_callback_state_schema_version: 1
+    packet_id: "auth_callback_packet.device_code_fallback.0001"
+    auth_flow_class: device_code
+    browser_launch_policy_class: system_default_browser_required
+    pending_session_state: awaiting_browser_return
+    account_boundary_class: managed
+    identity_mode: managed_workspace
+    deployment_profile_scope:
+      - managed_cloud
+      - enterprise_online
+    provider_domain_label: "login.acme.example"
+    destination_class_label: "Device code (system-browser launch blocked)"
+    callback_correlation:
+      correlation_id: "callback_correlation.device_code_fallback.0001"
+      pending_session_id: "pending_session.device_code_fallback.0001"
+      state_token_alias: "state_alias.device_code_fallback.0001"
+      nonce_alias: "nonce_alias.device_code_fallback.0001"
+      pkce_challenge_alias: null
+      bound_workspace_ref: "workspace.payments_prod"
+      bound_tenant_or_org_ref: "tenant.acme_prod"
+      bound_actor_subject_ref: "actor_subject.sam.acme"
+      issued_at: "2026-04-29T16:45:00Z"
+      expires_at: "2026-04-29T16:55:00Z"
+      replay_posture: "single_use"
+      redeemed_at: null
+      callback_receipt_ref: null
+    return_route:
+      return_mode_class: device_code_poll_return
+      return_anchor_ref: "return_anchor.device_code_fallback.payments_prod"
+      return_target_label: "Aureline desktop – payments-prod workspace"
+      return_origin_validation_class: device_code_poll_only
+      return_tenant_or_workspace_match_rule: must_match_bound_workspace_and_tenant
+      return_policy_check_refs:
+        - "policy_check.managed.sign_in.required"
+    preserved_local_work:
+      posture_class: local_work_intact_with_managed_narrowed
+      note: >
+        Local editing, save, undo, search, local Git, local tasks, and BYOK AI
+        remain available while managed sign-in is incomplete. Managed capabilities
+        stay narrowed until device-code completion.
+      retained_capabilities:
+        - "Open, edit, save, and undo the workspace locally."
+        - "Continue working without any browser session active."
+        - "Cancel the device-code flow without losing local state."
+      blocked_capabilities:
+        - "Use managed capabilities that require the managed session."
+    recovery_path:
+      primary_recovery_action: switch_to_device_code
+      fallback_recovery_actions:
+        - continue_local_without_sign_in
+        - contact_support_with_export
+      visible_recovery_required: true
+      recovery_copy_label: "Use device code to sign in. Local work stays on this device."
+      repair_hook_ref: "repair_hook.device_code_fallback.0001"
+    reserved_rows:
+      - row_kind: passkey_capable
+        row_state: reserved_for_future_row
+        applies_to_boundary_class:
+          - managed
+          - self_hosted
+        note: "Passkeys may be available on the system-browser path when browser launch is restored."
+      - row_kind: reauth_required
+        row_state: reserved_for_future_row
+        applies_to_boundary_class:
+          - managed
+          - restricted_managed_only
+        note: "Reserved for the session-expiry / policy-epoch-roll reauth row."
+      - row_kind: seat_loss
+        row_state: reserved_for_future_row
+        applies_to_boundary_class:
+          - managed
+          - restricted_managed_only
+        note: "Reserved for the managed seat-loss row; local work remains representable."
+      - row_kind: deprovision_preserves_local_work
+        row_state: supported_capability_declared
+        applies_to_boundary_class:
+          - managed
+          - restricted_managed_only
+          - grace_degraded_managed
+        preserves_local_work: true
+        note: "Managed deprovision preserves local work and export."
+    browser_handoff_packet_ref: "browser_handoff_packet.device_code_fallback.0001"
+    origin_disclosure_ref: "origin_disclosure.device_code_fallback.payments_prod.01"
+    embedded_fallback_posture: embedded_fallback_forbidden
+    pending_session_denied_reason: null
+    policy_context:
+      identity_mode: managed_workspace
+      policy_epoch: "policy_epoch.auth.device_code_fallback.2026.04"
+      trust_state: trusted
+      execution_context_id: "execution_context.auth.device_code_fallback.payments_prod"
+    redaction_class: metadata_safe_default
+    minted_at: "2026-04-29T16:45:01Z"
+
+  - $schema: ../../../schemas/auth/device_permission_row.schema.json
+    record_kind: device_permission_row_record
+    device_permission_row_schema_version: 1
+    permission_row_id: "auth:device_permission:microphone:device_code_fallback:01"
+    device_class: microphone
+    permission_state_class: granted
+    display_label: "Microphone access"
+    permission_reason_label: "Voice feature enabled after sign-in (device code fallback)"
+    actor:
+      actor_class: human_user
+      actor_subject_ref: "actor:user:local:01"
+      actor_label: "You"
+      surface_ref: "surface:auth:handoff_sheet:01"
+      initiated_by_user: true
+    processing_locus:
+      processing_locus_class: enterprise_managed_service
+      processing_locus_label: "Managed sign-in required before capture can start"
+    retention:
+      retention_posture_class: unknown_requires_review
+      retention_note: "Review capture locality and retention after sign-in completes."
+    revoke_action:
+      action_class: revoke_permission
+      action_label: "Cancel sign-in"
+      command_id_ref: null
+      route_ref: "repair_hook.device_code_fallback.0001"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action:
+      action_class: open_system_browser_boundary
+      action_label: "Try system browser instead"
+      command_id_ref: null
+      route_ref: "browser_handoff_packet.device_code_fallback.0001"
+    policy_context:
+      policy_owner_ref: null
+      policy_block_note: null
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-29T16:45:02Z"
+
+  - $schema: ../../../schemas/auth/mic_state.schema.json
+    record_kind: mic_state_record
+    mic_state_schema_version: 1
+    mic_state_id: "auth:mic_state:device_code_fallback:unavailable:01"
+    device_class: microphone
+    mic_state_class: unavailable
+    state_label: "Unavailable"
+    state_note: "Complete device-code sign-in before Aureline can start listening."
+    actor:
+      actor_class: human_user
+      actor_subject_ref: "actor:user:local:01"
+      actor_label: "You"
+      surface_ref: "surface:auth:handoff_sheet:01"
+      initiated_by_user: true
+    processing_locus:
+      processing_locus_class: enterprise_managed_service
+      processing_locus_label: "Managed sign-in required before capture can start"
+    retention:
+      retention_posture_class: unknown_requires_review
+      retention_note: "Review capture locality and retention after sign-in completes."
+    device_permission_row_ref: "auth:device_permission:microphone:device_code_fallback:01"
+    voice_mode_session_ref: null
+    transcript_correction_path_ref: null
+    stop_or_mute_action: null
+    transcript_review_action:
+      action_class: open_capture_detail
+      action_label: "View device-code steps"
+      command_id_ref: null
+      route_ref: "repair_hook.device_code_fallback.0001"
+    open_detail_action:
+      action_class: open_capture_detail
+      action_label: "Capture details"
+      command_id_ref: null
+      route_ref: "route:auth:handoff_detail:device_code:01"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action:
+      action_class: open_system_browser_boundary
+      action_label: "Try system browser instead"
+      command_id_ref: null
+      route_ref: "browser_handoff_packet.device_code_fallback.0001"
+    policy_context:
+      policy_owner_ref: null
+      policy_block_note: null
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-29T16:45:03Z"
+

@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/mic_state.schema.json",
+  "title": "Aureline mic-state contract",
+  "description": "Boundary schema for mic_state_record entries frozen in docs/auth/device_permission_and_capture_boundary_contract.md. The record powers the persistent mic-state pill/strip shown while capture is possible, active, processing, awaiting confirmation, unavailable, or policy blocked. It carries actor/surface attribution, processing-locus disclosure, transcript review/correction affordances, retention/export disclosure, and safe stop/mute actions. Raw audio bytes, raw transcript bodies, raw URLs, raw device identifiers, and raw credential material never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/mic_state_record" }
+  ],
+  "$defs": {
+    "mic_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this mic-state contract. Bump only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "mic_state_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional $schema pointer carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, and export/support packets. Raw device identifiers, raw URLs, raw transcripts, and raw credential material never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic or authoritative clock source."
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short label safe for UI, logs, support exports, and admin exports. Raw audio, raw transcripts, raw URLs, raw device identifiers, and raw secret material MUST NOT appear."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for product copy and export. Must not embed raw URLs, raw transcripts, or raw credential material."
+    },
+
+    "surface_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Product-surface redaction class used by settings, auth, support, admin, and evidence records."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_user",
+        "org_admin",
+        "policy_service",
+        "first_party_adapter",
+        "extension",
+        "ai_agent",
+        "remote_agent",
+        "service_identity",
+        "automation_runner",
+        "support_operator",
+        "system_supervisor"
+      ],
+      "description": "Actor-class vocabulary reused across auth, capture, and consent surfaces."
+    },
+
+    "device_class": {
+      "type": "string",
+      "enum": [
+        "microphone",
+        "unknown_device_class"
+      ],
+      "description": "Mic-state records describe microphone capture. Other device kinds use their own state pills."
+    },
+
+    "mic_state_class": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "listening",
+        "muted",
+        "processing",
+        "needs_confirmation",
+        "unavailable",
+        "policy_blocked"
+      ],
+      "description": "Closed mic-state vocabulary. idle = capture off; listening = actively capturing; muted = user stopped/muted; processing = capture ended and processing is ongoing; needs_confirmation = awaiting preview/confirmation for a privileged voice action; unavailable = device/OS unavailable; policy_blocked = explicitly blocked by policy."
+    },
+
+    "processing_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "local_companion_or_sandbox",
+        "enterprise_managed_service",
+        "byok_remote_provider",
+        "vendor_hosted_service",
+        "unknown_requires_review"
+      ],
+      "description": "Closed processing-locus vocabulary for mic-state disclosure."
+    },
+
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_ephemeral",
+        "local_only_persisted_user_visible",
+        "managed_retained_under_policy",
+        "provider_retained_under_terms",
+        "unknown_requires_review"
+      ],
+      "description": "Closed retention posture vocabulary for mic-state disclosure."
+    },
+
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "mute_or_stop",
+        "resume_listening",
+        "open_transcript_review",
+        "open_capture_detail",
+        "open_system_settings",
+        "open_system_browser_boundary",
+        "dismiss_or_not_applicable"
+      ],
+      "description": "Closed action vocabulary for safe user-facing mic-state affordances."
+    },
+
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+
+    "action_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "action_label", "command_id_ref", "route_ref"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "action_label": { "$ref": "#/$defs/export_safe_label" },
+        "command_id_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional canonical command id ref the host uses to invoke this action. Embedded surfaces cannot mint command ids."
+        },
+        "route_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional opaque route ref or deep-link anchor. Never a raw URL."
+        }
+      },
+      "description": "User-facing affordance bound to a mic-state pill."
+    },
+
+    "nullable_action_affordance": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/action_affordance" }
+      ]
+    },
+
+    "mic_state_actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_subject_ref", "actor_label", "surface_ref", "initiated_by_user"],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_label": { "$ref": "#/$defs/export_safe_label" },
+        "surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "initiated_by_user": {
+          "type": "boolean",
+          "description": "True only when the session was user-initiated (push-to-talk, explicit toggle). False for implicit/extension/policy initiated capture attempts."
+        }
+      },
+      "description": "Actor and surface attribution for mic-state."
+    },
+
+    "processing_locus_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["processing_locus_class", "processing_locus_label"],
+      "properties": {
+        "processing_locus_class": { "$ref": "#/$defs/processing_locus_class" },
+        "processing_locus_label": { "$ref": "#/$defs/export_safe_label" }
+      },
+      "description": "Pre-capture disclosure of where processing happens."
+    },
+
+    "retention_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_posture_class", "retention_note"],
+      "properties": {
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "retention_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Retention/export disclosure attached to mic-state."
+    },
+
+    "policy_block_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_owner_ref", "policy_block_note"],
+      "properties": {
+        "policy_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_block_note": { "$ref": "#/$defs/nullable_string" }
+      },
+      "description": "Optional policy context that explains policy_blocked states without exposing raw policy bundle bytes."
+    },
+
+    "mic_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "mic_state_schema_version",
+        "mic_state_id",
+        "device_class",
+        "mic_state_class",
+        "state_label",
+        "state_note",
+        "actor",
+        "processing_locus",
+        "retention",
+        "device_permission_row_ref",
+        "voice_mode_session_ref",
+        "transcript_correction_path_ref",
+        "stop_or_mute_action",
+        "transcript_review_action",
+        "open_detail_action",
+        "open_system_settings_action",
+        "open_system_browser_action",
+        "policy_context",
+        "surface_redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "mic_state_record" },
+        "mic_state_schema_version": { "$ref": "#/$defs/mic_state_schema_version" },
+        "mic_state_id": { "$ref": "#/$defs/opaque_id" },
+        "device_class": { "$ref": "#/$defs/device_class" },
+        "mic_state_class": { "$ref": "#/$defs/mic_state_class" },
+        "state_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Export-safe label shown on the mic-state pill. Recommended stable labels: Idle, Listening, Muted, Processing, Needs confirmation, Unavailable, Policy blocked."
+        },
+        "state_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short note that explains the current mic state without leaking raw transcript or content."
+        },
+        "actor": { "$ref": "#/$defs/mic_state_actor" },
+        "processing_locus": { "$ref": "#/$defs/processing_locus_disclosure" },
+        "retention": { "$ref": "#/$defs/retention_disclosure" },
+        "device_permission_row_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional ref to the corresponding device_permission_row_record for this capture session or capability."
+        },
+        "voice_mode_session_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional ref to a voice-mode session (when the mic state is driven by voice/dictation)."
+        },
+        "transcript_correction_path_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional ref to the transcript correction/review path when a transcript is expected."
+        },
+        "stop_or_mute_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "transcript_review_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "open_detail_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "open_system_settings_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "open_system_browser_action": { "$ref": "#/$defs/nullable_action_affordance" },
+        "policy_context": { "$ref": "#/$defs/policy_block_context" },
+        "surface_redaction_class": { "$ref": "#/$defs/surface_redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Persistent mic-state indicator shown while capture is possible or active."
+    }
+  }
+}
+

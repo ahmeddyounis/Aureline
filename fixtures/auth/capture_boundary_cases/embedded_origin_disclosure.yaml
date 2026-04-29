@@ -1,0 +1,198 @@
+__fixture__:
+  name: embedded_origin_disclosure
+  scenario: >
+    Embedded origin disclosure: an embedded surface shows a host-owned
+    origin bar and capability limitations, and it must not impersonate
+    native security/auth/update verification surfaces. Capture is denied
+    inside the embedded surface until the host-native boundary admits it.
+  exercised_axes:
+    record_kinds:
+      - embedded_surface_boundary_record
+      - device_permission_row_record
+      - mic_state_record
+    embedded_surface_origin_bar: true
+    impersonation_ban: true
+  contract_sections:
+    - "Embedded-webview origin bar (owner/origin chrome)"
+    - "Device-permission row"
+
+records:
+  - $schema: ../../../schemas/ux/embedded_surface_boundary.schema.json
+    record_kind: embedded_surface_boundary_record
+    embedded_surface_boundary_schema_version: 1
+    surface_id: "emb:voice:provider_consent:01"
+    surface_family: embedded_marketplace_or_account
+    container_surface_class: provider_account_panel
+    trust_class: SanitizedRich
+    owner_identity:
+      label: "Aureline provider consent"
+      class: host_product
+    publisher_or_service_identity:
+      label: "BYOK speech provider"
+      class: provider_service
+    origin_identity:
+      origin_class: customer_or_enterprise_hosted_web
+      origin_label: "https://speech.example"
+      verification_state: verified
+      host_or_domain_label: "speech.example"
+      origin_ref: "origin:byok-speech:01"
+    data_boundary_class: third_party_provider_boundary
+    boundary_state: degraded_read_only
+    boundary_card:
+      owner_label: "Aureline provider consent"
+      origin_label: "https://speech.example"
+      publisher_or_service_label: "BYOK speech provider"
+      data_boundary_label: "Provider consent (system browser required)"
+      state_label: "Open in browser to continue"
+      plain_language_summary: >
+        This is an embedded view of a provider account surface. Consent and
+        credential collection happen in the system browser. High-risk approvals
+        remain host-native.
+      primary_action_ids:
+        - open_in_system_browser
+      flow_type_label: "System browser"
+      return_target_label: "Return to Aureline desktop"
+      fallback_state_label: "Device code is available if browser launch is blocked"
+      capability_limitations_label: "This embedded view cannot collect credentials or issue native approvals."
+    required_chrome_fields:
+      - owner_label
+      - origin_label
+      - publisher_or_service_label
+      - data_boundary_label
+      - boundary_state_label
+      - primary_actions
+      - capability_limitations
+    capability_limitations:
+      - cannot_collect_credentials
+      - cannot_issue_native_approval
+    native_reserved_surfaces_host_owned:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+    high_risk_action_posture: host_native_only
+    auth_handoff:
+      flow_class: system_browser
+      auth_state: handoff_ready
+      provider_domain_label: "speech.example"
+      credential_collection_mode: no_embedded_collection
+      reason_label: "Provider consent for remote speech processing"
+      return_target_label: "Aureline desktop"
+      local_continuity_note: "Local editing remains available while consent is incomplete."
+      fallback_flow_classes:
+        - device_code
+      lower_trust_cues: []
+      browser_handoff_packet_ref: "bhp:byok-speech:consent:01"
+    external_open_fallback:
+      action_id: open_in_system_browser
+      allowed_by_policy: true
+      preserves_object_identity: true
+      fallback_summary: "Open the system browser for provider consent."
+      browser_handoff_packet_ref: "bhp:byok-speech:consent:01"
+    repair_hook_ref:
+      hook_kind: switch_to_device_code
+      hook_id: "repair:byok-speech:device-code:01"
+    policy_context:
+      identity_mode: account_free_local
+      policy_epoch: "pe:2026-04-29:embedded-provider-consent:01"
+      trust_state: trusted
+      execution_context_id: "exec:embedded-provider-consent:01"
+    redaction_class: metadata_safe_default
+    minted_at: "2026-04-29T16:55:00Z"
+
+  - $schema: ../../../schemas/auth/device_permission_row.schema.json
+    record_kind: device_permission_row_record
+    device_permission_row_schema_version: 1
+    permission_row_id: "auth:device_permission:microphone:embedded_surface:01"
+    device_class: microphone
+    permission_state_class: granted
+    display_label: "Microphone access"
+    permission_reason_label: "Remote speech provider (system browser required)"
+    actor:
+      actor_class: extension
+      actor_subject_ref: "actor:extension:provider_consent_panel:01"
+      actor_label: "Provider consent panel"
+      surface_ref: "emb:voice:provider_consent:01"
+      initiated_by_user: false
+    processing_locus:
+      processing_locus_class: byok_remote_provider
+      processing_locus_label: "Audio would be sent to a third-party provider"
+    retention:
+      retention_posture_class: provider_retained_under_terms
+      retention_note: "Provider retention terms apply; consent is reviewed in the system browser."
+    revoke_action:
+      action_class: open_detail_view
+      action_label: "Review capture boundary"
+      command_id_ref: null
+      route_ref: "emb:voice:provider_consent:01"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action:
+      action_class: open_system_browser_boundary
+      action_label: "Continue in system browser"
+      command_id_ref: null
+      route_ref: "bhp:byok-speech:consent:01"
+    policy_context:
+      policy_owner_ref: null
+      policy_block_note: null
+    embedded_surface_limitations:
+      - "Credentials cannot be collected here."
+      - "High-risk approvals open in a host-native sheet."
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-29T16:55:02Z"
+
+  - $schema: ../../../schemas/auth/mic_state.schema.json
+    record_kind: mic_state_record
+    mic_state_schema_version: 1
+    mic_state_id: "auth:mic_state:embedded_surface:policy_blocked:01"
+    device_class: microphone
+    mic_state_class: policy_blocked
+    state_label: "Policy blocked"
+    state_note: "Microphone capture cannot start from an embedded surface; use the system browser boundary."
+    actor:
+      actor_class: extension
+      actor_subject_ref: "actor:extension:provider_consent_panel:01"
+      actor_label: "Provider consent panel"
+      surface_ref: "emb:voice:provider_consent:01"
+      initiated_by_user: false
+    processing_locus:
+      processing_locus_class: byok_remote_provider
+      processing_locus_label: "Audio would be sent to a third-party provider"
+    retention:
+      retention_posture_class: provider_retained_under_terms
+      retention_note: "Provider retention terms apply; consent is reviewed in the system browser."
+    device_permission_row_ref: "auth:device_permission:microphone:embedded_surface:01"
+    voice_mode_session_ref: null
+    transcript_correction_path_ref: null
+    stop_or_mute_action: null
+    transcript_review_action:
+      action_class: open_capture_detail
+      action_label: "Why capture is blocked"
+      command_id_ref: null
+      route_ref: "emb:voice:provider_consent:01"
+    open_detail_action:
+      action_class: open_capture_detail
+      action_label: "Boundary details"
+      command_id_ref: null
+      route_ref: "emb:voice:provider_consent:01"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action:
+      action_class: open_system_browser_boundary
+      action_label: "Continue in system browser"
+      command_id_ref: null
+      route_ref: "bhp:byok-speech:consent:01"
+    policy_context:
+      policy_owner_ref: "policy_owner:embedded_surface_boundary:01"
+      policy_block_note: "Embedded surfaces cannot initiate microphone capture."
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-29T16:55:03Z"
+
