@@ -1,0 +1,951 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/whats_new_card.schema.json",
+  "title": "Aureline release-notes, what's-new, and service-health communication card",
+  "description": "Boundary schema for one whats_new_card_record frozen in docs/release/release_notes_whats_new_service_health_contract.md. The record is the canonical release and service-communication surface used before upgrade, after upgrade, and during managed-feature degradation. One card can be projected as a post-upgrade what's-new card, an update-detail view, a breaking-change or migration notice, a service-health panel, a stale-status banner, or an admin note. The card freezes the surfaces, change classes, evidence-link rules, service-health tiering, freshness/cache disclosure, local-vs-service boundary truth, and non-blocking invariants. Raw release prose, raw URLs, raw advisory payloads, raw incident bodies, raw status-page hostnames, raw policy bodies, raw tenant identifiers, raw user identifiers, and raw paths never cross this boundary. Adding a new card_class, change_class, scope_class, service_tier_class, freshness_class, data_source_class, route_class, or rendering-contract field is additive-minor and bumps whats_new_card_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/whats_new_card_record",
+  "$defs": {
+    "whats_new_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Additive vocabulary additions bump this integer; repurposing existing values is breaking."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable ref safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, and offline review. Raw payloads, raw URLs, raw status-page hostnames, and raw private endpoints do not appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short reviewable sentence. Raw release prose paragraphs, raw URLs, raw advisory payloads, raw incident bodies, raw policy bodies, and raw artifact bytes MUST NOT appear."
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "description": "RFC 3339 / ISO 8601 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "card_id": {
+      "type": "string",
+      "pattern": "^whats_new_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable card id. Quoted by release packets, support bundles, diagnostics exports, and admin audit history."
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "card_class": {
+      "type": "string",
+      "enum": [
+        "whats_new_post_upgrade",
+        "update_detail_view",
+        "breaking_change_notice",
+        "service_health_panel",
+        "stale_status_banner",
+        "admin_note"
+      ],
+      "description": "Closed surface vocabulary. Each surface has its own rendering invariants frozen by this contract; the same card record cannot silently drift between surfaces without reissuing under a new card id."
+    },
+    "product_name_class": {
+      "type": "string",
+      "enum": ["aureline"],
+      "description": "Aligned with schemas/build/exact_build_identity.schema.json#product_name_class."
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Aligned with schemas/release/release_candidate_card.schema.json#channel_class."
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_name_class",
+        "channel_class",
+        "version_label",
+        "prior_version_label",
+        "exact_build_identity_ref",
+        "release_candidate_card_ref",
+        "update_manifest_ref",
+        "subject_disclosure"
+      ],
+      "properties": {
+        "product_name_class": { "$ref": "#/$defs/product_name_class" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "version_label": { "$ref": "#/$defs/non_empty_string" },
+        "prior_version_label": { "$ref": "#/$defs/nullable_string" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "release_candidate_card_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "update_manifest_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "subject_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "change_class": {
+      "type": "string",
+      "enum": [
+        "new",
+        "changed",
+        "deprecated",
+        "security",
+        "migration_required",
+        "admin_action_required"
+      ],
+      "description": "Closed change-class vocabulary. migration_required and admin_action_required are reserved for entries that demand a deliberate user or admin response; security marks advisory-driven entries; deprecated names a sunset; changed marks a behavior change; new marks an additive entry."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "cli",
+        "remote_agent",
+        "extension_sdk",
+        "extension_package",
+        "managed_service_contract",
+        "marketplace_metadata",
+        "policy_bundle",
+        "docs_pack",
+        "schema_export",
+        "release_evidence_packet",
+        "supply_chain_artifact",
+        "managed_feature",
+        "optional_managed_addon",
+        "platform_compatibility"
+      ],
+      "description": "Aligned with schemas/release/release_candidate_card.schema.json artifact-family vocabulary plus the managed-feature scopes service-health entries draw on."
+    },
+    "reversibility_class": {
+      "type": "string",
+      "enum": [
+        "reversible_via_rollback",
+        "reversible_via_repin",
+        "reversible_via_user_setting",
+        "irreversible_after_restart",
+        "irreversible_after_migration",
+        "not_applicable"
+      ]
+    },
+    "behavior_change_kind_class": {
+      "type": "string",
+      "enum": [
+        "no_behavior_change",
+        "default_changed",
+        "schema_changed",
+        "shortcut_or_command_changed",
+        "ux_layout_changed",
+        "policy_default_changed",
+        "removal",
+        "rename",
+        "deprecation_warning_only"
+      ]
+    },
+    "change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "change_class",
+        "scope_class",
+        "title",
+        "body",
+        "behavior_change_kind_class",
+        "reversibility_class",
+        "applies_before_restart",
+        "evidence_refs",
+        "known_limit_refs",
+        "migration_guide_ref",
+        "admin_action_ref",
+        "advisory_ref",
+        "deprecation_replacement_ref"
+      ],
+      "properties": {
+        "entry_id": {
+          "type": "string",
+          "pattern": "^whats_new_entry:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "change_class": { "$ref": "#/$defs/change_class" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "body": { "$ref": "#/$defs/reviewable_sentence" },
+        "behavior_change_kind_class": { "$ref": "#/$defs/behavior_change_kind_class" },
+        "reversibility_class": { "$ref": "#/$defs/reversibility_class" },
+        "applies_before_restart": { "type": "boolean" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "known_limit_refs": { "$ref": "#/$defs/ref_array" },
+        "migration_guide_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "admin_action_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "advisory_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "deprecation_replacement_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      },
+      "allOf": [
+        {
+          "description": "Breaking and behavior-changing entries (changed, deprecated, migration_required, admin_action_required, security, or any non-no-behavior-change kind) MUST link at least one known-limit ref so reviewers can see what is documented as not-yet-fixed alongside the change copy.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "change_class": {
+                    "enum": ["changed", "deprecated", "security", "migration_required", "admin_action_required"]
+                  }
+                },
+                "required": ["change_class"]
+              },
+              {
+                "properties": {
+                  "behavior_change_kind_class": {
+                    "enum": [
+                      "default_changed",
+                      "schema_changed",
+                      "shortcut_or_command_changed",
+                      "ux_layout_changed",
+                      "policy_default_changed",
+                      "removal",
+                      "rename"
+                    ]
+                  }
+                },
+                "required": ["behavior_change_kind_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "known_limit_refs": { "minItems": 1 },
+              "evidence_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "migration_required entries MUST resolve a migration guide ref so the migration is readable from the entry.",
+          "if": {
+            "properties": { "change_class": { "const": "migration_required" } },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": {
+              "migration_guide_ref": {
+                "not": { "type": "null" }
+              }
+            },
+            "required": ["migration_guide_ref"]
+          }
+        },
+        {
+          "description": "admin_action_required entries MUST resolve an admin action ref so the requested admin response is readable from the entry.",
+          "if": {
+            "properties": { "change_class": { "const": "admin_action_required" } },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": {
+              "admin_action_ref": {
+                "not": { "type": "null" }
+              }
+            },
+            "required": ["admin_action_ref"]
+          }
+        },
+        {
+          "description": "security entries MUST resolve an advisory ref so the security copy quotes the same advisory the rest of the supply-chain surfaces use.",
+          "if": {
+            "properties": { "change_class": { "const": "security" } },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": {
+              "advisory_ref": {
+                "not": { "type": "null" }
+              }
+            },
+            "required": ["advisory_ref"]
+          }
+        },
+        {
+          "description": "deprecated entries MUST resolve a replacement ref so a deprecation cannot be communicated without naming what to use instead.",
+          "if": {
+            "properties": { "change_class": { "const": "deprecated" } },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": {
+              "deprecation_replacement_ref": {
+                "not": { "type": "null" }
+              }
+            },
+            "required": ["deprecation_replacement_ref"]
+          }
+        }
+      ]
+    },
+    "service_tier_class": {
+      "type": "string",
+      "enum": [
+        "local_machine",
+        "remote_target",
+        "enterprise_control_plane",
+        "optional_vendor_hosted_service"
+      ],
+      "description": "Closed service-health tier vocabulary. local_machine names the running build on the user's machine; remote_target names a customer-operated remote (SSH host, dev container, remote agent, customer-operated service); enterprise_control_plane names the customer- or vendor-operated control plane the deployment is bound to; optional_vendor_hosted_service names an opt-in vendor-hosted add-on. Service-health surfaces MUST keep these tiers separate instead of collapsing into one banner."
+    },
+    "service_health_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded_partial",
+        "degraded_read_only",
+        "outage_blocking",
+        "scheduled_maintenance",
+        "tenant_migration",
+        "boundary_recheck_required",
+        "policy_limited",
+        "unknown_requires_review",
+        "not_applicable"
+      ],
+      "description": "Aligned with the outage-notice and maintenance-notice state vocabulary so service-health tiers project the same truth used by the underlying notices."
+    },
+    "data_source_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "warm_cached",
+        "stale_cached",
+        "mirrored_official",
+        "offline_bundle",
+        "policy_limited",
+        "unavailable_local_only"
+      ],
+      "description": "Closed source vocabulary for the snapshot rendered. Cards rendered from cached, mirrored, or policy-limited sources MUST mark the source explicitly so users do not read the snapshot as live truth."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "warm_cached",
+        "stale_requires_review",
+        "expired",
+        "imported_historical",
+        "unknown",
+        "not_applicable"
+      ]
+    },
+    "service_health_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "service_tier_class",
+        "service_label",
+        "health_state_class",
+        "data_source_class",
+        "freshness_class",
+        "outage_notice_ref",
+        "maintenance_notice_ref",
+        "boundary_truth_disclosure",
+        "row_disclosure"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^whats_new_health_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "service_tier_class": { "$ref": "#/$defs/service_tier_class" },
+        "service_label": { "$ref": "#/$defs/non_empty_string" },
+        "health_state_class": { "$ref": "#/$defs/service_health_state_class" },
+        "data_source_class": { "$ref": "#/$defs/data_source_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "outage_notice_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "maintenance_notice_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "boundary_truth_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "row_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "When the tier reports a managed-degradation state, an outage or maintenance notice ref MUST be linked so the row's truth resolves into the underlying notice contract.",
+          "if": {
+            "properties": {
+              "health_state_class": {
+                "enum": [
+                  "degraded_partial",
+                  "degraded_read_only",
+                  "outage_blocking",
+                  "scheduled_maintenance",
+                  "tenant_migration",
+                  "boundary_recheck_required"
+                ]
+              }
+            },
+            "required": ["health_state_class"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "outage_notice_ref": { "not": { "type": "null" } }
+                },
+                "required": ["outage_notice_ref"]
+              },
+              {
+                "properties": {
+                  "maintenance_notice_ref": { "not": { "type": "null" } }
+                },
+                "required": ["maintenance_notice_ref"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "service_health_panel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "panel_disclosure"
+      ],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/service_health_row" },
+          "allOf": [
+            {
+              "contains": {
+                "properties": { "service_tier_class": { "const": "local_machine" } },
+                "required": ["service_tier_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "service_tier_class": { "const": "remote_target" } },
+                "required": ["service_tier_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "service_tier_class": { "const": "enterprise_control_plane" } },
+                "required": ["service_tier_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "service_tier_class": { "const": "optional_vendor_hosted_service" } },
+                "required": ["service_tier_class"]
+              }
+            }
+          ]
+        },
+        "panel_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "freshness_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_source_class",
+        "freshness_class",
+        "last_refreshed_at",
+        "stale_after",
+        "stale_label",
+        "boundary_truth_disclosure"
+      ],
+      "properties": {
+        "data_source_class": { "$ref": "#/$defs/data_source_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "last_refreshed_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "stale_after": { "$ref": "#/$defs/nullable_string" },
+        "stale_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "boundary_truth_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "When the freshness class is anything other than current or not_applicable, the card MUST carry a stale label so cached, stale, mirrored, offline, or policy-limited snapshots cannot read as live truth.",
+          "if": {
+            "properties": {
+              "freshness_class": {
+                "enum": ["warm_cached", "stale_requires_review", "expired", "imported_historical", "unknown"]
+              }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "stale_label": { "not": { "type": "null" } }
+            },
+            "required": ["stale_label"]
+          }
+        }
+      ]
+    },
+    "access_point_class": {
+      "type": "string",
+      "enum": [
+        "help_whats_new",
+        "command_palette_whats_new",
+        "settings_release_pane",
+        "release_notes_export",
+        "support_bundle",
+        "diagnostics_export",
+        "admin_console_release_pane",
+        "service_health_pane",
+        "cli_whats_new",
+        "offline_review"
+      ]
+    },
+    "reachability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "unavailable_visible",
+        "policy_hidden_visible",
+        "not_applicable_visible"
+      ]
+    },
+    "access_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "access_point_class",
+        "reachability_class",
+        "action_ref",
+        "stable_navigation",
+        "disclosure"
+      ],
+      "properties": {
+        "access_point_class": { "$ref": "#/$defs/access_point_class" },
+        "reachability_class": { "$ref": "#/$defs/reachability_class" },
+        "action_ref": { "$ref": "#/$defs/nullable_string" },
+        "stable_navigation": {
+          "type": "boolean",
+          "description": "True when this access point lives on a stable navigation surface (Help menu, command palette, settings pane). At least one stable_navigation=true access point MUST be present so the card can be reopened later."
+        },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "admin_audience_class": {
+      "type": "string",
+      "enum": [
+        "fleet_admin",
+        "tenant_admin",
+        "workspace_admin",
+        "security_officer",
+        "compliance_officer",
+        "support_operator",
+        "release_operator",
+        "not_admin_audience"
+      ]
+    },
+    "affected_group_kind_class": {
+      "type": "string",
+      "enum": [
+        "deployment_profile",
+        "tenant",
+        "org",
+        "workspace",
+        "ring",
+        "fleet_segment",
+        "policy_class",
+        "role_class",
+        "extension_audience",
+        "not_applicable"
+      ]
+    },
+    "affected_group_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "kind_class",
+        "group_label",
+        "group_ref",
+        "row_disclosure"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^whats_new_audience_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "kind_class": { "$ref": "#/$defs/affected_group_kind_class" },
+        "group_label": { "$ref": "#/$defs/non_empty_string" },
+        "group_ref": { "$ref": "#/$defs/opaque_ref" },
+        "row_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "admin_note_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audience_classes",
+        "affected_groups",
+        "admin_action_summary"
+      ],
+      "properties": {
+        "audience_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/admin_audience_class" },
+          "uniqueItems": true
+        },
+        "affected_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_group_row" }
+        },
+        "admin_action_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "non_blocking_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocks_typing",
+        "blocks_save",
+        "blocks_recovery_critical_flow",
+        "reopenable_from_stable_navigation",
+        "user_dismissible_without_reading"
+      ],
+      "properties": {
+        "blocks_typing": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. The what's-new and release-communication card cannot block typing in the running editor session."
+        },
+        "blocks_save": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. The card cannot block save, autosave, recovery snapshotting, or local export."
+        },
+        "blocks_recovery_critical_flow": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Recovery-critical flows (crash recovery, decode-recovery review, save-consequence resolution) cannot be gated behind reading the card."
+        },
+        "reopenable_from_stable_navigation": {
+          "type": "boolean",
+          "const": true,
+          "description": "Must remain true. The card MUST remain reopenable later from a stable navigation surface (Help menu, command palette, or settings pane)."
+        },
+        "user_dismissible_without_reading": {
+          "type": "boolean",
+          "description": "True when the card can be dismissed from the upgrade surface without reading it. Stays true for whats_new_post_upgrade so reviewing release notes never blocks getting back to work; service-health and breaking-change surfaces MAY set this to false."
+        }
+      }
+    },
+    "rendering_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_visible",
+        "change_entries_visible",
+        "service_health_panel_visible",
+        "freshness_state_visible",
+        "admin_note_visible",
+        "access_points_visible",
+        "non_blocking_invariants_enforced"
+      ],
+      "properties": {
+        "subject_visible": { "type": "boolean" },
+        "change_entries_visible": { "type": "boolean" },
+        "service_health_panel_visible": { "type": "boolean" },
+        "freshness_state_visible": { "type": "boolean" },
+        "admin_note_visible": { "type": "boolean" },
+        "access_points_visible": { "type": "boolean" },
+        "non_blocking_invariants_enforced": {
+          "type": "boolean",
+          "const": true,
+          "description": "Must remain true. The non-blocking invariants are structural; surfaces MUST enforce them rather than treat them as guidance."
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captured_at", "stale_after", "freshness_state", "next_review_target"],
+      "properties": {
+        "captured_at": { "$ref": "#/$defs/utc_datetime" },
+        "stale_after": { "$ref": "#/$defs/nullable_string" },
+        "freshness_state": {
+          "type": "string",
+          "enum": [
+            "current",
+            "warm_cached",
+            "stale",
+            "imported_historical",
+            "retest_pending",
+            "unknown"
+          ]
+        },
+        "next_review_target": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "whats_new_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "whats_new_card_schema_version",
+        "record_kind",
+        "card_id",
+        "card_class",
+        "emitted_at",
+        "card_summary",
+        "subject",
+        "change_entries",
+        "service_health_panel",
+        "freshness_state",
+        "admin_note",
+        "access_points",
+        "non_blocking_invariants",
+        "owner",
+        "evidence_owner",
+        "freshness",
+        "rendering_contract",
+        "narrative_refs",
+        "notes"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-fixture prelude. Runtime producers omit this field."
+        },
+        "whats_new_card_schema_version": { "$ref": "#/$defs/whats_new_card_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "whats_new_card_record"
+        },
+        "card_id": { "$ref": "#/$defs/card_id" },
+        "card_class": { "$ref": "#/$defs/card_class" },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "card_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "subject": { "$ref": "#/$defs/subject" },
+        "change_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/change_entry" }
+        },
+        "service_health_panel": { "$ref": "#/$defs/service_health_panel" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "admin_note": { "$ref": "#/$defs/admin_note_block" },
+        "access_points": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/access_point" },
+          "allOf": [
+            {
+              "description": "At least one access point MUST live on a stable navigation surface so the card can be reopened later.",
+              "contains": {
+                "properties": { "stable_navigation": { "const": true } },
+                "required": ["stable_navigation"]
+              }
+            }
+          ]
+        },
+        "non_blocking_invariants": { "$ref": "#/$defs/non_blocking_invariants" },
+        "owner": { "$ref": "#/$defs/owner_ref" },
+        "evidence_owner": { "$ref": "#/$defs/owner_ref" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "rendering_contract": { "$ref": "#/$defs/rendering_contract" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "whats_new_post_upgrade and update_detail_view cards describe a release; they MUST list at least one change entry.",
+          "if": {
+            "properties": {
+              "card_class": {
+                "enum": ["whats_new_post_upgrade", "update_detail_view"]
+              }
+            },
+            "required": ["card_class"]
+          },
+          "then": {
+            "properties": {
+              "change_entries": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "breaking_change_notice cards MUST contain at least one change entry whose change_class is migration_required, deprecated, security, or admin_action_required, or whose behavior_change_kind_class names a non-no-behavior-change kind, AND MUST resolve a release_candidate_card_ref so the notice projects from a release-candidate card rather than minting a new release vocabulary.",
+          "if": {
+            "properties": {
+              "card_class": { "const": "breaking_change_notice" }
+            },
+            "required": ["card_class"]
+          },
+          "then": {
+            "properties": {
+              "change_entries": {
+                "minItems": 1,
+                "contains": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "change_class": {
+                          "enum": ["migration_required", "deprecated", "security", "admin_action_required"]
+                        }
+                      },
+                      "required": ["change_class"]
+                    },
+                    {
+                      "properties": {
+                        "behavior_change_kind_class": {
+                          "enum": [
+                            "default_changed",
+                            "schema_changed",
+                            "shortcut_or_command_changed",
+                            "ux_layout_changed",
+                            "policy_default_changed",
+                            "removal",
+                            "rename"
+                          ]
+                        }
+                      },
+                      "required": ["behavior_change_kind_class"]
+                    }
+                  ]
+                }
+              },
+              "subject": {
+                "properties": {
+                  "release_candidate_card_ref": { "not": { "type": "null" } }
+                },
+                "required": ["release_candidate_card_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "service_health_panel and stale_status_banner cards MUST keep the four service tiers separate; the service_health_panel field's contains gates already require all four tiers, but stale-status banners additionally require a stale label and a non-current freshness class.",
+          "if": {
+            "properties": {
+              "card_class": { "const": "stale_status_banner" }
+            },
+            "required": ["card_class"]
+          },
+          "then": {
+            "properties": {
+              "freshness_state": {
+                "properties": {
+                  "freshness_class": {
+                    "enum": ["warm_cached", "stale_requires_review", "expired", "imported_historical", "unknown"]
+                  },
+                  "stale_label": { "not": { "type": "null" } }
+                },
+                "required": ["freshness_class", "stale_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "admin_note cards MUST resolve at least one admin audience class other than not_admin_audience and at least one affected group row.",
+          "if": {
+            "properties": {
+              "card_class": { "const": "admin_note" }
+            },
+            "required": ["card_class"]
+          },
+          "then": {
+            "properties": {
+              "admin_note": {
+                "properties": {
+                  "audience_classes": {
+                    "minItems": 1,
+                    "not": {
+                      "items": { "const": "not_admin_audience" }
+                    }
+                  },
+                  "affected_groups": { "minItems": 1 }
+                },
+                "required": ["audience_classes", "affected_groups"]
+              }
+            }
+          }
+        },
+        {
+          "description": "When the card carries a managed-degradation health state on any tier, the panel disclosure MUST name the local-vs-service boundary by linking outage or maintenance notice refs on the affected rows; the per-row gate inside service_health_row already enforces the link, this rule pins the rendering contract so the panel cannot be hidden when degradation is present.",
+          "if": {
+            "properties": {
+              "service_health_panel": {
+                "properties": {
+                  "rows": {
+                    "contains": {
+                      "properties": {
+                        "health_state_class": {
+                          "enum": [
+                            "degraded_partial",
+                            "degraded_read_only",
+                            "outage_blocking",
+                            "scheduled_maintenance",
+                            "tenant_migration",
+                            "boundary_recheck_required"
+                          ]
+                        }
+                      },
+                      "required": ["health_state_class"]
+                    }
+                  }
+                },
+                "required": ["rows"]
+              }
+            },
+            "required": ["service_health_panel"]
+          },
+          "then": {
+            "properties": {
+              "rendering_contract": {
+                "properties": {
+                  "service_health_panel_visible": { "const": true }
+                },
+                "required": ["service_health_panel_visible"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
