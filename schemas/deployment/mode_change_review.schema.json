@@ -1,0 +1,1182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deployment/mode_change_review.schema.json",
+  "title": "Aureline mode-change review and disconnect-review records",
+  "description": "Boundary schema for the two records frozen in docs/ux/deployment_transition_contract.md. (1) The mode_change_review_record projects one deployment-boundary transition (sign_in, sign_out, org_switch, mirror_fallback, offline_transition, service_degradation, reconnect_required, deployment_profile_narrow) so auth sheets, account chips, mode-change sheets, status-bar deployment cells, activity-center rows, support packets, admin-audit exports, release-evidence excerpts, and CLI text formatters read one shape. The record carries from_posture and to_posture deployment summaries, preserved_local_state, invalidated_cached_authority_rows, reauth_or_retry_requirements, export_before_change_actions, rollback_or_reopen_path, authority_change_guard, and the optional disconnect_review_ref pairing. (2) The disconnect_review_record projects one service-pause / service-degrade / service-stale / mirror-loss / offline-transition / reconnect-required / boundary-recheck-required event so the same surfaces render local-continuity statements without flattening into a generic outage. The schema mints no new deployment_profile, tenant_org_scope_class, region_scope_class, key_mode_class, control_plane_service_class, control_plane_service_state_class, data_plane_capability_class, data_plane_capability_state_class, mirror_freshness_class, prohibited_implied_claim_class, consumer_surface_class, or offline_or_deny_all_state value; those re-export verbatim from /artifacts/governance/deployment_profiles.yaml, /schemas/deployment/local_core_continuity_packet.schema.json, /schemas/deployment/deployment_summary_card.schema.json, and /schemas/ux/transport_posture.schema.json. Adding a new transition_class, disconnect_event_class, authority_class, invalidation_reason_class, retained_credential_class, retry_class, rollback_class, authority_change_class, or reconnect_path_class is additive-minor and bumps the corresponding *_schema_version; repurposing an existing value, weakening any §5 invariant, or relaxing the no-silent-widening or local-continuity guarantees is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/mode_change_review_record" },
+    { "$ref": "#/$defs/disconnect_review_record" }
+  ],
+  "$defs": {
+    "mode_change_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the mode-change review payload shape. Current value is 1."
+    },
+    "disconnect_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the disconnect review payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, claim manifests, and release-evidence packets. Raw URLs, raw hostnames, raw IP addresses, raw absolute paths, raw OAuth tokens, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing names but never raw URLs, raw hostnames, raw absolute paths, raw OAuth tokens, raw policy rule bodies, raw command lines, or raw secret material."
+    },
+    "nullable_reviewable_label": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_label" }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Re-export of deployment_profile_id from /artifacts/governance/deployment_profiles.yaml."
+    },
+    "product_facing_label_class": {
+      "type": "string",
+      "enum": [
+        "desktop_local_first",
+        "self_hosted_sovereign",
+        "hybrid_remote_attach",
+        "air_gapped_mirror_only",
+        "browser_companion_handoff_default_home"
+      ]
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "region_scope_class": {
+      "type": "string",
+      "enum": [
+        "customer_region_pinned",
+        "remote_target_region",
+        "boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "key_mode_class": {
+      "type": "string",
+      "enum": [
+        "os_store",
+        "vendor_managed",
+        "customer_managed",
+        "offline_trust_root",
+        "not_applicable"
+      ]
+    },
+    "mirror_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic",
+        "not_applicable"
+      ]
+    },
+    "control_plane_service_class": {
+      "type": "string",
+      "enum": [
+        "sync_service",
+        "registry_service",
+        "relay_service",
+        "ai_broker_service",
+        "auth_identity_service",
+        "policy_service",
+        "docs_pack_service",
+        "catalog_service",
+        "telemetry_sink_service"
+      ]
+    },
+    "control_plane_service_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "stale_cache",
+        "unavailable",
+        "mirror_only",
+        "boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "data_plane_capability_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "local_save",
+        "local_search",
+        "local_git",
+        "local_tasks",
+        "local_docs_inspect",
+        "local_export",
+        "local_diagnostics"
+      ]
+    },
+    "data_plane_capability_state_class": {
+      "type": "string",
+      "enum": [
+        "available_local_safe",
+        "available_mirror_backed",
+        "reduced_read_only",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_by_policy",
+        "not_applicable"
+      ]
+    },
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "mirror_fresh_within_window",
+        "mirror_within_extended_window",
+        "mirror_past_extended_window",
+        "mirror_freshness_unknown",
+        "not_applicable"
+      ]
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "updates",
+        "extensions",
+        "docs_pack",
+        "policy_bundle",
+        "models"
+      ]
+    },
+    "prohibited_implied_claim_class": {
+      "type": "string",
+      "enum": [
+        "implied_air_gapped_when_egress_allowed",
+        "implied_sovereign_when_vendor_managed",
+        "implied_self_hosted_when_managed_cloud",
+        "implied_no_residual_dependency_when_required_present",
+        "implied_offline_parity_when_mirror_only",
+        "implied_managed_independence_when_local_dependent",
+        "implied_always_fresh_when_bounded_or_unbounded_stale"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "auth_sheet",
+        "account_chip",
+        "org_switch_sheet",
+        "mode_change_sheet",
+        "status_bar_cell",
+        "activity_center_row",
+        "support_packet_export",
+        "admin_audit_export",
+        "release_evidence_excerpt",
+        "cli_text_formatter",
+        "companion_surface"
+      ]
+    },
+    "transition_class": {
+      "type": "string",
+      "enum": [
+        "sign_in",
+        "sign_out",
+        "org_switch",
+        "mirror_fallback",
+        "offline_transition",
+        "service_degradation",
+        "reconnect_required",
+        "deployment_profile_narrow"
+      ]
+    },
+    "transition_phase": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "in_progress",
+        "committed",
+        "rolled_back"
+      ]
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "managed_session",
+        "signed_policy_bundle",
+        "signed_docs_pack",
+        "mirror_trust_root",
+        "ai_provider_token",
+        "browser_handoff_capability",
+        "companion_notification_channel",
+        "hosted_control_plane_session",
+        "customer_signed_offline_bundle"
+      ]
+    },
+    "invalidation_reason_class": {
+      "type": "string",
+      "enum": [
+        "session_revoked",
+        "org_changed",
+        "tenant_changed",
+        "policy_epoch_changed",
+        "key_mode_changed",
+        "profile_changed",
+        "mirror_changed",
+        "offline_boundary_entered",
+        "service_unavailable",
+        "boundary_recheck_required",
+        "seat_removed",
+        "account_deprovisioned"
+      ]
+    },
+    "retained_credential_class": {
+      "type": "string",
+      "enum": [
+        "os_store",
+        "customer_managed_keystore",
+        "offline_trust_root",
+        "none_required"
+      ]
+    },
+    "reauth_class": {
+      "type": "string",
+      "enum": [
+        "required",
+        "optional",
+        "not_required"
+      ]
+    },
+    "retry_class": {
+      "type": "string",
+      "enum": [
+        "required_after_change",
+        "optional",
+        "not_required",
+        "blocked_until_reconnect",
+        "manual_reconcile_after_boundary_change"
+      ]
+    },
+    "rollback_class": {
+      "type": "string",
+      "enum": [
+        "full_rollback_available",
+        "partial_rollback_available",
+        "reopen_with_warning",
+        "no_rollback_after_commit",
+        "no_rollback_required_inspect_only"
+      ]
+    },
+    "authority_change_class": {
+      "type": "string",
+      "enum": [
+        "narrows_only",
+        "maintains_orthogonal",
+        "widens_with_explicit_consent"
+      ]
+    },
+    "disconnect_event_class": {
+      "type": "string",
+      "enum": [
+        "service_pause",
+        "service_degrade",
+        "service_stale",
+        "mirror_loss",
+        "offline_transition_started",
+        "reconnect_required",
+        "boundary_recheck_required"
+      ]
+    },
+    "reconnect_path_class": {
+      "type": "string",
+      "enum": [
+        "wait_for_reconnect",
+        "manual_reconnect",
+        "mirror_refresh",
+        "offline_bundle_import",
+        "boundary_recheck_required",
+        "no_action_local_continue",
+        "escalate_to_admin"
+      ]
+    },
+    "deployment_posture_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profile",
+        "product_facing_label_class",
+        "tenant_org_scope_class",
+        "region_scope_class",
+        "key_mode_class",
+        "mirror_offline_state_class",
+        "control_plane_worst_state_class",
+        "data_plane_worst_state_class",
+        "prohibited_implied_claim_classes",
+        "posture_label"
+      ],
+      "properties": {
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile" },
+        "product_facing_label_class": { "$ref": "#/$defs/product_facing_label_class" },
+        "tenant_org_scope_class": { "$ref": "#/$defs/tenant_org_scope_class" },
+        "region_scope_class": { "$ref": "#/$defs/region_scope_class" },
+        "key_mode_class": { "$ref": "#/$defs/key_mode_class" },
+        "mirror_offline_state_class": { "$ref": "#/$defs/mirror_offline_state_class" },
+        "control_plane_worst_state_class": { "$ref": "#/$defs/control_plane_service_state_class" },
+        "data_plane_worst_state_class": { "$ref": "#/$defs/data_plane_capability_state_class" },
+        "prohibited_implied_claim_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/prohibited_implied_claim_class" },
+          "uniqueItems": true
+        },
+        "posture_label": { "$ref": "#/$defs/reviewable_label" },
+        "linked_summary_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_transport_posture_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "preserved_local_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_artifacts_safe",
+        "edit_save_undo_export_available",
+        "no_silent_loss_guarantee",
+        "retained_local_capabilities",
+        "retained_local_artifact_classes",
+        "retained_credential_classes",
+        "unsaved_buffer_count",
+        "safety_label"
+      ],
+      "properties": {
+        "local_artifacts_safe": { "type": "boolean", "const": true },
+        "edit_save_undo_export_available": { "type": "boolean", "const": true },
+        "no_silent_loss_guarantee": { "type": "boolean", "const": true },
+        "retained_local_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" },
+          "uniqueItems": true
+        },
+        "retained_local_artifact_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/data_plane_capability_class" },
+          "uniqueItems": true
+        },
+        "retained_credential_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_credential_class" },
+          "uniqueItems": true
+        },
+        "unsaved_buffer_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "safety_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "invalidated_cached_authority_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "authority_class",
+        "invalidation_reason_class",
+        "recheck_required",
+        "scope_label"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "invalidation_reason_class": { "$ref": "#/$defs/invalidation_reason_class" },
+        "recheck_required": { "type": "boolean" },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" },
+        "evidence_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "description": "managed_session authorities are invalidated only by a closed set of reasons; sign-in is not an invalidation event.",
+          "if": {
+            "properties": { "authority_class": { "const": "managed_session" } },
+            "required": ["authority_class"]
+          },
+          "then": {
+            "properties": {
+              "invalidation_reason_class": {
+                "enum": [
+                  "session_revoked",
+                  "org_changed",
+                  "tenant_changed",
+                  "seat_removed",
+                  "account_deprovisioned",
+                  "profile_changed",
+                  "service_unavailable",
+                  "offline_boundary_entered",
+                  "boundary_recheck_required"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "reauth_or_retry_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reauth_class",
+        "retry_class",
+        "reauth_requirement_refs",
+        "blocked_managed_actions",
+        "local_continuity_label"
+      ],
+      "properties": {
+        "reauth_class": { "$ref": "#/$defs/reauth_class" },
+        "retry_class": { "$ref": "#/$defs/retry_class" },
+        "reauth_requirement_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "blocked_managed_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_label" },
+          "uniqueItems": true
+        },
+        "local_continuity_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "reauth_class = required must list at least one reauth_requirement_ref.",
+          "if": {
+            "properties": { "reauth_class": { "const": "required" } },
+            "required": ["reauth_class"]
+          },
+          "then": {
+            "properties": {
+              "reauth_requirement_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "When reauth and retry are both not_required/optional, blocked_managed_actions must be empty.",
+          "if": {
+            "properties": {
+              "reauth_class": { "const": "not_required" },
+              "retry_class": { "enum": ["not_required", "optional"] }
+            },
+            "required": ["reauth_class", "retry_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_managed_actions": { "type": "array", "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "inspect_only_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "revalidation_on_open",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": [
+            "none_already_fresh",
+            "snapshot_open_read_only",
+            "requery_before_batch"
+          ]
+        },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      }
+    },
+    "rollback_or_reopen_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_class",
+        "rollback_label",
+        "rollback_action",
+        "rollback_safe",
+        "no_rollback_reason_label"
+      ],
+      "properties": {
+        "rollback_class": { "$ref": "#/$defs/rollback_class" },
+        "rollback_label": { "$ref": "#/$defs/reviewable_label" },
+        "rollback_action": { "$ref": "#/$defs/inspect_only_action" },
+        "rollback_safe": { "type": "boolean" },
+        "no_rollback_reason_label": { "$ref": "#/$defs/nullable_reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "Rollback-available classes set rollback_safe=true and leave the no-rollback reason null.",
+          "if": {
+            "properties": {
+              "rollback_class": {
+                "enum": [
+                  "full_rollback_available",
+                  "partial_rollback_available",
+                  "reopen_with_warning",
+                  "no_rollback_required_inspect_only"
+                ]
+              }
+            },
+            "required": ["rollback_class"]
+          },
+          "then": {
+            "properties": {
+              "rollback_safe": { "const": true },
+              "no_rollback_reason_label": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "no_rollback_after_commit sets rollback_safe=false and a non-null reason.",
+          "if": {
+            "properties": { "rollback_class": { "const": "no_rollback_after_commit" } },
+            "required": ["rollback_class"]
+          },
+          "then": {
+            "properties": {
+              "rollback_safe": { "const": false },
+              "no_rollback_reason_label": { "$ref": "#/$defs/reviewable_label" }
+            },
+            "required": ["no_rollback_reason_label"]
+          }
+        }
+      ]
+    },
+    "authority_change_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_change_class",
+        "silent_widening_blocked",
+        "explicit_consent_recorded",
+        "consent_evidence_ref",
+        "widening_summary_label"
+      ],
+      "properties": {
+        "authority_change_class": { "$ref": "#/$defs/authority_change_class" },
+        "silent_widening_blocked": { "type": "boolean", "const": true },
+        "explicit_consent_recorded": { "type": "boolean" },
+        "consent_evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "widening_summary_label": { "$ref": "#/$defs/nullable_reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "Widening transitions require explicit consent recording, a consent evidence ref, and a widening summary label.",
+          "if": {
+            "properties": {
+              "authority_change_class": { "const": "widens_with_explicit_consent" }
+            },
+            "required": ["authority_change_class"]
+          },
+          "then": {
+            "properties": {
+              "explicit_consent_recorded": { "const": true },
+              "consent_evidence_ref": { "$ref": "#/$defs/opaque_id" },
+              "widening_summary_label": { "$ref": "#/$defs/reviewable_label" }
+            },
+            "required": ["consent_evidence_ref", "widening_summary_label"]
+          }
+        },
+        {
+          "description": "Non-widening transitions cannot record explicit consent through this guard and leave the widening summary null.",
+          "if": {
+            "properties": {
+              "authority_change_class": {
+                "enum": ["narrows_only", "maintains_orthogonal"]
+              }
+            },
+            "required": ["authority_change_class"]
+          },
+          "then": {
+            "properties": {
+              "explicit_consent_recorded": { "const": false },
+              "consent_evidence_ref": { "type": "null" },
+              "widening_summary_label": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "stale_artifact_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_class",
+        "mirror_freshness_class",
+        "last_refresh_at",
+        "freshness_label"
+      ],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "last_refresh_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "freshness_label": { "$ref": "#/$defs/reviewable_label" },
+        "evidence_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "description": "Mirror freshness with a known window requires last_refresh_at.",
+          "if": {
+            "properties": {
+              "mirror_freshness_class": {
+                "enum": [
+                  "mirror_fresh_within_window",
+                  "mirror_within_extended_window",
+                  "mirror_past_extended_window"
+                ]
+              }
+            },
+            "required": ["mirror_freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "last_refresh_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        }
+      ]
+    },
+    "local_continuity_statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available_local_safe_capability_classes",
+        "local_safe_label",
+        "no_silent_loss_guarantee",
+        "unsaved_local_artifacts_safe"
+      ],
+      "properties": {
+        "available_local_safe_capability_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/data_plane_capability_class" },
+          "uniqueItems": true
+        },
+        "local_safe_label": { "$ref": "#/$defs/reviewable_label" },
+        "no_silent_loss_guarantee": { "type": "boolean", "const": true },
+        "unsaved_local_artifacts_safe": { "type": "boolean", "const": true }
+      }
+    },
+    "mode_change_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "mode_change_review_schema_version",
+        "review_id",
+        "emitted_at",
+        "transition_class",
+        "transition_phase",
+        "triggered_by_user_action",
+        "from_posture",
+        "to_posture",
+        "preserved_local_state",
+        "invalidated_cached_authority_rows",
+        "reauth_or_retry_requirements",
+        "export_before_change_actions",
+        "rollback_or_reopen_path",
+        "authority_change_guard",
+        "consumer_surfaces",
+        "redaction_class",
+        "export_safe",
+        "disconnect_review_ref"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "mode_change_review_record" },
+        "mode_change_review_schema_version": { "$ref": "#/$defs/mode_change_review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "transition_class": { "$ref": "#/$defs/transition_class" },
+        "transition_phase": { "$ref": "#/$defs/transition_phase" },
+        "triggered_by_user_action": { "type": "boolean" },
+        "from_posture": { "$ref": "#/$defs/deployment_posture_summary" },
+        "to_posture": { "$ref": "#/$defs/deployment_posture_summary" },
+        "preserved_local_state": { "$ref": "#/$defs/preserved_local_state" },
+        "invalidated_cached_authority_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidated_cached_authority_row" }
+        },
+        "reauth_or_retry_requirements": { "$ref": "#/$defs/reauth_or_retry_requirements" },
+        "export_before_change_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/inspect_only_action" }
+        },
+        "rollback_or_reopen_path": { "$ref": "#/$defs/rollback_or_reopen_path" },
+        "authority_change_guard": { "$ref": "#/$defs/authority_change_guard" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface_class" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "disconnect_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_managed_session_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_deployment_summary_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_reauth_requirement_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "linked_outage_notice_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "linked_transport_posture_ref": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Voluntary transitions are user-triggered.",
+          "if": {
+            "properties": {
+              "transition_class": {
+                "enum": ["sign_in", "sign_out", "org_switch", "deployment_profile_narrow"]
+              }
+            },
+            "required": ["transition_class"]
+          },
+          "then": {
+            "properties": {
+              "triggered_by_user_action": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Involuntary transitions are not user-triggered.",
+          "if": {
+            "properties": {
+              "transition_class": {
+                "enum": [
+                  "mirror_fallback",
+                  "offline_transition",
+                  "service_degradation",
+                  "reconnect_required"
+                ]
+              }
+            },
+            "required": ["transition_class"]
+          },
+          "then": {
+            "properties": {
+              "triggered_by_user_action": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Sign-in is the only voluntary widening transition; sign-out, profile narrows, and involuntary transitions cannot widen authority.",
+          "if": {
+            "properties": {
+              "transition_class": {
+                "enum": [
+                  "sign_out",
+                  "mirror_fallback",
+                  "offline_transition",
+                  "service_degradation",
+                  "reconnect_required",
+                  "deployment_profile_narrow"
+                ]
+              }
+            },
+            "required": ["transition_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_change_guard": {
+                "type": "object",
+                "properties": {
+                  "authority_change_class": {
+                    "enum": ["narrows_only", "maintains_orthogonal"]
+                  }
+                },
+                "required": ["authority_change_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Sign-in widens authority and requires explicit consent.",
+          "if": {
+            "properties": { "transition_class": { "const": "sign_in" } },
+            "required": ["transition_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_change_guard": {
+                "type": "object",
+                "properties": {
+                  "authority_change_class": { "const": "widens_with_explicit_consent" }
+                },
+                "required": ["authority_change_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Disconnect-class transitions must pair with a non-null disconnect_review_ref.",
+          "if": {
+            "properties": {
+              "transition_class": {
+                "enum": [
+                  "mirror_fallback",
+                  "offline_transition",
+                  "service_degradation",
+                  "reconnect_required"
+                ]
+              }
+            },
+            "required": ["transition_class"]
+          },
+          "then": {
+            "properties": {
+              "disconnect_review_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["disconnect_review_ref"]
+          }
+        },
+        {
+          "description": "Voluntary narrowing transitions with unsaved buffers must surface at least one export-before-change action.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "transition_class": {
+                    "enum": ["sign_out", "org_switch", "deployment_profile_narrow"]
+                  }
+                },
+                "required": ["transition_class"]
+              },
+              {
+                "properties": {
+                  "preserved_local_state": {
+                    "type": "object",
+                    "properties": {
+                      "unsaved_buffer_count": { "type": "integer", "minimum": 1 }
+                    },
+                    "required": ["unsaved_buffer_count"]
+                  }
+                },
+                "required": ["preserved_local_state"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "export_before_change_actions": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "Air-gapped target profiles cannot route through companion surfaces.",
+          "if": {
+            "properties": {
+              "to_posture": {
+                "type": "object",
+                "properties": {
+                  "deployment_profile": { "const": "air_gapped" }
+                },
+                "required": ["deployment_profile"]
+              }
+            },
+            "required": ["to_posture"]
+          },
+          "then": {
+            "properties": {
+              "consumer_surfaces": {
+                "type": "array",
+                "not": { "contains": { "const": "companion_surface" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "Records exported under export_safe MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        },
+        {
+          "description": "rolled_back phase requires a rollback-available rollback class.",
+          "if": {
+            "properties": { "transition_phase": { "const": "rolled_back" } },
+            "required": ["transition_phase"]
+          },
+          "then": {
+            "properties": {
+              "rollback_or_reopen_path": {
+                "type": "object",
+                "properties": {
+                  "rollback_class": {
+                    "enum": [
+                      "full_rollback_available",
+                      "partial_rollback_available",
+                      "reopen_with_warning"
+                    ]
+                  }
+                },
+                "required": ["rollback_class"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "disconnect_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "disconnect_review_schema_version",
+        "review_id",
+        "emitted_at",
+        "disconnect_event_class",
+        "affected_service_classes",
+        "affected_capability_classes",
+        "local_continuity_statement",
+        "paused_capabilities",
+        "stale_artifacts",
+        "reconnect_path_class",
+        "reconnect_label",
+        "requires_user_action",
+        "freshness_label",
+        "redaction_class",
+        "export_safe"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "disconnect_review_record" },
+        "disconnect_review_schema_version": { "$ref": "#/$defs/disconnect_review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "disconnect_event_class": { "$ref": "#/$defs/disconnect_event_class" },
+        "affected_service_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/control_plane_service_class" },
+          "uniqueItems": true
+        },
+        "affected_capability_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/data_plane_capability_class" },
+          "uniqueItems": true
+        },
+        "local_continuity_statement": { "$ref": "#/$defs/local_continuity_statement" },
+        "paused_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_label" },
+          "uniqueItems": true
+        },
+        "stale_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stale_artifact_row" }
+        },
+        "reconnect_path_class": { "$ref": "#/$defs/reconnect_path_class" },
+        "reconnect_label": { "$ref": "#/$defs/reviewable_label" },
+        "requires_user_action": { "type": "boolean" },
+        "freshness_label": { "$ref": "#/$defs/nullable_reviewable_label" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "mode_change_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_outage_notice_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "linked_transport_posture_ref": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Service-class disconnect events require at least one affected service class. The user-disabled offline transition (network_disabled_by_user) is the only path that may carry an empty affected_service_classes list.",
+          "if": {
+            "properties": {
+              "disconnect_event_class": {
+                "enum": [
+                  "service_pause",
+                  "service_degrade",
+                  "service_stale",
+                  "mirror_loss",
+                  "reconnect_required",
+                  "boundary_recheck_required"
+                ]
+              }
+            },
+            "required": ["disconnect_event_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_service_classes": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "Stale artifacts with non-fresh freshness require a non-null freshness label on the disconnect review.",
+          "if": {
+            "properties": {
+              "stale_artifacts": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "mirror_freshness_class": {
+                      "enum": [
+                        "mirror_within_extended_window",
+                        "mirror_past_extended_window",
+                        "mirror_freshness_unknown"
+                      ]
+                    }
+                  },
+                  "required": ["mirror_freshness_class"]
+                }
+              }
+            },
+            "required": ["stale_artifacts"]
+          },
+          "then": {
+            "properties": {
+              "freshness_label": { "$ref": "#/$defs/reviewable_label" }
+            },
+            "required": ["freshness_label"]
+          }
+        },
+        {
+          "description": "Records exported under export_safe MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

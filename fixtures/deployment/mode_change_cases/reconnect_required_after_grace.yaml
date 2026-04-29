@@ -1,0 +1,139 @@
+# yaml-language-server: $schema=../../../schemas/deployment/mode_change_review.schema.json
+$schema: "https://aureline.dev/schemas/deployment/mode_change_review.schema.json"
+__fixture__:
+  name: reconnect_required_after_grace
+  scenario: >
+    A managed-cloud deployment whose offline grace window closed and
+    whose next attempted managed action requires a fresh reconnect.
+    Reauth against the auth identity service is required. Local edit,
+    save, undo, and user-owned export remain available throughout.
+  contract_sections:
+    - "§3 The mode-change review record"
+    - "§3.7 reauth_or_retry_requirements"
+    - "§5.5 Reauth or retry pairs with the auth contract"
+    - "§5.7 Disconnect-class transitions pair with a disconnect review"
+record_kind: mode_change_review_record
+mode_change_review_schema_version: 1
+review_id: "review.mode_change.reconnect_required_after_grace"
+emitted_at: "2026-04-29T00:30:00Z"
+transition_class: reconnect_required
+transition_phase: in_progress
+triggered_by_user_action: false
+from_posture:
+  deployment_profile: managed_cloud
+  product_facing_label_class: browser_companion_handoff_default_home
+  tenant_org_scope_class: customer_tenant
+  region_scope_class: customer_region_pinned
+  key_mode_class: vendor_managed
+  mirror_offline_state_class: offline_grace_preserved
+  control_plane_worst_state_class: stale_cache
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes:
+    - implied_self_hosted_when_managed_cloud
+    - implied_managed_independence_when_local_dependent
+    - implied_no_residual_dependency_when_required_present
+    - implied_offline_parity_when_mirror_only
+  posture_label: "Managed-cloud workspace under offline grace with stale managed cache."
+to_posture:
+  deployment_profile: managed_cloud
+  product_facing_label_class: browser_companion_handoff_default_home
+  tenant_org_scope_class: customer_tenant
+  region_scope_class: customer_region_pinned
+  key_mode_class: vendor_managed
+  mirror_offline_state_class: offline_grace_preserved
+  control_plane_worst_state_class: unavailable
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes:
+    - implied_self_hosted_when_managed_cloud
+    - implied_managed_independence_when_local_dependent
+    - implied_no_residual_dependency_when_required_present
+    - implied_offline_parity_when_mirror_only
+    - implied_always_fresh_when_bounded_or_unbounded_stale
+  posture_label: "Managed-cloud workspace whose grace window has closed; managed actions require fresh reconnect."
+preserved_local_state:
+  local_artifacts_safe: true
+  edit_save_undo_export_available: true
+  no_silent_loss_guarantee: true
+  retained_local_capabilities:
+    - "Local edit, save, undo, and search remain on device."
+    - "User-owned export remains available."
+    - "Local Git and local tasks remain available."
+  retained_local_artifact_classes:
+    - local_editing
+    - local_save
+    - local_search
+    - local_git
+    - local_tasks
+    - local_docs_inspect
+    - local_export
+    - local_diagnostics
+  retained_credential_classes:
+    - os_store
+  unsaved_buffer_count: 2
+  safety_label: "Two unsaved local buffers remain editable, saveable, and undoable while the user reconnects."
+invalidated_cached_authority_rows:
+  - row_id: "row.invalidate.reconnect_required.managed_session"
+    authority_class: managed_session
+    invalidation_reason_class: boundary_recheck_required
+    recheck_required: true
+    scope_label: "Managed session pending fresh reconnect after grace expiry."
+  - row_id: "row.invalidate.reconnect_required.policy_bundle"
+    authority_class: signed_policy_bundle
+    invalidation_reason_class: boundary_recheck_required
+    recheck_required: true
+    scope_label: "Signed policy bundle pending boundary recheck after grace expiry."
+reauth_or_retry_requirements:
+  reauth_class: required
+  retry_class: blocked_until_reconnect
+  reauth_requirement_refs:
+    - "reauth.reconnect_required.0001"
+  blocked_managed_actions:
+    - "Managed AI broker calls."
+    - "Managed settings sync."
+    - "Browser-companion handoff."
+    - "Managed catalog browse."
+  local_continuity_label: "Local edit, save, undo, search, Git, tasks, and export continue while reconnect is pending."
+export_before_change_actions: []
+rollback_or_reopen_path:
+  rollback_class: no_rollback_required_inspect_only
+  rollback_label: "Reopen deployment details to inspect reconnect posture."
+  rollback_action:
+    action_id: "action.review.reconnect_required.reopen_details"
+    label: "Open deployment details"
+    target_route_ref: "route.deployment.details.managed_cloud_reconnect"
+    scope_class: scope_local_only
+    authority_class: user_local_authority
+    consent_class: no_consent_required_safe_default
+    side_effects:
+      - no_side_effect_inspect_only
+    preserves_evidence_context: true
+    revalidation_on_open: snapshot_open_read_only
+    modal_prohibited: true
+  rollback_safe: true
+  no_rollback_reason_label: null
+authority_change_guard:
+  authority_change_class: narrows_only
+  silent_widening_blocked: true
+  explicit_consent_recorded: false
+  consent_evidence_ref: null
+  widening_summary_label: null
+consumer_surfaces:
+  - mode_change_sheet
+  - auth_sheet
+  - account_chip
+  - status_bar_cell
+  - activity_center_row
+  - support_packet_export
+  - admin_audit_export
+  - release_evidence_excerpt
+  - cli_text_formatter
+redaction_class: metadata_safe_default
+export_safe: true
+disconnect_review_ref: "review.disconnect.reconnect_required_after_grace"
+linked_continuity_packet_ref: "continuity.managed_cloud.reconnect_required"
+linked_reauth_requirement_refs:
+  - "reauth.reconnect_required.0001"
+notes: >
+  Grace window closed. Reauth is required against the auth identity
+  service before managed actions resume. Local capabilities continue
+  uninterrupted; two unsaved buffers remain safe.

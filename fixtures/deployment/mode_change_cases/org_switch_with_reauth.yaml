@@ -1,0 +1,153 @@
+# yaml-language-server: $schema=../../../schemas/deployment/mode_change_review.schema.json
+$schema: "https://aureline.dev/schemas/deployment/mode_change_review.schema.json"
+__fixture__:
+  name: org_switch_with_reauth
+  scenario: >
+    An enterprise-online org switch where the cached managed session,
+    signed policy bundle, signed docs pack, and AI provider token for
+    the previous org are explicitly invalidated. Reauth is required
+    against the new org via system-browser OIDC. Local edit, save,
+    undo, and user-owned export remain available throughout.
+  contract_sections:
+    - "§3 The mode-change review record"
+    - "§3.6 invalidated_cached_authority_rows"
+    - "§3.7 reauth_or_retry_requirements"
+    - "§5.4 Cached authority is invalidated, not silently reused"
+    - "§5.5 Reauth or retry pairs with the auth contract"
+record_kind: mode_change_review_record
+mode_change_review_schema_version: 1
+review_id: "review.mode_change.org_switch_with_reauth"
+emitted_at: "2026-04-29T00:10:00Z"
+transition_class: org_switch
+transition_phase: in_progress
+triggered_by_user_action: true
+from_posture:
+  deployment_profile: enterprise_online
+  product_facing_label_class: hybrid_remote_attach
+  tenant_org_scope_class: customer_tenant
+  region_scope_class: customer_region_pinned
+  key_mode_class: customer_managed
+  mirror_offline_state_class: online_live_allowed
+  control_plane_worst_state_class: healthy
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes:
+    - implied_no_residual_dependency_when_required_present
+  posture_label: "Enterprise-online workspace bound to the previous org."
+to_posture:
+  deployment_profile: enterprise_online
+  product_facing_label_class: hybrid_remote_attach
+  tenant_org_scope_class: customer_tenant
+  region_scope_class: customer_region_pinned
+  key_mode_class: customer_managed
+  mirror_offline_state_class: online_live_allowed
+  control_plane_worst_state_class: healthy
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes:
+    - implied_no_residual_dependency_when_required_present
+  posture_label: "Enterprise-online workspace bound to the new org pending reauth."
+preserved_local_state:
+  local_artifacts_safe: true
+  edit_save_undo_export_available: true
+  no_silent_loss_guarantee: true
+  retained_local_capabilities:
+    - "Local edit, save, undo, and search remain on device."
+    - "User-owned export remains available."
+    - "Local Git and local tasks remain available."
+  retained_local_artifact_classes:
+    - local_editing
+    - local_save
+    - local_search
+    - local_git
+    - local_tasks
+    - local_docs_inspect
+    - local_export
+    - local_diagnostics
+  retained_credential_classes:
+    - customer_managed_keystore
+  unsaved_buffer_count: 1
+  safety_label: "One unsaved local buffer remains editable, saveable, and undoable while the org switch is in progress."
+invalidated_cached_authority_rows:
+  - row_id: "row.invalidate.org_switch.managed_session"
+    authority_class: managed_session
+    invalidation_reason_class: org_changed
+    recheck_required: true
+    scope_label: "Managed session for the previous org."
+  - row_id: "row.invalidate.org_switch.policy_bundle"
+    authority_class: signed_policy_bundle
+    invalidation_reason_class: org_changed
+    recheck_required: true
+    scope_label: "Signed policy bundle scoped to the previous org."
+  - row_id: "row.invalidate.org_switch.docs_pack"
+    authority_class: signed_docs_pack
+    invalidation_reason_class: org_changed
+    recheck_required: true
+    scope_label: "Signed docs pack scoped to the previous org."
+  - row_id: "row.invalidate.org_switch.ai_provider_token"
+    authority_class: ai_provider_token
+    invalidation_reason_class: org_changed
+    recheck_required: true
+    scope_label: "AI provider session token scoped to the previous org."
+reauth_or_retry_requirements:
+  reauth_class: required
+  retry_class: required_after_change
+  reauth_requirement_refs:
+    - "reauth.org_switch.0001"
+  blocked_managed_actions:
+    - "Managed AI broker calls scoped to the new org."
+    - "Managed settings sync scoped to the new org."
+    - "Managed catalog browse scoped to the new org."
+  local_continuity_label: "Local edit, save, undo, search, and export continue while reauth against the new org is in progress."
+export_before_change_actions:
+  - action_id: "action.review.org_switch.export_local_archive"
+    label: "Export local archive before org switch"
+    target_route_ref: "route.export.local_archive"
+    scope_class: scope_local_only
+    authority_class: user_local_authority
+    consent_class: no_consent_required_safe_default
+    side_effects:
+      - no_side_effect_inspect_only
+    preserves_evidence_context: true
+    revalidation_on_open: snapshot_open_read_only
+    modal_prohibited: true
+rollback_or_reopen_path:
+  rollback_class: reopen_with_warning
+  rollback_label: "Cancel the switch and reopen the previous org sign-in."
+  rollback_action:
+    action_id: "action.review.org_switch.rollback_reopen_previous_org"
+    label: "Reopen previous org sign-in"
+    target_route_ref: "route.account.org_switch.previous"
+    scope_class: scope_local_only
+    authority_class: user_local_authority
+    consent_class: no_consent_required_safe_default
+    side_effects:
+      - no_side_effect_inspect_only
+    preserves_evidence_context: true
+    revalidation_on_open: requery_before_batch
+    modal_prohibited: true
+  rollback_safe: true
+  no_rollback_reason_label: null
+authority_change_guard:
+  authority_change_class: maintains_orthogonal
+  silent_widening_blocked: true
+  explicit_consent_recorded: false
+  consent_evidence_ref: null
+  widening_summary_label: null
+consumer_surfaces:
+  - org_switch_sheet
+  - auth_sheet
+  - account_chip
+  - status_bar_cell
+  - activity_center_row
+  - support_packet_export
+  - admin_audit_export
+  - release_evidence_excerpt
+  - cli_text_formatter
+redaction_class: metadata_safe_default
+export_safe: true
+disconnect_review_ref: null
+linked_reauth_requirement_refs:
+  - "reauth.org_switch.0001"
+notes: >
+  Org switch invalidates four cached authorities tied to the previous
+  org and requires reauth against the new org. Local artifacts and
+  user-owned exports remain available throughout the switch.

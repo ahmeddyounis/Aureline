@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=../../../schemas/deployment/mode_change_review.schema.json
+$schema: "https://aureline.dev/schemas/deployment/mode_change_review.schema.json"
+__fixture__:
+  name: mirror_fallback_to_offline_grace
+  scenario: >
+    A self-hosted/sovereign deployment whose live origin egress is
+    unreachable. The deployment falls back to its customer-operated
+    mirror under the offline grace window. Authority narrows; the
+    cached managed session and signed policy bundle are recheck-
+    required after reconnect. A paired disconnect_review_record
+    captures the local-continuity statement and the reconnect path.
+  contract_sections:
+    - "§3 The mode-change review record"
+    - "§3.12 disconnect_review_ref"
+    - "§5.7 Disconnect-class transitions pair with a disconnect review"
+    - "§5.9 Narrowing transitions cannot drop a prohibited-claim guardrail"
+record_kind: mode_change_review_record
+mode_change_review_schema_version: 1
+review_id: "review.mode_change.mirror_fallback_to_offline_grace"
+emitted_at: "2026-04-29T00:15:00Z"
+transition_class: mirror_fallback
+transition_phase: in_progress
+triggered_by_user_action: false
+from_posture:
+  deployment_profile: self_hosted
+  product_facing_label_class: self_hosted_sovereign
+  tenant_org_scope_class: customer_tenant
+  region_scope_class: customer_region_pinned
+  key_mode_class: customer_managed
+  mirror_offline_state_class: online_live_allowed
+  control_plane_worst_state_class: healthy
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes: []
+  posture_label: "Self-hosted/sovereign with live origin egress reachable."
+to_posture:
+  deployment_profile: self_hosted
+  product_facing_label_class: self_hosted_sovereign
+  tenant_org_scope_class: customer_tenant
+  region_scope_class: customer_region_pinned
+  key_mode_class: customer_managed
+  mirror_offline_state_class: offline_grace_preserved
+  control_plane_worst_state_class: stale_cache
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes:
+    - implied_offline_parity_when_mirror_only
+  posture_label: "Self-hosted/sovereign falling back to mirror under offline grace."
+preserved_local_state:
+  local_artifacts_safe: true
+  edit_save_undo_export_available: true
+  no_silent_loss_guarantee: true
+  retained_local_capabilities:
+    - "Local edit, save, undo, and search remain on device."
+    - "User-owned export remains available."
+    - "Local Git, local tasks, and local diagnostics remain available."
+    - "Local docs inspection remains available against the cached docs pack."
+  retained_local_artifact_classes:
+    - local_editing
+    - local_save
+    - local_search
+    - local_git
+    - local_tasks
+    - local_docs_inspect
+    - local_export
+    - local_diagnostics
+  retained_credential_classes:
+    - customer_managed_keystore
+  unsaved_buffer_count: 0
+  safety_label: "Local artifacts and unsaved edits remain authoritative on device while the deployment runs against the mirror under grace."
+invalidated_cached_authority_rows:
+  - row_id: "row.invalidate.mirror_fallback.managed_session"
+    authority_class: managed_session
+    invalidation_reason_class: service_unavailable
+    recheck_required: true
+    scope_label: "Managed session pending re-validation when origin egress returns."
+  - row_id: "row.invalidate.mirror_fallback.policy_bundle"
+    authority_class: signed_policy_bundle
+    invalidation_reason_class: service_unavailable
+    recheck_required: true
+    scope_label: "Customer-tenant signed policy bundle pending freshness re-check."
+reauth_or_retry_requirements:
+  reauth_class: optional
+  retry_class: blocked_until_reconnect
+  reauth_requirement_refs: []
+  blocked_managed_actions:
+    - "Live origin egress to vendor-published mirror sources."
+    - "Managed control-plane reachability checks."
+  local_continuity_label: "Local edit, save, undo, search, Git, tasks, docs inspection, and export continue against the customer-operated mirror under grace."
+export_before_change_actions: []
+rollback_or_reopen_path:
+  rollback_class: no_rollback_required_inspect_only
+  rollback_label: "Reopen deployment details to inspect mirror posture."
+  rollback_action:
+    action_id: "action.review.mirror_fallback.reopen_details"
+    label: "Open deployment details"
+    target_route_ref: "route.deployment.details.self_hosted"
+    scope_class: scope_local_only
+    authority_class: user_local_authority
+    consent_class: no_consent_required_safe_default
+    side_effects:
+      - no_side_effect_inspect_only
+    preserves_evidence_context: true
+    revalidation_on_open: snapshot_open_read_only
+    modal_prohibited: true
+  rollback_safe: true
+  no_rollback_reason_label: null
+authority_change_guard:
+  authority_change_class: narrows_only
+  silent_widening_blocked: true
+  explicit_consent_recorded: false
+  consent_evidence_ref: null
+  widening_summary_label: null
+consumer_surfaces:
+  - mode_change_sheet
+  - status_bar_cell
+  - activity_center_row
+  - support_packet_export
+  - admin_audit_export
+  - release_evidence_excerpt
+  - cli_text_formatter
+redaction_class: metadata_safe_default
+export_safe: true
+disconnect_review_ref: "review.disconnect.mirror_fallback_offline_grace"
+linked_continuity_packet_ref: "continuity.self_hosted.mirror_fallback_grace"
+notes: >
+  Mirror fallback narrows authority and pairs with a
+  disconnect_review_record that names the local-continuity statement
+  and the mirror-refresh reconnect path.

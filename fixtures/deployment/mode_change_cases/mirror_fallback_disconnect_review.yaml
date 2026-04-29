@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=../../../schemas/deployment/mode_change_review.schema.json
+$schema: "https://aureline.dev/schemas/deployment/mode_change_review.schema.json"
+__fixture__:
+  name: mirror_fallback_disconnect_review
+  scenario: >
+    Disconnect review paired with the mirror_fallback_to_offline_grace
+    mode-change record. The deployment crossed into offline grace; the
+    sync, registry, and AI broker control-plane services entered a
+    stale-cache state. Local data-plane capabilities remain available
+    on device. The reconnect path is mirror_refresh.
+  contract_sections:
+    - "§4 The disconnect review record"
+    - "§4.5 local_continuity_statement"
+    - "§4.7 reconnect_path_class"
+    - "§5.2 Plane separation never collapses on disconnect"
+record_kind: disconnect_review_record
+disconnect_review_schema_version: 1
+review_id: "review.disconnect.mirror_fallback_offline_grace"
+emitted_at: "2026-04-29T00:15:00Z"
+disconnect_event_class: offline_transition_started
+affected_service_classes:
+  - sync_service
+  - registry_service
+  - ai_broker_service
+  - relay_service
+affected_capability_classes: []
+local_continuity_statement:
+  available_local_safe_capability_classes:
+    - local_editing
+    - local_save
+    - local_search
+    - local_git
+    - local_tasks
+    - local_docs_inspect
+    - local_export
+    - local_diagnostics
+  local_safe_label: "Local edit, save, undo, search, Git, tasks, docs inspection, export, and diagnostics continue on device while the deployment runs against the customer-operated mirror under grace."
+  no_silent_loss_guarantee: true
+  unsaved_local_artifacts_safe: true
+paused_capabilities:
+  - "Live origin egress to vendor-published mirror sources."
+  - "Managed control-plane reachability checks."
+  - "Managed AI broker calls beyond the mirror."
+stale_artifacts:
+  - artifact_class: docs_pack
+    mirror_freshness_class: mirror_within_extended_window
+    last_refresh_at: "2026-04-26T00:00:00Z"
+    freshness_label: "Docs pack is within the extended freshness window of the customer-operated mirror."
+  - artifact_class: policy_bundle
+    mirror_freshness_class: mirror_fresh_within_window
+    last_refresh_at: "2026-04-29T00:00:00Z"
+    freshness_label: "Policy bundle is fresh within the customer-operated mirror's window."
+reconnect_path_class: mirror_refresh
+reconnect_label: "Refresh from the customer-operated mirror when the live origin returns."
+requires_user_action: false
+freshness_label: "Mirror surfaces remain reviewable; one artifact is in the extended freshness window."
+mode_change_review_ref: "review.mode_change.mirror_fallback_to_offline_grace"
+linked_continuity_packet_ref: "continuity.self_hosted.mirror_fallback_grace"
+redaction_class: metadata_safe_default
+export_safe: true
+notes: >
+  Local data-plane capabilities are unaffected; the disconnect names
+  the impaired control-plane services explicitly. Mirror refresh is
+  the safe reconnect path under grace.

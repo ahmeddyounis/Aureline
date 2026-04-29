@@ -1,0 +1,159 @@
+# yaml-language-server: $schema=../../../schemas/deployment/mode_change_review.schema.json
+$schema: "https://aureline.dev/schemas/deployment/mode_change_review.schema.json"
+__fixture__:
+  name: profile_narrow_managed_to_local
+  scenario: >
+    A user voluntarily narrows the deployment profile from
+    managed_cloud to individual_local. Authority narrows; the cached
+    managed session, signed policy bundle, signed docs pack, AI
+    provider token, and browser-handoff capability are explicitly
+    invalidated. Two unsaved buffers are present, so the review
+    surfaces an inspect-only export-before-change action. The
+    to_posture's prohibited-claim guardrails are a superset of the
+    from_posture's so claims cannot widen across the narrow.
+  contract_sections:
+    - "§3 The mode-change review record"
+    - "§5.4 Cached authority is invalidated, not silently reused"
+    - "§5.9 Narrowing transitions cannot drop a prohibited-claim guardrail"
+record_kind: mode_change_review_record
+mode_change_review_schema_version: 1
+review_id: "review.mode_change.profile_narrow_managed_to_local"
+emitted_at: "2026-04-29T00:35:00Z"
+transition_class: deployment_profile_narrow
+transition_phase: proposed
+triggered_by_user_action: true
+from_posture:
+  deployment_profile: managed_cloud
+  product_facing_label_class: browser_companion_handoff_default_home
+  tenant_org_scope_class: customer_tenant
+  region_scope_class: customer_region_pinned
+  key_mode_class: vendor_managed
+  mirror_offline_state_class: online_live_allowed
+  control_plane_worst_state_class: healthy
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes:
+    - implied_self_hosted_when_managed_cloud
+    - implied_managed_independence_when_local_dependent
+    - implied_no_residual_dependency_when_required_present
+  posture_label: "Managed-cloud workspace with active vendor-managed binding."
+to_posture:
+  deployment_profile: individual_local
+  product_facing_label_class: desktop_local_first
+  tenant_org_scope_class: single_user_local
+  region_scope_class: not_applicable
+  key_mode_class: os_store
+  mirror_offline_state_class: not_applicable
+  control_plane_worst_state_class: not_applicable
+  data_plane_worst_state_class: available_local_safe
+  prohibited_implied_claim_classes:
+    - implied_self_hosted_when_managed_cloud
+    - implied_managed_independence_when_local_dependent
+    - implied_no_residual_dependency_when_required_present
+  posture_label: "Local-only desktop after narrowing from managed-cloud."
+preserved_local_state:
+  local_artifacts_safe: true
+  edit_save_undo_export_available: true
+  no_silent_loss_guarantee: true
+  retained_local_capabilities:
+    - "Local edit, save, undo, and search remain on device."
+    - "User-owned export remains available."
+    - "Local Git, local tasks, and local diagnostics remain available."
+  retained_local_artifact_classes:
+    - local_editing
+    - local_save
+    - local_search
+    - local_git
+    - local_tasks
+    - local_docs_inspect
+    - local_export
+    - local_diagnostics
+  retained_credential_classes:
+    - os_store
+  unsaved_buffer_count: 2
+  safety_label: "Two unsaved local buffers remain editable, saveable, and undoable across the narrow."
+invalidated_cached_authority_rows:
+  - row_id: "row.invalidate.profile_narrow.managed_session"
+    authority_class: managed_session
+    invalidation_reason_class: profile_changed
+    recheck_required: false
+    scope_label: "Managed session for the customer tenant; no longer in scope after narrow."
+  - row_id: "row.invalidate.profile_narrow.policy_bundle"
+    authority_class: signed_policy_bundle
+    invalidation_reason_class: profile_changed
+    recheck_required: false
+    scope_label: "Customer-tenant signed policy bundle; not in scope on individual_local."
+  - row_id: "row.invalidate.profile_narrow.docs_pack"
+    authority_class: signed_docs_pack
+    invalidation_reason_class: profile_changed
+    recheck_required: false
+    scope_label: "Customer-tenant signed docs pack; not in scope on individual_local."
+  - row_id: "row.invalidate.profile_narrow.ai_provider_token"
+    authority_class: ai_provider_token
+    invalidation_reason_class: profile_changed
+    recheck_required: false
+    scope_label: "AI provider session token; not in scope on individual_local."
+  - row_id: "row.invalidate.profile_narrow.browser_handoff_capability"
+    authority_class: browser_handoff_capability
+    invalidation_reason_class: profile_changed
+    recheck_required: false
+    scope_label: "Browser-companion handoff capability; not in scope on individual_local."
+reauth_or_retry_requirements:
+  reauth_class: not_required
+  retry_class: not_required
+  reauth_requirement_refs: []
+  blocked_managed_actions: []
+  local_continuity_label: "Local edit, save, undo, search, Git, tasks, and export continue without the managed binding."
+export_before_change_actions:
+  - action_id: "action.review.profile_narrow.export_local_archive"
+    label: "Export local archive before profile narrow"
+    target_route_ref: "route.export.local_archive"
+    scope_class: scope_local_only
+    authority_class: user_local_authority
+    consent_class: no_consent_required_safe_default
+    side_effects:
+      - no_side_effect_inspect_only
+    preserves_evidence_context: true
+    revalidation_on_open: snapshot_open_read_only
+    modal_prohibited: true
+rollback_or_reopen_path:
+  rollback_class: reopen_with_warning
+  rollback_label: "Reopen sign-in to rebind the managed-cloud workspace."
+  rollback_action:
+    action_id: "action.review.profile_narrow.rollback_reopen_sign_in"
+    label: "Reopen sign-in"
+    target_route_ref: "route.account.sign_in"
+    scope_class: scope_local_only
+    authority_class: user_local_authority
+    consent_class: no_consent_required_safe_default
+    side_effects:
+      - no_side_effect_inspect_only
+    preserves_evidence_context: true
+    revalidation_on_open: snapshot_open_read_only
+    modal_prohibited: true
+  rollback_safe: true
+  no_rollback_reason_label: null
+authority_change_guard:
+  authority_change_class: narrows_only
+  silent_widening_blocked: true
+  explicit_consent_recorded: false
+  consent_evidence_ref: null
+  widening_summary_label: null
+consumer_surfaces:
+  - mode_change_sheet
+  - auth_sheet
+  - account_chip
+  - status_bar_cell
+  - activity_center_row
+  - support_packet_export
+  - admin_audit_export
+  - release_evidence_excerpt
+  - cli_text_formatter
+redaction_class: metadata_safe_default
+export_safe: true
+disconnect_review_ref: null
+linked_managed_session_state_ref: "managed-session:signed_in:0001"
+notes: >
+  Voluntary profile narrow from managed_cloud to individual_local.
+  Five cached authorities are invalidated explicitly; the narrow
+  cannot drop a prohibited-claim guardrail. Two unsaved buffers remain
+  safe and exportable.
