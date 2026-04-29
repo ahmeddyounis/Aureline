@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/route_timeline.schema.json",
+  "title": "Aureline capability boundary and transport-route timeline record",
+  "description": "Boundary schema for route_timeline_record frozen in docs/ops/event_provenance_and_route_inspector_contract.md. The record is the cross-surface inspector packet that backs the boundary summary card, hop timeline, route-drift banner, and export/redaction preview for high-impact actions and evidence views. It composes with (and does not replace) docs/runtime/origin_target_route_taxonomy.md (action_route_truth_record), schemas/network/network_attribution_record.schema.json (proxy/mirror/certificate posture when a hop is network-shaped), schemas/integration/approval_ticket.schema.json (approval ticket authority), schemas/governance/waiver_expiry.schema.json (remembered decisions), and schemas/execution/run.schema.json (run/attempt ids). Raw hostnames, raw URLs, raw tokens, raw request/response bodies, raw command lines, raw absolute paths, and raw secret material never cross this boundary; the record carries opaque ids, typed vocabulary, and export-safe labels only. Adding a new boundary class, drift fact kind, replay posture, or export preview slot is additive-minor and bumps route_timeline_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/route_timeline_record",
+  "$defs": {
+    "route_timeline_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this route-timeline vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "route_timeline_record",
+      "description": "Discriminator. Always route_timeline_record for packets conforming to this schema."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, and exports. Raw hostnames, raw URLs, raw tokens, raw command lines, and raw secret material never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries an export-safe summary; never carries raw payloads."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short sentence safe to show in inspector rows and export previews; never carries raw payloads."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ],
+      "description": "Declared redaction class. Raw hostnames, raw URLs, raw tokens, raw request/response bodies, raw command lines, raw absolute paths, and raw secret material never cross this boundary regardless of class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["untrusted", "restricted", "trusted", "managed_admin"],
+      "description": "Workspace-trust / policy trust posture anchor."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope so downstream consumers do not reconstruct boundary truth from logs."
+    },
+
+    "boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_isolated_extension_or_runtime",
+        "local_remote_workspace_agent",
+        "local_managed_service_or_control_plane",
+        "local_external_provider",
+        "browser_webview_mediated",
+        "imported_offline_evidence_only",
+        "boundary_class_unknown_requires_review"
+      ],
+      "description": "Boundary-class vocabulary projected from the UI/UX spec. Rendering surfaces MUST map these tokens to the required visible language defined in docs/ops/event_provenance_and_route_inspector_contract.md."
+    },
+
+    "required_visible_language": {
+      "type": "string",
+      "enum": [
+        "No external route used",
+        "Ran in isolated local host",
+        "Ran on remote workspace",
+        "Used managed service",
+        "Sent to external provider",
+        "Browser-mediated route",
+        "Showing imported or offline evidence",
+        "Visible language unknown — requires review"
+      ],
+      "description": "Frozen visible-language strings the UI/CLI/export renderers MUST use when rendering a boundary class in English. Localization is permitted, but the English baseline must remain stable for logs, support exports, and fixtures."
+    },
+
+    "approval_source_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "approval_ticket_required",
+        "remembered_decision_reused",
+        "policy_injected_service_identity",
+        "authority_unknown_requires_review"
+      ],
+      "description": "High-level approval-source classification used by the boundary summary card. Detailed authority truth is resolved via refs to approval tickets, remembered decisions, or route-truth packets."
+    },
+
+    "boundary_summary_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_class",
+        "required_visible_language",
+        "actor_source_label",
+        "target_label",
+        "data_class_labels",
+        "approval_source_class",
+        "approval_source_label",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "boundary_class": { "$ref": "#/$defs/boundary_class" },
+        "required_visible_language": { "$ref": "#/$defs/required_visible_language" },
+        "actor_source_label": { "$ref": "#/$defs/reviewable_label" },
+        "target_label": { "$ref": "#/$defs/reviewable_label" },
+        "data_class_labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" },
+          "description": "Data-class labels involved in the action (for example selected diff, diagnostics summary). Export-safe labels only."
+        },
+        "approval_source_class": { "$ref": "#/$defs/approval_source_class" },
+        "approval_source_label": { "$ref": "#/$defs/reviewable_label" },
+        "export_safe_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Boundary summary card payload. Rendered consistently across UI, CLI/headless summaries, durable history, and export previews."
+    },
+
+    "drift_state": {
+      "type": "string",
+      "enum": ["unchanged", "drifted", "unknown_requires_review"],
+      "description": "Per-hop drift state for route facts."
+    },
+
+    "route_hop_node_class": {
+      "type": "string",
+      "enum": [
+        "local_shell_node",
+        "isolated_local_host_node",
+        "remote_workspace_agent_node",
+        "managed_service_node",
+        "external_provider_node",
+        "browser_surface_node",
+        "imported_offline_evidence_node",
+        "unknown_node_requires_review"
+      ],
+      "description": "Node class for hop endpoints in the hop timeline. This is presentation-oriented and must not contradict the canonical route-truth packet."
+    },
+
+    "route_hop_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hop_index",
+        "from_node_class",
+        "to_node_class",
+        "from_to_label",
+        "transport_label",
+        "drift_state",
+        "network_attribution_ref"
+      ],
+      "properties": {
+        "hop_index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Sequence order starting at 1."
+        },
+        "from_node_class": { "$ref": "#/$defs/route_hop_node_class" },
+        "to_node_class": { "$ref": "#/$defs/route_hop_node_class" },
+        "from_to_label": { "$ref": "#/$defs/reviewable_label" },
+        "transport_label": { "$ref": "#/$defs/reviewable_label" },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "note": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reviewable_sentence" }] },
+        "network_attribution_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional ref to a network_attribution_record when the hop is network-shaped (proxy/mirror/certificate context). Null for purely local hops."
+        }
+      },
+      "description": "One hop in the route timeline."
+    },
+
+    "route_drift_fact_kind": {
+      "type": "string",
+      "enum": [
+        "endpoint_changed",
+        "tenant_changed",
+        "region_changed",
+        "proxy_posture_changed",
+        "mirror_route_changed",
+        "certificate_posture_changed",
+        "policy_epoch_changed",
+        "drift_fact_unknown_requires_review"
+      ],
+      "description": "Route drift fact kinds called out by the drift banner."
+    },
+
+    "replay_requirement_class": {
+      "type": "string",
+      "enum": [
+        "safe_to_continue_no_replay",
+        "replay_allowed_no_new_approval",
+        "replay_requires_route_review",
+        "replay_requires_new_approval",
+        "replay_blocked_until_repair",
+        "replay_requirement_unknown_requires_review"
+      ],
+      "description": "Required replay / reapproval posture when drift is present."
+    },
+
+    "route_drift_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_kind",
+        "previous_label",
+        "current_label",
+        "replay_requirement_class",
+        "next_action_label"
+      ],
+      "properties": {
+        "fact_kind": { "$ref": "#/$defs/route_drift_fact_kind" },
+        "previous_label": { "$ref": "#/$defs/reviewable_label" },
+        "current_label": { "$ref": "#/$defs/reviewable_label" },
+        "replay_requirement_class": { "$ref": "#/$defs/replay_requirement_class" },
+        "next_action_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "One changed fact displayed on the route drift banner."
+    },
+
+    "route_drift_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_drifted", "facts", "overall_replay_requirement_class"],
+      "properties": {
+        "is_drifted": {
+          "type": "boolean",
+          "description": "True when at least one drift fact is present."
+        },
+        "facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/route_drift_fact" }
+        },
+        "overall_replay_requirement_class": { "$ref": "#/$defs/replay_requirement_class" }
+      },
+      "description": "Route drift banner payload."
+    },
+
+    "export_redaction_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "included_route_facts",
+        "removed_data_classes",
+        "packet_id",
+        "format_labels",
+        "confirm_action_label"
+      ],
+      "properties": {
+        "included_route_facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" },
+          "description": "Route facts the export includes (boundary class, provider label, tenant label, event ids)."
+        },
+        "removed_data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" },
+          "description": "Data classes explicitly removed by default redaction (payload bodies, tokens, hostnames)."
+        },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "format_labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_label" },
+          "description": "Formats available for export (for example Markdown + JSON)."
+        },
+        "confirm_action_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Export / redaction preview payload."
+    },
+
+    "authority_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_ticket_ref",
+        "remembered_decision_ref",
+        "browser_handoff_packet_ref",
+        "remote_agent_attach_ticket_ref"
+      ],
+      "properties": {
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "remembered_decision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "remote_agent_attach_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Authority refs that admitted the action or its route. Detailed authority is resolved by fetching the referenced record kinds."
+    },
+
+    "event_provenance_row_record": {
+      "$ref": "event_provenance_row.schema.json#/$defs/event_provenance_row_record"
+    },
+
+    "route_timeline_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_timeline_schema_version",
+        "record_kind",
+        "route_timeline_id",
+        "boundary_summary",
+        "route_truth_ref",
+        "authority_refs",
+        "hops",
+        "route_drift_banner",
+        "event_provenance_rows",
+        "export_preview",
+        "policy_context",
+        "redaction_class",
+        "authored_at"
+      ],
+      "properties": {
+        "route_timeline_schema_version": { "$ref": "#/$defs/route_timeline_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "route_timeline_id": { "$ref": "#/$defs/opaque_id" },
+        "boundary_summary": { "$ref": "#/$defs/boundary_summary_card" },
+        "route_truth_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional ref to the canonical action_route_truth_record packet_id that owns origin/target/route/exposure/authority tokens."
+        },
+        "authority_refs": { "$ref": "#/$defs/authority_refs" },
+        "hops": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/route_hop_row" }
+        },
+        "route_drift_banner": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/route_drift_banner" }],
+          "description": "Null when no drift is detected or applicable; non-null when drift is known and must be displayed."
+        },
+        "event_provenance_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/event_provenance_row_record" },
+          "description": "One or more stable provenance rows attached to this route timeline."
+        },
+        "export_preview": { "$ref": "#/$defs/export_redaction_preview" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block. Convention carries the fixture name and scenario; never part of the runtime record."
+        }
+      }
+    }
+  }
+}
+

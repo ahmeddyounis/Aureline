@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=../../../schemas/ops/route_timeline.schema.json
+__fixture__:
+  name: proxy_drift
+  scenario: >
+    The proxy or certificate posture drifted since planning. The drift
+    banner is required and forces re-review before replay, rather than
+    silently proceeding because a cached decision exists.
+
+record_kind: route_timeline_record
+route_timeline_schema_version: 1
+route_timeline_id: rt_proxy_drift_001
+
+boundary_summary:
+  boundary_class: local_external_provider
+  required_visible_language: "Sent to external provider"
+  actor_source_label: "CLI command: publish artifact metadata"
+  target_label: "external provider endpoint (opaque ref)"
+  data_class_labels:
+    - "release metadata (redacted)"
+  approval_source_class: approval_ticket_required
+  approval_source_label: "approval ticket (expired, renewal required)"
+  export_safe_summary: "Route drift detected (proxy/certificate posture changed); replay requires renewed review."
+
+route_truth_ref: route_truth_pkt_300
+
+authority_refs:
+  approval_ticket_ref: appr_050
+  remembered_decision_ref: null
+  browser_handoff_packet_ref: null
+  remote_agent_attach_ticket_ref: null
+
+hops:
+  - hop_index: 1
+    from_node_class: local_shell_node
+    to_node_class: external_provider_node
+    from_to_label: "local broker -> external provider"
+    transport_label: "TLS via proxy"
+    drift_state: drifted
+    note: "proxy posture drifted since last success"
+    network_attribution_ref: net_attr_050
+
+route_drift_banner:
+  is_drifted: true
+  facts:
+    - fact_kind: proxy_posture_changed
+      previous_label: "system proxy (prior posture)"
+      current_label: "PAC-resolved proxy (current posture)"
+      replay_requirement_class: replay_requires_route_review
+      next_action_label: "Inspect and approve"
+    - fact_kind: certificate_posture_changed
+      previous_label: "corp trust root (prior)"
+      current_label: "corp trust root (rotated)"
+      replay_requirement_class: replay_requires_new_approval
+      next_action_label: "Inspect certificate and renew approval"
+  overall_replay_requirement_class: replay_requires_new_approval
+
+event_provenance_rows:
+  - record_kind: event_provenance_row_record
+    event_provenance_row_schema_version: 1
+    event_id: evt_proxy_drift_001
+    event_kind_class: network_attribution_event
+    origin_lane_class: external_provider_lane
+    origin_lane_label: "External provider lane"
+    event_time: "2026-04-29T16:40:00Z"
+    snapshot_epoch_label: "policy-epoch 2"
+    links:
+      invocation_session_id_ref: inv_050
+      run_record_id_ref: run_050
+      attempt_record_id_ref: att_050
+      approval_ticket_ref: appr_050
+      remembered_decision_ref: null
+      route_truth_ref: route_truth_pkt_300
+      network_attribution_ref: net_attr_050
+      browser_handoff_packet_ref: null
+      remote_agent_attach_ticket_ref: null
+      managed_control_plane_token_ref: null
+      mutation_journal_entry_ref: mut_050
+      task_event_envelope_trace_id_ref: trace_050
+    note: "Drift banner required before replay."
+    redaction_class: metadata_safe_default
+
+export_preview:
+  included_route_facts:
+    - "boundary class"
+    - "proxy posture drift markers"
+    - "certificate posture drift markers"
+    - "approval id"
+    - "event ids"
+  removed_data_classes:
+    - "payload bodies"
+    - "tokens"
+    - "hostnames"
+  packet_id: support_pkt_proxy_drift_001
+  format_labels:
+    - "Markdown + JSON"
+  confirm_action_label: "Export redacted packet"
+
+policy_context:
+  policy_epoch: "policy-epoch-2"
+  trust_state: trusted
+  execution_context_id: exec_ctx_local_003
+
+redaction_class: metadata_safe_default
+authored_at: "2026-04-29T16:40:01Z"
+

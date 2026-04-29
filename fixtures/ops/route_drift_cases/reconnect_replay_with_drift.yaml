@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=../../../schemas/ops/route_timeline.schema.json
+__fixture__:
+  name: reconnect_replay_with_drift
+  scenario: >
+    A queued high-impact action resumes after reconnect. Before replay,
+    route and policy drift are revalidated; drift forces renewed review
+    instead of silently replaying across changed boundaries.
+
+record_kind: route_timeline_record
+route_timeline_schema_version: 1
+route_timeline_id: rt_reconnect_001
+
+boundary_summary:
+  boundary_class: local_managed_service_or_control_plane
+  required_visible_language: "Used managed service"
+  actor_source_label: "Queued publish resumes after reconnect"
+  target_label: "managed service lane (opaque tenant/region)"
+  data_class_labels:
+    - "queued intent metadata only"
+  approval_source_class: remembered_decision_reused
+  approval_source_label: "remembered decision requires renewal due to drift"
+  export_safe_summary: "Reconnect replay detected drift; action blocked pending renewed review."
+
+route_truth_ref: route_truth_pkt_900
+
+authority_refs:
+  approval_ticket_ref: null
+  remembered_decision_ref: decision_900
+  browser_handoff_packet_ref: null
+  remote_agent_attach_ticket_ref: null
+
+hops:
+  - hop_index: 1
+    from_node_class: local_shell_node
+    to_node_class: managed_service_node
+    from_to_label: "local shell -> managed service lane"
+    transport_label: "managed control-plane route"
+    drift_state: drifted
+    note: "tenant/region drifted during disconnect window"
+    network_attribution_ref: net_attr_900
+
+route_drift_banner:
+  is_drifted: true
+  facts:
+    - fact_kind: tenant_changed
+      previous_label: "tenant (prior)"
+      current_label: "tenant (current)"
+      replay_requirement_class: replay_requires_route_review
+      next_action_label: "Inspect and approve"
+    - fact_kind: region_changed
+      previous_label: "region (prior)"
+      current_label: "region (current)"
+      replay_requirement_class: replay_requires_new_approval
+      next_action_label: "Renew decision with current scope"
+    - fact_kind: policy_epoch_changed
+      previous_label: "policy-epoch 3"
+      current_label: "policy-epoch 4"
+      replay_requirement_class: replay_blocked_until_repair
+      next_action_label: "Open policy details"
+  overall_replay_requirement_class: replay_blocked_until_repair
+
+event_provenance_rows:
+  - record_kind: event_provenance_row_record
+    event_provenance_row_schema_version: 1
+    event_id: evt_reconnect_001
+    event_kind_class: replay_or_reconnect_event
+    origin_lane_class: managed_service_lane
+    origin_lane_label: "Managed service lane"
+    event_time: "2026-04-29T17:00:00Z"
+    snapshot_epoch_label: "policy-epoch 4"
+    links:
+      invocation_session_id_ref: inv_900
+      run_record_id_ref: run_900
+      attempt_record_id_ref: att_900
+      approval_ticket_ref: null
+      remembered_decision_ref: decision_900
+      route_truth_ref: route_truth_pkt_900
+      network_attribution_ref: net_attr_900
+      browser_handoff_packet_ref: null
+      remote_agent_attach_ticket_ref: null
+      managed_control_plane_token_ref: token_900
+      mutation_journal_entry_ref: mut_900
+      task_event_envelope_trace_id_ref: trace_900
+    note: "Reconnect replay blocked; drift banner required."
+    redaction_class: metadata_safe_default
+
+export_preview:
+  included_route_facts:
+    - "boundary class"
+    - "tenant/region drift markers"
+    - "policy epoch drift marker"
+    - "event ids"
+  removed_data_classes:
+    - "payload bodies"
+    - "tokens"
+    - "hostnames"
+  packet_id: support_pkt_reconnect_001
+  format_labels:
+    - "Markdown + JSON"
+  confirm_action_label: "Export redacted packet"
+
+policy_context:
+  policy_epoch: "policy-epoch-4"
+  trust_state: trusted
+  execution_context_id: exec_ctx_local_004
+
+redaction_class: metadata_safe_default
+authored_at: "2026-04-29T17:00:01Z"
+

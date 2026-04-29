@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/event_provenance_row.schema.json",
+  "title": "Aureline event-provenance row record",
+  "description": "Boundary schema for event_provenance_row_record frozen in docs/ops/event_provenance_and_route_inspector_contract.md. One row attaches stable identity and join keys to logs, diagnostics, artifacts, audits, durable history, support packets, and machine-readable exports without forcing consumers to reconstruct lineage from scattered badges and ad-hoc log strings. A row carries the stable event_id, timestamp, originating lane, the snapshot or retrieval epoch label, and the cross-linkable ids that prove what happened (invocation_session_id, run_record_id / attempt_record_id, approval_ticket ref, remembered_decision ref, and other authority refs). Raw hostnames, raw URLs, raw tokens, raw request/response bodies, raw command lines, raw absolute paths, and raw user identifiers never cross this boundary; the record carries opaque ids and short export-safe labels only. Adding a new lane class, event kind, linkage ref, or export posture is additive-minor and bumps event_provenance_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/event_provenance_row_record",
+  "$defs": {
+    "event_provenance_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this event-provenance row vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "event_provenance_row_record",
+      "description": "Discriminator. Always event_provenance_row_record for rows conforming to this schema."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, and exports. Raw hostnames, raw URLs, raw tokens, raw command lines, and raw secret material never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries an export-safe summary; never carries raw payloads."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short sentence safe to show in inspector rows and export previews; never carries raw payloads."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ],
+      "description": "Declared redaction class. Raw hostnames, raw URLs, raw tokens, raw request/response bodies, raw command lines, raw absolute paths, and raw secret material never cross this boundary regardless of class."
+    },
+
+    "origin_lane_class": {
+      "type": "string",
+      "enum": [
+        "local_only_lane",
+        "isolated_local_host_lane",
+        "remote_workspace_lane",
+        "managed_service_lane",
+        "external_provider_lane",
+        "browser_mediated_lane",
+        "imported_or_offline_evidence_lane",
+        "origin_lane_unknown_requires_review"
+      ],
+      "description": "Originating lane for the event. This is a projection for provenance display; route truth is owned by docs/runtime/origin_target_route_taxonomy.md."
+    },
+
+    "event_kind_class": {
+      "type": "string",
+      "enum": [
+        "command_or_action_event",
+        "run_lifecycle_event",
+        "network_attribution_event",
+        "provider_mutation_event",
+        "imported_evidence_event",
+        "replay_or_reconnect_event",
+        "event_kind_unknown_requires_review"
+      ],
+      "description": "High-level kind classification used by inspector renderers; does not replace record_kind on the owning packet families."
+    },
+
+    "event_provenance_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invocation_session_id_ref",
+        "run_record_id_ref",
+        "attempt_record_id_ref",
+        "approval_ticket_ref",
+        "remembered_decision_ref",
+        "route_truth_ref",
+        "network_attribution_ref"
+      ],
+      "properties": {
+        "invocation_session_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "run_record_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "attempt_record_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "remembered_decision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "route_truth_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "network_attribution_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "remote_agent_attach_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "managed_control_plane_token_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mutation_journal_entry_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "task_event_envelope_trace_id_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Optional join keys to other record families. Null values are admissible when a lane does not mint that id type."
+    },
+
+    "event_provenance_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_provenance_row_schema_version",
+        "record_kind",
+        "event_id",
+        "event_kind_class",
+        "origin_lane_class",
+        "origin_lane_label",
+        "event_time",
+        "snapshot_epoch_label",
+        "links",
+        "redaction_class"
+      ],
+      "properties": {
+        "event_provenance_row_schema_version": { "$ref": "#/$defs/event_provenance_row_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_kind_class": { "$ref": "#/$defs/event_kind_class" },
+        "origin_lane_class": { "$ref": "#/$defs/origin_lane_class" },
+        "origin_lane_label": { "$ref": "#/$defs/reviewable_label" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "snapshot_epoch_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Snapshot or retrieval epoch label (for example policy epoch, config epoch, or offline capture epoch). Export-safe; never embeds raw hostnames or tokens."
+        },
+        "links": { "$ref": "#/$defs/event_provenance_links" },
+        "note": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reviewable_sentence" }],
+          "description": "Optional export-safe note for support and offline reading."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block. Convention carries the fixture name and scenario; never part of the runtime record."
+        }
+      }
+    }
+  }
+}
+
