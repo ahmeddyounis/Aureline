@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/diagnostic_remap_state.schema.json",
+  "title": "Aureline diagnostic remap state and inline-display contract",
+  "description": "Boundary schema for diagnostic_remap_state_record, the finding-level record every editor marker, Problems row, review annotation, CLI/headless output, support export, and imported-scan projection uses before it treats a diagnostic anchor as exact, remapped, stale, moved, remap-needed, unsupported, or generated-only. Raw source text, raw scanner payloads, raw logs, raw command lines, raw absolute paths, raw URLs, and raw secret values never cross this boundary; records carry opaque refs, class labels, timestamps, counts, and reviewable summaries only. Adding a new enum value or optional property is additive-minor and bumps diagnostic_remap_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/diagnostic_remap_state_record" }
+  ],
+  "$defs": {
+    "diagnostic_remap_state_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "diagnostic_remap_state_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewable text safe for UI, CLI, support, and review exports. Raw source text, raw paths, raw scanner payloads, raw command lines, and raw secret material are forbidden."
+    },
+    "diagnostic_source_kind_class": {
+      "type": "string",
+      "enum": [
+        "editor_structural",
+        "language_service",
+        "build_or_task",
+        "runtime_or_test",
+        "scanner_import",
+        "policy",
+        "heuristic",
+        "source_kind_unknown_requires_review"
+      ]
+    },
+    "diagnostic_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "freshness_unknown_requires_review"
+      ]
+    },
+    "diagnostic_remap_state_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "remapped",
+        "stale",
+        "source_moved",
+        "needs_remap",
+        "unsupported_anchor",
+        "generated_anchor_only",
+        "remap_state_unknown_requires_review"
+      ]
+    },
+    "anchor_kind_class": {
+      "type": "string",
+      "enum": [
+        "file_span",
+        "symbol_anchor",
+        "generated_pair_anchor",
+        "notebook_cell_anchor",
+        "structured_region_anchor",
+        "target_scope_only",
+        "workspace_scope_only",
+        "anchor_kind_unknown_requires_review"
+      ]
+    },
+    "remap_confidence_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "high",
+        "medium",
+        "low",
+        "none",
+        "unsupported",
+        "confidence_unknown_requires_review"
+      ]
+    },
+    "remap_basis_class": {
+      "type": "string",
+      "enum": [
+        "current_buffer_identity",
+        "content_hash_and_context",
+        "symbol_identity",
+        "vcs_move_or_rename",
+        "generated_lineage",
+        "imported_region",
+        "target_scope_only",
+        "unsupported_location_kind",
+        "no_basis_available",
+        "basis_unknown_requires_review"
+      ]
+    },
+    "inline_display_class": {
+      "type": "string",
+      "enum": [
+        "inline_exact_allowed",
+        "inline_disclosed_remap_allowed",
+        "inline_stale_context_allowed",
+        "inline_generated_read_only_allowed",
+        "inline_forbidden_needs_review",
+        "inline_forbidden_scope_only",
+        "inline_display_unknown_requires_review"
+      ]
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "current_live_authoritative",
+        "imported_read_only_evidence",
+        "remap_lineage_evidence",
+        "generated_lineage_evidence",
+        "stale_read_only_evidence",
+        "support_replay_read_only",
+        "authority_unknown_requires_review"
+      ]
+    },
+    "review_action_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "show_original_context",
+        "rerun_diagnostics",
+        "reanchor_before_action",
+        "open_generated_origin",
+        "open_scope_only_detail",
+        "suppression_or_baseline_review",
+        "action_unknown_requires_review"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "anchor_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_family_ref",
+        "anchor_kind_class",
+        "anchor_ref",
+        "path_ref",
+        "revision_ref",
+        "span_summary"
+      ],
+      "properties": {
+        "anchor_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_kind_class": { "$ref": "#/$defs/anchor_kind_class" },
+        "anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "path_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "revision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "span_summary": {
+          "oneOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "remap_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remap_state_class",
+        "remap_confidence_class",
+        "remap_basis_class",
+        "original_anchor_ref",
+        "current_anchor_ref",
+        "evidence_ref",
+        "source_revision_ref",
+        "current_revision_ref",
+        "produced_by_ref",
+        "produced_at",
+        "summary"
+      ],
+      "properties": {
+        "remap_state_class": { "$ref": "#/$defs/diagnostic_remap_state_class" },
+        "remap_confidence_class": { "$ref": "#/$defs/remap_confidence_class" },
+        "remap_basis_class": { "$ref": "#/$defs/remap_basis_class" },
+        "original_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "current_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "current_revision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "produced_by_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "produced_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "include_in_support_bundle",
+        "include_in_review_pack",
+        "include_in_cli_output",
+        "include_original_anchor_ref",
+        "include_current_anchor_ref",
+        "omission_reason_ref",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "include_in_support_bundle": { "type": "boolean" },
+        "include_in_review_pack": { "type": "boolean" },
+        "include_in_cli_output": { "type": "boolean" },
+        "include_original_anchor_ref": { "type": "boolean" },
+        "include_current_anchor_ref": { "type": "boolean" },
+        "omission_reason_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_remap_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_remap_state_schema_version",
+        "diagnostic_remap_state_id",
+        "diagnostic_ref",
+        "rule_ref",
+        "source_kind_class",
+        "freshness_class",
+        "remap_state_class",
+        "authority_class",
+        "inline_display_class",
+        "inline_range_may_be_shown",
+        "original_anchor",
+        "current_anchor",
+        "remap_evidence",
+        "review_action_class",
+        "export_projection",
+        "captured_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "diagnostic_remap_state_schema_version": { "$ref": "#/$defs/diagnostic_remap_state_schema_version" },
+        "diagnostic_remap_state_id": { "$ref": "#/$defs/opaque_id" },
+        "diagnostic_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_kind_class": { "$ref": "#/$defs/diagnostic_source_kind_class" },
+        "freshness_class": { "$ref": "#/$defs/diagnostic_freshness_class" },
+        "remap_state_class": { "$ref": "#/$defs/diagnostic_remap_state_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "inline_display_class": { "$ref": "#/$defs/inline_display_class" },
+        "inline_range_may_be_shown": {
+          "type": "boolean",
+          "description": "True only when the current anchor may be represented by an inline/editor range. needs_remap and unsupported_anchor records must set this false by contract."
+        },
+        "original_anchor": { "$ref": "#/$defs/anchor_projection" },
+        "current_anchor": { "$ref": "#/$defs/anchor_projection" },
+        "remap_evidence": { "$ref": "#/$defs/remap_evidence" },
+        "review_action_class": { "$ref": "#/$defs/review_action_class" },
+        "export_projection": { "$ref": "#/$defs/export_projection" },
+        "related_import_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "related_delta_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}

@@ -549,6 +549,27 @@ code.
   [`/schemas/language/inline_hint_state.schema.json`](../schemas/language/inline_hint_state.schema.json);
   worked fixtures in
   [`/fixtures/language/completion_hint_cases/`](../fixtures/language/completion_hint_cases/).
+- [`language/diagnostics_and_code_action_contract.md`](./language/diagnostics_and_code_action_contract.md)
+  — shared diagnostic source taxonomy, semantic-layer state, clustering,
+  code-action summary, and suppression/baseline governance contract.
+  Boundary schemas in
+  [`/schemas/language/diagnostic_cluster.schema.json`](../schemas/language/diagnostic_cluster.schema.json),
+  [`/schemas/language/code_action_summary.schema.json`](../schemas/language/code_action_summary.schema.json),
+  and
+  [`/schemas/language/suppression_review.schema.json`](../schemas/language/suppression_review.schema.json);
+  worked fixtures in
+  [`/fixtures/language/diagnostic_convergence_cases/`](../fixtures/language/diagnostic_convergence_cases/).
+- [`language/diagnostic_freshness_and_delta_contract.md`](./language/diagnostic_freshness_and_delta_contract.md)
+  — finding-level diagnostic remap, SARIF-like/provider import, and
+  current/imported/baseline/suppression delta parity contract for
+  editor, review, CLI/headless, release, and support surfaces. Boundary
+  schemas in
+  [`/schemas/language/diagnostic_remap_state.schema.json`](../schemas/language/diagnostic_remap_state.schema.json),
+  [`/schemas/language/sarif_import_record.schema.json`](../schemas/language/sarif_import_record.schema.json),
+  and
+  [`/schemas/language/diagnostic_delta.schema.json`](../schemas/language/diagnostic_delta.schema.json);
+  worked fixtures in
+  [`/fixtures/language/diagnostic_delta_cases/`](../fixtures/language/diagnostic_delta_cases/).
 - [`ux/editor_anatomy_contract.md`](./ux/editor_anatomy_contract.md)
   — editor anatomy, layer-classification, and stable-text-column
   contract for document header, context layer, gutter, text viewport,

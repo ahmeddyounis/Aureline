@@ -42,6 +42,10 @@ This contract composes with and does not replace:
   and its schemas for diagnostic clustering, code-action summaries, and
   suppression governance. Quality profiles name which tools and rule
   packs produce findings; diagnostic records preserve the finding truth.
+- [`/docs/language/diagnostic_freshness_and_delta_contract.md`](../language/diagnostic_freshness_and_delta_contract.md)
+  for finding-level remap state, SARIF-like/provider import records, and
+  diagnostic delta packets that compare current, imported, baseline,
+  stale, suppressed, and support-exported findings.
 - [`/docs/execution/run_and_attempt_contract.md`](./run_and_attempt_contract.md)
   for run, attempt, outcome, artifact-event, and rerun lineage. A
   manual format/lint run, local CI quality run, or managed CI quality
@@ -226,9 +230,11 @@ proof that the current local buffer is failing. Imported scans emit
 - result state; and
 - profile drift and delta links.
 
-Result deltas emit `quality_result_delta_record` rows. Delta claims are
-valid only when compatibility checks pass for profile, tool, rule-pack,
-mapping family, and target scope.
+Result deltas emit `quality_result_delta_record` rows for
+quality-profile linkage and `diagnostic_delta_record` rows for
+finding-level parity. Delta claims are valid only when compatibility
+checks pass for profile, tool, rule-pack, mapping family, baseline
+family, suppression policy, and target scope.
 
 Allowed result states:
 

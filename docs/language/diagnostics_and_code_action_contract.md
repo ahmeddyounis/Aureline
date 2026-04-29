@@ -22,6 +22,11 @@ Machine-readable companions:
     groups materially identical findings without losing provenance,
     freshness, anchor-remap, semantic-layer, imported-baseline, or
     suppression truth.
+- [`/docs/language/diagnostic_freshness_and_delta_contract.md`](./diagnostic_freshness_and_delta_contract.md)
+  - companion contract plus `diagnostic_remap_state_record`,
+    `sarif_import_record`, and `diagnostic_delta_record` schemas for
+    finding-level remap state, imported scan envelopes, and
+    local/imported/baseline/suppression delta parity.
 - [`/schemas/language/code_action_summary.schema.json`](../../schemas/language/code_action_summary.schema.json)
   - `code_action_summary_record`, the reviewable summary packet every
     quick-fix, fix-all, formatter, organize-imports, and generated-
@@ -93,9 +98,11 @@ Frozen at this revision:
   organize-imports mutations, and generated/protected-path disclosures;
 - the review packet for suppressions and baseline mutations, including
   owner, actor, expiry, reopen rule, evidence linkage, and replay hints;
-- reserved anchor-remap and imported-baseline fields so imported or
-  provider-fed findings can coexist with live local findings without
-  claiming all anchors are current exact editor ranges.
+- reserved anchor-remap and imported-baseline fields, with the
+  finding-level remap/import/delta records defined by
+  [`diagnostic_freshness_and_delta_contract.md`](./diagnostic_freshness_and_delta_contract.md),
+  so imported or provider-fed findings can coexist with live local
+  findings without claiming all anchors are current exact editor ranges.
 
 Out of scope:
 
