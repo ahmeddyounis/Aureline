@@ -1,0 +1,1320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workflow/bundle_drift_row.schema.json",
+  "title": "Aureline workflow-bundle drift banner, local-override merge, and remove-bundle safety row",
+  "description": "Boundary schema for one bundle_drift_row_record as frozen in docs/workflow/bundle_drift_and_removal_contract.md. Every post-install drift surface (Start Center bundle card, bundle detail panel, project-doctor row, support-export, CLI/headless drift listing, browse-bundles row, removal/rollback surface) reads one row record per (target_bundle_identity, drift_axis, drift_subject_id) triple where the workspace's current state diverges from the bundle's applied or canonical revision. Drift rows enumerate one drift_state_class (bundle_version_drift, missing_artifact, local_override, unmanaged_addition, mirror_mismatch, evidence_stale, signer_continuity_break, policy_pinned_revision_lag, drift_state_unknown) against one drift_axis (mirroring change_axis from schemas/workflow/bundle_change_preview.schema.json) on one drift_subject (component_record, settings_or_token_path, trust_or_permission_state, compatibility_state, side_effect_envelope_entry, bundle_revision_pin, evidence_link_record). Each row binds typed resolve_action rows for resolve.keep_local, resolve.adopt_bundle, resolve.compare, resolve.rebase_to_bundle, and resolve.ignore_this_drift; resolve.adopt_bundle and resolve.rebase_to_bundle MUST resolve to a new bundle_change_preview_record so durable apply rides through the change-preview review sheet rather than the drift surface. Each row classifies asset ownership (bundle_owned, user_owned, shared_user_overlay_on_bundle, mixed_unknown_provenance), claim narrowing (no_narrowing_informational, narrows_support_class_one_rung, narrows_certification_target_pending_retest, breaks_certification_target_recall, narrows_to_imported_pending_review, pending_review_narrowing_unknown), and successor suggestion (inherits_manifest_successor_recommendation, successor_recommended_via_drift_review, no_successor_drift_review). Rows MAY embed a remove_bundle_review block enumerating removable_asset_records (bundle_owned/user_owned/shared/unknown plus safe_to_remove classification) and retained_local_override_records so removal cannot imply deletion of user-created artifacts without an explicit reviewed list; recovery rides through the apply-time rollback_checkpoint_linkage referenced from the bundle's last bundle_change_preview_record. Raw signing keys, raw certificate material, raw repository URLs, raw absolute paths, raw secrets, raw extension binaries, raw token values, raw setting bodies, and raw user-authored content never cross this boundary; records carry opaque refs, content-address digests, closed vocabulary, monotonic timestamps, and short reviewable summaries only. Adding a new drift_state_class, drift_axis value, drift_subject_kind, drift_severity_class, resolve_action_id, resolve_blocker_class, remove_bundle_review_state_class, asset_ownership_class, safe_to_remove_class, retained_local_override_class, claim_narrowing_class, successor_bundle_suggestion_class, provenance_record_class, or drift_row_state_class is additive-minor and bumps bundle_drift_row_schema_version; repurposing an existing value is breaking and requires a new decision row in artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "$ref": "#/$defs/bundle_drift_row_record",
+  "$defs": {
+    "bundle_drift_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1. Bumped on additive-minor enum or field additions; repurposing or removal is breaking and requires a decision row."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for drift rows, manifests, change-preview records, support exports, evidence packets, decision rows, and logs. Raw paths, URLs, secrets, key material, and user content never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Short reviewer-facing summary already scrubbed by the producer. Raw paths, URLs, secrets, command lines, and manifest bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercises": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "bundle_class": {
+      "type": "string",
+      "enum": [
+        "launch_bundle",
+        "imported_user_bundle",
+        "org_approved_bundle",
+        "design_partner_bundle",
+        "local_draft_bundle"
+      ],
+      "description": "Re-exported from schemas/workflow/bundle_manifest.schema.json."
+    },
+    "bundle_source_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "managed_approved",
+        "community",
+        "imported",
+        "local_draft"
+      ]
+    },
+    "bundle_status_class": {
+      "type": "string",
+      "enum": [
+        "certified_current",
+        "certified_retest_pending",
+        "managed_approved_current",
+        "community_reviewed",
+        "community_unreviewed",
+        "imported_pending_review",
+        "local_draft",
+        "deprecated_or_archived",
+        "retest_needed",
+        "status_unknown"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "officially_supported",
+        "community_supported",
+        "experimental",
+        "legacy_deprecated",
+        "unsupported",
+        "support_unknown"
+      ]
+    },
+    "mirror_or_offline_packaging_posture": {
+      "type": "string",
+      "enum": [
+        "live_origin_only",
+        "live_or_mirror",
+        "mirror_only",
+        "signed_offline_bundle",
+        "offline_no_bundle",
+        "packaging_posture_unknown"
+      ]
+    },
+    "evidence_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh_current",
+        "aging_within_window",
+        "stale_past_window",
+        "age_unknown"
+      ]
+    },
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "first_acquisition_no_prior_signer",
+        "signer_continuous",
+        "signer_rotated_with_attestation",
+        "signer_rotated_review_required",
+        "signer_unknown_user_review_required"
+      ],
+      "description": "Re-exported from source-acquisition seed; the drift surface tags signer_continuity_break against this class."
+    },
+    "settings_value_class": {
+      "type": "string",
+      "enum": [
+        "absent",
+        "present_default",
+        "present_user_set",
+        "present_profile_set",
+        "present_workspace_set",
+        "present_policy_pinned",
+        "present_imported_unreviewed",
+        "present_local_draft",
+        "value_unknown"
+      ],
+      "description": "Re-exported from schemas/workflow/bundle_change_preview.schema.json."
+    },
+    "trust_or_permission_state_class": {
+      "type": "string",
+      "enum": [
+        "denied",
+        "granted_user_review",
+        "granted_managed_policy",
+        "granted_signer_continuous",
+        "granted_imported_pending_review",
+        "granted_local_draft",
+        "policy_locked_unchangeable",
+        "state_unknown_review_required"
+      ]
+    },
+    "compatibility_state_class": {
+      "type": "string",
+      "enum": [
+        "compatible_no_change",
+        "compatible_widened",
+        "compatible_narrowed",
+        "incompatible_blocking",
+        "incompatible_review_required",
+        "compatibility_unknown"
+      ]
+    },
+    "disabled_reason_code": {
+      "type": "string",
+      "enum": [
+        "policy_narrowed_fleet",
+        "policy_narrowed_admin",
+        "policy_narrowed_workspace_trust",
+        "mirror_only_cached_subset",
+        "signature_review_required",
+        "uncertified_excluded",
+        "target_runtime_unavailable",
+        "network_unreachable",
+        "rebuild_required",
+        "trust_review_required",
+        "permission_grant_review_required",
+        "rollback_checkpoint_unavailable",
+        "non_reversible_review_required",
+        "policy_narrowed_review_pending",
+        "evidence_aged_review_required"
+      ],
+      "description": "Re-exported from schemas/workflow/bundle_change_preview.schema.json."
+    },
+    "action_rendered_state": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "visible_disabled",
+        "hidden_not_applicable",
+        "preflight_pending"
+      ],
+      "description": "Re-exported from schemas/workflow/bundle_change_preview.schema.json."
+    },
+
+    "drift_state_class": {
+      "type": "string",
+      "enum": [
+        "bundle_version_drift",
+        "missing_artifact",
+        "local_override",
+        "unmanaged_addition",
+        "mirror_mismatch",
+        "evidence_stale",
+        "signer_continuity_break",
+        "policy_pinned_revision_lag",
+        "drift_state_unknown"
+      ],
+      "description": "What kind of drift the row records against the applied bundle's declared state. Frozen in docs/workflow/bundle_drift_and_removal_contract.md §3.1."
+    },
+
+    "drift_axis": {
+      "type": "string",
+      "enum": [
+        "extension_set",
+        "profile_preset",
+        "surface_preset",
+        "task_recipe",
+        "launch_recipe",
+        "debug_recipe",
+        "template_or_scaffold_ref",
+        "docs_pack",
+        "tour_pack",
+        "glossary_pack",
+        "migration_mapping",
+        "certification_target",
+        "evidence_link",
+        "settings_or_token",
+        "trust_or_permission",
+        "compatibility_or_runtime",
+        "side_effect"
+      ],
+      "description": "Mirrors change_axis from schemas/workflow/bundle_change_preview.schema.json so drift surfaces and change-preview surfaces speak the same axis names. Frozen in §3.2."
+    },
+
+    "drift_subject_kind": {
+      "type": "string",
+      "enum": [
+        "bundle_component_record",
+        "settings_or_token_path",
+        "trust_or_permission_state",
+        "compatibility_state",
+        "side_effect_envelope_entry",
+        "bundle_revision_pin",
+        "evidence_link_record"
+      ],
+      "description": "What the row is the drift of. Frozen in §3.3."
+    },
+
+    "drift_severity_class": {
+      "type": "string",
+      "enum": [
+        "informational_no_narrowing",
+        "narrowing_review_recommended",
+        "narrowing_review_required",
+        "severity_unknown_review_required"
+      ],
+      "description": "How load-bearing the drift is for review. Frozen in §3.4."
+    },
+
+    "resolve_action_id": {
+      "type": "string",
+      "enum": [
+        "resolve.keep_local",
+        "resolve.adopt_bundle",
+        "resolve.compare",
+        "resolve.rebase_to_bundle",
+        "resolve.ignore_this_drift"
+      ],
+      "description": "Closed set of merge / resolve actions every drift row offers. resolve.adopt_bundle and resolve.rebase_to_bundle MUST route through a new bundle_change_preview_record. Frozen in §3.5 / §5."
+    },
+
+    "resolve_blocker_class": {
+      "type": "string",
+      "enum": [
+        "policy_pinned_blocks_adopt",
+        "signer_continuity_break_blocks_adopt",
+        "compatibility_blocks_rebase",
+        "retained_override_safety_blocks_rebase",
+        "network_or_mirror_unreachable_blocks_compare",
+        "evidence_stale_blocks_adopt",
+        "non_reversible_review_required_blocks_adopt"
+      ],
+      "description": "Closed set of reasons a resolve action is blocked; each value pairs with a disabled_reason_code on the action record. Frozen in §3.7."
+    },
+
+    "remove_bundle_review_state_class": {
+      "type": "string",
+      "enum": [
+        "remove_review_minted_pending_classification",
+        "remove_review_classified_ready_to_confirm",
+        "remove_review_blocked_user_data_co_resident",
+        "remove_review_blocked_policy_locked",
+        "remove_review_cancelled",
+        "remove_review_confirmed",
+        "remove_review_completed_succeeded",
+        "remove_review_completed_partial_user_data_retained"
+      ],
+      "description": "Closed lifecycle of the remove-bundle review record. Frozen in §3.8."
+    },
+
+    "asset_ownership_class": {
+      "type": "string",
+      "enum": [
+        "bundle_owned",
+        "user_owned",
+        "shared_user_overlay_on_bundle",
+        "mixed_unknown_provenance"
+      ],
+      "description": "Closed asset-ownership classification used by both drift rows and remove-bundle reviews. Frozen in §3.9."
+    },
+
+    "safe_to_remove_class": {
+      "type": "string",
+      "enum": [
+        "safe_to_remove_no_user_data",
+        "safe_to_remove_user_overlay_preserved",
+        "review_required_user_data_co_resident",
+        "not_safe_to_remove_user_owned",
+        "not_safe_to_remove_policy_locked"
+      ],
+      "description": "Closed safe-to-remove classification used by the remove-bundle review. Frozen in §3.10."
+    },
+
+    "retained_local_override_class": {
+      "type": "string",
+      "enum": [
+        "override_retained_in_user_scope",
+        "override_retained_in_profile_scope",
+        "override_retained_in_workspace_scope",
+        "override_inlined_to_user_authored_record",
+        "override_dropped_with_user_consent"
+      ],
+      "description": "Closed set describing how a local override survives a bundle removal or rebase. Frozen in §3.11."
+    },
+
+    "claim_narrowing_class": {
+      "type": "string",
+      "enum": [
+        "no_narrowing_informational",
+        "narrows_support_class_one_rung",
+        "narrows_certification_target_pending_retest",
+        "breaks_certification_target_recall",
+        "narrows_to_imported_pending_review",
+        "pending_review_narrowing_unknown"
+      ],
+      "description": "Closed set describing how the drift narrows the bundle's projected claims. Drift never re-promotes a row's authority. Frozen in §3.12."
+    },
+
+    "successor_bundle_suggestion_class": {
+      "type": "string",
+      "enum": [
+        "inherits_manifest_successor_recommendation",
+        "successor_recommended_via_drift_review",
+        "no_successor_drift_review"
+      ],
+      "description": "Closed set describing how a successor bundle is suggested in response to drift. successor_recommended_via_drift_review MUST cite a decision_row_ref. Frozen in §3.13."
+    },
+
+    "provenance_record_class": {
+      "type": "string",
+      "enum": [
+        "bundle_history_event_recorded",
+        "support_export_audit_link",
+        "decision_row_link",
+        "provenance_unknown_review_required"
+      ],
+      "description": "Closed set describing how the drift row, the resolve action, and the remove-bundle review are preserved as audit lifecycle events. Frozen in §3.14."
+    },
+
+    "drift_row_state_class": {
+      "type": "string",
+      "enum": [
+        "drift_row_open_pending_review",
+        "drift_row_resolved_keep_local",
+        "drift_row_resolved_adopt_bundle",
+        "drift_row_resolved_rebase_to_bundle",
+        "drift_row_resolved_ignore",
+        "drift_row_superseded_by_newer_drift",
+        "drift_row_superseded_by_remove_bundle_review",
+        "drift_row_blocked_review_required"
+      ],
+      "description": "Closed lifecycle of the drift row record. Frozen in §3.15."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "bundle_identity_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "bundle_revision",
+        "bundle_class",
+        "bundle_source_class",
+        "bundle_status_class"
+      ],
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "bundle_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bundle_revision_semver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "bundle_class": { "$ref": "#/$defs/bundle_class" },
+        "bundle_source_class": { "$ref": "#/$defs/bundle_source_class" },
+        "bundle_status_class": { "$ref": "#/$defs/bundle_status_class" },
+        "manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "manifest_digest_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+
+    "change_source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "source_ref"],
+      "properties": {
+        "source_class": {
+          "type": "string",
+          "enum": [
+            "bundle_manifest_field",
+            "bundle_component_record",
+            "bundle_evidence_link",
+            "bundle_dependency_marker",
+            "bundle_lifecycle_block",
+            "appearance_token_overlay_report",
+            "theme_import_report",
+            "imported_environment_record",
+            "policy_pinned_revision_record",
+            "previous_revision_manifest"
+          ],
+          "description": "Re-exported from schemas/workflow/bundle_change_preview.schema.json so the Inspect change source action drills back to the same set."
+        },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+
+    "successor_bundle_suggestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["successor_bundle_suggestion_class"],
+      "properties": {
+        "successor_bundle_suggestion_class": { "$ref": "#/$defs/successor_bundle_suggestion_class" },
+        "successor_bundle_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "successor_bundle_revision": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "successor_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "decision_row_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "successor_recommended_via_drift_review cites a stable successor bundle id, revision, and a decision row ref.",
+          "if": {
+            "properties": {
+              "successor_bundle_suggestion_class": { "const": "successor_recommended_via_drift_review" }
+            }
+          },
+          "then": {
+            "required": [
+              "successor_bundle_id",
+              "successor_bundle_revision",
+              "decision_row_ref"
+            ],
+            "properties": {
+              "successor_bundle_id": { "$ref": "#/$defs/opaque_id" },
+              "successor_bundle_revision": { "type": "integer", "minimum": 1 },
+              "decision_row_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "inherits_manifest_successor_recommendation cites the successor identity inherited verbatim from the manifest.",
+          "if": {
+            "properties": {
+              "successor_bundle_suggestion_class": { "const": "inherits_manifest_successor_recommendation" }
+            }
+          },
+          "then": {
+            "required": ["successor_bundle_id", "successor_bundle_revision"],
+            "properties": {
+              "successor_bundle_id": { "$ref": "#/$defs/opaque_id" },
+              "successor_bundle_revision": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "provenance_record_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provenance_record_class", "provenance_ref"],
+      "properties": {
+        "provenance_record_class": { "$ref": "#/$defs/provenance_record_class" },
+        "provenance_ref": { "$ref": "#/$defs/opaque_id" },
+        "decision_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "disabled_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disabled_reason_code" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "decision_row_link cites a stable decision_row_ref.",
+          "if": {
+            "properties": {
+              "provenance_record_class": { "const": "decision_row_link" }
+            }
+          },
+          "then": {
+            "required": ["decision_row_ref"],
+            "properties": {
+              "decision_row_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "provenance_unknown_review_required cites a typed disabled_reason_code.",
+          "if": {
+            "properties": {
+              "provenance_record_class": { "const": "provenance_unknown_review_required" }
+            }
+          },
+          "then": {
+            "required": ["disabled_reason_code"],
+            "properties": {
+              "disabled_reason_code": { "$ref": "#/$defs/disabled_reason_code" }
+            }
+          }
+        }
+      ]
+    },
+
+    "resolve_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "rendered_state",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/resolve_action_id" },
+        "rendered_state": { "$ref": "#/$defs/action_rendered_state" },
+        "keyboard_reachable": { "type": "boolean", "const": true },
+        "disabled_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disabled_reason_code" }
+          ]
+        },
+        "resolve_blocker_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resolve_blocker_class" }
+          ]
+        },
+        "presentation_label_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "destination_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Where the action navigates: a compare-report ref (resolve.compare), a new bundle_change_preview_record ref (resolve.adopt_bundle / resolve.rebase_to_bundle), an acknowledgement ref (resolve.keep_local / resolve.ignore_this_drift)."
+        }
+      },
+      "allOf": [
+        {
+          "description": "visible_disabled actions cite a disabled_reason_code and a resolve_blocker_class.",
+          "if": { "properties": { "rendered_state": { "const": "visible_disabled" } } },
+          "then": {
+            "required": ["disabled_reason_code", "resolve_blocker_class"],
+            "properties": {
+              "disabled_reason_code": { "$ref": "#/$defs/disabled_reason_code" },
+              "resolve_blocker_class": { "$ref": "#/$defs/resolve_blocker_class" }
+            }
+          }
+        },
+        {
+          "description": "resolve.adopt_bundle and resolve.rebase_to_bundle resolve their destination_ref to a new bundle_change_preview_record id when enabled.",
+          "if": {
+            "allOf": [
+              { "properties": { "action_id": { "enum": ["resolve.adopt_bundle", "resolve.rebase_to_bundle"] } } },
+              { "properties": { "rendered_state": { "const": "enabled" } } }
+            ]
+          },
+          "then": {
+            "required": ["destination_ref"],
+            "properties": {
+              "destination_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "removable_asset_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset_id",
+        "asset_subject_kind",
+        "drift_axis",
+        "asset_ownership_class",
+        "safe_to_remove_class",
+        "asset_summary_ref",
+        "change_source_refs",
+        "disclosure_required",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "asset_id": { "$ref": "#/$defs/opaque_id" },
+        "asset_subject_kind": { "$ref": "#/$defs/drift_subject_kind" },
+        "drift_axis": { "$ref": "#/$defs/drift_axis" },
+        "asset_ownership_class": { "$ref": "#/$defs/asset_ownership_class" },
+        "safe_to_remove_class": { "$ref": "#/$defs/safe_to_remove_class" },
+        "asset_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/change_source_ref" }
+        },
+        "co_resident_user_data_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_lock_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "disclosure_required": { "type": "boolean", "const": true },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "review_required_user_data_co_resident cites a co-resident user data summary ref.",
+          "if": {
+            "properties": {
+              "safe_to_remove_class": { "const": "review_required_user_data_co_resident" }
+            }
+          },
+          "then": {
+            "required": ["co_resident_user_data_summary_ref"],
+            "properties": {
+              "co_resident_user_data_summary_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "not_safe_to_remove_policy_locked cites a policy lock summary ref.",
+          "if": {
+            "properties": {
+              "safe_to_remove_class": { "const": "not_safe_to_remove_policy_locked" }
+            }
+          },
+          "then": {
+            "required": ["policy_lock_summary_ref"],
+            "properties": {
+              "policy_lock_summary_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "not_safe_to_remove_user_owned must be flagged as user_owned ownership.",
+          "if": {
+            "properties": {
+              "safe_to_remove_class": { "const": "not_safe_to_remove_user_owned" }
+            }
+          },
+          "then": {
+            "properties": {
+              "asset_ownership_class": { "const": "user_owned" }
+            }
+          }
+        }
+      ]
+    },
+
+    "retained_local_override_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "override_id",
+        "retained_local_override_class",
+        "target_subject_kind",
+        "drift_axis",
+        "override_summary_ref"
+      ],
+      "properties": {
+        "override_id": { "$ref": "#/$defs/opaque_id" },
+        "retained_local_override_class": { "$ref": "#/$defs/retained_local_override_class" },
+        "target_subject_kind": { "$ref": "#/$defs/drift_subject_kind" },
+        "drift_axis": { "$ref": "#/$defs/drift_axis" },
+        "target_user_authored_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "decision_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "override_summary_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "override_inlined_to_user_authored_record cites the target user-authored record ref.",
+          "if": {
+            "properties": {
+              "retained_local_override_class": { "const": "override_inlined_to_user_authored_record" }
+            }
+          },
+          "then": {
+            "required": ["target_user_authored_record_ref"],
+            "properties": {
+              "target_user_authored_record_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "override_dropped_with_user_consent cites a decision row ref recording the user's consent.",
+          "if": {
+            "properties": {
+              "retained_local_override_class": { "const": "override_dropped_with_user_consent" }
+            }
+          },
+          "then": {
+            "required": ["decision_row_ref"],
+            "properties": {
+              "decision_row_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "remove_bundle_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remove_bundle_review_id",
+        "target_bundle",
+        "removable_assets",
+        "retained_local_overrides",
+        "recovery_link",
+        "bundle_history_provenance_ref",
+        "remove_bundle_review_state_class",
+        "policy_context",
+        "redaction_class",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "remove_bundle_review_id": { "$ref": "#/$defs/opaque_id" },
+        "target_bundle": { "$ref": "#/$defs/bundle_identity_ref" },
+        "removable_assets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/removable_asset_record" }
+        },
+        "retained_local_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_local_override_record" }
+        },
+        "recovery_link": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applied_change_preview_ref", "rollback_checkpoint_linkage_ref"],
+          "properties": {
+            "applied_change_preview_ref": { "$ref": "#/$defs/opaque_id" },
+            "rollback_checkpoint_linkage_ref": { "$ref": "#/$defs/opaque_id" },
+            "non_reversibility_justification_class": {
+              "oneOf": [
+                { "type": "null" },
+                {
+                  "type": "string",
+                  "enum": [
+                    "external_state_mutation_committed",
+                    "provider_grant_unrevocable_in_session",
+                    "filesystem_destructive_replace_acknowledged",
+                    "mirror_promotion_immutable_revision",
+                    "local_draft_no_prior_state",
+                    "imported_environment_no_prior_state",
+                    "policy_pinned_revision_no_rollback",
+                    "telemetry_event_already_emitted"
+                  ]
+                }
+              ]
+            },
+            "decision_row_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+          },
+          "allOf": [
+            {
+              "description": "When the apply-time linkage was non-reversible, recovery cites a justification class and a decision row ref.",
+              "if": {
+                "properties": {
+                  "non_reversibility_justification_class": {
+                    "type": "string"
+                  }
+                },
+                "required": ["non_reversibility_justification_class"]
+              },
+              "then": {
+                "required": ["decision_row_ref"],
+                "properties": {
+                  "decision_row_ref": { "$ref": "#/$defs/opaque_id" }
+                }
+              }
+            }
+          ]
+        },
+        "bundle_history_provenance_ref": { "$ref": "#/$defs/opaque_id" },
+        "remove_bundle_review_state_class": { "$ref": "#/$defs/remove_bundle_review_state_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "remove_review_blocked_user_data_co_resident cites at least one removable asset whose safe_to_remove_class is review_required_user_data_co_resident or not_safe_to_remove_user_owned.",
+          "if": {
+            "properties": {
+              "remove_bundle_review_state_class": { "const": "remove_review_blocked_user_data_co_resident" }
+            }
+          },
+          "then": {
+            "properties": {
+              "removable_assets": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "safe_to_remove_class": {
+                      "enum": [
+                        "review_required_user_data_co_resident",
+                        "not_safe_to_remove_user_owned"
+                      ]
+                    }
+                  },
+                  "required": ["safe_to_remove_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "remove_review_blocked_policy_locked cites at least one removable asset whose safe_to_remove_class is not_safe_to_remove_policy_locked.",
+          "if": {
+            "properties": {
+              "remove_bundle_review_state_class": { "const": "remove_review_blocked_policy_locked" }
+            }
+          },
+          "then": {
+            "properties": {
+              "removable_assets": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "safe_to_remove_class": { "const": "not_safe_to_remove_policy_locked" }
+                  },
+                  "required": ["safe_to_remove_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "remove_review_completed_partial_user_data_retained cites at least one retained_local_override_record.",
+          "if": {
+            "properties": {
+              "remove_bundle_review_state_class": { "const": "remove_review_completed_partial_user_data_retained" }
+            }
+          },
+          "then": {
+            "properties": {
+              "retained_local_overrides": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "bundle_drift_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "bundle_drift_row_schema_version",
+        "drift_row_id",
+        "minted_at",
+        "target_bundle",
+        "applied_revision_ref",
+        "canonical_revision_ref",
+        "applied_change_preview_ref",
+        "drift_state_class",
+        "drift_axis",
+        "drift_subject_kind",
+        "drift_subject_id",
+        "drift_severity_class",
+        "asset_ownership_class",
+        "claim_narrowing_class",
+        "successor_bundle_suggestion",
+        "provenance_records",
+        "resolve_actions",
+        "change_source_refs",
+        "drift_summary_ref",
+        "drift_row_state_class",
+        "policy_context",
+        "redaction_class",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "bundle_drift_row_record"
+        },
+        "bundle_drift_row_schema_version": { "$ref": "#/$defs/bundle_drift_row_schema_version" },
+        "drift_row_id": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "target_bundle": { "$ref": "#/$defs/bundle_identity_ref" },
+        "applied_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "applied_change_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "drift_state_class": { "$ref": "#/$defs/drift_state_class" },
+        "drift_axis": { "$ref": "#/$defs/drift_axis" },
+        "drift_subject_kind": { "$ref": "#/$defs/drift_subject_kind" },
+        "drift_subject_id": { "$ref": "#/$defs/opaque_id" },
+        "before_value_class_settings": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/settings_value_class" }
+          ],
+          "description": "Used when drift_axis = settings_or_token."
+        },
+        "after_value_class_settings": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/settings_value_class" }
+          ]
+        },
+        "before_state_class_trust": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trust_or_permission_state_class" }
+          ],
+          "description": "Used when drift_axis = trust_or_permission."
+        },
+        "after_state_class_trust": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trust_or_permission_state_class" }
+          ]
+        },
+        "before_state_class_compatibility": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/compatibility_state_class" }
+          ],
+          "description": "Used when drift_axis = compatibility_or_runtime."
+        },
+        "after_state_class_compatibility": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/compatibility_state_class" }
+          ]
+        },
+        "before_revision_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Used when drift_axis is one of the thirteen component axes; opaque revision id of the bundle's declared component value."
+        },
+        "after_revision_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Used when drift_axis is one of the thirteen component axes; opaque revision id of the workspace's current value."
+        },
+        "drift_severity_class": { "$ref": "#/$defs/drift_severity_class" },
+        "asset_ownership_class": { "$ref": "#/$defs/asset_ownership_class" },
+        "claim_narrowing_class": { "$ref": "#/$defs/claim_narrowing_class" },
+        "support_class_before": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/support_class" }
+          ]
+        },
+        "support_class_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/support_class" }
+          ]
+        },
+        "successor_bundle_suggestion": { "$ref": "#/$defs/successor_bundle_suggestion" },
+        "evidence_age_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/evidence_age_class" }
+          ]
+        },
+        "signer_continuity_class_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/signer_continuity_class" }
+          ]
+        },
+        "mirror_or_offline_packaging_posture": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/mirror_or_offline_packaging_posture" }
+          ]
+        },
+        "appearance_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required when drift_axis = settings_or_token and the underlying settings_or_token_axis is appearance_token_overlay or appearance_theme_package."
+        },
+        "preserved_local_override_summary_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required when drift_state_class = local_override or when mirror_mismatch carries a user overlay."
+        },
+        "provenance_records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provenance_record_entry" }
+        },
+        "resolve_actions": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/resolve_action_record" }
+        },
+        "change_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/change_source_ref" }
+        },
+        "drift_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "drift_row_state_class": { "$ref": "#/$defs/drift_row_state_class" },
+        "superseded_by_drift_row_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "superseded_by_remove_bundle_review_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "resolved_via_change_preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "remove_bundle_review": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/remove_bundle_review_record" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "Resolve actions must include resolve.keep_local.",
+          "properties": {
+            "resolve_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "resolve.keep_local" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Resolve actions must include resolve.adopt_bundle.",
+          "properties": {
+            "resolve_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "resolve.adopt_bundle" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Resolve actions must include resolve.compare.",
+          "properties": {
+            "resolve_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "resolve.compare" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Resolve actions must include resolve.rebase_to_bundle.",
+          "properties": {
+            "resolve_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "resolve.rebase_to_bundle" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Resolve actions must include resolve.ignore_this_drift.",
+          "properties": {
+            "resolve_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "resolve.ignore_this_drift" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "drift_state_class = unmanaged_addition forces asset_ownership_class = user_owned.",
+          "if": {
+            "properties": {
+              "drift_state_class": { "const": "unmanaged_addition" }
+            }
+          },
+          "then": {
+            "properties": {
+              "asset_ownership_class": { "const": "user_owned" }
+            }
+          }
+        },
+        {
+          "description": "drift_state_class = local_override requires a preserved_local_override_summary_ref and an asset_ownership_class compatible with overlay.",
+          "if": {
+            "properties": {
+              "drift_state_class": { "const": "local_override" }
+            }
+          },
+          "then": {
+            "required": ["preserved_local_override_summary_ref"],
+            "properties": {
+              "preserved_local_override_summary_ref": { "$ref": "#/$defs/opaque_id" },
+              "asset_ownership_class": {
+                "enum": ["shared_user_overlay_on_bundle", "user_owned"]
+              }
+            }
+          }
+        },
+        {
+          "description": "drift_state_class = bundle_version_drift cites the canonical_revision_ref.",
+          "if": {
+            "properties": {
+              "drift_state_class": { "const": "bundle_version_drift" }
+            }
+          },
+          "then": {
+            "required": ["canonical_revision_ref"],
+            "properties": {
+              "canonical_revision_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "drift_state_class = mirror_mismatch cites a non-live_origin_only packaging posture.",
+          "if": {
+            "properties": {
+              "drift_state_class": { "const": "mirror_mismatch" }
+            }
+          },
+          "then": {
+            "required": ["mirror_or_offline_packaging_posture"],
+            "properties": {
+              "mirror_or_offline_packaging_posture": {
+                "enum": ["live_or_mirror", "mirror_only", "signed_offline_bundle"]
+              }
+            }
+          }
+        },
+        {
+          "description": "drift_state_class = evidence_stale cites an evidence_age_class.",
+          "if": {
+            "properties": {
+              "drift_state_class": { "const": "evidence_stale" }
+            }
+          },
+          "then": {
+            "required": ["evidence_age_class"],
+            "properties": {
+              "evidence_age_class": { "$ref": "#/$defs/evidence_age_class" }
+            }
+          }
+        },
+        {
+          "description": "drift_state_class = signer_continuity_break cites the new signer_continuity_class.",
+          "if": {
+            "properties": {
+              "drift_state_class": { "const": "signer_continuity_break" }
+            }
+          },
+          "then": {
+            "required": ["signer_continuity_class_after"],
+            "properties": {
+              "signer_continuity_class_after": { "$ref": "#/$defs/signer_continuity_class" }
+            }
+          }
+        },
+        {
+          "description": "narrowing_review_recommended and narrowing_review_required severities cite a non-informational claim_narrowing_class.",
+          "if": {
+            "properties": {
+              "drift_severity_class": {
+                "enum": ["narrowing_review_recommended", "narrowing_review_required"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claim_narrowing_class": {
+                "enum": [
+                  "narrows_support_class_one_rung",
+                  "narrows_certification_target_pending_retest",
+                  "breaks_certification_target_recall",
+                  "narrows_to_imported_pending_review",
+                  "pending_review_narrowing_unknown"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "narrows_support_class_one_rung cites both before and after support_class.",
+          "if": {
+            "properties": {
+              "claim_narrowing_class": { "const": "narrows_support_class_one_rung" }
+            }
+          },
+          "then": {
+            "required": ["support_class_before", "support_class_after"],
+            "properties": {
+              "support_class_before": { "$ref": "#/$defs/support_class" },
+              "support_class_after": { "$ref": "#/$defs/support_class" }
+            }
+          }
+        },
+        {
+          "description": "drift_row_resolved_adopt_bundle and drift_row_resolved_rebase_to_bundle cite the resolving change-preview record.",
+          "if": {
+            "properties": {
+              "drift_row_state_class": {
+                "enum": [
+                  "drift_row_resolved_adopt_bundle",
+                  "drift_row_resolved_rebase_to_bundle"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["resolved_via_change_preview_ref"],
+            "properties": {
+              "resolved_via_change_preview_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "drift_row_superseded_by_newer_drift cites the newer drift row id.",
+          "if": {
+            "properties": {
+              "drift_row_state_class": { "const": "drift_row_superseded_by_newer_drift" }
+            }
+          },
+          "then": {
+            "required": ["superseded_by_drift_row_id"],
+            "properties": {
+              "superseded_by_drift_row_id": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "drift_row_superseded_by_remove_bundle_review cites the remove-bundle review id.",
+          "if": {
+            "properties": {
+              "drift_row_state_class": { "const": "drift_row_superseded_by_remove_bundle_review" }
+            }
+          },
+          "then": {
+            "required": ["superseded_by_remove_bundle_review_id"],
+            "properties": {
+              "superseded_by_remove_bundle_review_id": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

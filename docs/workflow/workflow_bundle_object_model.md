@@ -1266,5 +1266,19 @@ sets it exercises, and the rules it validates.
   [`/docs/workflow/bundle_change_review_contract.md`](./bundle_change_review_contract.md)
   and
   [`/schemas/workflow/bundle_change_preview.schema.json`](../../schemas/workflow/bundle_change_preview.schema.json).
+- Bundle drift banner, local-override merge, and
+  remove-bundle safety contract (post-install drift,
+  merge / resolve, and remove-bundle review record; reads
+  this contract's `bundle_class`, `bundle_status_class`,
+  `mirror_or_offline_packaging_posture`,
+  `evidence_age_class`, `signer_continuity_class`,
+  `successor_recommendation_class`, `removal_surface_kind`,
+  and `rollback_surface_kind` by reference; routes adopt
+  and rebase resolutions through new
+  `bundle_change_preview_record`s rather than mutating
+  manifest state directly):
+  [`/docs/workflow/bundle_drift_and_removal_contract.md`](./bundle_drift_and_removal_contract.md)
+  and
+  [`/schemas/workflow/bundle_drift_row.schema.json`](../../schemas/workflow/bundle_drift_row.schema.json).
 - Worked-example fixtures:
   [`/fixtures/workflow/bundles/`](../../fixtures/workflow/bundles/).

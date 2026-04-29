@@ -1035,5 +1035,17 @@ sets it exercises, and the rules it validates.
 - Bundle change preview schema (machine-readable companion
   to this contract):
   [`/schemas/workflow/bundle_change_preview.schema.json`](../../schemas/workflow/bundle_change_preview.schema.json).
+- Bundle drift banner, local-override merge, and
+  remove-bundle safety contract (downstream consumer of
+  this contract's `change_kind`, `change_axis`,
+  `disabled_reason_code`, and
+  `rollback_checkpoint_linkage` re-exports; mints the
+  drift-row record that surfaces post-install drift and
+  the remove-bundle review block whose `recovery_link`
+  resolves to a `bundle_change_preview_record`'s
+  rollback linkage):
+  [`/docs/workflow/bundle_drift_and_removal_contract.md`](./bundle_drift_and_removal_contract.md)
+  and
+  [`/schemas/workflow/bundle_drift_row.schema.json`](../../schemas/workflow/bundle_drift_row.schema.json).
 - Worked-example fixtures:
   [`/fixtures/workflow/bundle_review_cases/`](../../fixtures/workflow/bundle_review_cases/).
