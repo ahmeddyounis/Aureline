@@ -1,0 +1,910 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/appearance_checkpoint.schema.json",
+  "title": "Aureline appearance session, checkpoint, and extension-surface inheritance records",
+  "description": "Boundary schema for the appearance_session_record, appearance_checkpoint_record, and extension_surface_appearance_record frozen in docs/ux/appearance_import_and_checkpoint_contract.md. The schema publishes the effective appearance session, single-checkpoint preview / rollback contract, and extension or embedded-surface inheritance rows for theme, focus, contrast, density, and reduced-motion posture. It re-exports theme, density, accessibility-posture, semantic-status, and trust-visual-state vocabulary from the design-token contract instead of minting parallel values. Raw token values, raw screenshots, raw paths, raw URLs, and raw user content never cross this boundary; records carry opaque refs, closed vocabulary, counts, and short privacy-safe labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/appearance_session_record" },
+    { "$ref": "#/$defs/appearance_checkpoint_record" },
+    { "$ref": "#/$defs/extension_surface_appearance_record" }
+  ],
+  "$defs": {
+    "appearance_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for appearance session, checkpoint, and extension inheritance records. Additive optional fields do not bump this value; vocabulary additions are additive-minor and require a version bump."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "theme_class": {
+      "type": "string",
+      "enum": [
+        "dark_reference",
+        "light_parity",
+        "high_contrast_dark",
+        "high_contrast_light"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "density_class": {
+      "type": "string",
+      "enum": ["compact", "standard", "comfortable"],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "accessibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "motion_standard",
+        "motion_reduced",
+        "motion_low_motion",
+        "motion_power_saver",
+        "motion_critical_hot_path"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "semantic_status_class": {
+      "type": "string",
+      "enum": ["success", "warning", "danger", "info", "insight"],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "trust_visual_state_class": {
+      "type": "string",
+      "enum": [
+        "trusted_full",
+        "restricted_workspace",
+        "remote_target_active",
+        "collaboration_active",
+        "ai_draft_pending",
+        "ai_applied",
+        "index_warming",
+        "debugging_active",
+        "quiet_hours_active",
+        "policy_locked"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "follow_system_posture": {
+      "type": "string",
+      "enum": [
+        "follow_system",
+        "manual_override",
+        "managed_policy_override",
+        "unavailable_platform_signal"
+      ],
+      "description": "How the session resolves OS appearance signals."
+    },
+
+    "contrast_mode": {
+      "type": "string",
+      "enum": [
+        "contrast_standard",
+        "contrast_high",
+        "contrast_forced_colors"
+      ],
+      "description": "Effective contrast posture for this session or support row."
+    },
+
+    "accent_source_class": {
+      "type": "string",
+      "enum": [
+        "system_accent",
+        "theme_package_accent",
+        "user_selected_accent",
+        "policy_locked_accent",
+        "not_applicable"
+      ]
+    },
+
+    "reduced_motion_source": {
+      "type": "string",
+      "enum": [
+        "os_signal",
+        "user_setting",
+        "policy_cap",
+        "power_saver_signal",
+        "critical_hot_path",
+        "not_applicable"
+      ]
+    },
+
+    "text_scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale_percent", "source"],
+      "properties": {
+        "scale_percent": {
+          "type": "integer",
+          "minimum": 75,
+          "maximum": 200
+        },
+        "source": {
+          "type": "string",
+          "enum": ["system", "user", "profile", "workspace", "policy"]
+        },
+        "locked_by_policy": { "type": "boolean" }
+      }
+    },
+
+    "preview_state": {
+      "type": "string",
+      "enum": [
+        "not_previewing",
+        "preview_pending_validation",
+        "preview_live",
+        "preview_failed_reverted",
+        "preview_committed",
+        "rollback_applied"
+      ]
+    },
+
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "appearance_preview_checkpoint",
+        "appearance_import_checkpoint",
+        "appearance_overlay_checkpoint",
+        "appearance_os_signal_checkpoint",
+        "appearance_policy_checkpoint"
+      ]
+    },
+
+    "checkpoint_scope_class": {
+      "type": "string",
+      "enum": [
+        "global_appearance",
+        "profile_appearance",
+        "workspace_appearance",
+        "extension_surface_appearance",
+        "preview_only"
+      ]
+    },
+
+    "appearance_axis": {
+      "type": "string",
+      "enum": [
+        "theme_package",
+        "follow_system",
+        "contrast",
+        "accent",
+        "density",
+        "text_scale",
+        "reduced_motion",
+        "token_overlay",
+        "import_mapping",
+        "extension_surface_claim"
+      ]
+    },
+
+    "appearance_apply_state": {
+      "type": "string",
+      "enum": [
+        "checkpoint_created",
+        "preflight_failed",
+        "preview_live",
+        "committed",
+        "reverted",
+        "rollback_required",
+        "rollback_failed_blocked"
+      ]
+    },
+
+    "atomicity_class": {
+      "type": "string",
+      "enum": [
+        "single_checkpoint_atomic",
+        "surface_reload_from_single_checkpoint",
+        "full_restart_from_single_checkpoint"
+      ]
+    },
+
+    "rollback_path_class": {
+      "type": "string",
+      "enum": [
+        "single_checkpoint_revert",
+        "surface_reload_then_revert",
+        "full_restart_then_revert"
+      ]
+    },
+
+    "preflight_check_class": {
+      "type": "string",
+      "enum": [
+        "contrast_targets",
+        "protected_cue_preservation",
+        "import_mapping_report_present",
+        "syntax_coverage_present",
+        "extension_inheritance_disclosed",
+        "rollback_path_present"
+      ]
+    },
+
+    "check_result_state": {
+      "type": "string",
+      "enum": ["passed", "warning", "failed_blocked"]
+    },
+
+    "protected_cue_class": {
+      "type": "string",
+      "enum": [
+        "trust",
+        "policy_lock",
+        "severity",
+        "source_integrity"
+      ]
+    },
+
+    "non_color_cue": {
+      "type": "string",
+      "enum": [
+        "shape",
+        "border",
+        "icon",
+        "text",
+        "label_chip",
+        "position",
+        "pattern",
+        "accessible_name"
+      ]
+    },
+
+    "protected_cue_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protected_cue_class",
+        "non_color_cues",
+        "color_alone_prohibited",
+        "preserved_in_high_contrast",
+        "preserved_in_forced_colors",
+        "validation_state"
+      ],
+      "properties": {
+        "protected_cue_class": { "$ref": "#/$defs/protected_cue_class" },
+        "trust_visual_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trust_visual_state_class" }
+          ]
+        },
+        "semantic_status_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semantic_status_class" }
+          ]
+        },
+        "non_color_cues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_color_cue" },
+          "uniqueItems": true
+        },
+        "color_alone_prohibited": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserved_in_high_contrast": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserved_in_forced_colors": {
+          "type": "boolean",
+          "const": true
+        },
+        "validation_state": { "$ref": "#/$defs/check_result_state" },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "preflight_check_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_class", "result_state"],
+      "properties": {
+        "check_class": { "$ref": "#/$defs/preflight_check_class" },
+        "result_state": { "$ref": "#/$defs/check_result_state" },
+        "finding_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "rollback_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_path_class",
+        "rollback_ref",
+        "user_visible_action_id",
+        "restores_axes",
+        "requires_restart"
+      ],
+      "properties": {
+        "rollback_path_class": { "$ref": "#/$defs/rollback_path_class" },
+        "rollback_ref": { "$ref": "#/$defs/opaque_id" },
+        "user_visible_action_id": { "$ref": "#/$defs/opaque_id" },
+        "restores_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_axis" },
+          "uniqueItems": true
+        },
+        "requires_restart": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "inheritance_axis": {
+      "type": "string",
+      "enum": ["theme", "focus", "contrast", "density", "reduced_motion"]
+    },
+
+    "inheritance_state": {
+      "type": "string",
+      "enum": ["inherits", "partial", "does_not_inherit"]
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "extension_hosted_surface",
+        "embedded_webview_surface",
+        "service_dashboard_surface",
+        "docs_help_embedded_surface",
+        "native_extension_panel",
+        "terminal_decoration_surface"
+      ]
+    },
+
+    "theme_contrast_support_state": {
+      "type": "string",
+      "enum": ["supported", "partial", "unsupported", "not_claimed"]
+    },
+
+    "parity_claim_state": {
+      "type": "string",
+      "enum": [
+        "no_parity_claim",
+        "claims_host_parity",
+        "partial_claim_with_gaps",
+        "denied_claim"
+      ]
+    },
+
+    "inheritance_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "inheritance_state",
+        "claim_source_ref",
+        "known_gap_count",
+        "gap_refs",
+        "user_visible_disclosure_required"
+      ],
+      "properties": {
+        "axis": { "$ref": "#/$defs/inheritance_axis" },
+        "inheritance_state": { "$ref": "#/$defs/inheritance_state" },
+        "claim_source_ref": { "$ref": "#/$defs/opaque_id" },
+        "known_gap_count": { "type": "integer", "minimum": 0 },
+        "gap_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "user_visible_disclosure_required": {
+          "type": "boolean",
+          "description": "True whenever inheritance_state is partial or does_not_inherit; may also be true for inherits rows when the surface wants to expose proof."
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "theme_contrast_support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "theme_class",
+        "contrast_mode",
+        "support_state",
+        "claim_ref"
+      ],
+      "properties": {
+        "theme_class": { "$ref": "#/$defs/theme_class" },
+        "contrast_mode": { "$ref": "#/$defs/contrast_mode" },
+        "support_state": { "$ref": "#/$defs/theme_contrast_support_state" },
+        "claim_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "gap_summary": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "appearance_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_schema_version",
+        "session_ref",
+        "active_theme_package_ref",
+        "active_theme_revision_ref",
+        "follow_system_posture",
+        "resolved_theme_class",
+        "contrast_mode",
+        "accent_source",
+        "density_class",
+        "text_scale",
+        "reduced_motion_posture",
+        "reduced_motion_source",
+        "preview_state",
+        "current_checkpoint_ref",
+        "rollback_ref",
+        "active_import_report_refs",
+        "active_token_overlay_report_refs",
+        "protected_cue_preservation",
+        "extension_surface_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "appearance_session_record" },
+        "appearance_schema_version": { "$ref": "#/$defs/appearance_schema_version" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_theme_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_theme_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "follow_system_posture": { "$ref": "#/$defs/follow_system_posture" },
+        "resolved_theme_class": { "$ref": "#/$defs/theme_class" },
+        "contrast_mode": { "$ref": "#/$defs/contrast_mode" },
+        "accent_source": { "$ref": "#/$defs/accent_source_class" },
+        "density_class": { "$ref": "#/$defs/density_class" },
+        "text_scale": { "$ref": "#/$defs/text_scale" },
+        "reduced_motion_posture": { "$ref": "#/$defs/accessibility_posture_class" },
+        "reduced_motion_source": { "$ref": "#/$defs/reduced_motion_source" },
+        "os_signal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "preview_state": { "$ref": "#/$defs/preview_state" },
+        "current_checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "active_import_report_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "active_token_overlay_report_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "protected_cue_preservation": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/protected_cue_record" }
+        },
+        "extension_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Protected cue preservation must include trust.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "trust" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected cue preservation must include policy_lock.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "policy_lock" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected cue preservation must include severity.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "severity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected cue preservation must include source_integrity.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "source_integrity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Live previews and committed previews must cite a current checkpoint.",
+          "if": {
+            "properties": {
+              "preview_state": {
+                "enum": ["preview_pending_validation", "preview_live", "preview_committed"]
+              }
+            },
+            "required": ["preview_state"]
+          },
+          "then": {
+            "properties": {
+              "current_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Rollback_applied sessions must cite a rollback ref.",
+          "if": {
+            "properties": { "preview_state": { "const": "rollback_applied" } },
+            "required": ["preview_state"]
+          },
+          "then": {
+            "properties": {
+              "rollback_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "appearance_checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_schema_version",
+        "checkpoint_ref",
+        "session_ref",
+        "checkpoint_class",
+        "checkpoint_scope",
+        "pre_change_snapshot_ref",
+        "post_preview_snapshot_ref",
+        "changed_axes",
+        "atomicity_class",
+        "reversible_from_single_checkpoint",
+        "rollback_path",
+        "preflight_checks",
+        "apply_state",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "appearance_checkpoint_record" },
+        "appearance_schema_version": { "$ref": "#/$defs/appearance_schema_version" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+        "checkpoint_scope": { "$ref": "#/$defs/checkpoint_scope_class" },
+        "pre_change_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "post_preview_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "changed_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_axis" },
+          "uniqueItems": true
+        },
+        "atomicity_class": { "$ref": "#/$defs/atomicity_class" },
+        "reversible_from_single_checkpoint": {
+          "type": "boolean",
+          "const": true
+        },
+        "rollback_path": { "$ref": "#/$defs/rollback_path" },
+        "preflight_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/preflight_check_result" }
+        },
+        "apply_state": { "$ref": "#/$defs/appearance_apply_state" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "extension_surface_appearance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_schema_version",
+        "surface_ref",
+        "host_package_ref",
+        "surface_family",
+        "owner_label",
+        "parity_claim_state",
+        "inheritance_rows",
+        "theme_contrast_support_rows",
+        "protected_cue_preservation",
+        "embedded_boundary_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "extension_surface_appearance_record" },
+        "appearance_schema_version": { "$ref": "#/$defs/appearance_schema_version" },
+        "surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "owner_label": { "$ref": "#/$defs/short_label_text" },
+        "parity_claim_state": { "$ref": "#/$defs/parity_claim_state" },
+        "inheritance_rows": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/inheritance_row" }
+        },
+        "theme_contrast_support_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/theme_contrast_support_row" }
+        },
+        "protected_cue_preservation": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/protected_cue_record" }
+        },
+        "embedded_boundary_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Inheritance rows must include theme.",
+          "properties": {
+            "inheritance_rows": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "theme" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Inheritance rows must include focus.",
+          "properties": {
+            "inheritance_rows": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "focus" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Inheritance rows must include contrast.",
+          "properties": {
+            "inheritance_rows": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "contrast" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Inheritance rows must include density.",
+          "properties": {
+            "inheritance_rows": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "density" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Inheritance rows must include reduced_motion.",
+          "properties": {
+            "inheritance_rows": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "reduced_motion" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected cue preservation must include trust.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "trust" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected cue preservation must include policy_lock.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "policy_lock" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected cue preservation must include severity.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "severity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected cue preservation must include source_integrity.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "source_integrity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

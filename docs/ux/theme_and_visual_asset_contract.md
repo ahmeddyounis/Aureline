@@ -55,6 +55,15 @@ upstream; it consumes it by reference:
   visual-asset hooks, and motion bindings cite the records frozen
   here by ref instead of re-minting visual timing or fallback
   semantics locally.
+- [`/docs/ux/appearance_import_and_checkpoint_contract.md`](./appearance_import_and_checkpoint_contract.md),
+  [`/schemas/ux/appearance_checkpoint.schema.json`](../../schemas/ux/appearance_checkpoint.schema.json),
+  and
+  [`/schemas/ux/theme_import_report.schema.json`](../../schemas/ux/theme_import_report.schema.json)
+  — appearance-session, single-checkpoint preview / rollback,
+  imported-theme report, token-overlay report, and extension /
+  embedded-surface inheritance records. Theme packages point at those
+  records when they are previewed, imported, or claimed by extension
+  surfaces.
 - [`/docs/ux/localization_and_locale_pack_contract.md`](./localization_and_locale_pack_contract.md)
   — `bcp47_locale_tag` and locale-fallback vocabulary. Icon
   directionality (`mirror_in_rtl`) cooperates with the locale-pack
@@ -689,6 +698,9 @@ cover the acceptance set:
 - Component-contract packet and how it cites theme / icon /
   illustration / motion hooks by ref:
   [`/docs/ux/component_contract_template.md`](./component_contract_template.md).
+- Appearance import, token-overlay, checkpoint, rollback, and
+  extension inheritance records:
+  [`/docs/ux/appearance_import_and_checkpoint_contract.md`](./appearance_import_and_checkpoint_contract.md).
 - Locale model and BCP-47 vocabulary:
   [`/docs/ux/localization_and_locale_pack_contract.md`](./localization_and_locale_pack_contract.md).
 - Deployment profiles:

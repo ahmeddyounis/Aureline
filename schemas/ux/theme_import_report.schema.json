@@ -1,0 +1,819 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/theme_import_report.schema.json",
+  "title": "Aureline theme-import and token-overlay report records",
+  "description": "Boundary schema for theme_import_report_record and token_overlay_report_record frozen in docs/ux/appearance_import_and_checkpoint_contract.md. The schema makes imported theme parity, token override fallback behavior, syntax-token coverage, source tool/version, unresolved mapping counts, fallback token classes, protected-cue honesty checks, and rollback paths inspectable. Raw source theme files, raw token values, raw screenshots, raw paths, raw URLs, and raw user content never cross this boundary; records carry opaque refs, closed vocabulary, counts, and short privacy-safe labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/theme_import_report_record" },
+    { "$ref": "#/$defs/token_overlay_report_record" }
+  ],
+  "$defs": {
+    "appearance_import_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for theme-import and token-overlay reports. Vocabulary additions are additive-minor and require a version bump."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "theme_class": {
+      "type": "string",
+      "enum": [
+        "dark_reference",
+        "light_parity",
+        "high_contrast_dark",
+        "high_contrast_light"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "token_family_class": {
+      "type": "string",
+      "enum": [
+        "color_brand",
+        "color_functional_accent",
+        "color_neutral",
+        "color_state",
+        "color_semantic_theme",
+        "color_syntax",
+        "color_diff",
+        "color_chart",
+        "typography_role",
+        "typography_scale",
+        "text_rule",
+        "spacing",
+        "sizing",
+        "radius",
+        "border_stroke",
+        "elevation",
+        "opacity_scrim",
+        "layer_portal_order",
+        "motion_duration",
+        "motion_easing",
+        "motion_restriction",
+        "density",
+        "icon_treatment",
+        "semantic_status",
+        "trust_visual_state"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "semantic_status_class": {
+      "type": "string",
+      "enum": ["success", "warning", "danger", "info", "insight"],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "trust_visual_state_class": {
+      "type": "string",
+      "enum": [
+        "trusted_full",
+        "restricted_workspace",
+        "remote_target_active",
+        "collaboration_active",
+        "ai_draft_pending",
+        "ai_applied",
+        "index_warming",
+        "debugging_active",
+        "quiet_hours_active",
+        "policy_locked"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "source_ecosystem_class": {
+      "type": "string",
+      "enum": [
+        "vscode",
+        "jetbrains",
+        "vim",
+        "emacs",
+        "zed",
+        "sublime",
+        "textmate",
+        "unknown"
+      ]
+    },
+
+    "source_tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ecosystem",
+        "source_tool_name",
+        "source_tool_version",
+        "source_theme_identifier"
+      ],
+      "properties": {
+        "source_ecosystem": { "$ref": "#/$defs/source_ecosystem_class" },
+        "source_tool_name": { "$ref": "#/$defs/short_label_text" },
+        "source_tool_version": { "$ref": "#/$defs/short_label_text" },
+        "source_theme_identifier": { "$ref": "#/$defs/opaque_id" },
+        "source_schema_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+
+    "slot_class": {
+      "type": "string",
+      "enum": [
+        "semantic_theme_token",
+        "component_token",
+        "syntax_token",
+        "diff_token",
+        "terminal_token",
+        "icon_slot",
+        "motion_preset",
+        "density_token",
+        "unknown_source_slot"
+      ]
+    },
+
+    "mapping_state": {
+      "type": "string",
+      "enum": [
+        "translated",
+        "substituted_fallback",
+        "unsupported",
+        "unresolved",
+        "blocked_honesty",
+        "deprecated_replacement"
+      ]
+    },
+
+    "fallback_token_class": {
+      "type": "string",
+      "enum": [
+        "semantic_neutral",
+        "semantic_warning",
+        "semantic_danger",
+        "trust_visual_state",
+        "syntax_default",
+        "syntax_comment",
+        "diff_default",
+        "focus_ring_default",
+        "density_default",
+        "motion_reduced_default",
+        "no_fallback_blocked"
+      ]
+    },
+
+    "source_value_class": {
+      "type": "string",
+      "enum": [
+        "color_literal",
+        "named_token",
+        "system_color",
+        "syntax_scope",
+        "unknown_preserved",
+        "raw_value_redacted"
+      ]
+    },
+
+    "protected_cue_class": {
+      "type": "string",
+      "enum": [
+        "trust",
+        "policy_lock",
+        "severity",
+        "source_integrity"
+      ]
+    },
+
+    "non_color_cue": {
+      "type": "string",
+      "enum": [
+        "shape",
+        "border",
+        "icon",
+        "text",
+        "label_chip",
+        "position",
+        "pattern",
+        "accessible_name"
+      ]
+    },
+
+    "check_result_state": {
+      "type": "string",
+      "enum": ["passed", "warning", "failed_blocked"]
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "checkpoint_missing_before_preview",
+        "partial_appearance_apply",
+        "unresolved_import_mapping_hidden",
+        "fallback_class_missing",
+        "syntax_coverage_missing",
+        "protected_cue_color_only",
+        "extension_inheritance_gap_hidden",
+        "claimed_mode_lacks_support_row",
+        "rollback_path_missing",
+        "unknown_token_dropped"
+      ]
+    },
+
+    "protected_cue_honesty_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protected_cue_class",
+        "non_color_cues",
+        "color_alone_prohibited",
+        "preserved_in_high_contrast",
+        "preserved_in_forced_colors",
+        "result_state",
+        "denial_reasons"
+      ],
+      "properties": {
+        "protected_cue_class": { "$ref": "#/$defs/protected_cue_class" },
+        "trust_visual_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trust_visual_state_class" }
+          ]
+        },
+        "semantic_status_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semantic_status_class" }
+          ]
+        },
+        "non_color_cues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_color_cue" },
+          "uniqueItems": true
+        },
+        "color_alone_prohibited": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserved_in_high_contrast": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserved_in_forced_colors": {
+          "type": "boolean",
+          "const": true
+        },
+        "result_state": { "$ref": "#/$defs/check_result_state" },
+        "denial_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/denial_reason" },
+          "uniqueItems": true
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "mapping_slot_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_slot_ref",
+        "target_token_ref",
+        "slot_class",
+        "mapping_state",
+        "fallback_token_class",
+        "visible_in_report"
+      ],
+      "properties": {
+        "source_slot_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_token_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "slot_class": { "$ref": "#/$defs/slot_class" },
+        "mapping_state": { "$ref": "#/$defs/mapping_state" },
+        "fallback_token_class": { "$ref": "#/$defs/fallback_token_class" },
+        "notes": { "$ref": "#/$defs/short_note_text" },
+        "visible_in_report": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+
+    "mapping_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_source_slot_count",
+        "translated_slot_count",
+        "unsupported_slot_count",
+        "unresolved_mapping_count",
+        "substituted_with_fallback_count",
+        "blocked_honesty_count"
+      ],
+      "properties": {
+        "total_source_slot_count": { "type": "integer", "minimum": 0 },
+        "translated_slot_count": { "type": "integer", "minimum": 0 },
+        "unsupported_slot_count": { "type": "integer", "minimum": 0 },
+        "unresolved_mapping_count": { "type": "integer", "minimum": 0 },
+        "substituted_with_fallback_count": { "type": "integer", "minimum": 0 },
+        "blocked_honesty_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "syntax_token_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_source_scope_count",
+        "translated_scope_count",
+        "substituted_scope_count",
+        "unresolved_scope_count",
+        "blocked_scope_count",
+        "coverage_percent",
+        "unsupported_scope_refs"
+      ],
+      "properties": {
+        "total_source_scope_count": { "type": "integer", "minimum": 0 },
+        "translated_scope_count": { "type": "integer", "minimum": 0 },
+        "substituted_scope_count": { "type": "integer", "minimum": 0 },
+        "unresolved_scope_count": { "type": "integer", "minimum": 0 },
+        "blocked_scope_count": { "type": "integer", "minimum": 0 },
+        "coverage_percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "unsupported_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "rollback_path_class": {
+      "type": "string",
+      "enum": [
+        "restore_appearance_checkpoint",
+        "discard_preview",
+        "reopen_import_review",
+        "manual_repair_required",
+        "rollback_unavailable_denied"
+      ]
+    },
+
+    "rollback_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_path_class",
+        "checkpoint_ref",
+        "rollback_ref",
+        "user_visible_action_id"
+      ],
+      "properties": {
+        "rollback_path_class": { "$ref": "#/$defs/rollback_path_class" },
+        "checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "user_visible_action_id": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "parity_claim_state": {
+      "type": "string",
+      "enum": [
+        "not_claimed",
+        "claimed_with_report",
+        "partial_claim_with_gaps",
+        "denied_unresolved_or_blocked"
+      ]
+    },
+
+    "import_outcome_state": {
+      "type": "string",
+      "enum": [
+        "preview_ready",
+        "applied",
+        "applied_with_warnings",
+        "blocked",
+        "rolled_back",
+        "cancelled",
+        "policy_denied",
+        "review_required"
+      ]
+    },
+
+    "overlay_scope_class": {
+      "type": "string",
+      "enum": ["user", "profile", "workspace", "policy", "extension", "imported_theme"]
+    },
+
+    "overlay_validation_state": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "valid_with_warnings",
+        "blocked",
+        "inert_unresolved",
+        "rolled_back"
+      ]
+    },
+
+    "token_overlay_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "token_ref",
+        "source_slot_ref",
+        "token_family_class",
+        "mapping_state",
+        "fallback_token_class",
+        "source_value_class",
+        "visible_in_report"
+      ],
+      "properties": {
+        "token_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_slot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "token_family_class": { "$ref": "#/$defs/token_family_class" },
+        "mapping_state": { "$ref": "#/$defs/mapping_state" },
+        "fallback_token_class": { "$ref": "#/$defs/fallback_token_class" },
+        "source_value_class": { "$ref": "#/$defs/source_value_class" },
+        "notes": { "$ref": "#/$defs/short_note_text" },
+        "visible_in_report": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+
+    "unknown_token_round_trip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_unknown_token_count",
+        "inert_token_count",
+        "dropped_token_count"
+      ],
+      "properties": {
+        "preserved_unknown_token_count": { "type": "integer", "minimum": 0 },
+        "inert_token_count": { "type": "integer", "minimum": 0 },
+        "dropped_token_count": {
+          "type": "integer",
+          "const": 0,
+          "description": "Unknown token drops are non-conforming; preserve as inert or block."
+        }
+      }
+    },
+
+    "theme_import_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_import_schema_version",
+        "report_ref",
+        "import_session_ref",
+        "source_tool",
+        "source_artifact_ref",
+        "target_theme_package_ref",
+        "target_theme_classes",
+        "translated_slots",
+        "unsupported_slots",
+        "syntax_token_coverage",
+        "mapping_summary",
+        "fallback_token_classes",
+        "honesty_checks",
+        "appearance_checkpoint_ref",
+        "rollback_path",
+        "parity_claim_state",
+        "import_outcome",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "theme_import_report_record" },
+        "appearance_import_schema_version": { "$ref": "#/$defs/appearance_import_schema_version" },
+        "report_ref": { "$ref": "#/$defs/opaque_id" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_tool": { "$ref": "#/$defs/source_tool" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_theme_package_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "target_theme_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/theme_class" },
+          "uniqueItems": true
+        },
+        "translated_slots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mapping_slot_row" }
+        },
+        "unsupported_slots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mapping_slot_row" }
+        },
+        "syntax_token_coverage": { "$ref": "#/$defs/syntax_token_coverage" },
+        "mapping_summary": { "$ref": "#/$defs/mapping_summary" },
+        "fallback_token_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_token_class" },
+          "uniqueItems": true
+        },
+        "honesty_checks": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/protected_cue_honesty_check" }
+        },
+        "appearance_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_path": { "$ref": "#/$defs/rollback_path" },
+        "parity_claim_state": { "$ref": "#/$defs/parity_claim_state" },
+        "import_outcome": { "$ref": "#/$defs/import_outcome_state" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A full parity claim requires zero unresolved mappings and zero blocked honesty checks.",
+          "if": {
+            "properties": { "parity_claim_state": { "const": "claimed_with_report" } },
+            "required": ["parity_claim_state"]
+          },
+          "then": {
+            "properties": {
+              "mapping_summary": {
+                "type": "object",
+                "properties": {
+                  "unresolved_mapping_count": { "const": 0 },
+                  "blocked_honesty_count": { "const": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Honesty checks must include trust.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "trust" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Honesty checks must include policy_lock.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "policy_lock" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Honesty checks must include severity.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "severity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Honesty checks must include source_integrity.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "source_integrity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "token_overlay_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_import_schema_version",
+        "overlay_report_ref",
+        "overlay_ref",
+        "overlay_scope",
+        "source_report_ref",
+        "overlay_entries",
+        "mapping_summary",
+        "fallback_token_classes",
+        "unknown_token_round_trip",
+        "honesty_checks",
+        "rollback_path",
+        "validation_state",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "token_overlay_report_record" },
+        "appearance_import_schema_version": { "$ref": "#/$defs/appearance_import_schema_version" },
+        "overlay_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_scope": { "$ref": "#/$defs/overlay_scope_class" },
+        "source_report_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "overlay_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/token_overlay_row" }
+        },
+        "mapping_summary": { "$ref": "#/$defs/mapping_summary" },
+        "fallback_token_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_token_class" },
+          "uniqueItems": true
+        },
+        "unknown_token_round_trip": { "$ref": "#/$defs/unknown_token_round_trip" },
+        "honesty_checks": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/protected_cue_honesty_check" }
+        },
+        "rollback_path": { "$ref": "#/$defs/rollback_path" },
+        "validation_state": { "$ref": "#/$defs/overlay_validation_state" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Honesty checks must include trust.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "trust" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Honesty checks must include policy_lock.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "policy_lock" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Honesty checks must include severity.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "severity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Honesty checks must include source_integrity.",
+          "properties": {
+            "honesty_checks": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "source_integrity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

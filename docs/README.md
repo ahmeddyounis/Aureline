@@ -1261,6 +1261,15 @@ code.
   [`/artifacts/design/theme_support_rows.yaml`](../artifacts/design/theme_support_rows.yaml);
   layer and scrim tokens in
   [`/artifacts/design/layer_and_scrim_tokens.yaml`](../artifacts/design/layer_and_scrim_tokens.yaml).
+- [`ux/appearance_import_and_checkpoint_contract.md`](./ux/appearance_import_and_checkpoint_contract.md)
+  — appearance-session, import-report, token-overlay, checkpoint,
+  rollback, and extension/embedded-surface inheritance contract for
+  theme changes. Boundary schemas in
+  [`/schemas/ux/appearance_checkpoint.schema.json`](../schemas/ux/appearance_checkpoint.schema.json)
+  and
+  [`/schemas/ux/theme_import_report.schema.json`](../schemas/ux/theme_import_report.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/appearance_cases/`](../fixtures/ux/appearance_cases/).
 
 ## Benchmarks and corpus
 
