@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/publish_preview.schema.json",
+  "title": "Aureline extension publish preview sheet vocabulary (contract seed)",
+  "description": "Boundary schema for the publish preview sheet record frozen in docs/extensions/local_dev_and_sideload_contract.md. The publish preview exists so authors can verify what leaves the machine before publication, and so the UI can separate release blockers from warnings with typed origins. Adding a new enumerated member or an additive field is additive-minor with a publish_preview_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw full manifest bodies, raw sample/template bytes, and raw registry URLs MUST NOT appear; the record carries refs, typed states, and summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/publish_preview_sheet_record",
+  "$defs": {
+    "publish_preview_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this publish-preview contract seed."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "seed_section": { "type": "string" },
+        "exercised_classes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support exports and publish preview packets."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Namespaced extension id of the form 'publisher_id/extension_id'."
+    },
+
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Semantic version string."
+    },
+
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Frozen release-channel vocabulary (mirrors the product release-channel contract)."
+    },
+
+    "host_contract_family": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Runtime class / host contract family."
+    },
+
+    "hot_reload_state": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "partial",
+        "restart_required",
+        "rebuild_required",
+        "failed",
+        "unavailable"
+      ],
+      "description": "Explicit hot reload state vocabulary."
+    },
+
+    "check_origin_class": {
+      "type": "string",
+      "enum": [
+        "schema_validation",
+        "conformance_kit",
+        "accessibility_check",
+        "performance_smoke",
+        "docs_completeness",
+        "template_or_sample_completeness",
+        "signing_or_identity",
+        "registry_policy"
+      ],
+      "description": "Where a publish-preview finding originates so the UI can explain what to fix."
+    },
+
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "manifest_schema_invalid",
+        "version_bump_missing",
+        "signing_identity_missing",
+        "publisher_namespace_mismatch",
+        "docs_pack_missing",
+        "template_bundle_missing",
+        "conformance_not_run",
+        "conformance_failed",
+        "sample_incomplete",
+        "release_channel_change_requires_review",
+        "permission_widening_requires_review",
+        "policy_blocked",
+        "unknown"
+      ],
+      "description": "Typed publish-preview finding vocabulary. Blockers and warnings both use this set."
+    },
+
+    "finding_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_class", "check_origin_class", "summary"],
+      "properties": {
+        "finding_class": { "$ref": "#/$defs/finding_class" },
+        "check_origin_class": { "$ref": "#/$defs/check_origin_class" },
+        "summary": { "type": "string", "minLength": 1 },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+
+    "manifest_diff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "change_class", "prior_summary", "next_summary"],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pointer-like field path (human readable)."
+        },
+        "change_class": {
+          "type": "string",
+          "enum": ["added", "removed", "modified"],
+          "description": "Minimal diff classification."
+        },
+        "prior_summary": { "type": "string", "minLength": 1 },
+        "next_summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "docs_status_class": {
+      "type": "string",
+      "enum": ["complete", "partial", "missing", "unknown"],
+      "description": "Docs pack / docs completeness status."
+    },
+
+    "template_status_class": {
+      "type": "string",
+      "enum": ["complete", "partial", "missing", "unknown"],
+      "description": "Template / sample bundle completeness status."
+    },
+
+    "conformance_status_class": {
+      "type": "string",
+      "enum": [
+        "pass_full_matrix",
+        "pass_subset_documented",
+        "fail_blocking",
+        "not_run",
+        "unknown"
+      ],
+      "description": "Conformance status summary class."
+    },
+
+    "publish_target_class": {
+      "type": "string",
+      "enum": ["public_registry", "private_registry", "approved_mirror", "offline_bundle", "local_only"],
+      "description": "Where publication would send bytes. Raw URLs do not appear here."
+    },
+
+    "outbound_destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publish_target_class", "destination_descriptor_ref"],
+      "properties": {
+        "publish_target_class": { "$ref": "#/$defs/publish_target_class" },
+        "destination_descriptor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to a destination_descriptor_record describing the external route. Use a local-only descriptor when publish_target_class = local_only."
+        }
+      }
+    },
+
+    "publish_preview_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publish_preview_schema_version",
+        "record_kind",
+        "preview_id",
+        "extension_identity",
+        "host_contract_family",
+        "hot_reload_state",
+        "current_version",
+        "proposed_version",
+        "release_channel_class",
+        "signing_identity_ref",
+        "publisher_namespace",
+        "manifest_diff",
+        "docs_status_class",
+        "template_status_class",
+        "conformance_status_class",
+        "sample_completeness_class",
+        "outbound_destination",
+        "release_blockers",
+        "warnings",
+        "prepared_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "publish_preview_schema_version": { "$ref": "#/$defs/publish_preview_schema_version" },
+        "record_kind": { "type": "string", "const": "publish_preview_sheet_record" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "hot_reload_state": { "$ref": "#/$defs/hot_reload_state" },
+
+        "current_version": { "$ref": "#/$defs/semver_string" },
+        "proposed_version": { "$ref": "#/$defs/semver_string" },
+        "release_channel_class": { "$ref": "#/$defs/release_channel_class" },
+
+        "signing_identity_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Ref to the signing identity planned for publication. Null when missing."
+        },
+        "publisher_namespace": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Publisher/namespace label rendered in the preview. Must match the extension identity namespace under policy."
+        },
+
+        "manifest_diff": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/manifest_diff_entry" },
+          "description": "Compact diff summary for review surfaces. Does not carry the full manifest body."
+        },
+
+        "docs_status_class": { "$ref": "#/$defs/docs_status_class" },
+        "template_status_class": { "$ref": "#/$defs/template_status_class" },
+        "conformance_status_class": { "$ref": "#/$defs/conformance_status_class" },
+        "sample_completeness_class": {
+          "type": "string",
+          "enum": ["complete", "partial", "missing", "unknown"],
+          "description": "Sample completeness summary class."
+        },
+
+        "outbound_destination": { "$ref": "#/$defs/outbound_destination" },
+
+        "release_blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_entry" },
+          "description": "Findings that block publication until resolved."
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_entry" },
+          "description": "Findings that do not block publication but must be disclosed."
+        },
+
+        "prepared_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+

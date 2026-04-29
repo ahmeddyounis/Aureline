@@ -1,0 +1,558 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/sideload_review.schema.json",
+  "title": "Aureline local extension workspace, sideload review, runtime inspector, and hot reload vocabulary (contract seed)",
+  "description": "Boundary schema for local extension authoring and sideload trust flows frozen in docs/extensions/local_dev_and_sideload_contract.md. The record set covers the local extension workspace strip, sideload review sheet, runtime inspector snapshot, and hot reload / relaunch banner. The goal is to keep local/unpacked installs, hot reload, and trust changes governed and inspectable, and to prevent silent trust promotion. Adding a new enumerated member or an additive field is additive-minor with a sideload_review_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw absolute filesystem paths, raw artifact bytes, raw log bodies, raw crash dumps, raw signing-key material, and raw external executable payloads MUST NOT appear in any record; records carry refs and typed summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/local_extension_workspace_strip_record" },
+    { "$ref": "#/$defs/sideload_review_sheet_record" },
+    { "$ref": "#/$defs/runtime_inspector_snapshot_record" },
+    { "$ref": "#/$defs/hot_reload_banner_record" }
+  ],
+  "$defs": {
+    "sideload_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this contract seed. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "local_extension_workspace_strip_record",
+        "sideload_review_sheet_record",
+        "runtime_inspector_snapshot_record",
+        "hot_reload_banner_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "seed_section": { "type": "string" },
+        "exercised_classes": {
+          "type": "object",
+          "description": "Free-form key/value index used by fixture READMEs. Not consumed by runtime code.",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support exports and review packets."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Namespaced extension id of the form 'publisher_id/extension_id'. Never reused after retirement."
+    },
+
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Semantic version string. Pinning and floors are policy concerns; this field carries the declared value only."
+    },
+
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"],
+      "description": "Frozen digest-algorithm vocabulary."
+    },
+
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32,
+          "description": "Lowercase hex digest of the artifact bytes."
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Optional size in bytes of the digested artifact."
+        }
+      }
+    },
+
+    "host_contract_family": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Frozen host-contract-family vocabulary naming the runtime class."
+    },
+
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "publisher_signature",
+        "attestation_bundle",
+        "dual_signed_publisher_and_attestation",
+        "unsigned_requires_out_of_band_verification",
+        "unsigned_denied_on_policy"
+      ],
+      "description": "Frozen signature-class vocabulary."
+    },
+
+    "publisher_trust_tier": {
+      "type": "string",
+      "enum": [
+        "verified_publisher",
+        "community_publisher",
+        "organisational_publisher",
+        "unverified_publisher",
+        "quarantined_publisher"
+      ],
+      "description": "Frozen publisher-trust-tier vocabulary."
+    },
+
+    "source_path_class": {
+      "type": "string",
+      "enum": [
+        "workspace_relative_path",
+        "user_home_relative_path",
+        "removable_media",
+        "network_mount_class",
+        "process_stdin_stream",
+        "not_applicable"
+      ],
+      "description": "Redaction-friendly source-path class. Raw absolute paths never cross this boundary."
+    },
+
+    "source_locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path_class", "source_path_hint"],
+      "properties": {
+        "source_path_class": { "$ref": "#/$defs/source_path_class" },
+        "source_path_hint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Redacted, displayable path hint (for example a workspace-relative path). Never an absolute machine path in an export artifact."
+        },
+        "source_path_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to the full-fidelity local path descriptor. Null when not recorded."
+        }
+      }
+    },
+
+    "archive_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_address"],
+      "properties": {
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "filename_hint": {
+          "type": "string",
+          "description": "Redacted filename hint (no absolute directories)."
+        },
+        "import_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to the local-archive import row or equivalent import record."
+        }
+      }
+    },
+
+    "local_only_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "registry_bound",
+        "source_missing",
+        "unknown"
+      ],
+      "description": "State chip describing whether the package is local-only, registry-bound, missing its source, or unknown."
+    },
+
+    "hot_reload_state": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "partial",
+        "restart_required",
+        "rebuild_required",
+        "failed",
+        "unavailable"
+      ],
+      "description": "Explicit hot reload state vocabulary."
+    },
+
+    "update_binding_class": {
+      "type": "string",
+      "enum": [
+        "stay_local",
+        "bind_to_registry_later",
+        "bound_to_registry_identity"
+      ],
+      "description": "Update-binding state for a local or sideloaded install."
+    },
+
+    "permission_scope_kind": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ],
+      "description": "Permission-scope vocabulary."
+    },
+
+    "permission_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_target", "rationale_label"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/permission_scope_kind" },
+        "scope_target": { "type": "string", "minLength": 1 },
+        "scope_constraint": { "type": "string" },
+        "rationale_label": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "review_trigger_class": {
+      "type": "string",
+      "enum": [
+        "permission_widening",
+        "runtime_class_changed",
+        "host_or_abi_rebound",
+        "external_executable_introduced",
+        "update_binding_changed",
+        "release_channel_changed"
+      ],
+      "description": "Closed review-trigger vocabulary. When any trigger applies, hot reload must pause and the user must complete a new review sheet."
+    },
+
+    "external_executable_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable_class", "identity_label", "purpose_label"],
+      "properties": {
+        "executable_class": {
+          "type": "string",
+          "enum": ["external_host_process", "helper_binary"],
+          "description": "Minimum external executable class vocabulary."
+        },
+        "identity_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Redacted executable identity label. Never a raw absolute path."
+        },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "purpose_label": { "type": "string", "minLength": 1 },
+        "signed_by_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to a signing identity record when the executable is signed. Null when not provided."
+        }
+      }
+    },
+
+    "source_availability_state": {
+      "type": "string",
+      "enum": [
+        "source_available",
+        "source_unavailable",
+        "build_failed",
+        "last_loaded_build_still_active"
+      ],
+      "description": "Source/build availability state rendered in local-dev and inspector surfaces."
+    },
+
+    "runtime_failure_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failed_at", "failure_class", "summary"],
+      "properties": {
+        "failed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "failure_class": {
+          "type": "string",
+          "enum": [
+            "host_crash",
+            "activation_denied",
+            "permission_denied",
+            "abi_mismatch",
+            "hot_reload_failed",
+            "source_missing",
+            "unknown_failure"
+          ]
+        },
+        "summary": { "type": "string", "minLength": 1 },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+
+    "quarantine_action_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "disable",
+        "quarantine",
+        "restart_host",
+        "relaunch_required"
+      ],
+      "description": "Minimum quarantine/disable action vocabulary for runtime inspector surfaces."
+    },
+
+    "local_extension_workspace_strip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sideload_review_schema_version",
+        "strip_id",
+        "extension_identity",
+        "extension_version",
+        "source_locator",
+        "host_contract_family",
+        "host_abi_range",
+        "hot_reload_state",
+        "local_only_state_class",
+        "signature_class",
+        "rendered_publisher_trust_tier",
+        "updated_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "local_extension_workspace_strip_record" },
+        "sideload_review_schema_version": { "$ref": "#/$defs/sideload_review_schema_version" },
+        "strip_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "source_locator": { "$ref": "#/$defs/source_locator" },
+        "source_availability_state": { "$ref": "#/$defs/source_availability_state" },
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "host_abi_range": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible ABI range string (e.g. 'component-model 0.2.x')."
+        },
+        "hot_reload_state": { "$ref": "#/$defs/hot_reload_state" },
+        "local_only_state_class": { "$ref": "#/$defs/local_only_state_class" },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "signature_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "rendered_publisher_trust_tier": { "$ref": "#/$defs/publisher_trust_tier" },
+        "publisher_continuity_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "local_only_state_class": { "const": "local_only" } },
+            "required": ["local_only_state_class"]
+          },
+          "then": {
+            "properties": { "rendered_publisher_trust_tier": { "const": "unverified_publisher" } },
+            "required": ["rendered_publisher_trust_tier"]
+          }
+        }
+      ]
+    },
+
+    "sideload_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sideload_review_schema_version",
+        "review_id",
+        "extension_identity",
+        "extension_version",
+        "source_locator_or_archive",
+        "host_contract_family",
+        "host_abi_range",
+        "signature_class",
+        "requested_permissions",
+        "external_executables",
+        "update_binding_class",
+        "review_triggers",
+        "rendered_publisher_trust_tier",
+        "prepared_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "sideload_review_sheet_record" },
+        "sideload_review_schema_version": { "$ref": "#/$defs/sideload_review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "source_locator_or_archive": {
+          "oneOf": [
+            { "$ref": "#/$defs/source_locator" },
+            { "$ref": "#/$defs/archive_identity" }
+          ]
+        },
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "host_abi_range": { "type": "string", "minLength": 1 },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "signature_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "requested_permissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/permission_scope_entry" }
+        },
+        "external_executables": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/external_executable_disclosure" }
+        },
+        "update_binding_class": { "$ref": "#/$defs/update_binding_class" },
+        "review_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_trigger_class" },
+          "description": "Computed triggers that force this review sheet (permission widening, runtime change, etc). Empty for first-time local-only install when no delta exists."
+        },
+        "rendered_publisher_trust_tier": { "$ref": "#/$defs/publisher_trust_tier" },
+        "publisher_continuity_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "prepared_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "runtime_inspector_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sideload_review_schema_version",
+        "snapshot_id",
+        "extension_identity",
+        "extension_version",
+        "host_contract_family",
+        "hot_reload_state",
+        "current_host_ref",
+        "activation_started_at",
+        "activation_duration_ms",
+        "memory_resident_bytes",
+        "granted_capabilities",
+        "effective_permission_summary_ref",
+        "recent_failures",
+        "quarantine_action_class",
+        "source_availability_state",
+        "captured_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "runtime_inspector_snapshot_record" },
+        "sideload_review_schema_version": { "$ref": "#/$defs/sideload_review_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "hot_reload_state": { "$ref": "#/$defs/hot_reload_state" },
+        "current_host_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the currently running host instance."
+        },
+        "activation_started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "activation_duration_ms": { "type": "integer", "minimum": 0 },
+        "memory_resident_bytes": { "type": "integer", "minimum": 0 },
+        "granted_capabilities": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Granted capability / world identity list (opaque strings)."
+        },
+        "effective_permission_summary_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the effective_permission_summary_record."
+        },
+        "log_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to log windows or log excerpts. Raw log bodies never carried."
+        },
+        "recent_failures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/runtime_failure_entry" }
+        },
+        "quarantine_action_class": { "$ref": "#/$defs/quarantine_action_class" },
+        "quarantine_reason_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "source_availability_state": { "$ref": "#/$defs/source_availability_state" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "hot_reload_banner_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sideload_review_schema_version",
+        "banner_id",
+        "extension_identity",
+        "extension_version",
+        "hot_reload_state",
+        "what_will_restart",
+        "state_preservation_summary",
+        "review_triggers",
+        "rollback_path_summary",
+        "shown_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "hot_reload_banner_record" },
+        "sideload_review_schema_version": { "$ref": "#/$defs/sideload_review_schema_version" },
+        "banner_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "hot_reload_state": { "$ref": "#/$defs/hot_reload_state" },
+        "what_will_restart": { "type": "string", "minLength": 1 },
+        "state_preservation_summary": { "type": "string", "minLength": 1 },
+        "review_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_trigger_class" }
+        },
+        "rollback_path_summary": { "type": "string", "minLength": 1 },
+        "shown_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
