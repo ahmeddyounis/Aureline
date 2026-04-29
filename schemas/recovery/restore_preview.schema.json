@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/restore_preview.schema.json",
+  "title": "Aureline local-history restore preview",
+  "description": "Boundary schema for restore-preview records frozen in docs/reliability/local_history_restore_preview_contract.md. A restore preview states the source checkpoint, current target identity, drift relation, generated or managed constraints, restore granularity, grouped checkpoint implications, action availability, and the new attributable checkpoint that will be created if a restore action is applied. Raw file bodies, raw diff hunks, raw prompts, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/restore_preview_record" }
+  ],
+  "$defs": {
+    "restore_preview_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for restore-preview records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "restore_preview_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for previews, manifests, support exports, evidence packets, and logs. Raw paths, raw URLs, credentials, and provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in preview, support, evidence, CLI, and accessibility surfaces."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "visible_snapshot_class": {
+      "type": "string",
+      "enum": [
+        "autosaved_typing_bucket",
+        "save_boundary",
+        "pre_destructive_checkpoint",
+        "tool_generated_checkpoint",
+        "crash_restore_capture"
+      ]
+    },
+    "storage_snapshot_class": {
+      "type": "string",
+      "enum": [
+        "edit_save_checkpoint",
+        "workspace_mutation_checkpoint",
+        "automation_ai_checkpoint",
+        "external_state_checkpoint",
+        "restore_rollback_checkpoint",
+        "capture_omitted_stub",
+        "policy_redacted_stub"
+      ]
+    },
+    "body_availability_class": {
+      "type": "string",
+      "enum": [
+        "body_captured_in_object_store",
+        "body_available_from_reference_only",
+        "body_unavailable_metadata_only",
+        "body_unavailable_policy_redacted",
+        "body_unavailable_capture_omitted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "identity_relation_class": {
+      "type": "string",
+      "enum": [
+        "exact_object_identity",
+        "same_path_different_object",
+        "alias_canonical_drift",
+        "generated_target",
+        "managed_mirror",
+        "current_object_missing"
+      ],
+      "description": "Closed restore-preview identity relation. The preview renders this before any restore wording."
+    },
+    "current_object_state_class": {
+      "type": "string",
+      "enum": [
+        "current_exact",
+        "current_drifted",
+        "current_alias_or_canonical_drift",
+        "current_generated",
+        "current_managed_mirror",
+        "current_missing",
+        "current_unknown"
+      ]
+    },
+    "target_object_class": {
+      "type": "string",
+      "enum": [
+        "canonical_file",
+        "generated_artifact",
+        "managed_mirror",
+        "virtual_buffer",
+        "missing_object"
+      ]
+    },
+    "granularity_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "selected_range",
+        "selected_hunks",
+        "whole_file",
+        "grouped_checkpoint",
+        "export_only"
+      ],
+      "description": "Restore scope granularity shown to the user before apply."
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "restore_selected_range",
+        "restore_selected_hunks",
+        "restore_whole_file",
+        "restore_grouped_checkpoint",
+        "export_as_patch",
+        "export_as_evidence"
+      ]
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "requires_review",
+        "disabled",
+        "blocked_by_policy",
+        "blocked_by_artifact_class"
+      ]
+    },
+    "disabled_reason_class": {
+      "type": ["string", "null"],
+      "enum": [
+        "not_applicable",
+        "body_unavailable",
+        "metadata_only_snapshot",
+        "identity_drift_requires_review",
+        "same_path_different_object_requires_manual_target",
+        "generated_target_requires_canonical_source",
+        "managed_mirror_read_only",
+        "current_object_missing",
+        "group_member_blocked",
+        "policy_blocks_body_restore",
+        "scope_not_supported",
+        null
+      ]
+    },
+    "artifact_origin_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "canonical_source",
+        "generated_artifact",
+        "mirrored_artifact",
+        "imported_artifact",
+        "preview_projection"
+      ]
+    },
+    "generated_provenance_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "diverged_from_generator",
+        "unknown_lineage",
+        "mock_provenance",
+        "mirror_drift"
+      ]
+    },
+    "generated_restore_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "restore_allowed",
+        "restore_redirect_to_canonical_source",
+        "restore_blocked_regenerate_required",
+        "export_only"
+      ]
+    },
+    "managed_write_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "local_write_allowed",
+        "promotion_review_required",
+        "refresh_required_before_write",
+        "read_only_managed_mirror",
+        "provider_unavailable"
+      ]
+    },
+    "group_restore_scope_class": {
+      "type": "string",
+      "enum": [
+        "not_grouped",
+        "whole_group",
+        "selected_members",
+        "selected_hunks_across_members",
+        "export_only_group_evidence"
+      ]
+    },
+    "member_target_relation_class": {
+      "type": "string",
+      "enum": [
+        "exact_object_identity",
+        "same_path_different_object",
+        "alias_canonical_drift",
+        "generated_target",
+        "managed_mirror",
+        "current_object_missing",
+        "not_applicable"
+      ]
+    },
+    "source_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ref",
+        "source_ref_kind",
+        "visible_snapshot_class",
+        "storage_snapshot_class",
+        "body_availability",
+        "redaction_class"
+      ],
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_ref_kind": {
+          "type": "string",
+          "enum": [
+            "entry",
+            "group"
+          ]
+        },
+        "group_ref": { "$ref": "#/$defs/opaque_id" },
+        "visible_snapshot_class": { "$ref": "#/$defs/visible_snapshot_class" },
+        "storage_snapshot_class": { "$ref": "#/$defs/storage_snapshot_class" },
+        "body_availability": { "$ref": "#/$defs/body_availability_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "source_summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "target_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_ref",
+        "target_object_class",
+        "current_object_state",
+        "logical_document_ref"
+      ],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_class": { "$ref": "#/$defs/target_object_class" },
+        "current_object_state": { "$ref": "#/$defs/current_object_state_class" },
+        "logical_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "last_known_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/short_text" },
+        "branch_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_context_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "identity_comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_identity_relation",
+        "exact_object_identity",
+        "same_presentation_path",
+        "same_path_different_object",
+        "alias_or_canonical_drift",
+        "generated_target",
+        "managed_mirror",
+        "current_object_missing"
+      ],
+      "properties": {
+        "object_identity_relation": { "$ref": "#/$defs/identity_relation_class" },
+        "exact_object_identity": { "type": "boolean" },
+        "same_presentation_path": { "type": "boolean" },
+        "same_path_different_object": { "type": "boolean" },
+        "alias_or_canonical_drift": { "type": "boolean" },
+        "generated_target": { "type": "boolean" },
+        "managed_mirror": { "type": "boolean" },
+        "current_object_missing": { "type": "boolean" },
+        "rename_move_chain_ref": { "$ref": "#/$defs/opaque_id" },
+        "external_change_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "drift_summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "generated_target_relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_origin_class",
+        "provenance_state",
+        "restore_posture",
+        "direct_restore_would_diverge"
+      ],
+      "properties": {
+        "artifact_origin_class": { "$ref": "#/$defs/artifact_origin_class" },
+        "provenance_state": { "$ref": "#/$defs/generated_provenance_state" },
+        "canonical_source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "regeneration_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_posture": { "$ref": "#/$defs/generated_restore_posture" },
+        "direct_restore_would_diverge": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "managed_mirror_constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_owner_class",
+        "write_posture",
+        "direct_restore_blocked"
+      ],
+      "properties": {
+        "mirror_owner_class": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "workspace_mirror",
+            "managed_provider",
+            "remote_agent",
+            "offline_bundle",
+            "support_case_copy"
+          ]
+        },
+        "mirror_ref": { "$ref": "#/$defs/opaque_id" },
+        "write_posture": { "$ref": "#/$defs/managed_write_posture" },
+        "promotion_or_refresh_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_export_posture": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "metadata_only",
+            "by_reference",
+            "local_only",
+            "export_blocked"
+          ]
+        },
+        "direct_restore_blocked": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "restore_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "granularity_class",
+        "scope_ref"
+      ],
+      "properties": {
+        "granularity_class": { "$ref": "#/$defs/granularity_class" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "range_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "hunk_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "member_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "action_availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "availability_class",
+        "artifact_class_allows",
+        "would_create_new_checkpoint"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "availability_class": { "$ref": "#/$defs/availability_class" },
+        "artifact_class_allows": { "type": "boolean" },
+        "would_create_new_checkpoint": { "type": "boolean" },
+        "disabled_reason_class": { "$ref": "#/$defs/disabled_reason_class" },
+        "new_checkpoint_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "overwrite_preserve_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "would_overwrite",
+        "would_preserve",
+        "external_drift_visible",
+        "generated_or_managed_constraints_visible"
+      ],
+      "properties": {
+        "would_overwrite": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "current_file_bytes",
+              "selected_range_bytes",
+              "selected_hunks",
+              "generated_output",
+              "managed_mirror_ref",
+              "missing_object_recreated",
+              "nothing_inspect_only",
+              "nothing_export_only"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "would_preserve": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "source_checkpoint_lineage",
+              "current_unselected_ranges",
+              "current_unselected_hunks",
+              "current_generated_source",
+              "managed_mirror_authority",
+              "prior_group_record",
+              "external_change_event_ref",
+              "all_current_bytes"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "external_drift_visible": { "type": "boolean" },
+        "generated_or_managed_constraints_visible": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "group_member_implication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member_entry_ref",
+        "target_relation",
+        "available_action_classes"
+      ],
+      "properties": {
+        "member_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "logical_document_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_relation": { "$ref": "#/$defs/member_target_relation_class" },
+        "available_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_class" },
+          "uniqueItems": true
+        },
+        "blocked_reason_class": { "$ref": "#/$defs/disabled_reason_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "grouped_checkpoint_implications": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applies_to_group",
+        "group_restore_scope",
+        "total_member_count",
+        "affected_member_count",
+        "unavailable_member_count",
+        "creates_new_group_record"
+      ],
+      "properties": {
+        "applies_to_group": { "type": "boolean" },
+        "source_group_ref": { "$ref": "#/$defs/opaque_id" },
+        "group_kind": {
+          "type": ["string", "null"],
+          "enum": [
+            "refactor_multi_file",
+            "format_on_save",
+            "save_participant_group",
+            "ai_patch",
+            "bulk_replace",
+            "multi_file_rename",
+            "scaffolding_run",
+            "migration_import",
+            "generated_artifact_refresh",
+            "automation_recipe_run",
+            "restore_rollback_group",
+            null
+          ]
+        },
+        "group_restore_scope": { "$ref": "#/$defs/group_restore_scope_class" },
+        "total_member_count": { "type": "integer", "minimum": 0 },
+        "affected_member_count": { "type": "integer", "minimum": 0 },
+        "unavailable_member_count": { "type": "integer", "minimum": 0 },
+        "creates_new_group_record": { "type": "boolean" },
+        "member_implications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/group_member_implication" }
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "new_checkpoint_on_apply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "will_create_checkpoint",
+        "resulting_snapshot_class",
+        "source_entry_or_group_preserved"
+      ],
+      "properties": {
+        "will_create_checkpoint": { "type": "boolean" },
+        "resulting_snapshot_class": {
+          "type": "string",
+          "enum": [
+            "restore_rollback_checkpoint",
+            "not_applicable_export_or_inspect_only"
+          ]
+        },
+        "new_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "new_group_ref": { "$ref": "#/$defs/opaque_id" },
+        "attribution_actor_class": {
+          "type": "string",
+          "enum": [
+            "restore_rollback_runner",
+            "not_applicable_export_or_inspect_only"
+          ]
+        },
+        "source_entry_or_group_preserved": {
+          "type": "boolean",
+          "const": true,
+          "description": "Invariant: applying a restore never erases or rewrites the source checkpoint lineage."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "restore_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "restore_preview_schema_version",
+        "preview_id",
+        "source_checkpoint",
+        "target_object",
+        "identity_comparison",
+        "generated_target_relation",
+        "managed_mirror_constraint",
+        "restore_scope",
+        "action_availability",
+        "overwrite_preserve_summary",
+        "grouped_checkpoint_implications",
+        "new_checkpoint_on_apply"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "restore_preview_schema_version": { "$ref": "#/$defs/restore_preview_schema_version" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "source_checkpoint": { "$ref": "#/$defs/source_checkpoint" },
+        "target_object": { "$ref": "#/$defs/target_object" },
+        "identity_comparison": { "$ref": "#/$defs/identity_comparison" },
+        "generated_target_relation": { "$ref": "#/$defs/generated_target_relation" },
+        "managed_mirror_constraint": { "$ref": "#/$defs/managed_mirror_constraint" },
+        "restore_scope": { "$ref": "#/$defs/restore_scope" },
+        "action_availability": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_availability" }
+        },
+        "overwrite_preserve_summary": { "$ref": "#/$defs/overwrite_preserve_summary" },
+        "grouped_checkpoint_implications": { "$ref": "#/$defs/grouped_checkpoint_implications" },
+        "new_checkpoint_on_apply": { "$ref": "#/$defs/new_checkpoint_on_apply" },
+        "notes": { "$ref": "#/$defs/short_text" }
+      }
+    }
+  }
+}

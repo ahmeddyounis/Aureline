@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/local_history_retention_card.schema.json",
+  "title": "Aureline local-history retention and export card",
+  "description": "Boundary schema for local-history retention/export cards frozen in docs/reliability/local_history_restore_preview_contract.md. A card names retention class, redaction posture, support-bundle inclusion state, local-only versus exported state, clear-history scope selectors, and lifecycle actions before any export or clear-history write occurs. Raw file bodies, raw diff hunks, raw prompts, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/local_history_retention_card_record" }
+  ],
+  "$defs": {
+    "local_history_retention_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for local-history retention/export cards."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "local_history_retention_card_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for support bundles, manifests, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in retention cards, support exports, evidence packets, and CLI output."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "local_history_entry",
+        "local_history_group",
+        "restore_preview",
+        "clear_history_scope"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "retained_by_policy_window",
+        "retained_by_explicit_user_pin",
+        "retained_by_evidence_reference",
+        "retained_by_support_case_reference",
+        "retained_by_release_reference",
+        "retained_by_review_pack_reference",
+        "stub_only_after_expiry",
+        "stub_only_after_redaction"
+      ],
+      "description": "Retention reason family projected from the local-history entry or group."
+    },
+    "retention_window_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "expires_within_warning_window",
+        "expired_stub_retained",
+        "pinned_until_reference_released",
+        "policy_locked",
+        "unknown"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "visible_redaction_state": {
+      "type": "string",
+      "enum": [
+        "full_body_available_locally",
+        "metadata_summary_only",
+        "redacted_summary",
+        "retained_local_only",
+        "omitted_pending_opt_in",
+        "prohibited"
+      ]
+    },
+    "support_bundle_inclusion_state": {
+      "type": "string",
+      "enum": [
+        "excluded_by_default",
+        "included_by_entry_ref",
+        "review_required_before_export",
+        "retained_local_only",
+        "exported_in_support_bundle",
+        "prohibited"
+      ],
+      "description": "Support-bundle inclusion state. included_by_entry_ref permits metadata refs without raw body embedding."
+    },
+    "local_export_state": {
+      "type": "string",
+      "enum": [
+        "local_only_not_exported",
+        "exported_as_patch",
+        "exported_as_evidence",
+        "exported_in_support_bundle",
+        "managed_copy_reference_only",
+        "export_blocked_by_policy"
+      ],
+      "description": "Whether this checkpoint body or metadata is still local-only or already represented in an export."
+    },
+    "clear_scope_class": {
+      "type": "string",
+      "enum": [
+        "this_file",
+        "this_workspace",
+        "this_profile",
+        "this_device"
+      ]
+    },
+    "clear_scope_target_kind": {
+      "type": "string",
+      "enum": [
+        "logical_document",
+        "workspace",
+        "profile",
+        "device"
+      ]
+    },
+    "selector_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "requires_export_review",
+        "disabled_by_retention_reference",
+        "disabled_by_policy",
+        "disabled_metadata_stub_only"
+      ]
+    },
+    "clear_disabled_reason_class": {
+      "type": ["string", "null"],
+      "enum": [
+        "not_applicable",
+        "pinned_by_evidence_reference",
+        "pinned_by_support_case",
+        "pinned_by_release_or_review",
+        "policy_requires_stub",
+        "legal_or_incident_hold",
+        "metadata_only_stub",
+        null
+      ]
+    },
+    "export_before_delete_state": {
+      "type": "string",
+      "enum": [
+        "offered_not_started",
+        "completed",
+        "declined_by_user",
+        "declined_by_policy",
+        "not_offered_metadata_only",
+        "not_offered_policy_blocks_export"
+      ]
+    },
+    "card_action_class": {
+      "type": "string",
+      "enum": [
+        "open_restore_preview",
+        "open_compare",
+        "pin_checkpoint",
+        "unpin_checkpoint",
+        "export_as_patch",
+        "export_as_evidence",
+        "open_support_bundle_review",
+        "clear_history_scope"
+      ]
+    },
+    "action_availability_class": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "requires_review",
+        "disabled",
+        "blocked_by_policy"
+      ]
+    },
+    "subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_kind",
+        "subject_id"
+      ],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "group_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "retention_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_class",
+        "retention_window_state",
+        "ordinary_cache_clear_exclusion"
+      ],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_window_state": { "$ref": "#/$defs/retention_window_state" },
+        "retained_until_ref": { "$ref": "#/$defs/opaque_id" },
+        "pin_source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "ordinary_cache_clear_exclusion": {
+          "type": "boolean",
+          "const": true
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "redaction_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "visible_redaction_state",
+        "body_export_requires_review"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "visible_redaction_state": { "$ref": "#/$defs/visible_redaction_state" },
+        "body_export_requires_review": { "type": "boolean" },
+        "policy_rule_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "support_bundle_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_inclusion_state",
+        "support_pack_item_ref"
+      ],
+      "properties": {
+        "support_bundle_inclusion_state": { "$ref": "#/$defs/support_bundle_inclusion_state" },
+        "support_pack_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "export_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_export_state",
+        "local_only_by_default"
+      ],
+      "properties": {
+        "local_export_state": { "$ref": "#/$defs/local_export_state" },
+        "local_only_by_default": {
+          "type": "boolean",
+          "const": true
+        },
+        "export_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "last_exported_at_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "clear_history_scope_selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "target_kind",
+        "target_ref",
+        "availability_class",
+        "export_before_delete_state",
+        "estimated_entries_removed_count",
+        "estimated_entries_stubbed_count",
+        "estimated_entries_skipped_due_to_retention_reference"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/clear_scope_class" },
+        "target_kind": { "$ref": "#/$defs/clear_scope_target_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/short_text" },
+        "availability_class": { "$ref": "#/$defs/selector_availability_class" },
+        "disabled_reason_class": { "$ref": "#/$defs/clear_disabled_reason_class" },
+        "export_before_delete_state": { "$ref": "#/$defs/export_before_delete_state" },
+        "estimated_entries_removed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimated_entries_stubbed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimated_entries_skipped_due_to_retention_reference": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "removes_recoverable_body",
+              "preserves_policy_stub",
+              "skips_pinned_entries",
+              "requires_export_review",
+              "cannot_be_ordinary_cache_clear"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "card_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "availability_class"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/card_action_class" },
+        "availability_class": { "$ref": "#/$defs/action_availability_class" },
+        "scope_selector_ref": { "$ref": "#/$defs/opaque_id" },
+        "disabled_reason_class": { "$ref": "#/$defs/clear_disabled_reason_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "local_history_retention_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_history_retention_card_schema_version",
+        "card_id",
+        "subject_ref",
+        "retention_summary",
+        "redaction_posture",
+        "support_bundle_posture",
+        "export_status",
+        "clear_history_scope_selectors",
+        "available_actions"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "local_history_retention_card_schema_version": { "$ref": "#/$defs/local_history_retention_card_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_ref": { "$ref": "#/$defs/subject_ref" },
+        "retention_summary": { "$ref": "#/$defs/retention_summary" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture" },
+        "support_bundle_posture": { "$ref": "#/$defs/support_bundle_posture" },
+        "export_status": { "$ref": "#/$defs/export_status" },
+        "clear_history_scope_selectors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/clear_history_scope_selector" }
+        },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/card_action" }
+        },
+        "notes": { "$ref": "#/$defs/short_text" }
+      }
+    }
+  }
+}

@@ -13,6 +13,15 @@ The machine-readable schema lives at:
 
 - [`/schemas/recovery/local_history_entry.schema.json`](../../schemas/recovery/local_history_entry.schema.json)
 
+The user-facing snapshot-card, restore-preview, and retention/export
+projection contract lives at:
+
+- [`/docs/reliability/local_history_restore_preview_contract.md`](./local_history_restore_preview_contract.md)
+- [`/schemas/recovery/local_history_snapshot_class.schema.json`](../../schemas/recovery/local_history_snapshot_class.schema.json)
+- [`/schemas/recovery/restore_preview.schema.json`](../../schemas/recovery/restore_preview.schema.json)
+- [`/schemas/recovery/local_history_retention_card.schema.json`](../../schemas/recovery/local_history_retention_card.schema.json)
+- [`/fixtures/recovery/restore_preview_cases/`](../../fixtures/recovery/restore_preview_cases/)
+
 The mutation-lineage vocabulary reused here is frozen at:
 
 - [`/docs/workspace/mutation_lineage_model.md`](../workspace/mutation_lineage_model.md)
