@@ -1,0 +1,425 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/search_result_identity.schema.json",
+  "title": "Aureline stable search result identity contract",
+  "description": "Boundary schema for stable search-result identity across quick open, tree/list/search rows, docs search, AI retrieval, CLI output, exports, and support packets. The record identifies what the result is, which access posture applies, which source class produced it, which result-truth class it carries, what hidden or blocked counts surround it, and how drift/remap state must be disclosed when the result is reopened or exported. It deliberately avoids raw paths, raw query text, raw document bodies, raw URLs, and provider payloads; records carry opaque ids, vocabulary classes, counts, and refs to the query-session, planner, fusion, packet, and snapshot records that own the live details.",
+  "type": "object",
+  "$ref": "#/$defs/search_result_identity_record",
+  "$defs": {
+    "search_result_identity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for stable search result identity. Additive optional fields or enum values bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "search_result_identity_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, safe in support bundles, and safe in fixtures. Raw query text, raw source bodies, raw absolute paths, raw provider payloads, and raw URLs do not appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_surface_class": {
+      "type": "string",
+      "enum": [
+        "quick_open",
+        "command_palette",
+        "global_search",
+        "file_search",
+        "symbol_search",
+        "docs_search",
+        "graph_search",
+        "ai_context_search",
+        "cli_search",
+        "saved_query_reopen",
+        "support_export"
+      ]
+    },
+    "object_kind_class": {
+      "type": "string",
+      "enum": [
+        "workspace_file",
+        "text_range",
+        "symbol",
+        "docs_anchor",
+        "graph_node",
+        "provider_resource",
+        "command_route",
+        "generated_artifact",
+        "notebook_cell",
+        "terminal_zone",
+        "saved_query",
+        "hidden_placeholder"
+      ],
+      "description": "What kind of object the result identity points at. hidden_placeholder discloses existence/count only and must not carry hidden content."
+    },
+    "access_kind": {
+      "type": "string",
+      "enum": [
+        "open_read",
+        "preview_read",
+        "peek_read",
+        "navigate_jump",
+        "cite",
+        "copy_reference",
+        "batch_select",
+        "replace_candidate",
+        "export_quote",
+        "support_only",
+        "blocked_hidden_placeholder"
+      ],
+      "description": "Access posture exposed for this identity on the current surface. The same object may have open_read in the desktop UI and export_quote in a support packet, but the result_identity_id stays stable."
+    },
+    "access_state_class": {
+      "type": "string",
+      "enum": [
+        "accessible",
+        "read_only",
+        "generated_read_only",
+        "policy_blocked",
+        "provider_unauthorised",
+        "scope_excluded",
+        "target_missing",
+        "export_redacted"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_catalog",
+        "hot_cache",
+        "lexical_index",
+        "structural_symbol",
+        "semantic_graph",
+        "project_docs",
+        "mirrored_docs_pack",
+        "knowledge_pack",
+        "embedding_recall",
+        "provider_overlay",
+        "imported_precomputed",
+        "command_registry",
+        "saved_query_registry",
+        "support_projection",
+        "generated_lineage"
+      ],
+      "description": "Source family that produced the result identity. Source class is distinct from truth class: a provider_overlay result may be imported or hybrid depending on the owning packet."
+    },
+    "blocked_result_reason": {
+      "type": "string",
+      "enum": [
+        "policy_blocked",
+        "trust_restricted",
+        "provider_unauthorised",
+        "missing_permission",
+        "stale_target_requires_review",
+        "generated_read_only",
+        "export_redacted",
+        "target_unresolved"
+      ]
+    },
+    "drift_resolution_class": {
+      "type": "string",
+      "enum": [
+        "current_resolution_exact",
+        "current_resolution_remapped",
+        "current_resolution_ambiguous",
+        "captured_only_not_revalidated",
+        "current_resolution_blocked",
+        "current_resolution_missing"
+      ],
+      "description": "Surface-facing summary of deep-link drift/remap state for this result identity."
+    },
+    "projection_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_class", "surface_row_ref"],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "surface_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_result_set_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "One surface-specific row key that projects this stable result identity. Projection keys are not identity replacements."
+    },
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_kind_class", "canonical_entity_ref"],
+      "properties": {
+        "object_kind_class": { "$ref": "#/$defs/object_kind_class" },
+        "canonical_entity_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_identity_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "workspace_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "root_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "path_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "symbol_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "docs_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "graph_node_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "provider_resource_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "generated_lineage_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "coordinate_span_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Opaque object identity anchors. At least canonical_entity_ref is required; richer anchors are populated when the owning subsystem can prove them."
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_session_id_ref",
+        "result_set_id_ref",
+        "planner_pass_id_ref"
+      ],
+      "properties": {
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "search_result_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "result_fusion_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "query_session_result_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "search_collection_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "saved_query_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "deep_link_id_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Refs to the canonical records that produced this identity. Support exports quote these refs rather than re-minting result rows."
+    },
+    "truth_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_truth_class",
+        "readiness_state",
+        "freshness_class",
+        "semantic_fallback_state",
+        "ranking_reason_classes",
+        "source_classes"
+      ],
+      "properties": {
+        "result_truth_class": { "$ref": "search_result_truth.schema.json#/$defs/result_truth_class" },
+        "readiness_state": { "$ref": "search_result_truth.schema.json#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "search_result_truth.schema.json#/$defs/freshness_class" },
+        "semantic_fallback_state": { "$ref": "search_result_truth.schema.json#/$defs/semantic_fallback_state" },
+        "ranking_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/ranking_reason_class" }
+        },
+        "source_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_class" }
+        },
+        "stale_or_partial_explanation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/stale_or_partial_explanation" }
+          ]
+        }
+      },
+      "description": "Truth and ranking basis for this identity. These fields mirror the owning search packet and result-fusion record; consumers must not alter them locally."
+    },
+    "blocked_result_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocked_result_count",
+        "count_is_approximate",
+        "blocked_result_reasons"
+      ],
+      "properties": {
+        "blocked_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "count_is_approximate": { "type": "boolean" },
+        "blocked_result_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/blocked_result_reason" }
+        }
+      },
+      "description": "Rows or actions blocked after the query found or inferred them. Blocked is separate from hidden: blocked rows may be visible as placeholders or disabled actions."
+    },
+    "count_disclosures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_result_count",
+        "matching_result_count_known",
+        "hidden_result_disclosure",
+        "blocked_result_disclosure"
+      ],
+      "properties": {
+        "visible_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "matching_result_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_negative_int" }
+          ]
+        },
+        "matching_result_count_known": { "type": "boolean" },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "blocked_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/blocked_result_disclosure" }
+          ]
+        }
+      },
+      "description": "Count truth attached to the identity's result family. Visible, matching, hidden, and blocked are distinct axes and must not be flattened into one total."
+    },
+    "drift_and_remap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deep_link_drift_state",
+        "drift_resolution_class",
+        "remap_chain_refs"
+      ],
+      "properties": {
+        "deep_link_drift_state": { "$ref": "search_result_truth.schema.json#/$defs/deep_link_drift_state" },
+        "drift_resolution_class": { "$ref": "#/$defs/drift_resolution_class" },
+        "remap_chain_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "predecessor_identity_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "successor_identity_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "current_resolution_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "drift_note_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Drift and remap notes for reopen, export, and support flows. A captured identity may remain useful history without claiming current live resolution."
+    },
+    "search_result_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_result_identity_schema_version",
+        "result_identity_id",
+        "stable_result_key",
+        "object_identity",
+        "access_kind",
+        "access_state_class",
+        "source_refs",
+        "truth_basis",
+        "count_disclosures",
+        "drift_and_remap",
+        "projection_keys",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_result_identity_record" },
+        "search_result_identity_schema_version": { "$ref": "#/$defs/search_result_identity_schema_version" },
+        "result_identity_id": { "$ref": "#/$defs/opaque_id" },
+        "stable_result_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable opaque key derived from canonical identity plus source class and scope pin. It must not include raw paths or raw query material."
+        },
+        "object_identity": { "$ref": "#/$defs/object_identity" },
+        "access_kind": { "$ref": "#/$defs/access_kind" },
+        "access_state_class": { "$ref": "#/$defs/access_state_class" },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "truth_basis": { "$ref": "#/$defs/truth_basis" },
+        "count_disclosures": { "$ref": "#/$defs/count_disclosures" },
+        "drift_and_remap": { "$ref": "#/$defs/drift_and_remap" },
+        "projection_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/projection_key" }
+        },
+        "policy_context": { "$ref": "query_session.schema.json#/$defs/policy_context" },
+        "redaction_class": { "$ref": "search_result_truth.schema.json#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_revalidated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Hidden placeholders disclose counts but do not expose open or navigate access.",
+          "if": {
+            "properties": {
+              "object_identity": {
+                "properties": { "object_kind_class": { "const": "hidden_placeholder" } },
+                "required": ["object_kind_class"]
+              }
+            },
+            "required": ["object_identity"]
+          },
+          "then": {
+            "properties": {
+              "access_kind": { "const": "blocked_hidden_placeholder" },
+              "access_state_class": {
+                "enum": ["policy_blocked", "scope_excluded", "export_redacted"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Remapped results must carry a remap chain.",
+          "if": {
+            "properties": {
+              "drift_and_remap": {
+                "properties": {
+                  "deep_link_drift_state": { "const": "resolved_remapped" }
+                },
+                "required": ["deep_link_drift_state"]
+              }
+            },
+            "required": ["drift_and_remap"]
+          },
+          "then": {
+            "properties": {
+              "drift_and_remap": {
+                "properties": {
+                  "remap_chain_refs": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                },
+                "required": ["remap_chain_refs"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Stable identity for one search result or disclosed-hidden result family. It is safe to cite from UI rows, CLI output, exports, AI evidence, and support packets without implying that captured rows are current live truth."
+    }
+  }
+}

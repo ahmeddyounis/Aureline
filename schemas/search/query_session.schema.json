@@ -1,0 +1,924 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/query_session.schema.json",
+  "title": "Aureline canonical search-query session contract",
+  "description": "Boundary schema for the canonical search query-session object shared by quick open, command palette, global search, symbol search, docs search, graph search, AI context retrieval, CLI search, saved-query reopen, and support export. A query session records the user's intent, normalized parse, scope binding, ranking profile, history policy, freshness state, retrieval/index epochs, result snapshots, and export/sharing posture so downstream result rows and support packets can cite one durable query truth instead of per-surface shadows. Raw query text is admitted only for local-only volatile or local-history records; all exportable, syncable, support, CLI, and managed projections carry redacted text, salted hashes, opaque refs, or query classification only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/query_session_record" }
+  ],
+  "$defs": {
+    "query_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the query-session contract. Additive optional fields or enum values bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "query_session_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, safe in support bundles, and safe in fixtures. Raw query text, raw document bodies, raw absolute paths, raw provider payloads, and raw URLs do not appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_surface_class": {
+      "type": "string",
+      "enum": [
+        "quick_open",
+        "command_palette",
+        "global_search",
+        "file_search",
+        "symbol_search",
+        "docs_search",
+        "graph_search",
+        "ai_context_search",
+        "cli_search",
+        "saved_query_reopen",
+        "support_export"
+      ],
+      "description": "Canonical surface family that opened or replayed the query. quick_open and cli_search map to downstream search-result surfaces through source_surface_projection."
+    },
+    "search_result_surface_class": {
+      "$ref": "search_result_truth.schema.json#/$defs/surface_class",
+      "description": "Optional projection into the frozen search_result_truth surface vocabulary when a result packet has already been emitted."
+    },
+    "query_classification": {
+      "type": "string",
+      "enum": [
+        "palette_command_lookup",
+        "symbol_jump_lookup",
+        "text_substring_lookup",
+        "regex_lookup",
+        "docs_topic_lookup",
+        "semantic_concept_lookup",
+        "deep_link_resolve",
+        "ai_evidence_lookup",
+        "mixed_query_lookup"
+      ],
+      "description": "Redacted query family. The first eight values mirror search_result_truth; mixed_query_lookup covers sessions that preserve one user intent across multiple translated surfaces."
+    },
+    "query_text_storage_class": {
+      "type": "string",
+      "enum": [
+        "not_recorded",
+        "volatile_session_only",
+        "local_profile_history",
+        "local_per_device_history",
+        "managed_history_policy_allowed"
+      ],
+      "description": "Storage posture for query text material. managed_history_policy_allowed still requires redaction or explicit literal handling before crossing an export/share boundary."
+    },
+    "query_text_material_class": {
+      "type": "string",
+      "enum": [
+        "raw_local_only",
+        "redacted_text",
+        "hashed_terms_only",
+        "classification_only",
+        "support_redacted"
+      ],
+      "description": "How much query text material appears on this record. raw_local_only is admitted only with local_only_private sharing and must not be copied into support, sync, CLI transcript, or managed-provider packets."
+    },
+    "secret_detection_state": {
+      "type": "string",
+      "enum": [
+        "not_scanned",
+        "no_secret_detected",
+        "suspected_secret_redacted",
+        "confirmed_secret_redacted",
+        "scan_denied_policy"
+      ]
+    },
+    "query_language_class": {
+      "type": "string",
+      "enum": [
+        "plain_text",
+        "fuzzy",
+        "regex",
+        "structural",
+        "docs_topic",
+        "semantic_concept",
+        "mixed"
+      ]
+    },
+    "normalized_term_role": {
+      "type": "string",
+      "enum": [
+        "primary_term",
+        "boosted_term",
+        "excluded_term",
+        "scope_filter_term",
+        "symbol_kind_filter",
+        "regex_pattern",
+        "semantic_concept",
+        "docs_anchor_term",
+        "operator_only"
+      ]
+    },
+    "normalized_term_material_class": {
+      "type": "string",
+      "enum": [
+        "raw_local_only",
+        "redacted_literal",
+        "hashed_literal",
+        "operator_only"
+      ]
+    },
+    "term_boost_class": {
+      "type": "string",
+      "enum": [
+        "not_boosted",
+        "user_boosted",
+        "surface_default_boosted",
+        "context_boosted",
+        "recentness_boosted"
+      ]
+    },
+    "query_filter_class": {
+      "type": "string",
+      "enum": [
+        "scope_filter",
+        "file_type_filter",
+        "language_filter",
+        "symbol_kind_filter",
+        "docs_pack_filter",
+        "provider_filter",
+        "freshness_floor_filter",
+        "include_ignored_filter",
+        "case_sensitivity_filter",
+        "regex_flag_filter"
+      ]
+    },
+    "scope_source_class": {
+      "type": "string",
+      "enum": [
+        "current_context",
+        "user_selected",
+        "saved_query",
+        "policy_narrowed",
+        "support_capture",
+        "cli_flag",
+        "ai_context_inherited"
+      ]
+    },
+    "ranking_mode_class": {
+      "type": "string",
+      "enum": [
+        "relevance",
+        "path",
+        "recently_used",
+        "changed_in_branch",
+        "exact_first",
+        "semantic_supplement",
+        "support_replay_order",
+        "custom_profile"
+      ]
+    },
+    "stable_ordering_policy_class": {
+      "type": "string",
+      "enum": [
+        "selection_stable_during_rerank",
+        "reorder_allowed_with_streaming_frame",
+        "captured_snapshot_order",
+        "path_deterministic_order"
+      ]
+    },
+    "reason_visibility_class": {
+      "type": "string",
+      "enum": [
+        "primary_reason_visible",
+        "detail_sheet_visible",
+        "debug_opt_in_only",
+        "support_redacted_only"
+      ]
+    },
+    "rank_weight_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "no_numeric_weights",
+        "weight_bucket_only",
+        "debug_local_only_weight_buckets"
+      ]
+    },
+    "history_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_history",
+        "ephemeral_session_only",
+        "local_history",
+        "saved_query",
+        "workspace_committed",
+        "support_capture_redacted",
+        "parity_audit_capture"
+      ]
+    },
+    "history_retention_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "session_only",
+        "local_profile_recent",
+        "local_per_device_recent",
+        "workspace_retention",
+        "support_export_redacted_retention",
+        "parity_audit_retention_window",
+        "managed_governed_recent"
+      ]
+    },
+    "sensitive_literal_handling_class": {
+      "type": "string",
+      "enum": [
+        "literal_redacted_at_boundary_default",
+        "literal_hashed_with_local_salt",
+        "literal_kept_in_local_only_store",
+        "literal_kept_in_org_governed_vault",
+        "literal_disclosed_with_explicit_user_opt_in"
+      ]
+    },
+    "retrieval_locality_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "workspace_mirror",
+        "managed_tenant_scoped",
+        "provider_remote",
+        "not_applicable"
+      ]
+    },
+    "result_snapshot_capture_class": {
+      "type": "string",
+      "enum": [
+        "live_projection",
+        "streaming_partial",
+        "captured_export",
+        "support_quote",
+        "ai_context_pack",
+        "saved_query_snapshot"
+      ]
+    },
+    "snapshot_truth_claim_class": {
+      "type": "string",
+      "enum": [
+        "current_at_capture_only",
+        "live_revalidation_required",
+        "captured_snapshot_not_current_truth",
+        "replay_only_history"
+      ],
+      "description": "Whether the snapshot may be described as live. Captured exports and support quotes must not claim current live truth without revalidation."
+    },
+    "share_policy_class": {
+      "type": "string",
+      "enum": [
+        "local_only_private",
+        "local_export_redacted",
+        "workspace_share_explicit_admit_required",
+        "org_admin_governed",
+        "support_export_redacted_only",
+        "managed_read_only_no_export",
+        "share_disabled_by_policy"
+      ]
+    },
+    "export_materiality_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "redacted_query_and_identity_refs",
+        "hashed_query_and_counts",
+        "raw_query_with_explicit_user_opt_in"
+      ]
+    },
+    "support_capture_class": {
+      "type": "string",
+      "enum": [
+        "not_captured",
+        "support_redacted",
+        "support_full_metadata_no_raw",
+        "support_denied_policy"
+      ]
+    },
+    "snapshot_export_field_class": {
+      "type": "string",
+      "enum": [
+        "snapshot_includes_visible_row_ids_only",
+        "snapshot_includes_hidden_result_count_disclosure",
+        "snapshot_includes_partial_truth_causes",
+        "snapshot_includes_ranking_reason_classes",
+        "snapshot_includes_result_truth_classes",
+        "snapshot_includes_freshness_class_per_row",
+        "snapshot_includes_scope_filter_class_pin",
+        "snapshot_includes_workset_id_pin",
+        "snapshot_includes_planner_pass_ref",
+        "snapshot_includes_shard_authority_inventory",
+        "snapshot_includes_citation_anchor_refs",
+        "snapshot_includes_provider_attribution_chip",
+        "snapshot_includes_redaction_class_pin",
+        "snapshot_includes_running_build_identity_pin",
+        "snapshot_includes_policy_epoch_pin"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "query_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_text_storage_class",
+        "query_text_material_class",
+        "secret_detection_state"
+      ],
+      "properties": {
+        "query_text_storage_class": { "$ref": "#/$defs/query_text_storage_class" },
+        "query_text_material_class": { "$ref": "#/$defs/query_text_material_class" },
+        "raw_query_text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw local query string. Admitted only when query_text_material_class is raw_local_only and share_policy_class is local_only_private."
+        },
+        "redacted_query_text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Redacted, user-reviewable query string. Must not contain raw secrets, raw absolute paths, or raw provider URLs."
+        },
+        "query_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "literal_store_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Local-only pointer to the encrypted literal store, if one exists. Exportable records carry null."
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 2
+        },
+        "input_mode": {
+          "type": "string",
+          "enum": ["keyboard", "ime_composition", "paste", "voice", "automation"]
+        },
+        "contains_sensitive_literal": { "type": "boolean" },
+        "secret_detection_state": { "$ref": "#/$defs/secret_detection_state" }
+      },
+      "allOf": [
+        {
+          "description": "raw_local_only query text MUST carry raw_query_text.",
+          "if": {
+            "properties": { "query_text_material_class": { "const": "raw_local_only" } },
+            "required": ["query_text_material_class"]
+          },
+          "then": { "required": ["raw_query_text"] }
+        },
+        {
+          "description": "Non-raw query text classes MUST NOT carry raw_query_text.",
+          "if": {
+            "properties": {
+              "query_text_material_class": {
+                "enum": [
+                  "redacted_text",
+                  "hashed_terms_only",
+                  "classification_only",
+                  "support_redacted"
+                ]
+              }
+            },
+            "required": ["query_text_material_class"]
+          },
+          "then": {
+            "not": { "required": ["raw_query_text"] }
+          }
+        }
+      ]
+    },
+    "normalized_term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term_id",
+        "term_role",
+        "term_material_class",
+        "term_boost_class"
+      ],
+      "properties": {
+        "term_id": { "$ref": "#/$defs/opaque_id" },
+        "term_role": { "$ref": "#/$defs/normalized_term_role" },
+        "term_material_class": { "$ref": "#/$defs/normalized_term_material_class" },
+        "raw_term_text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Local-only raw term. Exportable records must use redacted_term_text or term_hash_ref instead."
+        },
+        "redacted_term_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "term_hash_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "term_boost_class": { "$ref": "#/$defs/term_boost_class" },
+        "source_span_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "Non-raw terms MUST NOT carry raw_term_text.",
+          "if": {
+            "properties": {
+              "term_material_class": {
+                "enum": ["redacted_literal", "hashed_literal", "operator_only"]
+              }
+            },
+            "required": ["term_material_class"]
+          },
+          "then": {
+            "not": { "required": ["raw_term_text"] }
+          }
+        }
+      ]
+    },
+    "query_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filter_class", "filter_value_ref"],
+      "properties": {
+        "filter_class": { "$ref": "#/$defs/query_filter_class" },
+        "filter_value_ref": { "$ref": "#/$defs/opaque_id" },
+        "filter_enabled": { "type": "boolean" }
+      }
+    },
+    "normalized_query_parse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parser_id",
+        "parser_version",
+        "query_language_class",
+        "query_classification",
+        "normalized_terms",
+        "filters"
+      ],
+      "properties": {
+        "parser_id": { "$ref": "#/$defs/opaque_id" },
+        "parser_version": { "type": "string", "minLength": 1 },
+        "query_language_class": { "$ref": "#/$defs/query_language_class" },
+        "query_classification": { "$ref": "#/$defs/query_classification" },
+        "normalized_terms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/normalized_term" }
+        },
+        "filters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query_filter" }
+        },
+        "parse_warning_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "scope_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_binding_id_ref",
+        "scope_source_class",
+        "scope_filter_class",
+        "lane_grouping_id",
+        "client_scopes"
+      ],
+      "properties": {
+        "scope_binding_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_source_class": { "$ref": "#/$defs/scope_source_class" },
+        "scope_filter_class": { "$ref": "search_result_truth.schema.json#/$defs/scope_filter_class" },
+        "lane_grouping_id": {
+          "type": "string",
+          "pattern": "^group:[a-z][a-z0-9_]*$"
+        },
+        "workset_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "root_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "included_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "excluded_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/client_scope" }
+        }
+      }
+    },
+    "ranking_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ranking_profile_id",
+        "ranking_mode_class",
+        "stable_ordering_policy_class",
+        "lexical_first",
+        "ranking_reason_classes",
+        "reason_visibility_class",
+        "rank_weight_disclosure_class"
+      ],
+      "properties": {
+        "ranking_profile_id": { "$ref": "#/$defs/opaque_id" },
+        "ranking_mode_class": { "$ref": "#/$defs/ranking_mode_class" },
+        "stable_ordering_policy_class": { "$ref": "#/$defs/stable_ordering_policy_class" },
+        "lexical_first": { "type": "boolean" },
+        "semantic_supplement_allowed": { "type": "boolean" },
+        "ranking_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/ranking_reason_class" }
+        },
+        "reason_visibility_class": { "$ref": "#/$defs/reason_visibility_class" },
+        "rank_weight_disclosure_class": { "$ref": "#/$defs/rank_weight_disclosure_class" },
+        "ranker_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "debug_detail_available": { "type": "boolean" }
+      }
+    },
+    "history_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "history_policy_class",
+        "history_retention_class",
+        "sensitive_literal_handling_class",
+        "raw_query_export_allowed",
+        "synced_history_allowed"
+      ],
+      "properties": {
+        "history_policy_class": { "$ref": "#/$defs/history_policy_class" },
+        "history_retention_class": { "$ref": "#/$defs/history_retention_class" },
+        "sensitive_literal_handling_class": { "$ref": "#/$defs/sensitive_literal_handling_class" },
+        "raw_query_export_allowed": { "type": "boolean" },
+        "synced_history_allowed": { "type": "boolean" },
+        "query_history_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "saved_query_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "retention_governance_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "freshness_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readiness_state",
+        "freshness_class",
+        "semantic_fallback_state",
+        "stale_or_partial_explanation"
+      ],
+      "properties": {
+        "readiness_state": { "$ref": "search_result_truth.schema.json#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "search_result_truth.schema.json#/$defs/freshness_class" },
+        "semantic_fallback_state": { "$ref": "search_result_truth.schema.json#/$defs/semantic_fallback_state" },
+        "stale_or_partial_explanation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/stale_or_partial_explanation" }
+          ]
+        },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "last_indexed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      }
+    },
+    "retrieval_epoch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retrieval_epoch_ref",
+        "index_epoch_ref",
+        "retrieval_locality_class",
+        "shard_snapshot_refs"
+      ],
+      "properties": {
+        "retrieval_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "index_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "graph_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "docs_pack_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "embedding_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "embedder_model_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "chunker_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "retrieval_locality_class": { "$ref": "#/$defs/retrieval_locality_class" },
+        "shard_snapshot_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "shard_row_id",
+              "shard_snapshot_id",
+              "freshness_class",
+              "readiness_state"
+            ],
+            "properties": {
+              "shard_row_id": {
+                "type": "string",
+                "pattern": "^search_shard_row:[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+              },
+              "shard_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+              "freshness_class": { "$ref": "search_result_truth.schema.json#/$defs/freshness_class" },
+              "readiness_state": { "$ref": "search_result_truth.schema.json#/$defs/readiness_state" },
+              "captured_at": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/monotonic_timestamp" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "result_snapshot_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_snapshot_id",
+        "result_set_id_ref",
+        "planner_pass_id_ref",
+        "result_snapshot_capture_class",
+        "snapshot_truth_claim_class",
+        "captured_at"
+      ],
+      "properties": {
+        "result_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "collection_snapshot_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "result_snapshot_capture_class": { "$ref": "#/$defs/result_snapshot_capture_class" },
+        "snapshot_truth_claim_class": { "$ref": "#/$defs/snapshot_truth_claim_class" },
+        "visible_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "hidden_result_count": { "$ref": "#/$defs/non_negative_int" },
+        "result_identity_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "export_sharing_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "share_policy_class",
+        "export_materiality_class",
+        "support_capture_class",
+        "snapshot_truth_claim_class",
+        "snapshot_export_fields",
+        "local_by_default"
+      ],
+      "properties": {
+        "share_policy_class": { "$ref": "#/$defs/share_policy_class" },
+        "export_materiality_class": { "$ref": "#/$defs/export_materiality_class" },
+        "support_capture_class": { "$ref": "#/$defs/support_capture_class" },
+        "snapshot_truth_claim_class": { "$ref": "#/$defs/snapshot_truth_claim_class" },
+        "snapshot_export_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/snapshot_export_field_class" }
+        },
+        "local_by_default": { "type": "boolean" },
+        "export_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "share_denial_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "source_surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_surface_class", "primary_result_surface_class"],
+      "properties": {
+        "source_surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "primary_result_surface_class": { "$ref": "#/$defs/search_result_surface_class" },
+        "projected_surface_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/search_result_surface_class" }
+        },
+        "projection_note_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "query_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "query_session_schema_version",
+        "query_session_id",
+        "source_surface_projection",
+        "query_text",
+        "normalized_query_parse",
+        "scope_binding",
+        "ranking_profile",
+        "history_policy",
+        "freshness_state",
+        "retrieval_epoch",
+        "result_snapshot_refs",
+        "export_sharing_posture",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "query_session_record" },
+        "query_session_schema_version": { "$ref": "#/$defs/query_session_schema_version" },
+        "query_session_id": { "$ref": "#/$defs/opaque_id" },
+        "source_surface_projection": { "$ref": "#/$defs/source_surface_projection" },
+        "query_text": { "$ref": "#/$defs/query_text" },
+        "normalized_query_parse": { "$ref": "#/$defs/normalized_query_parse" },
+        "scope_binding": { "$ref": "#/$defs/scope_binding" },
+        "ranking_profile": { "$ref": "#/$defs/ranking_profile" },
+        "history_policy": { "$ref": "#/$defs/history_policy" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "retrieval_epoch": { "$ref": "#/$defs/retrieval_epoch" },
+        "result_snapshot_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/result_snapshot_ref" }
+        },
+        "export_sharing_posture": { "$ref": "#/$defs/export_sharing_posture" },
+        "running_build_identity_ref": { "type": "string", "minLength": 1 },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "search_result_truth.schema.json#/$defs/redaction_class" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Raw query text is local-only and must not be paired with an export/share posture.",
+          "if": {
+            "properties": {
+              "query_text": {
+                "properties": { "query_text_material_class": { "const": "raw_local_only" } },
+                "required": ["query_text_material_class"]
+              }
+            },
+            "required": ["query_text"]
+          },
+          "then": {
+            "properties": {
+              "export_sharing_posture": {
+                "properties": {
+                  "share_policy_class": { "const": "local_only_private" },
+                  "export_materiality_class": { "const": "metadata_only" },
+                  "support_capture_class": { "const": "not_captured" }
+                },
+                "required": [
+                  "share_policy_class",
+                  "export_materiality_class",
+                  "support_capture_class"
+                ]
+              },
+              "history_policy": {
+                "properties": {
+                  "raw_query_export_allowed": { "const": false },
+                  "synced_history_allowed": { "const": false }
+                },
+                "required": ["raw_query_export_allowed", "synced_history_allowed"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Any non-local share policy MUST NOT carry raw query text.",
+          "if": {
+            "properties": {
+              "export_sharing_posture": {
+                "properties": {
+                  "share_policy_class": {
+                    "not": { "const": "local_only_private" }
+                  }
+                },
+                "required": ["share_policy_class"]
+              }
+            },
+            "required": ["export_sharing_posture"]
+          },
+          "then": {
+            "properties": {
+              "query_text": {
+                "not": { "required": ["raw_query_text"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "Support captures must use redacted or hashed query material and must not claim current live truth.",
+          "if": {
+            "properties": {
+              "history_policy": {
+                "properties": { "history_policy_class": { "const": "support_capture_redacted" } },
+                "required": ["history_policy_class"]
+              }
+            },
+            "required": ["history_policy"]
+          },
+          "then": {
+            "properties": {
+              "query_text": {
+                "properties": {
+                  "query_text_material_class": {
+                    "enum": ["redacted_text", "hashed_terms_only", "support_redacted", "classification_only"]
+                  }
+                },
+                "required": ["query_text_material_class"],
+                "not": { "required": ["raw_query_text"] }
+              },
+              "export_sharing_posture": {
+                "properties": {
+                  "support_capture_class": {
+                    "enum": ["support_redacted", "support_full_metadata_no_raw"]
+                  },
+                  "snapshot_truth_claim_class": {
+                    "enum": ["current_at_capture_only", "captured_snapshot_not_current_truth", "replay_only_history"]
+                  }
+                },
+                "required": ["support_capture_class", "snapshot_truth_claim_class"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Canonical search query-session record. All search surfaces and exports cite this object by query_session_id; surface-specific rows may project it, but must not fork query text, scope, ranking mode, freshness, or result-snapshot truth."
+    }
+  }
+}

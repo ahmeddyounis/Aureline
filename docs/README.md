@@ -501,6 +501,17 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`search/search_query_session_contract.md`](./search/search_query_session_contract.md)
+  — canonical search query-session, result-identity, and
+  explanation-capture contract shared by quick open, global search,
+  docs search, AI retrieval, CLI search, saved-query reopen, and
+  support export. Boundary schemas in
+  [`/schemas/search/query_session.schema.json`](../schemas/search/query_session.schema.json),
+  [`/schemas/search/search_result_identity.schema.json`](../schemas/search/search_result_identity.schema.json),
+  and
+  [`/schemas/search/search_explanation_capture.schema.json`](../schemas/search/search_explanation_capture.schema.json);
+  worked cases in
+  [`/fixtures/search/query_session_cases/`](../fixtures/search/query_session_cases/).
 - [`ux/search_result_contract.md`](./ux/search_result_contract.md)
   — renderer-facing search result row, guarantee label, quick-action,
   replace-scope, saved-query, and deep-link route contract. Boundary

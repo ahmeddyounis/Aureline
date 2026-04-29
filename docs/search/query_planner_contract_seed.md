@@ -1,8 +1,13 @@
 # Unified search query-planner, shard topology, and result-fusion contract seed
 
-This document is the **prose companion** to three machine-readable
+This document is the **prose companion** to the search planner's
+machine-readable
 artifacts:
 
+- [`schemas/search/query_session.schema.json`](../../schemas/search/query_session.schema.json)
+  — canonical query-session contract for raw/redacted query posture,
+  normalized parse, scope binding, ranking profile, history policy,
+  freshness, retrieval/index epochs, result snapshots, and export posture.
 - [`artifacts/search/shard_rows.yaml`](../../artifacts/search/shard_rows.yaml)
   — shard-topology registry (quick open, full search, symbol jump,
   palette, docs, semantic lookup, graph overlay, AI explanation,
@@ -14,6 +19,11 @@ artifacts:
 - [`schemas/search/saved_query_and_scope_binding.schema.json`](../../schemas/search/saved_query_and_scope_binding.schema.json)
   — boundary schema for saved queries, query-history entries,
   scope bindings, and search deep-link bindings.
+- [`schemas/search/search_result_identity.schema.json`](../../schemas/search/search_result_identity.schema.json)
+  and
+  [`schemas/search/search_explanation_capture.schema.json`](../../schemas/search/search_explanation_capture.schema.json)
+  — stable result identity and reusable explanation-capture records for
+  UI, CLI, export, AI evidence, and support surfaces.
 
 and to the frozen result-truth vocabulary at
 [`docs/search/search_readiness_vocabulary.md`](./search_readiness_vocabulary.md)
@@ -24,8 +34,12 @@ rendered search row. This seed does **not** redefine those
 vocabularies; it pins the planner vocabulary the rendered rows
 project into.
 
+The higher-level query-session contract lives at
+[`docs/search/search_query_session_contract.md`](./search_query_session_contract.md).
 Worked planner passes live under
 [`fixtures/search/planner_cases/`](../../fixtures/search/planner_cases/).
+Worked cross-schema query-session cases live under
+[`fixtures/search/query_session_cases/`](../../fixtures/search/query_session_cases/).
 
 If this document and the ADR (`docs/adr/0014-search-readiness-ranking-result-truth.md`)
 disagree, the ADR wins and this file MUST be updated in the same
@@ -236,10 +250,15 @@ or `hybrid` fused row, never `exact`. The planner MUST:
 Four opaque ids pin **one authoritative search run** across
 surfaces and support captures:
 
-- `query_session_id` — reserved on `search_session_record`
-  (`schemas/search/search_result_truth.schema.json`). Opens once
-  per user-visible query; multiple planner passes may reference
-  the same session.
+- `query_session_id` — owned by `query_session_record`
+  (`schemas/search/query_session.schema.json`). Opens once per
+  user-visible query intent; multiple planner passes, result
+  identities, explanation captures, saved-query entries, CLI
+  projections, and support captures may reference the same
+  session. The older `search_session_record` shape in
+  `schemas/search/search_result_truth.schema.json` remains the
+  compact result-packet projection of this id and MUST NOT fork
+  query text, scope, ranking, or freshness truth.
 - `planner_pass_id` — reserved on `planner_pass_record`. Every
   planner invocation mints exactly one.
 - `result_set_id` — reserved on `planner_pass_record`. Every
@@ -255,6 +274,13 @@ the user saw" (saved query, query-history entry, search deep
 link, bookmark, AI-evidence anchor, support-export quote) names
 all four ids via the `planner_pass_ref` shape in
 `schemas/search/saved_query_and_scope_binding.schema.json`.
+
+Rendered rows and exports additionally name one or more
+`search_result_identity_record` refs. Ranking, omission, degraded
+state, and hidden-result explanations are captured in
+`search_explanation_capture_record` refs. These records quote the
+same query-session, planner-pass, result-set, and shard-snapshot ids
+rather than re-deriving local explanations.
 
 This is how support captures, saved-query re-runs, and parity
 audits can point at one authoritative search run rather than a

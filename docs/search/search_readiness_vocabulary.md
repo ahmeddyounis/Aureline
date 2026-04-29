@@ -15,8 +15,12 @@ If this document and the ADR disagree, the ADR wins and this file
 MUST be updated in the same change. Adding a token requires a
 schema bump and a parallel ADR / decision-row update.
 
-The three companion artifacts are:
+The companion artifacts are:
 
+- [`docs/search/search_query_session_contract.md`](./search_query_session_contract.md)
+  — the canonical query-session, result-identity, and
+  explanation-capture contract that makes every surface cite one
+  session object and one reusable explanation vocabulary.
 - [`docs/adr/0014-search-readiness-ranking-result-truth.md`](../adr/0014-search-readiness-ranking-result-truth.md)
   — the frozen decision. Read it first if you are changing
   anything mechanical.

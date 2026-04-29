@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/search_explanation_capture.schema.json",
+  "title": "Aureline search ranking explanation capture contract",
+  "description": "Boundary schema for search explanation captures used by result detail sheets, quick-open reason chips, docs search, AI context retrieval, CLI explain output, parity audits, and support export. The capture records which ranking reasons, freshness states, scope filters, semantic matches, recentness boosts, hidden counts, and degraded-index states were visible or inspectable at the time of the query. It forbids explanations that depend only on secret heuristics, raw query text, raw source bodies, raw URLs, numeric private weights, or support-only debug artifacts.",
+  "type": "object",
+  "$ref": "#/$defs/search_explanation_capture_record",
+  "$defs": {
+    "search_explanation_capture_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for search explanation captures. Additive optional fields or enum values bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "search_explanation_capture_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, safe in support bundles, and safe in fixtures. Raw query text, raw source bodies, raw absolute paths, raw provider payloads, and raw URLs do not appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_surface_class": {
+      "type": "string",
+      "enum": [
+        "quick_open",
+        "command_palette",
+        "global_search",
+        "file_search",
+        "symbol_search",
+        "docs_search",
+        "graph_search",
+        "ai_context_search",
+        "cli_search",
+        "saved_query_reopen",
+        "support_export"
+      ]
+    },
+    "capture_purpose_class": {
+      "type": "string",
+      "enum": [
+        "row_reason_chip",
+        "result_detail_sheet",
+        "session_banner",
+        "cli_explain",
+        "ai_context_evidence",
+        "support_export",
+        "parity_audit"
+      ]
+    },
+    "visibility_tier": {
+      "type": "string",
+      "enum": [
+        "always_visible",
+        "detail_visible",
+        "opt_in_debug",
+        "support_export_redacted",
+        "forbidden_secret"
+      ],
+      "description": "Where an explanation element may appear. always_visible fields are required for ordinary rows when material; opt_in_debug can carry opaque refs and buckets only; forbidden_secret exists to record a refused explanation axis, not to expose it."
+    },
+    "explanation_signal_class": {
+      "type": "string",
+      "enum": [
+        "boosted_term_match",
+        "exact_match",
+        "prefix_or_fuzzy_match",
+        "recentness_boost",
+        "frequent_use_boost",
+        "semantic_match",
+        "docs_anchor_match",
+        "graph_neighbourhood_match",
+        "scope_filter_match",
+        "scope_filter_exclusion",
+        "policy_hidden",
+        "provider_limited",
+        "stale_index_state",
+        "degraded_index_state",
+        "partial_index_state",
+        "freshness_floor",
+        "hidden_by_filter",
+        "imported_source_match",
+        "structural_fallback_match"
+      ],
+      "description": "Reusable explanation terms. Each entry maps to one or more frozen ranking_reason_class, hidden_scope_reason, partial_truth_cause, readiness_state, or semantic_fallback_state values."
+    },
+    "contribution_direction": {
+      "type": "string",
+      "enum": [
+        "boosted",
+        "demoted",
+        "filtered",
+        "withheld",
+        "neutral"
+      ]
+    },
+    "explanation_weight_bucket": {
+      "type": "string",
+      "enum": [
+        "primary_signal",
+        "tie_breaker",
+        "recency_bias",
+        "frequency_bias",
+        "anchor_boost",
+        "semantic_supplement",
+        "structural_fallback_bias",
+        "policy_required_inclusion",
+        "not_applicable"
+      ],
+      "description": "Bucket-level weight class. Numeric ranking weights are intentionally absent from this boundary."
+    },
+    "display_copy_token": {
+      "type": "string",
+      "enum": [
+        "reason.exact_match",
+        "reason.boosted_term",
+        "reason.recentness",
+        "reason.semantic_match",
+        "reason.docs_anchor",
+        "reason.graph_neighbourhood",
+        "reason.scope_match",
+        "reason.hidden_by_filter",
+        "reason.policy_hidden",
+        "reason.provider_limited",
+        "reason.partial_index",
+        "reason.stale_index",
+        "reason.semantic_degraded",
+        "reason.imported_source",
+        "reason.structural_fallback"
+      ],
+      "description": "Stable copy token. Product copy can localize this token, but cannot replace the underlying explanation_signal_class."
+    },
+    "always_visible_field_class": {
+      "type": "string",
+      "enum": [
+        "result_truth_class",
+        "readiness_state",
+        "freshness_class",
+        "source_class",
+        "scope_filter_class",
+        "primary_ranking_reasons",
+        "hidden_result_count",
+        "blocked_result_count",
+        "semantic_fallback_state"
+      ]
+    },
+    "debug_field_class": {
+      "type": "string",
+      "enum": [
+        "shard_snapshot_refs",
+        "normalized_term_hash_refs",
+        "planner_stage_refs",
+        "rank_weight_buckets",
+        "duplicate_collapse_rationale",
+        "provider_latency_bucket",
+        "debug_payload_opaque_ref"
+      ]
+    },
+    "forbidden_field_class": {
+      "type": "string",
+      "enum": [
+        "raw_query_text",
+        "raw_document_body",
+        "raw_symbol_definition",
+        "raw_absolute_path",
+        "raw_provider_payload",
+        "raw_url",
+        "raw_secret",
+        "numeric_rank_weight",
+        "support_only_unexplained_heuristic"
+      ]
+    },
+    "export_policy_class": {
+      "type": "string",
+      "enum": [
+        "local_only_not_exported",
+        "export_visible_summary_only",
+        "export_redacted_detail",
+        "support_export_metadata_no_raw",
+        "export_denied_policy"
+      ]
+    },
+    "explanation_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "explanation_signal_class",
+        "visibility_tier",
+        "contribution_direction",
+        "display_copy_token",
+        "explanation_weight_bucket"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "explanation_signal_class": { "$ref": "#/$defs/explanation_signal_class" },
+        "ranking_reason_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/ranking_reason_class" }
+        },
+        "hidden_scope_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/hidden_scope_reason" }
+        },
+        "partial_truth_causes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/partial_truth_cause" }
+        },
+        "readiness_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/readiness_state" }
+          ]
+        },
+        "semantic_fallback_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/semantic_fallback_state" }
+          ]
+        },
+        "visibility_tier": { "$ref": "#/$defs/visibility_tier" },
+        "contribution_direction": { "$ref": "#/$defs/contribution_direction" },
+        "display_copy_token": { "$ref": "#/$defs/display_copy_token" },
+        "explanation_weight_bucket": { "$ref": "#/$defs/explanation_weight_bucket" },
+        "term_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "debug_payload_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redacted_detail_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "Forbidden-secret entries record denial only and must not carry debug payloads.",
+          "if": {
+            "properties": { "visibility_tier": { "const": "forbidden_secret" } },
+            "required": ["visibility_tier"]
+          },
+          "then": {
+            "properties": {
+              "debug_payload_ref": { "type": "null" },
+              "term_ref": { "type": "null" },
+              "source_ref": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "One explanation signal. Entries may explain positive rank, demotion, filtering, hidden counts, or degraded state, but they never expose raw material or numeric weights."
+    },
+    "visible_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_explanation_signals",
+        "result_truth_class",
+        "readiness_state",
+        "freshness_class",
+        "scope_filter_class",
+        "semantic_fallback_state",
+        "hidden_result_disclosure"
+      ],
+      "properties": {
+        "primary_explanation_signals": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/explanation_signal_class" }
+        },
+        "ranking_reason_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "search_result_truth.schema.json#/$defs/ranking_reason_class" }
+        },
+        "result_truth_class": { "$ref": "search_result_truth.schema.json#/$defs/result_truth_class" },
+        "readiness_state": { "$ref": "search_result_truth.schema.json#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "search_result_truth.schema.json#/$defs/freshness_class" },
+        "scope_filter_class": { "$ref": "search_result_truth.schema.json#/$defs/scope_filter_class" },
+        "semantic_fallback_state": { "$ref": "search_result_truth.schema.json#/$defs/semantic_fallback_state" },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/hidden_result_disclosure" }
+          ]
+        },
+        "stale_or_partial_explanation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "search_result_truth.schema.json#/$defs/stale_or_partial_explanation" }
+          ]
+        }
+      },
+      "description": "Always-visible or primary-detail summary of why the row appeared, why it ranked, and what was omitted or stale."
+    },
+    "capture_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "always_visible_fields",
+        "debug_opt_in_fields",
+        "forbidden_fields",
+        "support_only_cannot_be_sole_explanation"
+      ],
+      "properties": {
+        "always_visible_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/always_visible_field_class" }
+        },
+        "debug_opt_in_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/debug_field_class" }
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/forbidden_field_class" }
+        },
+        "support_only_cannot_be_sole_explanation": {
+          "type": "boolean",
+          "const": true,
+          "description": "True by construction: a result cannot be explained only by support-only debug material."
+        }
+      }
+    },
+    "export_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_policy_class",
+        "include_debug_refs",
+        "raw_material_allowed"
+      ],
+      "properties": {
+        "export_policy_class": { "$ref": "#/$defs/export_policy_class" },
+        "include_debug_refs": { "type": "boolean" },
+        "raw_material_allowed": {
+          "type": "boolean",
+          "const": false,
+          "description": "Explanation exports never include raw query text, raw document bodies, raw URLs, provider payloads, secrets, or numeric private weights."
+        }
+      }
+    },
+    "search_explanation_capture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_explanation_capture_schema_version",
+        "explanation_capture_id",
+        "query_session_id_ref",
+        "result_identity_id_ref",
+        "source_surface_class",
+        "capture_purpose_class",
+        "visible_summary",
+        "explanation_entries",
+        "capture_rules",
+        "export_rules",
+        "policy_context",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_explanation_capture_record" },
+        "search_explanation_capture_schema_version": { "$ref": "#/$defs/search_explanation_capture_schema_version" },
+        "explanation_capture_id": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_identity_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "search_result_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "capture_purpose_class": { "$ref": "#/$defs/capture_purpose_class" },
+        "visible_summary": { "$ref": "#/$defs/visible_summary" },
+        "explanation_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/explanation_entry" }
+        },
+        "capture_rules": { "$ref": "#/$defs/capture_rules" },
+        "export_rules": { "$ref": "#/$defs/export_rules" },
+        "policy_context": { "$ref": "query_session.schema.json#/$defs/policy_context" },
+        "redaction_class": { "$ref": "search_result_truth.schema.json#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Support-export captures must use an export-safe policy.",
+          "if": {
+            "properties": { "capture_purpose_class": { "const": "support_export" } },
+            "required": ["capture_purpose_class"]
+          },
+          "then": {
+            "properties": {
+              "export_rules": {
+                "properties": {
+                  "export_policy_class": {
+                    "enum": ["export_redacted_detail", "support_export_metadata_no_raw"]
+                  },
+                  "raw_material_allowed": { "const": false }
+                },
+                "required": ["export_policy_class", "raw_material_allowed"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Search explanation capture. The record explains ranking, omission, freshness, and source contribution using reusable tokens and visibility tiers. Debug detail can be inspectable, but a support-only artifact is never the sole explanation."
+    }
+  }
+}
