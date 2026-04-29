@@ -1097,6 +1097,19 @@ code.
   [`/artifacts/workspace/bootstrap_reason_codes.yaml`](../artifacts/workspace/bootstrap_reason_codes.yaml);
   worked fixtures in
   [`/fixtures/workspace/bootstrap_cases/`](../fixtures/workspace/bootstrap_cases/).
+- [`templates/template_registry_and_scaffold_contract.md`](./templates/template_registry_and_scaffold_contract.md)
+  — template-registry entry, scaffold-hook policy, and generated-project
+  update semantics contract. Freezes registry identity, signing-root /
+  trust-source, mirror/origin class, certification/support class,
+  compatible runtime/schema ranges, health cadence, hook preview /
+  network / credential / lineage policy, no-hidden-hook rules, and
+  no-silent-overwrite reapply/update semantics. Boundary schemas in
+  [`/schemas/templates/template_registry_entry.schema.json`](../schemas/templates/template_registry_entry.schema.json),
+  [`/schemas/templates/scaffold_hook_policy.schema.json`](../schemas/templates/scaffold_hook_policy.schema.json),
+  and
+  [`/schemas/templates/generated_project_update_semantics.schema.json`](../schemas/templates/generated_project_update_semantics.schema.json);
+  worked fixtures in
+  [`/fixtures/templates/template_registry_cases/`](../fixtures/templates/template_registry_cases/).
 - [`ux/archetype_detection_contract.md`](./ux/archetype_detection_contract.md)
   — post-entry workspace archetype detection, readiness-preflight,
   admission-checkpoint, first-useful-work routing, setup-later, and

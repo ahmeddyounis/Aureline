@@ -1,0 +1,644 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/templates/template_registry_entry.schema.json",
+  "title": "Aureline template registry entry contract",
+  "description": "Boundary schema for one template_registry_entry_record as frozen in docs/templates/template_registry_and_scaffold_contract.md. Every official, mirrored, organization-approved, community, extension-provided, repo-local, ad hoc local, or offline-bundle template row that can appear in a registry, gallery, preflight sheet, support export, or policy bundle MUST make template identity, trust source, signing root, mirror/origin class, certification/support class, compatible runtime/schema ranges, health cadence, known-issue disclosure, hook-policy linkage, generated-project update-semantics linkage, and open-without-starter continuity inspectable before generation or reapply. Raw signing keys, raw certificate material, raw repository URLs, raw absolute paths, raw manifest bodies, raw hook bodies, raw secrets, and raw user-authored content never cross this boundary; records carry opaque refs, content digests, closed vocabulary, timestamps, and short reviewable summaries only. Adding a new origin, trust-source, certification, health-cadence, registry-health, or open-without-starter continuity value is additive-minor and requires a schema-version bump plus fixtures; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/template_registry_entry_record",
+  "$defs": {
+    "template_registry_entry_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support bundles, registry records, and review packets. Raw paths, URLs, payloads, secrets, key material, and user content never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "semver_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "template_registry_origin_class": {
+      "type": "string",
+      "enum": [
+        "official_origin",
+        "official_mirror",
+        "org_mirror",
+        "community_origin",
+        "extension_provided",
+        "repo_local_generator",
+        "ad_hoc_local_template",
+        "offline_bundle"
+      ]
+    },
+    "template_trust_source_class": {
+      "type": "string",
+      "enum": [
+        "core_signing_root",
+        "core_signing_root_via_mirror",
+        "org_policy_signing_root",
+        "org_mirror_signing_root",
+        "extension_publisher_signature",
+        "community_channel_signature",
+        "signed_offline_bundle_root",
+        "repo_local_workspace_trust",
+        "local_user_trust_only",
+        "unsigned_user_review_required",
+        "trust_source_unknown_review_required"
+      ]
+    },
+    "template_certification_class": {
+      "type": "string",
+      "enum": [
+        "core_certified",
+        "official_supported",
+        "org_certified",
+        "org_approved",
+        "community_reviewed",
+        "community_unreviewed",
+        "extension_publisher_claimed",
+        "repo_local_unreviewed",
+        "local_only_unreviewed",
+        "deprecated_or_archived",
+        "certification_unknown_review_required"
+      ]
+    },
+    "template_health_cadence_class": {
+      "type": "string",
+      "enum": [
+        "on_every_registry_refresh",
+        "daily",
+        "weekly",
+        "per_release_train",
+        "on_template_revision_change",
+        "manual_only",
+        "not_scheduled_review_required"
+      ]
+    },
+    "template_registry_health_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy_current",
+        "healthy_cached",
+        "stale_but_inspectable",
+        "known_issue_non_blocking",
+        "known_issue_blocks_starter",
+        "validation_failed_blocks_starter",
+        "signature_or_trust_failed_blocks_starter",
+        "health_unknown_review_required"
+      ]
+    },
+    "open_without_starter_continuity_class": {
+      "type": "string",
+      "enum": [
+        "open_without_starter_available",
+        "open_without_starter_available_read_only",
+        "open_without_starter_available_after_review",
+        "open_without_starter_policy_blocked_with_reason"
+      ]
+    },
+    "template_source_class": {
+      "type": "string",
+      "enum": [
+        "first_party",
+        "team_managed",
+        "community",
+        "local_only",
+        "mirror_cached",
+        "uncertified"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.2."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "officially_supported",
+        "community_supported",
+        "experimental",
+        "legacy_deprecated",
+        "unsupported",
+        "support_unknown"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.3."
+    },
+    "runtime_and_toolchain_scope": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_with_devcontainer",
+        "local_with_container",
+        "remote_image_required",
+        "managed_cloud_required",
+        "mixed_local_and_remote",
+        "not_declared"
+      ]
+    },
+    "declared_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ]
+    },
+    "template_archetype_class": {
+      "type": "string",
+      "enum": [
+        "web_application",
+        "web_frontend_library",
+        "backend_service",
+        "cli_tool",
+        "library_or_sdk",
+        "data_or_ml_workbench",
+        "mobile_application",
+        "embedded_or_firmware",
+        "monorepo_root_with_workspaces",
+        "monorepo_member_workspace",
+        "documentation_site",
+        "infrastructure_or_pipeline",
+        "extension_or_plugin",
+        "archetype_class_unknown_requires_review"
+      ]
+    },
+    "supported_ecosystem_class": {
+      "type": "string",
+      "enum": [
+        "rust_cargo",
+        "node_npm",
+        "node_pnpm",
+        "node_yarn",
+        "node_bun",
+        "python_pip",
+        "python_poetry",
+        "python_uv",
+        "go_modules",
+        "java_maven",
+        "java_gradle",
+        "dotnet_nuget",
+        "ruby_bundler",
+        "swift_package_manager",
+        "multi_ecosystem_polyglot",
+        "no_ecosystem_pure_files",
+        "ecosystem_class_unknown_requires_review"
+      ]
+    },
+    "supported_platform_class": {
+      "type": "string",
+      "enum": [
+        "linux_x86_64",
+        "linux_arm64",
+        "macos_x86_64",
+        "macos_arm64",
+        "windows_x86_64",
+        "windows_arm64",
+        "web_browser_runtime",
+        "container_runtime_target",
+        "devcontainer_runtime_target",
+        "managed_workspace_remote_target",
+        "mobile_ios_target",
+        "mobile_android_target",
+        "embedded_target",
+        "platform_class_unknown_requires_review"
+      ]
+    },
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "continuous_with_previous_acquisition",
+        "first_acquisition_no_prior_signer",
+        "signer_changed_review_required",
+        "signer_unknown_user_review_required",
+        "signer_continuity_not_applicable"
+      ]
+    },
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "unsigned",
+        "author_signature",
+        "author_and_organization_signature",
+        "organization_signature_only",
+        "managed_only_channel_signature",
+        "quarantined_no_signature"
+      ]
+    },
+    "bypass_path_id": {
+      "type": "string",
+      "enum": [
+        "bypass.open_folder_without_starter",
+        "bypass.open_workspace_without_starter",
+        "bypass.clone_repository_without_starter",
+        "bypass.create_empty_workspace",
+        "bypass.open_prebuild_minimal",
+        "bypass.set_up_later",
+        "bypass.continue_without_starter"
+      ]
+    },
+    "runtime_compatibility_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_aureline_runtime_version",
+        "maximum_aureline_runtime_version_exclusive",
+        "compatibility_note_ref"
+      ],
+      "properties": {
+        "minimum_aureline_runtime_version": { "$ref": "#/$defs/semver_string" },
+        "maximum_aureline_runtime_version_exclusive": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver_string" }
+          ]
+        },
+        "compatible_release_channel_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "compatibility_note_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "schema_compatibility_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template_manifest_schema_minimum",
+        "template_manifest_schema_maximum_exclusive",
+        "scaffold_hook_policy_schema_minimum",
+        "generated_project_update_semantics_schema_minimum"
+      ],
+      "properties": {
+        "template_manifest_schema_minimum": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "template_manifest_schema_maximum_exclusive": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 2 }
+          ]
+        },
+        "scaffold_hook_policy_schema_minimum": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "generated_project_update_semantics_schema_minimum": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schema_compatibility_note_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "template_registry_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "template_registry_entry_schema_version",
+        "registry_entry_id",
+        "template_id",
+        "template_revision_ref",
+        "template_revision_semver",
+        "template_manifest_ref",
+        "template_manifest_schema_version",
+        "template_manifest_content_address",
+        "template_registry_origin_class",
+        "mirrored_from_origin_class",
+        "template_source_class",
+        "template_trust_source_class",
+        "trust_root_ref",
+        "signer_continuity_class",
+        "signature_class",
+        "template_certification_class",
+        "support_class",
+        "runtime_and_toolchain_scope",
+        "template_archetype_class",
+        "supported_ecosystem_class_set",
+        "supported_platform_class_set",
+        "compatible_runtime_range",
+        "compatible_schema_range",
+        "declared_freshness_class",
+        "mirror_freshness_ref",
+        "template_health_cadence_class",
+        "template_registry_health_state_class",
+        "health_check_refs",
+        "known_issue_refs",
+        "known_issue_disclosure_summary_ref",
+        "validation_bundle_ref",
+        "scaffold_hook_policy_ref",
+        "generated_project_update_semantics_policy_ref",
+        "open_without_starter_continuity_class",
+        "bypass_path_ids",
+        "admitted_for_generation",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "template_registry_entry_record" },
+        "template_registry_entry_schema_version": {
+          "$ref": "#/$defs/template_registry_entry_schema_version"
+        },
+        "registry_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "template_id": { "$ref": "#/$defs/opaque_id" },
+        "template_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "template_revision_semver": { "$ref": "#/$defs/semver_string" },
+        "template_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "template_manifest_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "template_manifest_content_address": {
+          "$ref": "#/$defs/content_address"
+        },
+        "title_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "template_registry_origin_class": {
+          "$ref": "#/$defs/template_registry_origin_class"
+        },
+        "mirrored_from_origin_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/template_registry_origin_class" }
+          ]
+        },
+        "template_source_class": { "$ref": "#/$defs/template_source_class" },
+        "template_trust_source_class": {
+          "$ref": "#/$defs/template_trust_source_class"
+        },
+        "trust_root_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "signer_continuity_class": {
+          "$ref": "#/$defs/signer_continuity_class"
+        },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "template_certification_class": {
+          "$ref": "#/$defs/template_certification_class"
+        },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "runtime_and_toolchain_scope": {
+          "$ref": "#/$defs/runtime_and_toolchain_scope"
+        },
+        "template_archetype_class": {
+          "$ref": "#/$defs/template_archetype_class"
+        },
+        "supported_ecosystem_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supported_ecosystem_class" },
+          "uniqueItems": true
+        },
+        "supported_platform_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supported_platform_class" },
+          "uniqueItems": true
+        },
+        "compatible_runtime_range": {
+          "$ref": "#/$defs/runtime_compatibility_range"
+        },
+        "compatible_schema_range": {
+          "$ref": "#/$defs/schema_compatibility_range"
+        },
+        "declared_freshness_class": {
+          "$ref": "#/$defs/declared_freshness_class"
+        },
+        "mirror_freshness_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "template_health_cadence_class": {
+          "$ref": "#/$defs/template_health_cadence_class"
+        },
+        "template_registry_health_state_class": {
+          "$ref": "#/$defs/template_registry_health_state_class"
+        },
+        "health_check_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "known_issue_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "known_issue_disclosure_summary_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "validation_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_notice_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scaffold_hook_policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "generated_project_update_semantics_policy_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "open_without_starter_continuity_class": {
+          "$ref": "#/$defs/open_without_starter_continuity_class"
+        },
+        "bypass_path_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bypass_path_id" },
+          "uniqueItems": true
+        },
+        "admitted_for_generation": { "type": "boolean" },
+        "notes_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Mirror and offline-bundle rows preserve upstream origin and carry mirror freshness.",
+          "if": {
+            "properties": {
+              "template_registry_origin_class": {
+                "enum": ["official_mirror", "org_mirror", "offline_bundle"]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "mirrored_from_origin_class",
+              "mirror_freshness_ref"
+            ],
+            "properties": {
+              "mirrored_from_origin_class": {
+                "$ref": "#/$defs/template_registry_origin_class"
+              },
+              "mirror_freshness_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Non-local rows cite a trust root ref.",
+          "if": {
+            "properties": {
+              "template_registry_origin_class": {
+                "not": {
+                  "enum": ["repo_local_generator", "ad_hoc_local_template"]
+                }
+              }
+            }
+          },
+          "then": {
+            "required": ["trust_root_ref"],
+            "properties": {
+              "trust_root_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Official rows resolve through the core signing root.",
+          "if": {
+            "properties": {
+              "template_registry_origin_class": {
+                "enum": ["official_origin", "official_mirror"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "template_trust_source_class": {
+                "enum": ["core_signing_root", "core_signing_root_via_mirror"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Organization mirror rows resolve through organization trust sources.",
+          "if": {
+            "properties": {
+              "template_registry_origin_class": { "const": "org_mirror" }
+            }
+          },
+          "then": {
+            "properties": {
+              "template_trust_source_class": {
+                "enum": ["org_policy_signing_root", "org_mirror_signing_root"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Repo-local and ad hoc local rows use local trust and cannot claim certification by location.",
+          "if": {
+            "properties": {
+              "template_registry_origin_class": {
+                "enum": ["repo_local_generator", "ad_hoc_local_template"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "template_trust_source_class": {
+                "enum": [
+                  "repo_local_workspace_trust",
+                  "local_user_trust_only",
+                  "unsigned_user_review_required"
+                ]
+              },
+              "template_certification_class": {
+                "enum": ["repo_local_unreviewed", "local_only_unreviewed"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Certified and official rows require validation bundles and scheduled health cadence.",
+          "if": {
+            "properties": {
+              "template_certification_class": {
+                "enum": ["core_certified", "official_supported", "org_certified"]
+              }
+            }
+          },
+          "then": {
+            "required": ["validation_bundle_ref"],
+            "properties": {
+              "validation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+              "template_health_cadence_class": {
+                "not": { "const": "not_scheduled_review_required" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocking health states cannot be admitted for generation.",
+          "if": {
+            "properties": {
+              "template_registry_health_state_class": {
+                "enum": [
+                  "known_issue_blocks_starter",
+                  "validation_failed_blocks_starter",
+                  "signature_or_trust_failed_blocks_starter",
+                  "health_unknown_review_required"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "admitted_for_generation": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Open-without-starter policy blocks require an explicit policy notice.",
+          "if": {
+            "properties": {
+              "open_without_starter_continuity_class": {
+                "const": "open_without_starter_policy_blocked_with_reason"
+              }
+            }
+          },
+          "then": {
+            "required": ["policy_notice_ref"],
+            "properties": {
+              "policy_notice_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

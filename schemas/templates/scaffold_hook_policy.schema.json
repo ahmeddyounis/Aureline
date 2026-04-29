@@ -1,0 +1,512 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/templates/scaffold_hook_policy.schema.json",
+  "title": "Aureline scaffold hook policy contract",
+  "description": "Boundary schema for one scaffold_hook_policy_record as frozen in docs/templates/template_registry_and_scaffold_contract.md. Every template registry row resolves to a hook policy before any scaffold hook, setup task, package restore, credential request, generated-artifact write, or post-create action can run. The policy names allowed and blocked hooks, preview requirements, network and credential rules, generated-artifact lineage requirements, hidden imperative setup denial, dry-run preview refs, denial refs, and open-without-starter continuity. Raw shell commands, raw hook bodies, raw stdout or stderr, raw credentials, raw certificate material, raw repository URLs, raw absolute paths, and raw user content never cross this boundary; rows carry opaque refs and closed vocabulary only. Adding a new hook policy resolution, preview requirement, network rule, credential rule, lineage requirement, execution phase, or hidden setup policy value is additive-minor and requires a schema-version bump plus fixtures; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/scaffold_hook_policy_record",
+  "$defs": {
+    "scaffold_hook_policy_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support bundles, registry records, and review packets. Raw paths, URLs, payloads, secrets, hook bodies, and user content never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "template_trust_source_class": {
+      "type": "string",
+      "enum": [
+        "core_signing_root",
+        "core_signing_root_via_mirror",
+        "org_policy_signing_root",
+        "org_mirror_signing_root",
+        "extension_publisher_signature",
+        "community_channel_signature",
+        "signed_offline_bundle_root",
+        "repo_local_workspace_trust",
+        "local_user_trust_only",
+        "unsigned_user_review_required",
+        "trust_source_unknown_review_required"
+      ]
+    },
+    "template_registry_health_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy_current",
+        "healthy_cached",
+        "stale_but_inspectable",
+        "known_issue_non_blocking",
+        "known_issue_blocks_starter",
+        "validation_failed_blocks_starter",
+        "signature_or_trust_failed_blocks_starter",
+        "health_unknown_review_required"
+      ]
+    },
+    "scaffold_hook_policy_resolution_class": {
+      "type": "string",
+      "enum": [
+        "allowed_after_preview",
+        "allowed_without_mutation",
+        "allowed_after_user_review",
+        "blocked_by_policy",
+        "blocked_by_trust",
+        "blocked_hidden_imperative_setup",
+        "blocked_network_or_credential_rule",
+        "blocked_lineage_requirement_missing"
+      ]
+    },
+    "scaffold_preview_requirement_class": {
+      "type": "string",
+      "enum": [
+        "preview_required_before_any_write",
+        "preview_required_before_network_or_credential_use",
+        "preview_required_before_post_create_action",
+        "preview_not_required_read_only_only",
+        "preview_unavailable_blocks_apply"
+      ]
+    },
+    "hook_network_rule_class": {
+      "type": "string",
+      "enum": [
+        "network_denied",
+        "network_allowed_first_party_origin_only",
+        "network_allowed_org_mirror_only",
+        "network_allowed_declared_hosts_after_review",
+        "network_allowed_managed_workspace_envelope_only",
+        "network_unknown_blocks_hook"
+      ]
+    },
+    "hook_credential_rule_class": {
+      "type": "string",
+      "enum": [
+        "no_credentials_available",
+        "brokered_handle_only",
+        "delegated_handle_after_review",
+        "managed_workspace_handle_only",
+        "credential_use_denied",
+        "raw_secret_material_forbidden"
+      ]
+    },
+    "generated_artifact_lineage_requirement_class": {
+      "type": "string",
+      "enum": [
+        "lineage_not_applicable_read_only",
+        "lineage_metadata_required_before_write",
+        "lineage_metadata_required_before_post_create",
+        "lineage_update_required_before_reapply",
+        "lineage_missing_blocks_hook"
+      ]
+    },
+    "hidden_imperative_setup_policy_class": {
+      "type": "string",
+      "enum": ["hidden_imperative_setup_forbidden"]
+    },
+    "hook_execution_phase_class": {
+      "type": "string",
+      "enum": [
+        "pre_fetch_inspection",
+        "pre_write_validation",
+        "post_write_local_mutation",
+        "post_create_handoff",
+        "post_create_setup",
+        "post_delete_recovery",
+        "phase_unknown_review_required"
+      ]
+    },
+    "declared_hook_class": {
+      "type": "string",
+      "enum": [
+        "pre_fetch_inspect_only_no_mutation",
+        "pre_write_validate_parameters_no_mutation",
+        "post_write_format_generated_files_local_only",
+        "post_write_apply_lineage_metadata_local_only",
+        "post_create_invoke_declarative_recipe",
+        "post_create_invoke_recorded_macro_ui_state_replay_only",
+        "post_create_open_workspace_in_editor_no_mutation",
+        "post_create_print_handoff_summary_no_mutation",
+        "post_delete_emit_recovery_breadcrumb_local_only",
+        "hook_class_unknown_requires_review"
+      ]
+    },
+    "automation_capability_class": {
+      "type": "string",
+      "enum": [
+        "read_only_workspace_inspection",
+        "reversible_local_editor_mutation",
+        "irreversible_local_editor_mutation",
+        "reversible_workspace_filesystem_mutation",
+        "irreversible_workspace_filesystem_mutation",
+        "network_read_on_permitted_hosts",
+        "network_mutation_on_permitted_hosts",
+        "remote_agent_invocation",
+        "credential_broker_handshake",
+        "managed_only_channel_invocation",
+        "ai_tool_invocation",
+        "extension_invocation",
+        "terminal_session_invocation",
+        "debug_session_invocation",
+        "notebook_kernel_invocation",
+        "settings_or_profile_mutation",
+        "policy_admission_revalidation",
+        "trust_state_revalidation",
+        "recorded_macro_ui_state_replay",
+        "recorded_macro_editor_state_replay",
+        "deferred_intent_hook",
+        "queued_action_hook"
+      ]
+    },
+    "bypass_path_id": {
+      "type": "string",
+      "enum": [
+        "bypass.open_folder_without_starter",
+        "bypass.open_workspace_without_starter",
+        "bypass.clone_repository_without_starter",
+        "bypass.create_empty_workspace",
+        "bypass.open_prebuild_minimal",
+        "bypass.set_up_later",
+        "bypass.continue_without_starter"
+      ]
+    },
+    "allowed_hook_policy_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_hook_id_ref",
+        "declared_hook_class",
+        "execution_phase_class",
+        "automation_capability_class",
+        "preview_requirement_class",
+        "network_rule_class",
+        "credential_rule_class",
+        "generated_artifact_lineage_requirement_class"
+      ],
+      "properties": {
+        "declared_hook_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "declared_hook_class": { "$ref": "#/$defs/declared_hook_class" },
+        "execution_phase_class": {
+          "$ref": "#/$defs/hook_execution_phase_class"
+        },
+        "automation_capability_class": {
+          "$ref": "#/$defs/automation_capability_class"
+        },
+        "preview_requirement_class": {
+          "$ref": "#/$defs/scaffold_preview_requirement_class"
+        },
+        "network_rule_class": { "$ref": "#/$defs/hook_network_rule_class" },
+        "credential_rule_class": {
+          "$ref": "#/$defs/hook_credential_rule_class"
+        },
+        "generated_artifact_lineage_requirement_class": {
+          "$ref": "#/$defs/generated_artifact_lineage_requirement_class"
+        },
+        "setup_task_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "hook_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "can_continue_without_credential": { "type": "boolean" }
+      }
+    },
+    "blocked_hook_policy_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted_hook_id_ref",
+        "denial_reason_ref",
+        "attempted_hidden_imperative_setup_detected"
+      ],
+      "properties": {
+        "attempted_hook_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "declared_hook_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "declared_hook_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/declared_hook_class" }
+          ]
+        },
+        "denial_reason_ref": { "$ref": "#/$defs/opaque_id" },
+        "attempted_hidden_imperative_setup_detected": { "type": "boolean" },
+        "blocked_network_rule_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hook_network_rule_class" }
+          ]
+        },
+        "blocked_credential_rule_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hook_credential_rule_class" }
+          ]
+        },
+        "blocked_lineage_requirement_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_artifact_lineage_requirement_class" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "scaffold_hook_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scaffold_hook_policy_schema_version",
+        "hook_policy_id",
+        "registry_entry_ref",
+        "template_id_ref",
+        "template_revision_ref",
+        "template_trust_source_class",
+        "template_registry_health_state_class",
+        "policy_resolution_class",
+        "preview_requirement_class",
+        "allowed_hook_rows",
+        "blocked_hook_rows",
+        "network_rule_class",
+        "credential_rule_class",
+        "generated_artifact_lineage_requirement_class",
+        "hidden_imperative_setup_policy",
+        "attempted_hidden_imperative_setup_detected",
+        "generated_artifact_lineage_ref",
+        "dry_run_preview_ref",
+        "denial_reason_refs",
+        "bypass_path_ids",
+        "admitted_for_hook_execution",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "scaffold_hook_policy_record" },
+        "scaffold_hook_policy_schema_version": {
+          "$ref": "#/$defs/scaffold_hook_policy_schema_version"
+        },
+        "hook_policy_id": { "$ref": "#/$defs/opaque_id" },
+        "registry_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "template_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "template_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "template_trust_source_class": {
+          "$ref": "#/$defs/template_trust_source_class"
+        },
+        "template_registry_health_state_class": {
+          "$ref": "#/$defs/template_registry_health_state_class"
+        },
+        "policy_resolution_class": {
+          "$ref": "#/$defs/scaffold_hook_policy_resolution_class"
+        },
+        "preview_requirement_class": {
+          "$ref": "#/$defs/scaffold_preview_requirement_class"
+        },
+        "allowed_hook_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/allowed_hook_policy_row" }
+        },
+        "blocked_hook_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_hook_policy_row" }
+        },
+        "network_rule_class": { "$ref": "#/$defs/hook_network_rule_class" },
+        "credential_rule_class": {
+          "$ref": "#/$defs/hook_credential_rule_class"
+        },
+        "generated_artifact_lineage_requirement_class": {
+          "$ref": "#/$defs/generated_artifact_lineage_requirement_class"
+        },
+        "hidden_imperative_setup_policy": {
+          "$ref": "#/$defs/hidden_imperative_setup_policy_class"
+        },
+        "attempted_hidden_imperative_setup_detected": { "type": "boolean" },
+        "generated_artifact_lineage_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "dry_run_preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "denial_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "bypass_path_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bypass_path_id" },
+          "uniqueItems": true
+        },
+        "admitted_for_hook_execution": { "type": "boolean" },
+        "notes_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Hidden imperative setup always resolves to the hidden-setup block class and cannot be admitted.",
+          "if": {
+            "properties": {
+              "attempted_hidden_imperative_setup_detected": { "const": true }
+            }
+          },
+          "then": {
+            "properties": {
+              "policy_resolution_class": {
+                "const": "blocked_hidden_imperative_setup"
+              },
+              "admitted_for_hook_execution": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Blocked policy classes cannot be admitted for hook execution.",
+          "if": {
+            "properties": {
+              "policy_resolution_class": {
+                "enum": [
+                  "blocked_by_policy",
+                  "blocked_by_trust",
+                  "blocked_hidden_imperative_setup",
+                  "blocked_network_or_credential_rule",
+                  "blocked_lineage_requirement_missing"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "admitted_for_hook_execution": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Allowed-after-preview requires a dry-run preview ref.",
+          "if": {
+            "properties": {
+              "policy_resolution_class": { "const": "allowed_after_preview" }
+            }
+          },
+          "then": {
+            "required": ["dry_run_preview_ref"],
+            "properties": {
+              "dry_run_preview_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Lineage-writing policies require a generated artifact lineage ref.",
+          "if": {
+            "properties": {
+              "generated_artifact_lineage_requirement_class": {
+                "enum": [
+                  "lineage_metadata_required_before_write",
+                  "lineage_metadata_required_before_post_create",
+                  "lineage_update_required_before_reapply"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["generated_artifact_lineage_ref"],
+            "properties": {
+              "generated_artifact_lineage_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Missing lineage blocks hook execution.",
+          "if": {
+            "properties": {
+              "generated_artifact_lineage_requirement_class": {
+                "const": "lineage_missing_blocks_hook"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "policy_resolution_class": {
+                "const": "blocked_lineage_requirement_missing"
+              },
+              "admitted_for_hook_execution": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Unknown network or raw-secret credential rules block hook execution.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "network_rule_class": {
+                    "const": "network_unknown_blocks_hook"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "credential_rule_class": {
+                    "const": "raw_secret_material_forbidden"
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "policy_resolution_class": {
+                "const": "blocked_network_or_credential_rule"
+              },
+              "admitted_for_hook_execution": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Trust or health failures block all hook execution.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "template_trust_source_class": {
+                    "enum": [
+                      "unsigned_user_review_required",
+                      "trust_source_unknown_review_required"
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "template_registry_health_state_class": {
+                    "enum": [
+                      "known_issue_blocks_starter",
+                      "validation_failed_blocks_starter",
+                      "signature_or_trust_failed_blocks_starter",
+                      "health_unknown_review_required"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "admitted_for_hook_execution": { "const": false }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
