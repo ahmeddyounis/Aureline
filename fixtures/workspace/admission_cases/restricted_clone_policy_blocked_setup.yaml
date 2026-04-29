@@ -1,0 +1,101 @@
+# yaml-language-server: $schema=../../../schemas/workspace/admission_checkpoint.schema.json
+$schema: "https://aureline.dev/schemas/workspace/admission_checkpoint.schema.json"
+__fixture__:
+  name: restricted_clone_policy_blocked_setup
+  scenario: >
+    A repository clone completed but managed policy blocks dependency restore and
+    public-registry contact. The admission checkpoint resolves to admission_class
+    policy_blocked, places dependency_restore in blocking_now with blocked_reason
+    blocked_by_policy, surfaces the policy_narrowing_card / blocked_setup_card /
+    continue_without_card trio, and resolves continue_without_class to
+    continue_in_restricted_mode. Banner resolves to policy_restricted_banner.
+  contract_sections:
+    - "§3 Workspace-Admission Checkpoint"
+    - "§4.2 Blocked-reason classes"
+    - "§4.4 Blocked-vs-optional separation invariants"
+    - "§5.1 admission_card_class"
+    - "§5.3 admission_banner_class"
+record_kind: workspace_admission_checkpoint_record
+admission_checkpoint_schema_version: 1
+admission_checkpoint_id: "admission.checkpoint.restricted_clone"
+emitted_at: "ts.monotonic.restricted_clone"
+entry_action_ref: "entry.action.clone.remote_repo"
+entry_source: repository_clone
+target_kind: remote_repository
+resulting_mode: clone_then_review
+root_identity_class: repo_root_identity
+root_identity_ref: "root.identity.cloned_repo"
+workspace_scope_ref: "scope.cloned_repo"
+trust_state: restricted
+trust_review_class: trust_review_blocked_by_policy
+admission_class: policy_blocked
+archetype_recommendation_source_classes:
+  - detected_facts
+  - admin_policy
+  - bundle_metadata
+setup_location_classes:
+  - local_machine
+  - no_execution
+readiness_bucket_summary:
+  blocking_now_total: 1
+  blocking_now_by_reason:
+    - blocked_reason_class: blocked_by_policy
+      task_count: 1
+  recommended_soon_total: 1
+  recommended_soon_by_class:
+    - readiness_task_class: trust_review
+      task_count: 1
+  optional_later_total: 1
+  optional_later_by_reason:
+    - optional_reason_class: optional_additive
+      task_count: 1
+blocked_setup_tasks:
+  - task_ref: "task.restricted.dependency_restore"
+    task_class: dependency_restore
+    task_state: blocked_by_policy
+    blocked_reason_class: blocked_by_policy
+    execution_boundary: local_machine
+    side_effects:
+      - installs_packages
+      - downloads_dependencies
+      - contacts_remote
+    policy_block_refs:
+      - "policyblock.restricted.package_install"
+      - "policyblock.restricted.public_registry"
+    summary: "Dependency restore cannot run while managed policy blocks package install and public registry contact."
+optional_setup_tasks:
+  - task_ref: "task.restricted.index_warmup"
+    task_class: index_warmup
+    task_state: optional
+    optional_reason_class: optional_additive
+    execution_boundary: local_machine
+    side_effects:
+      - reads_workspace
+    summary: "Index warmup can run without package install and remains optional."
+continue_without_class: continue_in_restricted_mode
+plain_open_available: true
+ordinary_editing_available: true
+blocked_setup_distinct_from_optional: true
+archetype_ref: "archetype.web.policy_narrowed"
+compatible_bundle_refs:
+  - "bundle.web.fullstack.current"
+post_clone_trust_stage_ref: "post_clone_trust_stage.restricted_clone"
+detected_fact_refs:
+  - "fact.restricted.manifest_present"
+  - "fact.restricted.policy_applies"
+recommendation_refs:
+  - "rec.restricted.review_bundle"
+policy_block_refs:
+  - "policyblock.restricted.package_install"
+  - "policyblock.restricted.public_registry"
+blocked_setup_refs:
+  - "task.restricted.dependency_restore"
+optional_guidance_refs:
+  - "task.restricted.index_warmup"
+admission_card_refs:
+  - "card.restricted.what_works_now"
+  - "card.restricted.blocked_setup"
+  - "card.restricted.policy_narrowing"
+  - "card.restricted.continue_without"
+admission_banner_ref: "banner.restricted.policy_restricted"
+summary: "Clone landed; package install and registry contact are policy-blocked, so the user may continue in restricted mode while file editing and index warmup remain available."

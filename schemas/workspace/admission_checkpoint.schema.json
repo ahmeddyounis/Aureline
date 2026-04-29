@@ -1,0 +1,914 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/admission_checkpoint.schema.json",
+  "title": "Aureline workspace-admission checkpoint, admission card, and admission banner records",
+  "description": "Boundary schema for the three records frozen in docs/ux/workspace_admission_contract.md. (1) The workspace_admission_checkpoint_record is emitted by every entry activation once the open-flow sheet has committed and a root identity has been resolved; it carries root_identity_class, trust_state, trust_review_class, archetype_recommendation_source_classes, setup_location_classes, the three readiness buckets, the blocked-reason and optional-reason class arrays, the continue_without_class fallback, and the plain_open_available / ordinary_editing_available invariants. (2) The admission_card_record is emitted once per non-empty bucket and once per typed surface that the shell renders to explain what works now, what is recommended, what is blocked (by trust / policy / missing prerequisite / deployment profile), and what was deferred. (3) The admission_banner_record is emitted once per checkpoint to summarise the single worst-surviving state across the workspace. The schema mints no new entry_verb, target_kind, resulting_mode, trust_state, admission_class, readiness_bucket, readiness_task_class, readiness_task_state, execution_boundary, side_effect_class, recommendation_class, policy_state, blocked_action_class, bypass_action, or signal_material_effect value; those re-export from /schemas/workspace/entry_and_restore_result.schema.json and /schemas/workspace/archetype_detection.schema.json. Adding a new root_identity_class, trust_review_class, archetype_recommendation_source_class, setup_location_class, continue_without_class, blocked_reason_class, optional_reason_class, admission_card_class, or admission_banner_class is additive-minor and bumps the corresponding *_schema_version; repurposing an existing value, weakening any §4.4 or §5.5 invariant, or relaxing the blocked-vs-optional separation is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workspace_admission_checkpoint_record" },
+    { "$ref": "#/$defs/admission_card_record" },
+    { "$ref": "#/$defs/admission_banner_record" }
+  ],
+  "$defs": {
+    "admission_checkpoint_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the workspace-admission checkpoint payload shape. Current value is 1."
+    },
+    "admission_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the admission-card payload shape. Current value is 1."
+    },
+    "admission_banner_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the admission-banner payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw URLs, raw manifest bodies, and raw package-lock contents never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewer-facing text already scrubbed by the producer. Raw paths, URLs, secrets, command lines, and manifest bodies never appear here."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "entry_source": {
+      "type": "string",
+      "enum": [
+        "single_file_open",
+        "folder_or_repo_open",
+        "repository_clone",
+        "review_or_incident_deep_link",
+        "restore_last_session",
+        "imported_state_or_handoff_packet"
+      ],
+      "description": "Re-export of first_useful_entry_source from /schemas/workspace/archetype_detection.schema.json."
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ],
+      "description": "Re-export of target_kind from /schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "resulting_mode": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "folder",
+        "repo_root",
+        "workspace_candidate",
+        "workspace_with_roots",
+        "workset_slice",
+        "inspect_only",
+        "clone_then_review",
+        "clone_then_open",
+        "clone_then_add",
+        "clone_only",
+        "extract_then_review",
+        "compare_before_restore",
+        "apply_to_active_workspace",
+        "open_prebuild_with_setup_actions",
+        "open_prebuild_minimal",
+        "resume_live_session",
+        "restore_last_session",
+        "restore_from_checkpoint"
+      ],
+      "description": "Re-export of resulting_mode from /schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"],
+      "description": "Re-export of ADR-0001 trust state."
+    },
+    "admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "trust_review_required",
+        "policy_blocked",
+        "needs_repair",
+        "needs_reconnect",
+        "needs_reauth"
+      ],
+      "description": "Re-export of admission_class from /schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "readiness_bucket": {
+      "type": "string",
+      "enum": ["blocking_now", "recommended_soon", "optional_later"],
+      "description": "Re-export of readiness_bucket from /schemas/workspace/archetype_detection.schema.json."
+    },
+    "readiness_task_class": {
+      "type": "string",
+      "enum": [
+        "trust_review",
+        "policy_review",
+        "toolchain_detect",
+        "toolchain_install",
+        "dependency_restore",
+        "extension_recommendation",
+        "extension_install",
+        "runtime_attach",
+        "remote_agent_reconnect",
+        "devcontainer_build",
+        "package_manager_select",
+        "index_warmup",
+        "docs_import",
+        "test_discovery",
+        "user_boundary_choice",
+        "imported_state_compare",
+        "restore_review",
+        "deep_link_clone_required"
+      ],
+      "description": "Re-export of readiness_task_class from /schemas/workspace/archetype_detection.schema.json."
+    },
+    "readiness_task_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "pending",
+        "blocked_by_policy",
+        "blocked_by_trust",
+        "missing_prerequisite",
+        "deferred_by_user",
+        "optional",
+        "unavailable"
+      ],
+      "description": "Re-export of readiness_task_state from /schemas/workspace/archetype_detection.schema.json."
+    },
+    "execution_boundary": {
+      "type": "string",
+      "enum": [
+        "local_machine",
+        "container",
+        "remote_agent",
+        "managed_workspace",
+        "browser_handoff",
+        "no_execution"
+      ],
+      "description": "Re-export of execution_boundary from /schemas/workspace/archetype_detection.schema.json."
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "reads_workspace",
+        "writes_workspace_files",
+        "installs_packages",
+        "downloads_dependencies",
+        "widens_trust",
+        "widens_network",
+        "contacts_remote",
+        "starts_process",
+        "attaches_runtime",
+        "changes_layout",
+        "no_side_effect"
+      ],
+      "description": "Re-export of side_effect_class from /schemas/workspace/archetype_detection.schema.json."
+    },
+    "bypass_action": {
+      "type": "string",
+      "enum": [
+        "set_up_later",
+        "open_minimal",
+        "dismiss_recommendation",
+        "open_plain_explorer",
+        "continue_in_restricted_mode",
+        "compare_before_restore",
+        "inspect_only"
+      ],
+      "description": "Re-export of bypass_action from /schemas/workspace/archetype_detection.schema.json."
+    },
+    "root_identity_class": {
+      "type": "string",
+      "enum": [
+        "filesystem_path_identity",
+        "repo_root_identity",
+        "workspace_manifest_identity",
+        "workset_manifest_identity",
+        "remote_target_identity",
+        "managed_cloud_identity",
+        "handoff_packet_identity",
+        "template_or_prebuild_identity",
+        "no_root_identity_yet"
+      ],
+      "description": "What kind of identity Aureline anchored the admission checkpoint to. A checkpoint without a resolved root MUST set this to no_root_identity_yet and admission_class to needs_repair."
+    },
+    "trust_review_class": {
+      "type": "string",
+      "enum": [
+        "no_trust_review_required",
+        "trust_review_pending",
+        "trust_review_in_progress",
+        "trust_review_blocked_by_policy",
+        "trust_revalidation_required",
+        "trust_review_not_applicable"
+      ],
+      "description": "How the admission checkpoint relates to the trust-prompt surface. The trust transition itself is owned by the trust-prompt surface."
+    },
+    "archetype_recommendation_source_class": {
+      "type": "string",
+      "enum": [
+        "detected_facts",
+        "bundle_metadata",
+        "admin_policy",
+        "prior_user_choice",
+        "extension_contribution",
+        "template_default",
+        "import_packet",
+        "mixed_recommendation_source"
+      ],
+      "description": "Where a recommendation came from. A recommendation that cannot resolve a source class is non-conforming and MUST be denied upstream."
+    },
+    "setup_location_class": {
+      "type": "string",
+      "enum": [
+        "local_machine",
+        "container",
+        "devcontainer",
+        "remote_agent",
+        "managed_workspace",
+        "browser_handoff",
+        "no_execution",
+        "mixed_setup_location"
+      ],
+      "description": "Where readiness work runs, or why it does not run. mixed_setup_location MUST be paired with per-task locations through the readiness section."
+    },
+    "continue_without_class": {
+      "type": "string",
+      "enum": [
+        "set_up_later",
+        "open_minimal",
+        "open_plain_explorer",
+        "continue_in_restricted_mode",
+        "inspect_only",
+        "compare_before_restore",
+        "dismiss_recommendation",
+        "no_continue_without_action_available"
+      ],
+      "description": "The single safe fallback the user may take instead of running setup. A checkpoint with non-empty blocking_now MUST resolve to continue_in_restricted_mode, inspect_only, compare_before_restore, or no_continue_without_action_available."
+    },
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "blocked_by_trust",
+        "blocked_by_policy",
+        "blocked_by_missing_prerequisite",
+        "blocked_by_deployment_profile"
+      ],
+      "description": "Required reason class for every task in blocking_now. Free-form failure copy is non-conforming."
+    },
+    "optional_reason_class": {
+      "type": "string",
+      "enum": [
+        "optional_additive",
+        "optional_recommended_only",
+        "optional_user_dismissed",
+        "optional_freshness_based"
+      ],
+      "description": "Required reason class for every task in optional_later."
+    },
+    "card_severity_class": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "recommendation",
+        "attention_required",
+        "blocked"
+      ],
+      "description": "Severity class for an admission card."
+    },
+    "banner_severity_class": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "recommendation",
+        "attention_required",
+        "blocked"
+      ],
+      "description": "Severity class for an admission banner."
+    },
+    "admission_card_class": {
+      "type": "string",
+      "enum": [
+        "what_works_now_card",
+        "recommended_setup_card",
+        "blocked_setup_card",
+        "deferred_setup_card",
+        "policy_narrowing_card",
+        "prerequisite_repair_card",
+        "deployment_profile_card",
+        "continue_without_card",
+        "optional_recommendations_card"
+      ],
+      "description": "Closed admission-card class set. A surface that mints a generic 'Complete setup' card is non-conforming."
+    },
+    "admission_banner_class": {
+      "type": "string",
+      "enum": [
+        "ready_to_work_banner",
+        "recommended_setup_banner",
+        "partial_setup_banner",
+        "blocked_setup_banner",
+        "policy_restricted_banner",
+        "prerequisite_missing_banner",
+        "deployment_profile_locked_banner",
+        "deferred_setup_banner",
+        "mixed_setup_banner",
+        "no_safe_fallback_banner"
+      ],
+      "description": "Closed admission-banner class set. The shell renders one banner per checkpoint; the banner resolves to the most blocking class plausible per the contract §5.5 rule 5."
+    },
+    "blocked_reason_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocked_reason_class", "task_count"],
+      "properties": {
+        "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "task_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "One entry of the blocking_now bucket's per-reason count."
+    },
+    "optional_reason_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["optional_reason_class", "task_count"],
+      "properties": {
+        "optional_reason_class": { "$ref": "#/$defs/optional_reason_class" },
+        "task_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "One entry of the optional_later bucket's per-reason count."
+    },
+    "recommended_class_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readiness_task_class", "task_count"],
+      "properties": {
+        "readiness_task_class": { "$ref": "#/$defs/readiness_task_class" },
+        "task_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "One entry of the recommended_soon bucket's per-class count."
+    },
+    "readiness_bucket_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocking_now_total",
+        "blocking_now_by_reason",
+        "recommended_soon_total",
+        "recommended_soon_by_class",
+        "optional_later_total",
+        "optional_later_by_reason"
+      ],
+      "properties": {
+        "blocking_now_total": { "type": "integer", "minimum": 0 },
+        "blocking_now_by_reason": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason_summary_entry" },
+          "uniqueItems": true
+        },
+        "recommended_soon_total": { "type": "integer", "minimum": 0 },
+        "recommended_soon_by_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recommended_class_summary_entry" },
+          "uniqueItems": true
+        },
+        "optional_later_total": { "type": "integer", "minimum": 0 },
+        "optional_later_by_reason": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/optional_reason_summary_entry" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Three-bucket readiness summary. Surfaces MUST NOT collapse the buckets into a single 'Complete setup' total."
+    },
+    "blocked_setup_task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_ref",
+        "task_class",
+        "task_state",
+        "blocked_reason_class",
+        "execution_boundary",
+        "side_effects",
+        "summary"
+      ],
+      "properties": {
+        "task_ref": { "$ref": "#/$defs/opaque_id" },
+        "task_class": { "$ref": "#/$defs/readiness_task_class" },
+        "task_state": { "$ref": "#/$defs/readiness_task_state" },
+        "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "execution_boundary": { "$ref": "#/$defs/execution_boundary" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "policy_block_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "deployment_profile_block_ref": { "$ref": "#/$defs/opaque_id" },
+        "missing_prerequisite_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One blocked setup task. blocked_reason_class is required; free-form 'Setup failed' copy is non-conforming."
+    },
+    "optional_setup_task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_ref",
+        "task_class",
+        "task_state",
+        "optional_reason_class",
+        "execution_boundary",
+        "side_effects",
+        "summary"
+      ],
+      "properties": {
+        "task_ref": { "$ref": "#/$defs/opaque_id" },
+        "task_class": { "$ref": "#/$defs/readiness_task_class" },
+        "task_state": { "$ref": "#/$defs/readiness_task_state" },
+        "optional_reason_class": { "$ref": "#/$defs/optional_reason_class" },
+        "execution_boundary": { "$ref": "#/$defs/execution_boundary" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One optional task surfaced as inspectable but never required."
+    },
+    "workspace_admission_checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "admission_checkpoint_schema_version",
+        "admission_checkpoint_id",
+        "emitted_at",
+        "entry_action_ref",
+        "entry_source",
+        "target_kind",
+        "resulting_mode",
+        "root_identity_class",
+        "workspace_scope_ref",
+        "trust_state",
+        "trust_review_class",
+        "admission_class",
+        "archetype_recommendation_source_classes",
+        "setup_location_classes",
+        "readiness_bucket_summary",
+        "blocked_setup_tasks",
+        "optional_setup_tasks",
+        "continue_without_class",
+        "plain_open_available",
+        "ordinary_editing_available",
+        "blocked_setup_distinct_from_optional",
+        "detected_fact_refs",
+        "recommendation_refs",
+        "policy_block_refs",
+        "blocked_setup_refs",
+        "optional_guidance_refs",
+        "admission_card_refs",
+        "admission_banner_ref",
+        "summary"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "const": "https://aureline.dev/schemas/workspace/admission_checkpoint.schema.json"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "workspace_admission_checkpoint_record"
+        },
+        "admission_checkpoint_schema_version": { "$ref": "#/$defs/admission_checkpoint_schema_version" },
+        "admission_checkpoint_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "entry_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "entry_source": { "$ref": "#/$defs/entry_source" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "resulting_mode": { "$ref": "#/$defs/resulting_mode" },
+        "root_identity_class": { "$ref": "#/$defs/root_identity_class" },
+        "root_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "trust_review_class": { "$ref": "#/$defs/trust_review_class" },
+        "admission_class": { "$ref": "#/$defs/admission_class" },
+        "archetype_recommendation_source_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/archetype_recommendation_source_class" },
+          "uniqueItems": true
+        },
+        "setup_location_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/setup_location_class" },
+          "uniqueItems": true
+        },
+        "readiness_bucket_summary": { "$ref": "#/$defs/readiness_bucket_summary" },
+        "blocked_setup_tasks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_setup_task" }
+        },
+        "optional_setup_tasks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/optional_setup_task" }
+        },
+        "continue_without_class": { "$ref": "#/$defs/continue_without_class" },
+        "plain_open_available": { "type": "boolean" },
+        "ordinary_editing_available": { "type": "boolean" },
+        "blocked_setup_distinct_from_optional": { "type": "boolean", "const": true },
+        "archetype_ref": { "$ref": "#/$defs/opaque_id" },
+        "compatible_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "restore_prompt_ref": { "$ref": "#/$defs/opaque_id" },
+        "migration_result_ref": { "$ref": "#/$defs/opaque_id" },
+        "post_clone_trust_stage_ref": { "$ref": "#/$defs/opaque_id" },
+        "post_entry_handoff_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "prior_user_choice_ref": { "$ref": "#/$defs/opaque_id" },
+        "detected_fact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "recommendation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_block_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "blocked_setup_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "optional_guidance_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "admission_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "admission_banner_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "description": "If root_identity_class is no_root_identity_yet, admission_class MUST be needs_repair (or another non-admitted class) and root_identity_ref MUST be omitted.",
+          "if": {
+            "properties": {
+              "root_identity_class": { "const": "no_root_identity_yet" }
+            },
+            "required": ["root_identity_class"]
+          },
+          "then": {
+            "not": { "required": ["root_identity_ref"] },
+            "properties": {
+              "admission_class": {
+                "enum": [
+                  "trust_review_required",
+                  "policy_blocked",
+                  "needs_repair",
+                  "needs_reconnect",
+                  "needs_reauth"
+                ]
+              }
+            }
+          },
+          "else": {
+            "required": ["root_identity_ref"]
+          }
+        },
+        {
+          "description": "If admission_class is policy_blocked, policy_block_refs MUST be non-empty.",
+          "if": {
+            "properties": {
+              "admission_class": { "const": "policy_blocked" }
+            },
+            "required": ["admission_class"]
+          },
+          "then": {
+            "properties": {
+              "policy_block_refs": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "When the recommendation set is non-empty, archetype_recommendation_source_classes MUST be non-empty.",
+          "if": {
+            "properties": {
+              "recommendation_refs": { "type": "array", "minItems": 1 }
+            },
+            "required": ["recommendation_refs"]
+          },
+          "then": {
+            "properties": {
+              "archetype_recommendation_source_classes": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "When at least one readiness task exists, setup_location_classes MUST be non-empty.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": { "blocked_setup_tasks": { "type": "array", "minItems": 1 } },
+                "required": ["blocked_setup_tasks"]
+              },
+              {
+                "properties": { "optional_setup_tasks": { "type": "array", "minItems": 1 } },
+                "required": ["optional_setup_tasks"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "setup_location_classes": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "If continue_without_class is no_continue_without_action_available, the checkpoint MUST cite at least one block ref or restore prompt.",
+          "if": {
+            "properties": {
+              "continue_without_class": { "const": "no_continue_without_action_available" }
+            },
+            "required": ["continue_without_class"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": { "policy_block_refs": { "type": "array", "minItems": 1 } },
+                "required": ["policy_block_refs"]
+              },
+              {
+                "properties": { "blocked_setup_refs": { "type": "array", "minItems": 1 } },
+                "required": ["blocked_setup_refs"]
+              },
+              {
+                "required": ["restore_prompt_ref"]
+              }
+            ]
+          }
+        }
+      ],
+      "description": "Post-entry workspace-admission checkpoint. The record is the support, CLI, status-bar, attention-inbox, and project-doctor explanation point for why Aureline opened, blocked, deferred, or routed work after entry."
+    },
+    "admission_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "admission_card_schema_version",
+        "admission_card_id",
+        "emitted_at",
+        "admission_checkpoint_ref",
+        "admission_card_class",
+        "card_severity_class",
+        "presentation_label",
+        "summary",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "const": "https://aureline.dev/schemas/workspace/admission_checkpoint.schema.json"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "admission_card_record"
+        },
+        "admission_card_schema_version": { "$ref": "#/$defs/admission_card_schema_version" },
+        "admission_card_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admission_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "admission_card_class": { "$ref": "#/$defs/admission_card_class" },
+        "card_severity_class": { "$ref": "#/$defs/card_severity_class" },
+        "referenced_task_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "referenced_policy_block_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "referenced_recommendation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "blocked_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason_class" },
+          "uniqueItems": true
+        },
+        "optional_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/optional_reason_class" },
+          "uniqueItems": true
+        },
+        "archetype_recommendation_source_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/archetype_recommendation_source_class" },
+          "uniqueItems": true
+        },
+        "setup_location_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/setup_location_class" },
+          "uniqueItems": true
+        },
+        "bypass_action": { "$ref": "#/$defs/bypass_action" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "disabled_reason_code": { "$ref": "#/$defs/redaction_aware_text" },
+        "keyboard_reachable": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "description": "blocked_setup_card MUST list at least one blocked_reason_class.",
+          "if": {
+            "properties": {
+              "admission_card_class": { "const": "blocked_setup_card" }
+            },
+            "required": ["admission_card_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_reason_classes": { "type": "array", "minItems": 1 }
+            },
+            "required": ["blocked_reason_classes"]
+          }
+        },
+        {
+          "description": "policy_narrowing_card MUST list at least one referenced_policy_block_ref.",
+          "if": {
+            "properties": {
+              "admission_card_class": { "const": "policy_narrowing_card" }
+            },
+            "required": ["admission_card_class"]
+          },
+          "then": {
+            "properties": {
+              "referenced_policy_block_refs": { "type": "array", "minItems": 1 }
+            },
+            "required": ["referenced_policy_block_refs"]
+          }
+        },
+        {
+          "description": "prerequisite_repair_card MUST cite blocked_reason_class blocked_by_missing_prerequisite.",
+          "if": {
+            "properties": {
+              "admission_card_class": { "const": "prerequisite_repair_card" }
+            },
+            "required": ["admission_card_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_reason_classes": {
+                "type": "array",
+                "contains": { "const": "blocked_by_missing_prerequisite" }
+              }
+            },
+            "required": ["blocked_reason_classes"]
+          }
+        },
+        {
+          "description": "deployment_profile_card MUST cite blocked_reason_class blocked_by_deployment_profile.",
+          "if": {
+            "properties": {
+              "admission_card_class": { "const": "deployment_profile_card" }
+            },
+            "required": ["admission_card_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_reason_classes": {
+                "type": "array",
+                "contains": { "const": "blocked_by_deployment_profile" }
+              }
+            },
+            "required": ["blocked_reason_classes"]
+          }
+        },
+        {
+          "description": "continue_without_card MUST carry a bypass_action.",
+          "if": {
+            "properties": {
+              "admission_card_class": { "const": "continue_without_card" }
+            },
+            "required": ["admission_card_class"]
+          },
+          "then": {
+            "required": ["bypass_action"]
+          }
+        }
+      ],
+      "description": "One admission card. The shell renders one card per non-empty bucket plus typed cards for policy narrowing, prerequisite repair, deployment profile lock, deferred setup, and the continue-without fallback."
+    },
+    "admission_banner_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "admission_banner_schema_version",
+        "admission_banner_id",
+        "emitted_at",
+        "admission_checkpoint_ref",
+        "admission_banner_class",
+        "severity_class",
+        "presentation_label",
+        "summary",
+        "bypass_action",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "const": "https://aureline.dev/schemas/workspace/admission_checkpoint.schema.json"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "admission_banner_record"
+        },
+        "admission_banner_schema_version": { "$ref": "#/$defs/admission_banner_schema_version" },
+        "admission_banner_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admission_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "admission_banner_class": { "$ref": "#/$defs/admission_banner_class" },
+        "severity_class": { "$ref": "#/$defs/banner_severity_class" },
+        "bypass_action": { "$ref": "#/$defs/continue_without_class" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "attention_inbox_routing_ref": { "$ref": "#/$defs/opaque_id" },
+        "status_bar_chip_ref": { "$ref": "#/$defs/opaque_id" },
+        "notification_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "keyboard_reachable": { "type": "boolean" }
+      },
+      "description": "One admission banner. Exactly one banner is emitted per checkpoint and resolves to the most-blocking class plausible per contract §5.5 rule 5."
+    }
+  }
+}
