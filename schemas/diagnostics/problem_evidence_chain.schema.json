@@ -1,0 +1,743 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/diagnostics/problem_evidence_chain.schema.json",
+  "title": "Aureline problem, output, and evidence chain contract",
+  "description": "Boundary schema for the problem_evidence_chain_record frozen in docs/diagnostics/problem_output_evidence_chain_contract.md. The record links a visible problem row or placeholder to originating output, task events, diagnostic clusters, artifacts, imported scans, remap records, support-bundle refs, review refs, and release or verification packet refs. It preserves source class, target context, freshness, remap state, heuristic-confidence class, collapse posture, causality caveat, and export behavior so local diagnosis views, support bundles, review packets, release packets, CLI JSON, and AI context packets cite the same chain id and confidence vocabulary. Raw output bodies, raw logs, raw source text, raw stack traces, raw paths, raw URLs, command lines, environment bodies, provider payloads, and secret material never cross this boundary; records carry opaque refs, class labels, counts, timestamps, and export-safe summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/problem_evidence_chain_record" }
+  ],
+  "$defs": {
+    "problem_evidence_chain_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this chain record. Adding an optional field or enum value is additive-minor and bumps this const; repurposing a field or enum value is breaking and requires a new decision row."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "problem_evidence_chain_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw paths, raw URLs, raw output, raw command lines, and secret material never appear here."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 520,
+      "description": "Export-safe human-readable sentence. It must not contain raw output bodies, raw source text, raw paths, raw URLs, command lines, environment bodies, or secret material."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "problem_chain_state_class": {
+      "type": "string",
+      "enum": [
+        "active_current",
+        "active_recent",
+        "stale_lineage",
+        "superseded_lineage",
+        "imported_read_only",
+        "placeholder_requires_review",
+        "closed_resolved"
+      ]
+    },
+    "problem_source_class": {
+      "type": "string",
+      "enum": [
+        "structured_language_diagnostic",
+        "normalized_task_event",
+        "heuristic_output_parse",
+        "imported_provider_annotation",
+        "imported_scan_or_report",
+        "replayed_support_evidence",
+        "unknown_placeholder"
+      ]
+    },
+    "source_truth_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "source_truth_preserved",
+        "source_truth_imported_read_only",
+        "source_truth_derived_from_structured",
+        "source_truth_inferred_from_output",
+        "source_truth_correlated_not_proven",
+        "source_truth_unknown"
+      ]
+    },
+    "heuristic_confidence_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "imported_authoritative",
+        "derived_structured",
+        "heuristic_parsed",
+        "correlated_suggestive",
+        "unknown"
+      ]
+    },
+    "confidence_label": {
+      "type": "string",
+      "enum": [
+        "Exact",
+        "Imported authoritative",
+        "Derived structured",
+        "Heuristic parsed",
+        "Correlated suggestive",
+        "Unknown"
+      ]
+    },
+    "downgrade_trigger_class": {
+      "type": "string",
+      "enum": [
+        "source_record_missing",
+        "raw_or_sanitized_backlink_missing",
+        "raw_payload_redacted_beyond_review",
+        "source_imported_not_local",
+        "source_stale_or_superseded",
+        "anchor_remapped_or_unmapped",
+        "target_context_missing",
+        "structured_field_loss",
+        "truncated_or_sampled_output",
+        "heuristic_parser_used",
+        "correlation_without_causality",
+        "contradictory_evidence_present",
+        "local_rerun_conflict",
+        "mapping_quality_below_floor",
+        "confidence_unknown_requires_review"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unknown_requires_review"
+      ]
+    },
+    "remap_state_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "contextual",
+        "stale",
+        "unmapped",
+        "imported_static",
+        "not_applicable",
+        "unknown_requires_review"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "error",
+        "warning",
+        "notice",
+        "hint",
+        "unknown"
+      ]
+    },
+    "target_context_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_root",
+        "selected_workset",
+        "workspace",
+        "execution_run",
+        "debug_session",
+        "notebook_cell",
+        "remote_workspace",
+        "provider_project",
+        "release_candidate",
+        "support_export",
+        "unknown_target"
+      ]
+    },
+    "source_record_kind": {
+      "type": "string",
+      "enum": [
+        "diagnostic_cluster_record",
+        "diagnostic_remap_state_record",
+        "diagnostic_delta_record",
+        "task_event_envelope_record",
+        "task_event_record",
+        "evidence_link_record",
+        "output_viewer_object_record",
+        "artifact_event_record",
+        "support_bundle_record",
+        "support_bundle_manifest_item",
+        "public_proof_packet_record",
+        "provider_event_record",
+        "sarif_import_record",
+        "imported_scan_record",
+        "user_report_record",
+        "unknown_origin_placeholder"
+      ]
+    },
+    "output_record_kind": {
+      "type": "string",
+      "enum": [
+        "task_output_channel",
+        "task_event_envelope",
+        "task_event_record",
+        "output_viewer_object",
+        "terminal_session",
+        "notebook_cell_output",
+        "artifact_event",
+        "created_artifact",
+        "support_bundle_item",
+        "replay_bundle",
+        "imported_provider_output",
+        "unknown_output_record"
+      ]
+    },
+    "evidence_ref_kind": {
+      "type": "string",
+      "enum": [
+        "raw_payload_ref",
+        "sanitized_output_slice_ref",
+        "task_event_ref",
+        "diagnostic_ref",
+        "artifact_ref",
+        "support_bundle_ref",
+        "review_pack_ref",
+        "release_packet_ref",
+        "public_proof_packet_ref",
+        "imported_scan_ref",
+        "policy_decision_ref",
+        "remap_evidence_ref",
+        "user_report_ref",
+        "redaction_report_ref"
+      ]
+    },
+    "chain_role_class": {
+      "type": "string",
+      "enum": [
+        "primary_problem",
+        "origin_output",
+        "supporting_event",
+        "supporting_artifact",
+        "remap_evidence",
+        "review_evidence",
+        "support_export_evidence",
+        "verification_evidence",
+        "contradictory_evidence",
+        "placeholder_gap"
+      ]
+    },
+    "correlation_basis_class": {
+      "type": "string",
+      "enum": [
+        "same_source_record",
+        "same_event_chain",
+        "same_normalized_rule_anchor_target",
+        "imported_local_rerun_match",
+        "correlated_multi_signal",
+        "placeholder_no_cause",
+        "manual_support_link"
+      ]
+    },
+    "causality_claim_class": {
+      "type": "string",
+      "enum": [
+        "proven_same_source",
+        "same_normalized_problem",
+        "correlated_not_proven",
+        "suggestive_only",
+        "unknown"
+      ]
+    },
+    "collapse_class": {
+      "type": "string",
+      "enum": [
+        "no_collapse",
+        "display_collapse_related_signals",
+        "mechanical_duplicate",
+        "correlated_incident_group",
+        "collapse_blocked_distinct_cause",
+        "placeholder_until_rerun"
+      ]
+    },
+    "export_surface_class": {
+      "type": "string",
+      "enum": [
+        "local_diagnosis_view",
+        "support_bundle",
+        "review_packet",
+        "release_packet",
+        "cli_json",
+        "ai_context_packet"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "not_retained_ephemeral",
+        "retained_local_support_bundle_only",
+        "retained_local_with_replay_opt_in",
+        "retained_managed_with_redaction",
+        "retained_managed_with_broadened_capture",
+        "reference_only",
+        "intentionally_omitted"
+      ]
+    },
+    "problem_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "problem_ref",
+        "problem_row_ref",
+        "diagnostic_cluster_ref",
+        "rule_ref",
+        "category_ref",
+        "severity_class",
+        "user_visible_title",
+        "primary_anchor_ref",
+        "summary"
+      ],
+      "properties": {
+        "problem_ref": { "$ref": "#/$defs/opaque_ref" },
+        "problem_row_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "diagnostic_cluster_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "rule_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "category_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "user_visible_title": { "$ref": "#/$defs/short_sentence" },
+        "primary_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "origin_record_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "record_ref",
+        "source_class",
+        "source_truth_ceiling_class",
+        "chain_role_class",
+        "emitted_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/source_record_kind" },
+        "record_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_class": { "$ref": "#/$defs/problem_source_class" },
+        "source_truth_ceiling_class": { "$ref": "#/$defs/source_truth_ceiling_class" },
+        "chain_role_class": { "$ref": "#/$defs/chain_role_class" },
+        "emitted_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/timestamp" },
+            { "type": "null" }
+          ]
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "linked_output_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_kind",
+        "output_ref",
+        "event_ref",
+        "artifact_ref",
+        "output_channel_ref",
+        "chain_role_class",
+        "retention_class",
+        "retention_ref",
+        "summary"
+      ],
+      "properties": {
+        "output_kind": { "$ref": "#/$defs/output_record_kind" },
+        "output_ref": { "$ref": "#/$defs/opaque_ref" },
+        "event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "output_channel_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "chain_role_class": { "$ref": "#/$defs/chain_role_class" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "target_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_context_class",
+        "workspace_ref",
+        "execution_context_ref",
+        "target_ref",
+        "toolchain_ref",
+        "environment_ref",
+        "run_ref",
+        "support_or_release_context_ref",
+        "summary"
+      ],
+      "properties": {
+        "target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "toolchain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "environment_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_or_release_context_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "freshness_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "assessed_at",
+        "producer_epoch_ref",
+        "current_epoch_ref",
+        "stale_after_ref",
+        "summary"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "assessed_at": { "$ref": "#/$defs/timestamp" },
+        "producer_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "current_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "stale_after_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "remap_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remap_state_class",
+        "original_anchor_ref",
+        "current_anchor_ref",
+        "remap_family_ref",
+        "remap_evidence_ref",
+        "summary"
+      ],
+      "properties": {
+        "remap_state_class": { "$ref": "#/$defs/remap_state_class" },
+        "original_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "current_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "remap_family_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "remap_evidence_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "confidence_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confidence_class",
+        "label",
+        "source_truth_ceiling_class",
+        "required_disclosure",
+        "downgrade_applied",
+        "downgrade_triggers",
+        "no_stronger_than_refs",
+        "summary"
+      ],
+      "properties": {
+        "confidence_class": { "$ref": "#/$defs/heuristic_confidence_class" },
+        "label": { "$ref": "#/$defs/confidence_label" },
+        "source_truth_ceiling_class": { "$ref": "#/$defs/source_truth_ceiling_class" },
+        "required_disclosure": { "$ref": "#/$defs/short_sentence" },
+        "downgrade_applied": { "type": "boolean" },
+        "downgrade_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger_class" },
+          "uniqueItems": true
+        },
+        "no_stronger_than_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "correlation_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correlation_basis_class",
+        "causality_claim_class",
+        "equivalence_key_ref",
+        "related_chain_refs",
+        "contradictory_evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "correlation_basis_class": { "$ref": "#/$defs/correlation_basis_class" },
+        "causality_claim_class": { "$ref": "#/$defs/causality_claim_class" },
+        "equivalence_key_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "related_chain_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "contradictory_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref_kind",
+        "evidence_ref",
+        "chain_role_class",
+        "redaction_class",
+        "retention_class",
+        "included_in_exports",
+        "omission_reason_ref",
+        "summary"
+      ],
+      "properties": {
+        "evidence_ref_kind": { "$ref": "#/$defs/evidence_ref_kind" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_ref" },
+        "chain_role_class": { "$ref": "#/$defs/chain_role_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "included_in_exports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_surface_class" },
+          "uniqueItems": true
+        },
+        "omission_reason_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "collapse_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "collapse_class",
+        "causality_claim_class",
+        "collapsed_problem_refs",
+        "expanded_chain_refs",
+        "detail_only_evidence_refs",
+        "distinct_evidence_preserved",
+        "user_copy",
+        "summary"
+      ],
+      "properties": {
+        "collapse_class": { "$ref": "#/$defs/collapse_class" },
+        "causality_claim_class": { "$ref": "#/$defs/causality_claim_class" },
+        "collapsed_problem_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "expanded_chain_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "detail_only_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "distinct_evidence_preserved": { "type": "boolean", "const": true },
+        "user_copy": { "$ref": "#/$defs/short_sentence" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "export_surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "cite_problem_chain_id",
+        "cite_confidence_class",
+        "cite_origin_records",
+        "raw_payload_included",
+        "redaction_class",
+        "export_ref",
+        "summary"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/export_surface_class" },
+        "cite_problem_chain_id": { "type": "boolean", "const": true },
+        "cite_confidence_class": { "type": "boolean", "const": true },
+        "cite_origin_records": { "type": "boolean" },
+        "raw_payload_included": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_export_refs",
+        "surfaces",
+        "summary"
+      ],
+      "properties": {
+        "stable_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_surface_projection" }
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "created_at",
+        "last_updated_at",
+        "superseded_by_chain_ref",
+        "support_capture_ref"
+      ],
+      "properties": {
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/timestamp" },
+        "superseded_by_chain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_capture_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "aggregate_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_record_count",
+        "linked_output_count",
+        "evidence_ref_count",
+        "related_chain_count",
+        "distinct_target_count",
+        "stale_or_imported_evidence_count",
+        "heuristic_or_correlated_evidence_count"
+      ],
+      "properties": {
+        "origin_record_count": { "$ref": "#/$defs/non_negative_integer" },
+        "linked_output_count": { "$ref": "#/$defs/non_negative_integer" },
+        "evidence_ref_count": { "$ref": "#/$defs/non_negative_integer" },
+        "related_chain_count": { "$ref": "#/$defs/non_negative_integer" },
+        "distinct_target_count": { "$ref": "#/$defs/non_negative_integer" },
+        "stale_or_imported_evidence_count": { "$ref": "#/$defs/non_negative_integer" },
+        "heuristic_or_correlated_evidence_count": { "$ref": "#/$defs/non_negative_integer" }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch_ref",
+        "trust_state_ref",
+        "redaction_profile_ref"
+      ],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "trust_state_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "problem_evidence_chain_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "problem_evidence_chain_schema_version",
+        "problem_chain_id",
+        "chain_state_class",
+        "source_class",
+        "problem_projection",
+        "origin_records",
+        "linked_outputs",
+        "target_context",
+        "freshness",
+        "remap_state",
+        "confidence",
+        "correlation_basis",
+        "evidence_refs",
+        "collapse_projection",
+        "export_projection",
+        "chronology",
+        "aggregate_counts",
+        "policy_context",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "problem_evidence_chain_schema_version": {
+          "$ref": "#/$defs/problem_evidence_chain_schema_version"
+        },
+        "problem_chain_id": { "$ref": "#/$defs/opaque_id" },
+        "chain_state_class": { "$ref": "#/$defs/problem_chain_state_class" },
+        "source_class": { "$ref": "#/$defs/problem_source_class" },
+        "problem_projection": { "$ref": "#/$defs/problem_projection" },
+        "origin_records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/origin_record_ref" }
+        },
+        "linked_outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/linked_output_ref" }
+        },
+        "target_context": { "$ref": "#/$defs/target_context" },
+        "freshness": { "$ref": "#/$defs/freshness_state" },
+        "remap_state": { "$ref": "#/$defs/remap_state" },
+        "confidence": { "$ref": "#/$defs/confidence_projection" },
+        "correlation_basis": { "$ref": "#/$defs/correlation_basis" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_ref" }
+        },
+        "collapse_projection": { "$ref": "#/$defs/collapse_projection" },
+        "export_projection": { "$ref": "#/$defs/export_projection" },
+        "chronology": { "$ref": "#/$defs/chronology" },
+        "aggregate_counts": { "$ref": "#/$defs/aggregate_counts" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}
