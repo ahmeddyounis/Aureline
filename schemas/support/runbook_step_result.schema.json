@@ -1,0 +1,550 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/runbook_step_result.schema.json",
+  "title": "Aureline support runbook step result",
+  "description": "Boundary schema for support_runbook_step_result_record frozen in docs/support/runbook_execution_contract.md. Each result is one append-only step attempt: simulated, started, skipped, blocked, retried, completed, or rolled_back. The record preserves acting surface, target context, approval linkage, rollback linkage, command result packet refs, operational action-ledger refs, incident timeline refs, support/export refs, downgrade context, and follow-up gates. Raw command lines, raw provider URLs, raw provider payloads, raw logs, raw terminal transcripts, raw approval-ticket bodies, raw operator identity strings, and raw secrets never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/support_runbook_step_result_record",
+  "$defs": {
+    "runbook_step_result_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "trust_posture": {
+      "type": "string",
+      "enum": ["untrusted", "restricted", "trusted", "managed_admin"]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "step_state": {
+      "type": "string",
+      "enum": ["simulated", "started", "skipped", "blocked", "retried", "completed", "rolled_back"]
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["simulation", "live_execute", "handoff", "replay_import", "rollback_execute"]
+    },
+    "acting_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_shell",
+        "cli_surface",
+        "browser_companion_surface",
+        "mobile_companion_surface",
+        "automation_recipe_surface",
+        "ai_review_surface",
+        "incident_workspace_surface",
+        "support_export_reader_surface",
+        "vendor_console_handoff_surface"
+      ]
+    },
+    "target_context_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_target",
+        "self_hosted_runtime_target",
+        "enterprise_online_runtime_target",
+        "managed_cloud_runtime_target",
+        "air_gapped_runtime_target",
+        "browser_handoff_external_target",
+        "console_handoff_external_target",
+        "target_unverifiable_user_review_required"
+      ]
+    },
+    "target_context_state": {
+      "type": "string",
+      "enum": [
+        "resolved_current",
+        "changed_since_packet",
+        "changed_since_approval",
+        "stale_unverifiable",
+        "imported_replay",
+        "missing"
+      ]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending",
+        "granted",
+        "revoked",
+        "expired",
+        "denied",
+        "unavailable",
+        "reapproval_required",
+        "break_glass_active",
+        "approval_forbidden"
+      ]
+    },
+    "rollback_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable_read_only",
+        "exact_rollback_available",
+        "checkpoint_restore_available",
+        "compensating_action_available",
+        "manual_support_guided",
+        "audit_only_not_reversible",
+        "rollback_required_before_continue"
+      ]
+    },
+    "rollback_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "available",
+        "not_available",
+        "pending",
+        "completed",
+        "failed",
+        "required_before_continue",
+        "audit_only"
+      ]
+    },
+    "result_packet_binding_state": {
+      "type": "string",
+      "enum": ["complete", "missing_optional", "missing_required_blocked", "redacted_by_policy"]
+    },
+    "raw_ref_class": {
+      "type": "string",
+      "enum": [
+        "no_raw_ref_required",
+        "raw_command_invocation_by_reference",
+        "raw_provider_callback_envelope_by_reference",
+        "raw_browser_handoff_packet_by_reference",
+        "raw_console_handoff_session_by_reference",
+        "raw_ref_unverifiable_user_review_required"
+      ]
+    },
+    "evidence_class": {
+      "type": "string",
+      "enum": [
+        "command_result_packet_ref",
+        "runbook_step_result_ref",
+        "incident_timeline_entry_ref",
+        "support_bundle_item_ref",
+        "support_packet_index_ref",
+        "approval_ticket_ref",
+        "rollback_handle_ref",
+        "provider_callback_ref",
+        "ops_action_ledger_entry_ref",
+        "deviation_note_ref"
+      ]
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": ["captured", "by_reference", "redacted", "omitted", "pending", "unavailable"]
+    },
+    "downgrade_trigger_class": {
+      "type": "string",
+      "enum": [
+        "stale_runbook_documentation",
+        "missing_prerequisite",
+        "changed_target_context",
+        "revoked_approval",
+        "partial_completion_mid_run",
+        "policy_epoch_expired",
+        "secret_projection_unavailable",
+        "rollback_posture_unavailable",
+        "evidence_sink_unavailable",
+        "acting_surface_not_authoritative",
+        "docs_source_missing"
+      ]
+    },
+    "downgrade_state": {
+      "type": "string",
+      "enum": [
+        "execute_allowed",
+        "simulate_only",
+        "observe_only",
+        "skip_step",
+        "block_step",
+        "block_runbook",
+        "require_reapproval",
+        "require_handoff",
+        "rollback_required"
+      ]
+    },
+    "follow_up_gate_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "approval_required",
+        "target_context_revalidation",
+        "prerequisite_resolution",
+        "docs_refresh",
+        "rollback_or_compensation",
+        "evidence_capture",
+        "deviation_review",
+        "support_export_required",
+        "incident_timeline_append",
+        "provider_callback_wait",
+        "retry_budget_review"
+      ]
+    },
+    "gate_state": {
+      "type": "string",
+      "enum": ["not_applicable", "open", "satisfied", "blocked", "expired", "waived_with_reason"]
+    },
+    "state_reason_class": {
+      "type": "string",
+      "enum": [
+        "simulation_only_no_mutation",
+        "started_waiting_for_result",
+        "user_skipped_optional_step",
+        "blocked_missing_prerequisite",
+        "blocked_stale_docs",
+        "blocked_revoked_approval",
+        "blocked_changed_target_context",
+        "blocked_policy_epoch_expired",
+        "retried_after_typed_failure",
+        "completed_successfully",
+        "completed_with_warnings",
+        "rolled_back_after_partial_completion",
+        "rolled_back_due_to_drift",
+        "imported_replay_result"
+      ]
+    },
+    "retry_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_a_retry",
+        "typed_runtime_failure",
+        "provider_callback_late",
+        "target_context_revalidated",
+        "approval_reacquired",
+        "evidence_sink_restored"
+      ]
+    },
+    "target_context_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_context_ref",
+        "target_context_class",
+        "target_context_fingerprint",
+        "context_state"
+      ],
+      "properties": {
+        "target_context_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "target_context_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "context_state": { "$ref": "#/$defs/target_context_state" }
+      }
+    },
+    "approval_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_requirement_ref",
+        "approval_state",
+        "approval_ticket_ref",
+        "policy_grant_ref",
+        "break_glass_event_ref",
+        "revoked_at",
+        "approval_basis_fingerprint"
+      ],
+      "properties": {
+        "approval_requirement_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_grant_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "break_glass_event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "revoked_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "approval_basis_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "rollback_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_posture",
+        "rollback_state",
+        "rollback_handle_ref",
+        "rollback_step_result_ref",
+        "compensation_ref",
+        "rollback_failure_reason",
+        "required_authority_state"
+      ],
+      "properties": {
+        "rollback_posture": { "$ref": "#/$defs/rollback_posture" },
+        "rollback_state": { "$ref": "#/$defs/rollback_state" },
+        "rollback_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_step_result_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "compensation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_failure_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "required_authority_state": {
+          "type": "string",
+          "enum": ["not_required", "same_as_forward_action", "stricter_than_forward_action", "manual_support_only"]
+        }
+      }
+    },
+    "result_packet_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_state",
+        "raw_ref_class",
+        "command_result_packet_refs",
+        "ops_action_ledger_entry_refs",
+        "provider_callback_refs"
+      ],
+      "properties": {
+        "binding_state": { "$ref": "#/$defs/result_packet_binding_state" },
+        "raw_ref_class": { "$ref": "#/$defs/raw_ref_class" },
+        "command_result_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "ops_action_ledger_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "provider_callback_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "evidence_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_ref", "evidence_class", "evidence_state"],
+      "properties": {
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_class": { "$ref": "#/$defs/evidence_class" },
+        "evidence_state": { "$ref": "#/$defs/evidence_state" }
+      }
+    },
+    "follow_up_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate_id", "gate_class", "gate_state", "owner_ref", "due_at"],
+      "properties": {
+        "gate_id": { "$ref": "#/$defs/opaque_id" },
+        "gate_class": { "$ref": "#/$defs/follow_up_gate_class" },
+        "gate_state": { "$ref": "#/$defs/gate_state" },
+        "owner_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "due_at": { "$ref": "#/$defs/nullable_timestamp" }
+      }
+    },
+    "downgrade_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgrade_applied",
+        "trigger_classes",
+        "downgrade_state",
+        "reason_summary",
+        "supersedes_result_ref"
+      ],
+      "properties": {
+        "downgrade_applied": { "type": "boolean" },
+        "trigger_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger_class" }
+        },
+        "downgrade_state": { "$ref": "#/$defs/downgrade_state" },
+        "reason_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "supersedes_result_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "retry_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retry_of_result_ref",
+        "retry_count",
+        "max_retries",
+        "retry_reason"
+      ],
+      "properties": {
+        "retry_of_result_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "retry_count": { "type": "integer", "minimum": 0 },
+        "max_retries": { "type": "integer", "minimum": 0 },
+        "retry_reason": { "$ref": "#/$defs/retry_reason_class" }
+      }
+    },
+    "support_runbook_step_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runbook_step_result_schema_version",
+        "record_kind",
+        "result_id",
+        "runbook_packet_id_ref",
+        "runbook_id_ref",
+        "packet_version_ref",
+        "step_id_ref",
+        "execution_attempt",
+        "step_state",
+        "state_reason_class",
+        "execution_mode",
+        "acting_surface",
+        "actor_ref",
+        "target_context",
+        "approval_linkage",
+        "rollback_linkage",
+        "result_packet_refs",
+        "evidence_refs",
+        "incident_timeline_refs",
+        "support_export_refs",
+        "follow_up_gates",
+        "downgrade_context",
+        "retry_context",
+        "started_at",
+        "ended_at",
+        "redaction_class",
+        "policy_context"
+      ],
+      "properties": {
+        "runbook_step_result_schema_version": { "$ref": "#/$defs/runbook_step_result_schema_version" },
+        "record_kind": { "type": "string", "const": "support_runbook_step_result_record" },
+        "result_id": { "$ref": "#/$defs/opaque_id" },
+        "runbook_packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "runbook_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "packet_version_ref": { "$ref": "#/$defs/non_empty_string" },
+        "step_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "execution_attempt": { "type": "integer", "minimum": 0 },
+        "step_state": { "$ref": "#/$defs/step_state" },
+        "state_reason_class": { "$ref": "#/$defs/state_reason_class" },
+        "execution_mode": { "$ref": "#/$defs/execution_mode" },
+        "acting_surface": { "$ref": "#/$defs/acting_surface" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_context": { "$ref": "#/$defs/target_context_block" },
+        "approval_linkage": { "$ref": "#/$defs/approval_linkage" },
+        "rollback_linkage": { "$ref": "#/$defs/rollback_linkage" },
+        "result_packet_refs": { "$ref": "#/$defs/result_packet_refs" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_ref_entry" }
+        },
+        "incident_timeline_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "follow_up_gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/follow_up_gate" }
+        },
+        "downgrade_context": { "$ref": "#/$defs/downgrade_context" },
+        "retry_context": { "$ref": "#/$defs/retry_context" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      }
+    }
+  }
+}

@@ -1,0 +1,655 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/runbook_packet.schema.json",
+  "title": "Aureline support runbook packet",
+  "description": "Boundary schema for support_runbook_packet_record frozen in docs/support/runbook_execution_contract.md. The packet makes guided operational procedures reviewable before simulation or execution: version, owner, source-document freshness, supported target classes, prerequisites, brokered secret needs, approval requirements, rollback posture, evidence outputs, compatibility window, step contracts, linkage rules, and downgrade rules are explicit. The packet is not authority by itself; mutating execution still resolves current policy, target context, approval tickets, and rollback posture. Raw command lines, raw provider URLs, raw provider payloads, raw logs, raw terminal transcripts, raw approval-ticket bodies, raw operator identity strings, and raw secrets never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/support_runbook_packet_record",
+  "$defs": {
+    "runbook_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the support runbook-packet vocabulary."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, manifests, timelines, support exports, and postmortems."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short redaction-aware sentence safe for review, support export, and postmortem surfaces."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "private_triage_only"
+      ]
+    },
+    "trust_posture": {
+      "type": "string",
+      "enum": ["untrusted", "restricted", "trusted", "managed_admin"]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "target_context_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_target",
+        "self_hosted_runtime_target",
+        "enterprise_online_runtime_target",
+        "managed_cloud_runtime_target",
+        "air_gapped_runtime_target",
+        "browser_handoff_external_target",
+        "console_handoff_external_target",
+        "target_unverifiable_user_review_required"
+      ]
+    },
+    "docs_freshness_state": {
+      "type": "string",
+      "enum": [
+        "exact_current",
+        "warm_within_grace",
+        "stale_requires_review",
+        "superseded_requires_upgrade",
+        "missing_requires_block",
+        "imported_snapshot_no_refresh_path"
+      ]
+    },
+    "source_provenance_class": {
+      "type": "string",
+      "enum": [
+        "repo_local_runbook",
+        "reviewed_docs_pack",
+        "enterprise_knowledge_store",
+        "support_authored_packet",
+        "imported_replay_packet",
+        "source_unverifiable_user_review_required"
+      ]
+    },
+    "compatibility_expiry_behavior": {
+      "type": "string",
+      "enum": [
+        "block_execution_require_packet_upgrade",
+        "downgrade_to_simulation_only",
+        "observe_only_until_reviewed",
+        "allow_current_run_finish_then_block_next",
+        "manual_support_review_required"
+      ]
+    },
+    "prerequisite_class": {
+      "type": "string",
+      "enum": [
+        "docs_pack_current",
+        "target_context_resolved",
+        "credential_handle_available",
+        "approval_route_available",
+        "command_descriptor_available",
+        "rollback_handle_available",
+        "evidence_sink_available",
+        "incident_workspace_available",
+        "support_export_packet_available",
+        "provider_callback_available",
+        "policy_epoch_current",
+        "operator_role_bound"
+      ]
+    },
+    "prerequisite_required_state": {
+      "type": "string",
+      "enum": [
+        "required_blocks_all_execution",
+        "required_blocks_mutation",
+        "required_blocks_completion_claim",
+        "optional_observe_only",
+        "advisory"
+      ]
+    },
+    "missing_prerequisite_behavior": {
+      "type": "string",
+      "enum": [
+        "block_runbook",
+        "block_step",
+        "downgrade_to_simulation",
+        "downgrade_to_observe_only",
+        "skip_step_with_result",
+        "require_handoff_packet"
+      ]
+    },
+    "secret_need_class": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "credential_handle_ref",
+        "delegated_token_handle",
+        "managed_identity_projection",
+        "provider_session_handle",
+        "one_time_reviewed_reveal",
+        "secret_projection_forbidden"
+      ]
+    },
+    "secret_projection_mode": {
+      "type": "string",
+      "enum": [
+        "none",
+        "broker_handle_only",
+        "delegated_short_lived",
+        "managed_identity_only",
+        "one_time_reviewed",
+        "forbidden"
+      ]
+    },
+    "approval_action_class": {
+      "type": "string",
+      "enum": [
+        "observe_read_only",
+        "verify_read_only",
+        "simulate_dry_run",
+        "mutate_protected_target",
+        "rollback_execution",
+        "communicate_external",
+        "browser_console_handoff",
+        "break_glass_action"
+      ]
+    },
+    "approval_posture": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "approval_required_pending",
+        "runtime_approval_ticket_required",
+        "two_person_approval_required",
+        "break_glass_required",
+        "policy_grant_required",
+        "approval_forbidden"
+      ]
+    },
+    "rollback_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable_read_only",
+        "exact_rollback_available",
+        "checkpoint_restore_available",
+        "compensating_action_available",
+        "manual_support_guided",
+        "audit_only_not_reversible",
+        "rollback_required_before_continue"
+      ]
+    },
+    "step_class": {
+      "type": "string",
+      "enum": ["observe", "verify", "mitigate", "rollback", "communicate", "custom"]
+    },
+    "acting_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_shell",
+        "cli_surface",
+        "browser_companion_surface",
+        "mobile_companion_surface",
+        "automation_recipe_surface",
+        "ai_review_surface",
+        "incident_workspace_surface",
+        "support_export_reader_surface",
+        "vendor_console_handoff_surface"
+      ]
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["simulate", "execute", "handoff", "skip", "rollback_execute"]
+    },
+    "step_state": {
+      "type": "string",
+      "enum": ["simulated", "started", "skipped", "blocked", "retried", "completed", "rolled_back"]
+    },
+    "evidence_class": {
+      "type": "string",
+      "enum": [
+        "command_result_packet_ref",
+        "runbook_step_result_ref",
+        "incident_timeline_entry_ref",
+        "support_bundle_item_ref",
+        "support_packet_index_ref",
+        "approval_ticket_ref",
+        "rollback_handle_ref",
+        "provider_callback_ref",
+        "ops_action_ledger_entry_ref",
+        "deviation_note_ref"
+      ]
+    },
+    "embedding_posture": {
+      "type": "string",
+      "enum": ["by_reference_only", "metadata_embedded", "omitted_with_reason", "redacted_by_policy"]
+    },
+    "retention_posture": {
+      "type": "string",
+      "enum": ["support_retained", "incident_retained", "local_only", "managed_reference_only", "expires_with_case"]
+    },
+    "downgrade_trigger_class": {
+      "type": "string",
+      "enum": [
+        "stale_runbook_documentation",
+        "missing_prerequisite",
+        "changed_target_context",
+        "revoked_approval",
+        "partial_completion_mid_run",
+        "policy_epoch_expired",
+        "secret_projection_unavailable",
+        "rollback_posture_unavailable",
+        "evidence_sink_unavailable",
+        "acting_surface_not_authoritative",
+        "docs_source_missing"
+      ]
+    },
+    "downgrade_state": {
+      "type": "string",
+      "enum": [
+        "execute_allowed",
+        "simulate_only",
+        "observe_only",
+        "skip_step",
+        "block_step",
+        "block_runbook",
+        "require_reapproval",
+        "require_handoff",
+        "rollback_required"
+      ]
+    },
+    "follow_up_gate_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "refresh_docs",
+        "satisfy_prerequisite",
+        "re_resolve_target_context",
+        "reacquire_approval",
+        "attach_deviation_note",
+        "roll_back_or_compensate",
+        "export_support_packet",
+        "append_incident_timeline_entry",
+        "wait_for_provider_callback"
+      ]
+    },
+    "owner_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_ref", "escalation_owner_ref", "review_cadence", "backup_owner_ref"],
+      "properties": {
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "escalation_owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_cadence": {
+          "type": "string",
+          "enum": ["each_change", "per_release", "per_quarter", "incident_driven"]
+        },
+        "backup_owner_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "source_document_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_ref", "source_revision", "provenance_class", "docs_freshness_state"],
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_revision": { "$ref": "#/$defs/opaque_id" },
+        "provenance_class": { "$ref": "#/$defs/source_provenance_class" },
+        "docs_freshness_state": { "$ref": "#/$defs/docs_freshness_state" }
+      }
+    },
+    "compatibility_window_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_floor_ref",
+        "version_ceiling_ref",
+        "valid_from",
+        "valid_until",
+        "expiry_behavior"
+      ],
+      "properties": {
+        "version_floor_ref": { "$ref": "#/$defs/opaque_id" },
+        "version_ceiling_ref": { "$ref": "#/$defs/opaque_id" },
+        "valid_from": { "$ref": "#/$defs/monotonic_timestamp" },
+        "valid_until": { "$ref": "#/$defs/nullable_timestamp" },
+        "expiry_behavior": { "$ref": "#/$defs/compatibility_expiry_behavior" }
+      }
+    },
+    "prerequisite_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prerequisite_id",
+        "prerequisite_class",
+        "required_state",
+        "evidence_ref",
+        "missing_behavior"
+      ],
+      "properties": {
+        "prerequisite_id": { "$ref": "#/$defs/opaque_id" },
+        "prerequisite_class": { "$ref": "#/$defs/prerequisite_class" },
+        "required_state": { "$ref": "#/$defs/prerequisite_required_state" },
+        "evidence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "missing_behavior": { "$ref": "#/$defs/missing_prerequisite_behavior" }
+      }
+    },
+    "secret_need_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_need_id",
+        "secret_need_class",
+        "projection_mode",
+        "required_for_step_refs",
+        "redaction_class",
+        "missing_behavior"
+      ],
+      "properties": {
+        "secret_need_id": { "$ref": "#/$defs/opaque_id" },
+        "secret_need_class": { "$ref": "#/$defs/secret_need_class" },
+        "projection_mode": { "$ref": "#/$defs/secret_projection_mode" },
+        "required_for_step_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "missing_behavior": { "$ref": "#/$defs/missing_prerequisite_behavior" }
+      }
+    },
+    "approval_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_requirement_id",
+        "action_class",
+        "approval_posture",
+        "approver_role_class",
+        "evidence_required",
+        "approval_ticket_ref"
+      ],
+      "properties": {
+        "approval_requirement_id": { "$ref": "#/$defs/opaque_id" },
+        "action_class": { "$ref": "#/$defs/approval_action_class" },
+        "approval_posture": { "$ref": "#/$defs/approval_posture" },
+        "approver_role_class": {
+          "type": "string",
+          "enum": ["none", "driver", "approver", "operator", "admin", "break_glass_quorum"]
+        },
+        "evidence_required": { "type": "boolean" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "evidence_output_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_output_id",
+        "evidence_class",
+        "required_for_states",
+        "embedding_posture",
+        "retention_posture"
+      ],
+      "properties": {
+        "evidence_output_id": { "$ref": "#/$defs/opaque_id" },
+        "evidence_class": { "$ref": "#/$defs/evidence_class" },
+        "required_for_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step_state" }
+        },
+        "embedding_posture": { "$ref": "#/$defs/embedding_posture" },
+        "retention_posture": { "$ref": "#/$defs/retention_posture" }
+      }
+    },
+    "step_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "ordinal",
+        "step_class",
+        "title",
+        "intent_summary",
+        "target_context_class",
+        "acting_surface_set",
+        "prerequisite_refs",
+        "secret_need_refs",
+        "approval_requirement_ref",
+        "rollback_posture",
+        "expected_evidence_output_refs",
+        "allowed_execution_modes",
+        "downgrade_rule_refs",
+        "command_descriptor_ref",
+        "rollback_step_ref",
+        "incident_timeline_binding_required",
+        "result_packet_binding_required"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "step_class": { "$ref": "#/$defs/step_class" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "intent_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "acting_surface_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/acting_surface" }
+        },
+        "prerequisite_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "secret_need_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "approval_requirement_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_posture": { "$ref": "#/$defs/rollback_posture" },
+        "expected_evidence_output_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "allowed_execution_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/execution_mode" }
+        },
+        "downgrade_rule_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "command_descriptor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_step_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "incident_timeline_binding_required": { "type": "boolean" },
+        "result_packet_binding_required": { "type": "boolean" }
+      }
+    },
+    "linkage_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_schema_ref",
+        "ops_runbook_schema_ref",
+        "command_result_packet_refs_required",
+        "incident_timeline_refs_required",
+        "support_export_refs_required",
+        "approval_ticket_refs_required_for_mutation",
+        "rollback_handle_refs_required_for_mutation",
+        "action_ledger_entry_refs_required"
+      ],
+      "properties": {
+        "result_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/runbook_step_result.schema.json"
+        },
+        "ops_runbook_schema_ref": {
+          "type": "string",
+          "const": "schemas/ops/runbook_packet.schema.json"
+        },
+        "command_result_packet_refs_required": { "type": "boolean" },
+        "incident_timeline_refs_required": { "type": "boolean" },
+        "support_export_refs_required": { "type": "boolean" },
+        "approval_ticket_refs_required_for_mutation": { "type": "boolean" },
+        "rollback_handle_refs_required_for_mutation": { "type": "boolean" },
+        "action_ledger_entry_refs_required": { "type": "boolean" }
+      }
+    },
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgrade_rule_id",
+        "trigger_class",
+        "downgrade_state",
+        "applies_to_step_refs",
+        "required_follow_up_gate",
+        "reason_summary"
+      ],
+      "properties": {
+        "downgrade_rule_id": { "$ref": "#/$defs/opaque_id" },
+        "trigger_class": { "$ref": "#/$defs/downgrade_trigger_class" },
+        "downgrade_state": { "$ref": "#/$defs/downgrade_state" },
+        "applies_to_step_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "required_follow_up_gate": { "$ref": "#/$defs/follow_up_gate_class" },
+        "reason_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_runbook_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runbook_packet_schema_version",
+        "record_kind",
+        "runbook_packet_id",
+        "runbook_id",
+        "packet_version",
+        "title",
+        "summary",
+        "owner",
+        "source_document",
+        "compatibility_window",
+        "supported_target_classes",
+        "prerequisites",
+        "secret_needs",
+        "default_approval_requirements",
+        "default_rollback_posture",
+        "evidence_output_contract",
+        "step_contracts",
+        "linkage_contract",
+        "downgrade_rules",
+        "policy_context",
+        "redaction_class",
+        "authored_at",
+        "last_reviewed_at"
+      ],
+      "properties": {
+        "runbook_packet_schema_version": { "$ref": "#/$defs/runbook_packet_schema_version" },
+        "record_kind": { "type": "string", "const": "support_runbook_packet_record" },
+        "runbook_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "runbook_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_version": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "owner": { "$ref": "#/$defs/owner_block" },
+        "source_document": { "$ref": "#/$defs/source_document_block" },
+        "compatibility_window": { "$ref": "#/$defs/compatibility_window_block" },
+        "supported_target_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/target_context_class" }
+        },
+        "prerequisites": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/prerequisite_contract" }
+        },
+        "secret_needs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/secret_need_contract" }
+        },
+        "default_approval_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/approval_requirement" }
+        },
+        "default_rollback_posture": { "$ref": "#/$defs/rollback_posture" },
+        "evidence_output_contract": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_output_contract" }
+        },
+        "step_contracts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step_contract" }
+        },
+        "linkage_contract": { "$ref": "#/$defs/linkage_contract" },
+        "downgrade_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_rule" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_reviewed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

@@ -254,6 +254,12 @@ inventing side metadata:
 - emergency-action, revocation, and manual-import receipt refs may live
   in `artifact_manifest` rows with their upstream ids, freshness, and
   continuity state preserved instead of paraphrased.
+- runbook packet and runbook step-result refs may live in
+  `artifact_manifest` rows with `artifact_kind_class =
+  runbook_packet_reference` or `runbook_step_result_reference` so
+  support exports and postmortems can reconstruct which governed steps
+  were proposed, approved, run, skipped, retried, completed, or rolled
+  back without embedding raw command or provider payloads.
 - workspace bootstrap packet refs may live in `artifact_manifest` rows
   with `artifact_kind_class = bootstrap_packet_reference` so support can
   reconstruct source acquisition, route narrowing, resumability, and

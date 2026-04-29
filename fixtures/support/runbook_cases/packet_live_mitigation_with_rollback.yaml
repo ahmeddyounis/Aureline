@@ -1,0 +1,302 @@
+# yaml-language-server: $schema=../../../schemas/support/runbook_packet.schema.json
+runbook_packet_schema_version: 1
+record_kind: support_runbook_packet_record
+runbook_packet_id: runbook-packet:queue-drain:reviewed:v1
+runbook_id: runbook:queue-drain
+packet_version: "1.0.0"
+title: Queue drain mitigation with rollback
+summary: >
+  Reviewable packet for observing queue depth, verifying target context,
+  draining one queue shard under approval, and rolling back through a
+  checkpoint if partial completion is detected.
+
+owner:
+  owner_ref: owner:reliability
+  escalation_owner_ref: owner:support-ops
+  review_cadence: each_change
+  backup_owner_ref: owner:runtime-platform
+
+source_document:
+  source_ref: docs-pack:runbook:queue-drain
+  source_revision: docs-pack-revision:queue-drain:2026-04-29
+  provenance_class: reviewed_docs_pack
+  docs_freshness_state: exact_current
+
+compatibility_window:
+  version_floor_ref: build-line:preview:2026-04
+  version_ceiling_ref: build-line:preview:2026-06
+  valid_from: "2026-04-29T00:00:00Z"
+  valid_until: "2026-06-30T00:00:00Z"
+  expiry_behavior: block_execution_require_packet_upgrade
+
+supported_target_classes:
+  - enterprise_online_runtime_target
+  - managed_cloud_runtime_target
+
+prerequisites:
+  - prerequisite_id: prereq:queue-drain:docs-current
+    prerequisite_class: docs_pack_current
+    required_state: required_blocks_mutation
+    evidence_ref: docs-pack:runbook:queue-drain
+    missing_behavior: downgrade_to_simulation
+  - prerequisite_id: prereq:queue-drain:target-resolved
+    prerequisite_class: target_context_resolved
+    required_state: required_blocks_all_execution
+    evidence_ref: target-context:payments-prod:queue-shard-a
+    missing_behavior: block_runbook
+  - prerequisite_id: prereq:queue-drain:rollback-handle
+    prerequisite_class: rollback_handle_available
+    required_state: required_blocks_mutation
+    evidence_ref: rollback-handle:queue-drain:shard-a
+    missing_behavior: block_step
+  - prerequisite_id: prereq:queue-drain:evidence-sink
+    prerequisite_class: evidence_sink_available
+    required_state: required_blocks_completion_claim
+    evidence_ref: support-bundle:item:queue-drain:evidence-sink
+    missing_behavior: require_handoff_packet
+
+secret_needs:
+  - secret_need_id: secret:queue-drain:none
+    secret_need_class: none_required
+    projection_mode: none
+    required_for_step_refs: []
+    redaction_class: metadata_safe_default
+    missing_behavior: downgrade_to_observe_only
+
+default_approval_requirements:
+  - approval_requirement_id: approval:req:observe
+    action_class: observe_read_only
+    approval_posture: no_approval_required
+    approver_role_class: none
+    evidence_required: true
+    approval_ticket_ref: null
+  - approval_requirement_id: approval:req:mitigate
+    action_class: mutate_protected_target
+    approval_posture: runtime_approval_ticket_required
+    approver_role_class: approver
+    evidence_required: true
+    approval_ticket_ref: approval-ticket:queue-drain:shard-a
+  - approval_requirement_id: approval:req:rollback
+    action_class: rollback_execution
+    approval_posture: runtime_approval_ticket_required
+    approver_role_class: approver
+    evidence_required: true
+    approval_ticket_ref: approval-ticket:queue-drain:rollback
+  - approval_requirement_id: approval:req:communicate
+    action_class: communicate_external
+    approval_posture: policy_grant_required
+    approver_role_class: operator
+    evidence_required: true
+    approval_ticket_ref: null
+
+default_rollback_posture: checkpoint_restore_available
+
+evidence_output_contract:
+  - evidence_output_id: evidence-output:simulation
+    evidence_class: runbook_step_result_ref
+    required_for_states:
+      - simulated
+    embedding_posture: metadata_embedded
+    retention_posture: incident_retained
+  - evidence_output_id: evidence-output:command-result
+    evidence_class: command_result_packet_ref
+    required_for_states:
+      - started
+      - completed
+      - retried
+    embedding_posture: by_reference_only
+    retention_posture: support_retained
+  - evidence_output_id: evidence-output:timeline
+    evidence_class: incident_timeline_entry_ref
+    required_for_states:
+      - started
+      - skipped
+      - blocked
+      - completed
+      - rolled_back
+    embedding_posture: by_reference_only
+    retention_posture: incident_retained
+  - evidence_output_id: evidence-output:rollback
+    evidence_class: rollback_handle_ref
+    required_for_states:
+      - rolled_back
+    embedding_posture: by_reference_only
+    retention_posture: support_retained
+
+step_contracts:
+  - step_id: step:queue-drain:observe
+    ordinal: 0
+    step_class: observe
+    title: Observe queue depth
+    intent_summary: Capture queue depth and consumer health without mutating the target.
+    target_context_class: enterprise_online_runtime_target
+    acting_surface_set:
+      - desktop_shell
+      - cli_surface
+      - incident_workspace_surface
+    prerequisite_refs:
+      - prereq:queue-drain:docs-current
+      - prereq:queue-drain:target-resolved
+    secret_need_refs:
+      - secret:queue-drain:none
+    approval_requirement_ref: approval:req:observe
+    rollback_posture: not_applicable_read_only
+    expected_evidence_output_refs:
+      - evidence-output:simulation
+      - evidence-output:timeline
+    allowed_execution_modes:
+      - simulate
+      - execute
+    downgrade_rule_refs:
+      - downgrade:stale-docs
+      - downgrade:missing-prereq
+    command_descriptor_ref: cmd:ops.queue.observe
+    rollback_step_ref: null
+    incident_timeline_binding_required: true
+    result_packet_binding_required: false
+  - step_id: step:queue-drain:mitigate
+    ordinal: 1
+    step_class: mitigate
+    title: Drain one queue shard
+    intent_summary: Apply a bounded drain to one resolved shard after preview and approval.
+    target_context_class: enterprise_online_runtime_target
+    acting_surface_set:
+      - desktop_shell
+      - cli_surface
+      - incident_workspace_surface
+    prerequisite_refs:
+      - prereq:queue-drain:target-resolved
+      - prereq:queue-drain:rollback-handle
+      - prereq:queue-drain:evidence-sink
+    secret_need_refs:
+      - secret:queue-drain:none
+    approval_requirement_ref: approval:req:mitigate
+    rollback_posture: checkpoint_restore_available
+    expected_evidence_output_refs:
+      - evidence-output:command-result
+      - evidence-output:timeline
+    allowed_execution_modes:
+      - simulate
+      - execute
+    downgrade_rule_refs:
+      - downgrade:changed-target
+      - downgrade:revoked-approval
+      - downgrade:partial-completion
+    command_descriptor_ref: cmd:ops.queue.drain
+    rollback_step_ref: step:queue-drain:rollback
+    incident_timeline_binding_required: true
+    result_packet_binding_required: true
+  - step_id: step:queue-drain:rollback
+    ordinal: 2
+    step_class: rollback
+    title: Restore the queue shard checkpoint
+    intent_summary: Restore or compensate the bounded drain if the mitigation only partially completed.
+    target_context_class: enterprise_online_runtime_target
+    acting_surface_set:
+      - desktop_shell
+      - cli_surface
+      - incident_workspace_surface
+    prerequisite_refs:
+      - prereq:queue-drain:rollback-handle
+      - prereq:queue-drain:evidence-sink
+    secret_need_refs:
+      - secret:queue-drain:none
+    approval_requirement_ref: approval:req:rollback
+    rollback_posture: checkpoint_restore_available
+    expected_evidence_output_refs:
+      - evidence-output:rollback
+      - evidence-output:timeline
+    allowed_execution_modes:
+      - rollback_execute
+    downgrade_rule_refs:
+      - downgrade:changed-target
+      - downgrade:partial-completion
+    command_descriptor_ref: cmd:ops.queue.restore_checkpoint
+    rollback_step_ref: null
+    incident_timeline_binding_required: true
+    result_packet_binding_required: true
+  - step_id: step:queue-drain:communicate
+    ordinal: 3
+    step_class: communicate
+    title: Attach support export note
+    intent_summary: Attach the redacted step summary to the incident and support export packet.
+    target_context_class: enterprise_online_runtime_target
+    acting_surface_set:
+      - incident_workspace_surface
+      - support_export_reader_surface
+    prerequisite_refs:
+      - prereq:queue-drain:evidence-sink
+    secret_need_refs:
+      - secret:queue-drain:none
+    approval_requirement_ref: approval:req:communicate
+    rollback_posture: audit_only_not_reversible
+    expected_evidence_output_refs:
+      - evidence-output:timeline
+    allowed_execution_modes:
+      - execute
+      - skip
+    downgrade_rule_refs:
+      - downgrade:missing-prereq
+    command_descriptor_ref: cmd:ops.incident.attach_note
+    rollback_step_ref: null
+    incident_timeline_binding_required: true
+    result_packet_binding_required: false
+
+linkage_contract:
+  result_schema_ref: schemas/support/runbook_step_result.schema.json
+  ops_runbook_schema_ref: schemas/ops/runbook_packet.schema.json
+  command_result_packet_refs_required: true
+  incident_timeline_refs_required: true
+  support_export_refs_required: true
+  approval_ticket_refs_required_for_mutation: true
+  rollback_handle_refs_required_for_mutation: true
+  action_ledger_entry_refs_required: true
+
+downgrade_rules:
+  - downgrade_rule_id: downgrade:stale-docs
+    trigger_class: stale_runbook_documentation
+    downgrade_state: simulate_only
+    applies_to_step_refs:
+      - step:queue-drain:observe
+      - step:queue-drain:mitigate
+    required_follow_up_gate: refresh_docs
+    reason_summary: Stale runbook source allows simulation and observation only until docs refresh.
+  - downgrade_rule_id: downgrade:missing-prereq
+    trigger_class: missing_prerequisite
+    downgrade_state: block_step
+    applies_to_step_refs:
+      - step:queue-drain:observe
+      - step:queue-drain:communicate
+    required_follow_up_gate: satisfy_prerequisite
+    reason_summary: Missing prerequisite blocks the affected step and emits a follow-up gate.
+  - downgrade_rule_id: downgrade:changed-target
+    trigger_class: changed_target_context
+    downgrade_state: require_reapproval
+    applies_to_step_refs:
+      - step:queue-drain:mitigate
+      - step:queue-drain:rollback
+    required_follow_up_gate: re_resolve_target_context
+    reason_summary: Target drift invalidates approval and requires target re-resolution.
+  - downgrade_rule_id: downgrade:revoked-approval
+    trigger_class: revoked_approval
+    downgrade_state: block_step
+    applies_to_step_refs:
+      - step:queue-drain:mitigate
+    required_follow_up_gate: reacquire_approval
+    reason_summary: Revoked approval blocks live mitigation until a new ticket is issued.
+  - downgrade_rule_id: downgrade:partial-completion
+    trigger_class: partial_completion_mid_run
+    downgrade_state: rollback_required
+    applies_to_step_refs:
+      - step:queue-drain:mitigate
+      - step:queue-drain:rollback
+    required_follow_up_gate: roll_back_or_compensate
+    reason_summary: Partial completion requires rollback, compensation, or deviation review before continuation.
+
+policy_context:
+  policy_epoch: policy-epoch:runbook:2026-04-29
+  trust_state: trusted
+  execution_context_id: execution-context:payments-prod:queue-shard-a
+redaction_class: internal_support_restricted
+authored_at: "2026-04-29T00:00:00Z"
+last_reviewed_at: "2026-04-29T00:00:00Z"
