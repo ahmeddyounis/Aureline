@@ -18,6 +18,12 @@ Companion artifacts:
   — shared network permission-class, audit-requirement, and
   mirror/offline matrix. Worked examples live under
   [`/fixtures/network/audit_event_examples/`](../../fixtures/network/audit_event_examples/).
+- [`/docs/network/transport_explainability_surface_contract.md`](../network/transport_explainability_surface_contract.md)
+  and
+  [`/fixtures/network/transport_explainability_cases/`](../../fixtures/network/transport_explainability_cases/)
+  — transport summary strip, endpoint row, certificate/detail card,
+  denied-attempt history, repair action, and no-bypass projection
+  contract and worked cases.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
   — canonical public/private issue-and-RFC routing matrix, disclosure
   transitions, and escalation paths. Normative narrative lives in

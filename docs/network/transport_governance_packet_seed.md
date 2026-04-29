@@ -27,12 +27,24 @@ trust failure.
   mirror/offline posture rows.
 - [`/schemas/network/transport_decision.schema.json`](../../schemas/network/transport_decision.schema.json)
   defines the machine-readable `transport_decision_record`.
+- [`/docs/network/transport_explainability_surface_contract.md`](transport_explainability_surface_contract.md)
+  defines the user-facing summary strip, endpoint row,
+  certificate/detail card, denied-attempt history row, repair action, and
+  no-bypass projection contract above the decision record.
+- [`/schemas/network/transport_summary_strip.schema.json`](../../schemas/network/transport_summary_strip.schema.json),
+  [`/schemas/network/endpoint_history_row.schema.json`](../../schemas/network/endpoint_history_row.schema.json),
+  and
+  [`/schemas/network/certificate_detail_card.schema.json`](../../schemas/network/certificate_detail_card.schema.json)
+  define the machine-readable explainability surface records.
 - [`/artifacts/network/proxy_lab_matrix.yaml`](../../artifacts/network/proxy_lab_matrix.yaml)
   defines the enterprise proxy, CA, PAC, manual proxy, strict SSH, and client
   certificate lab rows for claimed profiles.
 - [`/fixtures/network/transport_cases/`](../../fixtures/network/transport_cases/)
   contains worked decision records that project into summary strips, endpoint
   rows, certificate cards, and denied-attempt history rows.
+- [`/fixtures/network/transport_explainability_cases/`](../../fixtures/network/transport_explainability_cases/)
+  contains worked surface records for PAC-sourced proxy, custom CA, mirror
+  unavailable, policy blocked, and SSH host-proof mismatch scenarios.
 - [`/artifacts/network/egress_classes.yaml`](../../artifacts/network/egress_classes.yaml)
   remains the permission and egress matrix consumed by the packet.
 

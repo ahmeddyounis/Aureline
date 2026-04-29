@@ -1,0 +1,522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/network/certificate_detail_card.schema.json",
+  "title": "Aureline certificate and trust detail card",
+  "description": "Boundary schema for one certificate_detail_card_record. The card explains TLS server identity, trust path, CA source, pinned-control-plane roots, SSH host-proof posture, client-certificate posture, expiry, and why trust succeeded or failed. It is a redaction-safe product, CLI, support, and admin projection. Raw host names, URLs, IP addresses, certificate PEM, CA bundle bytes, private keys, raw SSH host keys, proxy credentials, tokens, request bodies, and response bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "certificate_detail_card_id",
+    "source_decision_ref",
+    "server_identity",
+    "trust_material_kind",
+    "trust_path",
+    "pinning_host_key_posture",
+    "certificate_lifecycle",
+    "client_certificate_posture",
+    "trust_result",
+    "repair_actions",
+    "secret_material_attestation",
+    "captured_at",
+    "redaction_class",
+    "narrative_refs"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "certificate_detail_card_record" },
+    "certificate_detail_card_id": { "$ref": "#/$defs/opaque_id" },
+    "source_decision_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_endpoint_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+    "linked_history_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+    "server_identity": { "$ref": "#/$defs/server_identity" },
+    "trust_material_kind": { "$ref": "#/$defs/trust_material_kind" },
+    "trust_path": { "$ref": "#/$defs/trust_path" },
+    "pinning_host_key_posture": { "$ref": "#/$defs/pinning_host_key_posture" },
+    "certificate_lifecycle": { "$ref": "#/$defs/certificate_lifecycle" },
+    "client_certificate_posture": { "$ref": "#/$defs/client_certificate_posture" },
+    "trust_result": { "$ref": "#/$defs/trust_result" },
+    "repair_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repair_action_projection" }
+    },
+    "secret_material_attestation": { "$ref": "#/$defs/secret_material_attestation" },
+    "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "export_safe": { "type": "boolean", "default": true },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "notes": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+  },
+  "allOf": [
+    {
+      "description": "Successful trust must report trust_failure_state = none.",
+      "if": {
+        "properties": {
+          "trust_result": {
+            "properties": {
+              "trust_succeeded": { "const": true }
+            },
+            "required": ["trust_succeeded"]
+          }
+        },
+        "required": ["trust_result"]
+      },
+      "then": {
+        "properties": {
+          "trust_result": {
+            "properties": {
+              "trust_failure_state": { "const": "none" }
+            },
+            "required": ["trust_failure_state"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Failed trust must carry a concrete trust failure state and at least one non-inspect-only repair action unless policy blocks all repair.",
+      "if": {
+        "properties": {
+          "trust_result": {
+            "properties": {
+              "trust_succeeded": { "const": false }
+            },
+            "required": ["trust_succeeded"]
+          }
+        },
+        "required": ["trust_result"]
+      },
+      "then": {
+        "properties": {
+          "trust_result": {
+            "properties": {
+              "trust_failure_state": { "not": { "const": "none" } }
+            },
+            "required": ["trust_failure_state"]
+          },
+          "repair_actions": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "SSH host-proof cards must carry a concrete SSH provenance and no TLS expiry claim is required.",
+      "if": {
+        "properties": {
+          "trust_material_kind": { "const": "ssh_host_proof" }
+        },
+        "required": ["trust_material_kind"]
+      },
+      "then": {
+        "properties": {
+          "pinning_host_key_posture": {
+            "properties": {
+              "ssh_host_key_provenance": {
+                "not": { "const": "not_applicable_non_ssh" }
+              }
+            },
+            "required": ["ssh_host_key_provenance"]
+          },
+          "certificate_lifecycle": {
+            "properties": {
+              "expiry_state": {
+                "enum": ["not_applicable", "unknown"]
+              }
+            },
+            "required": ["expiry_state"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Secret material attestation must affirm that raw key and certificate material is excluded.",
+      "properties": {
+        "secret_material_attestation": {
+          "properties": {
+            "raw_material_excluded": { "const": true }
+          },
+          "required": ["raw_material_excluded"]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "opaque_fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$"
+    },
+    "nullable_opaque_fingerprint": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_fingerprint" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280,
+      "description": "Short privacy-safe sentence for UI, CLI, support exports, and admin audit. Raw endpoints, hosts, URLs, payloads, and credentials must not appear."
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 140,
+      "description": "Privacy-safe label for direct rendering. Must not embed raw customer hosts, URLs, IPs, paths, or secret material."
+    },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "network_target_class": {
+      "type": "string",
+      "enum": [
+        "local_host_target",
+        "device_local_loopback_target",
+        "remote_ssh_target",
+        "remote_agent_target",
+        "managed_workspace_target",
+        "connected_provider_target",
+        "system_browser_target",
+        "embedded_webview_target",
+        "mirror_endpoint_target",
+        "private_registry_target",
+        "public_registry_target",
+        "ai_provider_endpoint_target",
+        "docs_mirror_target",
+        "policy_endpoint_target",
+        "update_feed_target",
+        "telemetry_sink_target",
+        "tunnel_exposed_target",
+        "bridged_helper_target",
+        "unknown_target"
+      ]
+    },
+    "trust_store_source_class": {
+      "type": "string",
+      "enum": [
+        "os_trust_store",
+        "os_trust_store_plus_org_ca_bundle",
+        "pinned_control_plane_trust_only",
+        "air_gap_offline_trust_root",
+        "trust_store_unknown"
+      ]
+    },
+    "trust_material_kind": {
+      "type": "string",
+      "enum": [
+        "tls_certificate_chain",
+        "ssh_host_proof",
+        "client_certificate_binding",
+        "pinned_control_plane_root",
+        "offline_bundle_trust_root"
+      ]
+    },
+    "ca_source_class": {
+      "type": "string",
+      "enum": [
+        "os_store",
+        "org_ca_bundle",
+        "pinned_control_plane",
+        "offline_root",
+        "none_not_applicable",
+        "unknown_requires_review"
+      ]
+    },
+    "ssh_host_key_provenance_class": {
+      "type": "string",
+      "enum": [
+        "known_hosts_entry_trusted",
+        "first_use_trust_on_first_use",
+        "pinned_by_policy",
+        "admin_policy_strict_required",
+        "mismatched_rejected",
+        "not_applicable_non_ssh"
+      ]
+    },
+    "pinning_state_class": {
+      "type": "string",
+      "enum": [
+        "not_pinned",
+        "pinned_by_policy",
+        "tofu_allowed",
+        "strict_required",
+        "mismatch_rejected",
+        "pin_mismatch",
+        "not_applicable"
+      ]
+    },
+    "trust_failure_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ca_untrusted",
+        "hostname_mismatch",
+        "bundle_stale",
+        "pin_mismatch",
+        "rotation_required",
+        "ssh_host_key_unknown",
+        "ssh_host_key_mismatch",
+        "client_certificate_required",
+        "client_certificate_expired",
+        "policy_blocked"
+      ]
+    },
+    "client_certificate_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "handle_valid",
+        "required_missing",
+        "expired",
+        "handle_unavailable",
+        "policy_blocked"
+      ]
+    },
+    "expiry_state": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "expiring_soon",
+        "expired",
+        "not_applicable",
+        "unknown"
+      ]
+    },
+    "repair_action_class": {
+      "type": "string",
+      "enum": [
+        "review_proxy_settings",
+        "add_ca_bundle",
+        "refresh_policy",
+        "reauth",
+        "switch_mirror",
+        "refresh_mirror",
+        "review_ssh_host_proof",
+        "renew_client_certificate",
+        "retry_current_context",
+        "inspect_only_no_action"
+      ]
+    },
+    "forbidden_raw_material_class": {
+      "type": "string",
+      "enum": [
+        "raw_certificate_pem",
+        "raw_ca_bundle_bytes",
+        "raw_private_key",
+        "raw_ssh_host_key",
+        "raw_endpoint_name",
+        "raw_ip_address",
+        "raw_proxy_credentials",
+        "raw_token_or_cookie"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "server_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "server_identity_ref",
+        "target_class",
+        "identity_label",
+        "identity_sentence"
+      ],
+      "properties": {
+        "server_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_class": { "$ref": "#/$defs/network_target_class" },
+        "identity_label": { "$ref": "#/$defs/short_label" },
+        "target_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "identity_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_store_source",
+        "ca_source_class",
+        "trust_path_sentence"
+      ],
+      "properties": {
+        "trust_store_source": { "$ref": "#/$defs/trust_store_source_class" },
+        "ca_source_class": { "$ref": "#/$defs/ca_source_class" },
+        "org_ca_bundle_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "pinned_control_plane_trust_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "trust_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "trust_path_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "pinning_host_key_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ssh_host_key_provenance",
+        "pinning_state",
+        "host_key_fingerprint",
+        "pinning_sentence"
+      ],
+      "properties": {
+        "ssh_host_key_provenance": { "$ref": "#/$defs/ssh_host_key_provenance_class" },
+        "pinning_state": { "$ref": "#/$defs/pinning_state_class" },
+        "host_key_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "policy_pin_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "pinning_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "certificate_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tls_server_cert_chain_fingerprint",
+        "leaf_certificate_fingerprint",
+        "issuer_ref",
+        "valid_not_before_at",
+        "expires_at",
+        "expiry_state",
+        "expiry_sentence"
+      ],
+      "properties": {
+        "tls_server_cert_chain_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "leaf_certificate_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "issuer_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "valid_not_before_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "expiry_state": { "$ref": "#/$defs/expiry_state" },
+        "expiry_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "client_certificate_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_certificate_state",
+        "client_certificate_handle_ref",
+        "client_certificate_fingerprint",
+        "client_certificate_expires_at",
+        "client_certificate_sentence"
+      ],
+      "properties": {
+        "client_certificate_state": { "$ref": "#/$defs/client_certificate_state" },
+        "client_certificate_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "client_certificate_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "client_certificate_expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "client_certificate_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_succeeded",
+        "trust_failure_state",
+        "result_sentence"
+      ],
+      "properties": {
+        "trust_succeeded": { "type": "boolean" },
+        "trust_failure_state": { "$ref": "#/$defs/trust_failure_state" },
+        "policy_rule_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "result_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "repair_action_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_action_class",
+        "repair_action_ref",
+        "repair_sentence",
+        "no_bypass_safe"
+      ],
+      "properties": {
+        "repair_action_class": { "$ref": "#/$defs/repair_action_class" },
+        "repair_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "repair_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "no_bypass_safe": { "type": "boolean" }
+      }
+    },
+    "secret_material_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_material_excluded",
+        "forbidden_material_classes",
+        "attestation_sentence"
+      ],
+      "properties": {
+        "raw_material_excluded": { "type": "boolean" },
+        "forbidden_material_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/forbidden_raw_material_class" }
+        },
+        "attestation_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}

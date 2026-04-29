@@ -1,0 +1,605 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/network/transport_summary_strip.schema.json",
+  "title": "Aureline transport summary strip",
+  "description": "Boundary schema for one transport_summary_strip_record. The record projects current connectivity mode, effective proxy source, trust-store or CA state, policy source, mirror posture, degraded/offline summary, no-bypass state, and bounded repair actions from the shared transport governance model. It is safe for desktop UI, CLI/headless explain output, docs/update/registry surfaces, AI/provider route previews, remote connector details, support export, and admin audit. Raw URLs, host names, IP addresses, proxy credentials, PAC script bodies, CA bundle bytes, certificate PEM, private keys, SSH host keys, tokens, cookies, request bodies, and response bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "summary_strip_id",
+    "source_decision_refs",
+    "connectivity_mode",
+    "effective_proxy_source",
+    "trust_ca_state",
+    "policy_source",
+    "mirror_posture",
+    "degraded_offline_summary",
+    "no_bypass_projection",
+    "repair_actions",
+    "captured_at",
+    "redaction_class",
+    "narrative_refs"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "transport_summary_strip_record" },
+    "summary_strip_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable opaque id for this summary strip. Must not contain raw endpoint names, raw hosts, raw IPs, or planning slugs."
+    },
+    "source_decision_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Transport decision records summarized by this strip."
+    },
+    "source_attribution_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Optional network_attribution_record refs that back recent counts or details."
+    },
+    "connectivity_mode": { "$ref": "#/$defs/offline_or_deny_all_state_class" },
+    "current_connectivity_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+    "effective_proxy_source": { "$ref": "#/$defs/effective_proxy_source" },
+    "trust_ca_state": { "$ref": "#/$defs/trust_ca_state" },
+    "policy_source": { "$ref": "#/$defs/policy_source" },
+    "mirror_posture": { "$ref": "#/$defs/mirror_posture" },
+    "degraded_offline_summary": { "$ref": "#/$defs/degraded_offline_summary" },
+    "recent_endpoint_counts": { "$ref": "#/$defs/recent_endpoint_counts" },
+    "no_bypass_projection": { "$ref": "#/$defs/no_bypass_projection" },
+    "repair_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repair_action_projection" }
+    },
+    "endpoint_row_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "certificate_detail_card_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "denied_attempt_history_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "export_safe": { "type": "boolean", "default": true },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "notes": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+  },
+  "allOf": [
+    {
+      "description": "An online strip may still summarize a policy or trust block, but it must not carry an offline_since_at timestamp.",
+      "if": {
+        "properties": {
+          "connectivity_mode": { "const": "online_live_allowed" }
+        },
+        "required": ["connectivity_mode"]
+      },
+      "then": {
+        "properties": {
+          "degraded_offline_summary": {
+            "properties": {
+              "offline_since_at": { "type": "null" }
+            },
+            "required": ["offline_since_at"]
+          }
+        }
+      }
+    },
+    {
+      "description": "A deny-all strip must expose deny_all as the degraded kind and forbid direct fallback.",
+      "if": {
+        "properties": {
+          "connectivity_mode": { "const": "deny_all_enforced" }
+        },
+        "required": ["connectivity_mode"]
+      },
+      "then": {
+        "properties": {
+          "degraded_offline_summary": {
+            "properties": {
+              "degraded_kind": { "const": "deny_all" }
+            },
+            "required": ["degraded_kind"]
+          },
+          "no_bypass_projection": {
+            "properties": {
+              "direct_fallback_allowed": { "const": false },
+              "insecure_fallback_allowed": { "const": false }
+            },
+            "required": ["direct_fallback_allowed", "insecure_fallback_allowed"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Trust-failed summaries must carry a concrete trust_failure_state.",
+      "if": {
+        "properties": {
+          "degraded_offline_summary": {
+            "properties": {
+              "degraded_kind": { "const": "trust_failed" }
+            },
+            "required": ["degraded_kind"]
+          }
+        },
+        "required": ["degraded_offline_summary"]
+      },
+      "then": {
+        "properties": {
+          "trust_ca_state": {
+            "properties": {
+              "trust_failure_state": { "not": { "const": "none" } }
+            },
+            "required": ["trust_failure_state"]
+          }
+        }
+      }
+    },
+    {
+      "description": "No-bypass enforcement forbids direct and insecure fallback.",
+      "if": {
+        "properties": {
+          "no_bypass_projection": {
+            "properties": {
+              "no_bypass_status": { "const": "no_bypass_enforced" }
+            },
+            "required": ["no_bypass_status"]
+          }
+        },
+        "required": ["no_bypass_projection"]
+      },
+      "then": {
+        "properties": {
+          "no_bypass_projection": {
+            "properties": {
+              "direct_fallback_allowed": { "const": false },
+              "insecure_fallback_allowed": { "const": false }
+            },
+            "required": ["direct_fallback_allowed", "insecure_fallback_allowed"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "opaque_fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$"
+    },
+    "nullable_opaque_fingerprint": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_fingerprint" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280,
+      "description": "Short privacy-safe sentence for UI, CLI, support exports, and admin audit. Raw endpoints, hosts, URLs, payloads, and credentials must not appear."
+    },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "proxy_resolution_mode_class": {
+      "type": "string",
+      "enum": [
+        "system_proxy",
+        "pac_proxy",
+        "environment_proxy",
+        "manual_proxy",
+        "direct_no_proxy",
+        "proxy_unknown"
+      ]
+    },
+    "proxy_source_class": {
+      "type": "string",
+      "enum": [
+        "system_proxy_settings",
+        "pac_script",
+        "environment_variables",
+        "manual_admin_policy",
+        "manual_user_setting",
+        "direct_no_proxy_selected",
+        "remote_context_proxy",
+        "managed_service_proxy",
+        "proxy_source_unknown"
+      ]
+    },
+    "trust_store_source_class": {
+      "type": "string",
+      "enum": [
+        "os_trust_store",
+        "os_trust_store_plus_org_ca_bundle",
+        "pinned_control_plane_trust_only",
+        "air_gap_offline_trust_root",
+        "trust_store_unknown"
+      ]
+    },
+    "trust_failure_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ca_untrusted",
+        "hostname_mismatch",
+        "bundle_stale",
+        "pin_mismatch",
+        "rotation_required",
+        "ssh_host_key_unknown",
+        "ssh_host_key_mismatch",
+        "client_certificate_required",
+        "client_certificate_expired",
+        "policy_blocked"
+      ]
+    },
+    "ca_state_class": {
+      "type": "string",
+      "enum": [
+        "not_configured",
+        "loaded_current",
+        "loaded_stale",
+        "untrusted",
+        "pinned_control_plane_only",
+        "offline_trust_root",
+        "unknown_requires_review"
+      ]
+    },
+    "ssh_host_key_provenance_class": {
+      "type": "string",
+      "enum": [
+        "known_hosts_entry_trusted",
+        "first_use_trust_on_first_use",
+        "pinned_by_policy",
+        "admin_policy_strict_required",
+        "mismatched_rejected",
+        "not_applicable_non_ssh"
+      ]
+    },
+    "mirror_route_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror_direct_origin",
+        "customer_operated_mirror_active",
+        "vendor_published_mirror_active",
+        "offline_bundle_derived_mirror_active",
+        "mirror_only_no_direct_allowed",
+        "mirror_not_applicable"
+      ]
+    },
+    "mirror_public_label_class": {
+      "type": "string",
+      "enum": [
+        "public_origin",
+        "org_approved_origin",
+        "customer_operated_mirror",
+        "vendor_published_mirror",
+        "offline_bundle_mirror",
+        "mirror_only_no_direct",
+        "local_or_target_local",
+        "no_route_selected"
+      ]
+    },
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "mirror_fresh_within_window",
+        "mirror_within_extended_window",
+        "mirror_past_extended_window",
+        "mirror_freshness_unknown",
+        "not_applicable"
+      ]
+    },
+    "offline_or_deny_all_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic"
+      ]
+    },
+    "policy_source_class": {
+      "type": "string",
+      "enum": [
+        "local_default_policy",
+        "user_profile_policy",
+        "workspace_policy",
+        "signed_org_bundle",
+        "managed_policy_service",
+        "offline_policy_bundle",
+        "emergency_policy"
+      ]
+    },
+    "policy_freshness_class": {
+      "type": "string",
+      "enum": [
+        "policy_current",
+        "policy_within_grace",
+        "policy_stale",
+        "policy_expired",
+        "policy_unknown_requires_review",
+        "policy_not_applicable"
+      ]
+    },
+    "degraded_kind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "offline_grace",
+        "air_gapped",
+        "deny_all",
+        "network_disabled",
+        "heuristic_degraded",
+        "stale_mirror",
+        "proxy_resolution_failed",
+        "trust_failed",
+        "policy_blocked",
+        "auth_required"
+      ]
+    },
+    "no_bypass_status_class": {
+      "type": "string",
+      "enum": [
+        "no_bypass_enforced",
+        "bypass_not_applicable",
+        "published_exception_required",
+        "published_exception_active",
+        "no_bypass_violation_detected"
+      ]
+    },
+    "forbidden_bypass_class": {
+      "type": "string",
+      "enum": [
+        "silent_direct_origin_fallback",
+        "insecure_tls_fallback",
+        "proxy_resolution_skip",
+        "cli_desktop_proxy_divergence",
+        "extension_ambient_egress",
+        "remote_origin_hidden",
+        "public_origin_on_mirror_only_profile",
+        "feature_specific_retry_under_deny_all",
+        "destructive_offline_defer",
+        "generic_network_error_when_typed_reason_known"
+      ]
+    },
+    "repair_action_class": {
+      "type": "string",
+      "enum": [
+        "review_proxy_settings",
+        "add_ca_bundle",
+        "refresh_policy",
+        "reauth",
+        "switch_mirror",
+        "refresh_mirror",
+        "review_ssh_host_proof",
+        "renew_client_certificate",
+        "retry_current_context",
+        "inspect_only_no_action"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "effective_proxy_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proxy_resolution_mode",
+        "proxy_source_class",
+        "effective_proxy_ref",
+        "proxy_source_sentence"
+      ],
+      "properties": {
+        "proxy_resolution_mode": { "$ref": "#/$defs/proxy_resolution_mode_class" },
+        "proxy_source_class": { "$ref": "#/$defs/proxy_source_class" },
+        "effective_proxy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "proxy_config_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "pac_script_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "proxy_source_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_ca_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_store_source",
+        "ca_state_class",
+        "ssh_host_key_default_provenance",
+        "trust_failure_state",
+        "trust_ca_sentence"
+      ],
+      "properties": {
+        "trust_store_source": { "$ref": "#/$defs/trust_store_source_class" },
+        "ca_state_class": { "$ref": "#/$defs/ca_state_class" },
+        "org_ca_bundle_fingerprint": { "$ref": "#/$defs/nullable_opaque_fingerprint" },
+        "pinned_control_plane_trust_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "ssh_host_key_default_provenance": { "$ref": "#/$defs/ssh_host_key_provenance_class" },
+        "trust_failure_state": { "$ref": "#/$defs/trust_failure_state" },
+        "trust_ca_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "policy_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_source_class",
+        "policy_freshness_class",
+        "active_policy_bundle_ref",
+        "policy_epoch_ref",
+        "policy_source_sentence"
+      ],
+      "properties": {
+        "policy_source_class": { "$ref": "#/$defs/policy_source_class" },
+        "policy_freshness_class": { "$ref": "#/$defs/policy_freshness_class" },
+        "active_policy_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "last_policy_refresh_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "policy_source_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "mirror_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label_class",
+        "mirror_route_class",
+        "mirror_freshness_class",
+        "public_origin_allowed",
+        "mirror_sentence"
+      ],
+      "properties": {
+        "label_class": { "$ref": "#/$defs/mirror_public_label_class" },
+        "mirror_route_class": { "$ref": "#/$defs/mirror_route_class" },
+        "mirror_endpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mirror_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "public_origin_allowed": { "type": "boolean" },
+        "mirror_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "degraded_offline_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degraded_kind",
+        "offline_or_deny_all_state",
+        "offline_since_at",
+        "summary_sentence"
+      ],
+      "properties": {
+        "degraded_kind": { "$ref": "#/$defs/degraded_kind" },
+        "offline_or_deny_all_state": { "$ref": "#/$defs/offline_or_deny_all_state_class" },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "summary_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "recent_endpoint_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint_total",
+        "recent_allowed_count",
+        "recent_denied_count",
+        "recent_failed_count",
+        "recent_deferred_count"
+      ],
+      "properties": {
+        "endpoint_total": { "type": "integer", "minimum": 0 },
+        "recent_allowed_count": { "type": "integer", "minimum": 0 },
+        "recent_denied_count": { "type": "integer", "minimum": 0 },
+        "recent_failed_count": { "type": "integer", "minimum": 0 },
+        "recent_deferred_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "no_bypass_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_bypass_status",
+        "direct_fallback_allowed",
+        "insecure_fallback_allowed",
+        "forbidden_bypass_classes",
+        "no_bypass_sentence"
+      ],
+      "properties": {
+        "no_bypass_status": { "$ref": "#/$defs/no_bypass_status_class" },
+        "direct_fallback_allowed": { "type": "boolean" },
+        "insecure_fallback_allowed": { "type": "boolean" },
+        "forbidden_bypass_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/forbidden_bypass_class" },
+          "uniqueItems": true
+        },
+        "exception_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "no_bypass_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "repair_action_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_action_class",
+        "repair_action_ref",
+        "repair_sentence",
+        "no_bypass_safe"
+      ],
+      "properties": {
+        "repair_action_class": { "$ref": "#/$defs/repair_action_class" },
+        "repair_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "repair_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "no_bypass_safe": { "type": "boolean" }
+      }
+    }
+  }
+}

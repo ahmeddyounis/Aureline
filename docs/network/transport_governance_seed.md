@@ -41,6 +41,16 @@ Companion artifacts:
   summary strips, endpoint rows, certificate cards, denied-attempt
   histories, CLI explain output, support exports, and release
   evidence.
+- [`/docs/network/transport_explainability_surface_contract.md`](transport_explainability_surface_contract.md):
+  user-facing projection layer for transport summary strips,
+  endpoint rows, certificate/detail cards, denied-attempt history
+  rows, repair actions, and no-bypass explanations.
+- [`/schemas/network/transport_summary_strip.schema.json`](../../schemas/network/transport_summary_strip.schema.json),
+  [`/schemas/network/endpoint_history_row.schema.json`](../../schemas/network/endpoint_history_row.schema.json),
+  and
+  [`/schemas/network/certificate_detail_card.schema.json`](../../schemas/network/certificate_detail_card.schema.json):
+  machine-readable boundaries for the explainability surfaces that
+  consume the transport decision and attribution records.
 - [`/schemas/network/transport_decision.schema.json`](../../schemas/network/transport_decision.schema.json):
   machine-readable boundary for one `transport_decision_record`,
   reusing the proxy, trust, SSH host-key, mirror, egress, outcome,
@@ -69,6 +79,10 @@ Companion artifacts:
   system-browser auth callback, enterprise telemetry denied by user
   disable, and an individual-profile deny-all refusal covering every
   egress class.
+- [`/fixtures/network/transport_explainability_cases/`](../../fixtures/network/transport_explainability_cases/)
+  — worked projection fixtures for PAC-sourced proxy, custom CA,
+  mirror unavailable, policy blocked, and SSH host-proof mismatch
+  cases.
 - [`/fixtures/network/audit_event_examples/`](../../fixtures/network/audit_event_examples/)
   — worked audit-event examples that demonstrate the published
   permission classes, audit requirements, no-bypass rules, and
