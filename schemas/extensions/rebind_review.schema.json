@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/rebind_review.schema.json",
+  "title": "Aureline extension published-identity rebinding review sheet vocabulary (contract seed)",
+  "description": "Boundary schema for the bind-published-identity rebinding review sheet frozen in docs/extensions/dev_loop_rebinding_and_repro_contract.md. The record prevents local/sideloaded packages from silently becoming registry-bound identities or silently strengthening trust posture (signer, trust tier, update channel). Adding a new enumerated member or an additive field is additive-minor with a rebind_review_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw absolute filesystem paths, raw registry URLs, raw artifact bytes, raw log bodies, raw crash dumps, raw stack frames, and raw signing-key material MUST NOT appear; the record carries refs, digests, and typed summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/rebind_review_sheet_record",
+  "$defs": {
+    "rebind_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this rebinding review contract seed."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "seed_section": { "type": "string" },
+        "exercised_classes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in review packets and exports."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Namespaced extension id of the form 'publisher_id/extension_id'."
+    },
+
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Semantic version string."
+    },
+
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"],
+      "description": "Frozen digest-algorithm vocabulary."
+    },
+
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32,
+          "description": "Lowercase hex digest of the artifact bytes."
+        },
+        "digest_size_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "host_contract_family": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Runtime class / host contract family."
+    },
+
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "publisher_signature",
+        "attestation_bundle",
+        "dual_signed_publisher_and_attestation",
+        "unsigned_requires_out_of_band_verification",
+        "unsigned_denied_on_policy"
+      ],
+      "description": "Frozen signature-class vocabulary."
+    },
+
+    "publisher_trust_tier": {
+      "type": "string",
+      "enum": [
+        "verified_publisher",
+        "community_publisher",
+        "organisational_publisher",
+        "unverified_publisher",
+        "quarantined_publisher"
+      ],
+      "description": "Frozen publisher-trust-tier vocabulary."
+    },
+
+    "trust_badge_inheritance_rule": {
+      "type": "string",
+      "enum": [
+        "inherits_origin_tier",
+        "capped_at_organisational_on_private_registry",
+        "capped_at_community_on_approved_mirror",
+        "capped_at_unverified_on_local_archive",
+        "quarantined_cannot_inherit"
+      ],
+      "description": "How the rendered publisher-trust tier relates to the origin tier."
+    },
+
+    "release_channel_class": {
+      "type": "string",
+      "enum": ["dev_local", "nightly", "preview", "beta", "stable", "lts", "hotfix"],
+      "description": "Update-channel choice recorded in the rebinding review."
+    },
+
+    "source_path_class": {
+      "type": "string",
+      "enum": [
+        "workspace_relative_path",
+        "user_home_relative_path",
+        "removable_media",
+        "network_mount_class",
+        "process_stdin_stream",
+        "not_applicable"
+      ],
+      "description": "Redaction-friendly source-path class. Raw absolute paths never cross this boundary."
+    },
+
+    "source_locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path_class", "source_path_hint"],
+      "properties": {
+        "source_path_class": { "$ref": "#/$defs/source_path_class" },
+        "source_path_hint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Redacted, displayable path hint (never an absolute machine path)."
+        },
+        "source_path_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to the full-fidelity local path descriptor. Null when not recorded."
+        }
+      }
+    },
+
+    "registry_binding_target_class": {
+      "type": "string",
+      "enum": ["public_registry", "private_registry", "approved_mirror", "offline_bundle"],
+      "description": "Which transport supplies the published identity the consumer is binding to."
+    },
+
+    "review_state_class": {
+      "type": "string",
+      "enum": ["pending", "approved", "denied", "deferred"],
+      "description": "Current state of the rebinding review."
+    },
+
+    "rebind_trigger_class": {
+      "type": "string",
+      "enum": [
+        "local_or_sideload_to_registry_binding",
+        "publisher_namespace_changed",
+        "signer_or_signature_class_changed",
+        "update_channel_changed",
+        "host_abi_or_runtime_class_changed",
+        "permission_posture_widened",
+        "artifact_digest_changed"
+      ],
+      "description": "Closed trigger vocabulary that forces a rebinding review. Multiple triggers may apply to a single review."
+    },
+
+    "permission_posture_delta_class": {
+      "type": "string",
+      "enum": ["unchanged", "narrowed", "widened", "unknown_not_compared"],
+      "description": "Delta class for requested/effective permission posture relative to the last reviewed snapshot."
+    },
+
+    "runtime_posture_delta_class": {
+      "type": "string",
+      "enum": ["unchanged", "changed_requires_review", "unknown_not_compared"],
+      "description": "Delta class for runtime origin/ABI posture relative to the last reviewed snapshot."
+    },
+
+    "trust_promotion_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prior_signature_class",
+        "next_signature_class",
+        "prior_rendered_publisher_trust_tier",
+        "next_rendered_publisher_trust_tier",
+        "trust_badge_inheritance_rule"
+      ],
+      "properties": {
+        "prior_signature_class": { "$ref": "#/$defs/signature_class" },
+        "next_signature_class": { "$ref": "#/$defs/signature_class" },
+        "prior_rendered_publisher_trust_tier": { "$ref": "#/$defs/publisher_trust_tier" },
+        "next_rendered_publisher_trust_tier": { "$ref": "#/$defs/publisher_trust_tier" },
+        "trust_badge_inheritance_rule": { "$ref": "#/$defs/trust_badge_inheritance_rule" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible disclosure summarizing what trust posture changes."
+        }
+      }
+    },
+
+    "local_origin_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin_class"],
+      "properties": {
+        "origin_class": {
+          "type": "string",
+          "enum": ["local_workspace", "sideload_archive", "unknown"],
+          "description": "Where the pre-binding bytes come from."
+        },
+        "source_locator": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/source_locator" }],
+          "description": "Redaction-safe source locator for local_workspace origins. Null when not applicable."
+        },
+        "archive_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to a sideload archive identity record when origin_class = sideload_archive. Null otherwise."
+        }
+      }
+    },
+
+    "published_identity_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_binding_target_class",
+        "target_extension_identity",
+        "target_version",
+        "release_channel_class",
+        "publisher_namespace",
+        "signing_identity_ref",
+        "signature_class",
+        "rendered_publisher_trust_tier"
+      ],
+      "properties": {
+        "registry_binding_target_class": { "$ref": "#/$defs/registry_binding_target_class" },
+        "target_extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "target_version": { "$ref": "#/$defs/semver_string" },
+        "release_channel_class": { "$ref": "#/$defs/release_channel_class" },
+        "publisher_namespace": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Publisher/namespace label rendered in the review. Must match the extension identity namespace under policy."
+        },
+        "signing_identity_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Ref to the signing identity asserted by the published artifact. Null when missing."
+        },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "signature_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to signature/attestation evidence."
+        },
+        "rendered_publisher_trust_tier": { "$ref": "#/$defs/publisher_trust_tier" },
+        "publisher_continuity_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to publisher-continuity evidence (when available)."
+        },
+        "artifact_content_address": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/content_address" }],
+          "description": "Content-address of the target published artifact (when resolved). Null when not yet resolved at review time."
+        }
+      }
+    },
+
+    "rebind_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "rebind_review_schema_version",
+        "review_id",
+        "review_state_class",
+        "extension_identity",
+        "local_origin",
+        "current_version",
+        "current_signature_class",
+        "current_rendered_publisher_trust_tier",
+        "current_host_contract_family",
+        "current_host_abi_range",
+        "target_published_identity",
+        "trust_promotion_disclosure",
+        "rebind_triggers",
+        "permission_posture_delta_class",
+        "runtime_posture_delta_class",
+        "prepared_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "rebind_review_sheet_record" },
+        "rebind_review_schema_version": { "$ref": "#/$defs/rebind_review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "review_state_class": { "$ref": "#/$defs/review_state_class" },
+
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "local_origin": { "$ref": "#/$defs/local_origin_descriptor" },
+        "current_version": { "$ref": "#/$defs/semver_string" },
+        "current_artifact_content_address": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/content_address" }],
+          "description": "Content-address of the currently loaded local/sideload artifact bytes. Null when not computed."
+        },
+        "current_signature_class": { "$ref": "#/$defs/signature_class" },
+        "current_signature_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "current_rendered_publisher_trust_tier": { "$ref": "#/$defs/publisher_trust_tier" },
+        "current_host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "current_host_abi_range": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible ABI range string (e.g. 'component-model 0.2.x')."
+        },
+
+        "target_published_identity": { "$ref": "#/$defs/published_identity_descriptor" },
+
+        "trust_promotion_disclosure": { "$ref": "#/$defs/trust_promotion_disclosure" },
+        "rebind_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rebind_trigger_class" }
+        },
+        "permission_posture_delta_class": { "$ref": "#/$defs/permission_posture_delta_class" },
+        "runtime_posture_delta_class": { "$ref": "#/$defs/runtime_posture_delta_class" },
+
+        "acknowledged_artifact_digest_change": {
+          "type": "boolean",
+          "description": "True when the reviewer explicitly acknowledged that binding replaces bytes (digest changed). False when digest did not change or when not acknowledged."
+        },
+
+        "decision_note": {
+          "type": "string",
+          "description": "Optional bounded note recorded with the decision. Must not include raw secrets or raw absolute paths."
+        },
+        "decision_recorded_at": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/monotonic_timestamp" }],
+          "description": "Timestamp when review_state_class moved out of pending. Null while pending."
+        },
+
+        "prepared_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+

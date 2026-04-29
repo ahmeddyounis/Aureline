@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/repro_export.schema.json",
+  "title": "Aureline extension issue-reproducibility export packet vocabulary (contract seed)",
+  "description": "Boundary schema for the extension repro-export packet frozen in docs/extensions/dev_loop_rebinding_and_repro_contract.md. The export packet exists so support and ecosystem maintainers can compare failures mechanically across machines and environments. The packet carries stable identity, artifact digest, host ABI, conformance status, crash history, and active permission posture without raw logs, raw stack frames, raw crash dumps, raw registry URLs, raw artifact bytes, raw absolute filesystem paths, or secret material. Adding a new enumerated member or an additive field is additive-minor with a repro_export_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/extension_repro_export_packet_record",
+  "$defs": {
+    "repro_export_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this repro-export packet contract seed."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "seed_section": { "type": "string" },
+        "exercised_classes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and export. Raw paths, raw secrets, raw URLs, raw log bodies, raw crash dumps, and raw stack frames never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Namespaced extension id of the form 'publisher_id/extension_id'."
+    },
+
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Semantic version string."
+    },
+
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"],
+      "description": "Frozen digest-algorithm vocabulary."
+    },
+
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32,
+          "description": "Lowercase hex digest of the artifact bytes."
+        },
+        "digest_size_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "host_contract_family": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Runtime class / host contract family."
+    },
+
+    "local_only_state_class": {
+      "type": "string",
+      "enum": ["local_only", "registry_bound", "source_missing", "unknown"],
+      "description": "State chip describing whether the package is local-only, registry-bound, missing its source, or unknown."
+    },
+
+    "source_availability_state": {
+      "type": "string",
+      "enum": ["source_available", "source_unavailable", "build_failed", "last_loaded_build_still_active"],
+      "description": "Source/build availability state rendered in local-dev and inspector surfaces."
+    },
+
+    "permission_scope_kind": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ],
+      "description": "Permission-scope vocabulary."
+    },
+
+    "permission_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_target", "rationale_label"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/permission_scope_kind" },
+        "scope_target": { "type": "string", "minLength": 1 },
+        "scope_constraint": { "type": "string" },
+        "rationale_label": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "conformance_status_class": {
+      "type": "string",
+      "enum": [
+        "pass_full_matrix",
+        "pass_subset_documented",
+        "fail_blocking",
+        "fail_non_blocking",
+        "not_run",
+        "unknown"
+      ],
+      "description": "Conformance status summary class."
+    },
+
+    "runtime_failure_class": {
+      "type": "string",
+      "enum": [
+        "host_crash",
+        "activation_denied",
+        "permission_denied",
+        "abi_mismatch",
+        "hot_reload_failed",
+        "build_failed",
+        "source_missing",
+        "unknown_failure"
+      ],
+      "description": "High-level failure class for repro exports."
+    },
+
+    "runtime_failure_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failed_at", "failure_class", "summary"],
+      "properties": {
+        "failed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "failure_class": { "$ref": "#/$defs/runtime_failure_class" },
+        "summary": { "type": "string", "minLength": 1 },
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } }
+      }
+    },
+
+    "log_artifact_kind": {
+      "type": "string",
+      "enum": [
+        "structured_log_stream",
+        "stdout_stream",
+        "stderr_stream",
+        "panic_report",
+        "activation_trace",
+        "diagnostic_excerpt"
+      ],
+      "description": "Minimal log-artifact kind vocabulary for repro exports."
+    },
+
+    "log_artifact_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["log_artifact_kind", "content_address", "capture_window_start", "capture_window_end"],
+      "properties": {
+        "log_artifact_kind": { "$ref": "#/$defs/log_artifact_kind" },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "capture_window_start": { "$ref": "#/$defs/monotonic_timestamp" },
+        "capture_window_end": { "$ref": "#/$defs/monotonic_timestamp" },
+        "artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the corresponding log artifact inside a support bundle or local evidence store."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Optional bounded summary of the included log artifact (no secrets, no raw absolute paths)."
+        }
+      }
+    },
+
+    "crash_history_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recent_crash_count", "recent_crash_window_minutes"],
+      "properties": {
+        "recent_crash_count": { "type": "integer", "minimum": 0 },
+        "recent_crash_window_minutes": { "type": "integer", "minimum": 1 },
+        "last_crash_at": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/monotonic_timestamp" }] },
+        "crash_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to crash evidence artifacts (minidump ref, symbolication ref, etc)."
+        }
+      }
+    },
+
+    "extension_repro_export_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "repro_export_schema_version",
+        "export_id",
+        "extension_identity",
+        "extension_version",
+        "artifact_content_address",
+        "local_only_state_class",
+        "source_availability_state",
+        "host_contract_family",
+        "host_abi_range",
+        "conformance_status_class",
+        "crash_history",
+        "active_permissions",
+        "log_artifacts",
+        "primary_failure",
+        "captured_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "extension_repro_export_packet_record" },
+        "repro_export_schema_version": { "$ref": "#/$defs/repro_export_schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "artifact_content_address": { "$ref": "#/$defs/content_address" },
+        "local_only_state_class": { "$ref": "#/$defs/local_only_state_class" },
+        "source_availability_state": { "$ref": "#/$defs/source_availability_state" },
+
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "host_abi_range": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible ABI range string (e.g. 'component-model 0.2.x')."
+        },
+
+        "conformance_status_class": { "$ref": "#/$defs/conformance_status_class" },
+        "conformance_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to conformance_result_record instances relevant to this repro export."
+        },
+
+        "crash_history": { "$ref": "#/$defs/crash_history_summary" },
+        "active_permissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/permission_scope_entry" },
+          "description": "Effective/granted permission snapshot at capture time."
+        },
+        "effective_permission_summary_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Optional ref to the effective_permission_summary_record."
+        },
+
+        "log_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/log_artifact_summary" },
+          "description": "Included log artifacts (by digest + capture window) suitable for mechanical comparison."
+        },
+
+        "primary_failure": { "$ref": "#/$defs/runtime_failure_summary" },
+        "secondary_failures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/runtime_failure_summary" }
+        },
+
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+

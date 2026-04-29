@@ -12,6 +12,11 @@ The machine-readable boundaries are:
   inspector snapshot, and hot reload / relaunch banner records.
 - `/schemas/extensions/publish_preview.schema.json`
   — publish preview sheet record.
+- `/schemas/extensions/rebind_review.schema.json`
+  — bind-published-identity rebinding review sheet record (local/sideload
+  → registry-bound, or trust posture strengthening).
+- `/schemas/extensions/repro_export.schema.json`
+  — issue-reproduction export packet record for extension failures.
 
 These contracts **compose with and do not replace** existing extension
 and runtime seeds:
@@ -26,6 +31,8 @@ and runtime seeds:
   and local-archive posture.
 - `/docs/extensions/runtime_budget_packet.md` — runtime budgets,
   activation evidence, and quarantine posture vocabulary.
+- `/docs/extensions/dev_loop_rebinding_and_repro_contract.md` — rebinding
+  review and repro-export packet contract seed.
 
 The schemas are authoritative when the narrative and the schemas
 disagree; this document MUST be updated in the same change that lands
@@ -147,4 +154,3 @@ Publish preview MUST disclose the exact outbound destination (as a typed
 destination descriptor ref or equivalent) and MUST preserve enough
 attribution fields that downstream support and publish flows can explain
 what trust posture changed and why.
-
