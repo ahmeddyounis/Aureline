@@ -1,0 +1,118 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_state.schema.json
+__fixture__:
+  name: expired_token_handle
+  scenario: >
+    An AI gateway token handle exists, but its broker-issued lifetime has
+    expired. The row preserves the alias and repair path while denying
+    use of the stale handle. Renewal happens through the broker and does
+    not reveal the token.
+  contract_sections:
+    - Credential-state vocabulary
+    - Secret-access prompt contract
+    - Export, support, and automation rules
+  exercised_axes:
+    state_class: expired
+    storage_mode_class: handle_only
+    denial_reason: secret_handle_expired
+
+record_kind: credential_state_record
+credential_state_schema_version: 1
+credential_state_id: credential-state:ai-gateway:expired-handle
+state_class: expired
+display_label: AI gateway credential expired
+subject:
+  target_class: ai_gateway
+  target_ref: ai-gateway:org-default
+  target_label: Organization AI gateway
+  secret_class: ai_provider_token
+  scope_ref: tenant:managed:ai-default
+  scope_label: Managed AI gateway scope
+  audience_label: Hosted AI requests
+authority:
+  storage_mode_class: handle_only
+  store_source_class: enterprise_vault_adapter
+  credential_origin_class: customer_managed_secret_store
+  authority_ref: credential-authority:enterprise-vault:ai-default
+  alias_ref: credential-alias:ai-gateway:default
+  handle_ref: credential-handle:ai-gateway:expired
+  source_label: Enterprise vault alias
+  delegated_credential_ref: null
+  policy_owner_ref: policy-owner:ai-platform
+  browser_handoff_ref: null
+  raw_secret_material_present: false
+storage:
+  trust_store_class: enterprise_vault_adapter
+  unlock_state: unlocked
+  store_capability_ref: store-capability:enterprise-vault
+  store_verification_state: verified_available
+  session_only_downgrade_visible: false
+  supports_persistent_long_lived: true
+  plaintext_fallback_allowed: false
+  storage_note: The vault remains available, but the broker handle is past its expiry boundary.
+lifetime:
+  lifetime_class: time_bounded
+  issued_at: "2026-04-29T06:00:00Z"
+  expires_at: "2026-04-29T08:00:00Z"
+  refresh_after: "2026-04-29T07:55:00Z"
+  revocation_path_label: Rotate AI gateway credential
+  lifetime_note: The handle expired before this request; a fresh broker handle is required.
+projection_mode: broker_callback
+capability_implications:
+  can_read_secret: false
+  can_write_secret: false
+  can_rebind_handle: false
+  can_import_credential: false
+  can_unlock_store: false
+  can_use_existing_handle: false
+  can_project_raw_material: false
+  local_work_continues: true
+  retained_capabilities:
+    - Continue local editing.
+    - Use local model providers that do not depend on the expired gateway handle.
+    - Export support metadata for the expired handle.
+  blocked_capabilities:
+    - Send hosted AI requests through the expired handle.
+    - Reuse queued gateway work that requires the expired credential.
+  capability_note: The alias is still safe to show, but the stale handle cannot authorize new gateway calls.
+prompt_policy:
+  prompt_required: true
+  prompt_action_classes:
+    - read_secret
+  prompt_ref: secret-prompt:renew-ai-gateway-handle
+  prompt_reason: The broker needs to renew the handle before the AI gateway can be used.
+  handle_only_path_available: true
+export_rules:
+  handles_aliases_source_labels_may_travel: true
+  raw_secret_material_may_travel: false
+  private_keys_may_travel: false
+  refresh_tokens_may_travel: false
+  ambient_delegated_credentials_may_travel: false
+  support_export_posture: metadata_only
+  automation_export_posture: handle_alias_only
+  export_note: Automation may retain the alias and required secret class; it must not serialize the expired token or handle as credential material.
+safe_actions:
+  primary_action: renew_handle
+  fallback_actions:
+    - continue_without_credential
+    - export_support_metadata
+  escalation_action: contact_admin
+  safe_retry_allowed: true
+  escalation_note: Renew through the broker; contact the policy owner if renewal is denied by tenant policy.
+diagnostics:
+  denial_reason: secret_handle_expired
+  failure_label: secret_handle_expired
+  audit_event_refs:
+    - secret-event:handle-expired:ai-gateway
+  last_checked_at: "2026-04-29T09:10:00Z"
+  support_summary: AI gateway handle expired; alias and class are exportable, raw token material is excluded.
+policy_context:
+  identity_mode: managed_workspace
+  policy_epoch: policy-epoch:managed-ai:initial
+  trust_state: trusted
+  execution_context_id: execution-context:managed-ai-gateway
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - support_bundle
+  - ai_context_capture
+  - logs_local
+minted_at: "2026-04-29T09:10:05Z"

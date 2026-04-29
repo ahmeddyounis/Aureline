@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_state.schema.json
+__fixture__:
+  name: rebind_after_org_switch
+  scenario: >
+    The user switched org scope. The prior provider-session handle is no
+    longer authoritative for the target org, and a browser handoff
+    returned a successor alias. The row requires rebind before queued
+    managed provider work can continue.
+  contract_sections:
+    - Credential-state vocabulary
+    - Secret-access prompt contract
+    - Export, support, and automation rules
+  exercised_axes:
+    state_class: rotated
+    prompt_action_class: rebind_handle
+    origin: browser_or_device_code_handoff
+
+record_kind: credential_state_record
+credential_state_schema_version: 1
+credential_state_id: credential-state:provider:org-switch-rebind
+state_class: rotated
+display_label: Credential rebind required
+subject:
+  target_class: provider_connector
+  target_ref: provider-connector:work-items
+  target_label: Work item provider connector
+  secret_class: provider_session
+  scope_ref: tenant:managed:target-org
+  scope_label: Target managed org
+  audience_label: Provider sync and publish actions
+authority:
+  storage_mode_class: handle_only
+  store_source_class: browser_device_code_handoff
+  credential_origin_class: browser_or_device_code_handoff
+  authority_ref: credential-authority:provider:target-org
+  alias_ref: credential-alias:provider-session:target-org
+  handle_ref: credential-handle:provider-session:successor
+  source_label: System-browser handoff successor handle
+  delegated_credential_ref: null
+  policy_owner_ref: policy-owner:identity-platform
+  browser_handoff_ref: browser-handoff:org-switch:target-org
+  raw_secret_material_present: false
+storage:
+  trust_store_class: null
+  unlock_state: null
+  store_capability_ref: store-capability:browser-device-code-handoff
+  store_verification_state: verified_available
+  session_only_downgrade_visible: false
+  supports_persistent_long_lived: false
+  plaintext_fallback_allowed: false
+  storage_note: The successor handle is bound to the target org; old-org handles must not be reused.
+lifetime:
+  lifetime_class: time_bounded
+  issued_at: "2026-04-29T09:22:00Z"
+  expires_at: "2026-04-29T10:22:00Z"
+  refresh_after: "2026-04-29T10:15:00Z"
+  revocation_path_label: Revoke target-org provider session
+  lifetime_note: Provider sync must rebind queued work to the successor handle before it can resume.
+projection_mode: token_exchange
+capability_implications:
+  can_read_secret: true
+  can_write_secret: false
+  can_rebind_handle: true
+  can_import_credential: false
+  can_unlock_store: false
+  can_use_existing_handle: true
+  can_project_raw_material: false
+  local_work_continues: true
+  retained_capabilities:
+    - Continue local edits and local task work.
+    - Inspect provider items from cached metadata.
+    - Export rebind metadata without provider tokens.
+  blocked_capabilities:
+    - Publish queued provider updates under the old org handle.
+    - Sync provider mutations until the target-org handle is rebound.
+  capability_note: The successor handle exists, but affected workflows must be rebound to the target org scope.
+prompt_policy:
+  prompt_required: true
+  prompt_action_classes:
+    - rebind_handle
+  prompt_ref: secret-prompt:provider-org-switch-rebind
+  prompt_reason: Rebind queued provider work to the target-org successor handle before publishing.
+  handle_only_path_available: true
+export_rules:
+  handles_aliases_source_labels_may_travel: true
+  raw_secret_material_may_travel: false
+  private_keys_may_travel: false
+  refresh_tokens_may_travel: false
+  ambient_delegated_credentials_may_travel: false
+  support_export_posture: metadata_only
+  automation_export_posture: handle_alias_only
+  export_note: Export may include old/new alias refs and handoff refs; it never includes provider session tokens.
+safe_actions:
+  primary_action: rebind_handle
+  fallback_actions:
+    - continue_without_credential
+    - export_support_metadata
+  escalation_action: contact_admin
+  safe_retry_allowed: true
+  escalation_note: Rebind to the successor handle; contact identity admins if target-org policy rejects the handoff.
+diagnostics:
+  denial_reason: secret_handle_revoked
+  failure_label: old_scope_handle_invalidated
+  audit_event_refs:
+    - secret-event:handle-revoked:old-org
+    - secret-event:handle-issued:target-org-successor
+  last_checked_at: "2026-04-29T09:22:10Z"
+  support_summary: Org switch invalidated old-scope provider authority and produced a successor handle that must be rebound.
+policy_context:
+  identity_mode: managed_workspace
+  policy_epoch: policy-epoch:identity:target-org
+  trust_state: trusted
+  execution_context_id: execution-context:provider-org-switch
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - support_bundle
+  - profile_export
+  - logs_local
+minted_at: "2026-04-29T09:22:15Z"

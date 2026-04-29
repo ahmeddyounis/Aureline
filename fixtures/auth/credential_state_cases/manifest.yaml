@@ -1,0 +1,81 @@
+schema_version: 1
+contract_ref: docs/auth/credential_state_and_secret_prompt_contract.md
+credential_state_schema_ref: schemas/auth/credential_state.schema.json
+secret_access_prompt_schema_ref: schemas/auth/secret_access_prompt.schema.json
+
+rules:
+  - Every credential-state fixture carries one credential_state_record.
+  - Store-capability rows are reusable by auth, registry, remote, provider, request-workspace, and support surfaces.
+  - Raw secret material, private keys, refresh tokens, OAuth codes, PKCE verifiers, request headers, and ambient delegated credentials never appear.
+  - Handles, aliases, source labels, store classes, expiry posture, denial reasons, and audit refs may travel only where the row says they may.
+  - Secure-store downgrade to session-only auth is visible and never writes long-lived plaintext material.
+
+store_capability_rows:
+  - store_source_class: os_keychain
+    fixture: store_capability_matrix.yaml
+  - store_source_class: enterprise_vault_adapter
+    fixture: store_capability_matrix.yaml
+  - store_source_class: agent_socket
+    fixture: store_capability_matrix.yaml
+  - store_source_class: file_backed_secret_ref
+    fixture: store_capability_matrix.yaml
+  - store_source_class: remote_session_scoped_handle
+    fixture: store_capability_matrix.yaml
+  - store_source_class: hardware_backed_or_passkey_adjacent
+    fixture: store_capability_matrix.yaml
+  - store_source_class: managed_policy_injector
+    fixture: store_capability_matrix.yaml
+  - store_source_class: browser_device_code_handoff
+    fixture: store_capability_matrix.yaml
+  - store_source_class: no_secure_store
+    fixture: store_capability_matrix.yaml
+
+cases:
+  - fixture: locked_keychain_on_launch.yaml
+    state_class: locked
+    covers:
+      - locked_keychain_on_launch
+      - unlock_store_prompt_path
+      - local_continuity
+  - fixture: expired_token_handle.yaml
+    state_class: expired
+    covers:
+      - expired_token_handle
+      - renew_without_raw_token
+      - handle_only_export
+  - fixture: policy_blocked_registry_auth.yaml
+    state_class: policy_blocked
+    covers:
+      - policy_blocked_registry_auth
+      - policy_detail_escalation
+      - cached_read_only_fallback
+  - fixture: remote_credential_missing.yaml
+    state_class: absent
+    covers:
+      - remote_credential_missing
+      - local_work_continuity
+      - browser_handoff_or_import_repair
+  - fixture: rebind_after_org_switch.yaml
+    state_class: rotated
+    covers:
+      - rebind_after_org_switch
+      - successor_handle_required
+      - old_scope_invalidated
+  - fixture: delegated_credential_remote_attach.yaml
+    state_class: available
+    covers:
+      - delegated_credential_row
+      - service_issued_delegated_identity
+      - scoped_revocation_path
+  - fixture: browser_device_code_handoff.yaml
+    state_class: handle_only
+    covers:
+      - browser_device_code_handoff_row
+      - device_code_as_acquisition_path
+      - no_embedded_password_default
+  - fixture: secure_store_downgrade_session_only.yaml
+    state_class: store_unavailable
+    covers:
+      - secure_store_downgrade_to_session_only
+      - no_plaintext_fallback
+      - visible_reprompt_on_restart

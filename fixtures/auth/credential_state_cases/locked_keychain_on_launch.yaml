@@ -1,0 +1,118 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_state.schema.json
+__fixture__:
+  name: locked_keychain_on_launch
+  scenario: >
+    The host OS keychain is present but locked during launch. Aureline
+    can show the saved provider-session alias and local-continuity
+    options, but cannot resolve the handle until the user unlocks the
+    store. No raw token appears in UI, logs, or support export.
+  contract_sections:
+    - Credential-state vocabulary
+    - Store-capability matrix
+    - Export, support, and automation rules
+  exercised_axes:
+    state_class: locked
+    store_source_class: os_keychain
+    prompt_action_class: unlock_store
+
+record_kind: credential_state_record
+credential_state_schema_version: 1
+credential_state_id: credential-state:auth:os-keychain-locked-launch
+state_class: locked
+display_label: OS keychain locked
+subject:
+  target_class: auth_flow
+  target_ref: auth-flow:saved-provider-session
+  target_label: Saved provider session
+  secret_class: provider_session
+  scope_ref: workspace:local:launch
+  scope_label: Current local workspace
+  audience_label: Managed sign-in refresh
+authority:
+  storage_mode_class: system_credential_store
+  store_source_class: os_keychain
+  credential_origin_class: local_secret_handle
+  authority_ref: credential-authority:os-keychain:login
+  alias_ref: credential-alias:provider-session:default
+  handle_ref: credential-handle:provider-session:default
+  source_label: OS keychain item
+  delegated_credential_ref: null
+  policy_owner_ref: null
+  browser_handoff_ref: null
+  raw_secret_material_present: false
+storage:
+  trust_store_class: os_keychain
+  unlock_state: locked
+  store_capability_ref: store-capability:os-keychain
+  store_verification_state: locked_waiting_for_unlock
+  session_only_downgrade_visible: false
+  supports_persistent_long_lived: true
+  plaintext_fallback_allowed: false
+  storage_note: The keychain exists but is locked; credential resolution waits for the platform unlock path.
+lifetime:
+  lifetime_class: persistent_until_revoked
+  issued_at: null
+  expires_at: null
+  refresh_after: null
+  revocation_path_label: Remove saved provider session
+  lifetime_note: The stored provider-session alias remains present, but the handle cannot be resolved while the keychain is locked.
+projection_mode: inspect_metadata
+capability_implications:
+  can_read_secret: false
+  can_write_secret: false
+  can_rebind_handle: false
+  can_import_credential: false
+  can_unlock_store: true
+  can_use_existing_handle: false
+  can_project_raw_material: false
+  local_work_continues: true
+  retained_capabilities:
+    - Open and edit local files.
+    - Save local workspace changes.
+    - Use local Git and local tasks that do not need saved provider credentials.
+    - Export support metadata without credential values.
+  blocked_capabilities:
+    - Refresh managed provider session from the OS keychain.
+    - Use saved provider credentials for outbound managed requests.
+  capability_note: Credentialed provider actions pause; local workspace capability remains available.
+prompt_policy:
+  prompt_required: true
+  prompt_action_classes:
+    - unlock_store
+  prompt_ref: secret-prompt:unlock-os-keychain:launch
+  prompt_reason: Unlock is required before the broker can resolve the saved provider-session handle.
+  handle_only_path_available: false
+export_rules:
+  handles_aliases_source_labels_may_travel: true
+  raw_secret_material_may_travel: false
+  private_keys_may_travel: false
+  refresh_tokens_may_travel: false
+  ambient_delegated_credentials_may_travel: false
+  support_export_posture: metadata_only
+  automation_export_posture: denied_until_prompt
+  export_note: Support export may include alias, store class, unlock state, and failure code; it does not include the provider token.
+safe_actions:
+  primary_action: unlock_store
+  fallback_actions:
+    - continue_without_credential
+    - export_support_metadata
+  escalation_action: contact_admin
+  safe_retry_allowed: true
+  escalation_note: Retry after the platform unlock prompt; contact admin only if policy or platform management blocks keychain access.
+diagnostics:
+  denial_reason: trust_store_locked
+  failure_label: trust_store_locked
+  audit_event_refs:
+    - secret-event:trust-store-locked:launch
+  last_checked_at: "2026-04-29T09:05:00Z"
+  support_summary: OS keychain locked at launch; credential state is metadata-only and raw provider session material is excluded.
+policy_context:
+  identity_mode: account_free_local
+  policy_epoch: policy-epoch:auth:credential-state:initial
+  trust_state: trusted
+  execution_context_id: execution-context:local-launch
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - support_bundle
+  - logs_local
+minted_at: "2026-04-29T09:05:05Z"

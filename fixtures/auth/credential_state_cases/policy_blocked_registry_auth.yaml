@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_state.schema.json
+__fixture__:
+  name: policy_blocked_registry_auth
+  scenario: >
+    A package registry credential exists in the enterprise vault, but
+    the current policy epoch blocks registry auth for the selected
+    workspace until the org mirror policy is reviewed. Cached read-only
+    package metadata can remain available; installs and updates stay
+    blocked.
+  contract_sections:
+    - Credential-state vocabulary
+    - Store-capability matrix
+    - Export, support, and automation rules
+  exercised_axes:
+    state_class: policy_blocked
+    target_class: package_registry
+    safe_action: open_policy_detail
+
+record_kind: credential_state_record
+credential_state_schema_version: 1
+credential_state_id: credential-state:registry:policy-blocked
+state_class: policy_blocked
+display_label: Registry credential blocked by policy
+subject:
+  target_class: package_registry
+  target_ref: package-registry:enterprise-mirror
+  target_label: Enterprise package mirror
+  secret_class: package_registry_token
+  scope_ref: workspace:repo:payments
+  scope_label: Payments workspace
+  audience_label: Package install and update requests
+authority:
+  storage_mode_class: enterprise_secret_store
+  store_source_class: enterprise_vault_adapter
+  credential_origin_class: customer_managed_secret_store
+  authority_ref: credential-authority:vault:registry-mirror
+  alias_ref: credential-alias:registry:enterprise-mirror
+  handle_ref: credential-handle:registry:enterprise-mirror
+  source_label: Enterprise vault registry alias
+  delegated_credential_ref: null
+  policy_owner_ref: policy-owner:package-platform
+  browser_handoff_ref: null
+  raw_secret_material_present: false
+storage:
+  trust_store_class: enterprise_vault_adapter
+  unlock_state: unlocked
+  store_capability_ref: store-capability:enterprise-vault
+  store_verification_state: policy_blocked
+  session_only_downgrade_visible: false
+  supports_persistent_long_lived: true
+  plaintext_fallback_allowed: false
+  storage_note: The credential source is reachable, but policy denies registry projection for this workspace.
+lifetime:
+  lifetime_class: unavailable
+  issued_at: null
+  expires_at: null
+  refresh_after: null
+  revocation_path_label: Registry policy owner review
+  lifetime_note: Lifetime is unavailable while policy blocks projection.
+projection_mode: request_header_signer
+capability_implications:
+  can_read_secret: false
+  can_write_secret: false
+  can_rebind_handle: false
+  can_import_credential: false
+  can_unlock_store: false
+  can_use_existing_handle: false
+  can_project_raw_material: false
+  local_work_continues: true
+  retained_capabilities:
+    - Inspect cached package metadata.
+    - Edit and save local dependency files without applying registry changes.
+    - Export policy and credential-state metadata.
+  blocked_capabilities:
+    - Install packages from the enterprise mirror.
+    - Update lockfiles from the enterprise mirror.
+    - Send registry requests with the blocked credential.
+  capability_note: Policy denial is distinct from expiry or missing credential; registry mutations remain disabled.
+prompt_policy:
+  prompt_required: false
+  prompt_action_classes: []
+  prompt_ref: null
+  prompt_reason: User prompt cannot override the current package registry policy.
+  handle_only_path_available: true
+export_rules:
+  handles_aliases_source_labels_may_travel: true
+  raw_secret_material_may_travel: false
+  private_keys_may_travel: false
+  refresh_tokens_may_travel: false
+  ambient_delegated_credentials_may_travel: false
+  support_export_posture: metadata_only
+  automation_export_posture: blocked_by_policy
+  export_note: Export may include the registry alias, policy owner, and denial reason; it never includes the registry token.
+safe_actions:
+  primary_action: open_policy_detail
+  fallback_actions:
+    - use_cached_read_only_results
+    - request_policy_exception
+    - export_support_metadata
+  escalation_action: contact_admin
+  safe_retry_allowed: false
+  escalation_note: Retry is unsafe until policy changes; use cached read-only metadata or request an exception from the package policy owner.
+diagnostics:
+  denial_reason: policy_denied_projection
+  failure_label: policy_denied_projection
+  audit_event_refs:
+    - secret-event:policy-denied:registry-auth
+    - package-action-event:registry-auth-policy-blocked
+  last_checked_at: "2026-04-29T09:15:00Z"
+  support_summary: Registry credential source exists, but policy blocks projection for this workspace.
+policy_context:
+  identity_mode: managed_workspace
+  policy_epoch: policy-epoch:package-platform:mirror-review
+  trust_state: trusted
+  execution_context_id: execution-context:package-registry
+surface_redaction_class: operator_only_restricted
+secret_redaction_class_refs:
+  - support_bundle
+  - recipe_manifest
+  - logs_local
+minted_at: "2026-04-29T09:15:05Z"

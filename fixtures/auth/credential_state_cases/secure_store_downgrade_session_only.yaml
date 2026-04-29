@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_state.schema.json
+__fixture__:
+  name: secure_store_downgrade_session_only
+  scenario: >
+    The secure store is unavailable on the host, so an AI provider alias
+    can run only through visible session-only broker memory. The downgrade
+    is non-persistent, reprompts after restart, and is forbidden from
+    becoming a plaintext file fallback.
+  contract_sections:
+    - Credential-state vocabulary
+    - Store-capability matrix
+    - Export, support, and automation rules
+  exercised_axes:
+    state_class: store_unavailable
+    storage_mode_class: session_only
+    unlock_state: degraded_session_only
+
+record_kind: credential_state_record
+credential_state_schema_version: 1
+credential_state_id: credential-state:ai-provider:session-only-downgrade
+state_class: store_unavailable
+display_label: Secure store unavailable; session-only credential in use
+subject:
+  target_class: ai_gateway
+  target_ref: ai-provider:local-byok
+  target_label: Local BYOK AI provider
+  secret_class: ai_provider_token
+  scope_ref: workspace:local:byok
+  scope_label: Current local workspace
+  audience_label: Local AI provider requests
+authority:
+  storage_mode_class: session_only
+  store_source_class: no_secure_store
+  credential_origin_class: local_secret_handle
+  authority_ref: credential-authority:session-memory:ai-provider
+  alias_ref: credential-alias:ai-provider:session-only
+  handle_ref: credential-handle:ai-provider:session-only
+  source_label: Session-only broker memory
+  delegated_credential_ref: null
+  policy_owner_ref: null
+  browser_handoff_ref: null
+  raw_secret_material_present: false
+storage:
+  trust_store_class: session_memory_cache
+  unlock_state: degraded_session_only
+  store_capability_ref: store-capability:no-secure-store
+  store_verification_state: degraded_session_only
+  session_only_downgrade_visible: true
+  supports_persistent_long_lived: false
+  plaintext_fallback_allowed: false
+  storage_note: OS keychain is unavailable; the broker holds material in memory only for this process and requires re-prompt after restart.
+lifetime:
+  lifetime_class: session_only
+  issued_at: "2026-04-29T09:35:00Z"
+  expires_at: null
+  refresh_after: null
+  revocation_path_label: Clear session-only credential
+  lifetime_note: The credential expires on process exit, policy epoch roll, trust downgrade, or explicit user lock.
+projection_mode: broker_callback
+capability_implications:
+  can_read_secret: true
+  can_write_secret: false
+  can_rebind_handle: false
+  can_import_credential: true
+  can_unlock_store: false
+  can_use_existing_handle: true
+  can_project_raw_material: false
+  local_work_continues: true
+  retained_capabilities:
+    - Use the AI provider for the current process session where policy allows.
+    - Continue local editing and local tasks.
+    - Export downgrade metadata for support.
+  blocked_capabilities:
+    - Persist the AI provider token across restart.
+    - Write the token to workspace files, profiles, recipes, or support bundles.
+  capability_note: The credential is usable only for this process session and remains visibly downgraded.
+prompt_policy:
+  prompt_required: true
+  prompt_action_classes:
+    - import_credential
+  prompt_ref: secret-prompt:ai-provider:session-only-reprompt
+  prompt_reason: A secure persistent store is unavailable; re-prompt is required on next process start.
+  handle_only_path_available: true
+export_rules:
+  handles_aliases_source_labels_may_travel: true
+  raw_secret_material_may_travel: false
+  private_keys_may_travel: false
+  refresh_tokens_may_travel: false
+  ambient_delegated_credentials_may_travel: false
+  support_export_posture: metadata_only
+  automation_export_posture: denied_until_prompt
+  export_note: Export may include the session-only downgrade state and alias; it never includes the AI provider token.
+safe_actions:
+  primary_action: retry_after_store_recovery
+  fallback_actions:
+    - continue_without_credential
+    - import_credential
+    - export_support_metadata
+  escalation_action: contact_admin
+  safe_retry_allowed: true
+  escalation_note: Recover the secure store for persistence; session-only fallback is memory-only and cannot be promoted to a plaintext file.
+diagnostics:
+  denial_reason: trust_store_unavailable
+  failure_label: secure_store_unavailable_session_only
+  audit_event_refs:
+    - secret-event:trust-store-degraded:ai-provider
+  last_checked_at: "2026-04-29T09:35:05Z"
+  support_summary: Secure store unavailable; session-only broker memory is active and raw AI provider token material is excluded.
+policy_context:
+  identity_mode: account_free_local
+  policy_epoch: policy-epoch:local-byok:initial
+  trust_state: trusted
+  execution_context_id: execution-context:local-ai-provider
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - support_bundle
+  - ai_context_capture
+  - logs_local
+minted_at: "2026-04-29T09:35:10Z"
