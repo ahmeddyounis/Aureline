@@ -1,0 +1,788 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/clone_review.schema.json",
+  "title": "Aureline clone-review, destination-collision, and post-clone trust-stage records",
+  "description": "Boundary schema for the three records frozen in docs/ux/clone_review_contract.md. (1) The clone_review_record is emitted by every clone activation BEFORE bytes land; it carries the eight required disclosure axes (normalized remote URL, host / certificate posture, auth mode, branch / ref posture, clone depth, LFS state, submodule state, destination), the resolved next_step_choice_class, and the staging-durability disclosure. (2) The destination_collision_sheet_record is emitted whenever the chosen destination resolves to a non-no_collision class; it carries the closed destination_collision_class set, the closed safe-action set, and the temp-directory / explicit-overwrite invariants. (3) The post_clone_trust_stage_record is emitted AFTER bytes land and BEFORE any post-clone side effect; it carries the four 'no implicit grant' booleans (trust grant, dependency restore, extension recommendation, hook / task execution must all be false), the materialization_class / materialization_durability, and the safest_next_action that gates every reviewed step after clone. The contract mints no new entry-verb, target-kind, resulting-mode, trust-state, admission-class, restore-level, missing-target-state, recovery-class, next-step-decision-hook, locator-class, transport-class, auth-mode-class, signer-continuity-class, declared-freshness-class, destination-disposition, collision-class, or fallback-action-class value; those re-export from the upstream entry-restore object model, the source-locator schema, and the open-flow sheet schema. Adding a new certificate_class, branch_or_ref_class, clone_depth_class, partial_filter_class, lfs_class, submodule_class, next_step_choice_class, staging_class, destination_collision_class, safe_action_class, materialization_class, materialization_durability, or safest_next_action is additive-minor and bumps the corresponding *_schema_version; repurposing an existing value, weakening any §3.6 / §4.4 / §5.5 invariant, or relaxing the four 'no implicit grant' booleans is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/clone_review_record" },
+    { "$ref": "#/$defs/destination_collision_sheet_record" },
+    { "$ref": "#/$defs/post_clone_trust_stage_record" }
+  ],
+  "$defs": {
+    "clone_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the clone-review payload shape. Current value is 1."
+    },
+
+    "destination_collision_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the destination-collision-sheet payload shape. Current value is 1."
+    },
+
+    "post_clone_trust_stage_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the post-clone trust-stage payload shape. Current value is 1."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs with embedded credentials, and raw artifact bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__."
+    },
+
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "ssh_agent",
+        "pat_handle",
+        "oauth_handle",
+        "device_code_handle",
+        "managed_session_ticket",
+        "connected_provider_ticket",
+        "anonymous",
+        "inherit_local_identity",
+        "none",
+        "other"
+      ],
+      "description": "Re-export of auth_mode_class from /schemas/workspace/source_locator.schema.json. Typed handle class only; raw credentials never cross this boundary."
+    },
+
+    "host_class": {
+      "type": "string",
+      "enum": [
+        "local_desktop",
+        "remote_host",
+        "container_devcontainer",
+        "managed_workspace",
+        "browser_runtime_bridge",
+        "service_plane"
+      ],
+      "description": "Re-export of host_class from /schemas/contexts/host_identity_chip.schema.json."
+    },
+
+    "declared_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ],
+      "description": "Re-export of declared_freshness_class. A clone review that hides mirror_lagged or mirror_stale is non-conforming."
+    },
+
+    "destination_disposition": {
+      "type": "string",
+      "enum": [
+        "no_write",
+        "write_to_labelled_staging",
+        "write_to_user_destination",
+        "write_to_durable_workspace",
+        "write_to_admin_owned_root"
+      ],
+      "description": "Re-export of destination_disposition from /schemas/ux/open_flow_sheet.schema.json."
+    },
+
+    "collision_class": {
+      "type": "string",
+      "enum": [
+        "no_collision",
+        "reuse_existing",
+        "add_existing",
+        "clone_elsewhere",
+        "reveal_only",
+        "destination_blocked"
+      ],
+      "description": "Re-export of collision_class from /schemas/ux/open_flow_sheet.schema.json. Distinct from destination_collision_class (§4.2 of the clone review contract); collision_class is the open-flow sheet's coarse-grained class, destination_collision_class is the typed collision the destination-collision sheet resolves."
+    },
+
+    "next_step_decision_hook": {
+      "type": "string",
+      "enum": [
+        "continue_in_restricted_mode",
+        "review_trust_and_open",
+        "open_minimal",
+        "set_up_later",
+        "review_archetype_match",
+        "compare_before_restore",
+        "open_without_restore",
+        "safe_mode",
+        "reconnect_required",
+        "reauth_required",
+        "locate_missing_target",
+        "remove_from_recents",
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items"
+      ],
+      "description": "Re-export of next_step_decision_hook."
+    },
+
+    "fallback_action_class": {
+      "type": "string",
+      "enum": [
+        "cancel_no_change",
+        "reopen_previous_workspace",
+        "return_to_start_center",
+        "open_without_restore",
+        "compare_before_restore",
+        "continue_in_restricted_mode",
+        "open_in_safe_mode",
+        "open_minimal",
+        "inspect_only",
+        "review_migration_report",
+        "roll_back_import",
+        "remove_from_recents",
+        "locate_missing_target",
+        "set_up_later"
+      ],
+      "description": "Re-export of fallback_action_class from /schemas/ux/open_flow_sheet.schema.json."
+    },
+
+    "checkpoint_linked_recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_rollback_from_checkpoint",
+        "compensating_rollback",
+        "regenerate_from_canonical_source",
+        "restore_from_session_checkpoint",
+        "restore_from_migration_checkpoint",
+        "restore_from_settings_backup",
+        "restore_from_recovery_journal",
+        "restore_from_local_history_snapshot",
+        "manual_recovery_required"
+      ],
+      "description": "Re-export of checkpoint_linked_recovery_class."
+    },
+
+    "certificate_class": {
+      "type": "string",
+      "enum": [
+        "trusted_chain_verified",
+        "pinned_chain_verified",
+        "self_signed_user_pinned",
+        "self_signed_user_review_required",
+        "certificate_unknown_authority",
+        "certificate_expired",
+        "certificate_invalid",
+        "certificate_not_evaluated"
+      ],
+      "description": "Closed certificate-posture set the clone review reads. See clone_review_contract.md §3.5.1."
+    },
+
+    "branch_or_ref_class": {
+      "type": "string",
+      "enum": [
+        "default_branch",
+        "named_branch",
+        "named_tag",
+        "commit_sha",
+        "named_ref_pinned",
+        "ref_undeclared"
+      ],
+      "description": "Closed branch / ref posture set. See clone_review_contract.md §3.5.2."
+    },
+
+    "clone_depth_class": {
+      "type": "string",
+      "enum": [
+        "full_history",
+        "shallow_n_commits",
+        "partial_clone_filtered",
+        "sparse_checkout",
+        "single_branch_only",
+        "mixed_strategy"
+      ],
+      "description": "Closed clone-depth set. See clone_review_contract.md §3.5.3."
+    },
+
+    "partial_filter_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "blob_none",
+        "blob_size_limit",
+        "tree_zero",
+        "custom"
+      ],
+      "description": "Closed partial-filter set. See clone_review_contract.md §3.5.4."
+    },
+
+    "lfs_class": {
+      "type": "string",
+      "enum": [
+        "no_lfs_required",
+        "lfs_pointer_only_clone",
+        "lfs_hydrate_pending",
+        "lfs_hydrate_excluded",
+        "lfs_unknown"
+      ],
+      "description": "Closed LFS-state set. See clone_review_contract.md §3.5.5."
+    },
+
+    "submodule_class": {
+      "type": "string",
+      "enum": [
+        "no_submodules",
+        "submodule_init_pending",
+        "submodule_init_partial",
+        "submodule_init_complete",
+        "submodule_init_skipped",
+        "submodule_init_blocked"
+      ],
+      "description": "Closed submodule-state set. See clone_review_contract.md §3.5.6."
+    },
+
+    "next_step_choice_class": {
+      "type": "string",
+      "enum": [
+        "clone_only",
+        "clone_and_review",
+        "clone_and_open",
+        "clone_and_add"
+      ],
+      "description": "Closed next-step choice set. Each value pairs with one resulting_mode from the clone row of the project-entry verb matrix. See clone_review_contract.md §3.3."
+    },
+
+    "staging_class": {
+      "type": "string",
+      "enum": [
+        "non_durable_staging",
+        "durable_destination_direct",
+        "no_write"
+      ],
+      "description": "Closed staging-class set. non_durable_staging requires staging_label and non_durable_label_visible = true. See clone_review_contract.md §3.4."
+    },
+
+    "destination_collision_class": {
+      "type": "string",
+      "enum": [
+        "existing_path_non_empty",
+        "existing_path_empty_writable",
+        "existing_path_read_only",
+        "existing_repo_root_match",
+        "existing_repo_root_mismatch",
+        "existing_worktree_at_path",
+        "existing_workspace_file_at_path",
+        "previously_cloned_target_match",
+        "previously_cloned_target_mismatch",
+        "destination_blocked_by_policy"
+      ],
+      "description": "Closed destination-collision-class set. See clone_review_contract.md §4.2."
+    },
+
+    "safe_action_class": {
+      "type": "string",
+      "enum": [
+        "reuse_existing_repo",
+        "add_existing_to_workspace",
+        "clone_elsewhere",
+        "reveal_in_filesystem",
+        "cancel_no_change",
+        "inspect_only",
+        "request_admin_help",
+        "locate_missing_target",
+        "return_to_start_center"
+      ],
+      "description": "Closed safe-action set the destination-collision sheet may expose. See clone_review_contract.md §4.3."
+    },
+
+    "materialization_class": {
+      "type": "string",
+      "enum": [
+        "bytes_in_non_durable_staging",
+        "bytes_in_user_destination_pending_review",
+        "bytes_in_durable_workspace",
+        "materialization_failed"
+      ],
+      "description": "Closed materialization-class set. See clone_review_contract.md §5.2."
+    },
+
+    "materialization_durability": {
+      "type": "string",
+      "enum": [
+        "non_durable_until_open",
+        "durable_after_review",
+        "durable_after_user_choice"
+      ],
+      "description": "Closed materialization-durability set. See clone_review_contract.md §5.3."
+    },
+
+    "safest_next_action": {
+      "type": "string",
+      "enum": [
+        "review_trust_and_open",
+        "compare_before_open",
+        "inspect_only",
+        "set_up_later",
+        "open_minimal",
+        "return_to_start_center",
+        "roll_back_clone"
+      ],
+      "description": "Closed safest-next-action set. See clone_review_contract.md §5.4."
+    },
+
+    "normalized_remote_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normalized_remote_url_label", "source_locator_ref", "freshness_class", "summary"],
+      "properties": {
+        "normalized_remote_url_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_or_proxy_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "upstream_origin_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "freshness_class": { "$ref": "#/$defs/declared_freshness_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.1."
+    },
+
+    "host_posture_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_label", "host_class", "certificate_class", "summary"],
+      "properties": {
+        "host_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "certificate_class": { "$ref": "#/$defs/certificate_class" },
+        "host_identity_chip_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.2."
+    },
+
+    "auth_mode_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["auth_mode_class", "browser_handoff_required", "summary"],
+      "properties": {
+        "auth_mode_class": { "$ref": "#/$defs/auth_mode_class" },
+        "credential_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "browser_handoff_required": { "type": "boolean" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.3."
+    },
+
+    "branch_or_ref_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch_or_ref_class", "summary"],
+      "properties": {
+        "branch_or_ref_class": { "$ref": "#/$defs/branch_or_ref_class" },
+        "branch_or_ref_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.4."
+    },
+
+    "clone_depth_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clone_depth_class", "single_branch_only", "summary"],
+      "properties": {
+        "clone_depth_class": { "$ref": "#/$defs/clone_depth_class" },
+        "shallow_depth_n": { "type": "integer", "minimum": 1 },
+        "partial_filter_class": { "$ref": "#/$defs/partial_filter_class" },
+        "single_branch_only": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "clone_depth_class": { "const": "shallow_n_commits" } },
+            "required": ["clone_depth_class"]
+          },
+          "then": { "required": ["shallow_depth_n"] }
+        },
+        {
+          "if": {
+            "properties": { "clone_depth_class": { "const": "partial_clone_filtered" } },
+            "required": ["clone_depth_class"]
+          },
+          "then": { "required": ["partial_filter_class"] }
+        }
+      ],
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.5."
+    },
+
+    "lfs_state_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lfs_class", "summary"],
+      "properties": {
+        "lfs_class": { "$ref": "#/$defs/lfs_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.6."
+    },
+
+    "submodule_state_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["submodule_class", "summary"],
+      "properties": {
+        "submodule_class": { "$ref": "#/$defs/submodule_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.7."
+    },
+
+    "destination_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["destination_path_label", "destination_disposition", "collision_class", "summary"],
+      "properties": {
+        "destination_path_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "destination_disposition": { "$ref": "#/$defs/destination_disposition" },
+        "collision_class": { "$ref": "#/$defs/collision_class" },
+        "destination_collision_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "staging_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "collision_class": {
+                "enum": [
+                  "reuse_existing",
+                  "add_existing",
+                  "clone_elsewhere",
+                  "reveal_only",
+                  "destination_blocked"
+                ]
+              }
+            },
+            "required": ["collision_class"]
+          },
+          "then": { "required": ["destination_collision_sheet_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "destination_disposition": { "const": "write_to_labelled_staging" } },
+            "required": ["destination_disposition"]
+          },
+          "then": { "required": ["staging_label"] }
+        }
+      ],
+      "description": "Required on every clone review. See clone_review_contract.md §3.2.8."
+    },
+
+    "staging_durability_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["staging_class", "non_durable_label_visible", "durable_promotion_requires_review", "summary"],
+      "properties": {
+        "staging_class": { "$ref": "#/$defs/staging_class" },
+        "non_durable_label_visible": { "type": "boolean" },
+        "durable_promotion_requires_review": { "type": "boolean" },
+        "staging_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "staging_class": { "const": "non_durable_staging" } },
+            "required": ["staging_class"]
+          },
+          "then": {
+            "required": ["staging_label"],
+            "properties": {
+              "non_durable_label_visible": { "const": true },
+              "durable_promotion_requires_review": { "const": true }
+            }
+          }
+        }
+      ],
+      "description": "Required on every clone review. See clone_review_contract.md §3.4."
+    },
+
+    "clone_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "clone_review_schema_version",
+        "clone_review_id",
+        "entry_chooser_row_ref",
+        "open_flow_sheet_ref",
+        "source_locator_ref",
+        "normalized_remote_disclosure",
+        "host_posture_disclosure",
+        "auth_mode_disclosure",
+        "branch_or_ref_disclosure",
+        "clone_depth_disclosure",
+        "lfs_state_disclosure",
+        "submodule_state_disclosure",
+        "destination_disclosure",
+        "next_step_choice_class",
+        "staging_durability_disclosure",
+        "post_clone_trust_stage_ref",
+        "fallback_actions",
+        "next_step_decision_hooks",
+        "presentation_label",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "clone_review_record" },
+        "clone_review_schema_version": { "$ref": "#/$defs/clone_review_schema_version" },
+        "clone_review_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_chooser_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "open_flow_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkout_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_identity_chip_ref": { "$ref": "#/$defs/opaque_id" },
+        "normalized_remote_disclosure": { "$ref": "#/$defs/normalized_remote_disclosure" },
+        "host_posture_disclosure": { "$ref": "#/$defs/host_posture_disclosure" },
+        "auth_mode_disclosure": { "$ref": "#/$defs/auth_mode_disclosure" },
+        "branch_or_ref_disclosure": { "$ref": "#/$defs/branch_or_ref_disclosure" },
+        "clone_depth_disclosure": { "$ref": "#/$defs/clone_depth_disclosure" },
+        "lfs_state_disclosure": { "$ref": "#/$defs/lfs_state_disclosure" },
+        "submodule_state_disclosure": { "$ref": "#/$defs/submodule_state_disclosure" },
+        "destination_disclosure": { "$ref": "#/$defs/destination_disclosure" },
+        "next_step_choice_class": { "$ref": "#/$defs/next_step_choice_class" },
+        "staging_durability_disclosure": { "$ref": "#/$defs/staging_durability_disclosure" },
+        "post_clone_trust_stage_ref": { "$ref": "#/$defs/opaque_id" },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action_class" },
+          "uniqueItems": true
+        },
+        "next_step_decision_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_step_decision_hook" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One clone review record. See docs/ux/clone_review_contract.md §3."
+    },
+
+    "destination_collision_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "destination_collision_schema_version",
+        "destination_collision_id",
+        "clone_review_ref",
+        "destination_path_label",
+        "destination_collision_class",
+        "safe_actions",
+        "temp_directory_disclosed",
+        "explicit_overwrite_required",
+        "summary",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "destination_collision_sheet_record" },
+        "destination_collision_schema_version": { "$ref": "#/$defs/destination_collision_schema_version" },
+        "destination_collision_id": { "$ref": "#/$defs/opaque_id" },
+        "clone_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "destination_path_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "destination_collision_class": { "$ref": "#/$defs/destination_collision_class" },
+        "safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_action_class" },
+          "uniqueItems": true
+        },
+        "temp_directory_disclosed": { "type": "boolean" },
+        "explicit_overwrite_required": { "type": "boolean" },
+        "existing_target_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "previously_cloned_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_narrowing_ref": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "destination_collision_class": { "const": "destination_blocked_by_policy" } },
+            "required": ["destination_collision_class"]
+          },
+          "then": {
+            "properties": {
+              "safe_actions": {
+                "not": { "contains": { "const": "clone_elsewhere" } }
+              }
+            },
+            "required": ["policy_narrowing_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "destination_collision_class": { "const": "existing_repo_root_match" } },
+            "required": ["destination_collision_class"]
+          },
+          "then": {
+            "properties": {
+              "safe_actions": { "contains": { "const": "reuse_existing_repo" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "destination_collision_class": { "const": "existing_workspace_file_at_path" } },
+            "required": ["destination_collision_class"]
+          },
+          "then": {
+            "properties": {
+              "safe_actions": { "contains": { "const": "add_existing_to_workspace" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "destination_collision_class": { "const": "previously_cloned_target_match" } },
+            "required": ["destination_collision_class"]
+          },
+          "then": {
+            "required": ["previously_cloned_target_ref"]
+          }
+        }
+      ],
+      "description": "One destination-collision sheet record. Emitted whenever the chosen destination resolves to a non-no_collision class. See docs/ux/clone_review_contract.md §4."
+    },
+
+    "post_clone_trust_stage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "post_clone_trust_stage_schema_version",
+        "stage_id",
+        "clone_review_ref",
+        "materialization_class",
+        "materialization_durability",
+        "trust_grant_at_clone",
+        "dependency_restore_at_clone",
+        "extension_recommendation_at_clone",
+        "hook_or_task_execution_at_clone",
+        "reviewed_step_required_to_open",
+        "safest_next_action",
+        "post_clone_actions_offered",
+        "exact_target_identity_preserved",
+        "summary",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "post_clone_trust_stage_record" },
+        "post_clone_trust_stage_schema_version": { "$ref": "#/$defs/post_clone_trust_stage_schema_version" },
+        "stage_id": { "$ref": "#/$defs/opaque_id" },
+        "clone_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "materialization_class": { "$ref": "#/$defs/materialization_class" },
+        "materialization_durability": { "$ref": "#/$defs/materialization_durability" },
+        "trust_grant_at_clone": { "type": "boolean", "const": false },
+        "dependency_restore_at_clone": { "type": "boolean", "const": false },
+        "extension_recommendation_at_clone": { "type": "boolean", "const": false },
+        "hook_or_task_execution_at_clone": { "type": "boolean", "const": false },
+        "reviewed_step_required_to_open": { "type": "boolean", "const": true },
+        "safest_next_action": { "$ref": "#/$defs/safest_next_action" },
+        "post_clone_actions_offered": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safest_next_action" },
+          "uniqueItems": true
+        },
+        "exact_target_identity_preserved": { "type": "boolean", "const": true },
+        "target_identity_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "checkpoint_linked_recovery_class": { "$ref": "#/$defs/checkpoint_linked_recovery_class" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "materialization_class": { "const": "bytes_in_non_durable_staging" } },
+            "required": ["materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "materialization_durability": { "const": "non_durable_until_open" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "materialization_class": { "const": "bytes_in_durable_workspace" } },
+            "required": ["materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "materialization_durability": {
+                "enum": ["durable_after_review", "durable_after_user_choice"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "materialization_class": { "const": "materialization_failed" } },
+            "required": ["materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "post_clone_actions_offered": {
+                "contains": { "const": "roll_back_clone" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "materialization_class": { "const": "bytes_in_user_destination_pending_review" } },
+            "required": ["materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "materialization_durability": { "const": "non_durable_until_open" }
+            }
+          }
+        }
+      ],
+      "description": "One post-clone trust-stage record. Emitted AFTER bytes land and BEFORE any post-clone side effect. See docs/ux/clone_review_contract.md §5."
+    }
+  }
+}
