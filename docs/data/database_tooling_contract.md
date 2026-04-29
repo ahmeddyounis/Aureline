@@ -17,7 +17,9 @@ vocabulary, one `truncation_reason_class` vocabulary, one
 vocabulary, one `type_coercion_state_class` vocabulary, one
 `notebook_handoff_state_class` vocabulary, one
 `statement_template_posture_class` vocabulary, one
-`replay_drift_risk_class` vocabulary, and one
+`parameter_placeholder_posture_class` vocabulary, one
+`replay_drift_risk_class` vocabulary, one
+`query_replay_mode_class` vocabulary, and one
 `retention_class` vocabulary that the desktop SQL editor, CLI
 runner, AI-tool review surface, automation run review, hosted
 review reader, support / export reader, and admin / policy
@@ -52,6 +54,11 @@ Companion artifacts:
 - [`/schemas/data/query_history_entry.schema.json`](../../schemas/data/query_history_entry.schema.json)
   — machine-readable boundary for `query_history_entry_record`
   and the matched `query_history_entry_audit_event_record`.
+- [`/docs/data/sql_query_history_contract.md`](./sql_query_history_contract.md)
+  — focused database query-history, replay-mode, and
+  literal-redaction contract.
+- [`/schemas/data/query_replay_mode.schema.json`](../../schemas/data/query_replay_mode.schema.json)
+  — machine-readable boundary for `query_replay_mode_record`.
 - [`/fixtures/data/database_cases/`](../../fixtures/data/database_cases/)
   — worked YAML fixtures covering local SQLite read-only,
   Postgres broker-handle staging read-only, production-blast
@@ -60,6 +67,10 @@ Companion artifacts:
   classification, large result-grid truncation with typed export,
   notebook handoff typed, lossy textual fallback, AI-tool
   proposed pending admit, and replay-drift refused.
+- [`/fixtures/data/query_history_cases/`](../../fixtures/data/query_history_cases/)
+  — focused SQL query-history fixtures covering embedded local,
+  remote read-only, production review-only, auth-drift block,
+  and support/export redaction paths.
 
 Upstream contracts this seed rides on:
 
@@ -455,6 +466,14 @@ A `result_grid_record` carries:
 
 ### Query-history and replay-baseline contract
 
+The focused query-history contract in
+[`/docs/data/sql_query_history_contract.md`](./sql_query_history_contract.md)
+is authoritative for replay modes, literal-redaction defaults,
+bounded retention, clear-history scopes, support/export behavior,
+and downstream history linkages. This section summarizes the
+query-history fields that compose with the rest of the database
+tooling record path.
+
 A `query_history_entry_record` carries:
 
 - `entry_source_class` — `user_authored_local`,
@@ -476,6 +495,26 @@ A `query_history_entry_record` carries:
   whether user-supplied literals are inlined in the body or
   carried through bind values; mixed posture denies share /
   export until the user resolves it.
+- `parameter_placeholder_posture_class` —
+  `no_parameters_present`, `named_placeholders_preserved`,
+  `positional_placeholders_preserved`,
+  `driver_native_placeholders_preserved`,
+  `literals_parameterized_by_history_store`,
+  `mixed_placeholders_and_inlined_literals_review_required`,
+  `placeholder_posture_unknown_requires_review`. The surface
+  paints this beside the template posture so a reviewer can tell
+  whether placeholders were captured as authored, created by the
+  history store, or mixed with literals.
+- `captured_connection` — captured connection profile ref,
+  connection class, environment class, boundary label, write
+  capability posture, engine class, engine version label,
+  auth-context fingerprint ref, and policy-epoch ref where
+  available.
+- `captured_safety` — captured `statement_safety_class`,
+  statement-safety result ref, and redaction-safe disclosure.
+- `result_size_summary` — result-size class, row-count truth,
+  returned-row bucket, byte-size bucket, truncation state, and
+  optional result-grid ref.
 - `replay_drift_risk_class` —
   `no_drift_risk_pure_read_only_metadata`,
   `low_drift_risk_pure_select_idempotent`,
@@ -484,9 +523,17 @@ A `query_history_entry_record` carries:
   `high_drift_risk_dml_or_ddl_will_re_execute`,
   `high_drift_risk_engine_or_version_changed_since_capture`,
   `high_drift_risk_connection_class_changed_since_capture`,
+  `high_drift_risk_auth_context_changed_since_capture`,
+  `high_drift_risk_policy_epoch_expired_since_capture`,
   `drift_risk_unknown_requires_review`. The surface paints this
   next to the re-run button so a reviewer sees the risk before
   re-running a captured statement.
+- `replay_mode_refs` — one or more
+  `query_replay_mode_record` refs. The replay-mode record names
+  one of `Exact rerun on same connection`,
+  `Rerun with current auth/context`, `Open for review only`, or
+  `Blocked by drift/policy` before any execution path is
+  admitted.
 - `retention_class` —
   `local_only_default_no_remote_retention` (default),
   `local_only_redactable_on_user_request`,
@@ -504,6 +551,15 @@ A `query_history_entry_record` carries:
   `literal_disclosed_with_explicit_user_opt_in` (admissible only
   when entry source is `user_authored_local`),
   `literal_handling_unknown_requires_review`.
+- `history_storage_mode_class`, `retention_limit_class`,
+  `max_retained_entries`, `max_age_days`,
+  `clear_history_scope_classes`, and
+  `support_export_behavior_class` — the bounded local-first
+  retention, clear scope, and support/export posture. Query
+  history is never an unbounded store.
+- `linkages` — refs to explain-plan views, result exports,
+  notebooks, incident workspaces, and audit packets under a copy
+  policy that defaults to refs only and no raw literals.
 - The body of the statement is kept in a per-workspace
   statement-body store and surfaced through
   `body_label_opaque_ref`; bind values are kept by reference
@@ -703,8 +759,9 @@ per-record schema version. Removing or repurposing an existing
 value is **breaking** and requires a new decision row co-signed
 by `security_trust_review` and `product_scope_review`.
 
-The narrative above and the four boundary schemas are the
+The narrative above and the database boundary schemas are the
 authoritative truth. The fixtures under
-`/fixtures/data/database_cases/` are worked examples; if a
-fixture and the schema disagree, the schema wins and the fixture
-must be updated in the same change.
+`/fixtures/data/database_cases/` and the focused query-history
+fixtures under `/fixtures/data/query_history_cases/` are worked
+examples; if a fixture and the schema disagree, the schema wins
+and the fixture must be updated in the same change.

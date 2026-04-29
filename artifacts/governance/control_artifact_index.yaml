@@ -14174,10 +14174,14 @@ artifacts:
       _format_class, six-value type_coercion_state_class, seven-
       value notebook_handoff_state_class), and one query_history
       _entry_record (nine-value entry_source_class, six-value
-      statement_template_posture_class, eight-value replay_drift
-      _risk_class, eight-value retention_class, six-value sharing
-      _posture_class, five-value redactable_literal_handling
-      _class) under allOf gates that force production_environment
+      statement_template_posture_class, seven-value parameter
+      _placeholder_posture_class, ten-value replay_drift_risk
+      _class, captured connection / safety / result-size
+      envelopes, replay-mode refs, eight-value retention_class,
+      six-value sharing_posture_class, five-value redactable
+      _literal_handling_class, storage / retention-limit /
+      clear-scope / support-export / linkage-copy classes)
+      under allOf gates that force production_environment
       to pair with a production / regulated boundary label, force
       production_blast_radius_low_read_only_replica to pair with
       read_only_capability_only and a negotiated read-only
@@ -14220,9 +14224,10 @@ artifacts:
       force captured_from_support_export sources to resolve to
       support_export_redacted_only retention with a non-
       disclosing literal-handling class, force ai_tool_proposed
-      _pending_user_admit history entries to leave last_replayed
-      _at null, force template-with-bind-values posture to cite
-      a non-null bind_value_set_label_opaque_ref, force literal
+      _pending_user_admit history entries to leave replay
+      timestamps null, force template or placeholder bind-value
+      posture to cite a non-null bind_value_set_label_opaque_ref,
+      force literal
       _inlined_no_template / mixed_template_and_inlined_literals
       _user_review_required to forbid org-share / managed-
       published sharing, and force literal_disclosed_with
@@ -14253,6 +14258,36 @@ artifacts:
       review surfaces, and dependency intelligence (vulnerability
       / advisory / freshness scoring) named explicitly out of
       scope at this revision.
+
+  - id: sql_query_history_contract
+    title: SQL query-history, replay-mode, and literal-redaction contract
+    canonical_location: docs/data/sql_query_history_contract.md
+    overview_page: docs/data/sql_query_history_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Focused database query-history contract binding every SQL
+      history, rerun, review-only, support/export, notebook,
+      incident, and audit surface to the versioned
+      query_history_entry_record and query_replay_mode_record
+      shapes. Freezes required fields for statement-template
+      posture, parameter-placeholder posture, captured connection
+      class, environment/boundary/write posture, engine/version,
+      execution origin, captured statement-safety class, result-
+      size summary, replay drift, replay-mode label, bounded
+      retention, local-first storage, clear-history scope,
+      support/export behavior, downstream link refs, and
+      redaction state. Raw SQL bodies, user-supplied literals,
+      bind values, credentials, connection strings, tenant-
+      identifying object names, row payloads, and raw explain
+      bodies are excluded by default; support/export projections
+      carry redacted templates, refs, hashes, buckets, and
+      omission markers unless an explicit reviewed local opt-in
+      path admits more.
 
   - id: connection_profile_schema
     title: Database connection-profile and audit-event boundary schema
@@ -14367,7 +14402,7 @@ artifacts:
   - id: query_history_entry_schema
     title: Database query-history entry and audit-event boundary schema
     canonical_location: schemas/data/query_history_entry.schema.json
-    overview_page: docs/data/database_tooling_contract.md
+    overview_page: docs/data/sql_query_history_contract.md
     owner_dri: "@ahmeddyounis"
     owning_lane: docs_public_truth
     review_cadence: each_change
@@ -14377,31 +14412,52 @@ artifacts:
     notes: >
       Cross-tool boundary schema for the query_history_entry
       _record and query_history_entry_audit_event_record shapes
-      frozen in docs/data/database_tooling_contract.md.
-      additionalProperties false everywhere. allOf gates force
+      frozen in docs/data/sql_query_history_contract.md and
+      composed by docs/data/database_tooling_contract.md.
+      schema_version const 2; additionalProperties false
+      everywhere. Required entry records now carry captured
+      connection class / environment / boundary / write posture /
+      engine / version / auth fingerprint / policy epoch,
+      statement-template posture, parameter-placeholder posture,
+      replay-mode refs, captured statement-safety class,
+      result-size summary, bounded retention, local-first storage,
+      clear-history scopes, support/export behavior, downstream
+      explain-plan / result-export / notebook / incident / audit
+      link refs, and redaction state. allOf gates force
       user_authored_local sources to resolve to local-only
-      retention and local_only_no_share sharing posture, force
-      captured_from_support_export sources to resolve to support
-      _export_redacted_only retention with a non-disclosing
-      literal-handling class, force ai_tool_proposed_pending
-      _user_admit to leave last_replayed_at null, force template
-      _with_named_bind_values / template_with_positional_bind
-      _values to cite a non-null bind_value_set_label_opaque_ref,
-      force literal_inlined_no_template and mixed_template_and
-      _inlined_literals_user_review_required to forbid org-share
-      / managed-published sharing, and force literal_disclosed
-      _with_explicit_user_opt_in to be admissible only on user
-      _authored_local sources. Re-exports the engine_class
-      vocabulary from connection_profile.schema.json so a
-      query-history packet validates standalone. Adding a new
-      entry_source_class, statement_template_posture_class,
-      replay_drift_risk_class, retention_class, sharing_posture
-      _class, redactable_literal_handling_class, audit_event_id,
-      or denial_reason_class value is additive-minor and bumps
-      query_history_entry_schema_version; repurposing an
-      existing value is breaking and requires a new decision row
-      co-signed by security_trust_review and product_scope
-      _review.
+      retention and local-only sharing, force support-export
+      captures to use redacted projection storage and non-
+      disclosing literal handling, force AI-proposed pending
+      entries to leave replay timestamps null, force placeholder
+      or template bind postures to cite a non-null bind-label ref,
+      forbid unmanaged sharing for literal-inlined / mixed
+      literal postures, and permit literal disclosure opt-in only
+      on user-authored local entries.
+
+  - id: query_replay_mode_schema
+    title: Database query replay-mode boundary schema
+    canonical_location: schemas/data/query_replay_mode.schema.json
+    overview_page: docs/data/sql_query_history_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Boundary schema for query_replay_mode_record. Freezes four
+      replay modes with required labels: exact_rerun_same_connection
+      / "Exact rerun on same connection",
+      rerun_with_current_auth_context / "Rerun with current auth/
+      context", open_for_review_only / "Open for review only",
+      and blocked_by_drift_or_policy / "Blocked by drift/policy".
+      allOf gates prevent false certainty by requiring exact rerun
+      to cite a same-context attestation and verified captured
+      connection/auth/engine/safety context; requiring current-
+      context rerun to cite a current-auth/context resolution and
+      user review before execution; requiring review-only mode to
+      be non-executable; and requiring blocked mode to cite a typed
+      denial reason while execute_allowed is false.
 
   - id: database_cases_fixtures
     title: Database connection-profile, statement-safety, result-grid, and query-history worked fixtures
@@ -14483,6 +14539,29 @@ artifacts:
       payloads, no raw cell values, no raw blob / LOB bytes, no
       raw active-content cell payload, no raw author identity
       strings).
+
+  - id: query_history_cases_fixtures
+    title: SQL query-history and replay-mode worked fixtures
+    canonical_location: fixtures/data/query_history_cases/
+    overview_page: docs/data/sql_query_history_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Focused YAML fixture corpus for the SQL query-history and
+      replay-mode contract. Covers an embedded local SQLite history
+      entry with bounded local retention and exact same-connection
+      replay; a remote read-only replay that must resolve current
+      auth/context and reclassify before execution; a production-
+      labeled target opened for review only; a replay blocked after
+      auth-context drift; and a support/export redaction projection
+      that carries redacted template labels, bind-label refs,
+      buckets, result/export refs, incident refs, and audit packet
+      refs without raw SQL, literals, credentials, row payloads, or
+      raw explain-plan bodies.
 
   - id: api_request_workspace_contract
     title: API request-workspace, environment-layer, and GraphQL-schema contract

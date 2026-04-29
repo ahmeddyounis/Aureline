@@ -8,6 +8,12 @@ and the schemas at
 [`/schemas/data/result_grid.schema.json`](../../../schemas/data/result_grid.schema.json),
 and
 [`/schemas/data/query_history_entry.schema.json`](../../../schemas/data/query_history_entry.schema.json).
+The focused SQL query-history and replay-mode corpus lives in
+[`/fixtures/data/query_history_cases/`](../query_history_cases/) and
+is governed by
+[`/docs/data/sql_query_history_contract.md`](../../../docs/data/sql_query_history_contract.md)
+plus
+[`/schemas/data/query_replay_mode.schema.json`](../../../schemas/data/query_replay_mode.schema.json).
 
 Every file is a single YAML document carrying a `__fixture__`
 prelude summarising the scenario, the contract sections it

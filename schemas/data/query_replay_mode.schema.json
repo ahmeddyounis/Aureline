@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/query_replay_mode.schema.json",
+  "title": "Aureline database query replay-mode boundary",
+  "description": "Boundary schema for one query_replay_mode_record frozen in docs/data/sql_query_history_contract.md. Every database surface that offers to rerun, review, export, or block a query-history entry emits this record before execution so reviewers can tell whether the action uses exact preserved context, resolves current auth and execution context, opens the statement only for review, or is blocked by drift or policy. The record carries labels, execution permission, context resolution, drift/policy state, and redaction posture only. It never carries raw statement bodies, raw literals, raw bind values, raw credentials, raw connection strings, raw object names that disclose tenant identity, or row payloads. Composes with schemas/data/query_history_entry.schema.json by bound_query_history_entry_id_ref. Adding a new replay_mode_class, execution_permission_class, connection_context_class, auth_context_class, engine_context_class, safety_context_class, drift_policy_state_class, or denial_reason_class is additive-minor and bumps query_replay_mode_schema_version; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/query_replay_mode_record" }
+  ],
+  "$defs": {
+    "query_replay_mode_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Opaque stable id safe for local history, support packets, audit packets, and export manifests. Raw URLs, hostnames, IPs, ports, users, credentials, statement text, bind values, and row data never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720,
+      "description": "Short reviewer-facing sentence safe for rerun prompts, audit packets, support exports, and CLI summaries. Raw SQL bodies, literals, bind values, row payloads, object names that disclose tenant identity, and credentials MUST NOT appear."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "replay_mode_class": {
+      "type": "string",
+      "enum": [
+        "exact_rerun_same_connection",
+        "rerun_with_current_auth_context",
+        "open_for_review_only",
+        "blocked_by_drift_or_policy"
+      ]
+    },
+
+    "replay_mode_label": {
+      "type": "string",
+      "enum": [
+        "Exact rerun on same connection",
+        "Rerun with current auth/context",
+        "Open for review only",
+        "Blocked by drift/policy"
+      ],
+      "description": "Required user-visible label. Renderers may localize the label, but machine output and fixtures use this exact English text."
+    },
+
+    "execution_permission_class": {
+      "type": "string",
+      "enum": [
+        "executable_after_context_match",
+        "executable_after_current_context_review",
+        "review_only_no_execution",
+        "execution_blocked",
+        "execution_permission_unknown_requires_review"
+      ]
+    },
+
+    "connection_context_class": {
+      "type": "string",
+      "enum": [
+        "exact_captured_connection_profile_and_session",
+        "same_connection_profile_current_auth_context",
+        "current_selected_connection_context",
+        "review_snapshot_no_connection_opened",
+        "blocked_no_admissible_connection_context",
+        "connection_context_unknown_requires_review"
+      ]
+    },
+
+    "auth_context_class": {
+      "type": "string",
+      "enum": [
+        "captured_auth_epoch_preserved",
+        "current_auth_context_will_be_resolved_before_execution",
+        "no_auth_context_review_only",
+        "auth_context_drifted_blocked",
+        "auth_context_unknown_requires_review"
+      ]
+    },
+
+    "engine_context_class": {
+      "type": "string",
+      "enum": [
+        "captured_engine_version_verified_current_match",
+        "current_engine_version_will_be_rechecked",
+        "engine_context_review_only",
+        "engine_or_version_drift_blocked",
+        "engine_context_unknown_requires_review"
+      ]
+    },
+
+    "safety_context_class": {
+      "type": "string",
+      "enum": [
+        "captured_safety_verified_same_statement_and_context",
+        "captured_safety_reused_for_display_reclassified_before_execution",
+        "safety_review_only_no_execution",
+        "safety_or_policy_blocked",
+        "safety_context_unknown_requires_review"
+      ]
+    },
+
+    "drift_policy_state_class": {
+      "type": "string",
+      "enum": [
+        "no_drift_detected_policy_allows",
+        "drift_possible_recheck_required",
+        "review_only_no_execution",
+        "auth_context_drifted_blocked",
+        "engine_or_version_drifted_blocked",
+        "connection_class_drifted_blocked",
+        "policy_epoch_expired_blocked",
+        "production_policy_review_only",
+        "retention_policy_blocks_replay",
+        "drift_policy_unknown_requires_review"
+      ]
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_context_not_available",
+        "auth_context_drifted",
+        "engine_version_drifted",
+        "connection_class_drifted",
+        "policy_epoch_expired",
+        "production_target_requires_review_only",
+        "retention_policy_blocks_replay",
+        "statement_safety_blocks_replay",
+        "workspace_trust_or_policy_blocks_replay"
+      ]
+    },
+
+    "replay_context_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connection_context_class",
+        "auth_context_class",
+        "engine_context_class",
+        "safety_context_class",
+        "context_disclosure"
+      ],
+      "properties": {
+        "connection_context_class": { "$ref": "#/$defs/connection_context_class" },
+        "auth_context_class": { "$ref": "#/$defs/auth_context_class" },
+        "engine_context_class": { "$ref": "#/$defs/engine_context_class" },
+        "safety_context_class": { "$ref": "#/$defs/safety_context_class" },
+        "context_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "query_replay_mode_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "query_replay_mode_id",
+        "bound_query_history_entry_id_ref",
+        "actor_ref",
+        "command_id_ref",
+        "replay_mode_class",
+        "replay_mode_label",
+        "execution_permission_class",
+        "replay_context",
+        "drift_policy_state_class",
+        "same_context_attestation_ref",
+        "current_auth_context_resolution_ref",
+        "blocked_denial_reason_class",
+        "pre_execution_disclosure",
+        "execute_allowed",
+        "requires_user_review_before_execution",
+        "created_at",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/query_replay_mode_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "query_replay_mode_record"
+        },
+        "query_replay_mode_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_query_history_entry_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "replay_mode_class": { "$ref": "#/$defs/replay_mode_class" },
+        "replay_mode_label": { "$ref": "#/$defs/replay_mode_label" },
+        "execution_permission_class": { "$ref": "#/$defs/execution_permission_class" },
+        "replay_context": { "$ref": "#/$defs/replay_context_envelope" },
+        "drift_policy_state_class": { "$ref": "#/$defs/drift_policy_state_class" },
+        "same_context_attestation_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "current_auth_context_resolution_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "blocked_denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason_class" }
+          ]
+        },
+        "pre_execution_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "execute_allowed": { "type": "boolean" },
+        "requires_user_review_before_execution": { "type": "boolean" },
+        "linked_audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Exact rerun must prove same connection and preserved auth/engine/safety context before it is executable.",
+          "if": {
+            "properties": {
+              "replay_mode_class": { "const": "exact_rerun_same_connection" }
+            },
+            "required": [ "replay_mode_class" ]
+          },
+          "then": {
+            "properties": {
+              "replay_mode_label": { "const": "Exact rerun on same connection" },
+              "execution_permission_class": { "const": "executable_after_context_match" },
+              "drift_policy_state_class": { "const": "no_drift_detected_policy_allows" },
+              "same_context_attestation_ref": { "not": { "type": "null" } },
+              "current_auth_context_resolution_ref": { "type": "null" },
+              "blocked_denial_reason_class": { "type": "null" },
+              "execute_allowed": { "const": true },
+              "requires_user_review_before_execution": { "const": false },
+              "replay_context": {
+                "properties": {
+                  "connection_context_class": { "const": "exact_captured_connection_profile_and_session" },
+                  "auth_context_class": { "const": "captured_auth_epoch_preserved" },
+                  "engine_context_class": { "const": "captured_engine_version_verified_current_match" },
+                  "safety_context_class": { "const": "captured_safety_verified_same_statement_and_context" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Current-context rerun must disclose that auth, engine, and safety will be re-resolved before execution.",
+          "if": {
+            "properties": {
+              "replay_mode_class": { "const": "rerun_with_current_auth_context" }
+            },
+            "required": [ "replay_mode_class" ]
+          },
+          "then": {
+            "properties": {
+              "replay_mode_label": { "const": "Rerun with current auth/context" },
+              "execution_permission_class": { "const": "executable_after_current_context_review" },
+              "drift_policy_state_class": { "const": "drift_possible_recheck_required" },
+              "same_context_attestation_ref": { "type": "null" },
+              "current_auth_context_resolution_ref": { "not": { "type": "null" } },
+              "blocked_denial_reason_class": { "type": "null" },
+              "execute_allowed": { "const": true },
+              "requires_user_review_before_execution": { "const": true },
+              "replay_context": {
+                "properties": {
+                  "connection_context_class": { "const": "same_connection_profile_current_auth_context" },
+                  "auth_context_class": { "const": "current_auth_context_will_be_resolved_before_execution" },
+                  "engine_context_class": { "const": "current_engine_version_will_be_rechecked" },
+                  "safety_context_class": { "const": "captured_safety_reused_for_display_reclassified_before_execution" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Review-only mode opens the query for inspection without an executable database context.",
+          "if": {
+            "properties": {
+              "replay_mode_class": { "const": "open_for_review_only" }
+            },
+            "required": [ "replay_mode_class" ]
+          },
+          "then": {
+            "properties": {
+              "replay_mode_label": { "const": "Open for review only" },
+              "execution_permission_class": { "const": "review_only_no_execution" },
+              "drift_policy_state_class": {
+                "enum": [
+                  "review_only_no_execution",
+                  "production_policy_review_only"
+                ]
+              },
+              "same_context_attestation_ref": { "type": "null" },
+              "current_auth_context_resolution_ref": { "type": "null" },
+              "blocked_denial_reason_class": { "type": "null" },
+              "execute_allowed": { "const": false },
+              "requires_user_review_before_execution": { "const": false },
+              "replay_context": {
+                "properties": {
+                  "connection_context_class": { "const": "review_snapshot_no_connection_opened" },
+                  "auth_context_class": { "const": "no_auth_context_review_only" },
+                  "engine_context_class": { "const": "engine_context_review_only" },
+                  "safety_context_class": { "const": "safety_review_only_no_execution" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocked replay cannot be executable and must cite a typed denial reason.",
+          "if": {
+            "properties": {
+              "replay_mode_class": { "const": "blocked_by_drift_or_policy" }
+            },
+            "required": [ "replay_mode_class" ]
+          },
+          "then": {
+            "properties": {
+              "replay_mode_label": { "const": "Blocked by drift/policy" },
+              "execution_permission_class": { "const": "execution_blocked" },
+              "drift_policy_state_class": {
+                "not": {
+                  "enum": [
+                    "no_drift_detected_policy_allows",
+                    "drift_possible_recheck_required",
+                    "review_only_no_execution",
+                    "production_policy_review_only"
+                  ]
+                }
+              },
+              "same_context_attestation_ref": { "type": "null" },
+              "execute_allowed": { "const": false },
+              "requires_user_review_before_execution": { "const": true },
+              "blocked_denial_reason_class": { "not": { "type": "null" } },
+              "replay_context": {
+                "properties": {
+                  "connection_context_class": { "const": "blocked_no_admissible_connection_context" },
+                  "safety_context_class": { "const": "safety_or_policy_blocked" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
