@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/snapshot_acceptance_review.schema.json",
+  "title": "Aureline snapshot and golden acceptance review record",
+  "description": "Boundary schema for the snapshot_acceptance_review_record frozen in docs/testing/test_intelligence_and_acceptance_contract.md. The record preserves baseline identity, render mode, raw/text fallback posture, environment scope, artifact inventory, accept/reject granularity, per-artifact decisions, and rollback/local-history linkage for snapshot and golden updates. Snapshot bytes remain on the artifact rail; this record carries refs, counts, class labels, bounded summaries, and timestamps only. Raw command lines, raw stdout or stderr bytes, raw environment bodies, raw absolute paths, raw URLs, raw secret values, raw test names, raw assertion bodies, raw source excerpts, raw snapshot bytes, raw provider payloads, and raw stack traces MUST NOT cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/snapshot_acceptance_review_record" }
+  ],
+  "$defs": {
+    "snapshot_acceptance_review_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["snapshot_acceptance_review_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, support bundles, release packets, and review exports."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another governed record."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 520,
+      "description": "Short reviewable sentence. Raw code, raw paths, raw secrets, raw tool arguments, raw test names, raw provider payloads, raw snapshot bytes, and raw runner payloads are forbidden."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "baseline_identity_class": {
+      "type": "string",
+      "enum": [
+        "workspace_authoritative_baseline",
+        "vcs_committed_baseline",
+        "managed_workspace_baseline",
+        "provider_imported_baseline",
+        "no_prior_baseline_first_capture",
+        "baseline_identity_unknown_requires_review"
+      ]
+    },
+    "render_mode_class": {
+      "type": "string",
+      "enum": [
+        "rendered_structured_diff",
+        "rendered_pixel_or_perceptual_diff",
+        "rendered_text_diff",
+        "mixed_rendered_and_text_fallback",
+        "raw_fallback_only",
+        "render_unavailable_policy_blocked",
+        "render_mode_unknown_requires_review"
+      ],
+      "description": "Closed render-mode vocabulary. Raw fallback is a degraded review mode and must not be rendered as a fully structured review."
+    },
+    "fallback_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_needed_render_available",
+        "structured_renderer_unavailable",
+        "binary_or_image_renderer_unavailable",
+        "redaction_limited",
+        "policy_blocked",
+        "serializer_unknown",
+        "text_projection_available_only",
+        "raw_fallback_required",
+        "fallback_reason_unknown_requires_review"
+      ]
+    },
+    "environment_scope_class": {
+      "type": "string",
+      "enum": [
+        "local_environment",
+        "container_environment",
+        "remote_environment",
+        "managed_environment",
+        "provider_backed_environment",
+        "cross_platform_matrix",
+        "environment_scope_unknown_requires_review"
+      ]
+    },
+    "acceptance_granularity_class": {
+      "type": "string",
+      "enum": [
+        "whole_review",
+        "artifact_group",
+        "individual_artifact",
+        "environment_slice",
+        "selector_slice",
+        "granularity_unknown_requires_review"
+      ],
+      "description": "Closed granularity vocabulary. whole_review is allowed only when counts prove no blocked or unreviewable artifacts remain."
+    },
+    "artifact_change_class": {
+      "type": "string",
+      "enum": [
+        "artifact_added_no_prior_baseline",
+        "artifact_removed_no_replacement",
+        "artifact_updated_minor",
+        "artifact_updated_major",
+        "artifact_updated_redaction_only",
+        "artifact_unchanged_review_no_op",
+        "artifact_unreviewable_redaction_limited",
+        "artifact_change_unknown_requires_review"
+      ]
+    },
+    "artifact_decision_class": {
+      "type": "string",
+      "enum": [
+        "decision_pending_review",
+        "accepted_for_apply",
+        "rejected_keep_prior_baseline",
+        "blocked_under_policy",
+        "blocked_unreviewable",
+        "rollback_requested",
+        "exported_only_no_apply",
+        "artifact_decision_unknown_requires_review"
+      ]
+    },
+    "review_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_user_review",
+        "partially_accepted",
+        "accepted_ready_to_apply",
+        "applied",
+        "rejected",
+        "blocked",
+        "rolled_back",
+        "review_state_unknown_requires_review"
+      ]
+    },
+    "rollback_availability_class": {
+      "type": "string",
+      "enum": [
+        "available_local_history",
+        "available_vcs",
+        "available_managed_workspace",
+        "not_applicable_first_capture",
+        "missing_blocks_apply",
+        "rollback_availability_unknown_requires_review"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "snapshot_acceptance_review_must_cite_baseline_identity",
+        "snapshot_acceptance_review_must_cite_baseline_and_proposed_artifacts",
+        "snapshot_acceptance_review_must_carry_render_mode",
+        "snapshot_acceptance_review_must_disclose_raw_or_text_fallback",
+        "snapshot_acceptance_review_must_carry_environment_scope",
+        "snapshot_acceptance_review_must_carry_accept_reject_granularity",
+        "snapshot_acceptance_review_must_preserve_per_artifact_counts",
+        "snapshot_acceptance_review_must_cite_rollback_or_local_history_for_apply",
+        "snapshot_acceptance_review_must_not_admit_blind_accept_all",
+        "snapshot_acceptance_review_render_mode_unknown_requires_review",
+        "snapshot_acceptance_review_granularity_unknown_requires_review"
+      ]
+    },
+    "artifact_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_artifact_count",
+        "accepted_count",
+        "rejected_count",
+        "pending_count",
+        "blocked_count",
+        "unreviewable_count",
+        "raw_fallback_count",
+        "text_fallback_count"
+      ],
+      "properties": {
+        "total_artifact_count": { "$ref": "#/$defs/non_negative_integer" },
+        "accepted_count": { "$ref": "#/$defs/non_negative_integer" },
+        "rejected_count": { "$ref": "#/$defs/non_negative_integer" },
+        "pending_count": { "$ref": "#/$defs/non_negative_integer" },
+        "blocked_count": { "$ref": "#/$defs/non_negative_integer" },
+        "unreviewable_count": { "$ref": "#/$defs/non_negative_integer" },
+        "raw_fallback_count": { "$ref": "#/$defs/non_negative_integer" },
+        "text_fallback_count": { "$ref": "#/$defs/non_negative_integer" }
+      }
+    },
+    "environment_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_scope_class",
+        "target_environment_refs",
+        "serializer_ref",
+        "runtime_ref",
+        "source_revision_ref",
+        "platform_refs",
+        "scope_summary"
+      ],
+      "properties": {
+        "environment_scope_class": { "$ref": "#/$defs/environment_scope_class" },
+        "target_environment_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "serializer_ref": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "platform_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "theme_or_device_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "data_posture_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "scope_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "artifact_review_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_review_item_id",
+        "subject_artifact_ref",
+        "baseline_artifact_event_ref",
+        "proposed_artifact_event_ref",
+        "artifact_change_class",
+        "render_mode_class",
+        "fallback_reason_class",
+        "artifact_decision_class",
+        "decision_actor_ref",
+        "rollback_ref",
+        "item_summary"
+      ],
+      "properties": {
+        "artifact_review_item_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "proposed_artifact_event_ref": { "$ref": "#/$defs/opaque_ref" },
+        "artifact_change_class": { "$ref": "#/$defs/artifact_change_class" },
+        "render_mode_class": { "$ref": "#/$defs/render_mode_class" },
+        "fallback_reason_class": { "$ref": "#/$defs/fallback_reason_class" },
+        "artifact_decision_class": { "$ref": "#/$defs/artifact_decision_class" },
+        "decision_actor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "rollback_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "item_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "snapshot_acceptance_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "snapshot_acceptance_review_schema_version",
+        "snapshot_acceptance_review_record_id",
+        "base_snapshot_review_ref",
+        "test_session_ref",
+        "test_attempt_ref",
+        "baseline_identity_class",
+        "baseline_artifact_event_refs",
+        "proposed_artifact_event_refs",
+        "render_mode_class",
+        "fallback_reason_class",
+        "environment_scope",
+        "acceptance_granularity_class",
+        "artifact_counts",
+        "artifact_review_items",
+        "rollback_availability_class",
+        "rollback_or_local_history_refs",
+        "review_state_class",
+        "audit_event_refs",
+        "denial_reason_class",
+        "captured_at",
+        "redaction_class",
+        "approval_ticket_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "snapshot_acceptance_review_record" },
+        "snapshot_acceptance_review_schema_version": { "$ref": "#/$defs/snapshot_acceptance_review_schema_version" },
+        "snapshot_acceptance_review_record_id": { "$ref": "#/$defs/opaque_id" },
+        "base_snapshot_review_ref": { "$ref": "#/$defs/opaque_ref" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "test_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_identity_class": { "$ref": "#/$defs/baseline_identity_class" },
+        "baseline_artifact_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "proposed_artifact_event_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "render_mode_class": { "$ref": "#/$defs/render_mode_class" },
+        "fallback_reason_class": { "$ref": "#/$defs/fallback_reason_class" },
+        "environment_scope": { "$ref": "#/$defs/environment_scope" },
+        "acceptance_granularity_class": { "$ref": "#/$defs/acceptance_granularity_class" },
+        "artifact_counts": { "$ref": "#/$defs/artifact_counts" },
+        "artifact_review_items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_review_item" }
+        },
+        "rollback_availability_class": { "$ref": "#/$defs/rollback_availability_class" },
+        "rollback_or_local_history_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "review_state_class": { "$ref": "#/$defs/review_state_class" },
+        "review_summary": { "$ref": "#/$defs/short_sentence" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}

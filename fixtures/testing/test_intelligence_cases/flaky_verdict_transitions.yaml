@@ -1,0 +1,89 @@
+__fixture__:
+  name: flaky_verdict_transitions
+  scenario: >
+    Controlled flaky-verdict ledger demonstrating imported-only,
+    suspected, reproduced, policy-muted, stable-again, and unknown
+    transitions. This fixture is intentionally narrative because the
+    verdict vocabulary composes with existing flaky-history and
+    quarantine schemas instead of minting a fourth schema.
+  exercised_classes_summary:
+    verdict_values:
+      - imported_only
+      - suspected
+      - reproduced
+      - policy_muted
+      - stable_again
+      - unknown
+    raw_payload_posture: metadata_and_hashes_only
+
+record_kind: flaky_verdict_transition_ledger
+ledger_id: testing.flaky_verdict.transitions.0001
+captured_at: "2026-04-29T18:00:00Z"
+redaction_class: metadata_and_hashes_only
+
+verdict_terms:
+  - ui_label: Imported only
+    schema_value: imported_only
+    required_evidence_refs:
+      - provider.artifact.test_history.case_theta.0001
+    rule_summary: Imported evidence has no local parity and cannot count as local current truth.
+  - ui_label: Suspected
+    schema_value: suspected
+    required_evidence_refs:
+      - execution.flaky_history.case_theta.suspected.0001
+    rule_summary: Intermittent signal exists but comparable reproduction is incomplete.
+  - ui_label: Reproduced
+    schema_value: reproduced
+    required_evidence_refs:
+      - testing.test_attempt.case_theta.local_rerun.0002
+      - testing.test_attempt.case_theta.local_rerun.0003
+    rule_summary: Comparable attempts reproduced divergent outcomes under matching selector and environment.
+  - ui_label: Policy-muted
+    schema_value: policy_muted
+    required_evidence_refs:
+      - policy.epoch.enterprise.test_mute.0001
+      - testing.quarantine.case_theta.policy_muted.0001
+    rule_summary: Policy muted delivery but did not erase reproduced flaky evidence.
+  - ui_label: Stable again
+    schema_value: stable_again
+    required_evidence_refs:
+      - testing.test_attempt.case_theta.stable_window.0010
+      - testing.quarantine.case_theta.stable_again.0001
+    rule_summary: Stable-again closure cites prior treatment refs and required stable-window attempts.
+  - ui_label: Unknown
+    schema_value: unknown
+    required_evidence_refs:
+      - denial.flaky_verdict.case_theta.incomparable_context.0001
+    rule_summary: Missing or incomparable evidence fails closed and cannot produce a green roll-up.
+
+transitions:
+  - from: unknown
+    to: imported_only
+    gate_summary: Provider history artifact imported without a local parity rerun.
+    allowed: true
+  - from: imported_only
+    to: suspected
+    gate_summary: Imported history contains an intermittent signal but lacks comparable reproduction.
+    allowed: true
+  - from: suspected
+    to: reproduced
+    gate_summary: Local reruns under matching selector, target, source, and policy context reproduce divergent outcomes.
+    allowed: true
+  - from: reproduced
+    to: policy_muted
+    gate_summary: Enterprise policy mutes delivery; reproduced evidence remains linked.
+    allowed: true
+  - from: policy_muted
+    to: stable_again
+    gate_summary: Policy mute lifts and stable evidence window lands; policy removal alone would not be enough.
+    allowed: true
+  - from: imported_only
+    to: reproduced
+    gate_summary: Direct promotion is denied until local parity or comparable provider reruns reproduce divergence.
+    allowed: false
+    denial_reason: flaky_verdict_imported_only_cannot_be_reproduced_without_comparable_rerun
+  - from: unknown
+    to: stable_again
+    gate_summary: Direct promotion is denied because there is no prior verdict/treatment and no stable-window proof.
+    allowed: false
+    denial_reason: flaky_verdict_unknown_cannot_clear_to_stable_again_without_prior_and_window_evidence
