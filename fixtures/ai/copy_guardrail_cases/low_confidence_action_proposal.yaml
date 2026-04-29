@@ -1,0 +1,72 @@
+copy_guardrail_case_schema_version: 1
+case_id: ai.copy_guardrail.low_confidence_action_proposal
+case_title: Low-confidence action proposal
+surface_class: action_proposal
+expected_decision: accepted
+
+scenario: >
+  The AI proposes a config rename after a partial graph scan. One generated
+  output is stale and ownership evidence is missing, so the proposal must
+  stay low confidence and cannot expose direct apply.
+
+truth_posture:
+  truth_class_id: truth_class:ai_inferred_truth
+  confidence_term_id: ai.copy.confidence.low_confidence
+  freshness_class: unverified
+  evidence_refs:
+    - search-result-packet:config-symbol-partial-index:0001
+    - file-state-badge:generated-config-output-stale:0001
+  context_disclosures:
+    - term_id: ai.copy.context.partial_context
+      covered_scope: Active workset and indexed config symbols.
+      excluded_scope: Generated outputs, ownership metadata, and unindexed package roots.
+    - term_id: ai.copy.context.stale_evidence
+      source_class: generated_reference_excerpt
+      stale_reason: generated_output_epoch_behind_source
+      refresh_route: regenerate_review
+  provider_route:
+    term_id: ai.copy.route.provider_routed
+    disclosure_ref: provider-selection-disclosure:ai.refactor:0007
+  validation_state:
+    term_id: ai.copy.validation.not_run
+    validation_plan_ref: null
+
+proposed_copy:
+  title: "Suggested config rename"
+  summary: >
+    Suggested next step: prepare a preview for the config rename. Low
+    confidence: the graph is partial, one generated output is stale, and
+    ownership evidence was not included. Validation not run.
+  next_step: >
+    Prepare a preview first, then inspect the diff or start a sandbox run
+    before considering apply.
+
+controls:
+  rendered:
+    - term_id: ai.copy.action.prepare_preview
+      label: Prepare preview
+      boundary: preview_before_write
+    - term_id: ai.copy.action.open_diff
+      label: Open diff
+      boundary: read_only_review
+    - term_id: ai.copy.action.start_sandbox_run
+      label: Start sandbox run
+      boundary: isolated_validation
+  suppressed:
+    - Apply diff
+    - Write files
+    - Commit changes
+
+assertions:
+  uses_suggested_not_validated: true
+  low_confidence_reason_named: true
+  validation_not_run_named: true
+  stale_evidence_named: true
+  direct_mutation_controls_present: false
+  reversible_next_step_named: true
+  forbidden_terms_present: []
+
+review_notes: >
+  Accepted because the proposal keeps the AI result as suggested,
+  preserves low-confidence reasons, and routes the user to preview, diff,
+  and sandbox validation instead of live mutation.

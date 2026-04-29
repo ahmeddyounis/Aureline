@@ -1027,6 +1027,18 @@ code.
   context, background branch-agent dispatch that preserves
   tainted-usage constraints across the handoff) in
   [`/fixtures/ai/context_assembly_cases/`](../fixtures/ai/context_assembly_cases/).
+- [`ai/ai_copy_guardrails_contract.md`](./ai/ai_copy_guardrails_contract.md)
+  — AI copy contract for evidence-first confidence wording, preferred
+  and forbidden AI terms, uncertainty / partial-context /
+  omitted-context / stale-doc / replay / provider-route disclosure, and
+  the separation between `Explain`, `Open source`, `Prepare preview`,
+  `Open diff`, `Start sandbox run`, and direct mutation controls.
+  Machine-readable term registries live in
+  [`/artifacts/ai/approved_ai_terms.yaml`](../artifacts/ai/approved_ai_terms.yaml)
+  and
+  [`/artifacts/ai/forbidden_ai_terms.yaml`](../artifacts/ai/forbidden_ai_terms.yaml);
+  worked fixtures live in
+  [`/fixtures/ai/copy_guardrail_cases/`](../fixtures/ai/copy_guardrail_cases/).
 - [`state/migration_and_restore_playbook.md`](./state/migration_and_restore_playbook.md)
   — shared migration, downgrade, and restore-provenance playbook for
   profile, layout, sync, checkpoint, support-export, and repair

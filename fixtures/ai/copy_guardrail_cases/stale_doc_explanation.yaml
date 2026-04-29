@@ -1,0 +1,66 @@
+copy_guardrail_case_schema_version: 1
+case_id: ai.copy_guardrail.stale_doc_explanation
+case_title: Stale-doc explanation
+surface_class: stale_doc_explanation
+expected_decision: accepted
+
+scenario: >
+  An AI help answer explains a runbook step while the mirrored docs pack is
+  past its freshness floor. The copy must name staleness and avoid current
+  or latest-docs wording.
+
+truth_posture:
+  truth_class_id: truth_class:ai_inferred_truth
+  confidence_term_id: ai.copy.confidence.low_confidence
+  freshness_class: stale
+  evidence_refs:
+    - citation-anchor:mirrored-runbook:queue-drain#step-3
+    - docs-pack-status:runbook-pack:stale:0002
+  context_disclosures:
+    - term_id: ai.copy.context.stale_evidence
+      source_class: runbook_step
+      checked_at: "2026-04-18T16:00:00Z"
+      stale_reason: freshness_floor_elapsed
+      refresh_route: docs_pack_refresh
+  provider_route:
+    term_id: ai.copy.route.provider_routed
+    disclosure_ref: provider-selection-disclosure:ai.help:0012
+  validation_state:
+    term_id: ai.copy.validation.not_run
+    validation_plan_ref: null
+
+proposed_copy:
+  title: "Queue-drain runbook note"
+  summary: >
+    Stale evidence: this mirrored runbook step was last checked on
+    2026-04-18 and is past its freshness floor. I can explain the cited
+    step, but do not treat it as current guidance until the docs pack is
+    refreshed.
+  next_step: >
+    Open source to inspect the cited runbook step, or refresh the docs
+    pack before using it for an action proposal.
+
+controls:
+  rendered:
+    - term_id: ai.copy.action.explain
+      label: Explain
+      boundary: read_only
+    - term_id: ai.copy.action.open_source
+      label: Open source
+      boundary: read_only_navigation
+  suppressed:
+    - Prepare preview
+    - Start sandbox run
+    - Apply runbook step
+
+assertions:
+  stale_source_named: true
+  checked_at_named: true
+  refresh_route_named: true
+  current_or_latest_wording_present: false
+  direct_mutation_controls_present: false
+  forbidden_terms_present: []
+
+review_notes: >
+  Accepted because the copy exposes stale evidence and keeps the answer
+  read-only until source inspection or docs refresh occurs.
