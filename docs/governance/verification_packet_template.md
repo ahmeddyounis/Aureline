@@ -36,6 +36,18 @@ Rules:
 - `visibility_class` states whether the packet is public, internal, or
   mixed; narrow or restricted export posture may still be layered on top
   by the packet family that embeds this template.
+- Verification packets that touch a required shared UX pattern (Project
+  Doctor, refactor preview, optional-cloud outage, generated-artifact
+  drift, exposed-service review, shared-session downgrade, mutation
+  journal, deferred intent, workspace-state restore provenance, or
+  support intake) SHOULD cite the relevant `pattern_id` from
+  [`docs/ux/pattern_inventory.md`](../ux/pattern_inventory.md) in their
+  claim rows or `supporting_evidence_ids`, and SHOULD reference the
+  participating-surface obligation row in
+  [`artifacts/ux/pattern_surface_crosswalk.yaml`](../../artifacts/ux/pattern_surface_crosswalk.yaml)
+  rather than restating the protected journey privately. The reusable
+  pattern contract template lives in
+  [`docs/ux/pattern_contract_template.md`](../ux/pattern_contract_template.md).
 
 ## Shared header
 

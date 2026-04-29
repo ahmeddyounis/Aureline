@@ -12,6 +12,17 @@ Launch-critical rows remain blocked until the feature readiness
 checklist is answered and a reviewable design release evidence pack
 exists for the declared scope.
 
+Cross-surface protected journeys (Project Doctor, refactor preview,
+optional-cloud outage, generated-artifact drift, exposed-service
+review, shared-session downgrade, mutation journal, deferred intent,
+workspace-state restore provenance, support intake) are frozen in
+[`docs/ux/pattern_inventory.md`](./pattern_inventory.md). Each
+launch-critical surface here MUST also satisfy the obligations on its
+row in
+[`artifacts/ux/pattern_surface_crosswalk.yaml`](../../artifacts/ux/pattern_surface_crosswalk.yaml);
+surface-local exceptions require a visible freeze exception or waiver
+ref.
+
 Coverage markers:
 
 - `canonical` means the surface already has a dedicated artifact, id, or packet family checked in.

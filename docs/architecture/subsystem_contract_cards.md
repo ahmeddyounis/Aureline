@@ -107,4 +107,15 @@ Cards relate to other artifacts as follows:
 - Frozen-surface and lifecycle policies control breaking changes after a
   stable-facing contract exists. Cards point to those policies and must not
   carry private deprecation rules.
+- Required shared UX patterns (Project Doctor, refactor preview, optional-cloud
+  outage, generated-artifact drift, exposed-service review, shared-session
+  downgrade, mutation journal, deferred intent, workspace-state restore
+  provenance, and support intake) are frozen in
+  [`docs/ux/pattern_inventory.md`](../ux/pattern_inventory.md), with the
+  reusable contract template in
+  [`docs/ux/pattern_contract_template.md`](../ux/pattern_contract_template.md)
+  and the surface crosswalk in
+  [`artifacts/ux/pattern_surface_crosswalk.yaml`](../../artifacts/ux/pattern_surface_crosswalk.yaml).
+  Cards whose subsystems participate in a required pattern MUST cite that
+  pattern row instead of restating the contract privately.
 

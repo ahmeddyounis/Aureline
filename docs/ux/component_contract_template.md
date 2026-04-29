@@ -39,6 +39,18 @@ Companion artifacts:
 - [`/docs/accessibility/a11y_ime_packet_template.md`](../accessibility/a11y_ime_packet_template.md)
   — shared accessibility-evidence packet family component contracts
   point at through typed evidence hooks.
+- [`/docs/ux/pattern_inventory.md`](./pattern_inventory.md),
+  [`/docs/ux/pattern_contract_template.md`](./pattern_contract_template.md),
+  and
+  [`/artifacts/ux/pattern_surface_crosswalk.yaml`](../../artifacts/ux/pattern_surface_crosswalk.yaml)
+  — required cross-surface UX pattern inventory, reusable pattern
+  contract template, and pattern-to-surface crosswalk. Component
+  packets that appear inside a required pattern (Project Doctor,
+  refactor preview, optional-cloud outage, generated-artifact drift,
+  exposed-service review, shared-session downgrade, mutation journal,
+  deferred intent, workspace-state restore provenance, support intake)
+  MUST cite the relevant pattern row instead of repeating the
+  cross-surface contract locally.
 
 Normative sources projected here:
 
