@@ -1,0 +1,454 @@
+# Consequence-bearing prompt family matrix.
+#
+# Machine-readable companion to docs/ux/prompt_grammar_contract.md.
+# Product surfaces use these rows to choose grammar slots, primary-action
+# labels, and required same-surface follow-up actions before asking for a
+# destructive, trust-changing, approval-bearing, consent, publish,
+# promote, rollback, or revoke outcome.
+
+schema_version: 1
+matrix_id: aureline.ux.prompt_family_grammar
+status: seeded
+
+source_refs:
+  grammar_contract: docs/ux/prompt_grammar_contract.md
+  trust_prompt_contract: docs/ux/trust_prompt_contract.md
+  interaction_safety_contract: docs/ux/shell_interaction_safety_contract.md
+  dialog_sheet_contract: docs/ux/dialog_sheet_contract.md
+  disabled_reason_grammar: docs/ux/disabled_reason_grammar.md
+  fixture_corpus: fixtures/trust/prompt_grammar_cases/
+  surface_context_vocabularies:
+    - schemas/trust/prompt_request.schema.json#surface_class
+    - docs/ux/shell_interaction_safety_contract.md#protected-surface
+    - docs/ux/dialog_sheet_contract.md#surface-classes
+
+required_slots:
+  - action_verb
+  - object_label
+  - scope_label
+  - consequence_label
+  - recovery_label
+  - authority_label
+  - deny_or_keep_label
+  - details_label
+
+forbidden_generic_copy:
+  prompt_titles:
+    - Are you sure?
+    - Continue?
+    - OK?
+    - Confirm?
+    - Proceed?
+  primary_action_labels:
+    - OK
+    - Ok
+    - Continue
+    - Yes
+    - No
+    - Accept
+    - Submit
+    - Confirm
+    - Proceed
+    - Allow
+    - Apply
+
+primary_action_rules:
+  describes_resulting_state: true
+  must_name_target_when_material: true
+  must_name_scope_when_grant_or_blast_radius_can_drift: true
+  platform_generic_label_requires_product_explanatory_label: true
+  cancel_allowed_only_for_no_state_change: true
+
+same_surface_action_triggers:
+  - trigger_id: destructive_with_exportable_data
+    when: Data can be exported, copied, or checkpointed before the destructive action.
+    required_actions:
+      - export_or_copy_before_change
+      - cancel_or_keep_without_mutation
+  - trigger_id: mutation_preview_required
+    when: Mutation is multi-object, generated, protected, external, shared, or high blast.
+    required_actions:
+      - open_preview_or_diff
+      - open_details
+  - trigger_id: recoverable_durable_action
+    when: Recovery depends on checkpoint, rollback handle, trash restore, or compensating action.
+    required_actions:
+      - open_recovery_details
+  - trigger_id: external_release_state_change
+    when: Publish, promote, rollback, revoke, yank, or channel pointer changes affect external consumers.
+    required_actions:
+      - open_evidence_or_attestation
+      - export_impact_summary
+  - trigger_id: material_authority_or_consent_change
+    when: Trust, policy, approver, recording, retention, exportability, audience, or publish target changed.
+    required_actions:
+      - open_changed_axis_details
+      - keep_or_deny_without_widening
+
+material_change_language:
+  widened_recording_retention_exportability:
+    must_name:
+      - old_recording_or_retention_scope
+      - new_recording_or_retention_scope
+      - retention_owner
+      - export_representation
+      - export_destination_or_audience
+      - deny_path
+    title_shape: "Renew {data_or_session_class} consent for {new_retention_or_recording_scope}?"
+    body_shape: >
+      {data_or_session_class} changes from {old_scope} to {new_scope}.
+      {retention_owner} controls retention for {new_window}. {export_scope}
+      can be exported as {representation_class}. {deny_path}
+  changed_approver_scope:
+    must_name:
+      - prior_approval_state
+      - expiry_or_revocation
+      - old_approver_scope
+      - new_approver_scope
+      - target_scope
+      - deny_path
+    title_shape: "Request {new_approver_scope} approval for {object_label}?"
+    body_shape: >
+      Prior approval is {prior_approval_state}. {object_label} now requires
+      {new_approver_scope}; {old_approver_scope} no longer covers
+      {target_scope}. {deny_path}
+  publish_target_change:
+    must_name:
+      - prior_target
+      - new_target
+      - visibility
+      - mutability
+      - auth_source_class
+      - dry_run_state
+      - deny_path
+    title_shape: "Publish {object_label} to {new_target}?"
+    body_shape: >
+      Target changes from {prior_target} to {new_target}. Visibility is
+      {visibility}; mutability is {mutability}; auth comes from
+      {auth_source_class}. Dry run is {dry_run_state}. {deny_path}
+  release_state_change:
+    must_name:
+      - action_kind
+      - current_state
+      - requested_state
+      - affected_consumers
+      - historical_visibility
+      - recovery_path
+    body_shape: >
+      {action_kind} changes {object_label} from {current_state} to
+      {requested_state} for {affected_consumers}. {historical_visibility}.
+      Recovery path: {recovery_path}.
+
+families:
+  - family_id: destructive_action
+    title: Destructive action
+    action_verbs:
+      - delete
+      - remove
+      - purge
+      - detach
+      - discard
+      - clear
+      - overwrite
+    surface_contexts:
+      - modal_dialog
+      - window_attached_sheet
+      - dedicated_review_surface
+      - review_and_diff_canvas
+      - ai_apply_canvas
+    required_title_slots:
+      - action_verb
+      - object_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+    primary_label_shape: "{Action verb} {object_count_or_kind}"
+    required_same_surface_actions:
+      - cancel_or_keep_without_mutation
+      - export_or_copy_before_change_when_available
+      - open_preview_or_diff_when_multi_object
+      - open_recovery_details_when_recoverable
+    non_conforming_examples:
+      - Are you sure?
+      - Continue
+      - OK
+      - This cannot be undone
+    fixture_refs:
+      - fixtures/trust/prompt_grammar_cases/destructive_delete_saved_worksets.yaml
+
+  - family_id: trust_policy_change
+    title: Trust or policy change
+    action_verbs:
+      - trust
+      - grant
+      - widen
+      - narrow
+      - change policy source
+    surface_contexts:
+      - trust_elevation_prompt
+      - policy_admin_prompt
+      - extension_prompt
+      - provider_handoff_prompt
+    required_title_slots:
+      - action_verb
+      - object_label
+      - scope_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - authority_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+    primary_label_shape: "{Grant|Trust|Change} {capability_or_scope} for {duration_or_owner}"
+    required_same_surface_actions:
+      - open_policy_or_trust_details
+      - keep_or_deny_without_widening
+      - revoke_later_route_when_grant_persists
+    non_conforming_examples:
+      - Allow
+      - Accept
+      - Continue
+    fixture_refs: []
+
+  - family_id: approval_request
+    title: Approval request or renewal
+    action_verbs:
+      - request approval
+      - renew approval
+      - approve
+      - reject
+    surface_contexts:
+      - policy_admin_prompt
+      - publish_promote_rollback_review
+      - provider_handoff_prompt
+      - trust_elevation_prompt
+    required_title_slots:
+      - action_verb
+      - object_label
+      - authority_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - authority_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+      - details_label
+    primary_label_shape: "{Request|Renew} {approver_scope} approval"
+    material_change_refs:
+      - changed_approver_scope
+    required_same_surface_actions:
+      - open_approver_matrix
+      - open_policy_or_scope_details
+      - keep_draft_or_continue_read_only
+    non_conforming_examples:
+      - Submit
+      - Continue
+      - Approve
+    fixture_refs:
+      - fixtures/trust/prompt_grammar_cases/approval_expiry_renewal.yaml
+
+  - family_id: consent_renewal
+    title: Consent renewal
+    action_verbs:
+      - renew consent
+      - narrow consent
+      - leave session
+      - export before change
+    surface_contexts:
+      - consent_renewal_prompt
+      - collaboration_canvas
+      - support_export_canvas
+      - provider_handoff_prompt
+    required_title_slots:
+      - action_verb
+      - object_label
+      - scope_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - authority_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+      - details_label
+    primary_label_shape: "Renew consent for {retention_or_recording_scope}"
+    material_change_refs:
+      - widened_recording_retention_exportability
+    required_same_surface_actions:
+      - open_retention_policy
+      - open_export_scope
+      - leave_or_keep_without_widening
+    non_conforming_examples:
+      - Agree
+      - Continue
+      - OK
+    fixture_refs:
+      - fixtures/trust/prompt_grammar_cases/consent_renewal_widened_retention.yaml
+
+  - family_id: publish_review
+    title: Publish review
+    action_verbs:
+      - publish
+      - skip target
+      - save local
+      - export packet
+    surface_contexts:
+      - publish_promote_rollback_review
+      - package_script_risk_review
+      - provider_handoff_prompt
+      - review_and_diff_canvas
+    required_title_slots:
+      - action_verb
+      - object_label
+      - scope_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - authority_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+      - details_label
+    primary_label_shape: "Publish {object_label} to {target_label}"
+    material_change_refs:
+      - publish_target_change
+    required_same_surface_actions:
+      - dry_run_or_preview_when_supported
+      - open_evidence_or_attestation
+      - export_impact_summary
+      - keep_local_or_skip_target
+    non_conforming_examples:
+      - Publish
+      - Confirm
+      - OK
+    fixture_refs: []
+
+  - family_id: promote_review
+    title: Promote review
+    action_verbs:
+      - promote
+      - keep in current channel
+      - open blockers
+      - export impact
+    surface_contexts:
+      - publish_promote_rollback_review
+      - install_update_attach_canvas
+      - provider_bearing_canvas
+    required_title_slots:
+      - action_verb
+      - object_label
+      - scope_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - authority_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+      - details_label
+    primary_label_shape: "Promote {object_label} to {channel_or_audience}"
+    material_change_refs:
+      - release_state_change
+    required_same_surface_actions:
+      - open_evidence_or_attestation
+      - open_blockers_or_waivers
+      - export_impact_summary
+      - keep_in_current_channel
+    non_conforming_examples:
+      - Promote
+      - Confirm
+      - Continue
+    fixture_refs:
+      - fixtures/trust/prompt_grammar_cases/promote_vs_rollback_review.yaml
+
+  - family_id: rollback_review
+    title: Rollback review
+    action_verbs:
+      - roll back
+      - restore
+      - repin
+      - keep current
+    surface_contexts:
+      - publish_promote_rollback_review
+      - install_update_attach_canvas
+      - review_and_diff_canvas
+    required_title_slots:
+      - action_verb
+      - object_label
+      - scope_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - authority_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+      - details_label
+    primary_label_shape: "Roll back {target_label} to {prior_state_label}"
+    material_change_refs:
+      - release_state_change
+    required_same_surface_actions:
+      - open_evidence_or_attestation
+      - export_impact_summary
+      - keep_current_state
+    non_conforming_examples:
+      - Confirm rollback
+      - Confirm
+      - OK
+    fixture_refs:
+      - fixtures/trust/prompt_grammar_cases/promote_vs_rollback_review.yaml
+
+  - family_id: revoke_review
+    title: Revoke review
+    action_verbs:
+      - revoke
+      - yank
+      - disable active access
+      - leave active
+    surface_contexts:
+      - publish_promote_rollback_review
+      - trust_elevation_prompt
+      - remote_attach_prompt
+      - policy_admin_prompt
+    required_title_slots:
+      - action_verb
+      - object_label
+      - scope_label
+    required_body_slots:
+      - object_label
+      - scope_label
+      - authority_label
+      - consequence_label
+      - recovery_label
+      - deny_or_keep_label
+      - details_label
+    primary_label_shape: "Revoke {active_grant_route_or_artifact}"
+    material_change_refs:
+      - release_state_change
+    required_same_surface_actions:
+      - open_active_access_details
+      - export_impact_summary_when_external
+      - leave_active_or_keep_current
+    non_conforming_examples:
+      - Disable
+      - Confirm
+      - Continue
+    fixture_refs: []
+
+coverage_expectations:
+  minimum_fixture_families:
+    - destructive_action
+    - consent_renewal
+    - approval_request
+    - promote_review
+    - rollback_review
+  required_fixture_scenarios:
+    - destructive_delete
+    - widened_retention_consent_renewal
+    - approval_expiry_renewal
+    - promote_vs_rollback_review

@@ -1,0 +1,95 @@
+schema_version: 1
+case_id: prompt_grammar.release.promote_vs_rollback
+contract_ref: docs/ux/prompt_grammar_contract.md
+matrix_family_refs:
+  - artifacts/ux/prompt_family_matrix.yaml#promote_review
+  - artifacts/ux/prompt_family_matrix.yaml#rollback_review
+prompt_family: promote_and_rollback_review
+scenario: >
+  A release candidate is signed and available in Preview. The release
+  center offers two distinct consequence-bearing outcomes on one review
+  surface: promote the candidate to Stable, or roll Stable back to the
+  previous known-good version. The prompt must not treat the outcomes as
+  one generic confirmation.
+
+rendered_prompt:
+  title: Choose Stable channel state for 1.13.0-rc.1
+  body_lines:
+    promote_option: "Promote 1.13.0-rc.1 to Stable widens update eligibility from Preview users to Stable users."
+    rollback_option: "Roll back Stable to 1.12.4 keeps 1.13.0-rc.1 in Preview and repins Stable to the previous known-good version."
+    consequence: "Stable-channel clients may receive a different version after the selected action."
+    recovery: "Promotion can be followed by a later rollback; rollback does not erase historical publication records."
+    authority: "Release owners and current channel policy own this state change."
+    deny_path: "Keep in Preview leaves Stable pinned to 1.12.4 and preserves validation history."
+
+required_slots:
+  action_verb: promote_or_roll_back
+  object_label: 1.13.0-rc.1 and Stable channel
+  scope_label: Stable update channel
+  consequence_label: Stable-channel client eligibility changes
+  recovery_label: later rollback possible; history remains inspectable
+  authority_label: release owners and channel policy
+  deny_or_keep_label: keep in Preview
+  details_label: Open release evidence
+
+decision_actions:
+  - role: primary_promote
+    label: Promote 1.13.0-rc.1 to Stable
+    resulting_state: stable_channel_points_to_1_13_0_rc_1
+    generic_acknowledgement: false
+  - role: alternate_rollback
+    label: Roll back Stable to 1.12.4
+    resulting_state: stable_channel_repin_to_1_12_4
+    generic_acknowledgement: false
+  - role: safer_alternative
+    label: Keep 1.13.0-rc.1 in Preview
+    resulting_state: preview_candidate_retained_no_stable_widening
+    generic_acknowledgement: false
+  - role: open_details
+    label: Open release evidence
+    resulting_state: release_evidence_opened
+    generic_acknowledgement: false
+  - role: export
+    label: Export Stable impact summary
+    resulting_state: stable_impact_summary_exported
+    generic_acknowledgement: false
+
+same_surface_actions:
+  - action_kind: open_evidence_or_attestation
+    label: Open release evidence
+    required_by_trigger: external_release_state_change
+  - action_kind: export_impact_summary
+    label: Export Stable impact summary
+    required_by_trigger: external_release_state_change
+  - action_kind: keep_current_state
+    label: Keep 1.13.0-rc.1 in Preview
+    required_by_trigger: external_release_state_change
+
+material_change_checks:
+  publish_promote_rollback_revoke_are_distinct: true
+  promote_current_state: Preview candidate
+  promote_requested_state: Stable channel candidate
+  rollback_current_state: Stable channel eligible for change
+  rollback_requested_state: Stable repinned to 1.12.4
+  affected_consumers_named: Stable-channel clients
+  historical_visibility_named: rollback does not erase historical publication records
+  recovery_path_named: later rollback or repin remains available
+  primary_describes_resulting_state: true
+
+non_conforming_examples:
+  - rendered_prompt:
+      title: Confirm release change?
+      primary_label: Confirm
+    violations:
+      - generic_title
+      - generic_primary_action
+      - promote_and_rollback_collapsed
+      - target_channel_missing
+  - rendered_prompt:
+      title: Promote or rollback?
+      primary_label: Continue
+    violations:
+      - generic_primary_action
+      - object_missing
+      - resulting_state_missing
+      - affected_consumers_missing

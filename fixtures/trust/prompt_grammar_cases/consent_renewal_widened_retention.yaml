@@ -1,0 +1,80 @@
+schema_version: 1
+case_id: prompt_grammar.consent_renewal.widened_retention
+contract_ref: docs/ux/prompt_grammar_contract.md
+matrix_family_ref: artifacts/ux/prompt_family_matrix.yaml#consent_renewal
+prompt_family: consent_renewal
+scenario: >
+  A collaboration session previously retained recording metadata for 7
+  days and did not allow support export of recordings. A managed policy
+  update widens retention to 90 days and allows sanitized recording
+  excerpts in support exports. The user must renew consent before
+  continuing in the recorded session.
+
+rendered_prompt:
+  title: Renew recording consent for 90-day retention?
+  body_lines:
+    object_and_scope: "This applies to the current shared collaboration session."
+    consequence: "Recording retention changes from 7 days of metadata to 90 days of recording metadata plus sanitized excerpts."
+    recovery: "Leaving the session avoids the widened consent; existing local edits remain open."
+    authority: "Retention is controlled by managed collaboration policy."
+    exportability: "Sanitized excerpts can be included in support exports; raw recording export remains blocked."
+    deny_path: "Leave session before recording keeps local editing available without renewing consent."
+
+required_slots:
+  action_verb: renew consent
+  object_label: current shared collaboration session recording
+  scope_label: 90-day managed retention
+  consequence_label: retention and sanitized support export are wider than the prior consent
+  recovery_label: leave session before recording; local edits remain open
+  authority_label: managed collaboration policy
+  deny_or_keep_label: leave session before recording
+  details_label: Open retention policy
+
+decision_actions:
+  - role: primary
+    label: Renew consent for 90-day retention
+    resulting_state: recording_consent_renewed_for_widened_retention
+    generic_acknowledgement: false
+  - role: safer_alternative
+    label: Leave session before recording
+    resulting_state: session_left_local_editing_continues
+    generic_acknowledgement: false
+  - role: open_details
+    label: Open retention policy
+    resulting_state: retention_policy_details_opened
+    generic_acknowledgement: false
+
+same_surface_actions:
+  - action_kind: open_changed_axis_details
+    label: Open retention policy
+    required_by_trigger: material_authority_or_consent_change
+  - action_kind: keep_or_deny_without_widening
+    label: Leave session before recording
+    required_by_trigger: material_authority_or_consent_change
+
+material_change_checks:
+  old_recording_or_retention_scope: 7 days of metadata
+  new_recording_or_retention_scope: 90 days of recording metadata plus sanitized excerpts
+  retention_owner_named: true
+  export_representation_named: sanitized excerpts
+  export_destination_named: support exports
+  raw_export_boundary_named: raw recording export remains blocked
+  deny_path_named: true
+  primary_describes_resulting_state: true
+
+non_conforming_examples:
+  - rendered_prompt:
+      title: Continue with new terms?
+      primary_label: Continue
+    violations:
+      - generic_title
+      - generic_primary_action
+      - widened_retention_missing
+      - exportability_change_missing
+  - rendered_prompt:
+      title: Recording consent changed
+      primary_label: Agree
+    violations:
+      - title_missing_action_and_scope
+      - primary_action_does_not_describe_resulting_state
+      - deny_path_missing

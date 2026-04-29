@@ -1,0 +1,75 @@
+schema_version: 1
+case_id: prompt_grammar.destructive_delete.saved_worksets
+contract_ref: docs/ux/prompt_grammar_contract.md
+matrix_family_ref: artifacts/ux/prompt_family_matrix.yaml#destructive_action
+prompt_family: destructive_action
+scenario: >
+  A user deletes three saved worksets from the profile. The worksets are
+  local profile state, not provider state. Export is available before
+  deletion; recovery after deletion depends on importing that export or
+  restoring a profile checkpoint.
+
+rendered_prompt:
+  title: Delete 3 saved worksets?
+  body_lines:
+    object_and_scope: "This removes 3 saved worksets from this profile."
+    consequence: "Workspace files, open buffers, and provider data are not deleted."
+    recovery: "Export is available before delete; profile checkpoint restore is the recovery path after delete."
+    authority: "The local user owns this profile change."
+    deny_path: "Cancel keeps all saved worksets unchanged."
+
+required_slots:
+  action_verb: delete
+  object_label: 3 saved worksets
+  scope_label: this profile
+  consequence_label: removes saved worksets from profile state only
+  recovery_label: export before delete or restore profile checkpoint
+  authority_label: local user
+  deny_or_keep_label: cancel keeps all saved worksets unchanged
+  details_label: Open workset list
+
+decision_actions:
+  - role: primary
+    label: Delete 3 worksets
+    resulting_state: saved_worksets_deleted_from_profile
+    generic_acknowledgement: false
+  - role: safer_alternative
+    label: Export worksets first
+    resulting_state: worksets_exported_no_delete
+    generic_acknowledgement: false
+  - role: secondary_no_state_change
+    label: Cancel
+    resulting_state: no_state_change
+    generic_acknowledgement: false
+    allowed_because_no_state_change: true
+
+same_surface_actions:
+  - action_kind: export_or_copy_before_change
+    label: Export worksets first
+    required_by_trigger: destructive_with_exportable_data
+  - action_kind: open_details
+    label: Open workset list
+    required_by_trigger: recoverable_durable_action
+
+material_change_checks:
+  object_named: true
+  scope_named: true
+  consequence_named: true
+  recovery_named: true
+  export_before_delete_visible: true
+  primary_describes_resulting_state: true
+
+non_conforming_examples:
+  - rendered_prompt:
+      title: Are you sure?
+      primary_label: OK
+    violations:
+      - generic_title
+      - generic_primary_action
+      - object_scope_consequence_missing
+  - rendered_prompt:
+      title: Delete worksets?
+      primary_label: Continue
+    violations:
+      - primary_action_does_not_describe_resulting_state
+      - exact_object_count_missing

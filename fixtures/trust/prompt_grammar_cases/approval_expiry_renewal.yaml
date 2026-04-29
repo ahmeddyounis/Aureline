@@ -1,0 +1,85 @@
+schema_version: 1
+case_id: prompt_grammar.approval.expiry_renewal
+contract_ref: docs/ux/prompt_grammar_contract.md
+matrix_family_ref: artifacts/ux/prompt_family_matrix.yaml#approval_request
+prompt_family: approval_request
+scenario: >
+  A deployment approval for a staging rollout expired after the reviewed
+  scope changed. The prior workspace-owner approval no longer covers the
+  target because current policy requires release-manager approval for
+  the staged deploy route.
+
+rendered_prompt:
+  title: Request release-manager approval for staging deploy?
+  body_lines:
+    object_and_scope: "This approval covers the staging deploy route for the current release candidate."
+    consequence: "No deploy runs until a release manager approves the current reviewed scope."
+    recovery: "Keep the deploy draft blocked or reopen the diff before requesting approval."
+    authority: "Release-manager approvers own this deploy decision under current policy."
+    expiry: "The workspace-owner approval expired after the reviewed scope changed."
+    deny_path: "Keep draft blocked leaves build artifacts and local notes unchanged."
+
+required_slots:
+  action_verb: request approval
+  object_label: staging deploy
+  scope_label: current release candidate staging route
+  consequence_label: deploy remains blocked until release-manager approval
+  recovery_label: keep draft blocked or reopen diff before requesting approval
+  authority_label: release-manager approvers
+  deny_or_keep_label: keep draft blocked
+  details_label: Open approver matrix
+
+decision_actions:
+  - role: primary
+    label: Request release-manager approval
+    resulting_state: release_manager_approval_requested
+    generic_acknowledgement: false
+  - role: safer_alternative
+    label: Reopen diff before approval
+    resulting_state: current_scope_review_reopened
+    generic_acknowledgement: false
+  - role: secondary_keep
+    label: Keep draft blocked
+    resulting_state: deploy_draft_blocked_no_state_widening
+    generic_acknowledgement: false
+  - role: open_details
+    label: Open approver matrix
+    resulting_state: approver_matrix_opened
+    generic_acknowledgement: false
+
+same_surface_actions:
+  - action_kind: open_approver_matrix
+    label: Open approver matrix
+    required_by_trigger: material_authority_or_consent_change
+  - action_kind: open_preview_or_diff
+    label: Reopen diff before approval
+    required_by_trigger: mutation_preview_required
+  - action_kind: keep_or_deny_without_widening
+    label: Keep draft blocked
+    required_by_trigger: material_authority_or_consent_change
+
+material_change_checks:
+  prior_approval_state: expired_after_scope_change
+  old_approver_scope: workspace-owner approval
+  new_approver_scope: release-manager approval
+  target_scope_named: current release candidate staging route
+  expiry_or_revocation_named: true
+  deny_path_named: true
+  primary_describes_resulting_state: true
+
+non_conforming_examples:
+  - rendered_prompt:
+      title: Approval needed
+      primary_label: Submit
+    violations:
+      - title_missing_action_authority_and_object
+      - generic_primary_action
+      - changed_approver_scope_missing
+  - rendered_prompt:
+      title: Continue approval?
+      primary_label: Continue
+    violations:
+      - generic_title
+      - generic_primary_action
+      - expired_approval_missing
+      - target_scope_missing

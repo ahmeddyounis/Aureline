@@ -13,6 +13,11 @@ The companion artifacts are:
 - [`/fixtures/trust/prompts/`](../../fixtures/trust/prompts/)
   - worked prompt requests for local-continuation denial, policy-locked
   denial, and a named-result approval action.
+- [`/docs/ux/prompt_grammar_contract.md`](./prompt_grammar_contract.md)
+  - copy and button grammar for destructive, trust, approval, consent,
+  publish, promote, rollback, and revoke prompts.
+- [`/artifacts/ux/prompt_family_matrix.yaml`](../../artifacts/ux/prompt_family_matrix.yaml)
+  - machine-readable prompt-family copy obligations and fixture coverage.
 
 This contract composes with, and does not replace:
 
@@ -288,4 +293,3 @@ A prompt is non-conforming when it:
   CLI/headless traces;
 - allows copy/export without a declared representation and redaction
   posture.
-
