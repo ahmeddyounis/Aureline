@@ -342,6 +342,17 @@ code.
   [`/schemas/testing/test_selector_grammar.schema.json`](../schemas/testing/test_selector_grammar.schema.json);
   worked fixtures in
   [`/fixtures/testing/test_item_identity_cases/`](../fixtures/testing/test_item_identity_cases/).
+- [`testing/test_session_and_attempt_contract.md`](./testing/test_session_and_attempt_contract.md)
+  — test session, attempt, watch-state, imported-CI projection, and
+  surface reconstruction contract preserving exact selector,
+  target/environment, source, raw-event, artifact, and time lineage
+  across local, watched, rerun, debug-from-test, imported provider,
+  support, and release evidence flows. Boundary schemas in
+  [`/schemas/testing/test_session.schema.json`](../schemas/testing/test_session.schema.json)
+  and
+  [`/schemas/testing/test_attempt.schema.json`](../schemas/testing/test_attempt.schema.json);
+  worked fixtures in
+  [`/fixtures/testing/test_session_cases/`](../fixtures/testing/test_session_cases/).
 
 ## Planning
 

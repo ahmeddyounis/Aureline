@@ -80,6 +80,14 @@ This contract composes with and does not replace:
   per-attempt artifact rail; the typed rerun lineage uses the run /
   attempt rerun-kind vocabulary plus the test-specific
   `rerun_scope_class`.
+- [`/docs/testing/test_session_and_attempt_contract.md`](../testing/test_session_and_attempt_contract.md),
+  [`/schemas/testing/test_session.schema.json`](../../schemas/testing/test_session.schema.json),
+  and
+  [`/schemas/testing/test_attempt.schema.json`](../../schemas/testing/test_attempt.schema.json)
+  — testing-level sessions and attempts that preserve selector,
+  target/environment, source, watch-state, imported-CI projection,
+  raw-event, artifact, surface, rerun, debug-from-test, support, and
+  release lineage around the execution run / attempt records.
 - [`/schemas/runtime/execution_context.schema.json`](../../schemas/runtime/execution_context.schema.json)
   and
   [`/schemas/execution/context_snapshot.schema.json`](../../schemas/execution/context_snapshot.schema.json)

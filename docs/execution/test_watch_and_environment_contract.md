@@ -46,6 +46,15 @@ This contract composes with and does not replace:
   — watch cycles and rerun/debug actions are still runs and attempts.
   A watch controller cites the session/run/attempt lineage rather than
   mutating one status row in place.
+- [`/docs/testing/test_session_and_attempt_contract.md`](../testing/test_session_and_attempt_contract.md),
+  [`/schemas/testing/test_session.schema.json`](../../schemas/testing/test_session.schema.json),
+  and
+  [`/schemas/testing/test_attempt.schema.json`](../../schemas/testing/test_attempt.schema.json)
+  — the testing-level session and attempt ledger that owns selector,
+  target/environment, watch-state taxonomy, imported-CI projection,
+  raw-event lineage, artifact linkage, and surface reconstruction
+  refs across local, watched, rerun, debug-from-test, imported,
+  support, and release flows.
 - [`/docs/execution/test_truth_contract.md`](./test_truth_contract.md),
   [`/schemas/execution/test_discovery_state.schema.json`](../../schemas/execution/test_discovery_state.schema.json),
   [`/schemas/execution/test_run_summary.schema.json`](../../schemas/execution/test_run_summary.schema.json),

@@ -44,6 +44,15 @@ This contract composes with and does not replace:
   [`/schemas/execution/environment_matrix_row.schema.json`](../../schemas/execution/environment_matrix_row.schema.json).
   Watch, inline marker, and environment rows cite identity or remap
   refs; they do not mint local test IDs.
+- [`/docs/testing/test_session_and_attempt_contract.md`](./test_session_and_attempt_contract.md),
+  [`/schemas/testing/test_session.schema.json`](../../schemas/testing/test_session.schema.json),
+  and
+  [`/schemas/testing/test_attempt.schema.json`](../../schemas/testing/test_attempt.schema.json).
+  Sessions and attempts preserve selector, target/environment,
+  source, artifact, raw-event, time, rerun, debug-from-test, and
+  imported-provider lineage around those identities. They cite
+  canonical identities and selector records rather than matching
+  display labels.
 - [`/docs/runtime/execution_context_vocabulary.md`](../runtime/execution_context_vocabulary.md),
   [`/schemas/runtime/execution_context.schema.json`](../../schemas/runtime/execution_context.schema.json),
   and

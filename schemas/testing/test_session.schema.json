@@ -1,0 +1,623 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/test_session.schema.json",
+  "title": "Aureline test session record",
+  "description": "Boundary schema for the test_session_record frozen in docs/testing/test_session_and_attempt_contract.md. The record preserves testing session purpose, trigger source, selector basis, execution context, target environment, watch state, imported-CI projection, raw event refs, mute and quarantine state, artifact linkage, attempt refs, and surface mappings across local, remote, watched, rerun, debug-from-test, imported, support, and release evidence flows. It composes with the execution run / attempt rail and the existing test discovery, run-summary, watch-controller, inline-result, and environment-matrix records rather than replacing them. Raw command lines, raw stdout or stderr bytes, raw environment bodies, raw absolute paths, raw URLs, raw secret values, raw test names, raw assertion bodies, raw artifact bytes, raw provider payloads, and raw stack traces MUST NOT cross this boundary; records carry opaque refs, counts, class labels, bounded summaries, and timestamps only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_session_record" }
+  ],
+  "$defs": {
+    "test_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this test session record family."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["test_session_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, support bundles, and release packets."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another governed record."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timestamp_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewable sentence. Raw code, raw paths, raw secrets, raw tool arguments, raw test names, raw provider payloads, and raw runner payloads are forbidden."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for this record. broadened_capture requires an approval-ticket ref."
+    },
+    "session_purpose_class": {
+      "type": "string",
+      "enum": [
+        "run_selected_tests",
+        "watch_tests",
+        "rerun_failed_tests",
+        "debug_from_test",
+        "import_provider_ci_results",
+        "follow_provider_ci",
+        "release_evidence_projection",
+        "support_export_projection",
+        "session_purpose_unknown_requires_review"
+      ],
+      "description": "Why the test session exists."
+    },
+    "trigger_source_class": {
+      "type": "string",
+      "enum": [
+        "user_editor_action",
+        "user_test_tree_action",
+        "user_cli_action",
+        "command_graph_action",
+        "watch_file_change",
+        "provider_ci_webhook",
+        "provider_ci_poll",
+        "automation_recipe",
+        "ai_tool_plan",
+        "release_evidence_import",
+        "support_replay_import",
+        "trigger_source_unknown_requires_review"
+      ],
+      "description": "Source that opened or advanced the session."
+    },
+    "session_lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "resolving",
+        "ready",
+        "running",
+        "watch_idle",
+        "degraded",
+        "retrying",
+        "blocked",
+        "completed",
+        "archived",
+        "session_lifecycle_unknown_requires_review"
+      ],
+      "description": "Testing-level session lifecycle. Imported CI history may not be represented as a live local running session."
+    },
+    "selector_basis_class": {
+      "type": "string",
+      "enum": [
+        "explicit_test_item_ids",
+        "selector_expression",
+        "failed_only_from_prior_attempt",
+        "changed_files_since_snapshot",
+        "watch_discovery_snapshot",
+        "provider_ci_import_scope",
+        "debug_from_test_selection",
+        "release_evidence_packet_scope",
+        "selector_basis_unknown_requires_review"
+      ]
+    },
+    "selection_widening_rule_class": {
+      "type": "string",
+      "enum": [
+        "no_widening_allowed",
+        "widening_review_required",
+        "widening_denied",
+        "widening_policy_defined",
+        "widening_rule_unknown_requires_review"
+      ],
+      "description": "Whether the selection may widen from the basis. Failed-only and exact debug selections normally use no_widening_allowed."
+    },
+    "context_resolution_class": {
+      "type": "string",
+      "enum": [
+        "resolved_exact_context",
+        "resolved_cached_context",
+        "resolved_with_visible_narrowing",
+        "manual_re_resolve_required",
+        "resolution_blocked_by_policy",
+        "context_resolution_unknown_requires_review"
+      ]
+    },
+    "target_environment_class": {
+      "type": "string",
+      "enum": [
+        "local_environment",
+        "container_environment",
+        "remote_environment",
+        "managed_environment",
+        "ci_environment",
+        "notebook_environment",
+        "provider_backed_environment",
+        "target_environment_unknown_requires_review"
+      ],
+      "description": "Target family for the session. Rows remain distinct even when result state matches."
+    },
+    "watch_state_class": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "initial_discovery",
+        "watching",
+        "debounce_pending",
+        "rerun_failed",
+        "partial_import",
+        "provider_live_follow",
+        "stale_imported",
+        "disconnected_follow",
+        "watch_state_unknown_requires_review"
+      ],
+      "description": "Session-level watch/follow/import state. Unknown fails closed."
+    },
+    "imported_ci_projection_class": {
+      "type": "string",
+      "enum": [
+        "not_imported_ci",
+        "authoritative_provider_result",
+        "mirrored_artifact",
+        "local_rerun",
+        "incomparable_stale_prior_result",
+        "imported_ci_projection_unknown_requires_review"
+      ],
+      "description": "How imported CI evidence participates in this session. Provider, mirror, local rerun, and stale prior evidence are distinct."
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "local_execution_time",
+        "provider_observed_time",
+        "artifact_mirror_import_time",
+        "local_rerun_time",
+        "stale_prior_result_time",
+        "time_basis_unknown_requires_review"
+      ]
+    },
+    "import_completeness_class": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "complete_provider_import",
+        "partial_provider_import_missing_shards",
+        "partial_provider_import_redaction_limited",
+        "provider_follow_in_progress",
+        "import_completeness_unknown_requires_review"
+      ]
+    },
+    "comparability_class": {
+      "type": "string",
+      "enum": [
+        "exact_target",
+        "compatible_rerun",
+        "comparable_with_caution",
+        "manual_re_resolve_required",
+        "comparison_blocked_incompatible",
+        "comparison_pending",
+        "comparability_unknown_requires_review"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_inline",
+        "editor_gutter",
+        "test_tree",
+        "history_row",
+        "cli_output",
+        "debug_session",
+        "support_export",
+        "release_evidence_packet"
+      ]
+    },
+    "artifact_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structured_test_report_artifact_event_ref",
+        "coverage_artifact_event_ref",
+        "log_artifact_event_ref",
+        "mirrored_provider_artifact_ref",
+        "support_bundle_ref",
+        "release_evidence_packet_ref",
+        "additional_artifact_event_refs"
+      ],
+      "properties": {
+        "structured_test_report_artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "coverage_artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "log_artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "mirrored_provider_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_bundle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "release_evidence_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "additional_artifact_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Per-session artifact refs. Provider mirrors are captured copies, not provider-live truth."
+    },
+    "raw_event_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_event_trace_refs",
+        "provider_event_refs",
+        "raw_event_artifact_refs",
+        "normalized_event_refs",
+        "raw_payload_retention_class"
+      ],
+      "properties": {
+        "task_event_trace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "provider_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "raw_event_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "normalized_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "raw_payload_retention_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Refs to governed raw or normalized events. Raw payload bodies stay outside this boundary."
+    },
+    "selection_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_basis_class",
+        "selector_expression_ref",
+        "canonical_test_item_refs",
+        "discovery_state_ref",
+        "source_snapshot_ref",
+        "predecessor_attempt_ref",
+        "widening_rule_class"
+      ],
+      "properties": {
+        "selector_basis_class": { "$ref": "#/$defs/selector_basis_class" },
+        "selector_expression_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "canonical_test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "discovery_state_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_snapshot_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "predecessor_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "widening_rule_class": { "$ref": "#/$defs/selection_widening_rule_class" }
+      }
+    },
+    "execution_context_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "context_snapshot_ref",
+        "context_resolution_class",
+        "policy_epoch_ref",
+        "identity_mode_ref",
+        "trust_state_ref"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "context_snapshot_ref": { "$ref": "#/$defs/opaque_ref" },
+        "context_resolution_class": { "$ref": "#/$defs/context_resolution_class" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "identity_mode_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "trust_state_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "target_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_environment_class",
+        "target_identity_ref",
+        "target_fingerprint_ref",
+        "runtime_ref",
+        "toolchain_ref",
+        "build_ref",
+        "environment_matrix_row_refs"
+      ],
+      "properties": {
+        "target_environment_class": { "$ref": "#/$defs/target_environment_class" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "toolchain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "build_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "environment_matrix_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "watch_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "watch_state_class",
+        "watch_controller_ref",
+        "latest_attempt_ref",
+        "last_successful_attempt_ref",
+        "debounce_batch_ref",
+        "provider_follow_ref",
+        "stale_since",
+        "disconnected_at",
+        "state_summary"
+      ],
+      "properties": {
+        "watch_state_class": { "$ref": "#/$defs/watch_state_class" },
+        "watch_controller_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "last_successful_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debounce_batch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_follow_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "stale_since": { "$ref": "#/$defs/timestamp_nullable" },
+        "disconnected_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "state_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "imported_ci_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imported_ci_projection_class",
+        "import_completeness_class",
+        "provider_result_ref",
+        "provider_run_ref",
+        "provider_job_ref",
+        "provider_matrix_ref",
+        "provider_time_basis_class",
+        "provider_observed_at",
+        "imported_at",
+        "mirrored_artifact_ref",
+        "local_parity_attempt_refs",
+        "comparability_class",
+        "omitted_scope_refs",
+        "projection_summary"
+      ],
+      "properties": {
+        "imported_ci_projection_class": { "$ref": "#/$defs/imported_ci_projection_class" },
+        "import_completeness_class": { "$ref": "#/$defs/import_completeness_class" },
+        "provider_result_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_job_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_matrix_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_time_basis_class": { "$ref": "#/$defs/time_basis_class" },
+        "provider_observed_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "imported_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "mirrored_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_parity_attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "comparability_class": { "$ref": "#/$defs/comparability_class" },
+        "omitted_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "projection_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "muting_and_quarantine_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "muted_count",
+        "quarantined_count",
+        "active_mute_refs",
+        "active_quarantine_refs",
+        "policy_ref",
+        "release_visibility_required"
+      ],
+      "properties": {
+        "muted_count": { "$ref": "#/$defs/non_negative_integer" },
+        "quarantined_count": { "$ref": "#/$defs/non_negative_integer" },
+        "active_mute_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "active_quarantine_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "policy_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "release_visibility_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Muted and quarantined tests remain visible to release evidence."
+        }
+      }
+    },
+    "surface_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_classes",
+        "inline_result_refs",
+        "test_tree_row_refs",
+        "history_row_ref",
+        "cli_row_ref",
+        "debug_session_refs",
+        "support_export_ref",
+        "release_evidence_packet_ref"
+      ],
+      "properties": {
+        "surface_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true
+        },
+        "inline_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "test_tree_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "history_row_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "cli_row_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debug_session_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "support_export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "release_evidence_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "test_session_record_must_cite_session_purpose",
+        "test_session_record_must_cite_trigger_source",
+        "test_session_record_must_cite_selector_basis",
+        "test_session_record_must_cite_execution_context",
+        "test_session_record_must_cite_target_environment",
+        "test_session_record_must_carry_watch_state",
+        "test_session_record_must_carry_imported_ci_projection",
+        "test_session_record_must_preserve_raw_event_refs",
+        "test_session_record_must_not_flatten_imported_ci_into_local_truth",
+        "test_session_record_must_not_treat_mirrored_artifact_as_provider_live",
+        "test_session_record_must_not_hide_muted_or_quarantined_counts",
+        "test_session_record_must_keep_attempt_refs_ordered",
+        "test_session_record_unknown_watch_state_requires_review",
+        "test_session_record_unknown_imported_ci_projection_requires_review"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "test_session_record_published",
+        "test_session_record_lifecycle_transitioned",
+        "test_session_record_attempt_appended",
+        "test_session_record_watch_state_updated",
+        "test_session_record_imported_ci_projection_updated",
+        "test_session_record_surface_mapping_updated",
+        "test_session_record_muting_quarantine_summary_updated",
+        "test_session_record_imported_ci_as_local_truth_forbidden_denial",
+        "test_session_record_attempt_history_overwrite_forbidden_denial",
+        "test_session_record_audit_denial_emitted"
+      ]
+    },
+    "test_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_session_schema_version",
+        "test_session_record_id",
+        "session_purpose_class",
+        "trigger_source_class",
+        "lifecycle_state_class",
+        "initiating_actor_ref",
+        "created_at",
+        "last_updated_at",
+        "closed_at",
+        "selection_basis",
+        "execution_context",
+        "target_environment",
+        "watch_state",
+        "imported_ci_projection",
+        "raw_event_lineage",
+        "muting_and_quarantine_summary",
+        "artifact_linkage",
+        "surface_mapping",
+        "attempt_refs",
+        "audit_event_refs",
+        "denial_reason_class",
+        "captured_at",
+        "redaction_class",
+        "approval_ticket_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_session_record" },
+        "test_session_schema_version": { "$ref": "#/$defs/test_session_schema_version" },
+        "test_session_record_id": { "$ref": "#/$defs/opaque_id" },
+        "session_purpose_class": { "$ref": "#/$defs/session_purpose_class" },
+        "trigger_source_class": { "$ref": "#/$defs/trigger_source_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/session_lifecycle_class" },
+        "initiating_actor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/timestamp" },
+        "closed_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "selection_basis": { "$ref": "#/$defs/selection_basis" },
+        "execution_context": { "$ref": "#/$defs/execution_context_summary" },
+        "target_environment": { "$ref": "#/$defs/target_environment" },
+        "watch_state": { "$ref": "#/$defs/watch_state" },
+        "imported_ci_projection": { "$ref": "#/$defs/imported_ci_projection" },
+        "raw_event_lineage": { "$ref": "#/$defs/raw_event_lineage" },
+        "muting_and_quarantine_summary": { "$ref": "#/$defs/muting_and_quarantine_summary" },
+        "artifact_linkage": { "$ref": "#/$defs/artifact_linkage" },
+        "surface_mapping": { "$ref": "#/$defs/surface_mapping" },
+        "attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event_id" },
+          "uniqueItems": true
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}

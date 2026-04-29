@@ -1,0 +1,727 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/test_attempt.schema.json",
+  "title": "Aureline test attempt record",
+  "description": "Boundary schema for the test_attempt_record frozen in docs/testing/test_session_and_attempt_contract.md. The record preserves one testing attempt's parent session, execution attempt linkage, selector basis, execution context, target environment, source drift, time basis, imported-CI projection, watch state, mute and quarantine state, artifact linkage, raw event refs, surface mappings, and reconstruction proof. It composes with schemas/execution/attempt.schema.json rather than replacing it. Raw command lines, raw stdout or stderr bytes, raw environment bodies, raw absolute paths, raw URLs, raw secret values, raw test names, raw assertion bodies, raw artifact bytes, raw provider payloads, and raw stack traces MUST NOT cross this boundary; records carry opaque refs, counts, class labels, bounded summaries, and timestamps only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_attempt_record" }
+  ],
+  "$defs": {
+    "test_attempt_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this test attempt record family."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["test_attempt_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, support bundles, and release packets."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another governed record."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timestamp_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewable sentence. Raw code, raw paths, raw secrets, raw tool arguments, raw test names, raw provider payloads, and raw runner payloads are forbidden."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "attempt_purpose_class": {
+      "type": "string",
+      "enum": [
+        "initial_test_run_attempt",
+        "watch_cycle_attempt",
+        "rerun_failed_attempt",
+        "debug_from_test_attempt",
+        "provider_ci_import_attempt",
+        "provider_ci_follow_update_attempt",
+        "local_parity_rerun_attempt",
+        "release_evidence_projection_attempt",
+        "support_replay_projection_attempt",
+        "attempt_purpose_unknown_requires_review"
+      ],
+      "description": "Why this attempt exists inside its parent test session."
+    },
+    "attempt_trigger_class": {
+      "type": "string",
+      "enum": [
+        "session_start",
+        "watch_change_batch",
+        "debounce_elapsed",
+        "user_rerun_failed",
+        "user_debug_from_test",
+        "provider_event_imported",
+        "provider_follow_update",
+        "release_packet_reconstruction",
+        "support_replay",
+        "attempt_trigger_unknown_requires_review"
+      ]
+    },
+    "selector_basis_class": {
+      "type": "string",
+      "enum": [
+        "explicit_test_item_ids",
+        "selector_expression",
+        "failed_only_from_prior_attempt",
+        "changed_files_since_snapshot",
+        "watch_discovery_snapshot",
+        "provider_ci_import_scope",
+        "debug_from_test_selection",
+        "release_evidence_packet_scope",
+        "selector_basis_unknown_requires_review"
+      ]
+    },
+    "selection_widening_rule_class": {
+      "type": "string",
+      "enum": [
+        "no_widening_allowed",
+        "widening_review_required",
+        "widening_denied",
+        "widening_policy_defined",
+        "widening_rule_unknown_requires_review"
+      ]
+    },
+    "context_resolution_class": {
+      "type": "string",
+      "enum": [
+        "resolved_exact_context",
+        "resolved_cached_context",
+        "resolved_with_visible_narrowing",
+        "manual_re_resolve_required",
+        "resolution_blocked_by_policy",
+        "context_resolution_unknown_requires_review"
+      ]
+    },
+    "target_environment_class": {
+      "type": "string",
+      "enum": [
+        "local_environment",
+        "container_environment",
+        "remote_environment",
+        "managed_environment",
+        "ci_environment",
+        "notebook_environment",
+        "provider_backed_environment",
+        "target_environment_unknown_requires_review"
+      ]
+    },
+    "source_drift_class": {
+      "type": "string",
+      "enum": [
+        "no_source_drift",
+        "source_edited_since_predecessor",
+        "source_moved_remapped_exact",
+        "source_changed_requires_current_context_rerun",
+        "generated_source_regenerated",
+        "provider_only_no_local_source",
+        "source_drift_unknown_requires_review"
+      ],
+      "description": "Source lineage relation between this attempt and its predecessor or provider source."
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "local_monotonic_execution",
+        "provider_reported_time",
+        "artifact_mirror_import_time",
+        "local_rerun_time",
+        "stale_prior_result_time",
+        "time_basis_unknown_requires_review"
+      ],
+      "description": "Authority for observed_at / captured_at times."
+    },
+    "clock_skew_class": {
+      "type": "string",
+      "enum": [
+        "no_known_clock_skew",
+        "provider_time_unverified",
+        "local_clock_untrusted",
+        "clock_skew_corrected",
+        "clock_skew_unknown_requires_review"
+      ]
+    },
+    "imported_ci_projection_class": {
+      "type": "string",
+      "enum": [
+        "not_imported_ci",
+        "authoritative_provider_result",
+        "mirrored_artifact",
+        "local_rerun",
+        "incomparable_stale_prior_result",
+        "imported_ci_projection_unknown_requires_review"
+      ]
+    },
+    "result_source_class": {
+      "type": "string",
+      "enum": [
+        "local_execution_authoritative",
+        "local_execution_cached",
+        "provider_imported_only",
+        "provider_imported_with_local_parity_validation",
+        "merged_local_and_provider_with_parity_validation",
+        "ai_assisted_filter_then_local_execution",
+        "test_result_source_unknown_requires_review"
+      ]
+    },
+    "parity_validation_class": {
+      "type": "string",
+      "enum": [
+        "parity_not_attempted",
+        "parity_validated_local_matches_provider",
+        "parity_drift_detected_minor",
+        "parity_drift_detected_major",
+        "parity_validation_pending_local_rerun",
+        "parity_validation_skipped_under_policy",
+        "parity_validation_unknown_requires_review"
+      ]
+    },
+    "comparability_class": {
+      "type": "string",
+      "enum": [
+        "exact_target",
+        "compatible_rerun",
+        "comparable_with_caution",
+        "manual_re_resolve_required",
+        "comparison_blocked_incompatible",
+        "comparison_pending",
+        "comparability_unknown_requires_review"
+      ]
+    },
+    "attempt_result_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "waiting_input",
+        "partially_complete",
+        "passed",
+        "failed",
+        "cancelled",
+        "stale_output",
+        "unsupported_on_this_environment",
+        "attempt_result_state_unknown_requires_review"
+      ]
+    },
+    "watch_state_class": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "initial_discovery",
+        "watching",
+        "debounce_pending",
+        "rerun_failed",
+        "partial_import",
+        "provider_live_follow",
+        "stale_imported",
+        "disconnected_follow",
+        "watch_state_unknown_requires_review"
+      ]
+    },
+    "muting_quarantine_state_class": {
+      "type": "string",
+      "enum": [
+        "not_muted_or_quarantined",
+        "muted_by_user",
+        "muted_by_policy",
+        "quarantined_under_flake_policy",
+        "quarantined_by_provider",
+        "inherited_session_quarantine",
+        "muting_quarantine_state_unknown_requires_review"
+      ],
+      "description": "Attempt-specific muted or quarantined posture. It is distinct from skipped and passed."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_inline",
+        "editor_gutter",
+        "test_tree",
+        "history_row",
+        "cli_output",
+        "debug_session",
+        "support_export",
+        "release_evidence_packet"
+      ]
+    },
+    "selector_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_basis_class",
+        "selector_expression_ref",
+        "canonical_test_item_refs",
+        "discovery_state_ref",
+        "source_snapshot_ref",
+        "predecessor_attempt_ref",
+        "widening_rule_class"
+      ],
+      "properties": {
+        "selector_basis_class": { "$ref": "#/$defs/selector_basis_class" },
+        "selector_expression_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "canonical_test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "discovery_state_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_snapshot_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "predecessor_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "widening_rule_class": { "$ref": "#/$defs/selection_widening_rule_class" }
+      }
+    },
+    "execution_context_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_ref",
+        "context_snapshot_ref",
+        "context_resolution_class",
+        "policy_epoch_ref",
+        "identity_mode_ref",
+        "trust_state_ref"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "context_snapshot_ref": { "$ref": "#/$defs/opaque_ref" },
+        "context_resolution_class": { "$ref": "#/$defs/context_resolution_class" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "identity_mode_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "trust_state_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "target_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_environment_class",
+        "target_identity_ref",
+        "target_fingerprint_ref",
+        "runtime_ref",
+        "toolchain_ref",
+        "build_ref",
+        "environment_matrix_row_refs"
+      ],
+      "properties": {
+        "target_environment_class": { "$ref": "#/$defs/target_environment_class" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "toolchain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "build_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "environment_matrix_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "source_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_revision_ref",
+        "source_snapshot_ref_at_attempt",
+        "source_edit_epoch_ref",
+        "source_changed_since_predecessor",
+        "source_drift_class",
+        "remap_ref"
+      ],
+      "properties": {
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_snapshot_ref_at_attempt": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_edit_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "source_changed_since_predecessor": { "type": "boolean" },
+        "source_drift_class": { "$ref": "#/$defs/source_drift_class" },
+        "remap_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "time_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_basis_class",
+        "observed_at",
+        "captured_at",
+        "imported_at",
+        "started_at",
+        "ended_at",
+        "clock_skew_class"
+      ],
+      "properties": {
+        "time_basis_class": { "$ref": "#/$defs/time_basis_class" },
+        "observed_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "imported_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "started_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "ended_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "clock_skew_class": { "$ref": "#/$defs/clock_skew_class" }
+      }
+    },
+    "result_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_result_state_class",
+        "result_source_class",
+        "imported_ci_projection_class",
+        "parity_validation_class",
+        "comparability_class",
+        "test_run_summary_ref",
+        "outcome_event_refs",
+        "environment_matrix_row_refs",
+        "provider_result_ref",
+        "local_parity_attempt_ref",
+        "projection_summary"
+      ],
+      "properties": {
+        "attempt_result_state_class": { "$ref": "#/$defs/attempt_result_state_class" },
+        "result_source_class": { "$ref": "#/$defs/result_source_class" },
+        "imported_ci_projection_class": { "$ref": "#/$defs/imported_ci_projection_class" },
+        "parity_validation_class": { "$ref": "#/$defs/parity_validation_class" },
+        "comparability_class": { "$ref": "#/$defs/comparability_class" },
+        "test_run_summary_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "outcome_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "environment_matrix_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "provider_result_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_parity_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "projection_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "watch_state_at_attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "watch_state_class",
+        "watch_controller_ref",
+        "debounce_batch_ref",
+        "provider_follow_ref",
+        "watch_cycle_ref",
+        "state_summary"
+      ],
+      "properties": {
+        "watch_state_class": { "$ref": "#/$defs/watch_state_class" },
+        "watch_controller_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debounce_batch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_follow_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "watch_cycle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "state_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "muting_quarantine_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "muting_quarantine_state_class",
+        "mute_refs",
+        "quarantine_refs",
+        "counted_in_release_evidence"
+      ],
+      "properties": {
+        "muting_quarantine_state_class": { "$ref": "#/$defs/muting_quarantine_state_class" },
+        "mute_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "quarantine_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "counted_in_release_evidence": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "artifact_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structured_test_report_artifact_event_ref",
+        "coverage_artifact_event_ref",
+        "log_artifact_event_ref",
+        "mirrored_provider_artifact_ref",
+        "debug_artifact_ref",
+        "support_bundle_ref",
+        "release_evidence_packet_ref",
+        "additional_artifact_event_refs"
+      ],
+      "properties": {
+        "structured_test_report_artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "coverage_artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "log_artifact_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "mirrored_provider_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debug_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_bundle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "release_evidence_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "additional_artifact_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "raw_event_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_event_trace_refs",
+        "provider_event_refs",
+        "raw_event_artifact_refs",
+        "normalized_event_refs",
+        "raw_payload_retention_class"
+      ],
+      "properties": {
+        "task_event_trace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "provider_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "raw_event_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "normalized_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "raw_payload_retention_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "surface_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_classes",
+        "inline_result_refs",
+        "test_tree_row_refs",
+        "history_row_ref",
+        "cli_row_ref",
+        "debug_session_ref",
+        "support_export_ref",
+        "release_evidence_packet_ref"
+      ],
+      "properties": {
+        "surface_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true
+        },
+        "inline_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "test_tree_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "history_row_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "cli_row_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debug_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "support_export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "release_evidence_packet_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "reconstruction_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reconstructable_from_surface_refs",
+        "preserves_selector_target_environment",
+        "preserves_time_basis",
+        "preserves_artifact_lineage",
+        "missing_reconstruction_ref_count"
+      ],
+      "properties": {
+        "reconstructable_from_surface_refs": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_selector_target_environment": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_time_basis": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_artifact_lineage": {
+          "type": "boolean",
+          "const": true
+        },
+        "missing_reconstruction_ref_count": {
+          "type": "integer",
+          "const": 0
+        }
+      },
+      "description": "Proof that inline, tree, history, debug, export, support, and release surfaces can reconstruct this attempt without flattening it into latest status."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "test_attempt_record_must_cite_parent_session",
+        "test_attempt_record_must_cite_attempt_purpose",
+        "test_attempt_record_must_cite_selector_basis",
+        "test_attempt_record_must_cite_execution_context",
+        "test_attempt_record_must_cite_target_environment",
+        "test_attempt_record_must_carry_source_lineage",
+        "test_attempt_record_must_carry_time_basis",
+        "test_attempt_record_must_carry_result_projection",
+        "test_attempt_record_must_not_overwrite_prior_attempt",
+        "test_attempt_record_must_not_flatten_imported_ci_into_local_truth",
+        "test_attempt_record_must_not_treat_mirrored_artifact_as_provider_live",
+        "test_attempt_record_failed_only_rerun_must_cite_predecessor_subset",
+        "test_attempt_record_source_edit_must_narrow_exact_replay_claim",
+        "test_attempt_record_debug_from_test_must_cite_origin_and_debug_session",
+        "test_attempt_record_must_preserve_surface_reconstruction_refs",
+        "test_attempt_record_unknown_imported_ci_projection_requires_review",
+        "test_attempt_record_unknown_watch_state_requires_review"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "test_attempt_record_published",
+        "test_attempt_record_result_projection_updated",
+        "test_attempt_record_source_lineage_updated",
+        "test_attempt_record_watch_state_recorded",
+        "test_attempt_record_surface_mapping_updated",
+        "test_attempt_record_debug_from_test_linked",
+        "test_attempt_record_imported_ci_projection_recorded",
+        "test_attempt_record_imported_ci_as_local_truth_forbidden_denial",
+        "test_attempt_record_attempt_history_overwrite_forbidden_denial",
+        "test_attempt_record_audit_denial_emitted"
+      ]
+    },
+    "test_attempt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_attempt_schema_version",
+        "test_attempt_record_id",
+        "parent_test_session_ref",
+        "parent_run_ref",
+        "parent_execution_attempt_ref",
+        "attempt_index",
+        "attempt_purpose_class",
+        "attempt_trigger_class",
+        "predecessor_attempt_ref",
+        "originating_attempt_ref",
+        "debug_session_ref",
+        "selector_basis",
+        "execution_context",
+        "target_environment",
+        "source_lineage",
+        "time_basis",
+        "result_projection",
+        "watch_state_at_attempt",
+        "muting_quarantine_state",
+        "artifact_linkage",
+        "raw_event_lineage",
+        "surface_mapping",
+        "reconstruction_contract",
+        "audit_event_refs",
+        "denial_reason_class",
+        "captured_at",
+        "redaction_class",
+        "approval_ticket_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_attempt_record" },
+        "test_attempt_schema_version": { "$ref": "#/$defs/test_attempt_schema_version" },
+        "test_attempt_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parent_execution_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "attempt_index": { "$ref": "#/$defs/non_negative_integer" },
+        "attempt_purpose_class": { "$ref": "#/$defs/attempt_purpose_class" },
+        "attempt_trigger_class": { "$ref": "#/$defs/attempt_trigger_class" },
+        "predecessor_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "originating_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debug_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "selector_basis": { "$ref": "#/$defs/selector_basis" },
+        "execution_context": { "$ref": "#/$defs/execution_context_summary" },
+        "target_environment": { "$ref": "#/$defs/target_environment" },
+        "source_lineage": { "$ref": "#/$defs/source_lineage" },
+        "time_basis": { "$ref": "#/$defs/time_basis" },
+        "result_projection": { "$ref": "#/$defs/result_projection" },
+        "watch_state_at_attempt": { "$ref": "#/$defs/watch_state_at_attempt" },
+        "muting_quarantine_state": { "$ref": "#/$defs/muting_quarantine_state" },
+        "artifact_linkage": { "$ref": "#/$defs/artifact_linkage" },
+        "raw_event_lineage": { "$ref": "#/$defs/raw_event_lineage" },
+        "surface_mapping": { "$ref": "#/$defs/surface_mapping" },
+        "reconstruction_contract": { "$ref": "#/$defs/reconstruction_contract" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event_id" },
+          "uniqueItems": true
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}
