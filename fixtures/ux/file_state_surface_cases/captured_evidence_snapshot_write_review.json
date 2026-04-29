@@ -1,0 +1,168 @@
+{
+  "$schema": "../../../schemas/ux/write_review_sheet.schema.json",
+  "__fixture__": {
+    "name": "captured_evidence_snapshot_write_review",
+    "scenario": "A user tries to annotate a captured support snapshot. The write-review sheet keeps evidence immutable, offers evidence export, duplicate, and open live source actions, and describes captured-vs-live side effects.",
+    "exercised_axes": {
+      "recommended_primary_action_class": "export_evidence",
+      "actions": ["export_evidence", "duplicate", "open_canonical_source"]
+    },
+    "contract_sections": [
+      "Write-Review Sheet",
+      "Surface Obligations"
+    ]
+  },
+  "record_kind": "write_review_sheet_record",
+  "write_review_sheet_schema_version": 1,
+  "write_review_sheet_id": "write-review:captured-evidence-snapshot:01",
+  "opened_from": {
+    "surface_family": "evidence",
+    "surface_instance_ref": "evidence:viewer:router-rs-snapshot",
+    "invoking_command_ref": "cmd:evidence.annotate_snapshot",
+    "return_focus_ref": "focus:evidence:router-rs-snapshot"
+  },
+  "current_object": {
+    "object_ref": "evidence:snapshot:file:router-rs",
+    "object_kind": "captured_snapshot",
+    "display_label": "router.rs snapshot",
+    "current_badge_classes": ["captured_snapshot", "read_only"],
+    "source_relation_class": "captured_basis_is_canonical"
+  },
+  "badge_group_ref": "file-state:badge:captured-evidence-snapshot:01",
+  "trigger": {
+    "trigger_class": "direct_edit_requested",
+    "requested_write_summary": "The user attempted to edit or annotate the captured snapshot itself.",
+    "blocked_reason_ref": "evidence:snapshot:file:router-rs"
+  },
+  "action_summary": {
+    "recommended_primary_action_class": "export_evidence",
+    "safe_default_action_id": "action:write-review:captured-snapshot:export-evidence",
+    "destructive_action_present": false,
+    "all_actions_have_side_effects_and_checkpoint": true
+  },
+  "available_actions": [
+    {
+      "action_id": "action:write-review:captured-snapshot:export-evidence",
+      "action_class": "export_evidence",
+      "label_text": "Export evidence packet",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.export_evidence",
+      "target_relation": "evidence_export",
+      "target_ref": "evidence:export:router-rs-snapshot",
+      "side_effects": [
+        {
+          "side_effect_class": "evidence_export_created",
+          "scope_ref": "support:packet:router-save-failure",
+          "summary": "Creates an export containing snapshot identity, capture basis, and live-source relation."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "evidence_export_no_source_mutation",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": "history:captured-snapshot:evidence-export",
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Deleting the exported evidence packet does not affect the immutable snapshot or live source."
+      },
+      "result_state": {
+        "resulting_state_class": "evidence_exported",
+        "resulting_object_ref": "evidence:export:router-rs-snapshot",
+        "closes_sheet": false,
+        "followup_surface_ref": "support:packet:router-save-failure:export"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Export evidence packet preserves captured snapshot identity and performs no source mutation."
+    },
+    {
+      "action_id": "action:write-review:captured-snapshot:duplicate",
+      "action_class": "duplicate",
+      "label_text": "Duplicate for notes",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.duplicate_editable_copy",
+      "target_relation": "local_duplicate",
+      "target_ref": "workspace:file:router-rs-snapshot-notes",
+      "side_effects": [
+        {
+          "side_effect_class": "local_duplicate_created",
+          "scope_ref": "workspace:checkout:primary",
+          "summary": "Creates an editable notes copy; the captured evidence snapshot remains immutable."
+        },
+        {
+          "side_effect_class": "existing_object_preserved",
+          "scope_ref": "evidence:snapshot:file:router-rs",
+          "summary": "The original captured snapshot is preserved unchanged in the support packet."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "reversible_by_deleting_duplicate",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": "history:captured-snapshot:duplicate-notes",
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Delete the notes copy to undo this action."
+      },
+      "result_state": {
+        "resulting_state_class": "editable_duplicate_created",
+        "resulting_object_ref": "workspace:file:router-rs-snapshot-notes",
+        "closes_sheet": true,
+        "followup_surface_ref": "editor:tab:router-rs-snapshot-notes"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Duplicate for notes creates an editable copy and leaves captured evidence unchanged."
+    },
+    {
+      "action_id": "action:write-review:captured-snapshot:open-source",
+      "action_class": "open_canonical_source",
+      "label_text": "Open live source",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.open_canonical_source",
+      "target_relation": "canonical_source",
+      "target_ref": "workspace:file:router-rs",
+      "side_effects": [
+        {
+          "side_effect_class": "canonical_source_opened",
+          "scope_ref": "workspace:file:router-rs",
+          "summary": "Opens the live source as a separate object and does not mutate the captured snapshot."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "not_required_no_mutation",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": null,
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "No rollback is needed because this action only navigates to live source."
+      },
+      "result_state": {
+        "resulting_state_class": "canonical_source_focused",
+        "resulting_object_ref": "workspace:file:router-rs",
+        "closes_sheet": true,
+        "followup_surface_ref": "editor:tab:router-rs"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Open live source focuses the current workspace file without changing the evidence snapshot."
+    }
+  ],
+  "consequence_block": {
+    "side_effect_summary": "The primary action exports evidence; duplicate creates a separate notes copy and open-source only navigates.",
+    "rollback_summary": "Evidence exports and notes copies can be deleted without touching the immutable snapshot or live source.",
+    "irreversible_warning": null,
+    "safe_cancel_available": true
+  },
+  "close_and_focus": {
+    "close_behavior_class": "cancel_no_state_change",
+    "esc_behavior_class": "same_as_cancel",
+    "focus_return_ref": "focus:evidence:router-rs-snapshot"
+  },
+  "export_and_accessibility": {
+    "accessible_name": "Write review for captured evidence snapshot with export, duplicate, and open live source actions.",
+    "support_export_field_refs": [
+      "export.write_review.captured_snapshot.actions",
+      "export.write_review.captured_snapshot.side_effects",
+      "export.write_review.captured_snapshot.rollback"
+    ],
+    "raw_private_material_excluded": true,
+    "state_vocabulary_preserved": true
+  },
+  "narrative_refs": [
+    "docs/ux/file_state_badge_and_write_review_contract.md",
+    "docs/ai/evidence_replayability_contract.md"
+  ]
+}

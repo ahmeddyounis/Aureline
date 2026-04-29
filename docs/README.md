@@ -688,6 +688,19 @@ code.
   [`/schemas/editor/document_state_badge.schema.json`](../schemas/editor/document_state_badge.schema.json);
   worked fixtures in
   [`/fixtures/editor/document_state_cases/`](../fixtures/editor/document_state_cases/).
+- [`ux/file_state_badge_and_write_review_contract.md`](./ux/file_state_badge_and_write_review_contract.md)
+  — cross-surface file-state badge, reason-strip, and write-review
+  contract for read-only, generated, policy-locked, managed/mirrored,
+  projection, and captured-snapshot states. Freezes source-of-truth
+  relation, write authority, dirty state, freshness, next-safe action,
+  write-review side effects, and checkpoint/rollback posture for
+  editor, diff, preview, review, notebook, and evidence surfaces.
+  Boundary schemas in
+  [`/schemas/ux/file_state_badge_group.schema.json`](../schemas/ux/file_state_badge_group.schema.json)
+  and
+  [`/schemas/ux/write_review_sheet.schema.json`](../schemas/ux/write_review_sheet.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/file_state_surface_cases/`](../fixtures/ux/file_state_surface_cases/).
 - [`ux/editor_external_change_contract.md`](./ux/editor_external_change_contract.md)
   — editor external-change contract for recovery-safe handling when a
   file changes outside Aureline, watcher/root state is uncertain, an

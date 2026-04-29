@@ -1,0 +1,168 @@
+{
+  "$schema": "../../../schemas/ux/write_review_sheet.schema.json",
+  "__fixture__": {
+    "name": "read_only_local_source_write_review",
+    "scenario": "Saving a canonical local source file is blocked by read-only filesystem permission. The write-review sheet offers duplicate, request approval, and export evidence actions with explicit side effects and rollback posture.",
+    "exercised_axes": {
+      "recommended_primary_action_class": "duplicate",
+      "actions": ["duplicate", "request_approval", "export_evidence"]
+    },
+    "contract_sections": [
+      "Write-Review Sheet",
+      "Surface Obligations"
+    ]
+  },
+  "record_kind": "write_review_sheet_record",
+  "write_review_sheet_schema_version": 1,
+  "write_review_sheet_id": "write-review:read-only-local-source:01",
+  "opened_from": {
+    "surface_family": "editor",
+    "surface_instance_ref": "editor:tab:orders-rs",
+    "invoking_command_ref": "cmd:editor.save",
+    "return_focus_ref": "focus:editor:orders-rs"
+  },
+  "current_object": {
+    "object_ref": "workspace:file:orders-rs",
+    "object_kind": "local_source_file",
+    "display_label": "orders.rs",
+    "current_badge_classes": ["read_only"],
+    "source_relation_class": "current_object_is_canonical"
+  },
+  "badge_group_ref": "file-state:badge:read-only-local-source:01",
+  "trigger": {
+    "trigger_class": "save_blocked",
+    "requested_write_summary": "The user attempted to save the canonical source file, but direct write authority is unavailable.",
+    "blocked_reason_ref": "fs-permission:orders-rs:read-only"
+  },
+  "action_summary": {
+    "recommended_primary_action_class": "duplicate",
+    "safe_default_action_id": "action:write-review:orders-rs:duplicate",
+    "destructive_action_present": false,
+    "all_actions_have_side_effects_and_checkpoint": true
+  },
+  "available_actions": [
+    {
+      "action_id": "action:write-review:orders-rs:duplicate",
+      "action_class": "duplicate",
+      "label_text": "Duplicate to editable copy",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.duplicate_editable_copy",
+      "target_relation": "local_duplicate",
+      "target_ref": "workspace:file:orders-rs:duplicate-draft",
+      "side_effects": [
+        {
+          "side_effect_class": "local_duplicate_created",
+          "scope_ref": "workspace:checkout:primary",
+          "summary": "Creates an editable local copy and leaves the canonical read-only file unchanged."
+        },
+        {
+          "side_effect_class": "existing_object_preserved",
+          "scope_ref": "workspace:file:orders-rs",
+          "summary": "The original source file remains the canonical object and is not overwritten."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "reversible_by_deleting_duplicate",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": "history:file-state:orders-rs:duplicate",
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Delete the duplicate to return to the pre-action workspace state."
+      },
+      "result_state": {
+        "resulting_state_class": "editable_duplicate_created",
+        "resulting_object_ref": "workspace:file:orders-rs:duplicate-draft",
+        "closes_sheet": true,
+        "followup_surface_ref": "editor:tab:orders-rs-duplicate"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Duplicate to editable copy creates a new file and does not change the read-only source."
+    },
+    {
+      "action_id": "action:write-review:orders-rs:request-approval",
+      "action_class": "request_approval",
+      "label_text": "Request write permission",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.request_write_approval",
+      "target_relation": "policy_owner",
+      "target_ref": "approval:file-permission:orders-rs",
+      "side_effects": [
+        {
+          "side_effect_class": "approval_ticket_requested",
+          "scope_ref": "workspace:file:orders-rs",
+          "summary": "Creates a permission request; no file content is written."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "approval_ticket_no_local_change",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": null,
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Cancel or let the approval request expire; the source file remains unchanged."
+      },
+      "result_state": {
+        "resulting_state_class": "approval_pending",
+        "resulting_object_ref": "approval:file-permission:orders-rs",
+        "closes_sheet": true,
+        "followup_surface_ref": "activity:approval:orders-rs"
+      },
+      "confirmation_requirement": "approval_required_elsewhere",
+      "accessibility_summary": "Request write permission opens an approval flow and performs no local write."
+    },
+    {
+      "action_id": "action:write-review:orders-rs:export-evidence",
+      "action_class": "export_evidence",
+      "label_text": "Export permission evidence",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.export_evidence",
+      "target_relation": "evidence_export",
+      "target_ref": "evidence:file-permission:orders-rs",
+      "side_effects": [
+        {
+          "side_effect_class": "evidence_export_created",
+          "scope_ref": "support:packet:file-state:orders-rs",
+          "summary": "Creates a redacted support evidence packet with the read-only authority facts."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "evidence_export_no_source_mutation",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": "history:file-state:orders-rs:evidence-export",
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Deleting the evidence export does not affect the source file."
+      },
+      "result_state": {
+        "resulting_state_class": "evidence_exported",
+        "resulting_object_ref": "evidence:file-permission:orders-rs",
+        "closes_sheet": false,
+        "followup_surface_ref": "support:packet:file-state:orders-rs"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Export evidence creates a support packet and does not write the source file."
+    }
+  ],
+  "consequence_block": {
+    "side_effect_summary": "The recommended action creates a duplicate; the original canonical source file remains unchanged.",
+    "rollback_summary": "The duplicate can be deleted, and approval or evidence actions do not mutate source content.",
+    "irreversible_warning": null,
+    "safe_cancel_available": true
+  },
+  "close_and_focus": {
+    "close_behavior_class": "cancel_no_state_change",
+    "esc_behavior_class": "same_as_cancel",
+    "focus_return_ref": "focus:editor:orders-rs"
+  },
+  "export_and_accessibility": {
+    "accessible_name": "Write review for read-only canonical source file with duplicate, approval, and evidence options.",
+    "support_export_field_refs": [
+      "export.write_review.actions",
+      "export.write_review.checkpoint_posture",
+      "export.write_review.side_effects"
+    ],
+    "raw_private_material_excluded": true,
+    "state_vocabulary_preserved": true
+  },
+  "narrative_refs": [
+    "docs/ux/file_state_badge_and_write_review_contract.md",
+    "docs/ux/dialog_sheet_contract.md"
+  ]
+}

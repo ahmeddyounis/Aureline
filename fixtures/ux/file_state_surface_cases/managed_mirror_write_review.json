@@ -1,0 +1,168 @@
+{
+  "$schema": "../../../schemas/ux/write_review_sheet.schema.json",
+  "__fixture__": {
+    "name": "managed_mirror_write_review",
+    "scenario": "A user asks to edit a managed mirror copy. The sheet makes detach a reviewed action, offers approval and evidence export, and documents that detaching changes future refresh behavior.",
+    "exercised_axes": {
+      "recommended_primary_action_class": "detach",
+      "actions": ["detach", "request_approval", "export_evidence"]
+    },
+    "contract_sections": [
+      "Write-Review Sheet",
+      "Surface Obligations"
+    ]
+  },
+  "record_kind": "write_review_sheet_record",
+  "write_review_sheet_schema_version": 1,
+  "write_review_sheet_id": "write-review:managed-mirror:registry-pack:01",
+  "opened_from": {
+    "surface_family": "review",
+    "surface_instance_ref": "review:mirror-pack:registry",
+    "invoking_command_ref": "cmd:editor.type",
+    "return_focus_ref": "focus:review:mirror-pack"
+  },
+  "current_object": {
+    "object_ref": "mirror:artifact:registry-pack",
+    "object_kind": "managed_mirror",
+    "display_label": "registry mirror pack",
+    "current_badge_classes": ["managed_mirrored", "read_only"],
+    "source_relation_class": "managed_upstream_is_canonical"
+  },
+  "badge_group_ref": "file-state:badge:managed-mirror:registry-pack:01",
+  "trigger": {
+    "trigger_class": "direct_edit_requested",
+    "requested_write_summary": "The user attempted to locally edit a managed mirror copy.",
+    "blocked_reason_ref": "managed-policy:registry-mirror"
+  },
+  "action_summary": {
+    "recommended_primary_action_class": "detach",
+    "safe_default_action_id": "action:write-review:managed-mirror:detach",
+    "destructive_action_present": true,
+    "all_actions_have_side_effects_and_checkpoint": true
+  },
+  "available_actions": [
+    {
+      "action_id": "action:write-review:managed-mirror:detach",
+      "action_class": "detach",
+      "label_text": "Detach for local edit",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.detach_managed_mirror",
+      "target_relation": "current_object",
+      "target_ref": "mirror:artifact:registry-pack",
+      "side_effects": [
+        {
+          "side_effect_class": "managed_link_detached",
+          "scope_ref": "mirror:artifact:registry-pack",
+          "summary": "Breaks automatic mirror refresh for the detached local copy."
+        },
+        {
+          "side_effect_class": "metadata_only_audit_event",
+          "scope_ref": "managed-policy:registry-mirror",
+          "summary": "Records that the object no longer follows the managed mirror path."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "pre_action_checkpoint_required",
+        "checkpoint_ref": "checkpoint:managed-mirror:before-detach",
+        "local_history_entry_ref": "history:managed-mirror:detach",
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "A pre-detach checkpoint preserves the mirrored copy and its upstream relation for reattach or restore."
+      },
+      "result_state": {
+        "resulting_state_class": "detached_editable_file",
+        "resulting_object_ref": "workspace:file:registry-pack-detached",
+        "closes_sheet": true,
+        "followup_surface_ref": "editor:tab:registry-pack-detached"
+      },
+      "confirmation_requirement": "required_when_detaching_manager",
+      "accessibility_summary": "Detach for local edit breaks managed mirror refresh for the detached copy after checkpoint review."
+    },
+    {
+      "action_id": "action:write-review:managed-mirror:request-approval",
+      "action_class": "request_approval",
+      "label_text": "Request managed-owner approval",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.request_managed_approval",
+      "target_relation": "policy_owner",
+      "target_ref": "managed-upstream:enterprise-registry",
+      "side_effects": [
+        {
+          "side_effect_class": "approval_ticket_requested",
+          "scope_ref": "managed-upstream:enterprise-registry",
+          "summary": "Creates an approval request for the managed owner; no mirror bytes are changed."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "approval_ticket_no_local_change",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": null,
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Canceling the approval request leaves the mirror copy attached."
+      },
+      "result_state": {
+        "resulting_state_class": "approval_pending",
+        "resulting_object_ref": "approval:managed-mirror:registry-pack",
+        "closes_sheet": true,
+        "followup_surface_ref": "activity:approval:managed-mirror"
+      },
+      "confirmation_requirement": "approval_required_elsewhere",
+      "accessibility_summary": "Request managed-owner approval asks for upstream authority and performs no local mutation."
+    },
+    {
+      "action_id": "action:write-review:managed-mirror:export-evidence",
+      "action_class": "export_evidence",
+      "label_text": "Export mirror evidence",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.export_evidence",
+      "target_relation": "evidence_export",
+      "target_ref": "evidence:managed-mirror:registry-pack",
+      "side_effects": [
+        {
+          "side_effect_class": "evidence_export_created",
+          "scope_ref": "support:packet:managed-mirror",
+          "summary": "Exports mirror basis, upstream relation, and detach-review metadata."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "evidence_export_no_source_mutation",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": "history:managed-mirror:evidence-export",
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Deleting the evidence packet does not affect the managed mirror."
+      },
+      "result_state": {
+        "resulting_state_class": "evidence_exported",
+        "resulting_object_ref": "evidence:managed-mirror:registry-pack",
+        "closes_sheet": false,
+        "followup_surface_ref": "support:packet:managed-mirror"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Export mirror evidence creates a support packet and leaves the mirror attached."
+    }
+  ],
+  "consequence_block": {
+    "side_effect_summary": "Detaching changes future mirror refresh behavior for the detached copy; approval and evidence export do not mutate the mirror.",
+    "rollback_summary": "The detach action requires a pre-action checkpoint for restore or reattach.",
+    "irreversible_warning": "Detached local edits will no longer receive managed mirror refreshes until reattached or replaced.",
+    "safe_cancel_available": true
+  },
+  "close_and_focus": {
+    "close_behavior_class": "cancel_no_state_change",
+    "esc_behavior_class": "same_as_cancel",
+    "focus_return_ref": "focus:review:mirror-pack"
+  },
+  "export_and_accessibility": {
+    "accessible_name": "Write review for managed mirror with detach, approval, and evidence actions.",
+    "support_export_field_refs": [
+      "export.write_review.managed_mirror.actions",
+      "export.write_review.managed_mirror.side_effects",
+      "export.write_review.managed_mirror.rollback"
+    ],
+    "raw_private_material_excluded": true,
+    "state_vocabulary_preserved": true
+  },
+  "narrative_refs": [
+    "docs/ux/file_state_badge_and_write_review_contract.md",
+    "docs/ux/dialog_sheet_contract.md"
+  ]
+}

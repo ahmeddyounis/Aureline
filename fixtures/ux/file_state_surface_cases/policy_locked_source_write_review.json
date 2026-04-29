@@ -1,0 +1,163 @@
+{
+  "$schema": "../../../schemas/ux/write_review_sheet.schema.json",
+  "__fixture__": {
+    "name": "policy_locked_source_write_review",
+    "scenario": "A dirty policy-locked settings draft cannot save. The sheet makes request approval primary, keeps canonical-source inspection available, and lets the user export evidence without committing the dirty draft.",
+    "exercised_axes": {
+      "recommended_primary_action_class": "request_approval",
+      "actions": ["request_approval", "open_canonical_source", "export_evidence"]
+    },
+    "contract_sections": [
+      "Write-Review Sheet",
+      "Surface Obligations"
+    ]
+  },
+  "record_kind": "write_review_sheet_record",
+  "write_review_sheet_schema_version": 1,
+  "write_review_sheet_id": "write-review:policy-locked-source:01",
+  "opened_from": {
+    "surface_family": "editor",
+    "surface_instance_ref": "editor:tab:settings-policy-managed",
+    "invoking_command_ref": "cmd:editor.save",
+    "return_focus_ref": "focus:editor:settings-policy-managed"
+  },
+  "current_object": {
+    "object_ref": "workspace:file:settings-policy-managed",
+    "object_kind": "policy_locked_file",
+    "display_label": "settings.json",
+    "current_badge_classes": ["policy_locked", "read_only"],
+    "source_relation_class": "policy_rule_controls_current_object"
+  },
+  "badge_group_ref": "file-state:badge:policy-locked-source:01",
+  "trigger": {
+    "trigger_class": "save_blocked",
+    "requested_write_summary": "The user attempted to save a dirty settings draft controlled by policy.",
+    "blocked_reason_ref": "policy:settings:managed-lock"
+  },
+  "action_summary": {
+    "recommended_primary_action_class": "request_approval",
+    "safe_default_action_id": "action:write-review:policy-settings:request-approval",
+    "destructive_action_present": false,
+    "all_actions_have_side_effects_and_checkpoint": true
+  },
+  "available_actions": [
+    {
+      "action_id": "action:write-review:policy-settings:request-approval",
+      "action_class": "request_approval",
+      "label_text": "Request policy approval",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.request_policy_approval",
+      "target_relation": "policy_owner",
+      "target_ref": "policy:settings:managed-lock",
+      "side_effects": [
+        {
+          "side_effect_class": "approval_ticket_requested",
+          "scope_ref": "policy:settings:managed-lock",
+          "summary": "Creates a scoped policy approval request and does not save the dirty draft."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "approval_ticket_no_local_change",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": null,
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Withdrawing or expiring the approval ticket leaves the canonical file and dirty draft unchanged."
+      },
+      "result_state": {
+        "resulting_state_class": "approval_pending",
+        "resulting_object_ref": "approval:policy-settings:managed-lock",
+        "closes_sheet": true,
+        "followup_surface_ref": "activity:approval:policy-settings"
+      },
+      "confirmation_requirement": "approval_required_elsewhere",
+      "accessibility_summary": "Request policy approval starts an approval flow and performs no save."
+    },
+    {
+      "action_id": "action:write-review:policy-settings:open-source",
+      "action_class": "open_canonical_source",
+      "label_text": "Inspect canonical file",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.open_canonical_source",
+      "target_relation": "canonical_source",
+      "target_ref": "workspace:file:settings-policy-managed",
+      "side_effects": [
+        {
+          "side_effect_class": "canonical_source_opened",
+          "scope_ref": "workspace:file:settings-policy-managed",
+          "summary": "Focuses the canonical file and keeps the dirty draft unsaved."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "not_required_no_mutation",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": null,
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "No rollback is needed because this is navigation only."
+      },
+      "result_state": {
+        "resulting_state_class": "canonical_source_focused",
+        "resulting_object_ref": "workspace:file:settings-policy-managed",
+        "closes_sheet": true,
+        "followup_surface_ref": "editor:tab:settings-policy-managed"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Inspect canonical file returns focus to the file without saving."
+    },
+    {
+      "action_id": "action:write-review:policy-settings:export-evidence",
+      "action_class": "export_evidence",
+      "label_text": "Export policy evidence",
+      "enabled_state": "enabled",
+      "command_ref": "cmd:file_state.export_evidence",
+      "target_relation": "evidence_export",
+      "target_ref": "evidence:policy-settings:managed-lock",
+      "side_effects": [
+        {
+          "side_effect_class": "evidence_export_created",
+          "scope_ref": "support:packet:policy-settings",
+          "summary": "Creates a redacted packet containing policy epoch, dirty-state class, and blocked action metadata."
+        }
+      ],
+      "checkpoint_posture": {
+        "checkpoint_class": "evidence_export_no_source_mutation",
+        "checkpoint_ref": null,
+        "local_history_entry_ref": "history:policy-settings:evidence-export",
+        "preserves_original_object": true,
+        "rollback_or_recovery_summary": "Deleting the evidence packet does not affect the dirty draft or canonical settings file."
+      },
+      "result_state": {
+        "resulting_state_class": "evidence_exported",
+        "resulting_object_ref": "evidence:policy-settings:managed-lock",
+        "closes_sheet": false,
+        "followup_surface_ref": "support:packet:policy-settings"
+      },
+      "confirmation_requirement": "none",
+      "accessibility_summary": "Export policy evidence creates a support packet without saving the dirty draft."
+    }
+  ],
+  "consequence_block": {
+    "side_effect_summary": "The primary action requests policy approval and does not save the dirty draft.",
+    "rollback_summary": "Approval and evidence actions leave the canonical file unchanged; the user can still cancel or discard the draft.",
+    "irreversible_warning": null,
+    "safe_cancel_available": true
+  },
+  "close_and_focus": {
+    "close_behavior_class": "cancel_no_state_change",
+    "esc_behavior_class": "same_as_cancel",
+    "focus_return_ref": "focus:editor:settings-policy-managed"
+  },
+  "export_and_accessibility": {
+    "accessible_name": "Write review for policy-locked dirty settings draft with approval, inspect, and export actions.",
+    "support_export_field_refs": [
+      "export.write_review.policy.actions",
+      "export.write_review.policy.side_effects",
+      "export.write_review.policy.rollback"
+    ],
+    "raw_private_material_excluded": true,
+    "state_vocabulary_preserved": true
+  },
+  "narrative_refs": [
+    "docs/ux/file_state_badge_and_write_review_contract.md",
+    "docs/ux/dialog_sheet_contract.md"
+  ]
+}
