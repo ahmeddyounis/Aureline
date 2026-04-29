@@ -1,0 +1,423 @@
+# Color-safe diagnostic, diff, trust, and motion adaptation palette.
+#
+# Companion to docs/accessibility/visual_adaptation_contract.md and
+# schemas/ux/contrast_mode_state.schema.json. This artifact is a seed
+# registry for first-party visual adaptation rows and protected semantic
+# cues. It does not ship final theme values or renderer code.
+
+contrast_mode_schema_version: 1
+palette_artifact_id: ux.visual_adaptation.color_safe_palette.v1
+
+sources:
+  contract_doc_ref: docs/accessibility/visual_adaptation_contract.md
+  boundary_schema_ref: schemas/ux/contrast_mode_state.schema.json
+  design_token_vocabulary_ref: docs/design/design_token_component_state_vocabulary.md
+  theme_support_rows_ref: artifacts/design/theme_support_rows.yaml
+  decoration_precedence_contract_ref: docs/ux/decoration_precedence_contract.md
+  editor_gutter_contract_ref: docs/ux/editor_gutter_contract.md
+  status_bar_contract_ref: docs/ux/status_bar_contract.md
+  diagnostic_contract_ref: docs/language/diagnostics_and_code_action_contract.md
+  fixture_corpus_ref: fixtures/ux/visual_adaptation_cases/
+
+rules:
+  color_alone_forbidden: true
+  motion_alone_forbidden: true
+  high_contrast_first_party: true
+  low_saturation_first_party_review: true
+  forced_colors_preserve_shape_icon_text: true
+  compact_surfaces_need_two_channels: true
+  docs_support_screenshots_carry_visual_state: true
+
+closed_vocabularies:
+  theme_classes:
+    - dark_reference
+    - light_parity
+    - high_contrast_dark
+    - high_contrast_light
+  saturation_classes:
+    - standard
+    - low_saturation
+  contrast_strategy_classes:
+    - standard
+    - high_contrast
+    - forced_colors
+  motion_posture_classes:
+    - motion_standard
+    - motion_reduced
+    - motion_low_motion
+    - motion_power_saver
+    - motion_critical_hot_path
+  resource_posture_classes:
+    - standard
+    - low_resource
+    - power_saver
+    - thermal_pressure
+    - critical_hot_path
+
+adaptation_rows:
+  - adaptation_row_id: ux.visual_adaptation.row.dark_reference_standard
+    theme_class: dark_reference
+    saturation_class: standard
+    contrast_strategy_class: standard
+    minimum_text_contrast: 4.5
+    minimum_ui_contrast: 3.0
+    minimum_focus_contrast: 3.0
+    token_remap_policy:
+      - preserve semantic state tokens from the design-token vocabulary.
+      - use state fill plus border plus text or icon for diagnostics and trust cues.
+      - syntax color may not overpower diagnostics, selection, focus, or search.
+    protected_cue_notes: >
+      Reference dark mode is the default capture posture, but it is not
+      allowed to carry meanings that disappear in light, high contrast, or
+      low-saturation review.
+
+  - adaptation_row_id: ux.visual_adaptation.row.light_parity_standard
+    theme_class: light_parity
+    saturation_class: standard
+    contrast_strategy_class: standard
+    minimum_text_contrast: 4.5
+    minimum_ui_contrast: 3.0
+    minimum_focus_contrast: 3.0
+    token_remap_policy:
+      - preserve the same semantic token roles as dark_reference.
+      - avoid faint gray boundaries thinner than the UI contrast target.
+      - keep warning, error, trust, and blocked labels readable on white surfaces.
+    protected_cue_notes: >
+      Light mode is parity quality. A visual cue that works only on the
+      dark canvas is non-conforming.
+
+  - adaptation_row_id: ux.visual_adaptation.row.high_contrast_dark
+    theme_class: high_contrast_dark
+    saturation_class: standard
+    contrast_strategy_class: high_contrast
+    minimum_text_contrast: 7.0
+    minimum_ui_contrast: 4.5
+    minimum_focus_contrast: 4.5
+    token_remap_policy:
+      - lift text, icon, border, and focus tokens before preserving subtle fills.
+      - preserve diagnostic severity with label, glyph, underline or lane position.
+      - preserve trust and blocked state with shield or lock, label, and boundary.
+      - flatten decorative syntax before reducing diagnostic, focus, diff, or trust cues.
+    protected_cue_notes: >
+      High-contrast dark is first-party. It is not an inversion of dark_reference.
+
+  - adaptation_row_id: ux.visual_adaptation.row.high_contrast_light
+    theme_class: high_contrast_light
+    saturation_class: standard
+    contrast_strategy_class: high_contrast
+    minimum_text_contrast: 7.0
+    minimum_ui_contrast: 4.5
+    minimum_focus_contrast: 4.5
+    token_remap_policy:
+      - lift text, icon, border, and focus tokens before preserving subtle fills.
+      - preserve diagnostic severity with label, glyph, underline or lane position.
+      - preserve trust and blocked state with shield or lock, label, and boundary.
+      - keep diff fills low enough that removed and added source text remains readable.
+    protected_cue_notes: >
+      High-contrast light carries the same state and command meaning as
+      high-contrast dark.
+
+  - adaptation_row_id: ux.visual_adaptation.row.low_saturation_dark
+    theme_class: dark_reference
+    saturation_class: low_saturation
+    contrast_strategy_class: standard
+    minimum_text_contrast: 4.5
+    minimum_ui_contrast: 3.0
+    minimum_focus_contrast: 3.0
+    token_remap_policy:
+      - reduce chroma while preserving luminance separation and labels.
+      - add or preserve stroke patterns for diff, warning, error, and chart series.
+      - use icon shape, lane position, and text before hue distance.
+    protected_cue_notes: >
+      Low-saturation dark supports colorblind-safe and grayscale review.
+      It may calm palette intensity but cannot merge semantic states.
+
+  - adaptation_row_id: ux.visual_adaptation.row.low_saturation_light
+    theme_class: light_parity
+    saturation_class: low_saturation
+    contrast_strategy_class: standard
+    minimum_text_contrast: 4.5
+    minimum_ui_contrast: 3.0
+    minimum_focus_contrast: 3.0
+    token_remap_policy:
+      - reduce chroma while preserving luminance separation and labels.
+      - use strong border, pattern, and glyph differences for diff and diagnostics.
+      - keep settings locks, status items, and badges distinguishable without fill color.
+    protected_cue_notes: >
+      Low-saturation light is a first-party review posture for screenshots,
+      support packets, and color-safe inspection.
+
+protected_semantic_cues:
+  - cue_id: ux.visual_adaptation.cue.diff_added
+    semantic_state_class: diff_added
+    semantic_status_class: success
+    trust_visual_state_class: none
+    default_token_refs:
+      - al.color.diff.added
+      - al.color.state.success
+    required_non_color_cues:
+      - plus_minus_marker
+      - border
+      - text_label
+      - accessible_name
+    compact_label: Added
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.diff_removed
+    semantic_state_class: diff_removed
+    semantic_status_class: danger
+    trust_visual_state_class: none
+    default_token_refs:
+      - al.color.diff.removed
+      - al.color.state.danger
+    required_non_color_cues:
+      - plus_minus_marker
+      - stroke_pattern
+      - text_label
+      - accessible_name
+    compact_label: Removed
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.diff_modified
+    semantic_state_class: diff_modified
+    semantic_status_class: info
+    trust_visual_state_class: none
+    default_token_refs:
+      - al.color.diff.modified
+      - al.color.accent.interactive
+    required_non_color_cues:
+      - border
+      - stroke_pattern
+      - text_label
+      - accessible_name
+    compact_label: Modified
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.breakpoint_enabled
+    semantic_state_class: breakpoint_enabled
+    semantic_status_class: none
+    trust_visual_state_class: debugging_active
+    default_token_refs:
+      - al.color.accent.interactive
+      - status.debugging_active
+    required_non_color_cues:
+      - icon_glyph
+      - shape
+      - position
+      - accessible_name
+    compact_label: Breakpoint
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.folded_range
+    semantic_state_class: folded_range
+    semantic_status_class: none
+    trust_visual_state_class: none
+    default_token_refs:
+      - al.color.icon.default
+      - al.color.border.default
+    required_non_color_cues:
+      - disclosure_glyph
+      - count_label
+      - text_label
+      - accessible_name
+    compact_label: Folded
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.diagnostic_warning
+    semantic_state_class: diagnostic_warning
+    semantic_status_class: warning
+    trust_visual_state_class: none
+    default_token_refs:
+      - al.color.state.warning
+    required_non_color_cues:
+      - icon_glyph
+      - underline_pattern
+      - text_label
+      - accessible_name
+    compact_label: Warning
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.diagnostic_error
+    semantic_state_class: diagnostic_error
+    semantic_status_class: danger
+    trust_visual_state_class: none
+    default_token_refs:
+      - al.color.state.danger
+    required_non_color_cues:
+      - icon_glyph
+      - underline_pattern
+      - border
+      - text_label
+      - accessible_name
+    compact_label: Error
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.trust_restricted
+    semantic_state_class: trust_restricted
+    semantic_status_class: warning
+    trust_visual_state_class: restricted_workspace
+    default_token_refs:
+      - trust.restricted_workspace
+      - al.color.state.warning
+    required_non_color_cues:
+      - lock_or_shield_glyph
+      - border
+      - text_label
+      - accessible_name
+      - keyboard_detail_route
+    compact_label: Restricted
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+  - cue_id: ux.visual_adaptation.cue.policy_blocked
+    semantic_state_class: blocked
+    semantic_status_class: danger
+    trust_visual_state_class: policy_locked
+    default_token_refs:
+      - trust.policy_locked
+      - al.color.state.danger
+    required_non_color_cues:
+      - lock_or_shield_glyph
+      - border
+      - text_label
+      - accessible_name
+      - keyboard_detail_route
+    compact_label: Blocked
+    grayscale_safe: true
+    forced_colors_safe: true
+    reduced_motion_safe: true
+
+reduced_motion_substitutions:
+  - substitution_id: ux.visual_adaptation.motion.cursor_blink
+    surface_family: editor_inline
+    suppressed_motion_families:
+      - cursor_blink
+    replacement_cues:
+      - static_frame
+      - focus_ring
+      - border
+    required_label: Caret visible
+    preserves_state_conveyance: true
+    allowed_in_power_saver: true
+
+  - substitution_id: ux.visual_adaptation.motion.terminal
+    surface_family: terminal
+    suppressed_motion_families:
+      - terminal_idle_animation
+      - cursor_blink
+    replacement_cues:
+      - text_label
+      - static_frame
+      - accessible_name
+    required_label: Terminal ready
+    preserves_state_conveyance: true
+    allowed_in_power_saver: true
+
+  - substitution_id: ux.visual_adaptation.motion.ai_working
+    surface_family: ai_working_state
+    suppressed_motion_families:
+      - ai_working_indicator
+      - progress_indicator_loop
+    replacement_cues:
+      - text_label
+      - progress_text
+      - keyboard_detail_route
+    required_label: Working
+    preserves_state_conveyance: true
+    allowed_in_power_saver: true
+
+  - substitution_id: ux.visual_adaptation.motion.chart
+    surface_family: chart
+    suppressed_motion_families:
+      - chart_transition
+    replacement_cues:
+      - text_label
+      - stroke_pattern
+      - accessible_name
+    required_label: Chart values available
+    preserves_state_conveyance: true
+    allowed_in_power_saver: true
+
+  - substitution_id: ux.visual_adaptation.motion.toast
+    surface_family: toast
+    suppressed_motion_families:
+      - toast_entry_exit
+    replacement_cues:
+      - text_label
+      - static_frame
+      - keyboard_detail_route
+    required_label: Notification available
+    preserves_state_conveyance: true
+    allowed_in_power_saver: true
+
+  - substitution_id: ux.visual_adaptation.motion.overlay
+    surface_family: overlay
+    suppressed_motion_families:
+      - overlay_entry_exit
+      - panel_motion
+    replacement_cues:
+      - border
+      - text_label
+      - focus_ring
+      - accessible_name
+    required_label: Overlay open
+    preserves_state_conveyance: true
+    allowed_in_power_saver: true
+
+evidence_propagation_fields:
+  required_fields:
+    - visual_adaptation_state_ref
+    - theme_class
+    - saturation_class
+    - contrast_strategy_class
+    - motion_posture_class
+    - resource_posture_class
+    - forced_colors_active
+    - adaptation_row_refs
+    - contrast_mode_schema_version
+    - capture_surface_class
+    - rendered_at
+    - semantic_cue_assertions
+  destinations:
+    - docs_help_capture
+    - exported_evidence
+    - support_packet
+    - screenshot
+    - public_proof
+    - release_evidence
+  redaction_rule: >
+    Visual adaptation metadata is safe to include by default. Raw screenshots,
+    raw source text, raw paths, raw URLs, raw terminal bytes, and secrets stay
+    governed by their owning export and support rules.
+
+conformance_checks:
+  - check_id: visual_adaptation.check.no_hue_only
+    description: Every protected semantic cue lists at least two non-color cues.
+    denial_reason: color_alone_conveys_required_meaning
+  - check_id: visual_adaptation.check.no_motion_only
+    description: Reduced-motion substitutions preserve static state markers.
+    denial_reason: motion_only_conveys_required_meaning
+  - check_id: visual_adaptation.check.high_contrast_targets
+    description: High-contrast rows pin text contrast at 7.0 and UI/focus contrast at 4.5.
+    denial_reason: contrast_target_missing
+  - check_id: visual_adaptation.check.low_saturation_distinction
+    description: Low-saturation rows preserve distinct states through labels, glyphs, strokes, and patterns.
+    denial_reason: low_saturation_collapses_distinct_states
+  - check_id: visual_adaptation.check.evidence_metadata
+    description: Captures and support/export packets include visual adaptation fields.
+    denial_reason: evidence_visual_mode_metadata_missing

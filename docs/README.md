@@ -286,6 +286,16 @@ code.
   backlog-label mapping. Machine-readable companions in
   [`/artifacts/accessibility/`](../artifacts/accessibility/) and
   [`/fixtures/accessibility/task_corpus_manifest.yaml`](../fixtures/accessibility/task_corpus_manifest.yaml).
+- [`accessibility/visual_adaptation_contract.md`](./accessibility/visual_adaptation_contract.md)
+  — high-contrast, low-saturation, color-safe diagnostic, and
+  reduced-motion adaptation contract for diagnostics, diffs, charts,
+  status items, badges, settings locks, screenshots, docs captures, and
+  support/export evidence. Boundary schema in
+  [`/schemas/ux/contrast_mode_state.schema.json`](../schemas/ux/contrast_mode_state.schema.json);
+  palette artifact in
+  [`/artifacts/ux/color_safe_diagnostic_palette.yaml`](../artifacts/ux/color_safe_diagnostic_palette.yaml);
+  worked fixtures in
+  [`/fixtures/ux/visual_adaptation_cases/`](../fixtures/ux/visual_adaptation_cases/).
 
 ## Command contracts
 
