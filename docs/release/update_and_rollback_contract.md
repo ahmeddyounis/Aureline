@@ -30,6 +30,13 @@ Companion artifacts:
   - build identity model every update artifact resolves through.
 - [`/docs/release/release_artifact_graph.md`](./release_artifact_graph.md)
   - coordinated release-family graph and rollback atom.
+- [`/docs/release/release_center_object_model_contract.md`](./release_center_object_model_contract.md),
+  [`/schemas/release/release_center_object.schema.json`](../../schemas/release/release_center_object.schema.json),
+  and
+  [`/schemas/release/publish_target.schema.json`](../../schemas/release/publish_target.schema.json)
+  - release-center object ids, publish-target classes, publication
+  action rows, break-glass publication rules, and UI/headless parity
+  fields that consume this manifest's reserved release-center fields.
 - [`/docs/release/channel_and_branch_contract.md`](./channel_and_branch_contract.md),
   [`/artifacts/release/channel_matrix.yaml`](../../artifacts/release/channel_matrix.yaml),
   and

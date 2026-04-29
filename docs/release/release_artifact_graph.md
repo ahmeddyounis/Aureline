@@ -34,6 +34,13 @@ Companion artifacts:
   through.
 - [`/docs/release/release_evidence_packet_template.md`](./release_evidence_packet_template.md)
   — aggregate release-truth packet template.
+- [`/docs/release/release_center_object_model_contract.md`](./release_center_object_model_contract.md),
+  [`/schemas/release/release_center_object.schema.json`](../../schemas/release/release_center_object.schema.json),
+  and
+  [`/schemas/release/publish_target.schema.json`](../../schemas/release/publish_target.schema.json)
+  — release-center object ids, publish-target classes, publication
+  action rows, break-glass publication rules, exact-build
+  backreferences, and UI/headless parity fields.
 - [`/docs/release/qualification_cadence.md`](./qualification_cadence.md)
   — qualification plan that names cadence rows, rehearsal windows, and
   default failure responses for release-bearing evidence.
@@ -183,6 +190,7 @@ This document closes that gap.
 | `known_limit_and_disclosure_note` | Known issues, narrowed claims, exclusions, waivers, and caveats required to interpret the bundle honestly | `docs/release/release_evidence_packet_template.md`, `schemas/release/waiver_packet.schema.json`, `docs/` public-truth lane | Required for every publishable release or benchmark packet | Internal discussion can stay internal; the public narrowing note cannot |
 | `advisory_or_revocation_notice` | Active security advisories, revocations, emergency disables, channel freezes, and affected-install scope | `docs/security/severity_matrix.md`, `docs/security/emergency_action_model.md`, `schemas/security/advisory_record.schema.json`, `schemas/security/incident_workspace_packet.schema.json`, `schemas/security/emergency_action_record.schema.json` | Required whenever an active advisory, emergency action, or revocation touches the claimed scope | Private triage evidence may stay internal if the public advisory/emergency record carries stable refs and disclosure state |
 | `promotion_evidence` | Validation-ring posture, rollout-ring envelope, install-topology, rollback-target, continuity-drill, waiver state, and ring-history refs for channel movement | `docs/release/ring_progression_policy.md`, `artifacts/release/ring_matrix.yaml`, `schemas/release/ring_history_packet.schema.json`, `artifacts/release/install_topology_matrix.yaml`, `docs/release/install_topology_plan.md`, `artifacts/support/deployment_drill_catalog_seed.yaml`, `docs/release/release_evidence_packet_template.md` | Required for every preview/beta/stable/LTS promotion claim | Internal operator transcripts may stay internal; ring decision refs, ring-history refs, and continuity posture may not |
+| `release_center_action` | Candidate ids, publish-target ids, promotion/rollback/revoke/yank/repin actions, auth-source class, dry-run state, break-glass state, support-bundle linkage, and exact-build backreferences | `docs/release/release_center_object_model_contract.md`, `schemas/release/release_center_object.schema.json`, `schemas/release/publish_target.schema.json` | Required whenever a target pointer, registry listing, mirror feed, emergency channel, or rollback state is mutated or reconstructed | Operator screenshots, raw command output, and chat summaries may stay outside the packet; the action id, target id, evidence refs, and support refs may not |
 | `release_truth_bundle` | The aggregate packet that binds the graph into one publishable release set | `docs/release/release_evidence_packet_template.md`, `artifacts/evidence/evidence_metadata_fields.yaml` | Required for every release-facing bundle | None; this is the public aggregation surface |
 
 ## Bundle completeness
@@ -198,8 +206,10 @@ A publishable release-truth bundle MUST contain:
    an explicit statement that no runnable payload is in scope;
 4. `supply_chain_evidence`;
 5. `known_limit_and_disclosure_note`;
-6. `promotion_evidence`; and
-7. `release_truth_bundle` aggregation over the cited stable refs.
+6. `promotion_evidence`;
+7. `release_center_action` for the publish, promote, rollback, revoke,
+   yank, repin, mirror-only, or emergency-channel mutation; and
+8. `release_truth_bundle` aggregation over the cited stable refs.
 
 Whenever the bundle widens a public-preview, beta, or stable-facing
 lane, `promotion_evidence` also includes the current ring-history packet

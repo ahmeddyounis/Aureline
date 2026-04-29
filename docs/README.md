@@ -179,6 +179,15 @@ code.
 - [`release/release_artifact_graph.md`](./release/release_artifact_graph.md)
   — publishable release-artifact graph, bundle-completeness rules, and
   contract-surface index.
+- [`release/release_center_object_model_contract.md`](./release/release_center_object_model_contract.md)
+  — release-center object model, publish-target classes, publication
+  action rows, break-glass publication rules, and UI/headless parity
+  contract. Boundary schemas in
+  [`/schemas/release/release_center_object.schema.json`](../schemas/release/release_center_object.schema.json)
+  and
+  [`/schemas/release/publish_target.schema.json`](../schemas/release/publish_target.schema.json);
+  worked target fixtures in
+  [`/fixtures/release/publish_target_cases/`](../fixtures/release/publish_target_cases/).
 - [`release/update_and_rollback_contract.md`](./release/update_and_rollback_contract.md)
   — update manifest, rollback, downgrade, helper-version negotiation,
   mirror import, exact-build reconstruction, publish-target, promotion

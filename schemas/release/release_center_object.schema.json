@@ -1,0 +1,741 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/release_center_object.schema.json",
+  "title": "Aureline release-center object model",
+  "description": "Boundary schema for release-center objects frozen in docs/release/release_center_object_model_contract.md. The object family covers release candidates, artifact-family rows, stages, audiences, publication actions, and worked publication cases. UI and headless flows use these ids and refs to reconstruct publish, rollback, revoke, yank, repin, mirror-only, and break-glass actions without screenshots or free-text operator notes.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/release_candidate_record" },
+    { "$ref": "#/$defs/release_artifact_family_record" },
+    { "$ref": "#/$defs/release_stage_record" },
+    { "$ref": "#/$defs/release_audience_record" },
+    { "$ref": "#/$defs/publication_action_record" },
+    { "$ref": "#/$defs/release_publication_case_record" }
+  ],
+  "$defs": {
+    "release_center_object_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this release-center object export."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque id safe for manifests, logs, support bundles, admin exports, and parity checks."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^release_candidate:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "release_center_event_id": {
+      "type": "string",
+      "pattern": "^release_center:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "ide_debug_symbols",
+        "cli_binary",
+        "cli_debug_symbols",
+        "sdk_library",
+        "source_map_bundle",
+        "docs_pack",
+        "schema_export",
+        "reference_pack",
+        "sbom_document",
+        "signed_attestation",
+        "source_bundle",
+        "crash_symbols_archive",
+        "reproducibility_pack",
+        "support_runbook_bundle",
+        "release_evidence_packet",
+        "update_metadata",
+        "revocation_manifest",
+        "policy_bundle",
+        "extension_package",
+        "marketplace_metadata"
+      ]
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ]
+    },
+    "release_stage_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "local_preview",
+        "internal_ring",
+        "public_preview",
+        "stable_candidate",
+        "stable",
+        "lts_candidate",
+        "lts",
+        "mirror_staged",
+        "mirror_published",
+        "registry_published",
+        "emergency_active",
+        "paused",
+        "rolled_back",
+        "revoked",
+        "yanked",
+        "repinned",
+        "reconciled"
+      ],
+      "description": "Stage vocabulary used in release center rows and headless publication records."
+    },
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "developer_local",
+        "release_team",
+        "internal_dogfood",
+        "design_partner",
+        "public_preview_user",
+        "public_stable_user",
+        "lts_admin",
+        "mirror_operator",
+        "air_gapped_admin",
+        "registry_consumer",
+        "marketplace_consumer",
+        "security_responder",
+        "affected_admin",
+        "support_operator"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "unsupported_local",
+        "internal_only",
+        "preview_supported",
+        "public_supported",
+        "lts_supported",
+        "mirror_operator_supported",
+        "registry_supported",
+        "emergency_support_only"
+      ]
+    },
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "publish",
+        "promote",
+        "rollback",
+        "revoke",
+        "yank",
+        "repin",
+        "mirror_only_emergency_push",
+        "reconstruct"
+      ]
+    },
+    "action_state_class": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "dry_run_complete",
+        "blocked",
+        "executed",
+        "superseded",
+        "reconciled"
+      ]
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "current_with_waiver",
+        "stale_blocking",
+        "stale_non_blocking",
+        "missing_blocking",
+        "not_applicable"
+      ]
+    },
+    "break_glass_state_class": {
+      "type": "string",
+      "enum": [
+        "not_used",
+        "eligible_but_not_used",
+        "active_pending_reconciliation",
+        "reconciled",
+        "superseded_by_signed_action",
+        "expired_without_reconciliation",
+        "forbidden_for_action"
+      ]
+    },
+    "break_glass_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "operational_emergency_declared",
+        "active_signed_artifact_compromise",
+        "verified_malicious_distribution",
+        "urgent_channel_freeze_needed",
+        "mirror_freshness_below_floor"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "developer",
+        "release_operator",
+        "security_operator",
+        "mirror_operator",
+        "registry_publisher",
+        "headless_automation",
+        "support_operator",
+        "org_admin"
+      ]
+    },
+    "case_scenario_class": {
+      "type": "string",
+      "enum": [
+        "staged_preview",
+        "public_stable_publish",
+        "mirror_only_emergency_push",
+        "support_bundle_backreference",
+        "break_glass_reconciliation"
+      ]
+    },
+    "evidence_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "latest_evidence_at",
+        "required_evidence_refs",
+        "waiver_packet_refs",
+        "freshness_policy_ref",
+        "freshness_note"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "latest_evidence_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "required_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "waiver_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "freshness_policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "exact_build_backreference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_family_class",
+        "artifact_ref",
+        "exact_build_identity_ref",
+        "build_id",
+        "digest_refs",
+        "provenance_row_refs",
+        "about_provenance_row_refs",
+        "support_bundle_refs"
+      ],
+      "properties": {
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "build_id": { "$ref": "#/$defs/opaque_id" },
+        "digest_refs": { "$ref": "#/$defs/ref_array" },
+        "provenance_row_refs": { "$ref": "#/$defs/ref_array" },
+        "about_provenance_row_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "description": "Exact-build backreference shared by release center, About/provenance, support, advisory, and rollback surfaces."
+    },
+    "surface_parity_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_event_ref",
+        "headless_command_ref",
+        "update_manifest_refs",
+        "about_provenance_refs",
+        "service_health_refs",
+        "advisory_refs",
+        "rollback_record_refs",
+        "support_bundle_refs",
+        "evidence_packet_refs"
+      ],
+      "properties": {
+        "release_center_event_ref": { "$ref": "#/$defs/nullable_string" },
+        "headless_command_ref": { "$ref": "#/$defs/nullable_string" },
+        "update_manifest_refs": { "$ref": "#/$defs/ref_array" },
+        "about_provenance_refs": { "$ref": "#/$defs/ref_array" },
+        "service_health_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_record_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "evidence_packet_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "support_bundle_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_refs",
+        "support_packet_index_refs",
+        "supportability_surface_refs",
+        "redaction_profile_refs",
+        "support_note"
+      ],
+      "properties": {
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_index_refs": { "$ref": "#/$defs/ref_array" },
+        "supportability_surface_refs": { "$ref": "#/$defs/ref_array" },
+        "redaction_profile_refs": { "$ref": "#/$defs/ref_array" },
+        "support_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rollback_or_revoke": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_artifact_refs",
+        "blast_radius_ref",
+        "last_known_good_ref",
+        "rollback_manifest_ref",
+        "revocation_record_refs",
+        "continuity_note"
+      ],
+      "properties": {
+        "affected_artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "blast_radius_ref": { "$ref": "#/$defs/nullable_string" },
+        "last_known_good_ref": { "$ref": "#/$defs/nullable_string" },
+        "rollback_manifest_ref": { "$ref": "#/$defs/nullable_string" },
+        "revocation_record_refs": { "$ref": "#/$defs/ref_array" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "break_glass_publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_class",
+        "break_glass_event_ref",
+        "allowed_actor_classes",
+        "reason_class",
+        "mandatory_packet_refs",
+        "normal_action_comparison",
+        "reconciliation_target_ref",
+        "reconcile_by",
+        "post_action_reconciliation_refs",
+        "reconciliation_note"
+      ],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/break_glass_state_class" },
+        "break_glass_event_ref": { "$ref": "#/$defs/nullable_string" },
+        "allowed_actor_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actor_class" },
+          "uniqueItems": true
+        },
+        "reason_class": { "$ref": "#/$defs/break_glass_reason_class" },
+        "mandatory_packet_refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "incident_or_advisory_refs",
+            "evidence_packet_refs",
+            "waiver_packet_refs",
+            "support_packet_refs"
+          ],
+          "properties": {
+            "incident_or_advisory_refs": { "$ref": "#/$defs/ref_array" },
+            "evidence_packet_refs": { "$ref": "#/$defs/ref_array" },
+            "waiver_packet_refs": { "$ref": "#/$defs/ref_array" },
+            "support_packet_refs": { "$ref": "#/$defs/ref_array" }
+          }
+        },
+        "normal_action_comparison": { "$ref": "#/$defs/non_empty_string" },
+        "reconciliation_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "reconcile_by": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "post_action_reconciliation_refs": { "$ref": "#/$defs/ref_array" },
+        "reconciliation_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_candidate_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "version_label",
+        "channel_family",
+        "current_stage_class",
+        "artifact_family_refs",
+        "publish_target_refs",
+        "evidence_freshness",
+        "rollback_target_ref",
+        "exact_build_backreferences"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/candidate_id" },
+        "version_label": { "$ref": "#/$defs/non_empty_string" },
+        "channel_family": { "$ref": "#/$defs/release_channel_class" },
+        "current_stage_class": { "$ref": "#/$defs/release_stage_class" },
+        "artifact_family_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "publish_target_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "rollback_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "exact_build_backreferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exact_build_backreference" }
+        }
+      }
+    },
+    "release_candidate_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_object_schema_version",
+        "record_kind",
+        "candidate_id",
+        "version_label",
+        "channel_family",
+        "current_stage_class",
+        "scoped_artifact_family_refs",
+        "publish_target_refs",
+        "audience_refs",
+        "evidence_freshness",
+        "blocker_refs",
+        "waiver_packet_refs",
+        "known_issue_refs",
+        "rollback_target_ref",
+        "exact_build_backreferences",
+        "surface_parity_links",
+        "notes"
+      ],
+      "properties": {
+        "release_center_object_schema_version": { "$ref": "#/$defs/release_center_object_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "release_candidate_record"
+        },
+        "candidate_id": { "$ref": "#/$defs/candidate_id" },
+        "version_label": { "$ref": "#/$defs/non_empty_string" },
+        "channel_family": { "$ref": "#/$defs/release_channel_class" },
+        "current_stage_class": { "$ref": "#/$defs/release_stage_class" },
+        "scoped_artifact_family_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "publish_target_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "audience_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "blocker_refs": { "$ref": "#/$defs/ref_array" },
+        "waiver_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "known_issue_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "exact_build_backreferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exact_build_backreference" }
+        },
+        "surface_parity_links": { "$ref": "#/$defs/surface_parity_links" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_artifact_family_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_object_schema_version",
+        "record_kind",
+        "artifact_family_ref",
+        "artifact_family_class",
+        "display_name",
+        "exact_build_backreference",
+        "signature_refs",
+        "release_graph_node_refs",
+        "rollback_atom_ref",
+        "publication_state_class",
+        "notes"
+      ],
+      "properties": {
+        "release_center_object_schema_version": { "$ref": "#/$defs/release_center_object_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "release_artifact_family_record"
+        },
+        "artifact_family_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_backreference": { "$ref": "#/$defs/exact_build_backreference" },
+        "signature_refs": { "$ref": "#/$defs/ref_array" },
+        "release_graph_node_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "rollback_atom_ref": { "$ref": "#/$defs/nullable_string" },
+        "publication_state_class": { "$ref": "#/$defs/release_stage_class" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_stage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_object_schema_version",
+        "record_kind",
+        "stage_id",
+        "stage_class",
+        "candidate_ref",
+        "source_stage_ref",
+        "target_stage_ref",
+        "entered_at",
+        "exited_at",
+        "publish_target_refs",
+        "action_refs",
+        "approval_refs",
+        "evidence_freshness",
+        "reversible_window",
+        "break_glass_state_class",
+        "notes"
+      ],
+      "properties": {
+        "release_center_object_schema_version": { "$ref": "#/$defs/release_center_object_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "release_stage_record"
+        },
+        "stage_id": { "$ref": "#/$defs/opaque_id" },
+        "stage_class": { "$ref": "#/$defs/release_stage_class" },
+        "candidate_ref": { "$ref": "#/$defs/candidate_id" },
+        "source_stage_ref": { "$ref": "#/$defs/nullable_string" },
+        "target_stage_ref": { "$ref": "#/$defs/nullable_string" },
+        "entered_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "exited_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "publish_target_refs": { "$ref": "#/$defs/ref_array" },
+        "action_refs": { "$ref": "#/$defs/ref_array" },
+        "approval_refs": { "$ref": "#/$defs/ref_array" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "reversible_window": { "$ref": "#/$defs/non_empty_string" },
+        "break_glass_state_class": { "$ref": "#/$defs/break_glass_state_class" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_audience_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_object_schema_version",
+        "record_kind",
+        "audience_id",
+        "audience_class",
+        "visibility_class",
+        "deployment_profile_scope",
+        "support_class",
+        "service_health_scope_refs",
+        "advisory_scope_refs",
+        "notes"
+      ],
+      "properties": {
+        "release_center_object_schema_version": { "$ref": "#/$defs/release_center_object_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "release_audience_record"
+        },
+        "audience_id": { "$ref": "#/$defs/opaque_id" },
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "visibility_class": { "$ref": "./publish_target.schema.json#/$defs/visibility_class" },
+        "deployment_profile_scope": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "service_health_scope_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_scope_refs": { "$ref": "#/$defs/ref_array" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publication_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_object_schema_version",
+        "record_kind",
+        "action_id",
+        "requested_action_class",
+        "action_state_class",
+        "candidate_ref",
+        "publish_target_ref",
+        "source_stage_ref",
+        "destination_stage_ref",
+        "actor_class",
+        "auth_source",
+        "dry_run",
+        "evidence_freshness",
+        "exact_build_backreferences",
+        "artifact_family_refs",
+        "release_center_event_ref",
+        "headless_command_ref",
+        "update_manifest_ref",
+        "support_bundle_linkage",
+        "rollback_or_revoke",
+        "break_glass_publication",
+        "surface_parity_links",
+        "occurred_at",
+        "notes"
+      ],
+      "properties": {
+        "release_center_object_schema_version": { "$ref": "#/$defs/release_center_object_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "publication_action_record"
+        },
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "requested_action_class": { "$ref": "#/$defs/requested_action_class" },
+        "action_state_class": { "$ref": "#/$defs/action_state_class" },
+        "candidate_ref": { "$ref": "#/$defs/candidate_id" },
+        "publish_target_ref": { "$ref": "./publish_target.schema.json#/$defs/publish_target_id" },
+        "source_stage_ref": { "$ref": "#/$defs/nullable_string" },
+        "destination_stage_ref": { "$ref": "#/$defs/nullable_string" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "auth_source": { "$ref": "./publish_target.schema.json#/$defs/auth_source" },
+        "dry_run": { "$ref": "./publish_target.schema.json#/$defs/dry_run_status" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "exact_build_backreferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exact_build_backreference" }
+        },
+        "artifact_family_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "release_center_event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/release_center_event_id" }
+          ]
+        },
+        "headless_command_ref": { "$ref": "#/$defs/nullable_string" },
+        "update_manifest_ref": { "$ref": "#/$defs/nullable_string" },
+        "support_bundle_linkage": { "$ref": "#/$defs/support_bundle_linkage" },
+        "rollback_or_revoke": { "$ref": "#/$defs/rollback_or_revoke" },
+        "break_glass_publication": { "$ref": "#/$defs/break_glass_publication" },
+        "surface_parity_links": { "$ref": "#/$defs/surface_parity_links" },
+        "occurred_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "expected_reconstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reconstructable_without_screenshots",
+        "required_input_refs",
+        "expected_action_state",
+        "expected_surface_alignment",
+        "reconstruction_note"
+      ],
+      "properties": {
+        "reconstructable_without_screenshots": { "type": "boolean" },
+        "required_input_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "expected_action_state": { "$ref": "#/$defs/action_state_class" },
+        "expected_surface_alignment": { "$ref": "#/$defs/non_empty_ref_array" },
+        "reconstruction_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "parity_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ui_and_headless_share_release_object_ids",
+        "publish_target_class_visible_before_action",
+        "auth_source_visible_before_action",
+        "dry_run_state_visible_before_action",
+        "exact_build_linkage_visible_before_action",
+        "support_bundle_linkage_preserved",
+        "parity_note"
+      ],
+      "properties": {
+        "ui_and_headless_share_release_object_ids": { "type": "boolean" },
+        "publish_target_class_visible_before_action": { "type": "boolean" },
+        "auth_source_visible_before_action": { "type": "boolean" },
+        "dry_run_state_visible_before_action": { "type": "boolean" },
+        "exact_build_linkage_visible_before_action": { "type": "boolean" },
+        "support_bundle_linkage_preserved": { "type": "boolean" },
+        "parity_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_publication_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center_object_schema_version",
+        "record_kind",
+        "case_id",
+        "scenario_class",
+        "scenario_summary",
+        "release_candidate",
+        "publish_target",
+        "publication_action",
+        "expected_reconstruction",
+        "parity_assertions",
+        "notes"
+      ],
+      "properties": {
+        "release_center_object_schema_version": { "$ref": "#/$defs/release_center_object_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "release_publication_case_record"
+        },
+        "case_id": {
+          "type": "string",
+          "pattern": "^release\\.publish_target\\.[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "scenario_class": { "$ref": "#/$defs/case_scenario_class" },
+        "scenario_summary": { "$ref": "#/$defs/non_empty_string" },
+        "release_candidate": { "$ref": "#/$defs/release_candidate_summary" },
+        "publish_target": { "$ref": "./publish_target.schema.json#/$defs/publish_target_record" },
+        "publication_action": { "$ref": "#/$defs/publication_action_record" },
+        "expected_reconstruction": { "$ref": "#/$defs/expected_reconstruction" },
+        "parity_assertions": { "$ref": "#/$defs/parity_assertions" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
