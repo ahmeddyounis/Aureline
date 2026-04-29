@@ -1,0 +1,875 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/release_candidate_card.schema.json",
+  "title": "Aureline release-candidate status card",
+  "description": "Boundary schema for release_candidate_card_record frozen in docs/release/release_status_surface_contract.md. The card projects release-center, publish-target, update-manifest, and exact-build identity records into status surfaces for update review, release notes, compatibility reports, migration guidance, support exports, and headless dry-run output. It carries version, channel, target scope, current stage, blockers or waivers, evidence freshness, rollback path, provenance-card linkage, support-window, compatibility, deprecation, and end-of-support fields without minting a second release vocabulary. Raw artifacts, raw signatures, raw attestations, raw support bundles, raw credentials, and raw logs never cross this boundary; records carry refs, stable ids, typed states, and redaction-safe summaries only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "release_candidate_card_schema_version",
+    "record_kind",
+    "card_id",
+    "surface_state_class",
+    "source_refs",
+    "version",
+    "channel",
+    "target_scope",
+    "current_stage",
+    "blockers",
+    "waivers",
+    "evidence_freshness",
+    "rollback_path",
+    "artifact_provenance_links",
+    "version_bump_rows",
+    "timeline_entry_refs",
+    "rollback_panel_refs",
+    "status_feeds",
+    "rendering_contract",
+    "notes"
+  ],
+  "$defs": {
+    "release_candidate_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this release status card boundary."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "surface_state_class": {
+      "type": "string",
+      "enum": [
+        "local_build",
+        "staged_candidate",
+        "published_artifact",
+        "promoted_channel",
+        "paused",
+        "revoked_yanked",
+        "superseded"
+      ],
+      "description": "Display-state projection. Stage, action, and recovery semantics still come from release-center and update-manifest fields."
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix",
+        "portable_stable",
+        "portable_preview",
+        "remote_agent_runtime",
+        "remote_helper_runtime"
+      ]
+    },
+    "release_stage_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "local_preview",
+        "internal_ring",
+        "public_preview",
+        "stable_candidate",
+        "stable",
+        "lts_candidate",
+        "lts",
+        "canary",
+        "pilot",
+        "broad",
+        "mirror_staged",
+        "mirror_published",
+        "registry_published",
+        "emergency_active",
+        "paused",
+        "rolled_back",
+        "revoked",
+        "yanked",
+        "repinned",
+        "reconciled"
+      ]
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "ide_debug_symbols",
+        "cli_binary",
+        "cli_debug_symbols",
+        "sdk_library",
+        "source_map_bundle",
+        "docs_pack",
+        "schema_export",
+        "reference_pack",
+        "sbom_document",
+        "signed_attestation",
+        "source_bundle",
+        "crash_symbols_archive",
+        "reproducibility_pack",
+        "support_runbook_bundle",
+        "release_evidence_packet",
+        "update_metadata",
+        "revocation_manifest",
+        "policy_bundle",
+        "extension_package",
+        "marketplace_metadata",
+        "windows_msi",
+        "windows_msix",
+        "windows_signed_portable_zip",
+        "macos_pkg",
+        "macos_notarized_dmg",
+        "macos_signed_app_zip",
+        "linux_deb",
+        "linux_rpm",
+        "linux_appimage",
+        "linux_tarball",
+        "remote_agent_tarball",
+        "remote_helper_tarball",
+        "remote_agent_image_layer_bundle"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "unsupported_local",
+        "internal_only",
+        "preview_supported",
+        "public_supported",
+        "lts_supported",
+        "mirror_operator_supported",
+        "registry_supported",
+        "emergency_support_only"
+      ]
+    },
+    "support_window_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "unsupported_local",
+        "internal_only",
+        "rolling_supported",
+        "calendar_supported",
+        "security_fixes_only",
+        "end_of_support_risk",
+        "past_end_of_support"
+      ]
+    },
+    "compatibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "compatible",
+        "compatible_with_warnings",
+        "certification_pending",
+        "retest_pending",
+        "incompatible",
+        "blocked_by_policy"
+      ]
+    },
+    "deprecation_state_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "warning_active",
+        "deprecated",
+        "removal_scheduled",
+        "removed",
+        "superseded"
+      ]
+    },
+    "end_of_support_risk_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "approaching_window_end",
+        "security_only_window",
+        "past_window",
+        "unknown_pending_review"
+      ]
+    },
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "developer_local",
+        "release_team",
+        "internal_dogfood",
+        "design_partner",
+        "public_preview_user",
+        "public_stable_user",
+        "lts_admin",
+        "mirror_operator",
+        "air_gapped_admin",
+        "registry_consumer",
+        "marketplace_consumer",
+        "security_responder",
+        "affected_admin",
+        "support_operator"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "local_build_output",
+        "update_channel",
+        "managed_ring",
+        "registry_namespace",
+        "marketplace_listing",
+        "mirror_feed",
+        "air_gap_bundle",
+        "docs_claim",
+        "support_packet"
+      ]
+    },
+    "semantic_change_class": {
+      "type": "string",
+      "enum": [
+        "no_public_change",
+        "patch",
+        "minor",
+        "major",
+        "pre_release",
+        "hotfix",
+        "security_only",
+        "backport",
+        "schema_epoch",
+        "manual_review_required"
+      ]
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "current_with_waiver",
+        "stale_blocking",
+        "stale_non_blocking",
+        "missing_blocking",
+        "not_applicable"
+      ]
+    },
+    "recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "rollback",
+        "yank",
+        "revoke",
+        "repin",
+        "deprecate",
+        "discard_local_build",
+        "not_applicable"
+      ]
+    },
+    "blocker_class": {
+      "type": "string",
+      "enum": [
+        "stale_evidence",
+        "missing_evidence",
+        "missing_signature",
+        "missing_attestation",
+        "missing_checksum_bundle",
+        "compatibility_blocker",
+        "active_waiver",
+        "policy_lock",
+        "owner_approval_gap",
+        "rollback_path_missing",
+        "deprecation_window_expired",
+        "revoked_or_yanked"
+      ]
+    },
+    "proof_state_class": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "present_unverified",
+        "not_checked_here",
+        "missing",
+        "revoked",
+        "superseded",
+        "blocked_by_policy",
+        "not_applicable"
+      ]
+    },
+    "origin_path_class": {
+      "type": "string",
+      "enum": [
+        "official_origin",
+        "local_build_output",
+        "customer_mirror",
+        "air_gap_bundle",
+        "registry_namespace",
+        "marketplace_listing",
+        "managed_feed",
+        "support_export"
+      ]
+    },
+    "verifier_class": {
+      "type": "string",
+      "enum": [
+        "release_pipeline",
+        "local_tooling",
+        "headless_automation",
+        "mirror_import_preflight",
+        "registry_preflight",
+        "support_reconstruction",
+        "not_checked_here"
+      ]
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_ref",
+        "release_center_event_refs",
+        "publication_action_refs",
+        "publish_target_refs",
+        "update_manifest_refs",
+        "support_bundle_refs"
+      ],
+      "properties": {
+        "candidate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_center_event_refs": { "$ref": "#/$defs/ref_array" },
+        "publication_action_refs": { "$ref": "#/$defs/ref_array" },
+        "publish_target_refs": { "$ref": "#/$defs/ref_array" },
+        "update_manifest_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "support_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_window_class",
+        "starts_at",
+        "ends_at",
+        "policy_ref",
+        "support_note"
+      ],
+      "properties": {
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "starts_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "ends_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "policy_ref": { "$ref": "#/$defs/nullable_string" },
+        "support_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "compatibility_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_class",
+        "compatibility_report_refs",
+        "affected_profile_refs",
+        "compatibility_note"
+      ],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/compatibility_posture_class" },
+        "compatibility_report_refs": { "$ref": "#/$defs/ref_array" },
+        "affected_profile_refs": { "$ref": "#/$defs/ref_array" },
+        "compatibility_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "deprecation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deprecation_state_class",
+        "replacement_ref",
+        "warning_started_at",
+        "removal_target",
+        "migration_guidance_refs",
+        "end_of_support_risk_class",
+        "deprecation_note"
+      ],
+      "properties": {
+        "deprecation_state_class": { "$ref": "#/$defs/deprecation_state_class" },
+        "replacement_ref": { "$ref": "#/$defs/nullable_string" },
+        "warning_started_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "removal_target": { "$ref": "#/$defs/nullable_string" },
+        "migration_guidance_refs": { "$ref": "#/$defs/ref_array" },
+        "end_of_support_risk_class": { "$ref": "#/$defs/end_of_support_risk_class" },
+        "deprecation_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "latest_evidence_at",
+        "required_evidence_refs",
+        "waiver_packet_refs",
+        "freshness_policy_ref",
+        "freshness_note"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "latest_evidence_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "required_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "waiver_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "freshness_policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "artifact_scope_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_family_class",
+        "artifact_ref",
+        "target_scope_class",
+        "publish_target_ref",
+        "audience_class",
+        "deployment_profile_refs",
+        "support_class",
+        "scope_note"
+      ],
+      "properties": {
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "publish_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "deployment_profile_refs": { "$ref": "#/$defs/ref_array" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "scope_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "widened_reach": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from_channel_class",
+        "to_channel_class",
+        "from_audience_class",
+        "to_audience_class",
+        "visibility_change",
+        "deployment_profile_refs",
+        "widening_note"
+      ],
+      "properties": {
+        "from_channel_class": { "$ref": "#/$defs/nullable_string" },
+        "to_channel_class": { "$ref": "#/$defs/nullable_string" },
+        "from_audience_class": { "$ref": "#/$defs/nullable_string" },
+        "to_audience_class": { "$ref": "#/$defs/nullable_string" },
+        "visibility_change": { "$ref": "#/$defs/non_empty_string" },
+        "deployment_profile_refs": { "$ref": "#/$defs/ref_array" },
+        "widening_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "version_bump_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_bump_row_id",
+        "scope",
+        "previous_version",
+        "next_version",
+        "semantic_change_class",
+        "affected_artifact_scope",
+        "widened_reach",
+        "owner_ref",
+        "next_gate_ref",
+        "linked_evidence_refs",
+        "compatibility_note",
+        "migration_flags"
+      ],
+      "properties": {
+        "version_bump_row_id": { "$ref": "#/$defs/non_empty_string" },
+        "scope": { "$ref": "#/$defs/non_empty_string" },
+        "previous_version": { "$ref": "#/$defs/nullable_string" },
+        "next_version": { "$ref": "#/$defs/non_empty_string" },
+        "semantic_change_class": { "$ref": "#/$defs/semantic_change_class" },
+        "affected_artifact_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_scope_item" },
+          "minItems": 1
+        },
+        "widened_reach": { "$ref": "#/$defs/widened_reach" },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "next_gate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "linked_evidence_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "compatibility_note": { "$ref": "#/$defs/non_empty_string" },
+        "migration_flags": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "blocker_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocker_id",
+        "blocker_class",
+        "blocking",
+        "owner_ref",
+        "evidence_refs",
+        "summary"
+      ],
+      "properties": {
+        "blocker_id": { "$ref": "#/$defs/non_empty_string" },
+        "blocker_class": { "$ref": "#/$defs/blocker_class" },
+        "blocking": { "type": "boolean" },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "waiver_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiver_packet_ref",
+        "waiver_state",
+        "expires_at",
+        "scope_note"
+      ],
+      "properties": {
+        "waiver_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "waiver_state": { "$ref": "#/$defs/non_empty_string" },
+        "expires_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "scope_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "value",
+        "content_address_ref"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["sha256_content", "blake3_content", "not_checked_here"]
+        },
+        "value": { "$ref": "#/$defs/nullable_string" },
+        "content_address_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signature_state",
+        "signature_ref",
+        "signer_identity_ref",
+        "trust_root_ref",
+        "revocation_ref",
+        "transparency_log_ref"
+      ],
+      "properties": {
+        "signature_state": { "$ref": "#/$defs/proof_state_class" },
+        "signature_ref": { "$ref": "#/$defs/nullable_string" },
+        "signer_identity_ref": { "$ref": "#/$defs/nullable_string" },
+        "trust_root_ref": { "$ref": "#/$defs/nullable_string" },
+        "revocation_ref": { "$ref": "#/$defs/nullable_string" },
+        "transparency_log_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attestation_state",
+        "attestation_refs",
+        "issuer_or_source_class",
+        "pipeline_or_build_ref"
+      ],
+      "properties": {
+        "attestation_state": { "$ref": "#/$defs/proof_state_class" },
+        "attestation_refs": { "$ref": "#/$defs/ref_array" },
+        "issuer_or_source_class": { "$ref": "#/$defs/non_empty_string" },
+        "pipeline_or_build_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "checksum_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checksum_bundle_ref",
+        "bundle_state",
+        "generated_at",
+        "export_scope"
+      ],
+      "properties": {
+        "checksum_bundle_ref": { "$ref": "#/$defs/nullable_string" },
+        "bundle_state": { "$ref": "#/$defs/proof_state_class" },
+        "generated_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "export_scope": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sbom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sbom_state",
+        "formats",
+        "inventory_refs"
+      ],
+      "properties": {
+        "sbom_state": { "$ref": "#/$defs/proof_state_class" },
+        "formats": { "$ref": "#/$defs/ref_array" },
+        "inventory_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_path_class",
+        "origin_ref",
+        "mirror_lineage_ref",
+        "origin_note"
+      ],
+      "properties": {
+        "origin_path_class": { "$ref": "#/$defs/origin_path_class" },
+        "origin_ref": { "$ref": "#/$defs/nullable_string" },
+        "mirror_lineage_ref": { "$ref": "#/$defs/nullable_string" },
+        "origin_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validated_at",
+        "verifier_class",
+        "validation_scope",
+        "limitation_note"
+      ],
+      "properties": {
+        "validated_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "verifier_class": { "$ref": "#/$defs/verifier_class" },
+        "validation_scope": { "$ref": "#/$defs/non_empty_string" },
+        "limitation_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "artifact_provenance_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_family_class",
+        "artifact_ref",
+        "exact_build_identity_ref",
+        "build_id",
+        "digest",
+        "signature",
+        "attestation",
+        "checksum_bundle",
+        "sbom",
+        "origin",
+        "validation"
+      ],
+      "properties": {
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "build_id": { "$ref": "#/$defs/non_empty_string" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "signature": { "$ref": "#/$defs/signature" },
+        "attestation": { "$ref": "#/$defs/attestation" },
+        "checksum_bundle": { "$ref": "#/$defs/checksum_bundle" },
+        "sbom": { "$ref": "#/$defs/sbom" },
+        "origin": { "$ref": "#/$defs/origin" },
+        "validation": { "$ref": "#/$defs/validation" }
+      }
+    }
+  },
+  "properties": {
+    "release_candidate_card_schema_version": {
+      "$ref": "#/$defs/release_candidate_card_schema_version"
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "release_candidate_card_record"
+    },
+    "card_id": {
+      "type": "string",
+      "pattern": "^release_status_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "surface_state_class": { "$ref": "#/$defs/surface_state_class" },
+    "source_refs": { "$ref": "#/$defs/source_refs" },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_name",
+        "version_label",
+        "semantic_change_class",
+        "current_build_id",
+        "exact_build_identity_refs",
+        "version_note"
+      ],
+      "properties": {
+        "product_name": { "$ref": "#/$defs/non_empty_string" },
+        "version_label": { "$ref": "#/$defs/non_empty_string" },
+        "semantic_change_class": { "$ref": "#/$defs/semantic_change_class" },
+        "current_build_id": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_identity_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "version_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_class",
+        "support_class",
+        "support_window",
+        "compatibility_posture",
+        "deprecation"
+      ],
+      "properties": {
+        "channel_class": { "$ref": "#/$defs/release_channel_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_window": { "$ref": "#/$defs/support_window" },
+        "compatibility_posture": { "$ref": "#/$defs/compatibility_posture" },
+        "deprecation": { "$ref": "#/$defs/deprecation" }
+      }
+    },
+    "target_scope": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_scope_item" },
+      "minItems": 1
+    },
+    "current_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_class",
+        "stage_ref",
+        "entered_at",
+        "owner_ref",
+        "stage_summary"
+      ],
+      "properties": {
+        "stage_class": { "$ref": "#/$defs/release_stage_class" },
+        "stage_ref": { "$ref": "#/$defs/non_empty_string" },
+        "entered_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "stage_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blocker_row" }
+    },
+    "waivers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/waiver_row" }
+    },
+    "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+    "rollback_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_action_class",
+        "available_action_classes",
+        "affected_artifact_refs",
+        "last_known_good_ref",
+        "rollback_manifest_ref",
+        "repin_target_ref",
+        "support_bundle_refs",
+        "continuity_note"
+      ],
+      "properties": {
+        "primary_action_class": { "$ref": "#/$defs/recovery_action_class" },
+        "available_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action_class" },
+          "uniqueItems": true
+        },
+        "affected_artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "last_known_good_ref": { "$ref": "#/$defs/nullable_string" },
+        "rollback_manifest_ref": { "$ref": "#/$defs/nullable_string" },
+        "repin_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "artifact_provenance_links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_provenance_link" },
+      "minItems": 1
+    },
+    "version_bump_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/version_bump_row" }
+    },
+    "timeline_entry_refs": { "$ref": "#/$defs/ref_array" },
+    "rollback_panel_refs": { "$ref": "#/$defs/ref_array" },
+    "status_feeds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feeds_update_review",
+        "feeds_release_notes",
+        "feeds_compatibility_report",
+        "feeds_migration_guidance",
+        "feeds_support_export"
+      ],
+      "properties": {
+        "feeds_update_review": { "type": "boolean" },
+        "feeds_release_notes": { "type": "boolean" },
+        "feeds_compatibility_report": { "type": "boolean" },
+        "feeds_migration_guidance": { "type": "boolean" },
+        "feeds_support_export": { "type": "boolean" }
+      }
+    },
+    "rendering_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_visible",
+        "channel_visible",
+        "target_scope_visible",
+        "current_stage_visible",
+        "blockers_or_waivers_visible",
+        "evidence_freshness_visible",
+        "rollback_path_visible",
+        "artifact_identity_visible",
+        "provenance_limitations_visible"
+      ],
+      "properties": {
+        "version_visible": { "type": "boolean", "const": true },
+        "channel_visible": { "type": "boolean", "const": true },
+        "target_scope_visible": { "type": "boolean", "const": true },
+        "current_stage_visible": { "type": "boolean", "const": true },
+        "blockers_or_waivers_visible": { "type": "boolean", "const": true },
+        "evidence_freshness_visible": { "type": "boolean", "const": true },
+        "rollback_path_visible": { "type": "boolean", "const": true },
+        "artifact_identity_visible": { "type": "boolean", "const": true },
+        "provenance_limitations_visible": { "type": "boolean", "const": true }
+      }
+    },
+    "notes": { "$ref": "#/$defs/non_empty_string" }
+  }
+}

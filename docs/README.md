@@ -188,6 +188,16 @@ code.
   [`/schemas/release/publish_target.schema.json`](../schemas/release/publish_target.schema.json);
   worked target fixtures in
   [`/fixtures/release/publish_target_cases/`](../fixtures/release/publish_target_cases/).
+- [`release/release_status_surface_contract.md`](./release/release_status_surface_contract.md)
+  — release-candidate card, version-bump row, promotion timeline,
+  provenance linkage, support-window, compatibility, deprecation, and
+  rollback/revocation surface contract. Boundary schemas in
+  [`/schemas/release/release_candidate_card.schema.json`](../schemas/release/release_candidate_card.schema.json),
+  [`/schemas/release/promotion_timeline_entry.schema.json`](../schemas/release/promotion_timeline_entry.schema.json),
+  and
+  [`/schemas/release/rollback_revocation_panel.schema.json`](../schemas/release/rollback_revocation_panel.schema.json);
+  worked status fixtures in
+  [`/fixtures/release/status_surface_cases/`](../fixtures/release/status_surface_cases/).
 - [`release/update_and_rollback_contract.md`](./release/update_and_rollback_contract.md)
   — update manifest, rollback, downgrade, helper-version negotiation,
   mirror import, exact-build reconstruction, publish-target, promotion
