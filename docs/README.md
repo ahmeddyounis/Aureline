@@ -330,6 +330,19 @@ code.
   projections, current-shortcut display, disabled-state explainers,
   diagnostics, and machine-facing names.
 
+## Testing
+
+- [`testing/test_item_identity_contract.md`](./testing/test_item_identity_contract.md)
+  — canonical test-item identity, parameterized-case expansion,
+  selector grammar, and remap/drift contract shared by editor, tree,
+  CLI, watch mode, AI, imported CI, support, and release evidence.
+  Boundary schemas in
+  [`/schemas/testing/test_item_identity.schema.json`](../schemas/testing/test_item_identity.schema.json)
+  and
+  [`/schemas/testing/test_selector_grammar.schema.json`](../schemas/testing/test_selector_grammar.schema.json);
+  worked fixtures in
+  [`/fixtures/testing/test_item_identity_cases/`](../fixtures/testing/test_item_identity_cases/).
+
 ## Planning
 
 - [`planning/m1_m2_dependency_backlog.md`](./planning/m1_m2_dependency_backlog.md)

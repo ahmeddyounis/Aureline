@@ -25,6 +25,13 @@ discovery / flake / snapshot vocabulary per surface.
 
 Machine-readable companions:
 
+- [`/schemas/testing/test_item_identity.schema.json`](../../schemas/testing/test_item_identity.schema.json)
+  and
+  [`/schemas/testing/test_selector_grammar.schema.json`](../../schemas/testing/test_selector_grammar.schema.json)
+  — the canonical identity / remap / parameterized expansion and
+  selector grammar layer that editor, tree, CLI, watch, AI, imported CI,
+  support, and release evidence use before projecting state into the
+  execution test records.
 - [`/schemas/execution/test_discovery_state.schema.json`](../../schemas/execution/test_discovery_state.schema.json)
   — the `test_discovery_state_record` (the typed discovery header
   with provenance, freshness, scope, host boundary, and counts), the
@@ -49,9 +56,17 @@ Machine-readable companions:
   — worked YAML fixtures covering the required scenarios (cached
   discovery, quarantined flake, provider-imported result vs local
   parity run, failed-only rerun, snapshot update review).
+- [`/fixtures/testing/test_item_identity_cases/`](../../fixtures/testing/test_item_identity_cases/)
+  — worked YAML fixtures covering native adapter identity, imported CI
+  remap, parameterized family expansion, tag selectors, and renamed test
+  file remap.
 
 This contract composes with and does not replace:
 
+- [`/docs/testing/test_item_identity_contract.md`](../testing/test_item_identity_contract.md)
+  — durable test-item identity, selector grammar, parameterized
+  expansion/collapse, and remap/drift rules. Discovery and run-summary
+  records cite those identities rather than matching on display labels.
 - [`/schemas/execution/run.schema.json`](../../schemas/execution/run.schema.json),
   [`/schemas/execution/attempt.schema.json`](../../schemas/execution/attempt.schema.json),
   [`/schemas/execution/artifact_event.schema.json`](../../schemas/execution/artifact_event.schema.json),

@@ -32,6 +32,14 @@ Machine-readable companions:
 
 This contract composes with and does not replace:
 
+- [`/docs/testing/test_item_identity_contract.md`](../testing/test_item_identity_contract.md),
+  [`/schemas/testing/test_item_identity.schema.json`](../../schemas/testing/test_item_identity.schema.json),
+  and
+  [`/schemas/testing/test_selector_grammar.schema.json`](../../schemas/testing/test_selector_grammar.schema.json)
+  — durable test-item identity, selector grammar, parameterized
+  expansion/collapse, and remap/drift records. Watch controllers and
+  inline markers cite identity/remap refs; they do not infer runnable
+  scope from display labels.
 - [`/docs/execution/run_and_attempt_contract.md`](./run_and_attempt_contract.md)
   and
   [`/schemas/execution/run.schema.json`](../../schemas/execution/run.schema.json)

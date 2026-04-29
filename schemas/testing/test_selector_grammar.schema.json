@@ -1,0 +1,509 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/test_selector_grammar.schema.json",
+  "title": "Aureline test selector grammar and resolution contract",
+  "description": "Boundary schema for parsed test selectors shared by editor actions, test tree filters, CLI/headless commands, saved views, watch mode, AI tool plans, imported provider overlays, support exports, and release evidence. The record preserves the selector AST, escape profile, target binding, exact or partial resolution, matched canonical test identities, parameterized expansion, remap requirements, and explainability notes. Selectors operate on durable identity fields, tags, traits, capabilities, source-provider classes, and snapshot-scoped queries rather than brittle display labels. Raw command lines, raw stdout or stderr bytes, raw environment bodies, raw absolute paths, raw URLs, raw secret values, raw assertion bodies, and raw stack traces MUST NOT cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/test_selector_expression_record",
+  "$defs": {
+    "test_selector_grammar_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the test selector grammar. Additive optional fields or enum values bump this const; removing or repurposing a value is breaking and requires a decision row."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, safe in support bundles, and safe in release evidence. Raw paths, raw URLs, provider payloads, assertion bodies, and stack traces do not appear here."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to a governed identity, discovery snapshot, source locator, provider event, selector, remap, audit event, command descriptor, or evidence packet."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Digest or stable hash label. The raw selector text and raw provider input do not have to cross this boundary."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe for preview, history, support export, and release evidence."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_classes_summary": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried by repository fixtures. Runtime producers do not emit this field."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "release_evidence_scoped",
+        "broadened_capture"
+      ]
+    },
+    "selector_atom_class": {
+      "type": "string",
+      "enum": [
+        "canonical_test_item_id",
+        "file",
+        "suite",
+        "case",
+        "tag",
+        "parameterized_instance",
+        "parameterized_family",
+        "trait_or_capability",
+        "source_provider_class",
+        "adapter_kind",
+        "target_environment",
+        "changed_since",
+        "selector_atom_unknown_requires_review"
+      ],
+      "description": "Closed selector atom vocabulary. Display labels are intentionally not a selector atom class."
+    },
+    "selector_operator_class": {
+      "type": "string",
+      "enum": [
+        "atom",
+        "all_of",
+        "any_of",
+        "not",
+        "difference"
+      ]
+    },
+    "match_semantics_class": {
+      "type": "string",
+      "enum": [
+        "exact_canonical_id",
+        "exact_identity_field",
+        "logical_path_prefix",
+        "tag_membership",
+        "parameter_family_match",
+        "parameter_instance_key_match",
+        "trait_or_capability_match",
+        "source_provider_class_match",
+        "snapshot_scoped_query",
+        "remap_required_before_match",
+        "match_semantics_unknown_requires_review"
+      ]
+    },
+    "source_provider_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs_file",
+        "generated_source_lineage",
+        "notebook_cell_source",
+        "structured_test_report_import",
+        "provider_ci_result",
+        "coverage_or_bep_event",
+        "symbol_index_projection",
+        "source_provider_unknown_requires_review"
+      ]
+    },
+    "trait_capability_class": {
+      "type": "string",
+      "enum": [
+        "run",
+        "debug",
+        "coverage",
+        "watch",
+        "rerun_failed",
+        "quarantine",
+        "snapshot_review",
+        "source_jump",
+        "evidence_export",
+        "imported_read_only",
+        "trait_capability_unknown_requires_review"
+      ]
+    },
+    "file_scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace_relative_source_ref",
+        "generated_source_ref",
+        "notebook_ref",
+        "provider_artifact_ref",
+        "file_scope_unknown_requires_review"
+      ],
+      "description": "File selectors resolve through source refs or workspace-relative logical keys. Raw absolute paths are not admitted in machine-readable selector records."
+    },
+    "escaped_value": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Import-safe escaped value using the grammar profile captured on this record. It is a selector token, not raw CLI text or a raw absolute path."
+    },
+    "selector_match_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "escaped_value": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/escaped_value" }
+          ]
+        },
+        "value_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ]
+        },
+        "source_provider_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/source_provider_class" },
+            { "type": "null" }
+          ]
+        },
+        "parameterized_family_key": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "parameter_instance_key": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "trait_capability_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/trait_capability_class" },
+            { "type": "null" }
+          ]
+        },
+        "file_scope_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/file_scope_class" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Structured value attached to a selector atom. The field shape is intentionally generic so atoms can carry refs, escaped import-safe tokens, or digests without placing raw text at the boundary."
+    },
+    "selector_atom_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator_class",
+        "selector_atom_class",
+        "match_semantics_class",
+        "match_value"
+      ],
+      "properties": {
+        "operator_class": { "const": "atom" },
+        "selector_atom_class": { "$ref": "#/$defs/selector_atom_class" },
+        "match_semantics_class": { "$ref": "#/$defs/match_semantics_class" },
+        "match_value": { "$ref": "#/$defs/selector_match_value" },
+        "explainability_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+    "selector_compound_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator_class",
+        "children"
+      ],
+      "properties": {
+        "operator_class": {
+          "type": "string",
+          "enum": [
+            "all_of",
+            "any_of",
+            "not",
+            "difference"
+          ]
+        },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/selector_node" }
+        },
+        "explainability_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+    "selector_node": {
+      "oneOf": [
+        { "$ref": "#/$defs/selector_atom_node" },
+        { "$ref": "#/$defs/selector_compound_node" }
+      ]
+    },
+    "reserved_character_rule_class": {
+      "type": "string",
+      "enum": [
+        "backslash_escape_reserved_ascii",
+        "unicode_codepoint_escape_for_controls",
+        "percent_decode_then_backslash_escape",
+        "provider_native_escape_translated",
+        "escape_rule_unknown_requires_review"
+      ]
+    },
+    "unicode_normalization_class": {
+      "type": "string",
+      "enum": [
+        "nfc_before_escape",
+        "preserve_provider_normalization_with_digest",
+        "unicode_normalization_unknown_requires_review"
+      ]
+    },
+    "import_context_class": {
+      "type": "string",
+      "enum": [
+        "desktop_ui",
+        "cli",
+        "saved_view",
+        "ai_tool_plan",
+        "imported_ci_report",
+        "support_export",
+        "release_evidence_packet",
+        "import_context_unknown_requires_review"
+      ]
+    },
+    "path_policy_class": {
+      "type": "string",
+      "enum": [
+        "source_ref_only",
+        "workspace_relative_logical_path_allowed",
+        "provider_path_digest_only",
+        "path_policy_unknown_requires_review"
+      ]
+    },
+    "escape_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escape_profile_id",
+        "reserved_character_rule_class",
+        "unicode_normalization_class",
+        "import_context_class",
+        "path_policy_class"
+      ],
+      "properties": {
+        "escape_profile_id": { "$ref": "#/$defs/opaque_id" },
+        "reserved_character_rule_class": { "$ref": "#/$defs/reserved_character_rule_class" },
+        "unicode_normalization_class": { "$ref": "#/$defs/unicode_normalization_class" },
+        "import_context_class": { "$ref": "#/$defs/import_context_class" },
+        "path_policy_class": { "$ref": "#/$defs/path_policy_class" },
+        "reserved_characters_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ],
+          "description": "Digest of the reserved-character table used by the parser. The normative table is in the narrative contract."
+        }
+      }
+    },
+    "selector_resolution_class": {
+      "type": "string",
+      "enum": [
+        "exact_current_match",
+        "exact_snapshot_match",
+        "expanded_parameterized_family",
+        "tag_query_match",
+        "remapped_after_rename",
+        "partial_requires_review",
+        "unsupported_selector_denied",
+        "empty_match_set",
+        "selector_resolution_unknown_requires_review"
+      ]
+    },
+    "target_binding_class": {
+      "type": "string",
+      "enum": [
+        "current_target_bound",
+        "snapshot_target_bound",
+        "portable_requires_re_resolve",
+        "provider_import_read_only",
+        "target_unknown_requires_review"
+      ]
+    },
+    "selector_import_safety_class": {
+      "type": "string",
+      "enum": [
+        "import_safe_no_raw_paths",
+        "import_safe_provider_values_escaped",
+        "requires_redaction_review",
+        "import_blocked_unsafe_selector",
+        "import_safety_unknown_requires_review"
+      ]
+    },
+    "omitted_scope_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "omitted_scope_ref",
+        "omission_reason"
+      ],
+      "properties": {
+        "omitted_scope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "omission_reason": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "test_selector_expression_record_must_parse_to_ast",
+        "test_selector_expression_record_must_carry_escape_profile",
+        "test_selector_expression_record_must_not_match_display_label_only",
+        "test_selector_expression_record_file_selector_must_not_carry_raw_absolute_path",
+        "test_selector_expression_record_parameter_instance_selector_must_cite_family_and_instance",
+        "test_selector_expression_record_source_provider_selector_must_carry_provider_class",
+        "test_selector_expression_record_remap_review_required_before_rerun",
+        "test_selector_expression_record_unsupported_selector_must_deny_without_widening",
+        "test_selector_expression_record_unknown_requires_review"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "test_selector_expression_record_published",
+        "test_selector_expression_record_resolved",
+        "test_selector_expression_record_expanded_parameterized_family",
+        "test_selector_expression_record_remap_review_required",
+        "test_selector_expression_record_unsupported_selector_denied",
+        "test_selector_expression_record_audit_denial_emitted"
+      ]
+    },
+    "test_selector_expression_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_selector_grammar_schema_version",
+        "test_selector_expression_record_id",
+        "selector_canonical_digest",
+        "selector_ast",
+        "escape_profile",
+        "selector_resolution_class",
+        "target_binding_class",
+        "selector_import_safety_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "test_selector_expression_record" },
+        "test_selector_grammar_schema_version": { "$ref": "#/$defs/test_selector_grammar_schema_version" },
+        "test_selector_expression_record_id": { "$ref": "#/$defs/opaque_id" },
+        "selector_canonical_digest": {
+          "$ref": "#/$defs/digest",
+          "description": "Digest of the normalized selector expression after import-safe parsing and escaping."
+        },
+        "selector_ast": { "$ref": "#/$defs/selector_node" },
+        "escape_profile": { "$ref": "#/$defs/escape_profile" },
+        "discovery_snapshot_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_environment_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "selector_resolution_class": { "$ref": "#/$defs/selector_resolution_class" },
+        "target_binding_class": { "$ref": "#/$defs/target_binding_class" },
+        "selector_import_safety_class": { "$ref": "#/$defs/selector_import_safety_class" },
+        "matched_test_item_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Canonical identity refs matched by this selector. Empty is allowed only for empty_match_set, unsupported_selector_denied, or unknown review states."
+        },
+        "expanded_from_family_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Parameterized family refs expanded by the selector."
+        },
+        "remap_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "omitted_scope_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omitted_scope_summary" }
+        },
+        "explainability_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_sentence" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Unsupported selectors MUST deny without widening.",
+          "if": {
+            "properties": {
+              "selector_resolution_class": { "const": "unsupported_selector_denied" }
+            },
+            "required": ["selector_resolution_class"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": {
+                "const": "test_selector_expression_record_unsupported_selector_must_deny_without_widening"
+              }
+            }
+          }
+        },
+        {
+          "description": "broadened_capture redaction MUST carry an approval-ticket ref.",
+          "if": {
+            "properties": { "redaction_class": { "const": "broadened_capture" } },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One parsed selector expression and resolution row. Consumers use this record to explain what matched, what was omitted, whether parameterized families expanded, whether remap review is required, and whether the selector is safe to import or export."
+    }
+  }
+}

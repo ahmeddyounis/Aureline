@@ -1,0 +1,976 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/test_item_identity.schema.json",
+  "title": "Aureline canonical test-item identity, parameterization, and remap contract",
+  "description": "Boundary schema for durable test-item identity across editor gutters, test trees, CLI selectors, watch mode, AI tool plans, imported CI overlays, support exports, and release evidence. The record family defines the canonical identity tuple for suites, cases, parameterized families, concrete invocations, generated tests, notebook-backed tests, and provider-imported rows; keeps human display labels separate from identity; publishes parameterized expansion and collapse policy; and records remap or drift outcomes when files move, generated tests change, provider results are imported, or exact mapping is unsupported. Raw command lines, raw stdout or stderr bytes, raw environment bodies, raw absolute paths, raw URLs, raw secret values, raw assertion bodies, and raw stack traces MUST NOT cross this boundary. Records carry opaque refs, digests, bounded display summaries, counts, timestamps, and class labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_item_identity_record" },
+    { "$ref": "#/$defs/parameterized_expansion_record" },
+    { "$ref": "#/$defs/test_item_identity_remap_record" }
+  ],
+  "$defs": {
+    "test_item_identity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this record family. Adding a new optional field, enum member, or sub-record is additive-minor and bumps this const. Removing or repurposing an existing value is breaking and requires a decision row."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "test_item_identity_record",
+        "parameterized_expansion_record",
+        "test_item_identity_remap_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe to log, safe on RPC, safe in support bundles, and safe in release evidence. Raw paths, raw URLs, provider payloads, assertion bodies, and stack traces do not appear here."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another governed record such as discovery state, test item, run, attempt, artifact event, execution context, context snapshot, source locator, provider event, remap, selector, audit event, or evidence packet."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Digest or stable hash label. The algorithm and byte payload are owned by the producing adapter or source registry."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic or monotonic-correlated source."
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe for preview, history, support export, and release evidence. It may summarize a display label or reason, but it is not identity."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_classes_summary": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried by repository fixtures. Runtime producers do not emit this field."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "release_evidence_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for the record. broadened_capture requires an explicit approval-ticket ref."
+    },
+    "logical_path_segment_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_root",
+        "package_or_crate",
+        "module",
+        "namespace",
+        "class_or_type",
+        "suite",
+        "case",
+        "generated_container",
+        "notebook_cell",
+        "provider_container",
+        "logical_segment_unknown_requires_review"
+      ]
+    },
+    "logical_path_segment_source_class": {
+      "type": "string",
+      "enum": [
+        "framework_stable_id",
+        "source_symbol_anchor",
+        "adapter_normalized_path",
+        "provider_case_id",
+        "notebook_cell_id",
+        "generated_lineage_id",
+        "heuristic_display_hash",
+        "segment_source_unknown_requires_review"
+      ],
+      "description": "Names why the segment key is durable. heuristic_display_hash is review-only and cannot support automatic rerun/debug without another stable anchor."
+    },
+    "logical_path_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_kind",
+        "stable_segment_key",
+        "segment_source_class"
+      ],
+      "properties": {
+        "segment_kind": { "$ref": "#/$defs/logical_path_segment_kind" },
+        "stable_segment_key": { "$ref": "#/$defs/opaque_id" },
+        "segment_source_class": { "$ref": "#/$defs/logical_path_segment_source_class" },
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional display label for this segment. It is never a durable identity key."
+        },
+        "display_label_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ],
+          "description": "Digest of the display label, when the producer needs drift comparison without exporting the label body."
+        }
+      }
+    },
+    "logical_test_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite_path",
+        "case_path",
+        "logical_path_digest"
+      ],
+      "properties": {
+        "suite_path": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/logical_path_segment" },
+          "description": "Ordered stable suite/container path from broadest to narrowest container. Empty only for a provider import that cannot project a suite container."
+        },
+        "case_path": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/logical_path_segment" },
+          "description": "Ordered stable case path from test-owning container to leaf case. A template root and each concrete parameterized invocation share the same logical case path and differ by parameterization."
+        },
+        "logical_path_digest": { "$ref": "#/$defs/digest" },
+        "path_completeness_class": {
+          "type": "string",
+          "enum": [
+            "complete_framework_path",
+            "complete_source_path",
+            "provider_projected_path",
+            "partial_dynamic_path",
+            "path_unknown_requires_review"
+          ],
+          "description": "Completeness of the logical path. partial_dynamic_path requires remap review before mutating actions widen scope."
+        }
+      }
+    },
+    "parameterization_kind_class": {
+      "type": "string",
+      "enum": [
+        "not_parameterized",
+        "parameterized_family_root",
+        "parameterized_instance",
+        "runtime_enumerated_instance",
+        "generated_instance",
+        "imported_provider_instance",
+        "parameterization_unknown_requires_review"
+      ]
+    },
+    "parameterization_key_kind_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "stable_named_case_key",
+        "normalized_arguments_digest",
+        "ordinal_index_only",
+        "matrix_axis_tuple",
+        "provider_case_id",
+        "runtime_generated_key",
+        "parameterization_key_unknown_requires_review"
+      ],
+      "description": "Names the stable key type for a parameterized instance. ordinal_index_only is not enough for durable rerun after reorder unless paired with a source or provider anchor."
+    },
+    "parameterization_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key_kind",
+        "family_key",
+        "instance_key"
+      ],
+      "properties": {
+        "key_kind": { "$ref": "#/$defs/parameterization_key_kind_class" },
+        "family_key": { "$ref": "#/$defs/opaque_id" },
+        "instance_key": { "$ref": "#/$defs/opaque_id" },
+        "instance_index": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Adapter-reported ordinal when available. It may assist sorting but is not durable identity by itself."
+        },
+        "normalized_arguments_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ]
+        },
+        "argument_schema_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "shard_or_axis_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "display_parameter_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Human parameter label. It is display-only and must not be used as the sole identity key."
+        }
+      }
+    },
+    "parameterization_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameterization_kind_class",
+        "parameterization_key"
+      ],
+      "properties": {
+        "parameterization_kind_class": { "$ref": "#/$defs/parameterization_kind_class" },
+        "parameterized_family_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parameterization_key": { "$ref": "#/$defs/parameterization_key" },
+        "expansion_record_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "parameterization_notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+    "source_provider_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs_file",
+        "generated_source_lineage",
+        "notebook_cell_source",
+        "structured_test_report_import",
+        "provider_ci_result",
+        "coverage_or_bep_event",
+        "symbol_index_projection",
+        "source_provider_unknown_requires_review"
+      ],
+      "description": "Where the source identity came from. provider_ci_result and structured_test_report_import are read-only until mapped to a workspace source anchor."
+    },
+    "span_fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact_current_span",
+        "exact_remapped_span",
+        "stable_symbol_no_line_span",
+        "approximate_context_span",
+        "generated_mapping_partial",
+        "provider_only_no_local_span",
+        "span_fidelity_unknown_requires_review"
+      ]
+    },
+    "source_location_span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_provider_class",
+        "source_ref",
+        "span_fidelity_class"
+      ],
+      "properties": {
+        "source_provider_class": { "$ref": "#/$defs/source_provider_class" },
+        "source_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to a VFS source, generated-lineage row, notebook cell, provider report, or symbol projection. Null only when source_provider_class is unknown_requires_review."
+        },
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "start_line": { "type": ["integer", "null"], "minimum": 1 },
+        "start_column": { "type": ["integer", "null"], "minimum": 1 },
+        "end_line": { "type": ["integer", "null"], "minimum": 1 },
+        "end_column": { "type": ["integer", "null"], "minimum": 1 },
+        "anchor_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ],
+          "description": "Digest of stable surrounding structure or framework anchor, not a raw source excerpt."
+        },
+        "span_fidelity_class": { "$ref": "#/$defs/span_fidelity_class" }
+      }
+    },
+    "adapter_kind_class": {
+      "type": "string",
+      "enum": [
+        "native_aureline_adapter",
+        "framework_adapter",
+        "language_server_projection",
+        "bsp_or_build_event_adapter",
+        "provider_ci_import_adapter",
+        "structured_report_importer",
+        "notebook_adapter",
+        "ai_generated_provisional_adapter",
+        "heuristic_parser_adapter",
+        "adapter_kind_unknown_requires_review"
+      ]
+    },
+    "framework_family_class": {
+      "type": "string",
+      "enum": [
+        "rust_cargo_test",
+        "python_pytest",
+        "javascript_jest_or_vitest",
+        "junit_or_xunit_import",
+        "bazel_bep",
+        "notebook_cell_test",
+        "snapshot_or_golden_framework",
+        "generic_custom_framework",
+        "framework_family_unknown_requires_review"
+      ]
+    },
+    "provider_authority_class": {
+      "type": "string",
+      "enum": [
+        "local_adapter_authoritative",
+        "provider_import_read_only",
+        "provider_import_with_local_parity",
+        "merged_local_and_provider",
+        "ai_inferred_provisional",
+        "authority_unknown_requires_review"
+      ]
+    },
+    "adapter_provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_kind_class",
+        "adapter_ref",
+        "framework_family_class",
+        "provider_authority_class"
+      ],
+      "properties": {
+        "adapter_kind_class": { "$ref": "#/$defs/adapter_kind_class" },
+        "adapter_ref": { "$ref": "#/$defs/opaque_ref" },
+        "adapter_version_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "framework_family_class": { "$ref": "#/$defs/framework_family_class" },
+        "provider_authority_class": { "$ref": "#/$defs/provider_authority_class" },
+        "raw_payload_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the raw provider or adapter payload retained on the artifact rail. The payload bytes do not cross this schema."
+        }
+      }
+    },
+    "target_environment_class": {
+      "type": "string",
+      "enum": [
+        "local",
+        "container",
+        "remote",
+        "managed",
+        "ci",
+        "notebook",
+        "provider_backed",
+        "target_environment_unknown_requires_review"
+      ]
+    },
+    "target_support_class": {
+      "type": "string",
+      "enum": [
+        "supported_runnable",
+        "supported_read_only_import",
+        "limited_requires_re_resolve",
+        "unsupported_here",
+        "target_support_unknown_requires_review"
+      ]
+    },
+    "target_environment_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_environment_class",
+        "execution_context_ref",
+        "context_snapshot_ref",
+        "environment_fingerprint_ref",
+        "target_support_class"
+      ],
+      "properties": {
+        "target_environment_class": { "$ref": "#/$defs/target_environment_class" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "context_snapshot_ref": { "$ref": "#/$defs/opaque_ref" },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "toolchain_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "build_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_support_class": { "$ref": "#/$defs/target_support_class" }
+      }
+    },
+    "display_label_source_class": {
+      "type": "string",
+      "enum": [
+        "framework_display_name",
+        "adapter_normalized_label",
+        "provider_display_name",
+        "user_alias",
+        "generated_summary",
+        "display_label_unknown_requires_review"
+      ]
+    },
+    "display_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "display_label",
+        "display_label_digest",
+        "display_label_source_class",
+        "display_identity_role"
+      ],
+      "properties": {
+        "display_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "display_label_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ]
+        },
+        "display_label_source_class": { "$ref": "#/$defs/display_label_source_class" },
+        "sort_key_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/digest" }
+          ]
+        },
+        "locale_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "display_identity_role": {
+          "type": "string",
+          "const": "display_only_not_identity",
+          "description": "Display labels and sort keys are projections. They are never the sole durable identity key."
+        }
+      }
+    },
+    "identity_durability_class": {
+      "type": "string",
+      "enum": [
+        "durable_exact",
+        "durable_with_remap_history",
+        "provider_import_read_only",
+        "generated_runtime_only",
+        "provisional_needs_remap",
+        "identity_unknown_requires_review"
+      ]
+    },
+    "selector_export_class": {
+      "type": "string",
+      "enum": [
+        "exact_id_selectable",
+        "family_selectable",
+        "instance_selectable",
+        "provider_read_only_selectable",
+        "not_selectable_until_remap",
+        "unsupported_selector_denied"
+      ]
+    },
+    "test_capability_class": {
+      "type": "string",
+      "enum": [
+        "run",
+        "debug",
+        "coverage",
+        "watch",
+        "rerun_failed",
+        "quarantine",
+        "snapshot_review",
+        "source_jump",
+        "evidence_export",
+        "imported_read_only"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "test_item_identity_record_must_carry_canonical_test_item_id",
+        "test_item_identity_record_must_carry_logical_suite_and_case_path",
+        "test_item_identity_record_must_carry_parameterization_identity",
+        "test_item_identity_record_must_carry_source_location_span",
+        "test_item_identity_record_must_carry_adapter_provider_identity",
+        "test_item_identity_record_must_carry_target_environment_identity",
+        "test_item_identity_record_must_keep_display_label_out_of_identity",
+        "test_item_identity_record_parameterized_instance_must_cite_family_ref",
+        "test_item_identity_record_unknown_requires_review",
+        "parameterized_expansion_record_must_cite_family_ref",
+        "parameterized_expansion_record_must_preserve_hidden_child_counts",
+        "parameterized_expansion_record_runtime_enumeration_requires_review_before_exact_rerun",
+        "test_item_identity_remap_record_must_cite_previous_identity",
+        "test_item_identity_remap_record_must_carry_confidence_class",
+        "test_item_identity_remap_record_probable_remap_requires_review_before_rerun",
+        "test_item_identity_remap_record_missing_target_must_preserve_tombstone",
+        "test_item_identity_remap_record_unsupported_selector_must_deny_without_widening"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "test_item_identity_record_published",
+        "test_item_identity_record_display_projection_updated",
+        "test_item_identity_record_target_rebound",
+        "test_item_identity_record_source_anchor_remapped",
+        "test_item_identity_record_audit_denial_emitted",
+        "parameterized_expansion_record_published",
+        "parameterized_expansion_record_counts_updated",
+        "parameterized_expansion_record_collapse_policy_updated",
+        "parameterized_expansion_record_audit_denial_emitted",
+        "test_item_identity_remap_record_published",
+        "test_item_identity_remap_record_confidence_narrowed",
+        "test_item_identity_remap_record_tombstone_preserved",
+        "test_item_identity_remap_record_review_required",
+        "test_item_identity_remap_record_audit_denial_emitted"
+      ]
+    },
+    "test_item_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_item_identity_schema_version",
+        "test_item_identity_record_id",
+        "canonical_test_item_id",
+        "logical_test_path",
+        "parameterization",
+        "source_location_span",
+        "adapter_provider",
+        "target_environment",
+        "display_projection",
+        "identity_durability_class",
+        "selector_export_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "test_item_identity_record" },
+        "test_item_identity_schema_version": { "$ref": "#/$defs/test_item_identity_schema_version" },
+        "test_item_identity_record_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_test_item_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Durable cross-surface test-item id. Editor, tree, CLI, watch, AI, imported CI, and release evidence all cite this id or a remap record that resolves to it."
+        },
+        "canonical_identity_digest": { "$ref": "#/$defs/digest" },
+        "logical_test_path": { "$ref": "#/$defs/logical_test_path" },
+        "parameterization": { "$ref": "#/$defs/parameterization_identity" },
+        "source_location_span": { "$ref": "#/$defs/source_location_span" },
+        "adapter_provider": { "$ref": "#/$defs/adapter_provider_identity" },
+        "target_environment": { "$ref": "#/$defs/target_environment_identity" },
+        "display_projection": { "$ref": "#/$defs/display_projection" },
+        "identity_durability_class": { "$ref": "#/$defs/identity_durability_class" },
+        "selector_export_class": { "$ref": "#/$defs/selector_export_class" },
+        "test_capability_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_capability_class" },
+          "uniqueItems": true
+        },
+        "parent_identity_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "child_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "discovery_state_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_test_item_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional projection to schemas/execution/test_discovery_state.schema.json#test_item_record. The canonical identity record owns durable identity; execution test-item rows own discovery/run state."
+        },
+        "previous_canonical_test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to predecessor identity or remap records when this id survived a move, provider import, or regeneration."
+        },
+        "selector_alias_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to selector records or aliases that resolve to this identity. Aliases are projections, not replacement ids."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Concrete parameterized instances MUST cite their family ref.",
+          "if": {
+            "properties": {
+              "parameterization": {
+                "properties": {
+                  "parameterization_kind_class": {
+                    "enum": [
+                      "parameterized_instance",
+                      "runtime_enumerated_instance",
+                      "generated_instance",
+                      "imported_provider_instance"
+                    ]
+                  }
+                },
+                "required": ["parameterization_kind_class"]
+              }
+            },
+            "required": ["parameterization"]
+          },
+          "then": {
+            "properties": {
+              "parameterization": {
+                "required": ["parameterized_family_ref"],
+                "properties": {
+                  "parameterized_family_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "broadened_capture redaction MUST carry an approval-ticket ref.",
+          "if": {
+            "properties": { "redaction_class": { "const": "broadened_capture" } },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        }
+      ],
+      "description": "One canonical test-item identity row. It names the stable identity tuple and display projection for a suite, case, parameterized family, concrete parameterized invocation, generated test, notebook test, or provider-imported result."
+    },
+    "expansion_policy_class": {
+      "type": "string",
+      "enum": [
+        "eager_adapter_enumeration",
+        "lazy_expand_on_tree_open",
+        "lazy_expand_on_failure",
+        "runtime_enumeration_only",
+        "imported_instances_only",
+        "bounded_preview_then_runtime",
+        "expansion_policy_unknown_requires_review"
+      ]
+    },
+    "collapse_policy_class": {
+      "type": "string",
+      "enum": [
+        "collapsed_by_default",
+        "expand_when_failed",
+        "expand_when_user_requests",
+        "expanded_by_default_small_family",
+        "never_collapse_exact_instances",
+        "collapse_policy_unknown_requires_review"
+      ]
+    },
+    "enumeration_state_class": {
+      "type": "string",
+      "enum": [
+        "fully_enumerated",
+        "partially_enumerated_more_available",
+        "runtime_only_not_pre_enumerable",
+        "provider_import_partial",
+        "unsupported_until_run",
+        "enumeration_state_unknown_requires_review"
+      ]
+    },
+    "rerun_binding_class": {
+      "type": "string",
+      "enum": [
+        "exact_instance_refs",
+        "family_with_expansion_policy",
+        "family_requires_review_before_widening",
+        "unsupported_selector_denied",
+        "rerun_binding_unknown_requires_review"
+      ]
+    },
+    "evidence_scope_class": {
+      "type": "string",
+      "enum": [
+        "exact_instance_evidence",
+        "grouped_family_evidence",
+        "mixed_instance_and_family_evidence",
+        "evidence_scope_unknown_requires_review"
+      ]
+    },
+    "parameterized_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "known_instance_count",
+        "loaded_instance_count",
+        "passed_instance_count",
+        "failed_instance_count",
+        "errored_instance_count",
+        "skipped_instance_count",
+        "quarantined_instance_count",
+        "unknown_instance_count"
+      ],
+      "properties": {
+        "known_instance_count": { "type": "integer", "minimum": 0 },
+        "loaded_instance_count": { "type": "integer", "minimum": 0 },
+        "passed_instance_count": { "type": "integer", "minimum": 0 },
+        "failed_instance_count": { "type": "integer", "minimum": 0 },
+        "errored_instance_count": { "type": "integer", "minimum": 0 },
+        "skipped_instance_count": { "type": "integer", "minimum": 0 },
+        "quarantined_instance_count": { "type": "integer", "minimum": 0 },
+        "unknown_instance_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "parameterized_expansion_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_item_identity_schema_version",
+        "parameterized_expansion_record_id",
+        "parameterized_family_ref",
+        "family_canonical_test_item_id",
+        "expansion_policy_class",
+        "collapse_policy_class",
+        "enumeration_state_class",
+        "parameterized_counts",
+        "rerun_binding_class",
+        "evidence_scope_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "parameterized_expansion_record" },
+        "test_item_identity_schema_version": { "$ref": "#/$defs/test_item_identity_schema_version" },
+        "parameterized_expansion_record_id": { "$ref": "#/$defs/opaque_id" },
+        "parameterized_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "family_canonical_test_item_id": { "$ref": "#/$defs/opaque_id" },
+        "expansion_policy_class": { "$ref": "#/$defs/expansion_policy_class" },
+        "collapse_policy_class": { "$ref": "#/$defs/collapse_policy_class" },
+        "enumeration_state_class": { "$ref": "#/$defs/enumeration_state_class" },
+        "parameterized_counts": { "$ref": "#/$defs/parameterized_counts" },
+        "loaded_instance_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "failing_instance_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Exact instances that failed or errored. Even collapsed UI rows MUST make these reachable."
+        },
+        "hidden_instance_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "rerun_binding_class": { "$ref": "#/$defs/rerun_binding_class" },
+        "evidence_scope_class": { "$ref": "#/$defs/evidence_scope_class" },
+        "selector_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "description": "One parameterized-family expansion and collapse policy row. It lets tree views, rerun failed, watch mode, and evidence packets talk about exact instances or grouped families without flattening parameter labels into display strings."
+    },
+    "remap_event_class": {
+      "type": "string",
+      "enum": [
+        "source_file_renamed",
+        "source_span_shifted",
+        "generated_test_regenerated",
+        "provider_import_crosswalk",
+        "adapter_framework_id_changed",
+        "target_environment_changed",
+        "unsupported_selector",
+        "deleted_or_missing",
+        "ambiguous_many_to_one",
+        "remap_event_unknown_requires_review"
+      ]
+    },
+    "remap_confidence_class": {
+      "type": "string",
+      "enum": [
+        "exact_framework_stable_id",
+        "exact_source_anchor",
+        "exact_provider_case_id",
+        "probable_context_digest",
+        "ambiguous_requires_review",
+        "missing_tombstone",
+        "unsupported_selector_denied",
+        "remap_confidence_unknown_requires_review"
+      ]
+    },
+    "drift_behavior_class": {
+      "type": "string",
+      "enum": [
+        "keep_canonical_id",
+        "keep_alias_to_successor",
+        "require_review_before_rerun",
+        "preserve_read_only_evidence",
+        "tombstone_no_rerun",
+        "deny_without_widening",
+        "drift_behavior_unknown_requires_review"
+      ],
+      "description": "Action the resolver takes when identity drift is detected. deny_without_widening is required for unsupported selectors so a narrow request never silently broadens."
+    },
+    "target_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "same_target_exact",
+        "compatible_target_re_resolved",
+        "manual_re_resolve_required",
+        "target_comparison_blocked",
+        "target_compatibility_unknown_requires_review"
+      ]
+    },
+    "test_item_identity_remap_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "test_item_identity_schema_version",
+        "test_item_identity_remap_record_id",
+        "previous_identity_ref",
+        "previous_canonical_test_item_id",
+        "current_identity_ref",
+        "current_canonical_test_item_id",
+        "remap_event_class",
+        "remap_confidence_class",
+        "drift_behavior_class",
+        "target_compatibility_class",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "test_item_identity_remap_record" },
+        "test_item_identity_schema_version": { "$ref": "#/$defs/test_item_identity_schema_version" },
+        "test_item_identity_remap_record_id": { "$ref": "#/$defs/opaque_id" },
+        "previous_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "previous_canonical_test_item_id": { "$ref": "#/$defs/opaque_id" },
+        "current_identity_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "current_canonical_test_item_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "remap_event_class": { "$ref": "#/$defs/remap_event_class" },
+        "remap_confidence_class": { "$ref": "#/$defs/remap_confidence_class" },
+        "drift_behavior_class": { "$ref": "#/$defs/drift_behavior_class" },
+        "target_compatibility_class": { "$ref": "#/$defs/target_compatibility_class" },
+        "remap_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to source anchors, provider events, generated-lineage rows, test reports, or diff records that justify the remap."
+        },
+        "affected_selector_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "imported_provider_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "explainability_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_sentence" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Missing/tombstoned identities MUST have null current refs.",
+          "if": {
+            "properties": {
+              "remap_confidence_class": { "const": "missing_tombstone" }
+            },
+            "required": ["remap_confidence_class"]
+          },
+          "then": {
+            "properties": {
+              "current_identity_ref": { "type": "null" },
+              "current_canonical_test_item_id": { "type": "null" },
+              "drift_behavior_class": { "const": "tombstone_no_rerun" }
+            }
+          }
+        },
+        {
+          "description": "Unsupported selectors MUST deny without widening.",
+          "if": {
+            "properties": {
+              "remap_event_class": { "const": "unsupported_selector" }
+            },
+            "required": ["remap_event_class"]
+          },
+          "then": {
+            "properties": {
+              "remap_confidence_class": { "const": "unsupported_selector_denied" },
+              "drift_behavior_class": { "const": "deny_without_widening" }
+            }
+          }
+        }
+      ],
+      "description": "One identity remap or drift row. It preserves what prior editor/tree/CLI/watch/CI/evidence refs meant after files move, tests regenerate, provider imports arrive, or selectors cannot be resolved exactly."
+    }
+  }
+}
