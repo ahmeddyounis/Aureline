@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/inline_test_result.schema.json",
+  "title": "Aureline inline test-result record",
+  "description": "Boundary schema for the inline_test_result_record frozen in docs/execution/test_watch_and_environment_contract.md. The record ties a visible editor or notebook location to the latest relevant test attempt, freshness state, imported-versus-live origin, evidence window, remap posture, and environment divergence cues. It composes with the existing test discovery, test run-summary, watch-controller, environment-matrix, run / attempt, and context snapshot rails rather than becoming a private gutter-badge truth model. Raw command lines, raw stdout or stderr bytes, raw environment bodies, raw absolute paths, raw URLs, raw secret values, raw test names, raw assertion bodies, raw artifact bytes, raw notebook cell bodies, and raw stack traces MUST NOT cross this boundary; rows carry opaque refs, class labels, counts, and timestamps only. Adding a new optional field or enum member is additive-minor; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/inline_test_result_record" }
+  ],
+  "$defs": {
+    "inline_test_result_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this inline test-result record family."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["inline_test_result_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, RPC, support bundles, and release packets."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record owned by its registry."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timestamp_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewable sentence. Raw code, raw paths, raw secrets, raw tool arguments, raw test names, and raw runner payloads are forbidden."
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction posture for the record. broadened_capture requires an approval-ticket ref."
+    },
+    "visible_location_class": {
+      "type": "string",
+      "enum": [
+        "editor_gutter",
+        "editor_inline_overlay",
+        "editor_line_end_badge",
+        "notebook_cell_gutter",
+        "notebook_output_header",
+        "test_tree_mirror",
+        "generated_artifact_mapping",
+        "visible_location_unknown_requires_review"
+      ],
+      "description": "Where the result is visible. The row uses opaque document, cell, or mapping refs rather than raw paths or raw source text."
+    },
+    "result_state_class": {
+      "type": "string",
+      "enum": [
+        "not_discovered_yet",
+        "filtered_out_by_selection",
+        "skipped_by_test_directive",
+        "quarantined_under_flake_policy",
+        "disabled_by_admin_policy",
+        "unsupported_on_this_host",
+        "queued",
+        "running",
+        "passed",
+        "failed",
+        "errored_outside_assertion",
+        "timed_out",
+        "stale_partial_discovery_no_recent_run",
+        "result_state_unknown_requires_review"
+      ],
+      "description": "Inline projection of the test item / latest attempt state. It preserves skipped, quarantined, disabled, unsupported, stale, running, and unknown states instead of collapsing them into pass/fail."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current_within_evidence_window",
+        "live_pending_attempt",
+        "warm_cached_within_evidence_window",
+        "stale_evidence_window_expired",
+        "stale_discovery_snapshot",
+        "stale_target_changed",
+        "no_current_evidence",
+        "freshness_unknown_requires_review"
+      ],
+      "description": "Closed inline freshness vocabulary. Badges may not appear current after their evidence window expires."
+    },
+    "result_origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_execution",
+        "live_container_execution",
+        "live_remote_execution",
+        "live_notebook_kernel_execution",
+        "provider_imported_ci_evidence",
+        "provider_imported_non_ci_evidence",
+        "cached_local_execution",
+        "cached_provider_evidence",
+        "imported_read_only_evidence",
+        "result_origin_unknown_requires_review"
+      ],
+      "description": "Closed origin vocabulary separating fresh live evidence from cached and imported rows."
+    },
+    "anchor_remap_state_class": {
+      "type": "string",
+      "enum": [
+        "exact_source_anchor_current",
+        "moved_test_remapped_exact",
+        "moved_test_remapped_approximate_review_required",
+        "source_anchor_missing_keep_stale_marker",
+        "notebook_cell_identity_changed",
+        "generated_source_mapping_degraded",
+        "anchor_remap_unknown_requires_review"
+      ],
+      "description": "How the visible location relates to the current test item. Moved tests, stale discovery snapshots, and changed generated-source mappings remain visible as typed states."
+    },
+    "divergence_class": {
+      "type": "string",
+      "enum": [
+        "no_known_divergence",
+        "local_vs_container_divergence",
+        "local_vs_remote_divergence",
+        "local_vs_ci_divergence_minor",
+        "local_vs_ci_divergence_major",
+        "notebook_vs_file_divergence",
+        "provider_vs_local_parity_pending",
+        "incompatible_environment_comparison_blocked",
+        "divergence_unknown_requires_review"
+      ]
+    },
+    "stability_chip_class": {
+      "type": "string",
+      "enum": [
+        "stable_no_flake_signal",
+        "suspected_flaky",
+        "confirmed_flaky",
+        "quarantined",
+        "muted_by_user",
+        "stability_history_insufficient",
+        "stability_unknown_requires_review"
+      ]
+    },
+    "badge_class": {
+      "type": "string",
+      "enum": [
+        "current_result_badge",
+        "cached_result_badge",
+        "imported_result_badge",
+        "stale_result_badge",
+        "divergent_result_badge",
+        "unknown_result_badge_requires_review"
+      ],
+      "description": "Visible badge posture. Imported, stale, cached, and divergent badges are distinct from current local truth."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "inline_test_result_record_must_cite_test_item_ref",
+        "inline_test_result_record_must_cite_visible_location",
+        "inline_test_result_record_must_cite_latest_relevant_attempt_or_no_evidence_state",
+        "inline_test_result_record_must_carry_freshness_class",
+        "inline_test_result_record_must_carry_result_origin_class",
+        "inline_test_result_record_must_not_outlive_evidence_window",
+        "inline_test_result_record_must_not_render_imported_ci_as_fresh_local",
+        "inline_test_result_record_must_carry_remap_state_for_moved_or_stale_tests",
+        "inline_test_result_record_must_carry_divergence_summary",
+        "inline_test_result_record_must_cite_environment_matrix_rows",
+        "inline_test_result_record_unknown_freshness_requires_review",
+        "inline_test_result_record_unknown_origin_requires_review",
+        "inline_test_result_record_unknown_remap_requires_review"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "inline_test_result_record_published",
+        "inline_test_result_record_refreshed",
+        "inline_test_result_record_staled",
+        "inline_test_result_record_origin_narrowed",
+        "inline_test_result_record_remapped",
+        "inline_test_result_record_divergence_updated",
+        "inline_test_result_record_badge_disclosure_updated",
+        "inline_test_result_record_imported_as_fresh_local_forbidden_denial",
+        "inline_test_result_record_expired_badge_forbidden_denial",
+        "inline_test_result_record_audit_denial_emitted"
+      ]
+    },
+    "visible_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_location_class",
+        "document_ref",
+        "source_anchor_ref",
+        "notebook_cell_ref",
+        "generated_mapping_ref",
+        "line_range_fingerprint_ref"
+      ],
+      "properties": {
+        "visible_location_class": { "$ref": "#/$defs/visible_location_class" },
+        "document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notebook_cell_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "generated_mapping_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "line_range_fingerprint_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "evidence_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_window_ref",
+        "captured_at",
+        "expires_at",
+        "freshness_class",
+        "max_age_ms"
+      ],
+      "properties": {
+        "evidence_window_ref": { "$ref": "#/$defs/opaque_ref" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp_nullable" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "max_age_ms": { "$ref": "#/$defs/non_negative_integer" }
+      }
+    },
+    "origin_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_origin_class",
+        "source_run_summary_ref",
+        "provider_import_ref",
+        "local_parity_attempt_ref",
+        "watch_controller_state_ref"
+      ],
+      "properties": {
+        "result_origin_class": { "$ref": "#/$defs/result_origin_class" },
+        "source_run_summary_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_import_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_parity_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "watch_controller_state_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "divergence_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "divergence_class",
+        "compared_environment_matrix_row_refs",
+        "divergence_evidence_ref",
+        "review_action_ref"
+      ],
+      "properties": {
+        "divergence_class": { "$ref": "#/$defs/divergence_class" },
+        "compared_environment_matrix_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "divergence_evidence_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "review_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "badge_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "badge_class",
+        "origin_chip_required",
+        "stale_chip_required",
+        "divergence_chip_required",
+        "watch_degradation_chip_required",
+        "disclosure_summary"
+      ],
+      "properties": {
+        "badge_class": { "$ref": "#/$defs/badge_class" },
+        "origin_chip_required": { "type": "boolean" },
+        "stale_chip_required": { "type": "boolean" },
+        "divergence_chip_required": { "type": "boolean" },
+        "watch_degradation_chip_required": { "type": "boolean" },
+        "disclosure_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "action_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "open_triage_action_ref",
+        "rerun_action_ref",
+        "debug_action_ref",
+        "re_resolve_target_action_ref"
+      ],
+      "properties": {
+        "open_triage_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "rerun_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debug_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "re_resolve_target_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "inline_test_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "inline_test_result_schema_version",
+        "inline_test_result_record_id",
+        "test_item_ref",
+        "parent_discovery_state_ref",
+        "test_run_summary_ref",
+        "latest_relevant_attempt_ref",
+        "visible_location",
+        "result_state_class",
+        "freshness_class",
+        "result_origin_class",
+        "evidence_window",
+        "origin_summary",
+        "anchor_remap_state_class",
+        "divergence_summary",
+        "environment_matrix_row_refs",
+        "stability_chip_class",
+        "badge_disclosure",
+        "action_refs",
+        "audit_event_refs",
+        "denial_reason_class",
+        "captured_at",
+        "redaction_class",
+        "approval_ticket_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "inline_test_result_record" },
+        "inline_test_result_schema_version": { "$ref": "#/$defs/inline_test_result_schema_version" },
+        "inline_test_result_record_id": { "$ref": "#/$defs/opaque_id" },
+        "test_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parent_discovery_state_ref": { "$ref": "#/$defs/opaque_ref" },
+        "test_run_summary_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "latest_relevant_attempt_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "visible_location": { "$ref": "#/$defs/visible_location" },
+        "result_state_class": { "$ref": "#/$defs/result_state_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "result_origin_class": { "$ref": "#/$defs/result_origin_class" },
+        "evidence_window": { "$ref": "#/$defs/evidence_window" },
+        "origin_summary": { "$ref": "#/$defs/origin_summary" },
+        "anchor_remap_state_class": { "$ref": "#/$defs/anchor_remap_state_class" },
+        "divergence_summary": { "$ref": "#/$defs/divergence_summary" },
+        "environment_matrix_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "stability_chip_class": { "$ref": "#/$defs/stability_chip_class" },
+        "badge_disclosure": { "$ref": "#/$defs/badge_disclosure" },
+        "action_refs": { "$ref": "#/$defs/action_refs" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event_id" },
+          "uniqueItems": true
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "notes": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}

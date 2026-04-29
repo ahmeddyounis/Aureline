@@ -80,6 +80,16 @@ This contract composes with and does not replace:
   `coverage_report` / `support_bundle_segment` (snapshot bundles)
   on the per-attempt artifact rail. The test contract never re-mints
   a parallel test-artifact retention surface.
+- [`/docs/execution/test_watch_and_environment_contract.md`](./test_watch_and_environment_contract.md),
+  [`/schemas/execution/watch_controller_state.schema.json`](../../schemas/execution/watch_controller_state.schema.json),
+  [`/schemas/execution/inline_test_result.schema.json`](../../schemas/execution/inline_test_result.schema.json),
+  and
+  [`/schemas/execution/environment_matrix_row.schema.json`](../../schemas/execution/environment_matrix_row.schema.json)
+  — live watch-controller state, inline result markers, and
+  environment-matrix rows. Watch degradation, imported-versus-live
+  inline freshness, moved-test remaps, and local / container / remote /
+  CI / notebook / provider-backed comparability are durable
+  projections over the same discovery, run-summary, and artifact rails.
 - [`/schemas/tooling/task_event_envelope.schema.json`](../../schemas/tooling/task_event_envelope.schema.json)
   — the canonical lower-level task-event envelope for build / test /
   diagnostic / artifact-publication events. Adapter-level test
