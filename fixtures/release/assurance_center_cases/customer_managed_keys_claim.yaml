@@ -1,0 +1,181 @@
+schema_version: 1
+record_kind: assurance_center_case_record
+case_id: release.assurance_center.customer_managed_keys_claim
+case_class: customer_managed_keys_claim
+scenario_summary: >
+  An enterprise-online customer renders the customer-managed-keys
+  posture under an active supported state. Key ownership resolves to
+  customer_managed via the customer KMS, and both customer-provided
+  attestation and runtime-observed archetype evidence back the claim
+  inside the freshness window.
+schema_refs:
+  assurance_claim_card: schemas/release/assurance_claim_card.schema.json
+
+assurance_claim_card:
+  assurance_claim_card_schema_version: 1
+  record_kind: assurance_claim_card_record
+  card_id: assurance_claim_card:regulated_environment_assurance.enterprise_online.cmk
+  claim_row_ref: assurance_claim:regulated_environment_assurance
+  claim_subject_family: regulated_environment_assurance
+  card_summary: >
+    Customer-managed keys posture is supported on the enterprise-online
+    profile: customer KMS owns key custody, customer attestation
+    confirms the binding, and the runtime-observed archetype run
+    verified the active key path inside the freshness window.
+  active_claim_state: supported
+  declared_claim_state: supported
+  effective_claim_state: supported
+  active_downgrade_reasons: []
+  auto_narrowed: false
+  scope:
+    release_channels:
+      - stable
+    deployment_profiles:
+      - enterprise_online
+      - self_hosted
+    client_scopes:
+      - desktop_product
+      - cli
+      - managed_admin_surface
+  boundary_linkages:
+    key_ownership:
+      key_mode_class: customer_managed
+      evidence_refs:
+        - customer_attestation:enterprise_online.kms_custody
+        - customer_attestation:cmk.envelope_binding
+      note: >
+        Customer KMS owns key custody. Envelope binding attestation
+        confirms that local cryptographic operations resolve against
+        customer-controlled keys, with no vendor key custody path.
+    residency:
+      tenant_org_scope_class: single_tenant_customer_isolated
+      region_scope_class: customer_region_pinned
+      retention_class: customer_retention_window
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+      note: Residency posture is single-tenant and customer-region pinned.
+    proxy_egress_posture:
+      public_internet_expectation_class: public_internet_optional
+      outbound_proxy_class: customer_proxy_required
+      evidence_refs:
+        - artifacts/governance/residual_dependencies.yaml
+      note: >
+        All outbound traffic resolves through the customer-managed
+        proxy; no direct vendor egress for the active workflow.
+    update_provenance:
+      origin_path_class: official_origin
+      exact_build_identity_refs:
+        - exact_build:ide.linux.x86_64.enterprise_online.2_1_0
+      signature_state: verified
+      attestation_state: verified
+      note: Update verifies against the official trust root.
+    mirror_provenance:
+      mirror_class: customer_mirror
+      mirror_freshness_class: current
+      evidence_refs:
+        - mirror_bundle:customer.enterprise_online.signed
+      note: Customer mirror is current.
+    policy_source:
+      policy_source_class: signed_local_admin_bundle
+      policy_artifact_refs:
+        - policy_bundle:enterprise_online.cmk.signed
+      policy_epoch_ref: policy_epoch.enterprise_online.cmk
+      note: >
+        Signed local admin bundle declares the customer-managed-keys
+        rule and binds the active workflow to customer KMS endpoints.
+    hosted_dependency_blockers:
+      - dependency_class: ai_provider
+        blocker_state_class: conflicts_with_claim_when_active
+        active_for_workflow: false
+        evidence_refs:
+          - artifacts/governance/residual_dependencies.yaml
+        note: >
+          Vendor-hosted AI provider is not active; the customer-managed
+          AI proxy resolves through the customer-managed-keys path.
+      - dependency_class: hosted_control_plane_reachability
+        blocker_state_class: incompatible_in_active_profile
+        active_for_workflow: false
+        evidence_refs:
+          - artifacts/governance/residual_dependencies.yaml
+        note: Hosted control plane is not active for this workflow.
+  control_proof_rows:
+    - control_proof_row_id: control_proof_row:cmk.vendor_asserted.boundary
+      proof_class: vendor_asserted
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+        - docs/product/boundary_manifest_strawman.md
+      last_verified_at: "2026-04-28T12:00:00Z"
+      stale_after: P30D
+      note: Vendor-asserted boundary posture covers the customer-managed-keys deployment profile.
+    - control_proof_row_id: control_proof_row:cmk.customer_provided.attestation
+      proof_class: customer_provided
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - customer_attestation:enterprise_online.kms_custody
+        - customer_attestation:cmk.envelope_binding
+      last_verified_at: "2026-04-27T15:00:00Z"
+      stale_after: P90D
+      note: Customer-provided KMS custody and envelope binding attestations are current.
+    - control_proof_row_id: control_proof_row:cmk.runtime_observed.archetype
+      proof_class: runtime_observed
+      proof_presence: present
+      verification_state: verified_within_freshness_window
+      evidence_refs:
+        - certified_archetype_run:enterprise_online.cmk.2026_04_28
+      last_verified_at: "2026-04-28T18:30:00Z"
+      stale_after: P14D
+      note: Runtime-observed archetype run verified the customer-managed-keys path within the freshness window.
+    - control_proof_row_id: control_proof_row:cmk.policy_declared.bundle
+      proof_class: policy_declared
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - policy_bundle:enterprise_online.cmk.signed
+      last_verified_at: "2026-04-28T12:00:00Z"
+      stale_after: P30D
+      note: Policy bundle declares the customer-managed-keys rule and is current.
+    - control_proof_row_id: control_proof_row:cmk.not_currently_verifiable.certification
+      proof_class: not_currently_verifiable
+      proof_presence: present
+      verification_state: unverifiable_at_milestone
+      evidence_refs: []
+      last_verified_at: null
+      stale_after: null
+      note: KMS-vendor SOC2 inheritance is outside Aureline's verification capability.
+  exception_or_waiver_rows: []
+  freshness:
+    captured_at: "2026-04-28T18:35:00Z"
+    stale_after: P14D
+    freshness_state: current
+    next_review_target: next certified-archetype run on enterprise-online customer-managed-keys profile
+  publication_destinations:
+    - assurance_center
+    - docs_site
+    - help_about
+    - release_packet
+    - support_export
+    - evaluation_artifact
+  evaluation_packet_refs:
+    - evaluation_packet:procurement_handoff.cmk.2026_04_28
+  owner: "@ahmeddyounis"
+  evidence_owner: "@ahmeddyounis"
+  rendering_contract:
+    active_state_visible: true
+    boundary_linkages_visible: true
+    control_proof_rows_visible: true
+    exception_rows_visible: true
+    auto_narrowed_visible: true
+    evaluation_export_visible: true
+  notes: >
+    Customer-managed-keys posture renders under supported only when
+    key_ownership.key_mode_class resolves to customer_managed AND a
+    runtime-observed proof row backs the claim. Without either gate,
+    the schema rejects supported and forces the card to narrow.
+
+expected_surface_contract:
+  renders_customer_managed_keys_only_when_path_satisfies_claim: true
+  binds_card_to_customer_kms_attestation: true
+  links_to_procurement_evaluation_packet: true

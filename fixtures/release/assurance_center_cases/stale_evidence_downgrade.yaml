@@ -1,0 +1,170 @@
+schema_version: 1
+record_kind: assurance_center_case_record
+case_id: release.assurance_center.stale_evidence_downgrade
+case_class: stale_evidence_downgrade
+scenario_summary: >
+  The regulated-environment card was last verified beyond the declared
+  freshness window. The runtime-observed proof row's last_verified_at
+  is older than its stale_after duration, the
+  required_evidence_stale trigger is active, and the card automatically
+  narrows from supported to evidence_stale. Surfaces render the
+  evidence-stale copy variant until the next archetype run closes the
+  gap.
+schema_refs:
+  assurance_claim_card: schemas/release/assurance_claim_card.schema.json
+
+assurance_claim_card:
+  assurance_claim_card_schema_version: 1
+  record_kind: assurance_claim_card_record
+  card_id: assurance_claim_card:regulated_environment_assurance.air_gapped.evidence_stale
+  claim_row_ref: assurance_claim:regulated_environment_assurance
+  claim_subject_family: regulated_environment_assurance
+  card_summary: >
+    Regulated-environment posture is currently rendered as evidence_stale
+    because the most recent runtime-observed archetype run aged past its
+    declared freshness window before a refresh landed.
+  active_claim_state: evidence_stale
+  declared_claim_state: supported
+  effective_claim_state: evidence_stale
+  active_downgrade_reasons:
+    - required_evidence_stale
+    - docs_freshness_floor_unmet
+  auto_narrowed: true
+  scope:
+    release_channels:
+      - stable
+    deployment_profiles:
+      - self_hosted
+      - air_gapped
+    client_scopes:
+      - desktop_product
+      - cli
+      - managed_admin_surface
+  boundary_linkages:
+    key_ownership:
+      key_mode_class: customer_managed
+      evidence_refs:
+        - customer_attestation:offline_trust_root.air_gapped
+      note: Key custody unchanged; the gap is in archetype freshness.
+    residency:
+      tenant_org_scope_class: single_tenant_customer_isolated
+      region_scope_class: customer_region_pinned
+      retention_class: no_retention_beyond_local_disk
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+      note: Residency posture unchanged.
+    proxy_egress_posture:
+      public_internet_expectation_class: public_internet_forbidden
+      outbound_proxy_class: no_outbound
+      evidence_refs:
+        - artifacts/governance/residual_dependencies.yaml
+      note: Egress posture unchanged.
+    update_provenance:
+      origin_path_class: customer_managed_mirror
+      exact_build_identity_refs:
+        - exact_build:ide.linux.x86_64.air_gapped.bundle
+      signature_state: verified
+      attestation_state: verified
+      note: Active build still verifies against the offline trust root.
+    mirror_provenance:
+      mirror_class: customer_mirror
+      mirror_freshness_class: warm_cached
+      evidence_refs:
+        - mirror_bundle:offline.air_gapped.signed
+      note: >
+        Mirror bundle is warm-cached within its allowed window; the
+        gap is in archetype-run freshness, not in mirror freshness.
+    policy_source:
+      policy_source_class: signed_local_admin_bundle
+      policy_artifact_refs:
+        - policy_bundle:air_gapped.regulated.signed
+      policy_epoch_ref: policy_epoch.air_gapped.regulated
+      note: Policy bundle is current; archetype refresh is overdue.
+    hosted_dependency_blockers:
+      - dependency_class: ai_provider
+        blocker_state_class: forbidden_in_active_profile
+        active_for_workflow: false
+        evidence_refs:
+          - artifacts/governance/residual_dependencies.yaml
+        note: Vendor-hosted AI remains forbidden and inactive.
+  control_proof_rows:
+    - control_proof_row_id: control_proof_row:regulated.runtime_observed.archetype.stale
+      proof_class: runtime_observed
+      proof_presence: present
+      verification_state: expired
+      evidence_refs:
+        - certified_archetype_run:air_gapped.regulated.2026_04_01
+      last_verified_at: "2026-04-01T12:00:00Z"
+      stale_after: P14D
+      note: >
+        Runtime-observed archetype run aged past its 14-day freshness
+        window without a refresh landing.
+    - control_proof_row_id: control_proof_row:regulated.vendor_asserted.boundary
+      proof_class: vendor_asserted
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+      last_verified_at: "2026-04-28T12:00:00Z"
+      stale_after: P30D
+      note: Vendor-asserted boundary posture remains current.
+    - control_proof_row_id: control_proof_row:regulated.customer_provided.attestation
+      proof_class: customer_provided
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - customer_attestation:offline_trust_root.air_gapped
+      last_verified_at: "2026-04-27T15:00:00Z"
+      stale_after: P90D
+      note: Customer-provided attestations remain inside their window.
+    - control_proof_row_id: control_proof_row:regulated.policy_declared.bundle
+      proof_class: policy_declared
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - policy_bundle:air_gapped.regulated.signed
+      last_verified_at: "2026-04-28T12:00:00Z"
+      stale_after: P30D
+      note: Policy bundle remains current.
+    - control_proof_row_id: control_proof_row:regulated.not_currently_verifiable.certification
+      proof_class: not_currently_verifiable
+      proof_presence: present
+      verification_state: unverifiable_at_milestone
+      evidence_refs: []
+      last_verified_at: null
+      stale_after: null
+      note: Sovereign certification remains outside current verification capability.
+  exception_or_waiver_rows: []
+  freshness:
+    captured_at: "2026-04-29T17:00:00Z"
+    stale_after: P14D
+    freshness_state: stale
+    next_review_target: emergency air-gapped archetype refresh
+  publication_destinations:
+    - assurance_center
+    - docs_site
+    - service_health
+    - support_export
+    - release_packet
+    - public_proof_packet
+    - release_notes
+  evaluation_packet_refs: []
+  owner: "@ahmeddyounis"
+  evidence_owner: "@ahmeddyounis"
+  rendering_contract:
+    active_state_visible: true
+    boundary_linkages_visible: true
+    control_proof_rows_visible: true
+    exception_rows_visible: true
+    auto_narrowed_visible: true
+    evaluation_export_visible: true
+  notes: >
+    Card narrows automatically from supported to evidence_stale once the
+    runtime-observed archetype run aged past its freshness window. The
+    upstream claim row's behavior_when_unmet=downgrade_to_evidence_stale
+    drives the rendered state.
+
+expected_surface_contract:
+  blocks_claim_bearing_wording: true
+  renders_evidence_stale_copy_variant: true
+  exposes_active_downgrade_reasons: true

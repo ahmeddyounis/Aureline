@@ -1,0 +1,746 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/assurance_claim_card.schema.json",
+  "title": "Aureline assurance-claim card",
+  "description": "Boundary schema for assurance_claim_card_record frozen in docs/release/assurance_center_and_regulated_claim_contract.md. The card projects one assurance-claim row (schemas/release/assurance_claim.schema.json) into a per-claim surface inside the assurance center: an active claim state, a closed control-proof breakdown, exception or waiver rows, and the boundary linkages a reviewer needs to inspect the real path (key ownership, residency, proxy or egress posture, update or mirror provenance, policy source, and hosted-dependency blockers). Raw signatures, raw policy bodies, raw key material, raw tenant or hostnames, raw provider payloads, and secret material never cross this boundary; cards carry stable refs, typed states, and redaction-safe summaries only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assurance_claim_card_schema_version",
+    "record_kind",
+    "card_id",
+    "claim_row_ref",
+    "claim_subject_family",
+    "card_summary",
+    "active_claim_state",
+    "declared_claim_state",
+    "effective_claim_state",
+    "active_downgrade_reasons",
+    "auto_narrowed",
+    "scope",
+    "boundary_linkages",
+    "control_proof_rows",
+    "exception_or_waiver_rows",
+    "freshness",
+    "publication_destinations",
+    "evaluation_packet_refs",
+    "owner",
+    "evidence_owner",
+    "rendering_contract",
+    "notes"
+  ],
+  "properties": {
+    "assurance_claim_card_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "assurance_claim_card_record"
+    },
+    "card_id": {
+      "type": "string",
+      "pattern": "^assurance_claim_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable card id. Quoted by assurance-center overview rows, evaluation packets, and support exports."
+    },
+    "claim_row_ref": {
+      "type": "string",
+      "pattern": "^assurance_claim:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Backing assurance-claim row id (artifacts/release/assurance_claim_rows.yaml). The card never re-states claim-row truth; it projects it for surfaces."
+    },
+    "claim_subject_family": {
+      "$ref": "#/$defs/claim_subject_family"
+    },
+    "card_summary": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "One-sentence summary of what this card asserts inside the active scope."
+    },
+    "active_claim_state": {
+      "$ref": "#/$defs/active_claim_state",
+      "description": "Active state currently rendered on the assurance-center surface. Equal to effective_claim_state."
+    },
+    "declared_claim_state": {
+      "$ref": "#/$defs/active_claim_state"
+    },
+    "effective_claim_state": {
+      "$ref": "#/$defs/active_claim_state"
+    },
+    "active_downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_trigger" },
+      "description": "Currently-active downgrade triggers narrowing the declared state to the effective state. Mirrors the assurance-claim row vocabulary."
+    },
+    "auto_narrowed": {
+      "type": "boolean",
+      "description": "True when the effective state is automatically narrower than the declared state because of evidence ageing, control-path drift, or a hosted-dependency blocker."
+    },
+    "scope": {
+      "$ref": "#/$defs/scope_envelope"
+    },
+    "boundary_linkages": {
+      "$ref": "#/$defs/boundary_linkages"
+    },
+    "control_proof_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/control_proof_row" },
+      "description": "Closed control-proof breakdown for the card. One row per proof_class observed by the card."
+    },
+    "exception_or_waiver_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/exception_or_waiver_row" }
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "publication_destinations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/publication_destination" }
+    },
+    "evaluation_packet_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Evaluation-packet ids that carry the redacted export of this card."
+    },
+    "owner": {
+      "$ref": "#/$defs/owner_ref"
+    },
+    "evidence_owner": {
+      "$ref": "#/$defs/owner_ref"
+    },
+    "rendering_contract": {
+      "$ref": "#/$defs/rendering_contract"
+    },
+    "notes": {
+      "$ref": "#/$defs/non_empty_string"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Claim-bearing states (claimed, supported) require runtime-observed proof to be present so the active path satisfies the claim now. This blocks regulated, sovereign, air-gapped-safe, customer-managed-keys, no-vendor-hosted-AI, and no-telemetry wording from rendering when the active path does not satisfy the claim.",
+      "if": {
+        "properties": {
+          "effective_claim_state": { "enum": ["claimed", "supported"] }
+        },
+        "required": ["effective_claim_state"]
+      },
+      "then": {
+        "properties": {
+          "control_proof_rows": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "proof_class": { "const": "runtime_observed" },
+                "proof_presence": { "const": "present" },
+                "verification_state": { "enum": ["verified", "verified_within_freshness_window"] }
+              },
+              "required": ["proof_class", "proof_presence", "verification_state"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "limited, evidence_stale, retest_pending, and exception_recorded states cannot present as authoritative: active_downgrade_reasons MUST be non-empty.",
+      "if": {
+        "properties": {
+          "effective_claim_state": {
+            "enum": ["limited", "evidence_stale", "retest_pending", "exception_recorded"]
+          }
+        },
+        "required": ["effective_claim_state"]
+      },
+      "then": {
+        "properties": {
+          "active_downgrade_reasons": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "exception_recorded cards MUST carry at least one exception or waiver row.",
+      "if": {
+        "properties": {
+          "effective_claim_state": { "const": "exception_recorded" }
+        },
+        "required": ["effective_claim_state"]
+      },
+      "then": {
+        "properties": {
+          "exception_or_waiver_rows": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "When the effective state is narrower than the declared state the card MUST mark auto_narrowed=true.",
+      "if": {
+        "properties": {
+          "effective_claim_state": {
+            "enum": ["limited", "evidence_stale", "retest_pending", "exception_recorded", "not_claimed"]
+          },
+          "declared_claim_state": {
+            "enum": ["claimed", "supported"]
+          }
+        },
+        "required": ["effective_claim_state", "declared_claim_state"]
+      },
+      "then": {
+        "properties": {
+          "auto_narrowed": { "const": true }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "claim_subject_family": {
+      "type": "string",
+      "enum": [
+        "provider_aware_language_intelligence",
+        "trustworthy_diagnostics_and_quick_fixes",
+        "replay_safe_execution_history",
+        "provider_integrated_review",
+        "localization_readiness",
+        "export_and_offboarding_support",
+        "theme_package_portability",
+        "voice_privacy",
+        "repair_rollback_safety",
+        "regulated_environment_assurance",
+        "boundary_and_scope_truth",
+        "compatibility_and_skew_truth",
+        "benchmark_publication_truth",
+        "docs_and_help_freshness_truth",
+        "supply_chain_and_provenance_truth",
+        "accessibility_readiness",
+        "other"
+      ]
+    },
+    "active_claim_state": {
+      "type": "string",
+      "enum": [
+        "claimed",
+        "supported",
+        "limited",
+        "not_claimed",
+        "evidence_stale",
+        "exception_recorded",
+        "retest_pending",
+        "experimental"
+      ],
+      "description": "Active claim-state vocabulary rendered by the assurance center. 'claimed' is the surface name for certified-grade rows; 'supported' is the surface name for supported-grade rows. Aligned with schemas/release/assurance_claim.schema.json#/$defs/claim_class."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "required_evidence_missing",
+        "required_evidence_stale",
+        "required_evidence_narrower_than_claim",
+        "docs_version_match_unmet",
+        "docs_freshness_floor_unmet",
+        "unresolved_migration_gap",
+        "caveat_uncovered",
+        "proof_class_not_currently_verifiable",
+        "exception_window_expired",
+        "compatibility_row_degraded",
+        "support_window_expired",
+        "policy_blocked",
+        "hosted_dependency_blocker_active",
+        "control_path_drift_detected"
+      ],
+      "description": "Closed downgrade-trigger vocabulary. Extends schemas/release/assurance_claim.schema.json#/$defs/downgrade_trigger with hosted_dependency_blocker_active and control_path_drift_detected for the card surface."
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "vendor_asserted",
+        "customer_provided",
+        "runtime_observed",
+        "policy_declared",
+        "not_currently_verifiable"
+      ]
+    },
+    "proof_presence": {
+      "type": "string",
+      "enum": ["present", "partial", "absent", "not_applicable"]
+    },
+    "verification_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "verified_within_freshness_window",
+        "partial",
+        "not_verified",
+        "expired",
+        "unverifiable_at_milestone",
+        "blocked_by_policy",
+        "blocked_by_hosted_dependency"
+      ]
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": ["dev_local", "nightly", "preview", "beta", "stable", "lts", "hotfix"]
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "managed_admin_surface",
+        "headless_agent",
+        "docs_site",
+        "support_center"
+      ]
+    },
+    "publication_destination": {
+      "type": "string",
+      "enum": [
+        "docs_site",
+        "migration_notes",
+        "help_about",
+        "service_health",
+        "support_export",
+        "release_packet",
+        "release_notes",
+        "cli_help",
+        "evaluation_artifact",
+        "marketplace_discovery",
+        "public_proof_packet",
+        "assurance_center"
+      ]
+    },
+    "scope_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_channels", "deployment_profiles", "client_scopes"],
+      "properties": {
+        "release_channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/release_channel_class" }
+        },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile" }
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" }
+        }
+      }
+    },
+    "boundary_linkages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key_ownership",
+        "residency",
+        "proxy_egress_posture",
+        "update_provenance",
+        "mirror_provenance",
+        "policy_source",
+        "hosted_dependency_blockers"
+      ],
+      "description": "The real-boundary linkages a reviewer can inspect on the card instead of only reading copy. Every field is required so silent boundaries are forbidden.",
+      "properties": {
+        "key_ownership": { "$ref": "#/$defs/key_ownership" },
+        "residency": { "$ref": "#/$defs/residency" },
+        "proxy_egress_posture": { "$ref": "#/$defs/proxy_egress_posture" },
+        "update_provenance": { "$ref": "#/$defs/update_provenance" },
+        "mirror_provenance": { "$ref": "#/$defs/mirror_provenance" },
+        "policy_source": { "$ref": "#/$defs/policy_source" },
+        "hosted_dependency_blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hosted_dependency_blocker" },
+          "description": "Hosted dependencies that, when enabled for the active workflow, conflict with the declared claim and force narrowing."
+        }
+      }
+    },
+    "key_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key_mode_class", "evidence_refs", "note"],
+      "properties": {
+        "key_mode_class": {
+          "type": "string",
+          "enum": [
+            "os_store",
+            "vendor_managed",
+            "customer_managed",
+            "offline_trust_root",
+            "not_applicable"
+          ],
+          "description": "Aligned with artifacts/governance/deployment_profiles.yaml#key_mode_class_vocabulary."
+        },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "residency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_org_scope_class", "region_scope_class", "retention_class", "evidence_refs", "note"],
+      "properties": {
+        "tenant_org_scope_class": {
+          "type": "string",
+          "enum": [
+            "single_user_local",
+            "single_tenant_customer_isolated",
+            "shared_multi_tenant",
+            "tenant_boundary_recheck_required",
+            "not_applicable"
+          ]
+        },
+        "region_scope_class": {
+          "type": "string",
+          "enum": [
+            "customer_region_pinned",
+            "remote_target_region",
+            "boundary_recheck_required",
+            "not_applicable"
+          ]
+        },
+        "retention_class": {
+          "type": "string",
+          "enum": [
+            "no_retention_beyond_local_disk",
+            "workspace_repo_retained",
+            "customer_retention_window",
+            "vendor_retention_window_with_customer_policy",
+            "vendor_retention_window_default",
+            "retention_not_applicable"
+          ]
+        },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "proxy_egress_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["public_internet_expectation_class", "outbound_proxy_class", "evidence_refs", "note"],
+      "properties": {
+        "public_internet_expectation_class": {
+          "type": "string",
+          "enum": [
+            "public_internet_not_expected",
+            "public_internet_optional",
+            "public_internet_expected",
+            "public_internet_forbidden"
+          ]
+        },
+        "outbound_proxy_class": {
+          "type": "string",
+          "enum": [
+            "no_outbound",
+            "customer_proxy_required",
+            "customer_proxy_optional",
+            "vendor_endpoint_direct",
+            "mirror_only",
+            "not_applicable"
+          ]
+        },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "update_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin_path_class", "exact_build_identity_refs", "signature_state", "attestation_state", "note"],
+      "properties": {
+        "origin_path_class": {
+          "type": "string",
+          "enum": [
+            "official_origin",
+            "customer_managed_mirror",
+            "side_loaded",
+            "local_archive",
+            "unknown_provenance"
+          ]
+        },
+        "exact_build_identity_refs": { "$ref": "#/$defs/ref_array" },
+        "signature_state": {
+          "type": "string",
+          "enum": ["verified", "self_signed", "unsigned", "revoked", "expired", "unknown"]
+        },
+        "attestation_state": {
+          "type": "string",
+          "enum": ["verified", "partial", "absent", "expired", "unknown"]
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "mirror_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mirror_class", "mirror_freshness_class", "evidence_refs", "note"],
+      "properties": {
+        "mirror_class": {
+          "type": "string",
+          "enum": [
+            "no_mirror_in_path",
+            "official_mirror",
+            "customer_mirror",
+            "offline_bundle_import",
+            "unknown_mirror"
+          ]
+        },
+        "mirror_freshness_class": {
+          "type": "string",
+          "enum": [
+            "current",
+            "warm_cached",
+            "stale_allowed",
+            "stale_blocking",
+            "not_applicable"
+          ]
+        },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "policy_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_source_class", "policy_artifact_refs", "policy_epoch_ref", "note"],
+      "properties": {
+        "policy_source_class": {
+          "type": "string",
+          "enum": [
+            "embedded_default",
+            "signed_local_admin_bundle",
+            "user_or_workspace_configuration",
+            "managed_console_override",
+            "no_policy_source"
+          ],
+          "description": "Aligned with the precedence layers frozen in schemas/policy/admin_policy.schema.json."
+        },
+        "policy_artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "policy_epoch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "hosted_dependency_blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dependency_class", "blocker_state_class", "active_for_workflow", "evidence_refs", "note"],
+      "properties": {
+        "dependency_class": {
+          "type": "string",
+          "enum": [
+            "sign_in",
+            "package_registry",
+            "remote_mirror",
+            "remote_agent",
+            "symbol_service",
+            "ai_provider",
+            "policy_bundle",
+            "docs_pack",
+            "browser_handoff",
+            "companion_notification_channel",
+            "hosted_control_plane_reachability"
+          ],
+          "description": "Aligned with artifacts/governance/residual_dependencies.yaml#dependency_class_vocabulary."
+        },
+        "blocker_state_class": {
+          "type": "string",
+          "enum": [
+            "conflicts_with_claim_when_active",
+            "incompatible_in_active_profile",
+            "forbidden_in_active_profile",
+            "advisory_only"
+          ]
+        },
+        "active_for_workflow": {
+          "type": "boolean",
+          "description": "True when the hosted dependency is currently enabled for the active workflow, in which case the claim MUST narrow."
+        },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "control_proof_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_proof_row_id",
+        "proof_class",
+        "proof_presence",
+        "verification_state",
+        "evidence_refs",
+        "last_verified_at",
+        "stale_after",
+        "note"
+      ],
+      "properties": {
+        "control_proof_row_id": {
+          "type": "string",
+          "pattern": "^control_proof_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "proof_presence": { "$ref": "#/$defs/proof_presence" },
+        "verification_state": { "$ref": "#/$defs/verification_state" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "last_verified_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "ISO 8601 duration or another stable freshness token."
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "exception_or_waiver_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exception_row_id",
+        "exception_class",
+        "waiver_packet_ref",
+        "applies_to_claim_state",
+        "starts_at",
+        "ends_at",
+        "expiry_state_class",
+        "redaction_class",
+        "publication_destinations",
+        "note"
+      ],
+      "properties": {
+        "exception_row_id": {
+          "type": "string",
+          "pattern": "^assurance_exception:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "exception_class": {
+          "type": "string",
+          "enum": [
+            "waiver",
+            "known_limit",
+            "policy_block",
+            "compatibility_exception",
+            "hosted_dependency_block"
+          ]
+        },
+        "waiver_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Refers to a waiver_packet record (schemas/release/waiver_packet.schema.json) when the exception is a formal waiver."
+        },
+        "applies_to_claim_state": {
+          "$ref": "#/$defs/active_claim_state",
+          "description": "Effective state the claim renders while this exception is active."
+        },
+        "starts_at": { "type": "string", "format": "date-time" },
+        "ends_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "expiry_state_class": {
+          "type": "string",
+          "enum": ["active", "approaching_expiry", "expired", "open_ended"]
+        },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_safe_default",
+            "operator_only_restricted",
+            "internal_support_restricted",
+            "signing_evidence_only"
+          ],
+          "description": "Aligned with schemas/policy/admin_policy.schema.json#/$defs/redaction_class."
+        },
+        "publication_destinations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/publication_destination" }
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captured_at", "stale_after", "freshness_state", "next_review_target"],
+      "properties": {
+        "captured_at": { "type": "string", "format": "date-time" },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "freshness_state": {
+          "type": "string",
+          "enum": [
+            "current",
+            "warm_cached",
+            "known_issues",
+            "retest_pending",
+            "stale",
+            "community_reported",
+            "unknown"
+          ]
+        },
+        "next_review_target": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rendering_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_state_visible",
+        "boundary_linkages_visible",
+        "control_proof_rows_visible",
+        "exception_rows_visible",
+        "auto_narrowed_visible",
+        "evaluation_export_visible"
+      ],
+      "properties": {
+        "active_state_visible": { "type": "boolean" },
+        "boundary_linkages_visible": { "type": "boolean" },
+        "control_proof_rows_visible": { "type": "boolean" },
+        "exception_rows_visible": { "type": "boolean" },
+        "auto_narrowed_visible": { "type": "boolean" },
+        "evaluation_export_visible": { "type": "boolean" }
+      }
+    }
+  }
+}

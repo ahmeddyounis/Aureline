@@ -1,0 +1,199 @@
+schema_version: 1
+record_kind: assurance_center_case_record
+case_id: release.assurance_center.active_regulated_claim
+case_class: active_regulated_claim
+scenario_summary: >
+  A self-hosted air-gapped customer renders the regulated-environment
+  card under an active supported posture. Runtime-observed proof is
+  verified inside the freshness window, key ownership resolves to the
+  customer-managed offline trust root, residency is single-tenant, and
+  no hosted dependency is active for the workflow.
+schema_refs:
+  assurance_claim_card: schemas/release/assurance_claim_card.schema.json
+
+assurance_claim_card:
+  assurance_claim_card_schema_version: 1
+  record_kind: assurance_claim_card_record
+  card_id: assurance_claim_card:regulated_environment_assurance.air_gapped
+  claim_row_ref: assurance_claim:regulated_environment_assurance
+  claim_subject_family: regulated_environment_assurance
+  card_summary: >
+    Regulated-environment posture is supported for the air-gapped
+    self-hosted profile under the declared scope, with runtime-observed
+    archetype evidence and customer-managed offline trust root.
+  active_claim_state: supported
+  declared_claim_state: supported
+  effective_claim_state: supported
+  active_downgrade_reasons: []
+  auto_narrowed: false
+  scope:
+    release_channels:
+      - stable
+    deployment_profiles:
+      - self_hosted
+      - air_gapped
+    client_scopes:
+      - desktop_product
+      - cli
+      - managed_admin_surface
+  boundary_linkages:
+    key_ownership:
+      key_mode_class: customer_managed
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+        - customer_attestation:offline_trust_root.air_gapped
+      note: >
+        Customer-managed offline trust root attestation declares the
+        active key custody model for the air-gapped profile.
+    residency:
+      tenant_org_scope_class: single_tenant_customer_isolated
+      region_scope_class: customer_region_pinned
+      retention_class: no_retention_beyond_local_disk
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+      note: >
+        Air-gapped self-hosted deployment retains no data beyond local
+        disk and pins region to the customer's environment.
+    proxy_egress_posture:
+      public_internet_expectation_class: public_internet_forbidden
+      outbound_proxy_class: no_outbound
+      evidence_refs:
+        - artifacts/governance/residual_dependencies.yaml
+      note: >
+        Air-gapped profile forbids public internet egress and the
+        active workflow has no outbound proxy configured.
+    update_provenance:
+      origin_path_class: customer_managed_mirror
+      exact_build_identity_refs:
+        - exact_build:ide.linux.x86_64.air_gapped.bundle
+      signature_state: verified
+      attestation_state: verified
+      note: >
+        Active build was imported from the customer-managed mirror
+        bundle and verifies against the offline trust root.
+    mirror_provenance:
+      mirror_class: customer_mirror
+      mirror_freshness_class: current
+      evidence_refs:
+        - mirror_bundle:offline.air_gapped.signed
+      note: >
+        Customer mirror bundle is current within the declared offline
+        bundle freshness window.
+    policy_source:
+      policy_source_class: signed_local_admin_bundle
+      policy_artifact_refs:
+        - policy_bundle:air_gapped.regulated.signed
+      policy_epoch_ref: policy_epoch.air_gapped.regulated
+      note: >
+        Signed local admin bundle declares the no-vendor-hosted-AI and
+        no-egress posture; bundle is current and verifies against the
+        offline trust root.
+    hosted_dependency_blockers:
+      - dependency_class: ai_provider
+        blocker_state_class: forbidden_in_active_profile
+        active_for_workflow: false
+        evidence_refs:
+          - artifacts/governance/residual_dependencies.yaml
+        note: >
+          Vendor-hosted AI provider is forbidden in the air-gapped
+          profile and is not active for any workflow.
+      - dependency_class: hosted_control_plane_reachability
+        blocker_state_class: forbidden_in_active_profile
+        active_for_workflow: false
+        evidence_refs:
+          - artifacts/governance/residual_dependencies.yaml
+        note: >
+          Hosted control-plane reachability is forbidden in the
+          air-gapped profile and is not active.
+  control_proof_rows:
+    - control_proof_row_id: control_proof_row:regulated.vendor_asserted.boundary
+      proof_class: vendor_asserted
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+        - docs/product/boundary_manifest_strawman.md
+      last_verified_at: "2026-04-28T12:00:00Z"
+      stale_after: P30D
+      note: >
+        Vendor-asserted posture: deployment-profile scope, boundary
+        manifest, and local-first default.
+    - control_proof_row_id: control_proof_row:regulated.customer_provided.attestation
+      proof_class: customer_provided
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - customer_attestation:offline_trust_root.air_gapped
+        - customer_attestation:no_egress_network_topology
+      last_verified_at: "2026-04-27T15:00:00Z"
+      stale_after: P90D
+      note: >
+        Customer-provided attestations cover offline trust root key
+        custody and the no-egress network topology.
+    - control_proof_row_id: control_proof_row:regulated.runtime_observed.archetype
+      proof_class: runtime_observed
+      proof_presence: present
+      verification_state: verified_within_freshness_window
+      evidence_refs:
+        - certified_archetype_run:air_gapped.regulated.2026_04_28
+        - release_evidence:air_gapped.regulated.2026_04_28
+      last_verified_at: "2026-04-28T18:30:00Z"
+      stale_after: P14D
+      note: >
+        Runtime-observed evidence from the air-gapped certified
+        archetype run inside the declared freshness window.
+    - control_proof_row_id: control_proof_row:regulated.policy_declared.bundle
+      proof_class: policy_declared
+      proof_presence: present
+      verification_state: verified
+      evidence_refs:
+        - policy_bundle:air_gapped.regulated.signed
+      last_verified_at: "2026-04-28T12:00:00Z"
+      stale_after: P30D
+      note: >
+        Policy-declared posture: signed local admin bundle declares
+        no-vendor-hosted-AI and no-egress controls.
+    - control_proof_row_id: control_proof_row:regulated.not_currently_verifiable.certification
+      proof_class: not_currently_verifiable
+      proof_presence: present
+      verification_state: unverifiable_at_milestone
+      evidence_refs: []
+      last_verified_at: null
+      stale_after: null
+      note: >
+        Sovereign-posture certification (FedRAMP/ISO/SOC2) remains
+        outside Aureline's current verification capability and is
+        explicitly excluded from the supported claim.
+  exception_or_waiver_rows: []
+  freshness:
+    captured_at: "2026-04-28T18:35:00Z"
+    stale_after: P14D
+    freshness_state: current
+    next_review_target: next certified-archetype run on air-gapped profile
+  publication_destinations:
+    - assurance_center
+    - docs_site
+    - help_about
+    - support_export
+    - release_packet
+    - evaluation_artifact
+  evaluation_packet_refs:
+    - evaluation_packet:regulated_review.air_gapped.2026_04_28
+  owner: "@ahmeddyounis"
+  evidence_owner: "@ahmeddyounis"
+  rendering_contract:
+    active_state_visible: true
+    boundary_linkages_visible: true
+    control_proof_rows_visible: true
+    exception_rows_visible: true
+    auto_narrowed_visible: true
+    evaluation_export_visible: true
+  notes: >
+    Active supported posture under the air-gapped profile. The card
+    renders the supported copy variant from the upstream claim row
+    and references the regulated-review evaluation packet for handoff.
+
+expected_surface_contract:
+  renders_claim_bearing_state: true
+  asserts_air_gapped_safe_only_when_path_satisfies_claim: true
+  links_to_evaluation_packet: true

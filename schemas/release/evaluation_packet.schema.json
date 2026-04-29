@@ -1,0 +1,596 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/evaluation_packet.schema.json",
+  "title": "Aureline assurance evaluation packet",
+  "description": "Boundary schema for evaluation_packet_record frozen in docs/release/assurance_center_and_regulated_claim_contract.md. The packet is the redaction-safe export of one or more assurance_claim_card_record rows for procurement, regulated review, customer evaluation, support handoff, or release-evidence handoff. The packet captures every claim card it covers, the index of control-proof rows and exception rows used to narrow each card, the redaction profile applied to the export, and the freshness window. Raw signatures, raw secrets, raw policy bodies, raw key material, raw tenant identifiers, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evaluation_packet_schema_version",
+    "record_kind",
+    "packet_id",
+    "packet_class",
+    "packet_state",
+    "assembled_at",
+    "frozen_at",
+    "scope",
+    "claim_card_index",
+    "control_proof_index",
+    "exception_index",
+    "redaction",
+    "handoff",
+    "freshness",
+    "limitations",
+    "owner",
+    "evidence_owner",
+    "rendering_contract",
+    "notes"
+  ],
+  "properties": {
+    "evaluation_packet_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "evaluation_packet_record"
+    },
+    "packet_id": {
+      "type": "string",
+      "pattern": "^evaluation_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "packet_class": {
+      "type": "string",
+      "enum": [
+        "customer_evaluation",
+        "auditor_evaluation",
+        "regulated_review",
+        "procurement_handoff",
+        "support_handoff",
+        "release_evidence_handoff"
+      ],
+      "description": "Closed packet-class vocabulary. The class drives default redaction and which publication destinations the packet may project through."
+    },
+    "packet_state": {
+      "type": "string",
+      "enum": ["draft", "in_review", "frozen", "superseded", "withdrawn"]
+    },
+    "assembled_at": { "type": "string", "format": "date-time" },
+    "frozen_at": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date-time" }
+      ],
+      "description": "Timestamp at which the packet was frozen for handoff. Drafts MAY leave this null; frozen, superseded, and withdrawn packets MUST set it."
+    },
+    "scope": {
+      "$ref": "#/$defs/packet_scope"
+    },
+    "claim_card_index": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/claim_card_index_entry" },
+      "description": "Index of every assurance_claim_card_record covered by the packet."
+    },
+    "control_proof_index": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/control_proof_index_entry" },
+      "description": "Flat index of every control-proof row referenced from the cards. Allows a reviewer to inspect proof families without opening every card."
+    },
+    "exception_index": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/exception_index_entry" },
+      "description": "Flat index of every exception or waiver row referenced from the cards."
+    },
+    "redaction": {
+      "$ref": "#/$defs/redaction_block"
+    },
+    "handoff": {
+      "$ref": "#/$defs/handoff_block"
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Explicit limitations of this packet. At minimum a packet MUST disclose what is outside its verification scope and what depends on customer attestation."
+    },
+    "owner": { "$ref": "#/$defs/owner_ref" },
+    "evidence_owner": { "$ref": "#/$defs/owner_ref" },
+    "rendering_contract": {
+      "$ref": "#/$defs/rendering_contract"
+    },
+    "notes": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "allOf": [
+    {
+      "description": "Frozen, superseded, and withdrawn packets MUST set frozen_at.",
+      "if": {
+        "properties": {
+          "packet_state": { "enum": ["frozen", "superseded", "withdrawn"] }
+        },
+        "required": ["packet_state"]
+      },
+      "then": {
+        "properties": {
+          "frozen_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    {
+      "description": "Packets exported beyond Aureline's internal scope (customer_evaluation, auditor_evaluation, regulated_review, procurement_handoff) MUST apply a redaction profile narrower than internal_support_restricted.",
+      "if": {
+        "properties": {
+          "packet_class": {
+            "enum": [
+              "customer_evaluation",
+              "auditor_evaluation",
+              "regulated_review",
+              "procurement_handoff"
+            ]
+          }
+        },
+        "required": ["packet_class"]
+      },
+      "then": {
+        "properties": {
+          "redaction": {
+            "properties": {
+              "redaction_state": { "enum": ["applied", "not_required"] },
+              "applied_redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            },
+            "required": ["redaction_state", "applied_redaction_class"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "active_claim_state": {
+      "type": "string",
+      "enum": [
+        "claimed",
+        "supported",
+        "limited",
+        "not_claimed",
+        "evidence_stale",
+        "exception_recorded",
+        "retest_pending",
+        "experimental"
+      ]
+    },
+    "publication_destination": {
+      "type": "string",
+      "enum": [
+        "docs_site",
+        "migration_notes",
+        "help_about",
+        "service_health",
+        "support_export",
+        "release_packet",
+        "release_notes",
+        "cli_help",
+        "evaluation_artifact",
+        "marketplace_discovery",
+        "public_proof_packet",
+        "assurance_center"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Aligned with schemas/policy/admin_policy.schema.json#/$defs/redaction_class."
+    },
+    "packet_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_channels",
+        "deployment_profiles",
+        "client_scopes",
+        "claim_subject_families",
+        "publication_destinations"
+      ],
+      "properties": {
+        "release_channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["dev_local", "nightly", "preview", "beta", "stable", "lts", "hotfix"]
+          }
+        },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "individual_local",
+              "self_hosted",
+              "enterprise_online",
+              "air_gapped",
+              "managed_cloud"
+            ]
+          }
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "desktop_product",
+              "cli",
+              "managed_admin_surface",
+              "headless_agent",
+              "docs_site",
+              "support_center"
+            ]
+          }
+        },
+        "claim_subject_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "provider_aware_language_intelligence",
+              "trustworthy_diagnostics_and_quick_fixes",
+              "replay_safe_execution_history",
+              "provider_integrated_review",
+              "localization_readiness",
+              "export_and_offboarding_support",
+              "theme_package_portability",
+              "voice_privacy",
+              "repair_rollback_safety",
+              "regulated_environment_assurance",
+              "boundary_and_scope_truth",
+              "compatibility_and_skew_truth",
+              "benchmark_publication_truth",
+              "docs_and_help_freshness_truth",
+              "supply_chain_and_provenance_truth",
+              "accessibility_readiness",
+              "other"
+            ]
+          }
+        },
+        "publication_destinations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/publication_destination" }
+        }
+      }
+    },
+    "claim_card_index_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_ref",
+        "claim_row_ref",
+        "claim_subject_family",
+        "active_claim_state",
+        "auto_narrowed",
+        "active_downgrade_reasons",
+        "control_proof_row_refs",
+        "exception_row_refs",
+        "note"
+      ],
+      "properties": {
+        "card_ref": {
+          "type": "string",
+          "pattern": "^assurance_claim_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "claim_row_ref": {
+          "type": "string",
+          "pattern": "^assurance_claim:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "claim_subject_family": {
+          "type": "string",
+          "enum": [
+            "provider_aware_language_intelligence",
+            "trustworthy_diagnostics_and_quick_fixes",
+            "replay_safe_execution_history",
+            "provider_integrated_review",
+            "localization_readiness",
+            "export_and_offboarding_support",
+            "theme_package_portability",
+            "voice_privacy",
+            "repair_rollback_safety",
+            "regulated_environment_assurance",
+            "boundary_and_scope_truth",
+            "compatibility_and_skew_truth",
+            "benchmark_publication_truth",
+            "docs_and_help_freshness_truth",
+            "supply_chain_and_provenance_truth",
+            "accessibility_readiness",
+            "other"
+          ]
+        },
+        "active_claim_state": { "$ref": "#/$defs/active_claim_state" },
+        "auto_narrowed": { "type": "boolean" },
+        "active_downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "control_proof_row_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^control_proof_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          }
+        },
+        "exception_row_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^assurance_exception:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          }
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "control_proof_index_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_proof_row_ref",
+        "card_ref",
+        "proof_class",
+        "proof_presence",
+        "verification_state",
+        "evidence_redaction_class",
+        "evidence_refs_redacted",
+        "note"
+      ],
+      "properties": {
+        "control_proof_row_ref": {
+          "type": "string",
+          "pattern": "^control_proof_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "card_ref": {
+          "type": "string",
+          "pattern": "^assurance_claim_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "proof_class": {
+          "type": "string",
+          "enum": [
+            "vendor_asserted",
+            "customer_provided",
+            "runtime_observed",
+            "policy_declared",
+            "not_currently_verifiable"
+          ]
+        },
+        "proof_presence": {
+          "type": "string",
+          "enum": ["present", "partial", "absent", "not_applicable"]
+        },
+        "verification_state": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "verified_within_freshness_window",
+            "partial",
+            "not_verified",
+            "expired",
+            "unverifiable_at_milestone",
+            "blocked_by_policy",
+            "blocked_by_hosted_dependency"
+          ]
+        },
+        "evidence_redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "evidence_refs_redacted": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Evidence refs as they appear in the exported packet after the redaction profile is applied. Refs to raw artifacts are replaced with redacted handles."
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "exception_index_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exception_row_ref",
+        "card_ref",
+        "exception_class",
+        "applies_to_claim_state",
+        "expiry_state_class",
+        "redaction_class",
+        "note"
+      ],
+      "properties": {
+        "exception_row_ref": {
+          "type": "string",
+          "pattern": "^assurance_exception:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "card_ref": {
+          "type": "string",
+          "pattern": "^assurance_claim_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "exception_class": {
+          "type": "string",
+          "enum": [
+            "waiver",
+            "known_limit",
+            "policy_block",
+            "compatibility_exception",
+            "hosted_dependency_block"
+          ]
+        },
+        "applies_to_claim_state": { "$ref": "#/$defs/active_claim_state" },
+        "expiry_state_class": {
+          "type": "string",
+          "enum": ["active", "approaching_expiry", "expired", "open_ended"]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "redaction_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_state",
+        "applied_redaction_class",
+        "redaction_rules_ref",
+        "redacted_field_classes",
+        "note"
+      ],
+      "properties": {
+        "redaction_state": {
+          "type": "string",
+          "enum": ["applied", "not_required", "pending", "rejected"]
+        },
+        "applied_redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "redaction_rules_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Doc or artifact ref describing the redaction rules applied to this packet (for example docs/governance/redaction_policy.md)."
+        },
+        "redacted_field_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "raw_signature",
+              "raw_attestation_payload",
+              "raw_key_material",
+              "raw_tenant_identifier",
+              "raw_user_identifier",
+              "raw_hostname",
+              "raw_path",
+              "raw_provider_payload",
+              "raw_secret_material",
+              "raw_policy_body",
+              "raw_url"
+            ]
+          },
+          "description": "Closed list of raw field classes the redaction profile excluded from the exported packet."
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "handoff_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recipient_class",
+        "recipient_label",
+        "delivery_channel_class",
+        "signed_at",
+        "signing_evidence_ref",
+        "note"
+      ],
+      "properties": {
+        "recipient_class": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "auditor",
+            "regulator",
+            "procurement",
+            "release_council",
+            "support_operator",
+            "internal_review"
+          ]
+        },
+        "recipient_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable, redaction-safe recipient label. Raw recipient names or contact details MUST NOT cross this boundary."
+        },
+        "delivery_channel_class": {
+          "type": "string",
+          "enum": [
+            "evaluation_artifact",
+            "release_packet",
+            "support_export",
+            "public_proof_packet",
+            "internal_only"
+          ]
+        },
+        "signed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "signing_evidence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captured_at", "stale_after", "freshness_state", "next_review_target"],
+      "properties": {
+        "captured_at": { "type": "string", "format": "date-time" },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "freshness_state": {
+          "type": "string",
+          "enum": [
+            "current",
+            "warm_cached",
+            "known_issues",
+            "retest_pending",
+            "stale",
+            "community_reported",
+            "unknown"
+          ]
+        },
+        "next_review_target": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rendering_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_card_index_visible",
+        "control_proof_index_visible",
+        "exception_index_visible",
+        "redaction_visible",
+        "handoff_visible",
+        "limitations_visible"
+      ],
+      "properties": {
+        "claim_card_index_visible": { "type": "boolean" },
+        "control_proof_index_visible": { "type": "boolean" },
+        "exception_index_visible": { "type": "boolean" },
+        "redaction_visible": { "type": "boolean" },
+        "handoff_visible": { "type": "boolean" },
+        "limitations_visible": { "type": "boolean" }
+      }
+    }
+  }
+}
