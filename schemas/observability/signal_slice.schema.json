@@ -1,0 +1,513 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/observability/signal_slice.schema.json",
+  "title": "Aureline observability signal slice",
+  "description": "Boundary schema for signal_slice_record shared by the log explorer, metric board, trace detail, incident timeline, and post-incident export surfaces. A slice names source/provider class, collection mode, time window and timezone context, freshness, complete/partial/sampled/downsampled/clipped/stale evidence states, truncation/downsample details, correlation refs that avoid accidental causality claims, and export/share/open-raw actions that preserve structured timeline refs, ownership, evidence refs, redaction mode, and current boundary notes.",
+  "type": "object",
+  "$ref": "#/$defs/signal_slice_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the signal-slice boundary. Bumped on breaking payload changes."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable ref safe for logs, exports, timelines, and support bundles. Raw URLs, hostnames, IPs, paths, tokens, payload bodies, and secret material never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "reviewable_note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short privacy-safe explanation for UI, CLI, support, or export review."
+    },
+    "utc_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 / ISO 8601 timestamp. Canonical slice windows use UTC; render timezone is carried separately."
+    },
+    "source_descriptor": {
+      "$ref": "signal_freshness.schema.json#/$defs/source_descriptor"
+    },
+    "signal_freshness_snapshot": {
+      "$ref": "signal_freshness.schema.json#/$defs/signal_freshness_snapshot"
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "log_explorer",
+        "metric_board",
+        "trace_detail",
+        "incident_timeline",
+        "post_incident_export"
+      ]
+    },
+    "signal_kind_class": {
+      "type": "string",
+      "enum": [
+        "log_stream",
+        "metric_window",
+        "trace_window",
+        "incident_timeline",
+        "export_bundle_summary"
+      ]
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "event_time",
+        "ingest_time",
+        "query_time",
+        "export_time",
+        "reconstructed_time"
+      ],
+      "description": "Names which time basis the slice window uses. Cross-signal comparison must preserve this basis."
+    },
+    "time_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_basis_class",
+        "window_start_utc",
+        "window_end_utc",
+        "display_time_zone_iana",
+        "display_utc_offset",
+        "timestamp_envelope_ref",
+        "timezone_boundary_note"
+      ],
+      "properties": {
+        "time_basis_class": { "$ref": "#/$defs/time_basis_class" },
+        "window_start_utc": { "$ref": "#/$defs/utc_timestamp" },
+        "window_end_utc": { "$ref": "#/$defs/utc_timestamp" },
+        "display_time_zone_iana": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IANA timezone used for human rendering, for example America/Los_Angeles or UTC."
+        },
+        "display_utc_offset": {
+          "type": "string",
+          "pattern": "^[+-][0-9]{2}:[0-9]{2}$",
+          "description": "UTC offset used by the rendered local time at the captured window."
+        },
+        "timestamp_envelope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "timezone_boundary_note": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "truncation_class": {
+      "type": "string",
+      "enum": [
+        "not_truncated",
+        "clipped_at_start",
+        "clipped_at_end",
+        "clipped_at_both_ends",
+        "clipped_by_retention",
+        "clipped_by_export_limit",
+        "clipped_by_policy_redaction",
+        "truncation_unknown_pending_review"
+      ]
+    },
+    "sampling_class": {
+      "type": "string",
+      "enum": [
+        "not_sampled",
+        "provider_sampled",
+        "product_sampled",
+        "statistical_sample",
+        "sample_state_unknown_pending_review"
+      ]
+    },
+    "downsample_class": {
+      "type": "string",
+      "enum": [
+        "not_downsampled",
+        "bucketed_resolution",
+        "rollup_aggregate",
+        "count_only",
+        "provider_preaggregated",
+        "downsample_state_unknown_pending_review"
+      ]
+    },
+    "clip_reason_class": {
+      "type": "string",
+      "enum": [
+        "size_limit",
+        "time_window_limit",
+        "retention_limit",
+        "export_scope_limit",
+        "policy_redaction",
+        "source_unavailable",
+        "not_applicable"
+      ]
+    },
+    "reduction_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truncation_class",
+        "sampling_class",
+        "downsample_class",
+        "dropped_record_count",
+        "sample_rate",
+        "original_resolution",
+        "rendered_resolution",
+        "clip_reason_classes",
+        "reduction_note"
+      ],
+      "properties": {
+        "truncation_class": { "$ref": "#/$defs/truncation_class" },
+        "sampling_class": { "$ref": "#/$defs/sampling_class" },
+        "downsample_class": { "$ref": "#/$defs/downsample_class" },
+        "dropped_record_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "sample_rate": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+          ]
+        },
+        "original_resolution": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Original resolution or bucket width, for example PT1S."
+        },
+        "rendered_resolution": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Rendered/exported resolution or bucket width after downsampling."
+        },
+        "clip_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/clip_reason_class" }
+        },
+        "reduction_note": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "payload_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_or_filter_ref",
+        "query_hash_ref",
+        "raw_signal_ref",
+        "result_count",
+        "unit_or_payload_class",
+        "aggregation_class",
+        "mapping_quality_class",
+        "summary"
+      ],
+      "properties": {
+        "query_or_filter_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "query_hash_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "raw_signal_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "result_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "unit_or_payload_class": { "$ref": "#/$defs/reviewable_note" },
+        "aggregation_class": { "$ref": "#/$defs/reviewable_note" },
+        "mapping_quality_class": {
+          "type": "string",
+          "enum": [
+            "native_mapping",
+            "source_map_resolved",
+            "symbolication_partial",
+            "provider_mapping_only",
+            "import_mapping_unverified",
+            "not_applicable"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "correlation_target_class": {
+      "type": "string",
+      "enum": [
+        "run",
+        "build",
+        "deploy",
+        "execution_context",
+        "incident",
+        "support_case",
+        "release",
+        "review",
+        "code_change",
+        "resource_context"
+      ]
+    },
+    "relationship_class": {
+      "type": "string",
+      "enum": [
+        "associated_with",
+        "observed_during",
+        "emitted_by",
+        "sampled_from",
+        "derived_from",
+        "exported_from",
+        "opened_from"
+      ]
+    },
+    "causality_claim_class": {
+      "type": "string",
+      "enum": [
+        "association_only_no_causality",
+        "source_asserts_causality",
+        "product_verified_causality",
+        "product_rejects_causality",
+        "unknown_pending_review"
+      ],
+      "description": "Defaults to association_only_no_causality unless the product has verified causality or is explicitly relaying a source assertion."
+    },
+    "correlation_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correlation_ref_id",
+        "target_class",
+        "target_ref",
+        "relationship_class",
+        "causality_claim_class",
+        "evidence_ref",
+        "correlation_note"
+      ],
+      "properties": {
+        "correlation_ref_id": { "$ref": "#/$defs/opaque_ref" },
+        "target_class": { "$ref": "#/$defs/correlation_target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "relationship_class": { "$ref": "#/$defs/relationship_class" },
+        "causality_claim_class": { "$ref": "#/$defs/causality_claim_class" },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "correlation_note": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "signal_action_class": {
+      "type": "string",
+      "enum": [
+        "open_raw_signal",
+        "export_slice",
+        "share_slice",
+        "open_structured_timeline",
+        "open_source_provider",
+        "copy_reference"
+      ]
+    },
+    "action_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_by_reference_only",
+        "disabled_policy_redaction",
+        "disabled_source_unavailable",
+        "disabled_offline_reader",
+        "disabled_unknown_pending_review"
+      ]
+    },
+    "redaction_mode_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "redacted_payload",
+        "by_reference_only",
+        "withheld_by_policy",
+        "none_required"
+      ]
+    },
+    "signal_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "availability_class",
+        "action_ref",
+        "target_ref",
+        "redaction_mode_class",
+        "boundary_note"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/signal_action_class" },
+        "availability_class": { "$ref": "#/$defs/action_availability_class" },
+        "action_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "target_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "redaction_mode_class": { "$ref": "#/$defs/redaction_mode_class" },
+        "boundary_note": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "signal_actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["open_raw", "export", "share"],
+      "properties": {
+        "open_raw": { "$ref": "#/$defs/signal_action" },
+        "export": { "$ref": "#/$defs/signal_action" },
+        "share": { "$ref": "#/$defs/signal_action" }
+      }
+    },
+    "exportability_class": {
+      "type": "string",
+      "enum": [
+        "exportable_by_reference",
+        "exportable_after_redaction",
+        "exportable_metadata_only",
+        "not_exportable_policy_blocked",
+        "exportability_unknown_pending_review"
+      ]
+    },
+    "omission_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "policy_redaction",
+        "source_unavailable",
+        "retention_expired",
+        "payload_too_large",
+        "destination_not_allowed",
+        "unknown_pending_review"
+      ]
+    },
+    "ownership_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_actor_ref",
+        "owning_team_ref",
+        "reviewer_actor_refs"
+      ],
+      "properties": {
+        "owner_actor_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "owning_team_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "reviewer_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "export_share_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportability_class",
+        "destination_class",
+        "redaction_mode_class",
+        "ownership",
+        "structured_timeline_refs",
+        "evidence_refs",
+        "omission_reason_classes",
+        "current_boundary_notes"
+      ],
+      "properties": {
+        "exportability_class": { "$ref": "#/$defs/exportability_class" },
+        "destination_class": {
+          "type": "string",
+          "enum": [
+            "local_review",
+            "support_bundle",
+            "incident_postmortem",
+            "release_evidence_packet",
+            "audit_export",
+            "external_share_denied"
+          ]
+        },
+        "redaction_mode_class": { "$ref": "#/$defs/redaction_mode_class" },
+        "ownership": { "$ref": "#/$defs/ownership_block" },
+        "structured_timeline_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "omission_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/omission_reason_class" }
+        },
+        "current_boundary_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_note" }
+        }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 }
+      }
+    },
+    "signal_slice_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_slice_schema_version",
+        "record_kind",
+        "signal_slice_id",
+        "surface_class",
+        "signal_kind_class",
+        "title",
+        "source",
+        "time_context",
+        "freshness",
+        "reduction",
+        "payload",
+        "correlation_refs",
+        "actions",
+        "export_share",
+        "boundary_notes"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "signal_slice_schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "signal_slice_record"
+        },
+        "signal_slice_id": { "$ref": "#/$defs/opaque_ref" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "signal_kind_class": { "$ref": "#/$defs/signal_kind_class" },
+        "title": { "$ref": "#/$defs/reviewable_note" },
+        "source": { "$ref": "#/$defs/source_descriptor" },
+        "time_context": { "$ref": "#/$defs/time_context" },
+        "freshness": { "$ref": "#/$defs/signal_freshness_snapshot" },
+        "reduction": { "$ref": "#/$defs/reduction_state" },
+        "payload": { "$ref": "#/$defs/payload_descriptor" },
+        "correlation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/correlation_ref" }
+        },
+        "actions": { "$ref": "#/$defs/signal_actions" },
+        "export_share": { "$ref": "#/$defs/export_share_block" },
+        "boundary_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_note" }
+        }
+      }
+    }
+  }
+}

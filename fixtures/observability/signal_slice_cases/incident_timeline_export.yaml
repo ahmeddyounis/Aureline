@@ -1,0 +1,168 @@
+# yaml-language-server: $schema=../../../schemas/observability/signal_slice.schema.json
+__fixture__:
+  name: incident_timeline_export
+  scenario: >
+    Post-incident export slice for an incident timeline. The export keeps
+    structured timeline refs, ownership, evidence refs, redaction mode,
+    omission reasons, and current boundary notes while making clear that
+    the reader is inspecting offline replay evidence.
+
+signal_slice_schema_version: 1
+record_kind: signal_slice_record
+signal_slice_id: signal_slice.incident_timeline.checkout_postincident_export
+surface_class: post_incident_export
+signal_kind_class: incident_timeline
+title: Checkout incident timeline export with redacted evidence refs
+
+source:
+  source_class: imported_artifact
+  collection_mode_class: offline_replay
+  provider_ref: null
+  source_instance_ref: source.postincident_export.checkout_timeline_bundle
+  capture_pipeline_ref: export_receipt.incident.checkout.timeline_bundle.2026_04_25
+  source_boundary_note: >
+    Read from a post-incident evidence bundle; no live incident workspace
+    or provider route is contacted.
+
+time_context:
+  time_basis_class: export_time
+  window_start_utc: "2026-04-25T08:38:00Z"
+  window_end_utc: "2026-04-25T10:05:00Z"
+  display_time_zone_iana: UTC
+  display_utc_offset: "+00:00"
+  timestamp_envelope_ref: timestamp_envelope.incident.checkout.exported_timeline
+  timezone_boundary_note: >
+    Export chronology is pinned to UTC so audit, deletion, support, and
+    release readers compare the same ordering.
+
+freshness:
+  freshness_class: offline_no_live_route
+  evidence_state_classes:
+    - partial
+    - clipped
+  validity_window:
+    captured_at: "2026-04-25T10:10:00Z"
+    valid_until: null
+    freshness_window_duration: null
+    evaluated_at: "2026-04-25T11:00:00Z"
+  stale_reason_classes:
+    - offline_replay_only
+    - policy_prevents_refresh
+  freshness_boundary_note: >
+    Export is a reviewable offline snapshot with policy-redacted entries;
+    it is not live incident state.
+
+reduction:
+  truncation_class: clipped_by_policy_redaction
+  sampling_class: not_sampled
+  downsample_class: not_downsampled
+  dropped_record_count: 3
+  sample_rate: null
+  original_resolution: null
+  rendered_resolution: null
+  clip_reason_classes:
+    - policy_redaction
+  reduction_note: >
+    Three raw evidence items were withheld by policy while their
+    structured timeline refs and omission reasons remain in the export.
+
+payload:
+  query_or_filter_ref: incident_timeline_query.checkout.full_review_window
+  query_hash_ref: query_hash.incident_timeline.checkout.full_review_window.v1
+  raw_signal_ref: raw_signal.incident.checkout.timeline_bundle_ref
+  result_count: 27
+  unit_or_payload_class: incident timeline entries
+  aggregation_class: structured chronology export
+  mapping_quality_class: native_mapping
+  summary: >
+    Structured post-incident chronology preserving ownership, evidence
+    refs, redaction mode, and boundary notes for support and review.
+
+correlation_refs:
+  - correlation_ref_id: correlation.incident_timeline.incident
+    target_class: incident
+    target_ref: incident.checkout.latency.2026_04_25
+    relationship_class: exported_from
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.incident.checkout.export_manifest
+    correlation_note: >
+      Export belongs to the incident record; individual timeline entries
+      still carry their own evidence refs.
+  - correlation_ref_id: correlation.incident_timeline.deploy
+    target_class: deploy
+    target_ref: deploy.checkout.service.ring_candidate.2026_04_25
+    relationship_class: associated_with
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.incident.checkout.deploy_ref
+    correlation_note: >
+      Deploy ref is associated with the incident timeline and does not
+      assert deploy causality.
+  - correlation_ref_id: correlation.incident_timeline.build
+    target_class: build
+    target_ref: build.checkout.service.2026_04_25
+    relationship_class: associated_with
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.incident.checkout.build_ref
+    correlation_note: >
+      Build ref is preserved for review continuity.
+
+actions:
+  open_raw:
+    action_class: open_raw_signal
+    availability_class: disabled_policy_redaction
+    action_ref: null
+    target_ref: raw_signal.incident.checkout.timeline_bundle_ref
+    redaction_mode_class: withheld_by_policy
+    boundary_note: >
+      Raw redacted entries cannot be opened from this export; omission
+      reasons and refs remain visible.
+  export:
+    action_class: export_slice
+    availability_class: available_by_reference_only
+    action_ref: action.incident_timeline.export_structured_bundle_ref
+    target_ref: export.signal_slice.incident.checkout.timeline
+    redaction_mode_class: by_reference_only
+    boundary_note: >
+      Re-export creates a new export record that supersedes by reference;
+      older bundle records are not rewritten.
+  share:
+    action_class: open_structured_timeline
+    availability_class: available
+    action_ref: action.incident_timeline.open_structured_review
+    target_ref: timeline.incident.checkout.structured_export
+    redaction_mode_class: by_reference_only
+    boundary_note: >
+      Opens the structured timeline view with redaction and omission
+      notes visible.
+
+export_share:
+  exportability_class: exportable_by_reference
+  destination_class: incident_postmortem
+  redaction_mode_class: by_reference_only
+  ownership:
+    owner_actor_ref: actor.incident.commander.checkout
+    owning_team_ref: team.incident_response
+    reviewer_actor_refs:
+      - actor.postincident.reviewer.checkout_primary
+      - actor.support.reviewer.checkout_secondary
+  structured_timeline_refs:
+    - timeline.incident.checkout.structured_export
+    - timeline.incident.checkout.action_ledger
+  evidence_refs:
+    - evidence.incident.checkout.export_manifest
+    - evidence.incident.checkout.action_ledger_refs
+    - evidence.incident.checkout.signal_slice_refs
+  omission_reason_classes:
+    - policy_redaction
+  current_boundary_notes:
+    - >
+      Offline replay export preserves ownership, evidence refs, redaction
+      mode, and omitted-entry reasons.
+    - >
+      Timeline entries remain association-only unless an individual row
+      carries product-verified causality.
+
+boundary_notes:
+  - >
+    Reviewers must treat this as an offline, partially redacted export
+    rather than the current incident workspace state.

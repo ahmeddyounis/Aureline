@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/observability/signal_freshness.schema.json",
+  "title": "Aureline observability signal freshness vocabulary",
+  "description": "Reusable source, collection-mode, freshness, and partial-evidence vocabulary for logs, metrics, traces, incident timelines, support exports, and post-incident evidence packets. The vocabulary distinguishes local process, remote agent, managed provider, mirrored service, and imported artifact sources, and it names complete, partial, sampled, downsampled, clipped, and stale evidence states without implying causality or live product truth.",
+  "type": "object",
+  "$ref": "#/$defs/signal_freshness_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the observability freshness vocabulary. Additive values require a schema-version review; repurposing an existing value is breaking."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable ref safe to log, export, and show in support bundles. Raw provider URLs, hostnames, IPs, paths, tokens, and secret material never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "reviewable_note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short privacy-safe explanation. Must not contain raw payload bytes or secret-adjacent material."
+    },
+    "utc_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 / ISO 8601 timestamp. Canonical storage and export use UTC; local display context lives on the signal slice time_context."
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "local_process",
+        "remote_agent",
+        "managed_provider",
+        "mirrored_service",
+        "imported_artifact"
+      ],
+      "description": "Closed provenance vocabulary for where the signal came from."
+    },
+    "collection_mode_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "mirrored",
+        "imported",
+        "offline_replay",
+        "unavailable"
+      ],
+      "description": "Closed vocabulary for how the current reader obtained the signal. Mirrored, imported, and offline_replay modes must never be rendered as live product state."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "refreshed_within_window",
+        "cached_within_window",
+        "mirrored_within_window",
+        "imported_no_refresh_path",
+        "offline_no_live_route",
+        "stale_outside_window",
+        "unknown_pending_review"
+      ],
+      "description": "Closed freshness vocabulary shared by logs, metrics, traces, incident timelines, support exports, and release evidence."
+    },
+    "evidence_state_class": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial",
+        "sampled",
+        "downsampled",
+        "clipped",
+        "stale"
+      ],
+      "description": "Closed partial-evidence vocabulary. A slice may carry more than one state, for example downsampled plus stale."
+    },
+    "stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "outside_freshness_window",
+        "source_unreachable",
+        "mirror_lag_exceeded",
+        "import_has_no_refresh_path",
+        "offline_replay_only",
+        "policy_prevents_refresh",
+        "clock_or_timezone_unverified",
+        "unknown_pending_review"
+      ],
+      "description": "Why a freshness evaluator narrowed the slice."
+    },
+    "source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "collection_mode_class",
+        "provider_ref",
+        "source_instance_ref",
+        "capture_pipeline_ref",
+        "source_boundary_note"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "collection_mode_class": { "$ref": "#/$defs/collection_mode_class" },
+        "provider_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "source_instance_ref": { "$ref": "#/$defs/opaque_ref" },
+        "capture_pipeline_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "source_boundary_note": { "$ref": "#/$defs/reviewable_note" }
+      },
+      "description": "Provenance and collection-mode descriptor for a signal source."
+    },
+    "freshness_validity_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captured_at",
+        "valid_until",
+        "freshness_window_duration",
+        "evaluated_at"
+      ],
+      "properties": {
+        "captured_at": { "$ref": "#/$defs/utc_timestamp" },
+        "valid_until": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_timestamp" }
+          ],
+          "description": "Null only for imported/offline evidence that has no claim-bearing freshness window."
+        },
+        "freshness_window_duration": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$"
+            }
+          ],
+          "description": "ISO 8601 duration naming the accepted freshness window. Null when freshness is not claim-bearing."
+        },
+        "evaluated_at": { "$ref": "#/$defs/utc_timestamp" }
+      }
+    },
+    "signal_freshness_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "evidence_state_classes",
+        "validity_window",
+        "stale_reason_classes",
+        "freshness_boundary_note"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "evidence_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidence_state_class" }
+        },
+        "validity_window": { "$ref": "#/$defs/freshness_validity_window" },
+        "stale_reason_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stale_reason_class" }
+        },
+        "freshness_boundary_note": { "$ref": "#/$defs/reviewable_note" }
+      },
+      "description": "Embeddable freshness block used inside signal_slice_record."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 }
+      }
+    },
+    "signal_freshness_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_freshness_schema_version",
+        "record_kind",
+        "freshness_id",
+        "source",
+        "freshness"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "signal_freshness_schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "signal_freshness_record"
+        },
+        "freshness_id": { "$ref": "#/$defs/opaque_ref" },
+        "source": { "$ref": "#/$defs/source_descriptor" },
+        "freshness": { "$ref": "#/$defs/signal_freshness_snapshot" }
+      }
+    }
+  }
+}

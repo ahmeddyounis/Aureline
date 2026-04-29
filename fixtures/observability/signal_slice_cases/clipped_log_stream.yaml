@@ -1,0 +1,169 @@
+# yaml-language-server: $schema=../../../schemas/observability/signal_slice.schema.json
+__fixture__:
+  name: clipped_log_stream
+  scenario: >
+    Log explorer slice for a live local process stream where the UI
+    clipped the end of the window after the size limit. The slice stays
+    live and association-only links back to the run, build, deploy, and
+    execution-context refs without implying that any linked object caused
+    the log lines.
+
+signal_slice_schema_version: 1
+record_kind: signal_slice_record
+signal_slice_id: signal_slice.log_stream.local_api.clipped_window
+surface_class: log_explorer
+signal_kind_class: log_stream
+title: Local API log stream clipped by viewer size limit
+
+source:
+  source_class: local_process
+  collection_mode_class: live
+  provider_ref: null
+  source_instance_ref: source.local_process.api_worker.current_session
+  capture_pipeline_ref: capture_pipeline.local_logs.structured_event_stream
+  source_boundary_note: >
+    Captured from the local process event stream; raw log payload bytes
+    remain behind the raw-signal ref and are not embedded in the slice.
+
+time_context:
+  time_basis_class: event_time
+  window_start_utc: "2026-04-25T08:40:00Z"
+  window_end_utc: "2026-04-25T08:45:00Z"
+  display_time_zone_iana: America/Los_Angeles
+  display_utc_offset: "-07:00"
+  timestamp_envelope_ref: timestamp_envelope.log_stream.local_api.window_0840_0845
+  timezone_boundary_note: >
+    Canonical comparison uses UTC event time; the log explorer renders
+    the same window in the local Pacific timezone.
+
+freshness:
+  freshness_class: live
+  evidence_state_classes:
+    - clipped
+  validity_window:
+    captured_at: "2026-04-25T08:45:03Z"
+    valid_until: "2026-04-25T08:46:03Z"
+    freshness_window_duration: PT1M
+    evaluated_at: "2026-04-25T08:45:05Z"
+  stale_reason_classes: []
+  freshness_boundary_note: >
+    The stream is live, but the visible slice is clipped and must not be
+    described as complete coverage of the log window.
+
+reduction:
+  truncation_class: clipped_at_end
+  sampling_class: not_sampled
+  downsample_class: not_downsampled
+  dropped_record_count: 742
+  sample_rate: null
+  original_resolution: null
+  rendered_resolution: null
+  clip_reason_classes:
+    - size_limit
+  reduction_note: >
+    Viewer retained the first records in the selected window and clipped
+    the tail after the bounded display size.
+
+payload:
+  query_or_filter_ref: filter.log_explorer.api_worker.error_and_warn
+  query_hash_ref: query_hash.log_explorer.api_worker.error_and_warn.v1
+  raw_signal_ref: raw_signal.local_log_stream.api_worker.window_0840_0845
+  result_count: 2000
+  unit_or_payload_class: structured log events
+  aggregation_class: unaggregated stream
+  mapping_quality_class: not_applicable
+  summary: >
+    Error and warning events from the local API worker in the selected
+    five-minute window, with the visible tail clipped by viewer limits.
+
+correlation_refs:
+  - correlation_ref_id: correlation.log_stream.local_api.run
+    target_class: run
+    target_ref: run.local_api.smoke_2026_04_25_0840
+    relationship_class: observed_during
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.log_stream.local_api.run_join
+    correlation_note: >
+      The log window overlaps the run; overlap is an association and not
+      a product-verified cause.
+  - correlation_ref_id: correlation.log_stream.local_api.build
+    target_class: build
+    target_ref: build.aureline.api.local_debug.2026_04_25
+    relationship_class: associated_with
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.log_stream.local_api.build_join
+    correlation_note: >
+      Build identity was recorded on the process metadata; the slice does
+      not assert the build caused any event.
+  - correlation_ref_id: correlation.log_stream.local_api.deploy
+    target_class: deploy
+    target_ref: deploy.local_api.dev_profile.2026_04_25_0835
+    relationship_class: associated_with
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.log_stream.local_api.deploy_join
+    correlation_note: >
+      Deployment ref identifies the local runtime image associated with
+      the process.
+  - correlation_ref_id: correlation.log_stream.local_api.execution_context
+    target_class: execution_context
+    target_ref: execution_context.local_api.dev_profile
+    relationship_class: emitted_by
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.log_stream.local_api.context_join
+    correlation_note: >
+      Execution-context ref identifies where the process emitted the
+      events.
+
+actions:
+  open_raw:
+    action_class: open_raw_signal
+    availability_class: available_by_reference_only
+    action_ref: action.log_explorer.open_raw.local_api_window
+    target_ref: raw_signal.local_log_stream.api_worker.window_0840_0845
+    redaction_mode_class: by_reference_only
+    boundary_note: >
+      Opens the raw stream through the log resolver under the active
+      redaction profile; raw bytes are not embedded here.
+  export:
+    action_class: export_slice
+    availability_class: available
+    action_ref: action.log_explorer.export_slice.local_api_window
+    target_ref: export.signal_slice.local_api_window
+    redaction_mode_class: redacted_payload
+    boundary_note: >
+      Export keeps the clipped label, source class, time basis, and raw
+      ref so support readers can request the full stream when permitted.
+  share:
+    action_class: share_slice
+    availability_class: available_by_reference_only
+    action_ref: action.log_explorer.share_ref.local_api_window
+    target_ref: share.signal_slice_ref.local_api_window
+    redaction_mode_class: by_reference_only
+    boundary_note: >
+      Share emits a ref and metadata summary only.
+
+export_share:
+  exportability_class: exportable_after_redaction
+  destination_class: support_bundle
+  redaction_mode_class: redacted_payload
+  ownership:
+    owner_actor_ref: actor.responder.local_api
+    owning_team_ref: team.runtime_support
+    reviewer_actor_refs:
+      - actor.support.reviewer.local_api
+  structured_timeline_refs:
+    - timeline.local_api.log_window_0840_0845
+  evidence_refs:
+    - evidence.log_stream.local_api.context_join
+    - evidence.log_stream.local_api.run_join
+  omission_reason_classes:
+    - none
+  current_boundary_notes:
+    - >
+      Export preserves that this is a live local-process slice with a
+      clipped visible tail.
+
+boundary_notes:
+  - >
+    This slice is not complete evidence for the selected log window; the
+    clipped state must remain visible in every export and share surface.

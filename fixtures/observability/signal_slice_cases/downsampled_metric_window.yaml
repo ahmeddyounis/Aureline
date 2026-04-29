@@ -1,0 +1,149 @@
+# yaml-language-server: $schema=../../../schemas/observability/signal_slice.schema.json
+__fixture__:
+  name: downsampled_metric_window
+  scenario: >
+    Metric board slice from a managed provider where the board renders a
+    downsampled rollup. The slice preserves the original and rendered
+    resolutions so exports and comparisons cannot silently change basis.
+
+signal_slice_schema_version: 1
+record_kind: signal_slice_record
+signal_slice_id: signal_slice.metric.managed_api.latency_rollup
+surface_class: metric_board
+signal_kind_class: metric_window
+title: Managed API latency rollup downsampled for board view
+
+source:
+  source_class: managed_provider
+  collection_mode_class: live
+  provider_ref: provider_ref.managed_metrics.primary
+  source_instance_ref: source.managed_provider.metrics.api_latency
+  capture_pipeline_ref: capture_pipeline.metrics.managed_board_query
+  source_boundary_note: >
+    Queried from the managed metrics provider under the active tenant
+    scope; raw provider labels are not embedded.
+
+time_context:
+  time_basis_class: query_time
+  window_start_utc: "2026-04-25T07:45:00Z"
+  window_end_utc: "2026-04-25T08:45:00Z"
+  display_time_zone_iana: America/Los_Angeles
+  display_utc_offset: "-07:00"
+  timestamp_envelope_ref: timestamp_envelope.metric.managed_api.latency_rollup
+  timezone_boundary_note: >
+    Board comparison uses UTC query windows while rendering Pacific local
+    labels for the viewer.
+
+freshness:
+  freshness_class: refreshed_within_window
+  evidence_state_classes:
+    - downsampled
+  validity_window:
+    captured_at: "2026-04-25T08:45:10Z"
+    valid_until: "2026-04-25T08:47:10Z"
+    freshness_window_duration: PT2M
+    evaluated_at: "2026-04-25T08:45:20Z"
+  stale_reason_classes: []
+  freshness_boundary_note: >
+    Provider query completed within the accepted freshness window; the
+    rendered board data is downsampled from finer-grained points.
+
+reduction:
+  truncation_class: not_truncated
+  sampling_class: not_sampled
+  downsample_class: rollup_aggregate
+  dropped_record_count: null
+  sample_rate: null
+  original_resolution: PT10S
+  rendered_resolution: PT5M
+  clip_reason_classes:
+    - not_applicable
+  reduction_note: >
+    One-hour board view rolls ten-second provider points into five-minute
+    buckets before rendering and export.
+
+payload:
+  query_or_filter_ref: metric_query.managed_api.p99_latency_by_service
+  query_hash_ref: query_hash.metric.managed_api.p99_latency_by_service.v1
+  raw_signal_ref: raw_signal.metric.managed_api.latency_rollup.provider_ref
+  result_count: 12
+  unit_or_payload_class: latency milliseconds
+  aggregation_class: p99 rollup by five-minute bucket
+  mapping_quality_class: provider_mapping_only
+  summary: >
+    Metric board displays a provider-backed p99 latency rollup for the
+    managed API target scope.
+
+correlation_refs:
+  - correlation_ref_id: correlation.metric.managed_api.deploy
+    target_class: deploy
+    target_ref: deploy.managed_api.ring_candidate.2026_04_25
+    relationship_class: observed_during
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.metric.managed_api.deploy_window_join
+    correlation_note: >
+      Metric window overlaps the deployment window but does not prove the
+      deployment caused the latency shape.
+  - correlation_ref_id: correlation.metric.managed_api.execution_context
+    target_class: execution_context
+    target_ref: execution_context.managed_api.primary_region
+    relationship_class: associated_with
+    causality_claim_class: association_only_no_causality
+    evidence_ref: evidence.metric.managed_api.context_join
+    correlation_note: >
+      Execution context identifies the managed target scope for the
+      query.
+
+actions:
+  open_raw:
+    action_class: open_source_provider
+    availability_class: available_by_reference_only
+    action_ref: action.metric_board.open_provider_query
+    target_ref: raw_signal.metric.managed_api.latency_rollup.provider_ref
+    redaction_mode_class: by_reference_only
+    boundary_note: >
+      Opens provider-backed query metadata; raw labels and provider URLs
+      remain outside the slice.
+  export:
+    action_class: export_slice
+    availability_class: available
+    action_ref: action.metric_board.export_downsampled_window
+    target_ref: export.signal_slice.metric.managed_api.latency_rollup
+    redaction_mode_class: metadata_only
+    boundary_note: >
+      Export preserves original and rendered resolutions so chart readers
+      see the downsampled basis.
+  share:
+    action_class: share_slice
+    availability_class: available
+    action_ref: action.metric_board.share_downsampled_window
+    target_ref: share.signal_slice_ref.metric.managed_api.latency_rollup
+    redaction_mode_class: metadata_only
+    boundary_note: >
+      Share includes metadata and aggregate values only.
+
+export_share:
+  exportability_class: exportable_metadata_only
+  destination_class: release_evidence_packet
+  redaction_mode_class: metadata_only
+  ownership:
+    owner_actor_ref: actor.release.reviewer.metrics
+    owning_team_ref: team.performance
+    reviewer_actor_refs:
+      - actor.release.reviewer.metrics_secondary
+  structured_timeline_refs:
+    - timeline.release_evidence.managed_api.metric_window
+  evidence_refs:
+    - evidence.metric.managed_api.provider_query_hash
+    - evidence.metric.managed_api.deploy_window_join
+  omission_reason_classes:
+    - none
+  current_boundary_notes:
+    - >
+      Exported metric evidence remains downsampled from ten-second points
+      to five-minute buckets.
+
+boundary_notes:
+  - >
+    Cross-signal comparison must preserve query_time basis and the
+    downsampled rollup state.

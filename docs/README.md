@@ -430,6 +430,14 @@ code.
 
 ## Supportability
 
+- [`observability/observability_signal_contract.md`](./observability/observability_signal_contract.md)
+  — shared signal-slice, source, freshness, partial-evidence,
+  correlation, and export/share vocabulary for logs, metrics, traces,
+  incident timelines, and post-incident evidence packets. Boundary
+  schemas in
+  [`/schemas/observability/`](../schemas/observability/);
+  worked slices in
+  [`/fixtures/observability/signal_slice_cases/`](../fixtures/observability/signal_slice_cases/).
 - [`support/support_center_concept.md`](./support/support_center_concept.md)
   — concept note for Project Doctor, safe mode, support-bundle preview,
   repair-preview transactions, object-specific issue handoff, and the
