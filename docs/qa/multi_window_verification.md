@@ -23,6 +23,12 @@ Companion artifacts:
   and cadence guidance.
 - [`/fixtures/platform/window_display_cases/`](../../fixtures/platform/window_display_cases/)
   — reviewable scenario fixtures the matrix rows point at.
+- [`/docs/ux/cross_window_transfer_contract.md`](../ux/cross_window_transfer_contract.md),
+  [`/schemas/ux/window_transfer_action.schema.json`](../../schemas/ux/window_transfer_action.schema.json),
+  and
+  [`/fixtures/ux/cross_window_transfer_cases/`](../../fixtures/ux/cross_window_transfer_cases/)
+  — reviewable transfer, secondary-window continuation, and degraded
+  fallback cases layered above the display/window-state rows.
 - [`/docs/platform/desktop_platform_conformance_matrix.md`](../platform/desktop_platform_conformance_matrix.md)
   and
   [`/artifacts/platform/claimed_desktop_profiles.yaml`](../../artifacts/platform/claimed_desktop_profiles.yaml)
@@ -46,6 +52,10 @@ Normative sources projected here:
   native titlebar/control projection, fullscreen/zoom/snapped/tiled
   mode names, restore-history event classes, owned-prompt recentering,
   cross-window transfer continuity, and presentation fallback rules.
+- [`/docs/ux/cross_window_transfer_contract.md`](../ux/cross_window_transfer_contract.md)
+  pre-drop verb preview, command-backed transfer fallback,
+  secondary-window orphan prevention, and transfer-specific restore
+  degradation rules.
 - [`/docs/platform/desktop_platform_conformance_matrix.md`](../platform/desktop_platform_conformance_matrix.md)
   windowing/DPI and wake/display-reconnect rows.
 

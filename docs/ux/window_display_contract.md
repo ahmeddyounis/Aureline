@@ -24,6 +24,12 @@ Companion artifacts:
   fullscreen and snapped restore, off-screen dialog recovery,
   suspend/resume, restart/reopen, missing dependency placeholders, and
   detached auxiliary windows.
+- [`/docs/ux/cross_window_transfer_contract.md`](./cross_window_transfer_contract.md),
+  [`/schemas/ux/window_transfer_action.schema.json`](../../schemas/ux/window_transfer_action.schema.json),
+  and
+  [`/fixtures/ux/cross_window_transfer_cases/`](../../fixtures/ux/cross_window_transfer_cases/)
+  define the dedicated pre-drop verb preview, command-backed transfer,
+  secondary-window continuation, and transfer-restore corpus.
 - [`/artifacts/qa/window_display_matrix.yaml`](../../artifacts/qa/window_display_matrix.yaml)
   and [`/docs/qa/multi_window_verification.md`](../qa/multi_window_verification.md)
   provide the release verification matrix and drill ids this contract
@@ -44,6 +50,10 @@ This contract composes with:
 - [`/docs/ux/dialog_sheet_contract.md`](./dialog_sheet_contract.md)
   for dialog and sheet origin, ownership, dismissal, and durable
   handoff rules.
+- [`/docs/ux/cross_window_transfer_contract.md`](./cross_window_transfer_contract.md)
+  for user-facing transfer action classes, verb previews,
+  command-backed fallbacks, orphan-prevention continuations, and
+  transfer-specific restore fallback.
 
 ## Who Reads This Contract
 
@@ -346,7 +356,12 @@ Rules:
 ## 7. Secondary Windows and Cross-Window Transfers
 
 Cross-window movement is a transfer of window topology, not a fork of
-workspace authority.
+workspace authority. The dedicated
+[`/docs/ux/cross_window_transfer_contract.md`](./cross_window_transfer_contract.md)
+owns the user-facing action classes, pre-drop verb preview,
+command-backed fallback, secondary-window continuation, and
+transfer-specific fixture corpus. This section keeps only the
+window-state vocabulary shared with platform/display restore.
 
 `transfer_action_class` values:
 

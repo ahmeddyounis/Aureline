@@ -33,6 +33,13 @@ The companion artifacts are:
   verbs, insertion-preview requirements, modifier-key cues, and
   cross-window detach rules for editor, explorer, terminal,
   review, and install / attach drop zones.
+- [`/docs/ux/cross_window_transfer_contract.md`](./cross_window_transfer_contract.md),
+  [`/schemas/ux/window_transfer_action.schema.json`](../../schemas/ux/window_transfer_action.schema.json),
+  and
+  [`/fixtures/ux/cross_window_transfer_cases/`](../../fixtures/ux/cross_window_transfer_cases/)
+  — the dedicated cross-window move/copy/compare/inspector/window
+  creation contract and worked cases layered above the generic
+  drag/drop verb model.
 
 This contract rides alongside — it does **not** re-mint — the
 vocabularies already frozen in:
@@ -170,10 +177,10 @@ vocabularies already frozen in:
 ## 2. Out of scope
 
 - Full OS-specific clipboard integration on every platform
-  during M0 (per the spec `Out of scope`). This contract pins
-  the representation classes, named variants, lineage rules,
-  and drop verbs; platform-adapter work decides which system
-  clipboard formats carry them.
+  during this early contract stage (per the spec `Out of scope`).
+  This contract pins the representation classes, named variants,
+  lineage rules, and drop verbs; platform-adapter work decides which
+  system clipboard formats carry them.
 - Final microcopy and localization. The contract pins
   variants, axes, and escalation paths; the UX Style Guide and
   localization work own the rendered words.
@@ -517,7 +524,9 @@ affordance exists) MUST either provide a side-car preview via
 
 A drop operation that detaches into a new product window (tear
 off a tab, pull a panel into its own window, open a preview in
-a companion window) MUST:
+a companion window) MUST follow the dedicated transfer semantics in
+[`/docs/ux/cross_window_transfer_contract.md`](./cross_window_transfer_contract.md)
+and:
 
 1. Preserve the invoker's focus anchor so focus-return after
    the drop resolves to the invoking row (`returned_exact`).

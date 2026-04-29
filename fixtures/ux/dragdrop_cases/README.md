@@ -54,6 +54,12 @@ Every fixture:
 
 ## Schema references
 
+- Dedicated cross-window transfer contract:
+  [`/docs/ux/cross_window_transfer_contract.md`](../../../docs/ux/cross_window_transfer_contract.md).
+- Dedicated cross-window transfer schema:
+  [`/schemas/ux/window_transfer_action.schema.json`](../../../schemas/ux/window_transfer_action.schema.json).
+- Dedicated cross-window transfer fixtures:
+  [`/fixtures/ux/cross_window_transfer_cases/`](../cross_window_transfer_cases/).
 - Clipboard / history contract:
   [`/docs/ux/clipboard_history_contract.md`](../../../docs/ux/clipboard_history_contract.md).
 - Undo-group lineage examples:

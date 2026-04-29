@@ -1,0 +1,167 @@
+{
+  "$schema": "../../../schemas/ux/window_transfer_action.schema.json",
+  "record_kind": "cross_window_transfer_case_record",
+  "window_transfer_action_schema_version": 1,
+  "case_id": "ux:cross-window-transfer:create-window-review-evidence-continuation:01",
+  "__fixture__": {
+    "name": "create_window_review_evidence_continuation",
+    "scenario": "The user drags a review evidence surface out of the primary workspace to create a dedicated review window. The preview states that a new review window will be created, that evidence review remains durable, and that closing the new window requires a continuation path.",
+    "record_kinds_exercised": ["cross_window_transfer_case_record"],
+    "contract_sections": [
+      "docs/ux/cross_window_transfer_contract.md#34-command-backed-fallbacks",
+      "docs/ux/cross_window_transfer_contract.md#45-create-window",
+      "docs/ux/cross_window_transfer_contract.md#6-secondary-window-close-and-orphan-prevention"
+    ],
+    "exercised_axes": {
+      "action": "create_window",
+      "created_role": "review",
+      "critical_state": ["long_running_evidence_review", "support_export"]
+    }
+  },
+  "scenario_summary": "Create a dedicated review window while preserving workspace identity and making evidence continuation explicit before the new window appears.",
+  "transfer_action_class": "create_window",
+  "transfer_phase": "drop_committed",
+  "source_context": {
+    "window_ref": "win:workspace:primary:review-source:01",
+    "window_role": "primary_workspace",
+    "window_family_ref": "window-family:workspace:service",
+    "workspace_authority_ref": "workspace-authority:service",
+    "profile_ref": "profile:developer:managed",
+    "trust_state": "restricted",
+    "host_remote_state": "managed_workspace",
+    "active_window_token_ref": "active-window:primary:service:01",
+    "focus_owner_ref": "surface:review:evidence-thread:01",
+    "surface_refs": ["surface:review:evidence-thread:01"]
+  },
+  "target_context": {
+    "window_ref": "win:review:evidence:01",
+    "window_role": "review",
+    "window_family_ref": "window-family:workspace:service",
+    "workspace_authority_ref": "workspace-authority:service",
+    "profile_ref": "profile:developer:managed",
+    "trust_state": "restricted",
+    "host_remote_state": "managed_workspace",
+    "active_window_token_ref": "active-window:review:evidence:01",
+    "focus_owner_ref": "surface:review:evidence-thread:01",
+    "surface_refs": ["surface:review:evidence-thread:01", "surface:support-export:review:01"]
+  },
+  "preview": {
+    "preview_ref": "preview:cross-window:create-review-window:01",
+    "transfer_action_class": "create_window",
+    "display_verb": "Create window",
+    "visible_before_commit": true,
+    "source_window_ref": "win:workspace:primary:review-source:01",
+    "target_window_ref": "win:review:evidence:01",
+    "target_slot_ref": "window:new:review:evidence",
+    "new_window_role": "review",
+    "source_after_drop": "source_retained",
+    "target_after_drop": "new_window_created",
+    "consequence_class": "recoverable_durable",
+    "recovery_class": "restore_from_checkpoint",
+    "modifier_cue_ref": "modifier:shift:open-create-window",
+    "required_visible_fields": [
+      "transfer_action_label",
+      "source_window_identity",
+      "target_window_identity",
+      "target_slot_identity",
+      "source_after_drop_posture",
+      "target_after_drop_posture",
+      "consequence_class_label",
+      "recovery_class_label",
+      "command_fallback",
+      "continuity_cues",
+      "orphan_prevention_summary"
+    ],
+    "command_fallback": {
+      "command_id_ref": "cmd:window.transfer.create_review_window",
+      "fallback_classes": ["command_palette", "window_menu", "keyboard_shortcut"],
+      "available": true,
+      "disabled_reason": "none"
+    },
+    "disabled_reason": "none",
+    "must_not_happen": [
+      "new review window omits restricted trust state",
+      "support export progress is visible only in the source window",
+      "source evidence surface disappears with no reopen route"
+    ]
+  },
+  "continuity": {
+    "preserved_cues": [
+      "workspace_identity",
+      "trust_state",
+      "host_remote_state",
+      "profile_identity",
+      "recovery_cues",
+      "window_role_badge",
+      "command_lineage"
+    ],
+    "workspace_authority_unchanged": true,
+    "trust_state_visible": true,
+    "host_remote_state_visible": true,
+    "profile_visible": true,
+    "recovery_cues_visible": true,
+    "shared_or_presentation_state_visible": false,
+    "command_lineage_ref": "lineage:cross-window:create-review-window:01",
+    "must_not_happen": [
+      "new window downgrades restricted mode to trusted",
+      "managed workspace boundary disappears from the review title context",
+      "review window creates a private support-export queue"
+    ]
+  },
+  "orphan_prevention": {
+    "at_risk_states": [
+      "long_running_evidence_review",
+      "support_export",
+      "compare_review",
+      "pinned_restore_state"
+    ],
+    "continuation_class": "keep_secondary_window_open",
+    "destination_owner_ref": "win:review:evidence:01",
+    "explicit_user_continuation_required": true,
+    "resolved_without_orphaning": true,
+    "continuation_action_refs": [
+      "cmd:review.pause_evidence_review",
+      "cmd:support.export_evidence",
+      "cmd:window.transfer.transfer_review_to_primary"
+    ],
+    "must_not_happen": [
+      "closing the review window silently drops evidence review",
+      "support export continues with no visible owner",
+      "pinned restore state is removed by window creation"
+    ]
+  },
+  "restore": {
+    "restore_trigger_class": "user_reopen_command",
+    "restore_fidelity_class": "compatible_restore",
+    "degraded_fallback_class": "no_degradation",
+    "missing_prerequisites": ["none"],
+    "restore_history_ref": "restore-history:cross-window:create-review-window:01",
+    "visible_explanation": true,
+    "continuation_command_ref": "cmd:review.open_evidence_window",
+    "live_authority_posture": "no_live_authority_involved",
+    "no_hidden_rerun": true,
+    "must_not_happen": [
+      "restore claims support export completed because the review window reappeared"
+    ]
+  },
+  "acceptance_assertions": {
+    "pre_drop_result_visible": true,
+    "command_fallback_available": true,
+    "workspace_identity_preserved": true,
+    "trust_host_profile_visible": true,
+    "no_orphaned_critical_state": true,
+    "restore_truth_visible": true,
+    "no_hidden_rerun_or_authority_reuse": true,
+    "keyboard_accessible": true
+  },
+  "required_drills": [
+    "create_window_preview_visible",
+    "secondary_window_evidence_continuation",
+    "review_window_close_orphan_prevention"
+  ],
+  "evidence_hooks": [
+    "docs/ux/cross_window_transfer_contract.md#45-create-window",
+    "docs/ux/cross_window_transfer_contract.md#6-secondary-window-close-and-orphan-prevention",
+    "docs/ux/window_display_contract.md#7-secondary-windows-and-cross-window-transfers"
+  ]
+}

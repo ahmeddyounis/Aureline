@@ -1,0 +1,815 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/window_transfer_action.schema.json",
+  "title": "Aureline cross-window transfer action, continuity, close, and restore contract",
+  "description": "Boundary schema for docs/ux/cross_window_transfer_contract.md. It exports action, secondary-window continuation, transfer-restore, and worked-case records so shell, command, support, accessibility, QA, and restore tooling share one vocabulary for cross-window move, copy, compare-open, inspector move, create-window, pre-drop verb preview, command-backed fallback, workspace/trust/host/profile continuity, orphan prevention, and degraded restore. Raw file bodies, raw absolute paths, raw URLs, raw terminal output, raw notebook output, raw provider payloads, approval-ticket bodies, live authority tokens, credentials, and private OS window handles never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/window_transfer_action_record" },
+    { "$ref": "#/$defs/secondary_window_continuation_record" },
+    { "$ref": "#/$defs/window_transfer_restore_record" },
+    { "$ref": "#/$defs/cross_window_transfer_case_record" }
+  ],
+  "$defs": {
+    "window_transfer_action_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for cross-window transfer boundary records. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried by fixtures."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "window_transfer_action_record",
+        "secondary_window_continuation_record",
+        "window_transfer_restore_record",
+        "cross_window_transfer_case_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, manifests, diagnostics, and support export. Raw paths, raw payloads, private OS handles, approval-ticket bodies, and capability tickets never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1400,
+      "description": "Bounded redaction-aware text safe for fixtures, diagnostics, and support export."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short redaction-aware label or summary."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp emitted by the producer."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections", "record_kinds_exercised"],
+      "properties": {
+        "name": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/safe_text" },
+        "record_kinds_exercised": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/record_kind" },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_text" },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "transfer_action_class": {
+      "type": "string",
+      "enum": [
+        "move_tab",
+        "copy_editor",
+        "open_compare_here",
+        "move_inspector",
+        "create_window"
+      ],
+      "description": "Frozen user-facing transfer action class. Lower-level topology vocabulary may be used internally only when the user-facing boundary emits one of these values."
+    },
+    "transfer_phase": {
+      "type": "string",
+      "enum": [
+        "drag_enter_preview",
+        "drag_update_preview",
+        "drop_committed",
+        "drop_denied",
+        "command_fallback_preview",
+        "command_fallback_committed",
+        "restore_reopened",
+        "secondary_close_reviewed"
+      ]
+    },
+    "window_role": {
+      "type": "string",
+      "enum": [
+        "primary_workspace",
+        "secondary_workspace",
+        "auxiliary",
+        "presentation",
+        "review",
+        "companion"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted",
+        "untrusted",
+        "policy_blocked",
+        "trust_unknown"
+      ]
+    },
+    "host_remote_state": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "remote_connected",
+        "remote_reconnecting",
+        "remote_unavailable",
+        "managed_workspace",
+        "read_only_degraded",
+        "host_state_unknown"
+      ]
+    },
+    "source_after_drop_class": {
+      "type": "string",
+      "enum": [
+        "source_retained",
+        "source_removed_from_origin",
+        "source_placeholder_inserted",
+        "source_unchanged_drop_denied"
+      ]
+    },
+    "target_after_drop_class": {
+      "type": "string",
+      "enum": [
+        "existing_identity_moved",
+        "new_view_identity_created",
+        "compare_surface_opened",
+        "inspector_docked",
+        "new_window_created",
+        "placeholder_opened",
+        "evidence_only_opened",
+        "target_unchanged_drop_denied"
+      ]
+    },
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "reversible_local",
+        "recoverable_durable",
+        "external_shared",
+        "irreversible_high_blast"
+      ],
+      "description": "Re-exported consequence vocabulary from the interaction-safety contract."
+    },
+    "recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_rollback",
+        "regenerate_from_canonical_source",
+        "restore_from_checkpoint",
+        "evidence_only_no_rerun",
+        "no_recovery_available"
+      ],
+      "description": "Re-exported recovery-class vocabulary from the source-fidelity and undo packet."
+    },
+    "required_visible_field": {
+      "type": "string",
+      "enum": [
+        "transfer_action_label",
+        "source_window_identity",
+        "target_window_identity",
+        "target_slot_identity",
+        "source_after_drop_posture",
+        "target_after_drop_posture",
+        "consequence_class_label",
+        "recovery_class_label",
+        "command_fallback",
+        "continuity_cues",
+        "orphan_prevention_summary",
+        "disabled_reason",
+        "restore_truth"
+      ]
+    },
+    "command_fallback_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "context_menu",
+        "window_menu",
+        "main_menu",
+        "keyboard_shortcut",
+        "not_applicable"
+      ]
+    },
+    "transfer_disabled_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "preview_required_fields_not_visible",
+        "unsupported_surface",
+        "missing_target_window",
+        "target_cannot_show_required_cues",
+        "missing_extension_host",
+        "missing_remote_target",
+        "policy_or_trust_block",
+        "shared_control_requires_grant",
+        "dirty_state_requires_continuation",
+        "platform_cannot_detach",
+        "command_fallback_unavailable"
+      ]
+    },
+    "continuity_cue": {
+      "type": "string",
+      "enum": [
+        "workspace_identity",
+        "trust_state",
+        "host_remote_state",
+        "profile_identity",
+        "recovery_cues",
+        "window_role_badge",
+        "dirty_state",
+        "collaboration_role",
+        "presentation_state",
+        "command_lineage"
+      ]
+    },
+    "at_risk_state_class": {
+      "type": "string",
+      "enum": [
+        "dirty_buffer",
+        "recovered_draft",
+        "save_conflict",
+        "active_approval",
+        "trust_prompt",
+        "permission_prompt",
+        "destructive_confirmation",
+        "shared_session_control",
+        "presenter_or_driver_authority",
+        "pending_control_transfer",
+        "long_running_evidence_review",
+        "support_export",
+        "migration_review",
+        "incident_review",
+        "compare_review",
+        "terminal_debug_notebook_evidence",
+        "pinned_restore_state",
+        "placeholder_recovery_action"
+      ]
+    },
+    "secondary_window_continuation_class": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "transfer_to_primary_window",
+        "transfer_to_named_window",
+        "keep_secondary_window_open",
+        "pause_or_archive_review",
+        "export_evidence_then_close",
+        "discard_after_explicit_confirmation",
+        "close_blocked_until_state_resolved"
+      ]
+    },
+    "close_trigger_class": {
+      "type": "string",
+      "enum": [
+        "user_close_button",
+        "command_close_window",
+        "window_manager_close",
+        "adaptive_collapse",
+        "restore_role_collapse",
+        "crash_recovery_cleanup"
+      ]
+    },
+    "restore_trigger_class": {
+      "type": "string",
+      "enum": [
+        "crash_reopen",
+        "display_topology_changed",
+        "monitor_unavailable",
+        "extension_host_missing",
+        "remote_target_missing",
+        "feature_pack_missing",
+        "schema_version_changed",
+        "policy_or_trust_changed",
+        "user_reopen_command"
+      ]
+    },
+    "restore_fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "evidence_only",
+        "no_restore"
+      ]
+    },
+    "degraded_fallback_class": {
+      "type": "string",
+      "enum": [
+        "no_degradation",
+        "safe_bounds_repositioned",
+        "collapse_to_primary_with_history",
+        "same_slot_placeholder",
+        "evidence_only_surface",
+        "command_fallback_required",
+        "manual_rebind_required",
+        "restore_denied_until_prerequisite_returns"
+      ]
+    },
+    "missing_prerequisite_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "display_or_monitor_missing",
+        "extension_host_missing",
+        "remote_target_missing",
+        "feature_pack_missing",
+        "policy_or_trust_not_admitted",
+        "shared_control_grant_expired",
+        "schema_version_changed"
+      ]
+    },
+    "live_authority_posture": {
+      "type": "string",
+      "enum": [
+        "no_live_authority_involved",
+        "live_authority_preserved",
+        "manual_rebind_required",
+        "view_only_until_fresh_grant",
+        "evidence_only_no_live_authority"
+      ]
+    },
+    "window_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_ref",
+        "window_role",
+        "window_family_ref",
+        "workspace_authority_ref",
+        "profile_ref",
+        "trust_state",
+        "host_remote_state"
+      ],
+      "properties": {
+        "window_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_role": { "$ref": "#/$defs/window_role" },
+        "window_family_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "host_remote_state": { "$ref": "#/$defs/host_remote_state" },
+        "active_window_token_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "focus_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "command_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id_ref",
+        "fallback_classes",
+        "available",
+        "disabled_reason"
+      ],
+      "properties": {
+        "command_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "fallback_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_fallback_class" },
+          "uniqueItems": true
+        },
+        "available": { "type": "boolean" },
+        "disabled_reason": { "$ref": "#/$defs/transfer_disabled_reason" }
+      },
+      "allOf": [
+        {
+          "description": "Unavailable command fallbacks MUST name a non-none disabled reason.",
+          "if": {
+            "properties": {
+              "available": { "const": false },
+              "disabled_reason": { "const": "none" }
+            },
+            "required": ["available", "disabled_reason"]
+          },
+          "then": { "not": {} }
+        }
+      ]
+    },
+    "pre_drop_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_ref",
+        "transfer_action_class",
+        "display_verb",
+        "visible_before_commit",
+        "source_window_ref",
+        "target_window_ref",
+        "target_slot_ref",
+        "source_after_drop",
+        "target_after_drop",
+        "consequence_class",
+        "recovery_class",
+        "required_visible_fields",
+        "command_fallback",
+        "disabled_reason"
+      ],
+      "properties": {
+        "preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "transfer_action_class": { "$ref": "#/$defs/transfer_action_class" },
+        "display_verb": { "$ref": "#/$defs/short_text" },
+        "visible_before_commit": { "type": "boolean" },
+        "source_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_slot_ref": { "$ref": "#/$defs/opaque_id" },
+        "new_window_role": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/window_role" }
+          ]
+        },
+        "source_after_drop": { "$ref": "#/$defs/source_after_drop_class" },
+        "target_after_drop": { "$ref": "#/$defs/target_after_drop_class" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "recovery_class": { "$ref": "#/$defs/recovery_class" },
+        "modifier_cue_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "required_visible_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/required_visible_field" },
+          "uniqueItems": true
+        },
+        "command_fallback": { "$ref": "#/$defs/command_fallback" },
+        "disabled_reason": { "$ref": "#/$defs/transfer_disabled_reason" },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_text" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "description": "A valid preview must make the action label visible.",
+          "properties": {
+            "required_visible_fields": {
+              "type": "array",
+              "contains": { "const": "transfer_action_label" }
+            }
+          }
+        },
+        {
+          "description": "A valid preview must make source and target window identity visible.",
+          "properties": {
+            "required_visible_fields": {
+              "type": "array",
+              "allOf": [
+                { "contains": { "const": "source_window_identity" } },
+                { "contains": { "const": "target_window_identity" } }
+              ]
+            }
+          }
+        },
+        {
+          "description": "A valid preview must make consequence, recovery, and command fallback visible.",
+          "properties": {
+            "required_visible_fields": {
+              "type": "array",
+              "allOf": [
+                { "contains": { "const": "consequence_class_label" } },
+                { "contains": { "const": "recovery_class_label" } },
+                { "contains": { "const": "command_fallback" } }
+              ]
+            }
+          }
+        },
+        {
+          "description": "If the transfer is not visible before commit, the drop must be denied.",
+          "if": {
+            "properties": { "visible_before_commit": { "const": false } },
+            "required": ["visible_before_commit"]
+          },
+          "then": {
+            "properties": {
+              "disabled_reason": {
+                "enum": [
+                  "preview_required_fields_not_visible",
+                  "target_cannot_show_required_cues",
+                  "unsupported_surface",
+                  "platform_cannot_detach"
+                ]
+              },
+              "source_after_drop": { "const": "source_unchanged_drop_denied" },
+              "target_after_drop": { "const": "target_unchanged_drop_denied" }
+            }
+          }
+        }
+      ]
+    },
+    "continuity_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_cues",
+        "workspace_authority_unchanged",
+        "trust_state_visible",
+        "host_remote_state_visible",
+        "profile_visible",
+        "recovery_cues_visible",
+        "command_lineage_ref"
+      ],
+      "properties": {
+        "preserved_cues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_cue" },
+          "uniqueItems": true
+        },
+        "workspace_authority_unchanged": { "type": "boolean" },
+        "trust_state_visible": { "type": "boolean" },
+        "host_remote_state_visible": { "type": "boolean" },
+        "profile_visible": { "type": "boolean" },
+        "recovery_cues_visible": { "type": "boolean" },
+        "shared_or_presentation_state_visible": { "type": "boolean" },
+        "command_lineage_ref": { "$ref": "#/$defs/opaque_id" },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_text" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "orphan_prevention_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_risk_states",
+        "continuation_class",
+        "destination_owner_ref",
+        "explicit_user_continuation_required",
+        "resolved_without_orphaning"
+      ],
+      "properties": {
+        "at_risk_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/at_risk_state_class" },
+          "uniqueItems": true
+        },
+        "continuation_class": { "$ref": "#/$defs/secondary_window_continuation_class" },
+        "destination_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "explicit_user_continuation_required": { "type": "boolean" },
+        "resolved_without_orphaning": { "type": "boolean" },
+        "continuation_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_text" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "restore_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_trigger_class",
+        "restore_fidelity_class",
+        "degraded_fallback_class",
+        "missing_prerequisites",
+        "restore_history_ref",
+        "visible_explanation",
+        "live_authority_posture",
+        "no_hidden_rerun"
+      ],
+      "properties": {
+        "restore_trigger_class": { "$ref": "#/$defs/restore_trigger_class" },
+        "restore_fidelity_class": { "$ref": "#/$defs/restore_fidelity_class" },
+        "degraded_fallback_class": { "$ref": "#/$defs/degraded_fallback_class" },
+        "missing_prerequisites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_prerequisite_class" },
+          "uniqueItems": true
+        },
+        "restore_history_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "visible_explanation": { "type": "boolean" },
+        "continuation_command_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "live_authority_posture": { "$ref": "#/$defs/live_authority_posture" },
+        "no_hidden_rerun": { "type": "boolean" },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_text" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "acceptance_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pre_drop_result_visible",
+        "command_fallback_available",
+        "workspace_identity_preserved",
+        "trust_host_profile_visible",
+        "no_orphaned_critical_state",
+        "restore_truth_visible",
+        "no_hidden_rerun_or_authority_reuse",
+        "keyboard_accessible"
+      ],
+      "properties": {
+        "pre_drop_result_visible": { "type": "boolean" },
+        "command_fallback_available": { "type": "boolean" },
+        "workspace_identity_preserved": { "type": "boolean" },
+        "trust_host_profile_visible": { "type": "boolean" },
+        "no_orphaned_critical_state": { "type": "boolean" },
+        "restore_truth_visible": { "type": "boolean" },
+        "no_hidden_rerun_or_authority_reuse": { "type": "boolean" },
+        "keyboard_accessible": { "type": "boolean" }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "execution_context_id": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "window_transfer_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "window_transfer_action_schema_version",
+        "action_id",
+        "transfer_action_class",
+        "transfer_phase",
+        "source_context",
+        "target_context",
+        "preview",
+        "continuity",
+        "orphan_prevention",
+        "acceptance_assertions",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "window_transfer_action_record" },
+        "window_transfer_action_schema_version": { "$ref": "#/$defs/window_transfer_action_schema_version" },
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "transfer_action_class": { "$ref": "#/$defs/transfer_action_class" },
+        "transfer_phase": { "$ref": "#/$defs/transfer_phase" },
+        "committed_preview_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_context": { "$ref": "#/$defs/window_context" },
+        "target_context": { "$ref": "#/$defs/window_context" },
+        "preview": { "$ref": "#/$defs/pre_drop_preview" },
+        "continuity": { "$ref": "#/$defs/continuity_contract" },
+        "orphan_prevention": { "$ref": "#/$defs/orphan_prevention_contract" },
+        "acceptance_assertions": { "$ref": "#/$defs/acceptance_assertions" },
+        "evidence_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "secondary_window_continuation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "window_transfer_action_schema_version",
+        "continuation_id",
+        "window_context",
+        "close_trigger_class",
+        "orphan_prevention",
+        "continuity",
+        "command_fallback",
+        "acceptance_assertions",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "secondary_window_continuation_record" },
+        "window_transfer_action_schema_version": { "$ref": "#/$defs/window_transfer_action_schema_version" },
+        "continuation_id": { "$ref": "#/$defs/opaque_id" },
+        "window_context": { "$ref": "#/$defs/window_context" },
+        "close_trigger_class": { "$ref": "#/$defs/close_trigger_class" },
+        "orphan_prevention": { "$ref": "#/$defs/orphan_prevention_contract" },
+        "continuity": { "$ref": "#/$defs/continuity_contract" },
+        "command_fallback": { "$ref": "#/$defs/command_fallback" },
+        "acceptance_assertions": { "$ref": "#/$defs/acceptance_assertions" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "window_transfer_restore_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "window_transfer_action_schema_version",
+        "restore_id",
+        "prior_action_ref",
+        "restored_window_context",
+        "restore",
+        "continuity",
+        "orphan_prevention",
+        "acceptance_assertions",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "window_transfer_restore_record" },
+        "window_transfer_action_schema_version": { "$ref": "#/$defs/window_transfer_action_schema_version" },
+        "restore_id": { "$ref": "#/$defs/opaque_id" },
+        "prior_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restored_window_context": { "$ref": "#/$defs/window_context" },
+        "restore": { "$ref": "#/$defs/restore_contract" },
+        "continuity": { "$ref": "#/$defs/continuity_contract" },
+        "orphan_prevention": { "$ref": "#/$defs/orphan_prevention_contract" },
+        "acceptance_assertions": { "$ref": "#/$defs/acceptance_assertions" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "cross_window_transfer_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "window_transfer_action_schema_version",
+        "case_id",
+        "__fixture__",
+        "scenario_summary",
+        "transfer_action_class",
+        "transfer_phase",
+        "source_context",
+        "target_context",
+        "preview",
+        "continuity",
+        "orphan_prevention",
+        "restore",
+        "acceptance_assertions",
+        "required_drills",
+        "evidence_hooks"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "record_kind": { "const": "cross_window_transfer_case_record" },
+        "window_transfer_action_schema_version": { "$ref": "#/$defs/window_transfer_action_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "scenario_summary": { "$ref": "#/$defs/safe_text" },
+        "transfer_action_class": { "$ref": "#/$defs/transfer_action_class" },
+        "transfer_phase": { "$ref": "#/$defs/transfer_phase" },
+        "source_context": { "$ref": "#/$defs/window_context" },
+        "target_context": { "$ref": "#/$defs/window_context" },
+        "preview": { "$ref": "#/$defs/pre_drop_preview" },
+        "continuity": { "$ref": "#/$defs/continuity_contract" },
+        "orphan_prevention": { "$ref": "#/$defs/orphan_prevention_contract" },
+        "restore": { "$ref": "#/$defs/restore_contract" },
+        "acceptance_assertions": { "$ref": "#/$defs/acceptance_assertions" },
+        "required_drills": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "evidence_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
