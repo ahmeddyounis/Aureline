@@ -1,0 +1,700 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/open_flow_sheet.schema.json",
+  "title": "Aureline open-flow sheet record",
+  "description": "Boundary schema for one open_flow_sheet_record as frozen in docs/ux/project_entry_contract.md §5. Every chooser-row activation that may write bytes, change trust, attach a runtime, retarget a profile, or rehydrate a session emits one record BEFORE the durable change. The sheet is the per-row, pre-commit projection of the workspace-entry route preview contract onto the exact target the user picked. The record carries the open_flow_sheet_class, the surface class it renders inside (window_attached_sheet / full_sheet / dedicated_review_surface / cli_headless_text_block), and the eight required disclosure axes (target type, policy restrictions, result mode, destination disposition, side effects, profile default, trust posture, restore class) plus the typed fallback set. The sheet enforces the §5.3 pre-commit invariants: no durable write, no trust change, no runtime attach, no profile retarget before the user commits the sheet. The contract mints no new entry-verb, target-kind, resulting-mode, trust-state, admission-class, restore-level, missing-target-state, recovery-class, or next-step-decision-hook value; those re-export from /schemas/workspace/entry_and_restore_result.schema.json. Adding a new open_flow_sheet_class, sheet_surface_class, authority_delta_class, or disclosure axis is additive-minor and bumps open_flow_sheet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/open_flow_sheet_record",
+  "$defs": {
+    "open_flow_sheet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this open-flow sheet vocabulary export. Current value is 1."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes)."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__."
+    },
+
+    "entry_verb": {
+      "type": "string",
+      "enum": [
+        "open",
+        "clone",
+        "import",
+        "add_root",
+        "restore",
+        "resume",
+        "start_from_snapshot"
+      ],
+      "description": "Re-export of entry_verb."
+    },
+
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ],
+      "description": "Re-export of target_kind."
+    },
+
+    "resulting_mode": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "folder",
+        "repo_root",
+        "workspace_candidate",
+        "workspace_with_roots",
+        "workset_slice",
+        "inspect_only",
+        "clone_then_review",
+        "clone_then_open",
+        "clone_then_add",
+        "clone_only",
+        "extract_then_review",
+        "compare_before_restore",
+        "apply_to_active_workspace",
+        "open_prebuild_with_setup_actions",
+        "open_prebuild_minimal",
+        "resume_live_session",
+        "restore_last_session",
+        "restore_from_checkpoint"
+      ],
+      "description": "Re-export of resulting_mode."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"],
+      "description": "Re-export of ADR-0001 identity-mode trust vocabulary."
+    },
+
+    "trust_posture_class": {
+      "type": "string",
+      "enum": [
+        "trust_pending_until_admission",
+        "trust_never_implied_by_clone",
+        "trust_unchanged_until_admit",
+        "trust_per_root_admission",
+        "trust_inherited_from_target",
+        "trust_revalidated_at_resume"
+      ],
+      "description": "Re-export of trust_posture_class from /schemas/ux/entry_chooser_row.schema.json."
+    },
+
+    "destination_disposition": {
+      "type": "string",
+      "enum": [
+        "no_write",
+        "write_to_labelled_staging",
+        "write_to_user_destination",
+        "write_to_durable_workspace",
+        "write_to_admin_owned_root"
+      ],
+      "description": "Re-export of destination_disposition. The sheet may not silently promote write_to_labelled_staging to write_to_durable_workspace."
+    },
+
+    "collision_class": {
+      "type": "string",
+      "enum": [
+        "no_collision",
+        "reuse_existing",
+        "add_existing",
+        "clone_elsewhere",
+        "reveal_only",
+        "destination_blocked"
+      ],
+      "description": "Re-export of collision_class."
+    },
+
+    "missing_target_state": {
+      "type": "string",
+      "enum": [
+        "fully_present",
+        "missing_extension_host",
+        "quarantined_extension",
+        "missing_remote_target",
+        "authority_expired_for_remote",
+        "missing_toolchain",
+        "missing_profile",
+        "missing_devcontainer",
+        "missing_managed_workspace",
+        "topology_changed",
+        "schema_migrated",
+        "binary_or_extension_version_changed",
+        "corrupt_restorable_state",
+        "policy_blocked_restore"
+      ],
+      "description": "Re-export of missing_target_state."
+    },
+
+    "session_execution_posture": {
+      "type": "string",
+      "enum": [
+        "transcript_restored_not_rerun",
+        "session_ended",
+        "reconnect_available",
+        "rerun_required",
+        "context_unavailable",
+        "live_session_continued"
+      ],
+      "description": "Re-export of session_execution_posture."
+    },
+
+    "checkpoint_linked_recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_rollback_from_checkpoint",
+        "compensating_rollback",
+        "regenerate_from_canonical_source",
+        "restore_from_session_checkpoint",
+        "restore_from_migration_checkpoint",
+        "restore_from_settings_backup",
+        "restore_from_recovery_journal",
+        "restore_from_local_history_snapshot",
+        "manual_recovery_required"
+      ],
+      "description": "Re-export of checkpoint_linked_recovery_class."
+    },
+
+    "restore_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "Re-export of restore_level."
+    },
+
+    "next_step_decision_hook": {
+      "type": "string",
+      "enum": [
+        "continue_in_restricted_mode",
+        "review_trust_and_open",
+        "open_minimal",
+        "set_up_later",
+        "review_archetype_match",
+        "compare_before_restore",
+        "open_without_restore",
+        "safe_mode",
+        "reconnect_required",
+        "reauth_required",
+        "locate_missing_target",
+        "remove_from_recents",
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items"
+      ],
+      "description": "Re-export of next_step_decision_hook."
+    },
+
+    "profile_default_class": {
+      "type": "string",
+      "enum": [
+        "default_profile",
+        "last_active_profile",
+        "sticky_for_target",
+        "sticky_for_target_or_default",
+        "unchanged",
+        "depends_on_artifact_class",
+        "default_or_template_default",
+        "locked_profile_required"
+      ],
+      "description": "Re-export of profile_default_class."
+    },
+
+    "open_flow_sheet_class": {
+      "type": "string",
+      "enum": [
+        "open_local_target",
+        "open_local_target_no_review_required",
+        "clone_remote_target",
+        "import_artifact",
+        "add_root_to_active_workspace",
+        "restore_or_resume",
+        "start_from_template_or_prebuild",
+        "deep_link_intent_review"
+      ],
+      "description": "Closed open-flow sheet class set. See project_entry_contract.md §5.1."
+    },
+
+    "sheet_surface_class": {
+      "type": "string",
+      "enum": [
+        "window_attached_sheet",
+        "full_sheet",
+        "dedicated_review_surface",
+        "cli_headless_text_block"
+      ],
+      "description": "The dialog/sheet surface class the open-flow sheet renders inside. See project_entry_contract.md §5.4."
+    },
+
+    "authority_delta_class": {
+      "type": "string",
+      "enum": ["none", "narrows", "widens", "revalidates", "rebinds"],
+      "description": "Closed authority-delta classes the policy_restrictions_disclosure may report. authority_delta = none is the only path that may open without a typed authority review on a deep-link intent."
+    },
+
+    "side_effect_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["setup_actions_class", "time_class", "connectivity_class", "cleanup_class", "bypass_path"],
+      "properties": {
+        "setup_actions_class": {
+          "type": "string",
+          "enum": [
+            "no_setup_actions",
+            "toolchain_detect_only",
+            "dependency_install",
+            "containerized_bootstrap",
+            "devcontainer_bootstrap",
+            "remote_attach",
+            "browser_auth_handshake",
+            "secret_handle_request",
+            "mixed_setup"
+          ]
+        },
+        "time_class": {
+          "type": "string",
+          "enum": ["instant", "fast", "moderate", "long_running", "network_dependent"]
+        },
+        "connectivity_class": {
+          "type": "string",
+          "enum": ["local_only", "local_with_registry", "remote_required", "mirror_or_air_gapped", "unknown"]
+        },
+        "cleanup_class": {
+          "type": "string",
+          "enum": ["no_cleanup_required", "cleanup_on_failure", "rollback_checkpoint_retained", "manual_cleanup_required"]
+        },
+        "bypass_path": {
+          "type": "string",
+          "enum": ["open_prebuild_minimal", "open_plain_folder", "set_up_later", "no_bypass_available"]
+        }
+      },
+      "description": "Re-export of side_effect_envelope. Required on side_effect_disclosure when the row's verb may produce setup actions."
+    },
+
+    "target_type_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "summary"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "filesystem_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "remote_target_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "deep_link_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every sheet. Names the target_kind and references one of the typed identity descriptors. See §5.2."
+    },
+
+    "policy_restrictions_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_trust_state", "authority_delta", "summary"],
+      "properties": {
+        "current_trust_state": { "$ref": "#/$defs/trust_state" },
+        "resulting_trust_state": { "$ref": "#/$defs/trust_state" },
+        "authority_delta": { "$ref": "#/$defs/authority_delta_class" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "blocking_policy_state_disclosure_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional refs to disclosure_banner_records of class policy_state_disclosure that gate commit."
+        },
+        "required_reviews": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "no_review_required",
+              "trust_review_required",
+              "policy_review_required",
+              "tenant_review_required",
+              "deep_link_intent_review_required",
+              "migration_review_required",
+              "rollback_checkpoint_review_required"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every sheet. See §5.2."
+    },
+
+    "result_mode_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resulting_mode", "candidate_resulting_modes", "resolved_before_commit", "summary"],
+      "properties": {
+        "resulting_mode": {
+          "$ref": "#/$defs/resulting_mode",
+          "description": "The single resulting_mode the activation will materialize on commit. An unresolved candidate set on commit is non-conforming."
+        },
+        "candidate_resulting_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resulting_mode" },
+          "uniqueItems": true,
+          "description": "The set of candidate modes the row advertised. The sheet narrows to exactly one before commit."
+        },
+        "resolved_before_commit": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every sheet. See §5.2."
+    },
+
+    "destination_disposition_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["destination_disposition", "collision_class", "summary"],
+      "properties": {
+        "destination_disposition": { "$ref": "#/$defs/destination_disposition" },
+        "collision_class": { "$ref": "#/$defs/collision_class" },
+        "destination_ref": { "$ref": "#/$defs/opaque_id" },
+        "staging_required": { "type": "boolean" },
+        "durable_write_requires_checkpoint": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on sheets whose open_flow_sheet_class may write bytes (clone_remote_target, import_artifact, start_from_template_or_prebuild, restore_or_resume with durable writes). See §5.2."
+    },
+
+    "side_effect_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["side_effect_envelope", "summary"],
+      "properties": {
+        "side_effect_envelope": { "$ref": "#/$defs/side_effect_envelope" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required when the row's verb may produce setup actions. See §5.2."
+    },
+
+    "profile_default_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_default_class", "override_affordance", "summary"],
+      "properties": {
+        "profile_default_class": { "$ref": "#/$defs/profile_default_class" },
+        "override_affordance": { "type": "boolean" },
+        "resolved_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every sheet whose verb is import, start_from_snapshot, or clone (when a deployment binds a default profile to clones). See §5.2."
+    },
+
+    "trust_posture_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trust_posture_class", "trust_prompt_will_be_invoked", "summary"],
+      "properties": {
+        "trust_posture_class": { "$ref": "#/$defs/trust_posture_class" },
+        "trust_prompt_will_be_invoked": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every sheet. See §5.2."
+    },
+
+    "pane_execution_posture_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pane_id", "pane_class", "session_execution_posture"],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "pane_class": {
+          "type": "string",
+          "enum": [
+            "terminal",
+            "task_runner",
+            "debug",
+            "notebook_kernel",
+            "preview_server",
+            "remote_tunnel",
+            "editor_group",
+            "ai_tool_session",
+            "shared_control_session",
+            "other"
+          ]
+        },
+        "session_execution_posture": { "$ref": "#/$defs/session_execution_posture" }
+      }
+    },
+
+    "restore_class_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["restore_level", "missing_target_states", "session_execution_postures", "checkpoint_linked_recovery_class", "summary"],
+      "properties": {
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "missing_target_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/missing_target_state" },
+          "uniqueItems": true
+        },
+        "session_execution_postures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pane_execution_posture_row" }
+        },
+        "checkpoint_linked_recovery_class": { "$ref": "#/$defs/checkpoint_linked_recovery_class" },
+        "open_without_restore_available": { "type": "boolean" },
+        "compare_before_restore_available": { "type": "boolean" },
+        "restore_prompt_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every restore_or_resume sheet. See §5.2."
+    },
+
+    "fallback_action_class": {
+      "type": "string",
+      "enum": [
+        "cancel_no_change",
+        "reopen_previous_workspace",
+        "return_to_start_center",
+        "open_without_restore",
+        "compare_before_restore",
+        "continue_in_restricted_mode",
+        "open_in_safe_mode",
+        "open_minimal",
+        "inspect_only",
+        "review_migration_report",
+        "roll_back_import",
+        "remove_from_recents",
+        "locate_missing_target",
+        "set_up_later"
+      ],
+      "description": "Closed fallback-action set. Drawn from the upstream entry-restore object model and the workspace-entry route matrix fallback_actions."
+    },
+
+    "fallback_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fallback_actions", "summary"],
+      "properties": {
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Required on every sheet. At least one typed fallback. See §5.2 / §5.3 rule 6."
+    },
+
+    "pre_commit_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_durable_write_before_commit",
+        "no_trust_change_before_commit",
+        "no_runtime_attach_before_commit",
+        "no_profile_retarget_before_commit",
+        "no_verb_mutation_after_activation",
+        "fallback_always_reachable",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "no_durable_write_before_commit": { "type": "boolean" },
+        "no_trust_change_before_commit": { "type": "boolean" },
+        "no_runtime_attach_before_commit": { "type": "boolean" },
+        "no_profile_retarget_before_commit": { "type": "boolean" },
+        "no_verb_mutation_after_activation": { "type": "boolean" },
+        "fallback_always_reachable": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean" }
+      },
+      "description": "The seven §5.3 pre-commit invariants. Every conformant sheet MUST emit all booleans = true; a sheet that emits any false is non-conforming and the surface MUST not commit."
+    },
+
+    "open_flow_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "open_flow_sheet_schema_version",
+        "sheet_id",
+        "open_flow_sheet_class",
+        "sheet_surface_class",
+        "entry_chooser_row_ref",
+        "entry_verb",
+        "target_type_disclosure",
+        "policy_restrictions_disclosure",
+        "result_mode_disclosure",
+        "trust_posture_disclosure",
+        "fallback_disclosure",
+        "pre_commit_invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "open_flow_sheet_record" },
+        "open_flow_sheet_schema_version": { "$ref": "#/$defs/open_flow_sheet_schema_version" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "open_flow_sheet_class": { "$ref": "#/$defs/open_flow_sheet_class" },
+        "sheet_surface_class": { "$ref": "#/$defs/sheet_surface_class" },
+        "entry_chooser_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the entry_chooser_row_record that activated this sheet."
+        },
+        "entry_verb": { "$ref": "#/$defs/entry_verb" },
+        "target_type_disclosure": { "$ref": "#/$defs/target_type_disclosure" },
+        "policy_restrictions_disclosure": { "$ref": "#/$defs/policy_restrictions_disclosure" },
+        "result_mode_disclosure": { "$ref": "#/$defs/result_mode_disclosure" },
+        "destination_disposition_disclosure": { "$ref": "#/$defs/destination_disposition_disclosure" },
+        "side_effect_disclosure": { "$ref": "#/$defs/side_effect_disclosure" },
+        "profile_default_disclosure": { "$ref": "#/$defs/profile_default_disclosure" },
+        "trust_posture_disclosure": { "$ref": "#/$defs/trust_posture_disclosure" },
+        "restore_class_disclosure": { "$ref": "#/$defs/restore_class_disclosure" },
+        "fallback_disclosure": { "$ref": "#/$defs/fallback_disclosure" },
+        "pre_commit_invariants": { "$ref": "#/$defs/pre_commit_invariants" },
+        "next_step_decision_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/next_step_decision_hook" },
+          "uniqueItems": true,
+          "description": "Optional. Typed next-step decision hooks the sheet exposes alongside the primary commit affordance."
+        },
+        "primary_command_id_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Stable command-id the sheet's primary commit affordance invokes. MUST resolve to the entry_verb's command-id family (project_entry_contract.md §3)."
+        },
+        "deep_link_intent_review_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required when open_flow_sheet_class is deep_link_intent_review."
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "open_flow_sheet_class": {
+                "enum": [
+                  "clone_remote_target",
+                  "import_artifact",
+                  "start_from_template_or_prebuild"
+                ]
+              }
+            },
+            "required": ["open_flow_sheet_class"]
+          },
+          "then": {
+            "required": [
+              "destination_disposition_disclosure",
+              "side_effect_disclosure"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": { "open_flow_sheet_class": { "const": "restore_or_resume" } },
+            "required": ["open_flow_sheet_class"]
+          },
+          "then": {
+            "required": ["restore_class_disclosure"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "entry_verb": {
+                "enum": ["import", "start_from_snapshot"]
+              }
+            },
+            "required": ["entry_verb"]
+          },
+          "then": {
+            "required": ["profile_default_disclosure"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "open_flow_sheet_class": { "const": "deep_link_intent_review" } },
+            "required": ["open_flow_sheet_class"]
+          },
+          "then": {
+            "required": ["deep_link_intent_review_ref"],
+            "properties": {
+              "policy_restrictions_disclosure": {
+                "properties": {
+                  "required_reviews": {
+                    "contains": { "const": "deep_link_intent_review_required" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "open_flow_sheet_class": { "const": "open_local_target_no_review_required" }
+            },
+            "required": ["open_flow_sheet_class"]
+          },
+          "then": {
+            "properties": {
+              "policy_restrictions_disclosure": {
+                "properties": {
+                  "authority_delta": { "const": "none" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One open-flow sheet record. Emitted before any durable write, trust change, runtime attach, profile retarget, or session rehydrate. See docs/ux/project_entry_contract.md §5."
+    }
+  }
+}
