@@ -39,6 +39,14 @@ at:
 
 - [`/docs/state/migration_and_restore_playbook.md`](./migration_and_restore_playbook.md)
 
+The portable-state package, checksum/redaction manifest, and
+cross-machine import contract that wraps profile, workspace, and
+saved-view bodies into one diffable package lives at:
+
+- [`/docs/state/portable_state_package_contract.md`](./portable_state_package_contract.md)
+- [`/schemas/state/portable_state_manifest.schema.json`](../../schemas/state/portable_state_manifest.schema.json)
+- [`/fixtures/state/portable_state_packages/`](../../fixtures/state/portable_state_packages/)
+
 The path-level configuration and state map that support, backup,
 clear-data, and portability selectors read lives at:
 

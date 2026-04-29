@@ -30,6 +30,7 @@ This contract composes with:
 - [`/docs/state/workspace_memory_contract.md`](./workspace_memory_contract.md)
 - [`/docs/state/migration_and_restore_playbook.md`](./migration_and_restore_playbook.md)
 - [`/docs/state/profile_and_state_map.md`](./profile_and_state_map.md)
+- [`/docs/state/portable_state_package_contract.md`](./portable_state_package_contract.md)
 - [`/docs/state/state_object_inventory.md`](./state_object_inventory.md)
 - [`/docs/workspace/layout_serialization_contract.md`](../workspace/layout_serialization_contract.md)
 - [`/docs/workspace/entry_restore_object_model.md`](../workspace/entry_restore_object_model.md)

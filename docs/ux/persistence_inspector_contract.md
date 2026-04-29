@@ -7,9 +7,12 @@ renaming their fields:
 
 - [`/docs/state/profile_and_state_map.md`](../state/profile_and_state_map.md)
 - [`/docs/state/migration_and_restore_playbook.md`](../state/migration_and_restore_playbook.md)
+- [`/docs/state/portable_state_package_contract.md`](../state/portable_state_package_contract.md)
 - [`/docs/workspace/layout_serialization_contract.md`](../workspace/layout_serialization_contract.md)
 - [`/schemas/state/portable_state_package.schema.json`](../../schemas/state/portable_state_package.schema.json)
+- [`/schemas/state/portable_state_manifest.schema.json`](../../schemas/state/portable_state_manifest.schema.json)
 - [`/fixtures/state/restore_provenance_cards/`](../../fixtures/state/restore_provenance_cards/)
+- [`/fixtures/state/portable_state_packages/`](../../fixtures/state/portable_state_packages/)
 
 The purpose is to keep persistence inspectable. A remembered session,
 portable export, or restore result must never collapse workspace

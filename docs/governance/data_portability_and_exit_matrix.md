@@ -39,6 +39,11 @@ Adjacent artifacts the matrix composes over and never replaces:
   and [`/schemas/profile/portable_profile.schema.json`](../../schemas/profile/portable_profile.schema.json)
   — portable-profile artifact, state map, and restore-provenance
   vocabulary user-scoped exports project onto.
+- [`../state/portable_state_package_contract.md`](../state/portable_state_package_contract.md)
+  and [`/schemas/state/portable_state_manifest.schema.json`](../../schemas/state/portable_state_manifest.schema.json)
+  — portable-state package, checksum/redaction manifest, and
+  cross-machine import contract every export, backup, and migration
+  package emits before sync, handoff, or import features multiply.
 
 ## Why the matrix exists
 

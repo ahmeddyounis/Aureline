@@ -22,9 +22,17 @@ The machine-readable schema lives at:
 
 - [`/schemas/state/restore_provenance.schema.json`](../../schemas/state/restore_provenance.schema.json)
 
+The portable-state package manifest that wraps cross-machine
+import postures (`exact`, `compatible`, `downgraded`, `inspect_only`)
+around the same fidelity vocabulary is frozen at:
+
+- [`/docs/state/portable_state_package_contract.md`](./portable_state_package_contract.md)
+- [`/schemas/state/portable_state_manifest.schema.json`](../../schemas/state/portable_state_manifest.schema.json)
+
 Worked fixtures live under:
 
 - [`/fixtures/state/migration_cases/`](../../fixtures/state/migration_cases/)
+- [`/fixtures/state/portable_state_packages/`](../../fixtures/state/portable_state_packages/)
 
 This contract is normative. Where it disagrees with the PRD, TAD, TDD,
 or the specialized profile or layout contracts, those documents win and
