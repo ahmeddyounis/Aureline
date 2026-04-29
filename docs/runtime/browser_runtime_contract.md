@@ -29,6 +29,12 @@ document MUST be updated in the same change.
   covering live local, live remote managed, companion handoff,
   imported handoff, replayed capture, inspect-only uncertain, external
   handoff only, and blocked-runtime-identity cases.
+- [`/docs/runtime/browser_inspection_contract.md`](./browser_inspection_contract.md)
+  plus [`/schemas/runtime/console_event.schema.json`](../../schemas/runtime/console_event.schema.json),
+  [`/schemas/runtime/network_event_ref.schema.json`](../../schemas/runtime/network_event_ref.schema.json),
+  and [`/schemas/runtime/storage_object_state.schema.json`](../../schemas/runtime/storage_object_state.schema.json)
+  — browser inspection packet bodies for console, network, and storage
+  evidence that attach to this session / route / source-map truth.
 
 Composes by reference (no payload restated):
 
@@ -358,9 +364,10 @@ inventing parallel labels.**
 `imported_from_hosted_review_reader`,
 `evidence_origin_unverifiable_user_review_required`).
 
-The packet bodies are governed by separate browser-inspection schemas
-that this contract does not freeze. This contract only carries the
-refs and the origin class so later console / network / storage
+The packet bodies are governed by
+[`browser_inspection_contract.md`](./browser_inspection_contract.md)
+and its console, network, and storage schemas. This contract only
+carries the refs and the origin class so console / network / storage
 viewers attach to the **same** runtime session, route, and source-map
 truth.
 

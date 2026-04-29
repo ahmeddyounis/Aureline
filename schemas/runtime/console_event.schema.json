@@ -1,0 +1,573 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/console_event.schema.json",
+  "title": "Aureline browser console event evidence record",
+  "description": "Boundary schema for console_event_record defined in docs/runtime/browser_inspection_contract.md. A console event binds browser-runtime session identity, preview route, preview snapshot, task channel, support bundle, exact-build identity, source-map state, capture mode, liveness, redaction posture, policy restrictions, and export review before a console row is treated as source truth. Raw console message bodies, raw stack frames, raw URLs, raw hostnames, raw file paths, raw cookies, raw tokens, raw request or response bodies, and raw provider payloads never cross this boundary; records carry opaque refs, typed classes, counts, digests, and reviewable redacted summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/console_event_record" }
+  ],
+  "$defs": {
+    "console_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for console-event records. Additive optional fields and additive enum values bump this const; repurposing a value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "console_event_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, and persist. Raw URLs, raw paths, raw hostnames, raw ports, raw cookies, raw tokens, and raw message bodies never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short sentence safe for UI, support, and export review. Raw message bodies, stack frames, URLs, paths, secrets, cookies, and provider payloads are forbidden."
+    },
+    "capture_mode_class": {
+      "type": "string",
+      "enum": [
+        "live_runtime_stream",
+        "live_runtime_snapshot",
+        "imported_browser_handoff",
+        "imported_support_bundle",
+        "replay_capture",
+        "hosted_review_reader",
+        "synthetic_fixture",
+        "capture_mode_unknown_requires_review"
+      ],
+      "description": "How this console event was captured. Imported, replayed, hosted-review, synthetic, and unknown modes are read-only evidence origins."
+    },
+    "liveness_class": {
+      "type": "string",
+      "enum": [
+        "live_current",
+        "live_drifted",
+        "imported_read_only",
+        "replayed_read_only",
+        "cached_read_only",
+        "blocked_inspect_only",
+        "unavailable"
+      ],
+      "description": "Live-versus-imported status shown anywhere the user acts on the event."
+    },
+    "evidence_origin_class": {
+      "type": "string",
+      "enum": [
+        "live_capture_from_attached_runtime",
+        "imported_from_browser_handoff_packet",
+        "imported_from_support_export_bundle",
+        "imported_from_replay_capture",
+        "imported_from_hosted_review_reader",
+        "evidence_origin_unverifiable_user_review_required"
+      ]
+    },
+    "source_map_state_class": {
+      "type": "string",
+      "enum": [
+        "source_map_in_sync_with_runtime",
+        "source_map_in_sync_with_session_capture",
+        "source_map_stale_runtime_advanced_since_capture",
+        "source_map_inline_only_no_external_map",
+        "source_map_missing_runtime_only",
+        "source_map_redacted_for_export",
+        "source_map_freshness_unknown_requires_review"
+      ]
+    },
+    "mapping_fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact_source_mapping",
+        "approximate_source_mapping",
+        "generated_only_mapping",
+        "framework_only_mapping",
+        "runtime_only_mapping",
+        "unavailable_mapping",
+        "mapping_fidelity_unknown_requires_review"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "headers_and_keys_redacted",
+        "values_redacted",
+        "payload_bodies_omitted",
+        "local_only_sensitive",
+        "blocked_sensitive_value",
+        "provider_data_restricted"
+      ]
+    },
+    "policy_restriction_class": {
+      "type": "string",
+      "enum": [
+        "no_policy_restriction",
+        "export_redacted_only",
+        "export_metadata_only",
+        "export_forbidden",
+        "replay_requires_review",
+        "mutation_requires_review",
+        "reveal_requires_local_review",
+        "blocked_by_policy",
+        "blocked_by_workspace_trust",
+        "partner_provider_data_do_not_export",
+        "inspect_only_runtime_identity_weak"
+      ]
+    },
+    "drift_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "no_drift_disclosure_required",
+        "source_map_stale_disclosed",
+        "live_dom_css_edit_uncommitted",
+        "replayed_network_traffic_disclosed",
+        "cached_service_worker_state_disclosed",
+        "storage_mutation_side_effect_disclosed",
+        "runtime_identity_weak_inspect_only_disclosed",
+        "imported_evidence_disclosed",
+        "preview_route_drift_disclosed",
+        "policy_limited_evidence_disclosed"
+      ]
+    },
+    "export_class": {
+      "type": "string",
+      "enum": [
+        "export_redacted_summary",
+        "export_metadata_only",
+        "export_local_only_after_review",
+        "export_forbidden",
+        "not_included"
+      ]
+    },
+    "source_jump_action_class": {
+      "type": "string",
+      "enum": [
+        "open_source_exact",
+        "open_source_approximate_with_disclosure",
+        "open_generated_source_summary",
+        "open_runtime_only_detail",
+        "open_source_blocked_stale_map",
+        "open_source_blocked_policy",
+        "open_source_unavailable"
+      ]
+    },
+    "console_event_class": {
+      "type": "string",
+      "enum": [
+        "browser_console_log",
+        "browser_console_warning",
+        "browser_console_error",
+        "exception_event",
+        "unhandled_rejection",
+        "runtime_protocol_event",
+        "framework_runtime_event"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "fatal",
+        "runtime_event"
+      ]
+    },
+    "message_payload_class": {
+      "type": "string",
+      "enum": [
+        "message_summary_only",
+        "message_hash_only",
+        "message_redacted_sensitive_value",
+        "message_local_only_raw_available_after_review",
+        "message_omitted_by_policy"
+      ]
+    },
+    "stack_trace_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_stack_trace",
+        "stack_metadata_only",
+        "stack_mapped_exact",
+        "stack_mapped_approximate",
+        "stack_runtime_only",
+        "stack_redacted",
+        "stack_unavailable"
+      ]
+    },
+    "viewer_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_route_record_ref",
+        "preview_snapshot_record_ref",
+        "task_channel_ref",
+        "support_bundle_ref",
+        "exact_build_identity_ref",
+        "evidence_packet_ref"
+      ],
+      "properties": {
+        "preview_route_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preview_snapshot_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "task_channel_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "hosted_review_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "companion_handoff_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "capture_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_mode_class",
+        "liveness_class",
+        "evidence_origin_class",
+        "inspected_at"
+      ],
+      "properties": {
+        "capture_mode_class": { "$ref": "#/$defs/capture_mode_class" },
+        "liveness_class": { "$ref": "#/$defs/liveness_class" },
+        "evidence_origin_class": { "$ref": "#/$defs/evidence_origin_class" },
+        "inspected_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "capture_window_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "source_map_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_map_state_class",
+        "mapping_fidelity_class",
+        "source_map_handle_ref",
+        "summary"
+      ],
+      "properties": {
+        "source_map_state_class": { "$ref": "#/$defs/source_map_state_class" },
+        "mapping_fidelity_class": { "$ref": "#/$defs/mapping_fidelity_class" },
+        "source_map_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ref",
+        "generated_source_ref",
+        "source_jump_action_class",
+        "stack_trace_posture_class"
+      ],
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "generated_source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_jump_action_class": { "$ref": "#/$defs/source_jump_action_class" },
+        "stack_trace_posture_class": { "$ref": "#/$defs/stack_trace_posture_class" },
+        "source_anchor_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "message_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_payload_class",
+        "message_digest_ref",
+        "redacted_preview"
+      ],
+      "properties": {
+        "message_payload_class": { "$ref": "#/$defs/message_payload_class" },
+        "message_digest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redacted_preview": {
+          "oneOf": [
+            { "$ref": "#/$defs/reviewable_sentence" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "occurrence_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seen_count",
+        "first_seen_at",
+        "last_seen_at"
+      ],
+      "properties": {
+        "seen_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "first_seen_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_seen_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "policy_restriction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_restriction_class",
+        "enforced_by_ref",
+        "summary"
+      ],
+      "properties": {
+        "policy_restriction_class": { "$ref": "#/$defs/policy_restriction_class" },
+        "enforced_by_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_class",
+        "support_bundle_inclusion_class",
+        "requires_local_reveal_review",
+        "summary"
+      ],
+      "properties": {
+        "export_class": { "$ref": "#/$defs/export_class" },
+        "support_bundle_inclusion_class": {
+          "type": "string",
+          "enum": [
+            "included_redacted_by_default",
+            "included_metadata_only",
+            "local_only_reference",
+            "excluded_by_default",
+            "excluded_always"
+          ]
+        },
+        "requires_local_reveal_review": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "raw_payload_permitted",
+        "summary"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "raw_payload_permitted": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "console_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "console_event_schema_version",
+        "console_event_id",
+        "captured_at",
+        "browser_runtime_session_record_ref",
+        "viewer_linkage",
+        "capture_context",
+        "source_map_state",
+        "console_event_class",
+        "severity_class",
+        "event_summary",
+        "source_anchor",
+        "message_payload",
+        "occurrence_summary",
+        "redaction",
+        "policy_restrictions",
+        "drift_disclosures",
+        "export_review",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "console_event_schema_version": { "$ref": "#/$defs/console_event_schema_version" },
+        "console_event_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "browser_runtime_session_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "viewer_linkage": { "$ref": "#/$defs/viewer_linkage" },
+        "capture_context": { "$ref": "#/$defs/capture_context" },
+        "source_map_state": { "$ref": "#/$defs/source_map_state" },
+        "console_event_class": { "$ref": "#/$defs/console_event_class" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "event_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_anchor": { "$ref": "#/$defs/source_anchor" },
+        "message_payload": { "$ref": "#/$defs/message_payload" },
+        "occurrence_summary": { "$ref": "#/$defs/occurrence_summary" },
+        "redaction": { "$ref": "#/$defs/redaction" },
+        "policy_restrictions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/policy_restriction" }
+        },
+        "drift_disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/drift_disclosure_class" },
+          "uniqueItems": true
+        },
+        "export_review": { "$ref": "#/$defs/export_review" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Imported, replayed, hosted-review, synthetic, and unknown capture modes cannot claim live_current liveness.",
+          "if": {
+            "properties": {
+              "capture_context": {
+                "properties": {
+                  "capture_mode_class": {
+                    "enum": [
+                      "imported_browser_handoff",
+                      "imported_support_bundle",
+                      "replay_capture",
+                      "hosted_review_reader",
+                      "synthetic_fixture",
+                      "capture_mode_unknown_requires_review"
+                    ]
+                  }
+                },
+                "required": ["capture_mode_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "capture_context": {
+                "properties": {
+                  "liveness_class": {
+                    "not": { "const": "live_current" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Stale, missing, redacted, or unknown source maps cannot claim exact source mapping or exact source jump.",
+          "if": {
+            "properties": {
+              "source_map_state": {
+                "properties": {
+                  "source_map_state_class": {
+                    "enum": [
+                      "source_map_stale_runtime_advanced_since_capture",
+                      "source_map_missing_runtime_only",
+                      "source_map_redacted_for_export",
+                      "source_map_freshness_unknown_requires_review"
+                    ]
+                  }
+                },
+                "required": ["source_map_state_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_map_state": {
+                "properties": {
+                  "mapping_fidelity_class": {
+                    "not": { "const": "exact_source_mapping" }
+                  }
+                }
+              },
+              "source_anchor": {
+                "properties": {
+                  "source_jump_action_class": {
+                    "not": { "const": "open_source_exact" }
+                  }
+                }
+              },
+              "drift_disclosures": {
+                "contains": { "const": "source_map_stale_disclosed" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Sensitive redaction classes cannot export unreviewed raw payloads.",
+          "if": {
+            "properties": {
+              "redaction": {
+                "properties": {
+                  "redaction_class": {
+                    "enum": [
+                      "local_only_sensitive",
+                      "blocked_sensitive_value",
+                      "provider_data_restricted"
+                    ]
+                  }
+                },
+                "required": ["redaction_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "redaction": {
+                "properties": {
+                  "raw_payload_permitted": { "const": false }
+                }
+              },
+              "export_review": {
+                "properties": {
+                  "export_class": {
+                    "enum": [
+                      "export_redacted_summary",
+                      "export_metadata_only",
+                      "export_local_only_after_review",
+                      "export_forbidden",
+                      "not_included"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Export-forbidden policy restrictions force export_review.export_class to export_forbidden or not_included.",
+          "if": {
+            "properties": {
+              "policy_restrictions": {
+                "contains": {
+                  "properties": {
+                    "policy_restriction_class": { "const": "export_forbidden" }
+                  },
+                  "required": ["policy_restriction_class"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "export_review": {
+                "properties": {
+                  "export_class": {
+                    "enum": ["export_forbidden", "not_included"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
