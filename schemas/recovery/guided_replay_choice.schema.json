@@ -1,0 +1,489 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/guided_replay_choice.schema.json",
+  "title": "Aureline guided autosave replay choice",
+  "description": "Boundary schema for guided replay choices shown after a dirty-buffer autosave journal is discovered. Choices are explicit records so recovery UI, CLI, support, and tests can explain restore, inspect-only, discard-journal, open-without-replay, and safe-mode behavior without inferring hidden replay state from raw logs. See docs/reliability/autosave_journal_and_guided_replay_contract.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/guided_replay_choice_record" },
+    { "$ref": "#/$defs/guided_replay_choice_set" }
+  ],
+  "$defs": {
+    "guided_replay_choice_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for guided replay choice records."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for recovery UI, logs, support bundles, and evidence packets. Raw paths, raw URLs, raw provider payloads, and credentials never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in recovery, support, CLI, and accessibility surfaces."
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque producer timestamp. Consumers do not infer ordering beyond the producer's declared ordering."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Production consumers ignore this object."
+    },
+    "choice_class": {
+      "type": "string",
+      "enum": [
+        "restore",
+        "inspect_only",
+        "discard_journal",
+        "open_without_replay",
+        "escalate_to_safe_mode"
+      ]
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "requires_review",
+        "downgraded",
+        "disabled",
+        "blocked_by_integrity",
+        "blocked_by_policy",
+        "blocked_by_incompatible_object_class",
+        "blocked_by_repeated_failure"
+      ]
+    },
+    "block_or_downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "not_blocked",
+        "checksum_mismatch",
+        "truncated_frame",
+        "schema_incompatible",
+        "missing_frame",
+        "policy_redacted_body",
+        "policy_blocks_body_restore",
+        "legal_hold_or_support_pin",
+        "incompatible_object_class",
+        "generated_target_requires_source",
+        "read_only_target",
+        "managed_mirror",
+        "unsupported_structured_object",
+        "same_path_different_object",
+        "base_on_disk_token_mismatch",
+        "current_object_missing",
+        "repeated_crash_loop",
+        "restore_replay_failed_twice",
+        "suspect_extension",
+        "journal_reset_requires_confirmation",
+        "support_export_required_before_destructive_action"
+      ]
+    },
+    "source_record_kind": {
+      "type": "string",
+      "enum": [
+        "autosave_journal_entry",
+        "autosave_journal_group_record"
+      ]
+    },
+    "integrity_gate_state": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "passed_until_last_good_frame",
+        "inspect_only",
+        "evidence_only",
+        "blocked"
+      ]
+    },
+    "policy_gate_state": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "requires_review",
+        "body_redacted_metadata_allowed",
+        "export_required_before_delete",
+        "blocked"
+      ]
+    },
+    "identity_gate_state": {
+      "type": "string",
+      "enum": [
+        "exact_match",
+        "review_required",
+        "same_path_different_object",
+        "base_token_mismatch",
+        "current_object_missing",
+        "unknown"
+      ]
+    },
+    "object_class_gate_state": {
+      "type": "string",
+      "enum": [
+        "writable_supported",
+        "inspect_only_supported",
+        "generated_requires_canonical_source",
+        "read_only_target",
+        "managed_mirror",
+        "unsupported_object",
+        "unknown"
+      ]
+    },
+    "threshold_result_class": {
+      "type": "string",
+      "enum": [
+        "no_escalation",
+        "offer_safe_mode",
+        "enter_safe_mode",
+        "quarantine_suspect_extension",
+        "open_without_replay_default",
+        "support_escalation_required"
+      ]
+    },
+    "replay_resulting_mode": {
+      "type": "string",
+      "enum": [
+        "exact_buffer_restore",
+        "last_good_frame_restore",
+        "selected_member_restore",
+        "inspect_without_apply",
+        "journal_discarded",
+        "open_clean_journal_retained",
+        "safe_mode_journal_retained",
+        "no_action"
+      ]
+    },
+    "gate_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integrity_gate",
+        "policy_gate",
+        "identity_gate",
+        "object_class_gate",
+        "repeated_failure_gate"
+      ],
+      "properties": {
+        "integrity_gate": { "$ref": "#/$defs/integrity_gate_state" },
+        "policy_gate": { "$ref": "#/$defs/policy_gate_state" },
+        "identity_gate": { "$ref": "#/$defs/identity_gate_state" },
+        "object_class_gate": { "$ref": "#/$defs/object_class_gate_state" },
+        "repeated_failure_gate": { "$ref": "#/$defs/threshold_result_class" },
+        "last_good_frame_ref": {
+          "type": ["string", "null"],
+          "description": "Last verified frame available for inspect or partial replay."
+        },
+        "crash_sentinel_ref": {
+          "type": ["string", "null"],
+          "description": "Crash sentinel that influenced this choice, if any."
+        },
+        "policy_ref": {
+          "type": ["string", "null"],
+          "description": "Policy or retention rule that influenced this choice, if any."
+        },
+        "object_class_ref": {
+          "type": ["string", "null"],
+          "description": "Object-class or generated/managed relation ref that influenced this choice, if any."
+        }
+      }
+    },
+    "consequence_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves",
+        "discards_or_defers",
+        "writes_checkpoint",
+        "mutates_journal",
+        "evidence_retained_after_action",
+        "support_export_available"
+      ],
+      "properties": {
+        "preserves": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "preserve_dirty_buffers",
+              "preserve_journal",
+              "preserve_last_good_frame",
+              "preserve_integrity_evidence",
+              "preserve_local_history",
+              "preserve_settings",
+              "preserve_profiles",
+              "preserve_support_refs",
+              "preserve_crash_sentinel"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "discards_or_defers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "discard_selected_journal_entries",
+              "defer_restore_this_launch",
+              "defer_generated_direct_write",
+              "defer_read_only_write",
+              "defer_managed_mirror_write",
+              "disable_automatic_replay",
+              "suspend_extension_activation",
+              "rerun_nothing"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "writes_checkpoint": {
+          "type": "boolean",
+          "description": "True when applying this choice creates a local-history checkpoint."
+        },
+        "new_checkpoint_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque checkpoint ref that will be written or null when no checkpoint is created."
+        },
+        "mutates_journal": {
+          "type": "boolean",
+          "description": "True only for a confirmed journal discard/reset. Restore, inspect, open without replay, and safe mode keep the journal retained."
+        },
+        "reset_record_ref": {
+          "type": ["string", "null"],
+          "description": "Journal reset record ref when mutates_journal is true."
+        },
+        "evidence_retained_after_action": { "type": "boolean" },
+        "support_export_available": { "type": "boolean" },
+        "consequence_note": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "destructive_confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirmation_required",
+        "confirmed",
+        "confirmation_phrase_class"
+      ],
+      "properties": {
+        "confirmation_required": { "type": "boolean", "const": true },
+        "confirmed": { "type": "boolean" },
+        "confirmation_phrase_class": {
+          "type": "string",
+          "enum": [
+            "names_recovery_journal",
+            "names_autosave_journal"
+          ],
+          "description": "Generic cache/settings wording is not valid confirmation for journal discard."
+        },
+        "export_before_destructive_action": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "offered",
+            "required_by_policy",
+            "completed",
+            "blocked_by_policy"
+          ]
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_inclusion_state",
+        "redaction_class"
+      ],
+      "properties": {
+        "support_bundle_inclusion_state": {
+          "type": "string",
+          "enum": [
+            "excluded_by_default",
+            "metadata_ref_allowed",
+            "review_required_before_export",
+            "exported_in_support_bundle",
+            "prohibited"
+          ]
+        },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "environment_adjacent",
+            "code_adjacent",
+            "high_risk",
+            "support_summary_only"
+          ]
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "guided_replay_choice_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "guided_replay_choice_schema_version",
+        "choice_record_id",
+        "source_record_kind",
+        "source_journal_ref",
+        "choice_class",
+        "availability_class",
+        "selected",
+        "user_initiated",
+        "block_or_downgrade_reasons",
+        "gate_summary",
+        "consequence_summary",
+        "resulting_mode",
+        "support_export",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "guided_replay_choice_record" },
+        "guided_replay_choice_schema_version": { "$ref": "#/$defs/guided_replay_choice_schema_version" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "choice_record_id": { "$ref": "#/$defs/opaque_id" },
+        "source_record_kind": { "$ref": "#/$defs/source_record_kind" },
+        "source_journal_ref": { "$ref": "#/$defs/opaque_id" },
+        "choice_class": { "$ref": "#/$defs/choice_class" },
+        "availability_class": { "$ref": "#/$defs/availability_class" },
+        "selected": {
+          "type": "boolean",
+          "description": "True when this choice is the committed user/system selection in the fixture or event."
+        },
+        "user_initiated": {
+          "type": "boolean",
+          "description": "True when a user explicitly chose this action rather than the system recommending or defaulting it."
+        },
+        "block_or_downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/block_or_downgrade_reason" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "gate_summary": { "$ref": "#/$defs/gate_summary" },
+        "consequence_summary": { "$ref": "#/$defs/consequence_summary" },
+        "destructive_confirmation": { "$ref": "#/$defs/destructive_confirmation" },
+        "resulting_mode": { "$ref": "#/$defs/replay_resulting_mode" },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "choice_summary": { "$ref": "#/$defs/short_text" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "choice_class": { "const": "discard_journal" }
+            }
+          },
+          "then": {
+            "required": ["destructive_confirmation"],
+            "properties": {
+              "consequence_summary": {
+                "properties": {
+                  "mutates_journal": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "choice_class": {
+                "enum": [
+                  "restore",
+                  "inspect_only",
+                  "open_without_replay",
+                  "escalate_to_safe_mode"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "consequence_summary": {
+                "properties": {
+                  "mutates_journal": { "const": false }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "availability_class": { "const": "blocked_by_repeated_failure" }
+            }
+          },
+          "then": {
+            "properties": {
+              "gate_summary": {
+                "required": ["crash_sentinel_ref"],
+                "properties": {
+                  "repeated_failure_gate": {
+                    "enum": [
+                      "offer_safe_mode",
+                      "enter_safe_mode",
+                      "quarantine_suspect_extension",
+                      "open_without_replay_default",
+                      "support_escalation_required"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "guided_replay_choice_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "guided_replay_choice_schema_version",
+        "choice_set_id",
+        "source_record_kind",
+        "source_journal_ref",
+        "choices",
+        "recommended_choice_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "guided_replay_choice_set" },
+        "guided_replay_choice_schema_version": { "$ref": "#/$defs/guided_replay_choice_schema_version" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "choice_set_id": { "$ref": "#/$defs/opaque_id" },
+        "source_record_kind": { "$ref": "#/$defs/source_record_kind" },
+        "source_journal_ref": { "$ref": "#/$defs/opaque_id" },
+        "choices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/guided_replay_choice_record" },
+          "minItems": 1
+        },
+        "recommended_choice_class": { "$ref": "#/$defs/choice_class" },
+        "choice_set_summary": { "$ref": "#/$defs/short_text" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}

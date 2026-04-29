@@ -1,0 +1,252 @@
+# Autosave replay fixture: verified single-file dirty-buffer restore.
+
+fixture:
+  name: single_file_crash_restore
+  scenario: >
+    The shell restarts after an abnormal termination. One canonical file
+    has a verified dirty-buffer journal entry, the base-on-disk token
+    still matches, and direct restore is allowed. Opening without replay
+    keeps the journal available; discarding it requires separate journal
+    reset confirmation.
+  coverage:
+    - single_file_crash
+    - direct_restore_allowed
+    - journal_reset_separate_from_cache_clear
+
+schemas:
+  autosave_journal_entry: ../../../schemas/recovery/autosave_journal_entry.schema.json
+  guided_replay_choice: ../../../schemas/recovery/guided_replay_choice.schema.json
+
+journal_records:
+  - record_kind: autosave_journal_entry
+    autosave_journal_schema_version: 1
+    journal_entry_id: journal-entry:single-file:0001
+    journal_id: journal:workspace-alpha:crash-0001
+    workspace_ref: workspace:alpha
+    object_identity:
+      logical_document_id: logical-doc:alpha:router
+      object_ref: object:file:alpha:router
+      object_class: canonical_file
+      presentation_hint: router.ts
+      filesystem_identity_ref: fs-identity:alpha:router:v7
+      canonical_identity_ref: canonical-object:alpha:router
+      branch_worktree_ref: worktree:alpha:feature-login
+      identity_relation: exact_object_identity
+      identity_notes: Current object matches the journal capture target.
+    base_on_disk_token:
+      token_class: file_id_generation
+      token_ref: save-token:alpha:router:g42
+      observed_revision_ref: revision:alpha:router:g42
+      token_confidence: strong
+      compare_before_write_required: true
+      external_change_state: no_external_change_known
+    text_format:
+      encoding_label: utf_8
+      bom_policy: none
+      newline_mode: lf
+      decoder_posture: exact_decode
+      final_newline_state: present
+      large_file_mode: false
+      format_notes: UTF-8 and LF were captured from the dirty buffer.
+    actor_surface:
+      actor_class: user_keystroke
+      source_class: human_local
+      surface_class: editor_typing
+      command_ref: null
+      session_ref: edit-session:alpha:0007
+      actor_display: Local typing in the editor.
+    capture_descriptor:
+      capture_class: dirty_text_delta
+      capture_mode: content_addressed_snapshot
+      body_available: true
+      body_object_refs:
+        - journal-body:alpha:router:delta-0001
+      dirty_range_summary_ref: range-summary:alpha:router:0001
+      group_member_refs: []
+      omission_reason: not_omitted
+      capture_notes: Dirty text and cursor/view metadata are available.
+    integrity:
+      checksum_algorithm: blake3
+      checksum_ref: checksum:alpha:router:delta-0001
+      frame_integrity_state: verified
+      replay_integrity_posture: replay_allowed
+      last_good_frame_ref: frame:alpha:router:0004
+      failed_frame_ref: null
+      corruption_evidence_refs: []
+      integrity_notes: All journal frames verified.
+    replay_posture:
+      object_class_replay_posture: restore_allowed
+      recommended_choice_class: restore
+      blocked_choice_classes: []
+      downgrade_reason_classes:
+        - not_downgraded
+      new_local_history_checkpoint_on_restore: true
+      new_checkpoint_ref: local-history:restore:alpha:router:0001
+      open_without_replay_retains_journal: true
+      replay_notes: Restore will write through compare-before-write and create a new checkpoint.
+    retention_posture:
+      retention_class: retained_until_user_decision
+      local_only_default: true
+      ordinary_cache_clear_excluded: true
+      settings_reset_excluded: true
+      local_history_clear_excluded: true
+      journal_reset_required_for_delete: true
+      export_before_reset: offered
+      expiry_policy_ref: retention-policy:autosave-default
+      pin_refs: []
+    support_export:
+      support_bundle_inclusion_state: metadata_ref_allowed
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:journal:single-file:0001
+      export_notes: Support export cites the journal entry; body export requires review.
+    emitted_at: "2026-04-29T17:10:00Z"
+
+guided_replay_choices:
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:single-file:restore
+    source_record_kind: autosave_journal_entry
+    source_journal_ref: journal-entry:single-file:0001
+    choice_class: restore
+    availability_class: allowed
+    selected: true
+    user_initiated: true
+    block_or_downgrade_reasons:
+      - not_blocked
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: passed
+      identity_gate: exact_match
+      object_class_gate: writable_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:alpha:router:0004
+      crash_sentinel_ref: null
+      policy_ref: policy:local-recovery-default
+      object_class_ref: object:file:alpha:router
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_integrity_evidence
+        - preserve_local_history
+        - preserve_settings
+        - preserve_profiles
+      discards_or_defers:
+        - rerun_nothing
+      writes_checkpoint: true
+      new_checkpoint_ref: local-history:restore:alpha:router:0001
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Restore applies through the save coordinator and keeps the journal until retention or reset.
+    resulting_mode: exact_buffer_restore
+    support_export:
+      support_bundle_inclusion_state: metadata_ref_allowed
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:journal:single-file:0001
+    choice_summary: Restore recovered dirty text with a new local-history checkpoint.
+    emitted_at: "2026-04-29T17:10:05Z"
+
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:single-file:inspect
+    source_record_kind: autosave_journal_entry
+    source_journal_ref: journal-entry:single-file:0001
+    choice_class: inspect_only
+    availability_class: allowed
+    selected: false
+    user_initiated: false
+    block_or_downgrade_reasons:
+      - not_blocked
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: passed
+      identity_gate: exact_match
+      object_class_gate: writable_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:alpha:router:0004
+      crash_sentinel_ref: null
+      policy_ref: policy:local-recovery-default
+      object_class_ref: object:file:alpha:router
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_last_good_frame
+        - preserve_integrity_evidence
+        - preserve_settings
+      discards_or_defers:
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Inspect opens a read-only recovery view and writes nothing.
+    resulting_mode: inspect_without_apply
+    support_export:
+      support_bundle_inclusion_state: metadata_ref_allowed
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:journal:single-file:0001
+    choice_summary: Inspect recovered content without applying it.
+    emitted_at: "2026-04-29T17:10:05Z"
+
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:single-file:discard
+    source_record_kind: autosave_journal_entry
+    source_journal_ref: journal-entry:single-file:0001
+    choice_class: discard_journal
+    availability_class: requires_review
+    selected: false
+    user_initiated: false
+    block_or_downgrade_reasons:
+      - journal_reset_requires_confirmation
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: export_required_before_delete
+      identity_gate: exact_match
+      object_class_gate: writable_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:alpha:router:0004
+      crash_sentinel_ref: null
+      policy_ref: retention-policy:autosave-default
+      object_class_ref: object:file:alpha:router
+    consequence_summary:
+      preserves:
+        - preserve_local_history
+        - preserve_settings
+        - preserve_profiles
+        - preserve_support_refs
+      discards_or_defers:
+        - discard_selected_journal_entries
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: true
+      reset_record_ref: journal-reset:single-file:pending
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Discard is a journal reset action, not a cache clear.
+    destructive_confirmation:
+      confirmation_required: true
+      confirmed: false
+      confirmation_phrase_class: names_recovery_journal
+      export_before_destructive_action: offered
+    resulting_mode: no_action
+    support_export:
+      support_bundle_inclusion_state: review_required_before_export
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:journal:single-file:0001
+    choice_summary: Discard remains unavailable until journal-reset confirmation is completed.
+    emitted_at: "2026-04-29T17:10:05Z"
+
+expected_recovery_outcome:
+  restore_committed: true
+  journal_retained_after_restore: true
+  local_history_checkpoint_ref: local-history:restore:alpha:router:0001
+  automatic_replay_loop_prevented: false
+  reset_surface_copy_must_name: recovery journal

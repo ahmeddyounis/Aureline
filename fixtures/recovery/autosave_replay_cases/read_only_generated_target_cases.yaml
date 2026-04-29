@@ -1,0 +1,420 @@
+# Autosave replay fixture: read-only and generated targets block direct restore.
+
+fixture:
+  name: read_only_generated_target_cases
+  scenario: >
+    A crash leaves recoverable journal records for one read-only target
+    and one generated artifact. Direct restore is blocked for both:
+    read-only content cannot be overwritten, and generated output must
+    route through its canonical source/regenerator. Inspect/export stays
+    available, and a later journal reset is represented as a separate
+    destructive action after export.
+  coverage:
+    - read_only_target
+    - generated_target
+    - inspect_export_available
+    - explicit_journal_reset_record
+
+schemas:
+  autosave_journal_entry: ../../../schemas/recovery/autosave_journal_entry.schema.json
+  guided_replay_choice: ../../../schemas/recovery/guided_replay_choice.schema.json
+
+journal_records:
+  - record_kind: autosave_journal_entry
+    autosave_journal_schema_version: 1
+    journal_entry_id: journal-entry:epsilon:readonly
+    journal_id: journal:workspace-epsilon:crash-0004
+    workspace_ref: workspace:epsilon
+    object_identity:
+      logical_document_id: logical-doc:epsilon:vendor-readme
+      object_ref: object:file:epsilon:vendor-readme
+      object_class: read_only_file
+      presentation_hint: vendor-readme.md
+      filesystem_identity_ref: fs-identity:epsilon:vendor-readme:v2
+      canonical_identity_ref: canonical-object:epsilon:vendor-readme
+      branch_worktree_ref: worktree:epsilon:main
+      identity_relation: exact_object_identity
+      identity_notes: The target identity matches, but the current object is read-only.
+    base_on_disk_token:
+      token_class: content_hash_only
+      token_ref: save-token:epsilon:vendor-readme:hash-2
+      observed_revision_ref: revision:epsilon:vendor-readme:2
+      token_confidence: compatible_fallback
+      compare_before_write_required: true
+      external_change_state: target_read_only
+    text_format:
+      encoding_label: utf_8
+      bom_policy: none
+      newline_mode: lf
+      decoder_posture: exact_decode
+      final_newline_state: present
+      large_file_mode: false
+      format_notes: Text is recoverable but cannot be written to the read-only target.
+    actor_surface:
+      actor_class: user_keystroke
+      source_class: human_local
+      surface_class: editor_typing
+      command_ref: null
+      session_ref: edit-session:epsilon:readonly
+      actor_display: Local edits in a read-only buffer.
+    capture_descriptor:
+      capture_class: dirty_text_delta
+      capture_mode: content_addressed_snapshot
+      body_available: true
+      body_object_refs:
+        - journal-body:epsilon:vendor-readme:delta
+      dirty_range_summary_ref: range-summary:epsilon:vendor-readme
+      group_member_refs: []
+      omission_reason: not_omitted
+      capture_notes: The recovered body can be inspected or exported.
+    integrity:
+      checksum_algorithm: sha256
+      checksum_ref: checksum:epsilon:vendor-readme:delta
+      frame_integrity_state: verified
+      replay_integrity_posture: inspect_only
+      last_good_frame_ref: frame:epsilon:vendor-readme:0003
+      failed_frame_ref: null
+      corruption_evidence_refs: []
+      integrity_notes: Integrity verified; object class blocks direct write.
+    replay_posture:
+      object_class_replay_posture: blocked_read_only_target
+      recommended_choice_class: inspect_only
+      blocked_choice_classes:
+        - restore
+      downgrade_reason_classes:
+        - read_only_target
+      new_local_history_checkpoint_on_restore: false
+      new_checkpoint_ref: null
+      open_without_replay_retains_journal: true
+      replay_notes: Restore may be copied/exported, but not applied to the read-only target.
+    retention_posture:
+      retention_class: retained_until_user_decision
+      local_only_default: true
+      ordinary_cache_clear_excluded: true
+      settings_reset_excluded: true
+      local_history_clear_excluded: true
+      journal_reset_required_for_delete: true
+      export_before_reset: completed
+      expiry_policy_ref: retention-policy:autosave-default
+      pin_refs: []
+    support_export:
+      support_bundle_inclusion_state: exported_in_support_bundle
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:epsilon:readonly-export
+      export_notes: Recovered content was exported after review before journal reset.
+    emitted_at: "2026-04-29T17:50:00Z"
+
+  - record_kind: autosave_journal_entry
+    autosave_journal_schema_version: 1
+    journal_entry_id: journal-entry:epsilon:generated
+    journal_id: journal:workspace-epsilon:crash-0004
+    workspace_ref: workspace:epsilon
+    object_identity:
+      logical_document_id: logical-doc:epsilon:generated-schema
+      object_ref: object:generated:epsilon:schema
+      object_class: generated_artifact
+      presentation_hint: schema.generated.json
+      filesystem_identity_ref: fs-identity:epsilon:schema-generated:v12
+      canonical_identity_ref: canonical-source:epsilon:schema
+      branch_worktree_ref: worktree:epsilon:main
+      identity_relation: exact_object_identity
+      identity_notes: The generated output has a canonical source and cannot be restored as direct bytes.
+    base_on_disk_token:
+      token_class: content_hash_only
+      token_ref: generated-token:epsilon:schema:hash-12
+      observed_revision_ref: generator-run:epsilon:schema:12
+      token_confidence: compatible_fallback
+      compare_before_write_required: true
+      external_change_state: no_external_change_known
+    text_format:
+      encoding_label: utf_8
+      bom_policy: none
+      newline_mode: lf
+      decoder_posture: metadata_only
+      final_newline_state: present
+      large_file_mode: false
+      format_notes: Generated artifact metadata points to the canonical source.
+    actor_surface:
+      actor_class: automation_recipe_runner
+      source_class: machine_local
+      surface_class: generated_viewer
+      command_ref: command:regenerate-schema
+      session_ref: generation-session:epsilon:schema
+      actor_display: Local generator produced a dirty generated view.
+    capture_descriptor:
+      capture_class: metadata_only_stub
+      capture_mode: metadata_plus_reference_only
+      body_available: false
+      body_object_refs: []
+      dirty_range_summary_ref: range-summary:epsilon:schema-generated
+      group_member_refs: []
+      omission_reason: omitted_generated_artifact_use_lineage
+      capture_notes: Generated output uses lineage metadata instead of captured body bytes.
+    integrity:
+      checksum_algorithm: sha256
+      checksum_ref: checksum:epsilon:schema-generated:metadata
+      frame_integrity_state: verified
+      replay_integrity_posture: inspect_only
+      last_good_frame_ref: frame:epsilon:schema-generated:0006
+      failed_frame_ref: null
+      corruption_evidence_refs: []
+      integrity_notes: Metadata verified; direct restore redirects to the canonical source workflow.
+    replay_posture:
+      object_class_replay_posture: blocked_generated_requires_source
+      recommended_choice_class: inspect_only
+      blocked_choice_classes:
+        - restore
+      downgrade_reason_classes:
+        - generated_target_requires_source
+      new_local_history_checkpoint_on_restore: false
+      new_checkpoint_ref: null
+      open_without_replay_retains_journal: true
+      replay_notes: Use regenerate or restore the canonical source; do not write generated bytes directly.
+    retention_posture:
+      retention_class: retained_until_user_decision
+      local_only_default: true
+      ordinary_cache_clear_excluded: true
+      settings_reset_excluded: true
+      local_history_clear_excluded: true
+      journal_reset_required_for_delete: true
+      export_before_reset: completed
+      expiry_policy_ref: retention-policy:autosave-default
+      pin_refs: []
+    support_export:
+      support_bundle_inclusion_state: exported_in_support_bundle
+      redaction_class: metadata_only
+      support_export_refs:
+        - support-ref:epsilon:generated-export
+      export_notes: Export includes generator lineage and journal metadata.
+    emitted_at: "2026-04-29T17:50:01Z"
+
+  - record_kind: autosave_journal_group_record
+    autosave_journal_schema_version: 1
+    journal_group_id: journal-group:epsilon:readonly-generated
+    journal_id: journal:workspace-epsilon:crash-0004
+    workspace_ref: workspace:epsilon
+    group_reason: generated_source_pair
+    member_entry_refs:
+      - journal-entry:epsilon:readonly
+      - journal-entry:epsilon:generated
+    group_integrity_state: blocked_by_incompatible_member
+    grouped_replay_posture: inspect_only_group
+    recommended_choice_class: inspect_only
+    base_group_token_ref: restore-graph:epsilon:readonly-generated
+    member_summaries:
+      - journal_entry_ref: journal-entry:epsilon:readonly
+        object_class: read_only_file
+        integrity_state: verified
+        recommended_choice_class: inspect_only
+        member_notes: Read-only member can be inspected or exported.
+      - journal_entry_ref: journal-entry:epsilon:generated
+        object_class: generated_artifact
+        integrity_state: verified
+        recommended_choice_class: inspect_only
+        member_notes: Generated member redirects to canonical source/regenerator review.
+    retention_posture:
+      retention_class: retained_until_user_decision
+      local_only_default: true
+      ordinary_cache_clear_excluded: true
+      settings_reset_excluded: true
+      local_history_clear_excluded: true
+      journal_reset_required_for_delete: true
+      export_before_reset: completed
+      expiry_policy_ref: retention-policy:autosave-default
+      pin_refs: []
+    support_export:
+      support_bundle_inclusion_state: exported_in_support_bundle
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:epsilon:readonly-generated
+      export_notes: Support export links the read-only export and generated lineage refs.
+    emitted_at: "2026-04-29T17:50:02Z"
+
+  - record_kind: journal_reset_record
+    autosave_journal_schema_version: 1
+    reset_record_id: journal-reset:epsilon:readonly-generated
+    workspace_ref: workspace:epsilon
+    reset_scope: selected_entries
+    initiated_from: recovery_screen
+    separated_from_settings_reset: true
+    separated_from_cache_clear: true
+    separated_from_local_history_clear: true
+    destructive_confirmation:
+      confirmation_required: true
+      confirmed: true
+      confirmation_phrase_class: names_autosave_journal
+      confirmed_by_actor_ref: actor:user:local
+    affected_journal_entry_refs:
+      - journal-entry:epsilon:readonly
+      - journal-entry:epsilon:generated
+    skipped_journal_entry_refs: []
+    export_before_reset: completed
+    support_export_refs:
+      - support-ref:epsilon:readonly-export
+      - support-ref:epsilon:generated-export
+    tombstone_retained: true
+    result_state: reset_completed
+    support_export:
+      support_bundle_inclusion_state: exported_in_support_bundle
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:epsilon:readonly-generated
+      export_notes: Reset tombstone cites exports and does not remove settings, caches, or local history.
+    reset_notes: The user reset selected autosave journal entries after export; local-history checkpoints and settings are unchanged.
+    emitted_at: "2026-04-29T17:55:00Z"
+
+guided_replay_choices:
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:epsilon:restore-blocked
+    source_record_kind: autosave_journal_group_record
+    source_journal_ref: journal-group:epsilon:readonly-generated
+    choice_class: restore
+    availability_class: blocked_by_incompatible_object_class
+    selected: false
+    user_initiated: false
+    block_or_downgrade_reasons:
+      - read_only_target
+      - generated_target_requires_source
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: passed
+      identity_gate: exact_match
+      object_class_gate: generated_requires_canonical_source
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:epsilon:schema-generated:0006
+      crash_sentinel_ref: null
+      policy_ref: policy:local-recovery-default
+      object_class_ref: journal-group:epsilon:readonly-generated
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_integrity_evidence
+        - preserve_settings
+        - preserve_profiles
+      discards_or_defers:
+        - defer_read_only_write
+        - defer_generated_direct_write
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Restore is blocked because no member has a safe direct-write target.
+    resulting_mode: no_action
+    support_export:
+      support_bundle_inclusion_state: exported_in_support_bundle
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:epsilon:readonly-generated
+    choice_summary: Read-only and generated targets cannot be replayed as direct writes.
+    emitted_at: "2026-04-29T17:50:06Z"
+
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:epsilon:inspect-export
+    source_record_kind: autosave_journal_group_record
+    source_journal_ref: journal-group:epsilon:readonly-generated
+    choice_class: inspect_only
+    availability_class: allowed
+    selected: true
+    user_initiated: true
+    block_or_downgrade_reasons:
+      - read_only_target
+      - generated_target_requires_source
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: passed
+      identity_gate: exact_match
+      object_class_gate: inspect_only_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:epsilon:schema-generated:0006
+      crash_sentinel_ref: null
+      policy_ref: policy:local-recovery-default
+      object_class_ref: journal-group:epsilon:readonly-generated
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_integrity_evidence
+        - preserve_settings
+        - preserve_profiles
+      discards_or_defers:
+        - defer_read_only_write
+        - defer_generated_direct_write
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Inspect/export exposes recovered work and generator lineage without writing direct bytes.
+    resulting_mode: inspect_without_apply
+    support_export:
+      support_bundle_inclusion_state: exported_in_support_bundle
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:epsilon:readonly-generated
+    choice_summary: Inspect-only is available for both incompatible targets.
+    emitted_at: "2026-04-29T17:50:06Z"
+
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:epsilon:discard-after-export
+    source_record_kind: autosave_journal_group_record
+    source_journal_ref: journal-group:epsilon:readonly-generated
+    choice_class: discard_journal
+    availability_class: allowed
+    selected: true
+    user_initiated: true
+    block_or_downgrade_reasons:
+      - support_export_required_before_destructive_action
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: export_required_before_delete
+      identity_gate: exact_match
+      object_class_gate: inspect_only_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:epsilon:schema-generated:0006
+      crash_sentinel_ref: null
+      policy_ref: retention-policy:autosave-default
+      object_class_ref: journal-group:epsilon:readonly-generated
+    consequence_summary:
+      preserves:
+        - preserve_local_history
+        - preserve_settings
+        - preserve_profiles
+        - preserve_support_refs
+      discards_or_defers:
+        - discard_selected_journal_entries
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: true
+      reset_record_ref: journal-reset:epsilon:readonly-generated
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Export completed first, then selected autosave journal entries were reset with a tombstone.
+    destructive_confirmation:
+      confirmation_required: true
+      confirmed: true
+      confirmation_phrase_class: names_autosave_journal
+      export_before_destructive_action: completed
+    resulting_mode: journal_discarded
+    support_export:
+      support_bundle_inclusion_state: exported_in_support_bundle
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:epsilon:readonly-generated
+    choice_summary: Discard is a completed journal reset, separate from cache, settings, and local-history clear.
+    emitted_at: "2026-04-29T17:55:01Z"
+
+expected_recovery_outcome:
+  direct_restore_blocked_count: 2
+  inspect_export_available: true
+  journal_reset_record_ref: journal-reset:epsilon:readonly-generated
+  settings_reset_performed: false
+  cache_clear_performed: false
+  local_history_clear_performed: false

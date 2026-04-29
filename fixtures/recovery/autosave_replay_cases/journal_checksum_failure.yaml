@@ -1,0 +1,203 @@
+# Autosave replay fixture: checksum failure downgrades restore.
+
+fixture:
+  name: journal_checksum_failure
+  scenario: >
+    A journal entry has a verified header and last-good frame, but the
+    next frame checksum does not match. Direct restore is blocked for the
+    affected bytes. Inspect-only opens the last-good recovery view and
+    support export preserves integrity evidence.
+  coverage:
+    - journal_checksum_failure
+    - inspect_last_good_frame
+    - evidence_export_after_integrity_failure
+
+schemas:
+  autosave_journal_entry: ../../../schemas/recovery/autosave_journal_entry.schema.json
+  guided_replay_choice: ../../../schemas/recovery/guided_replay_choice.schema.json
+
+journal_records:
+  - record_kind: autosave_journal_entry
+    autosave_journal_schema_version: 1
+    journal_entry_id: journal-entry:gamma:checksum-failure
+    journal_id: journal:workspace-gamma:crash-0002
+    workspace_ref: workspace:gamma
+    object_identity:
+      logical_document_id: logical-doc:gamma:parser
+      object_ref: object:file:gamma:parser
+      object_class: canonical_file
+      presentation_hint: parser.rs
+      filesystem_identity_ref: fs-identity:gamma:parser:v18
+      canonical_identity_ref: canonical-object:gamma:parser
+      branch_worktree_ref: worktree:gamma:main
+      identity_relation: exact_object_identity
+      identity_notes: Current identity is exact, but integrity blocks direct restore.
+    base_on_disk_token:
+      token_class: inode_mtime_size_hash
+      token_ref: save-token:gamma:parser:hash-18
+      observed_revision_ref: revision:gamma:parser:18
+      token_confidence: compatible_fallback
+      compare_before_write_required: true
+      external_change_state: no_external_change_known
+    text_format:
+      encoding_label: utf_8
+      bom_policy: none
+      newline_mode: lf
+      decoder_posture: exact_decode
+      final_newline_state: absent
+      large_file_mode: false
+      format_notes: Format metadata remains readable from the verified header.
+    actor_surface:
+      actor_class: user_command
+      source_class: human_local
+      surface_class: save_pipeline
+      command_ref: command:save-before-crash
+      session_ref: edit-session:gamma:0018
+      actor_display: Save command captured a dirty frame before the crash.
+    capture_descriptor:
+      capture_class: evidence_only_corrupt_frame
+      capture_mode: evidence_only
+      body_available: false
+      body_object_refs: []
+      dirty_range_summary_ref: range-summary:gamma:parser:last-good
+      group_member_refs: []
+      omission_reason: omitted_integrity_failed
+      capture_notes: Body restore is blocked; the last-good frame can be inspected.
+    integrity:
+      checksum_algorithm: blake3
+      checksum_ref: checksum:gamma:parser:expected-frame-0008
+      frame_integrity_state: checksum_mismatch
+      replay_integrity_posture: inspect_only
+      last_good_frame_ref: frame:gamma:parser:0007
+      failed_frame_ref: frame:gamma:parser:0008
+      corruption_evidence_refs:
+        - integrity-evidence:gamma:parser:checksum-mismatch
+      integrity_notes: Frame 8 failed checksum verification; replay stops at frame 7.
+    replay_posture:
+      object_class_replay_posture: inspect_only
+      recommended_choice_class: inspect_only
+      blocked_choice_classes:
+        - restore
+      downgrade_reason_classes:
+        - checksum_mismatch
+      new_local_history_checkpoint_on_restore: false
+      new_checkpoint_ref: null
+      open_without_replay_retains_journal: true
+      replay_notes: Direct restore is blocked, but last-good content and integrity evidence remain inspectable.
+    retention_posture:
+      retention_class: evidence_only_after_failed_replay
+      local_only_default: true
+      ordinary_cache_clear_excluded: true
+      settings_reset_excluded: true
+      local_history_clear_excluded: true
+      journal_reset_required_for_delete: true
+      export_before_reset: offered
+      expiry_policy_ref: retention-policy:autosave-integrity-failure
+      pin_refs:
+        - pin:integrity-review:gamma
+    support_export:
+      support_bundle_inclusion_state: review_required_before_export
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:integrity:gamma:checksum
+      export_notes: Export includes checksum state and frame refs, not raw body bytes by default.
+    emitted_at: "2026-04-29T17:30:00Z"
+
+guided_replay_choices:
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:gamma:restore-blocked
+    source_record_kind: autosave_journal_entry
+    source_journal_ref: journal-entry:gamma:checksum-failure
+    choice_class: restore
+    availability_class: blocked_by_integrity
+    selected: false
+    user_initiated: false
+    block_or_downgrade_reasons:
+      - checksum_mismatch
+    gate_summary:
+      integrity_gate: inspect_only
+      policy_gate: requires_review
+      identity_gate: exact_match
+      object_class_gate: writable_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:gamma:parser:0007
+      crash_sentinel_ref: null
+      policy_ref: retention-policy:autosave-integrity-failure
+      object_class_ref: object:file:gamma:parser
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_last_good_frame
+        - preserve_integrity_evidence
+        - preserve_settings
+      discards_or_defers:
+        - disable_automatic_replay
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Restore cannot apply because the failed frame may not be trustworthy.
+    resulting_mode: no_action
+    support_export:
+      support_bundle_inclusion_state: review_required_before_export
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:integrity:gamma:checksum
+    choice_summary: Direct restore is blocked by checksum mismatch.
+    emitted_at: "2026-04-29T17:30:04Z"
+
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:gamma:inspect-last-good
+    source_record_kind: autosave_journal_entry
+    source_journal_ref: journal-entry:gamma:checksum-failure
+    choice_class: inspect_only
+    availability_class: allowed
+    selected: true
+    user_initiated: true
+    block_or_downgrade_reasons:
+      - checksum_mismatch
+    gate_summary:
+      integrity_gate: inspect_only
+      policy_gate: requires_review
+      identity_gate: exact_match
+      object_class_gate: writable_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:gamma:parser:0007
+      crash_sentinel_ref: null
+      policy_ref: retention-policy:autosave-integrity-failure
+      object_class_ref: object:file:gamma:parser
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_last_good_frame
+        - preserve_integrity_evidence
+        - preserve_settings
+      discards_or_defers:
+        - disable_automatic_replay
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Inspect opens a last-good recovery view and keeps the failed frame as evidence.
+    resulting_mode: inspect_without_apply
+    support_export:
+      support_bundle_inclusion_state: review_required_before_export
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:integrity:gamma:checksum
+    choice_summary: Last-good content is visible, but no bytes are written.
+    emitted_at: "2026-04-29T17:30:04Z"
+
+expected_recovery_outcome:
+  direct_restore_blocked: true
+  last_good_frame_visible: true
+  failed_frame_retained_as_evidence: true
+  cache_clear_does_not_remove_journal: true

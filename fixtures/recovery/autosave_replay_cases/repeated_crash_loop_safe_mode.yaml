@@ -1,0 +1,234 @@
+# Autosave replay fixture: repeated replay crash loop enters safe mode.
+
+fixture:
+  name: repeated_crash_loop_safe_mode
+  scenario: >
+    The same restore graph crashes twice during replay and the shell
+    reaches the startup crash-loop threshold before a successful
+    interactive idle window. Automatic replay is stopped. The next
+    launch enters safe mode, and a suspect extension host is quarantined
+    instead of being silently reactivated.
+  coverage:
+    - repeated_crash_loop
+    - safe_mode_threshold
+    - suspect_extension_quarantine
+    - no_hidden_auto_replay_loop
+
+schemas:
+  autosave_journal_entry: ../../../schemas/recovery/autosave_journal_entry.schema.json
+  guided_replay_choice: ../../../schemas/recovery/guided_replay_choice.schema.json
+
+journal_records:
+  - record_kind: autosave_journal_group_record
+    autosave_journal_schema_version: 1
+    journal_group_id: journal-group:workspace-delta:restore-graph
+    journal_id: journal:workspace-delta:crash-loop
+    workspace_ref: workspace:delta
+    group_reason: recovered_session_window
+    member_entry_refs:
+      - journal-entry:delta:editor-buffer
+      - journal-entry:delta:extension-view-state
+    group_integrity_state: all_verified
+    grouped_replay_posture: escalate_safe_mode
+    recommended_choice_class: escalate_to_safe_mode
+    base_group_token_ref: restore-graph:delta:startup-restore
+    member_summaries:
+      - journal_entry_ref: journal-entry:delta:editor-buffer
+        object_class: canonical_file
+        integrity_state: verified
+        recommended_choice_class: open_without_replay
+        member_notes: Editor buffer is recoverable but automatic replay crashed twice.
+      - journal_entry_ref: journal-entry:delta:extension-view-state
+        object_class: structured_artifact
+        integrity_state: verified
+        recommended_choice_class: escalate_to_safe_mode
+        member_notes: Extension-contributed state is tied to the suspect extension host.
+    retention_posture:
+      retention_class: retained_by_support_or_evidence_ref
+      local_only_default: true
+      ordinary_cache_clear_excluded: true
+      settings_reset_excluded: true
+      local_history_clear_excluded: true
+      journal_reset_required_for_delete: true
+      export_before_reset: required_by_policy
+      expiry_policy_ref: retention-policy:crash-loop-evidence
+      pin_refs:
+        - pin:crash-loop:delta
+    support_export:
+      support_bundle_inclusion_state: review_required_before_export
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:crash-loop:delta:restore-graph
+      export_notes: Export includes restore graph refs, sentinel counters, and quarantine refs.
+    emitted_at: "2026-04-29T17:40:00Z"
+
+  - record_kind: crash_sentinel_record
+    autosave_journal_schema_version: 1
+    sentinel_id: crash-sentinel:delta:shell
+    workspace_ref: workspace:delta
+    build_identity_ref: build:aureline:local:delta
+    restore_graph_ref: restore-graph:delta:startup-restore
+    fault_domain_class: shell_interaction_core
+    trigger_class: repeated_startup_failure
+    attempt_counters:
+      current_launch_attempt_count: 3
+      automatic_restart_budget: 2
+      crash_count_in_window: 3
+      replay_failure_count_in_window: 2
+      extension_host_failure_count_in_window: 2
+      strike_window_class: startup_30_minute_window
+      last_successful_interactive_idle_ref: null
+    threshold_result: enter_safe_mode
+    automatic_loop_prevented: true
+    suspect_extension_refs:
+      - extension:publisher.format-tools
+    actions_blocked_from_auto_loop:
+      - automatic_restore_replay
+      - automatic_shell_restart
+      - extension_auto_reactivation
+    recommended_choice_class: escalate_to_safe_mode
+    preserved_evidence_refs:
+      - crash-envelope:delta:shell:0003
+      - restore-diagnostic:delta:replay-failed-twice
+      - journal:workspace-delta:crash-loop
+    sentinel_notes: Safe mode is required on next launch; automatic replay is disabled.
+    emitted_at: "2026-04-29T17:40:01Z"
+
+  - record_kind: crash_sentinel_record
+    autosave_journal_schema_version: 1
+    sentinel_id: crash-sentinel:delta:extension-host
+    workspace_ref: workspace:delta
+    build_identity_ref: build:aureline:local:delta
+    restore_graph_ref: restore-graph:delta:startup-restore
+    fault_domain_class: extension_and_tool_hosts
+    trigger_class: extension_host_crash_loop
+    attempt_counters:
+      current_launch_attempt_count: 3
+      automatic_restart_budget: 2
+      crash_count_in_window: 3
+      replay_failure_count_in_window: 2
+      extension_host_failure_count_in_window: 2
+      strike_window_class: short_10_minute_window
+      last_successful_interactive_idle_ref: null
+    threshold_result: quarantine_suspect_extension
+    automatic_loop_prevented: true
+    suspect_extension_refs:
+      - extension:publisher.format-tools
+    actions_blocked_from_auto_loop:
+      - extension_auto_reactivation
+      - background_rebuild
+    recommended_choice_class: escalate_to_safe_mode
+    preserved_evidence_refs:
+      - extension-host-forensics:delta:format-tools
+      - quarantine-record:delta:format-tools
+    sentinel_notes: The suspected extension host is quarantined before any normal restore retry.
+    emitted_at: "2026-04-29T17:40:02Z"
+
+guided_replay_choices:
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:delta:restore-blocked-loop
+    source_record_kind: autosave_journal_group_record
+    source_journal_ref: journal-group:workspace-delta:restore-graph
+    choice_class: restore
+    availability_class: blocked_by_repeated_failure
+    selected: false
+    user_initiated: false
+    block_or_downgrade_reasons:
+      - restore_replay_failed_twice
+      - repeated_crash_loop
+      - suspect_extension
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: requires_review
+      identity_gate: exact_match
+      object_class_gate: inspect_only_supported
+      repeated_failure_gate: enter_safe_mode
+      last_good_frame_ref: frame:delta:restore-graph:last-good
+      crash_sentinel_ref: crash-sentinel:delta:shell
+      policy_ref: retention-policy:crash-loop-evidence
+      object_class_ref: journal-group:workspace-delta:restore-graph
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_integrity_evidence
+        - preserve_crash_sentinel
+        - preserve_support_refs
+        - preserve_settings
+      discards_or_defers:
+        - disable_automatic_replay
+        - suspend_extension_activation
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Automatic restore is blocked because replay crashed twice and the shell reached the safe-mode threshold.
+    resulting_mode: no_action
+    support_export:
+      support_bundle_inclusion_state: review_required_before_export
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:crash-loop:delta:restore-graph
+    choice_summary: Restore is not offered until safe mode/quarantine review clears the repeated-failure gate.
+    emitted_at: "2026-04-29T17:40:05Z"
+
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:delta:safe-mode
+    source_record_kind: autosave_journal_group_record
+    source_journal_ref: journal-group:workspace-delta:restore-graph
+    choice_class: escalate_to_safe_mode
+    availability_class: allowed
+    selected: true
+    user_initiated: false
+    block_or_downgrade_reasons:
+      - repeated_crash_loop
+      - suspect_extension
+    gate_summary:
+      integrity_gate: passed
+      policy_gate: requires_review
+      identity_gate: exact_match
+      object_class_gate: inspect_only_supported
+      repeated_failure_gate: enter_safe_mode
+      last_good_frame_ref: frame:delta:restore-graph:last-good
+      crash_sentinel_ref: crash-sentinel:delta:shell
+      policy_ref: retention-policy:crash-loop-evidence
+      object_class_ref: journal-group:workspace-delta:restore-graph
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_last_good_frame
+        - preserve_integrity_evidence
+        - preserve_crash_sentinel
+        - preserve_settings
+        - preserve_profiles
+        - preserve_support_refs
+      discards_or_defers:
+        - disable_automatic_replay
+        - suspend_extension_activation
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Safe mode launches with automatic replay and suspect extension activation disabled.
+    resulting_mode: safe_mode_journal_retained
+    support_export:
+      support_bundle_inclusion_state: review_required_before_export
+      redaction_class: support_summary_only
+      support_export_refs:
+        - support-ref:crash-loop:delta:restore-graph
+    choice_summary: Safe mode preserves journals and evidence while stopping the replay loop.
+    emitted_at: "2026-04-29T17:40:05Z"
+
+expected_recovery_outcome:
+  automatic_replay_disabled: true
+  safe_mode_entered: true
+  suspect_extension_quarantined: true
+  journal_retained_for_inspection: true
+  support_escalation_ready: true

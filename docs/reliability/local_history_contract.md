@@ -13,6 +13,14 @@ The machine-readable schema lives at:
 
 - [`/schemas/recovery/local_history_entry.schema.json`](../../schemas/recovery/local_history_entry.schema.json)
 
+The dirty-buffer autosave journal and guided replay contract that sits
+beside, but remains distinct from, local history lives at:
+
+- [`/docs/reliability/autosave_journal_and_guided_replay_contract.md`](./autosave_journal_and_guided_replay_contract.md)
+- [`/schemas/recovery/autosave_journal_entry.schema.json`](../../schemas/recovery/autosave_journal_entry.schema.json)
+- [`/schemas/recovery/guided_replay_choice.schema.json`](../../schemas/recovery/guided_replay_choice.schema.json)
+- [`/fixtures/recovery/autosave_replay_cases/`](../../fixtures/recovery/autosave_replay_cases/)
+
 The user-facing snapshot-card, restore-preview, and retention/export
 projection contract lives at:
 

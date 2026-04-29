@@ -1,0 +1,1074 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/autosave_journal_entry.schema.json",
+  "title": "Aureline autosave journal entry, group, crash sentinel, and reset record",
+  "description": "Boundary schema for dirty-buffer autosave journal recovery. It defines journal entries, grouped replay records, crash sentinels, and explicit journal-reset records used by docs/reliability/autosave_journal_and_guided_replay_contract.md. Autosave journals are user-owned recovery state, not ordinary cache. Raw file bodies, raw absolute paths, credentials, provider payloads, and raw crash dumps never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/autosave_journal_entry" },
+    { "$ref": "#/$defs/autosave_journal_group_record" },
+    { "$ref": "#/$defs/crash_sentinel_record" },
+    { "$ref": "#/$defs/journal_reset_record" }
+  ],
+  "$defs": {
+    "autosave_journal_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for autosave journal recovery records."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "autosave_journal_entry",
+        "autosave_journal_group_record",
+        "crash_sentinel_record",
+        "journal_reset_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for recovery UI, logs, support bundles, and evidence packets. Raw paths, raw URLs, raw provider payloads, and credentials never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in recovery, support, CLI, and accessibility surfaces."
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque producer timestamp. May be monotonic or wall-clock as declared by the producer; consumers do not parse semantics from the string."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Production consumers ignore this object."
+    },
+    "object_class": {
+      "type": "string",
+      "enum": [
+        "canonical_file",
+        "virtual_buffer",
+        "untitled_buffer",
+        "generated_artifact",
+        "managed_mirror",
+        "read_only_file",
+        "notebook_cell",
+        "structured_artifact",
+        "unsupported_object"
+      ],
+      "description": "Closed object-class vocabulary for journal recovery. Generated, managed, read-only, and unsupported objects normally downgrade direct restore."
+    },
+    "identity_relation": {
+      "type": "string",
+      "enum": [
+        "exact_object_identity",
+        "alias_canonical_drift",
+        "same_path_different_object",
+        "current_object_missing",
+        "virtual_only",
+        "identity_unknown"
+      ]
+    },
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_document_id",
+        "object_ref",
+        "object_class",
+        "identity_relation"
+      ],
+      "properties": {
+        "logical_document_id": { "$ref": "#/$defs/opaque_id" },
+        "object_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_class": { "$ref": "#/$defs/object_class" },
+        "presentation_hint": {
+          "type": ["string", "null"],
+          "maxLength": 256,
+          "description": "Sanitized display hint such as a basename or logical title. It is not an absolute path."
+        },
+        "filesystem_identity_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to the filesystem identity record observed at capture time, when known."
+        },
+        "canonical_identity_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to the canonical object identity, when known."
+        },
+        "branch_worktree_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque branch/worktree context ref for compare-before-write and support explanation."
+        },
+        "identity_relation": { "$ref": "#/$defs/identity_relation" },
+        "identity_notes": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "token_class": {
+      "type": "string",
+      "enum": [
+        "file_id_generation",
+        "inode_mtime_size_hash",
+        "remote_etag_revision",
+        "content_hash_only",
+        "missing_or_not_applicable",
+        "unknown"
+      ],
+      "description": "Strongest base-on-disk token available when the journal frame was captured."
+    },
+    "token_confidence_class": {
+      "type": "string",
+      "enum": [
+        "strong",
+        "compatible_fallback",
+        "weak",
+        "unknown"
+      ]
+    },
+    "external_change_state": {
+      "type": "string",
+      "enum": [
+        "no_external_change_known",
+        "external_change_detected",
+        "external_change_unknown",
+        "target_missing",
+        "target_read_only"
+      ]
+    },
+    "base_on_disk_token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "token_class",
+        "token_ref",
+        "token_confidence",
+        "compare_before_write_required",
+        "external_change_state"
+      ],
+      "properties": {
+        "token_class": { "$ref": "#/$defs/token_class" },
+        "token_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque token ref or digest. Null only when the token class is missing_or_not_applicable or unknown."
+        },
+        "observed_revision_ref": {
+          "type": ["string", "null"],
+          "description": "Optional provider revision, generation, or save-target token ref."
+        },
+        "token_confidence": { "$ref": "#/$defs/token_confidence_class" },
+        "compare_before_write_required": {
+          "type": "boolean",
+          "description": "True when any restore write must compare the current object against this base token first."
+        },
+        "external_change_state": { "$ref": "#/$defs/external_change_state" }
+      }
+    },
+    "encoding_label_class": {
+      "type": "string",
+      "enum": [
+        "utf_8",
+        "utf_8_sig",
+        "utf_16_le",
+        "utf_16_be",
+        "latin_1",
+        "windows_1252",
+        "shift_jis",
+        "binary_or_not_text",
+        "unknown"
+      ]
+    },
+    "newline_mode": {
+      "type": "string",
+      "enum": [
+        "lf",
+        "crlf",
+        "cr",
+        "mixed",
+        "binary_or_not_text",
+        "unknown"
+      ]
+    },
+    "decoder_posture": {
+      "type": "string",
+      "enum": [
+        "exact_decode",
+        "lossy_decode_raw_preserved",
+        "binary_snapshot",
+        "metadata_only",
+        "unknown"
+      ]
+    },
+    "text_format": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "encoding_label",
+        "bom_policy",
+        "newline_mode",
+        "decoder_posture",
+        "final_newline_state",
+        "large_file_mode"
+      ],
+      "properties": {
+        "encoding_label": { "$ref": "#/$defs/encoding_label_class" },
+        "bom_policy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "preserve_existing_bom",
+            "strip_on_save",
+            "add_on_save",
+            "unknown"
+          ]
+        },
+        "newline_mode": { "$ref": "#/$defs/newline_mode" },
+        "decoder_posture": { "$ref": "#/$defs/decoder_posture" },
+        "final_newline_state": {
+          "type": "string",
+          "enum": [
+            "present",
+            "absent",
+            "mixed_or_unknown",
+            "not_applicable"
+          ]
+        },
+        "large_file_mode": { "type": "boolean" },
+        "format_notes": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "multi_cursor_command",
+        "formatter",
+        "save_participant",
+        "ai_or_tool_apply",
+        "extension_surface",
+        "remote_session",
+        "external_change_detector",
+        "crash_recovery_journal",
+        "automation_recipe_runner",
+        "unknown"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "human_local",
+        "human_remote_session",
+        "machine_local",
+        "machine_remote_agent",
+        "ai_local_model",
+        "ai_hosted_provider",
+        "extension_host",
+        "replayed_capture",
+        "external_observation",
+        "policy_driven",
+        "unknown"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_typing",
+        "save_pipeline",
+        "notebook_editor",
+        "structured_artifact_editor",
+        "generated_viewer",
+        "external_change_review",
+        "crash_restore_review",
+        "extension_surface",
+        "remote_session",
+        "automation_surface",
+        "unknown"
+      ]
+    },
+    "actor_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "source_class",
+        "surface_class"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "command_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque command id or null when no command initiated the capture."
+        },
+        "session_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque local/remote/edit session ref."
+        },
+        "actor_display": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "capture_class": {
+      "type": "string",
+      "enum": [
+        "dirty_text_delta",
+        "full_buffer_snapshot",
+        "cursor_view_state",
+        "save_coordination_metadata",
+        "grouped_manifest",
+        "metadata_only_stub",
+        "evidence_only_corrupt_frame"
+      ]
+    },
+    "capture_mode": {
+      "type": "string",
+      "enum": [
+        "content_addressed_snapshot",
+        "journal_delta_chain",
+        "metadata_plus_reference_only",
+        "group_manifest_only",
+        "evidence_only"
+      ]
+    },
+    "capture_omission_reason": {
+      "type": "string",
+      "enum": [
+        "not_omitted",
+        "omitted_too_large",
+        "omitted_binary_class",
+        "omitted_generated_artifact_use_lineage",
+        "omitted_read_only_or_managed_target",
+        "omitted_policy_redacted",
+        "omitted_integrity_failed",
+        "omitted_unsupported_object_class"
+      ]
+    },
+    "capture_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_class",
+        "capture_mode",
+        "body_available",
+        "omission_reason"
+      ],
+      "properties": {
+        "capture_class": { "$ref": "#/$defs/capture_class" },
+        "capture_mode": { "$ref": "#/$defs/capture_mode" },
+        "body_available": {
+          "type": "boolean",
+          "description": "True when replay/inspect can read recovered body content directly."
+        },
+        "body_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "dirty_range_summary_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque range summary ref for UI explanation."
+        },
+        "group_member_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "omission_reason": { "$ref": "#/$defs/capture_omission_reason" },
+        "capture_notes": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "capture_mode": { "const": "content_addressed_snapshot" }
+            }
+          },
+          "then": {
+            "properties": {
+              "body_available": { "const": true },
+              "omission_reason": { "const": "not_omitted" }
+            },
+            "required": ["body_object_refs"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "capture_mode": { "enum": ["metadata_plus_reference_only", "group_manifest_only", "evidence_only"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "body_available": { "const": false }
+            }
+          }
+        }
+      ]
+    },
+    "checksum_algorithm": {
+      "type": "string",
+      "enum": [
+        "blake3",
+        "sha256",
+        "none_metadata_only",
+        "unavailable"
+      ]
+    },
+    "frame_integrity_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "verified_partial",
+        "checksum_mismatch",
+        "truncated_frame",
+        "schema_incompatible",
+        "missing_frame",
+        "redacted_metadata_only",
+        "unverifiable"
+      ]
+    },
+    "replay_integrity_posture": {
+      "type": "string",
+      "enum": [
+        "replay_allowed",
+        "replay_allowed_until_last_good_frame",
+        "inspect_only",
+        "evidence_only",
+        "blocked"
+      ]
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checksum_algorithm",
+        "checksum_ref",
+        "frame_integrity_state",
+        "replay_integrity_posture"
+      ],
+      "properties": {
+        "checksum_algorithm": { "$ref": "#/$defs/checksum_algorithm" },
+        "checksum_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque checksum or checksum ref. Null only for metadata-only or unavailable checksums."
+        },
+        "frame_integrity_state": { "$ref": "#/$defs/frame_integrity_state" },
+        "replay_integrity_posture": { "$ref": "#/$defs/replay_integrity_posture" },
+        "last_good_frame_ref": {
+          "type": ["string", "null"],
+          "description": "Last verified frame available for partial replay or inspect-only recovery."
+        },
+        "failed_frame_ref": {
+          "type": ["string", "null"],
+          "description": "Failed frame ref when integrity did not verify."
+        },
+        "corruption_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "integrity_notes": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "frame_integrity_state": {
+                "enum": [
+                  "checksum_mismatch",
+                  "truncated_frame",
+                  "schema_incompatible",
+                  "missing_frame",
+                  "unverifiable"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "replay_integrity_posture": {
+                "enum": [
+                  "replay_allowed_until_last_good_frame",
+                  "inspect_only",
+                  "evidence_only",
+                  "blocked"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "restore_allowed",
+        "restore_requires_review",
+        "inspect_only",
+        "open_without_replay_default",
+        "blocked_generated_requires_source",
+        "blocked_read_only_target",
+        "blocked_managed_mirror",
+        "blocked_policy",
+        "escalate_safe_mode"
+      ]
+    },
+    "guided_choice_class": {
+      "type": "string",
+      "enum": [
+        "restore",
+        "inspect_only",
+        "discard_journal",
+        "open_without_replay",
+        "escalate_to_safe_mode"
+      ]
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_downgraded",
+        "checksum_mismatch",
+        "truncated_frame",
+        "schema_incompatible",
+        "policy_redacted_body",
+        "policy_blocks_body_restore",
+        "incompatible_object_class",
+        "generated_target_requires_source",
+        "read_only_target",
+        "managed_mirror",
+        "same_path_different_object",
+        "base_on_disk_token_mismatch",
+        "current_object_missing",
+        "repeated_crash_loop",
+        "suspect_extension",
+        "user_chose_open_without_replay"
+      ]
+    },
+    "replay_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_class_replay_posture",
+        "recommended_choice_class",
+        "blocked_choice_classes",
+        "downgrade_reason_classes",
+        "open_without_replay_retains_journal"
+      ],
+      "properties": {
+        "object_class_replay_posture": { "$ref": "#/$defs/replay_posture_class" },
+        "recommended_choice_class": { "$ref": "#/$defs/guided_choice_class" },
+        "blocked_choice_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/guided_choice_class" },
+          "uniqueItems": true
+        },
+        "downgrade_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_class" },
+          "uniqueItems": true
+        },
+        "new_local_history_checkpoint_on_restore": {
+          "type": "boolean",
+          "description": "True when applying restore writes a local-history checkpoint for the resulting state."
+        },
+        "new_checkpoint_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque checkpoint ref that will be written on restore, if known before apply."
+        },
+        "open_without_replay_retains_journal": {
+          "type": "boolean",
+          "description": "Open-without-replay must retain the journal unless a separate journal reset is confirmed."
+        },
+        "replay_notes": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "active_replay_window",
+        "retained_until_user_decision",
+        "retained_by_support_or_evidence_ref",
+        "retained_by_policy_window",
+        "retained_by_user_pin",
+        "evidence_only_after_failed_replay",
+        "reset_tombstone_only",
+        "expired_stub_only"
+      ]
+    },
+    "export_before_reset_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "offered",
+        "required_by_policy",
+        "completed",
+        "blocked_by_policy"
+      ]
+    },
+    "retention_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_class",
+        "local_only_default",
+        "ordinary_cache_clear_excluded",
+        "settings_reset_excluded",
+        "local_history_clear_excluded",
+        "journal_reset_required_for_delete",
+        "export_before_reset"
+      ],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "local_only_default": { "type": "boolean" },
+        "ordinary_cache_clear_excluded": { "type": "boolean", "const": true },
+        "settings_reset_excluded": { "type": "boolean", "const": true },
+        "local_history_clear_excluded": { "type": "boolean", "const": true },
+        "journal_reset_required_for_delete": { "type": "boolean" },
+        "export_before_reset": { "$ref": "#/$defs/export_before_reset_class" },
+        "expiry_policy_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque retention policy ref."
+        },
+        "pin_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "support_bundle_inclusion_state": {
+      "type": "string",
+      "enum": [
+        "excluded_by_default",
+        "metadata_ref_allowed",
+        "review_required_before_export",
+        "exported_in_support_bundle",
+        "prohibited"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk",
+        "support_summary_only"
+      ]
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_inclusion_state",
+        "redaction_class"
+      ],
+      "properties": {
+        "support_bundle_inclusion_state": { "$ref": "#/$defs/support_bundle_inclusion_state" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "export_notes": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "member_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journal_entry_ref",
+        "object_class",
+        "integrity_state",
+        "recommended_choice_class"
+      ],
+      "properties": {
+        "journal_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_class": { "$ref": "#/$defs/object_class" },
+        "integrity_state": { "$ref": "#/$defs/frame_integrity_state" },
+        "recommended_choice_class": { "$ref": "#/$defs/guided_choice_class" },
+        "member_notes": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "group_reason_class": {
+      "type": "string",
+      "enum": [
+        "multi_file_replay",
+        "split_buffer_shards",
+        "notebook_group",
+        "restore_batch",
+        "recovered_session_window",
+        "generated_source_pair",
+        "support_export_group"
+      ]
+    },
+    "group_integrity_state": {
+      "type": "string",
+      "enum": [
+        "all_verified",
+        "partial_verified",
+        "blocked_by_member_integrity",
+        "blocked_by_policy",
+        "blocked_by_incompatible_member"
+      ]
+    },
+    "grouped_replay_posture": {
+      "type": "string",
+      "enum": [
+        "restore_all_allowed",
+        "restore_selected_members",
+        "inspect_only_group",
+        "open_without_replay_default",
+        "escalate_safe_mode"
+      ]
+    },
+    "fault_domain_class": {
+      "type": "string",
+      "enum": [
+        "shell_interaction_core",
+        "extension_and_tool_hosts",
+        "workspace_knowledge_workers",
+        "session_scoped_execution_hosts",
+        "ai_or_external_tool_brokers",
+        "remote_connectors",
+        "policy_entitlement_helpers",
+        "unknown"
+      ]
+    },
+    "sentinel_trigger_class": {
+      "type": "string",
+      "enum": [
+        "abnormal_termination",
+        "repeated_startup_failure",
+        "restore_replay_failure",
+        "extension_host_crash_loop",
+        "journal_integrity_failure",
+        "user_requested_safe_mode"
+      ]
+    },
+    "strike_window_class": {
+      "type": "string",
+      "enum": [
+        "single_launch",
+        "short_10_minute_window",
+        "restore_15_minute_window",
+        "startup_30_minute_window",
+        "daily_24_hour_window"
+      ]
+    },
+    "threshold_result_class": {
+      "type": "string",
+      "enum": [
+        "no_escalation",
+        "offer_safe_mode",
+        "enter_safe_mode",
+        "quarantine_suspect_extension",
+        "open_without_replay_default",
+        "support_escalation_required"
+      ]
+    },
+    "attempt_counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_launch_attempt_count",
+        "automatic_restart_budget",
+        "crash_count_in_window",
+        "replay_failure_count_in_window",
+        "extension_host_failure_count_in_window",
+        "strike_window_class"
+      ],
+      "properties": {
+        "current_launch_attempt_count": { "type": "integer", "minimum": 0 },
+        "automatic_restart_budget": { "type": "integer", "minimum": 0 },
+        "crash_count_in_window": { "type": "integer", "minimum": 0 },
+        "replay_failure_count_in_window": { "type": "integer", "minimum": 0 },
+        "extension_host_failure_count_in_window": { "type": "integer", "minimum": 0 },
+        "strike_window_class": { "$ref": "#/$defs/strike_window_class" },
+        "last_successful_interactive_idle_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to the successful idle window that reset counters, or null if none."
+        }
+      }
+    },
+    "destructive_confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirmation_required",
+        "confirmed",
+        "confirmation_phrase_class"
+      ],
+      "properties": {
+        "confirmation_required": { "type": "boolean", "const": true },
+        "confirmed": { "type": "boolean" },
+        "confirmation_phrase_class": {
+          "type": "string",
+          "enum": [
+            "names_recovery_journal",
+            "names_autosave_journal"
+          ],
+          "description": "Generic cache/settings wording is not valid confirmation for journal reset."
+        },
+        "confirmed_by_actor_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque actor ref that confirmed the destructive action."
+        }
+      }
+    },
+    "autosave_journal_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "autosave_journal_schema_version",
+        "journal_entry_id",
+        "journal_id",
+        "workspace_ref",
+        "object_identity",
+        "base_on_disk_token",
+        "text_format",
+        "actor_surface",
+        "capture_descriptor",
+        "integrity",
+        "replay_posture",
+        "retention_posture",
+        "support_export",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "autosave_journal_entry" },
+        "autosave_journal_schema_version": { "$ref": "#/$defs/autosave_journal_schema_version" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "journal_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "journal_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_identity": { "$ref": "#/$defs/object_identity" },
+        "base_on_disk_token": { "$ref": "#/$defs/base_on_disk_token" },
+        "text_format": { "$ref": "#/$defs/text_format" },
+        "actor_surface": { "$ref": "#/$defs/actor_surface" },
+        "capture_descriptor": { "$ref": "#/$defs/capture_descriptor" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "replay_posture": { "$ref": "#/$defs/replay_posture" },
+        "retention_posture": { "$ref": "#/$defs/retention_posture" },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "autosave_journal_group_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "autosave_journal_schema_version",
+        "journal_group_id",
+        "journal_id",
+        "workspace_ref",
+        "group_reason",
+        "member_entry_refs",
+        "group_integrity_state",
+        "grouped_replay_posture",
+        "recommended_choice_class",
+        "member_summaries",
+        "retention_posture",
+        "support_export",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "autosave_journal_group_record" },
+        "autosave_journal_schema_version": { "$ref": "#/$defs/autosave_journal_schema_version" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "journal_group_id": { "$ref": "#/$defs/opaque_id" },
+        "journal_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "group_reason": { "$ref": "#/$defs/group_reason_class" },
+        "member_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "group_integrity_state": { "$ref": "#/$defs/group_integrity_state" },
+        "grouped_replay_posture": { "$ref": "#/$defs/grouped_replay_posture" },
+        "recommended_choice_class": { "$ref": "#/$defs/guided_choice_class" },
+        "base_group_token_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to a grouped base token or restore graph."
+        },
+        "member_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/member_summary" },
+          "minItems": 1
+        },
+        "retention_posture": { "$ref": "#/$defs/retention_posture" },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "crash_sentinel_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "autosave_journal_schema_version",
+        "sentinel_id",
+        "workspace_ref",
+        "build_identity_ref",
+        "fault_domain_class",
+        "trigger_class",
+        "attempt_counters",
+        "threshold_result",
+        "automatic_loop_prevented",
+        "recommended_choice_class",
+        "preserved_evidence_refs",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "crash_sentinel_record" },
+        "autosave_journal_schema_version": { "$ref": "#/$defs/autosave_journal_schema_version" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "sentinel_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_graph_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque restore graph ref when the sentinel is tied to replay."
+        },
+        "fault_domain_class": { "$ref": "#/$defs/fault_domain_class" },
+        "trigger_class": { "$ref": "#/$defs/sentinel_trigger_class" },
+        "attempt_counters": { "$ref": "#/$defs/attempt_counters" },
+        "threshold_result": { "$ref": "#/$defs/threshold_result_class" },
+        "automatic_loop_prevented": {
+          "type": "boolean",
+          "description": "True when this sentinel blocked another hidden automatic restore or restart attempt."
+        },
+        "suspect_extension_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "actions_blocked_from_auto_loop": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "automatic_restore_replay",
+              "automatic_shell_restart",
+              "extension_auto_reactivation",
+              "remote_auto_reattach",
+              "background_rebuild"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "recommended_choice_class": { "$ref": "#/$defs/guided_choice_class" },
+        "preserved_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "sentinel_notes": { "$ref": "#/$defs/short_text" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "journal_reset_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "autosave_journal_schema_version",
+        "reset_record_id",
+        "workspace_ref",
+        "reset_scope",
+        "initiated_from",
+        "separated_from_settings_reset",
+        "separated_from_cache_clear",
+        "separated_from_local_history_clear",
+        "destructive_confirmation",
+        "affected_journal_entry_refs",
+        "export_before_reset",
+        "tombstone_retained",
+        "result_state",
+        "support_export",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "journal_reset_record" },
+        "autosave_journal_schema_version": { "$ref": "#/$defs/autosave_journal_schema_version" },
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "reset_record_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "reset_scope": {
+          "type": "string",
+          "enum": [
+            "current_journal",
+            "selected_entries",
+            "workspace_journals",
+            "profile_journals",
+            "device_journals"
+          ]
+        },
+        "initiated_from": {
+          "type": "string",
+          "enum": [
+            "recovery_screen",
+            "support_center",
+            "cli",
+            "safe_mode",
+            "settings_storage_inspector"
+          ]
+        },
+        "separated_from_settings_reset": { "type": "boolean", "const": true },
+        "separated_from_cache_clear": { "type": "boolean", "const": true },
+        "separated_from_local_history_clear": { "type": "boolean", "const": true },
+        "destructive_confirmation": { "$ref": "#/$defs/destructive_confirmation" },
+        "affected_journal_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "skipped_journal_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "export_before_reset": { "$ref": "#/$defs/export_before_reset_class" },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "tombstone_retained": {
+          "type": "boolean",
+          "description": "True when a reset tombstone remains for support and audit explanation."
+        },
+        "result_state": {
+          "type": "string",
+          "enum": [
+            "pending_confirmation",
+            "reset_completed",
+            "reset_partially_completed",
+            "reset_blocked_by_policy",
+            "reset_cancelled"
+          ]
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "reset_notes": { "$ref": "#/$defs/short_text" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}

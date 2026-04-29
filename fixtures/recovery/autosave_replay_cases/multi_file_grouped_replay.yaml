@@ -1,0 +1,170 @@
+# Autosave replay fixture: multi-file grouped replay with selected-member restore.
+
+fixture:
+  name: multi_file_grouped_replay
+  scenario: >
+    A crash captured three dirty editor buffers in one restore graph. Two
+    members are verified and writable; one member has the same display
+    path but a different canonical object after external replacement.
+    The group advertises selected-member restore instead of pretending
+    the whole group is safe to apply.
+  coverage:
+    - multi_file_grouped_replay
+    - selected_member_restore
+    - identity_drift_group_member
+
+schemas:
+  autosave_journal_entry: ../../../schemas/recovery/autosave_journal_entry.schema.json
+  guided_replay_choice: ../../../schemas/recovery/guided_replay_choice.schema.json
+
+journal_records:
+  - record_kind: autosave_journal_group_record
+    autosave_journal_schema_version: 1
+    journal_group_id: journal-group:workspace-beta:restore-0003
+    journal_id: journal:workspace-beta:crash-0003
+    workspace_ref: workspace:beta
+    group_reason: multi_file_replay
+    member_entry_refs:
+      - journal-entry:beta:api-client
+      - journal-entry:beta:api-types
+      - journal-entry:beta:generated-schema
+    group_integrity_state: partial_verified
+    grouped_replay_posture: restore_selected_members
+    recommended_choice_class: restore
+    base_group_token_ref: restore-graph:beta:0003
+    member_summaries:
+      - journal_entry_ref: journal-entry:beta:api-client
+        object_class: canonical_file
+        integrity_state: verified
+        recommended_choice_class: restore
+        member_notes: Verified and still matches the base token.
+      - journal_entry_ref: journal-entry:beta:api-types
+        object_class: canonical_file
+        integrity_state: verified
+        recommended_choice_class: inspect_only
+        member_notes: Same display path now resolves to a different canonical object and needs manual target review.
+      - journal_entry_ref: journal-entry:beta:generated-schema
+        object_class: generated_artifact
+        integrity_state: verified
+        recommended_choice_class: inspect_only
+        member_notes: Generated output is inspect/export only until the canonical source is reviewed.
+    retention_posture:
+      retention_class: retained_until_user_decision
+      local_only_default: true
+      ordinary_cache_clear_excluded: true
+      settings_reset_excluded: true
+      local_history_clear_excluded: true
+      journal_reset_required_for_delete: true
+      export_before_reset: offered
+      expiry_policy_ref: retention-policy:autosave-default
+      pin_refs:
+        - pin:grouped-replay-review
+    support_export:
+      support_bundle_inclusion_state: metadata_ref_allowed
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:journal-group:beta:0003
+      export_notes: The group export names each member posture without embedding bodies by default.
+    emitted_at: "2026-04-29T17:20:00Z"
+
+guided_replay_choices:
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:beta:group-restore-selected
+    source_record_kind: autosave_journal_group_record
+    source_journal_ref: journal-group:workspace-beta:restore-0003
+    choice_class: restore
+    availability_class: downgraded
+    selected: true
+    user_initiated: true
+    block_or_downgrade_reasons:
+      - same_path_different_object
+      - generated_target_requires_source
+    gate_summary:
+      integrity_gate: passed_until_last_good_frame
+      policy_gate: requires_review
+      identity_gate: review_required
+      object_class_gate: inspect_only_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:beta:group:0012
+      crash_sentinel_ref: null
+      policy_ref: policy:local-recovery-default
+      object_class_ref: journal-group:workspace-beta:restore-0003
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_integrity_evidence
+        - preserve_local_history
+        - preserve_settings
+        - preserve_profiles
+      discards_or_defers:
+        - defer_generated_direct_write
+        - rerun_nothing
+      writes_checkpoint: true
+      new_checkpoint_ref: local-history:restore-group:beta:0003
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: Only verified writable members are restored; drifted and generated members remain inspect-only.
+    resulting_mode: selected_member_restore
+    support_export:
+      support_bundle_inclusion_state: metadata_ref_allowed
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:journal-group:beta:0003
+    choice_summary: Group restore is downgraded to selected members because one target drifted and one target is generated.
+    emitted_at: "2026-04-29T17:20:08Z"
+
+  - record_kind: guided_replay_choice_record
+    guided_replay_choice_schema_version: 1
+    choice_record_id: replay-choice:beta:open-without-replay
+    source_record_kind: autosave_journal_group_record
+    source_journal_ref: journal-group:workspace-beta:restore-0003
+    choice_class: open_without_replay
+    availability_class: allowed
+    selected: false
+    user_initiated: false
+    block_or_downgrade_reasons:
+      - not_blocked
+    gate_summary:
+      integrity_gate: passed_until_last_good_frame
+      policy_gate: requires_review
+      identity_gate: review_required
+      object_class_gate: inspect_only_supported
+      repeated_failure_gate: no_escalation
+      last_good_frame_ref: frame:beta:group:0012
+      crash_sentinel_ref: null
+      policy_ref: policy:local-recovery-default
+      object_class_ref: journal-group:workspace-beta:restore-0003
+    consequence_summary:
+      preserves:
+        - preserve_journal
+        - preserve_integrity_evidence
+        - preserve_local_history
+        - preserve_settings
+      discards_or_defers:
+        - defer_restore_this_launch
+        - disable_automatic_replay
+        - rerun_nothing
+      writes_checkpoint: false
+      new_checkpoint_ref: null
+      mutates_journal: false
+      reset_record_ref: null
+      evidence_retained_after_action: true
+      support_export_available: true
+      consequence_note: The workspace opens cleanly while the grouped journal stays available for later review.
+    resulting_mode: open_clean_journal_retained
+    support_export:
+      support_bundle_inclusion_state: metadata_ref_allowed
+      redaction_class: code_adjacent
+      support_export_refs:
+        - support-ref:journal-group:beta:0003
+    choice_summary: Open without replay skips automatic group apply for this launch only.
+    emitted_at: "2026-04-29T17:20:08Z"
+
+expected_recovery_outcome:
+  selected_member_restore_count: 1
+  inspect_only_member_count: 2
+  grouped_journal_retained: true
+  no_hidden_restore_all_claim: true
