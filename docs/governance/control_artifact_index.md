@@ -551,6 +551,16 @@ and scopes.
   import freshness, signer continuity, local continuity, and
   post-incident reconciliation therefore travel as one governed object
   instead of surface-local warning fields.
+- Threat claims and audit exports now share one vocabulary at
+  [`docs/security/threat_model_and_audit_stream_contract.md`](../security/threat_model_and_audit_stream_contract.md),
+  [`artifacts/security/threat_classes.yaml`](../../artifacts/security/threat_classes.yaml),
+  [`schemas/security/audit_stream_record.schema.json`](../../schemas/security/audit_stream_record.schema.json),
+  and
+  [`schemas/security/evidence_window.schema.json`](../../schemas/security/evidence_window.schema.json).
+  Advisories, incidents, approval tickets, support exports, admin
+  exports, collaboration-control grants, remote join/leave rows, and
+  managed-tenant/key reviews cite the same threat ids, audit-stream
+  fields, evidence-window states, and omission-disposition rules.
 - Release posture is no longer hidden inside packet prose. The
   governing ADR and machine-readable maps now live in
   [`docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`](../adr/0017-release-posture-artifact-families-and-promotion-gates.md),

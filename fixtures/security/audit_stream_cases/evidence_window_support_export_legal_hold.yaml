@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=../../../schemas/security/evidence_window.schema.json
+evidence_window_schema_version: 1
+record_kind: evidence_window_record
+evidence_window_id: evidence_window.support_export.legal_hold.2026_04_08
+window_subject:
+  subject_kind: support_bundle
+  subject_ref: support_bundle.ref.security_audit_export_001
+  subject_note: Support export references audit events under a legal hold.
+window_bounds:
+  event_start_at: "2026-04-08T08:00:00Z"
+  event_end_at: "2026-04-08T08:30:00Z"
+  captured_at: "2026-04-08T08:31:00Z"
+  current_until: "2026-04-08T09:00:00Z"
+  reviewable_until: "2026-05-08T08:31:00Z"
+  exportable_until: "2026-04-15T08:31:00Z"
+  expires_at: "2026-05-08T08:31:00Z"
+  clock_source: trusted_service_clock
+  freshness_source_ref: freshness_source.support_bundle.audit_stream_001
+state_rows:
+  - state: current
+    active: false
+    starts_at: "2026-04-08T08:31:00Z"
+    ends_at: "2026-04-08T09:00:00Z"
+    export_effect: may_embed
+    reason: Current live-review window elapsed after capture validation.
+  - state: reviewable
+    active: true
+    starts_at: "2026-04-08T08:31:00Z"
+    ends_at: "2026-05-08T08:31:00Z"
+    export_effect: may_export_metadata
+    reason: Security and support reviewers may inspect metadata and refs.
+  - state: exportable
+    active: true
+    starts_at: "2026-04-08T08:31:00Z"
+    ends_at: "2026-04-15T08:31:00Z"
+    export_effect: reference_only
+    reason: Export is metadata-only under the support redaction profile.
+  - state: expired
+    active: false
+    starts_at: "2026-05-08T08:31:00Z"
+    ends_at: null
+    export_effect: expired_omission
+    reason: Ordinary expiry has not yet occurred but is declared for export planning.
+  - state: redacted
+    active: true
+    starts_at: "2026-04-08T08:31:00Z"
+    ends_at: null
+    export_effect: redacted_summary
+    reason: Raw audit payloads and actor display names are withheld.
+  - state: legally_retained
+    active: true
+    starts_at: "2026-04-08T08:45:00Z"
+    ends_at: null
+    export_effect: legal_hold_metadata_only
+    reason: Legal hold preserves refs and metadata beyond ordinary export posture.
+retention:
+  retention_basis: legal_hold
+  policy_refs:
+    - policy.retention.security_audit_legal_hold
+  legal_hold_refs:
+    - legal_hold.security_audit_export_001
+  retention_note: Legal hold keeps metadata and refs reviewable while raw bodies remain withheld.
+redaction:
+  redaction_class: support_export_only
+  redaction_profile_ref: redaction_profile.support_export.security_default
+  redacted_field_paths:
+    - actor.display_name
+    - evidence.raw_payload
+    - target_context.raw_hostname
+  redaction_note: Support export carries opaque refs and summaries only.
+export_rules:
+  allowed_destinations:
+    - support_bundle
+    - admin_export
+    - postmortem_packet
+    - local_preview
+  blocked_destinations:
+    - advisory_packet
+    - release_packet
+  export_manifest_ref: export_manifest.support_export.legal_hold.001
+  export_note: Advisory and release exports are blocked until redacted summaries are reviewed.
+absence_rules:
+  default_missing_field_meaning: unknown_until_field_disposition_present
+  required_disposition_policy: field_disposition_required_for_each_omission
+  allowed_dispositions:
+    - recorded_and_present
+    - not_recorded_by_design
+    - omitted_by_redaction
+    - omitted_by_expiry
+    - omitted_by_policy
+    - omitted_by_legal_hold
+    - unavailable_source
+    - outside_platform_scope
+  forbidden_export_claims:
+    - Missing actor display names do not mean the actor was anonymous.
+    - Missing raw payloads do not mean no payload was recorded.
+    - Expired evidence refs do not mean the event never happened.
+linked_audit_event_refs:
+  - audit.ai_tool.call_denied.2026_04_04_001
+  - audit.remote_session.leave_observed.2026_04_07_002
+policy_context:
+  policy_epoch: policy_epoch.security.2026_04
+  policy_bundle_ref: policy.retention.security_audit_legal_hold
+  source_ref: policy_decision.support_export.legal_hold_001

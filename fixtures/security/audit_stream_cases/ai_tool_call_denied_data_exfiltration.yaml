@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=../../../schemas/security/audit_stream_record.schema.json
+audit_stream_schema_version: 1
+record_kind: audit_stream_record
+audit_event_id: audit.ai_tool.call_denied.2026_04_04_001
+event_name: ai_tool_call_denied
+stream_family: ai_tool_action
+emitted_at: "2026-04-04T18:42:00Z"
+actor:
+  actor_class: ai_agent
+  actor_ref: actor.ai_agent.session_ref
+  acting_for_ref: actor.local_user.opaque_002
+  actor_display_redacted: true
+  actor_note: AI agent requested a provider-backed tool call for workspace context.
+route:
+  route_class: managed_service
+  origin_class: desktop_client
+  route_ref: route.ai_tool.provider_gateway
+  browser_handoff_packet_ref: null
+  route_note: Tool call would have crossed from desktop client to managed AI gateway.
+object:
+  object_kind: ai_tool_call
+  object_ref: ai_tool_call.ref.explain_sensitive_logs
+  object_version_ref: ai_tool_call.version.001
+  workspace_ref: workspace.ref.alpha_repo
+  tenant_ref: tenant.ref.enterprise_alpha
+  object_note: Tool call included a sensitive log slice and was denied before dispatch.
+target_context:
+  target_kind: ai_provider
+  target_context_ref: target.ai_provider.managed_gateway
+  deployment_profile: enterprise_online
+  tenant_scope_ref: tenant.ref.enterprise_alpha
+  region_ref: region.ref.primary
+  trust_boundary_ref: trust_boundary.ai_gateway
+  target_note: Provider route required redaction and export admission before use.
+decision:
+  decision_type: deny
+  decision_outcome: blocked
+  reason_code: ai_context_export_policy_denied
+  decided_at: "2026-04-04T18:41:57Z"
+  consequence_note: Tool call was blocked and no provider request was sent.
+policy_source:
+  source_layer: signed_local_admin_bundle
+  policy_ref: policy.ai_context.no_raw_logs
+  policy_epoch: policy_epoch.security.2026_04
+  policy_decision_ref: policy_decision.ai_tool.denied_sensitive_logs
+  source_freshness: current
+  explain_ref: policy_explain.ai_tool.denied_sensitive_logs
+approval_ticket:
+  approval_ticket_state: missing
+  approval_ticket_ref: null
+  issued_at: null
+  expires_at: null
+  approval_note: A boundary-widening approval ticket would be required to export this class.
+threat_refs:
+  - data_exfiltration
+  - credential_theft
+  - provider_spoofing
+  - trust_boundary_confusion
+evidence_refs:
+  - evidence_ref_id: ai_evidence_packet.tool_call.denied_sensitive_logs
+    evidence_kind: ai_evidence_packet
+    evidence_window_ref: evidence_window.ai_tool_denied.2026_04_04
+    embedding_state: redacted_summary
+    collection_state: redacted
+    note: AI evidence packet carries prompt/tool metadata with sensitive spans redacted.
+  - evidence_ref_id: policy_decision.ai_tool.denied_sensitive_logs
+    evidence_kind: policy_decision
+    evidence_window_ref: evidence_window.ai_tool_denied.2026_04_04
+    embedding_state: embedded
+    collection_state: recorded
+    note: Policy decision records the blocked export class.
+evidence_window_ref: evidence_window.ai_tool_denied.2026_04_04
+redaction:
+  redaction_class: evidence_packet_only
+  redaction_profile_ref: redaction_profile.ai_context.evidence_default
+  redacted_field_paths:
+    - object.prompt_context
+    - evidence_refs.log_excerpt
+  redaction_note: Prompt context and log excerpt are redacted before evidence retention.
+export:
+  export_posture: reference_only
+  destination_class: support_bundle
+  export_manifest_ref: export_manifest.ai_tool_denied.001
+  export_note: Support export includes refs and redaction report, not prompt or log bodies.
+field_dispositions:
+  - field_path: object.prompt_context
+    disposition: omitted_by_redaction
+    evidence_window_ref: evidence_window.ai_tool_denied.2026_04_04
+    note: Prompt context exists but is withheld under the AI evidence redaction profile.
+  - field_path: evidence_refs.log_excerpt
+    disposition: omitted_by_redaction
+    evidence_window_ref: evidence_window.ai_tool_denied.2026_04_04
+    note: Sensitive log text is represented by a redacted evidence ref.
+  - field_path: route.provider_request_id
+    disposition: not_recorded_by_design
+    evidence_window_ref: evidence_window.ai_tool_denied.2026_04_04
+    note: No provider request id exists because the request was denied before dispatch.
+absence_summary:
+  missing_field_default: unknown_until_field_disposition_present
+  requires_disposition_for_export: true
+  disposition_count: 3
+linked_records:
+  - record_kind: ai_evidence_packet
+    record_ref: ai_evidence_packet.tool_call.denied_sensitive_logs

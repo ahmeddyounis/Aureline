@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/evidence_window.schema.json",
+  "title": "Aureline security evidence-window record",
+  "description": "Boundary schema for evidence_window_record entries used by audit streams, advisories, incidents, support exports, postmortems, and admin exports. A window names the event or signal scope, capture bounds, current/reviewable/exportable/expired/redacted/legally-retained states, retention basis, redaction profile, export rules, and omission semantics. It exists so consumers cite explicit windows instead of vague phrases such as recent logs, current evidence, or retained captures, and so redaction, expiry, and legal hold remain distinguishable in exported data.",
+  "$ref": "#/$defs/evidence_window_record",
+  "$defs": {
+    "evidence_window_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "evidence_window_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "window_subject_kind": {
+      "type": "string",
+      "enum": [
+        "audit_stream",
+        "log_slice",
+        "metric_slice",
+        "trace_slice",
+        "incident_timeline",
+        "support_bundle",
+        "advisory",
+        "emergency_action",
+        "collaboration_session",
+        "remote_session",
+        "policy_bundle",
+        "extension_lifecycle",
+        "ai_evidence_packet"
+      ]
+    },
+    "window_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "reviewable",
+        "exportable",
+        "expired",
+        "redacted",
+        "legally_retained"
+      ]
+    },
+    "state_export_effect": {
+      "type": "string",
+      "enum": [
+        "may_embed",
+        "may_export_metadata",
+        "reference_only",
+        "blocked",
+        "redacted_summary",
+        "expired_omission",
+        "legal_hold_metadata_only"
+      ]
+    },
+    "clock_source_class": {
+      "type": "string",
+      "enum": [
+        "monotonic_host_clock",
+        "trusted_service_clock",
+        "imported_snapshot_clock",
+        "offline_declared_clock"
+      ]
+    },
+    "retention_basis_class": {
+      "type": "string",
+      "enum": [
+        "default_policy",
+        "case_close_timer",
+        "session_end_timer",
+        "advisory_publication",
+        "legal_hold",
+        "admin_policy",
+        "incident_postmortem"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "log_safe",
+        "support_export_only",
+        "evidence_packet_only",
+        "release_public",
+        "private_triage_only"
+      ]
+    },
+    "export_destination_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle",
+        "admin_export",
+        "advisory_packet",
+        "postmortem_packet",
+        "release_packet",
+        "local_preview"
+      ]
+    },
+    "field_disposition_class": {
+      "type": "string",
+      "enum": [
+        "recorded_and_present",
+        "not_recorded_by_design",
+        "omitted_by_redaction",
+        "omitted_by_expiry",
+        "omitted_by_policy",
+        "omitted_by_legal_hold",
+        "unavailable_source",
+        "outside_platform_scope"
+      ]
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "window_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_ref", "subject_note"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/window_subject_kind" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "subject_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "window_bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_start_at",
+        "event_end_at",
+        "captured_at",
+        "current_until",
+        "reviewable_until",
+        "exportable_until",
+        "expires_at",
+        "clock_source",
+        "freshness_source_ref"
+      ],
+      "properties": {
+        "event_start_at": { "$ref": "#/$defs/timestamp" },
+        "event_end_at": { "$ref": "#/$defs/timestamp" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "current_until": { "$ref": "#/$defs/nullable_timestamp" },
+        "reviewable_until": { "$ref": "#/$defs/nullable_timestamp" },
+        "exportable_until": { "$ref": "#/$defs/nullable_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "clock_source": { "$ref": "#/$defs/clock_source_class" },
+        "freshness_source_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "active",
+        "starts_at",
+        "ends_at",
+        "export_effect",
+        "reason"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/window_state_class" },
+        "active": { "type": "boolean" },
+        "starts_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "ends_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "export_effect": { "$ref": "#/$defs/state_export_effect" },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_basis",
+        "policy_refs",
+        "legal_hold_refs",
+        "retention_note"
+      ],
+      "properties": {
+        "retention_basis": { "$ref": "#/$defs/retention_basis_class" },
+        "policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "legal_hold_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "retention_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "redaction_profile_ref",
+        "redacted_field_paths",
+        "redaction_note"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "redaction_profile_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redacted_field_paths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "redaction_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_destinations",
+        "blocked_destinations",
+        "export_manifest_ref",
+        "export_note"
+      ],
+      "properties": {
+        "allowed_destinations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_destination_class" }
+        },
+        "blocked_destinations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_destination_class" }
+        },
+        "export_manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "absence_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_missing_field_meaning",
+        "required_disposition_policy",
+        "allowed_dispositions",
+        "forbidden_export_claims"
+      ],
+      "properties": {
+        "default_missing_field_meaning": {
+          "type": "string",
+          "enum": [
+            "unknown_until_field_disposition_present",
+            "never_recorded_only_when_declared",
+            "withheld_or_expired_until_proven_present"
+          ]
+        },
+        "required_disposition_policy": {
+          "type": "string",
+          "const": "field_disposition_required_for_each_omission"
+        },
+        "allowed_dispositions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/field_disposition_class" }
+        },
+        "forbidden_export_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "policy_bundle_ref",
+        "source_ref"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "policy_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "source_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "evidence_window_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_window_schema_version",
+        "record_kind",
+        "evidence_window_id",
+        "window_subject",
+        "window_bounds",
+        "state_rows",
+        "retention",
+        "redaction",
+        "export_rules",
+        "absence_rules",
+        "linked_audit_event_refs",
+        "policy_context"
+      ],
+      "properties": {
+        "evidence_window_schema_version": { "$ref": "#/$defs/evidence_window_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "evidence_window_id": { "$ref": "#/$defs/opaque_id" },
+        "window_subject": { "$ref": "#/$defs/window_subject" },
+        "window_bounds": { "$ref": "#/$defs/window_bounds" },
+        "state_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_row" }
+        },
+        "retention": { "$ref": "#/$defs/retention" },
+        "redaction": { "$ref": "#/$defs/redaction" },
+        "export_rules": { "$ref": "#/$defs/export_rules" },
+        "absence_rules": { "$ref": "#/$defs/absence_rules" },
+        "linked_audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      }
+    }
+  }
+}

@@ -1,0 +1,682 @@
+# Security threat-class and minimum audit-stream catalog.
+#
+# Machine-readable companion to
+# docs/security/threat_model_and_audit_stream_contract.md. This catalog
+# gives advisories, incidents, approval tickets, support exports, and
+# postmortems one threat vocabulary and one minimum audit-stream map.
+# It does not implement detection, SIEM ingestion, or publication
+# tooling.
+
+schema_version: 1
+catalog_id: aureline.security.threat_classes
+status: seeded
+
+overview_document: docs/security/threat_model_and_audit_stream_contract.md
+audit_stream_schema_ref: schemas/security/audit_stream_record.schema.json
+evidence_window_schema_ref: schemas/security/evidence_window.schema.json
+advisory_schema_ref: schemas/security/advisory_record.schema.json
+incident_packet_schema_ref: schemas/security/incident_workspace_packet.schema.json
+approval_ticket_schema_ref: schemas/integration/approval_ticket.schema.json
+support_bundle_contract_ref: docs/support/support_bundle_contract.md
+collaboration_control_contract_ref: docs/collaboration/shared_control_contract.md
+
+threat_classes:
+  - id: credential_theft
+    title: Credential theft
+    definition: >
+      A subject attempts to obtain, replay, reveal, export, or persist
+      raw credentials, credential handles, delegated tokens, signing
+      material, provider grants, or scoped secret projections outside
+      their admitted storage and projection rules.
+    assets_at_risk:
+      - secret_handles
+      - delegated_provider_tokens
+      - signing_material_refs
+      - session_credentials
+      - vault_or_keychain_aliases
+    primary_entry_points:
+      - secret_broker_projection
+      - provider_handoff
+      - extension_host
+      - ai_tool_call
+      - support_export
+      - terminal_or_remote_session
+    required_control_stack:
+      - handle_only_or_broker_owned_secret_projection
+      - raw_secret_exclusion_redaction
+      - approval_ticket_for_reveal_or_boundary_raise
+      - actor_class_attribution
+      - evidence_window_on_secret_use
+    minimum_audit_streams:
+      - ai_tool_action
+      - extension_lifecycle
+      - support_export
+      - remote_session_join
+    minimum_evidence:
+      - secret_projection_event_ref
+      - policy_decision_ref
+      - approval_ticket_ref_when_required
+      - redaction_profile_ref
+      - evidence_window_ref
+    export_notes: >
+      Exports may include aliases, classes, denial codes, and policy refs.
+      Raw credential bytes, raw request headers, raw tokens, and raw
+      private keys are never embedded.
+
+  - id: supply_chain_compromise
+    title: Supply-chain compromise
+    definition: >
+      A build, extension, dependency, mirror, offline bundle, policy
+      bundle, template, registry namespace, release channel, or signed
+      artifact is compromised, spoofed, replaced, or installed with
+      untrusted provenance.
+    assets_at_risk:
+      - release_artifacts
+      - extension_packages
+      - policy_bundles
+      - update_channels
+      - mirror_snapshots
+      - workspace_templates
+    primary_entry_points:
+      - extension_install_or_update
+      - update_metadata
+      - mirror_import
+      - package_action
+      - policy_bundle_refresh
+      - scaffold_template_apply
+    required_control_stack:
+      - signature_and_provenance_verification
+      - exact_build_or_artifact_identity
+      - mirror_or_offline_freshness
+      - quarantine_or_revocation_path
+      - audit_stream_for_install_update_disable
+    minimum_audit_streams:
+      - extension_lifecycle
+      - policy_bundle_change
+      - emergency_action
+      - advisory_incident_linkage
+    minimum_evidence:
+      - provenance_ref
+      - signature_verification_ref
+      - mirror_freshness_ref
+      - quarantine_or_revocation_ref
+      - evidence_window_ref
+    export_notes: >
+      Exported evidence names artifact refs, digests, signer posture, and
+      freshness state. It does not embed raw package bytes unless a
+      separate evidence bundle explicitly admits them.
+
+  - id: unauthorized_mutation
+    title: Unauthorized mutation
+    definition: >
+      A command, provider action, extension, policy change, runbook step,
+      AI apply, remote control action, or collaboration grant mutates
+      workspace, provider, policy, runtime, release, or managed state
+      without the required trust, policy, approval, or actor authority.
+    assets_at_risk:
+      - worktree_files
+      - provider_objects
+      - policy_state
+      - release_channels
+      - remote_targets
+      - collaboration_sessions
+    primary_entry_points:
+      - command_dispatch
+      - ai_apply
+      - provider_publish
+      - policy_bundle_change
+      - collaboration_control_grant
+      - runbook_mutating_step
+    required_control_stack:
+      - workspace_trust_gate
+      - policy_source_chain
+      - approval_ticket_or_explicit_denial
+      - preview_hash_for_mutation
+      - rollback_or_checkpoint_ref_when_available
+    minimum_audit_streams:
+      - workspace_trust_change
+      - policy_bundle_change
+      - ai_apply_action
+      - collaboration_control_grant
+      - collaboration_control_revocation
+    minimum_evidence:
+      - decision_ref
+      - approval_ticket_ref_when_required
+      - preview_or_diff_ref
+      - target_context_ref
+      - evidence_window_ref
+    export_notes: >
+      Exported mutation rows must preserve denied, approved, applied,
+      revoked, and expired states separately instead of flattening them
+      into success or absence.
+
+  - id: data_exfiltration
+    title: Data exfiltration
+    definition: >
+      A subject moves source, notebook outputs, prompts, logs, traces,
+      secrets, tenant metadata, support captures, or derived context
+      across a boundary that policy, trust state, redaction class, or
+      destination posture does not admit.
+    assets_at_risk:
+      - source_content
+      - prompt_context
+      - support_bundles
+      - notebook_outputs
+      - tenant_metadata
+      - logs_traces_metrics
+    primary_entry_points:
+      - ai_context_assembly
+      - support_export
+      - provider_handoff
+      - remote_route
+      - collaboration_archive
+      - diagnostics_upload
+    required_control_stack:
+      - route_and_destination_disclosure
+      - redaction_profile
+      - export_manifest
+      - policy_source_chain
+      - evidence_window_for_included_and_omitted_data
+    minimum_audit_streams:
+      - ai_tool_action
+      - support_export
+      - remote_session_join
+      - collaboration_control_grant
+    minimum_evidence:
+      - export_manifest_ref
+      - redaction_profile_ref
+      - route_ref
+      - policy_decision_ref
+      - field_disposition_rows
+    export_notes: >
+      Support and admin exports must distinguish included metadata,
+      redacted fields, local-only evidence, references, and expired
+      captures.
+
+  - id: trust_boundary_confusion
+    title: Trust-boundary confusion
+    definition: >
+      A user, service, extension, AI tool, or collaborator acts as though
+      a local, remote, provider, browser, managed, tenant, or session
+      boundary has different authority than the product recorded.
+    assets_at_risk:
+      - workspace_trust_state
+      - target_context
+      - route_authority
+      - provider_actor_scope
+      - managed_tenant_scope
+    primary_entry_points:
+      - remote_attach
+      - browser_handoff
+      - provider_callback
+      - collaboration_relay
+      - policy_override
+      - ai_tool_dispatch
+    required_control_stack:
+      - target_context_identity
+      - route_origin_and_destination_labels
+      - actor_class_attribution
+      - workspace_trust_decision_packet
+      - denial_on_unknown_boundary
+    minimum_audit_streams:
+      - workspace_trust_change
+      - remote_session_join
+      - remote_session_leave
+      - ai_tool_action
+    minimum_evidence:
+      - target_context_ref
+      - route_ref
+      - trust_decision_ref
+      - actor_ref
+      - evidence_window_ref
+    export_notes: >
+      Exported rows must keep local, remote, browser, provider, and
+      managed-service origins distinct.
+
+  - id: provider_spoofing
+    title: Provider spoofing
+    definition: >
+      A provider, callback, link, browser handoff, app grant, registry,
+      mirror, or hosted console claims an identity, host, tenant,
+      capability, or action target that does not match the expected
+      provider contract.
+    assets_at_risk:
+      - provider_grants
+      - browser_handoff_packets
+      - remote_callbacks
+      - registry_or_mirror_identity
+      - approval_tickets
+    primary_entry_points:
+      - system_browser_callback
+      - provider_event_ingestion
+      - connected_provider_action
+      - mirror_import
+      - deep_link
+    required_control_stack:
+      - canonical_host_and_tenant_validation
+      - browser_handoff_packet
+      - provider_actor_class
+      - approval_ticket_scope_binding
+      - denial_on_host_or_tenant_mismatch
+    minimum_audit_streams:
+      - ai_tool_action
+      - policy_bundle_change
+      - remote_session_join
+      - advisory_incident_linkage
+    minimum_evidence:
+      - provider_scope_resolution_ref
+      - browser_handoff_packet_ref
+      - callback_validation_ref
+      - approval_ticket_ref_when_required
+      - evidence_window_ref
+    export_notes: >
+      Exports name provider class, canonical host class, tenant scope
+      refs, and validation result. Raw URLs, raw tokens, and raw tenant
+      names are redacted or replaced by opaque refs.
+
+  - id: stale_evidence_misread
+    title: Stale-evidence misread
+    definition: >
+      A user, admin, support operator, advisory author, or automation
+      treats cached, partial, expired, imported, offline, redacted, or
+      legally retained evidence as if it were live and complete.
+    assets_at_risk:
+      - incident_timelines
+      - support_exports
+      - audit_streams
+      - release_evidence
+      - advisory_claims
+      - policy_decisions
+    primary_entry_points:
+      - support_bundle_preview
+      - incident_postmortem
+      - advisory_publication
+      - admin_export
+      - mirror_or_offline_snapshot
+    required_control_stack:
+      - evidence_window_record
+      - freshness_and_capture_timestamps
+      - field_disposition_rows
+      - imported_or_cached_label
+      - stale_or_expired_export_block
+    minimum_audit_streams:
+      - support_export
+      - advisory_incident_linkage
+      - policy_bundle_change
+      - remote_session_leave
+    minimum_evidence:
+      - evidence_window_ref
+      - captured_at
+      - current_until_or_expires_at
+      - source_backend_ref
+      - omission_reason_rows
+    export_notes: >
+      Any missing field in an export is unknown until a field
+      disposition row says it was not recorded, redacted, expired,
+      policy-withheld, legally held, unavailable, or out of scope.
+
+  - id: unsafe_emergency_action
+    title: Unsafe emergency action
+    definition: >
+      An emergency freeze, kill switch, revocation, trust-root rotation,
+      policy disable, channel pause, or break-glass action is invoked,
+      distributed, retained, or cleared without the required quorum,
+      signer continuity, expiry, supersedence, or reconciliation record.
+    assets_at_risk:
+      - release_channels
+      - trust_roots
+      - policy_bundles
+      - extension_capabilities
+      - managed_control_plane
+    primary_entry_points:
+      - emergency_action_record
+      - break_glass_event
+      - manual_import_receipt
+      - policy_bundle_change
+      - release_channel_control
+    required_control_stack:
+      - high_risk_control_quorum
+      - break_glass_reconciliation_when_used
+      - signer_continuity
+      - distribution_freshness
+      - supersedence_and_expiry
+    minimum_audit_streams:
+      - emergency_action
+      - policy_bundle_change
+      - advisory_incident_linkage
+    minimum_evidence:
+      - emergency_action_ref
+      - break_glass_event_ref_when_used
+      - manual_import_receipt_ref_when_applicable
+      - signer_continuity_ref
+      - evidence_window_ref
+    export_notes: >
+      Expired, superseded, withdrawn, and reconciled emergency states
+      remain exportable as metadata. They are never hidden by deleting
+      the row.
+
+  - id: hostile_collaborator_session_grant_abuse
+    title: Hostile collaborator or session-grant abuse
+    definition: >
+      A collaborator, invited participant, presenter, observer, or
+      grantee obtains, retains, replays, or infers elevated control
+      over shared terminals, debuggers, runbooks, notebook kernels,
+      AI tools, provider actions, or workspace mutation outside the
+      admitted session grant.
+    assets_at_risk:
+      - collaboration_session_state
+      - shared_terminal_authority
+      - shared_debug_authority
+      - presenter_or_follow_state
+      - workspace_mutation_authority
+    primary_entry_points:
+      - session_join
+      - presenter_handoff
+      - shared_control_grant
+      - grant_replay_after_revocation
+      - collaboration_relay_reconnect
+    required_control_stack:
+      - explicit_control_grant_record
+      - non_replayable_revocation
+      - role_and_authority_separation
+      - recording_and_retention_policy
+      - session_membership_audit
+    minimum_audit_streams:
+      - collaboration_control_grant
+      - collaboration_control_revocation
+      - remote_session_join
+      - remote_session_leave
+    minimum_evidence:
+      - control_grant_ref
+      - approval_ticket_ref_when_required
+      - membership_log_ref
+      - revocation_ref
+      - evidence_window_ref
+    export_notes: >
+      Exports may include membership, grant, revoke, role, and
+      recording-state metadata. Raw buffer text, terminal bytes, and
+      private participant identifiers stay out unless a retention policy
+      explicitly admits them.
+
+  - id: tenant_isolation_key_management_failure
+    title: Tenant-isolation or key-management failure
+    definition: >
+      Managed-service storage, caches, AI memory, audit streams,
+      policy bundles, quota state, secrets, KMS/HSM paths, customer
+      managed keys, or admin surfaces cross tenant, region, key, or
+      offboarding boundaries incorrectly.
+    assets_at_risk:
+      - tenant_scoped_storage
+      - audit_streams
+      - ai_memory
+      - policy_caches
+      - customer_managed_keys
+      - managed_workspace_metadata
+    primary_entry_points:
+      - managed_control_plane
+      - tenant_admin_surface
+      - kms_or_hsm_path
+      - managed_workspace_lifecycle
+      - support_or_admin_export
+      - audit_stream_storage
+    required_control_stack:
+      - tenant_scoped_storage_namespace
+      - envelope_encryption_or_cmk_binding
+      - key_state_health
+      - admin_audit_trail
+      - region_and_tenant_scope_checks
+    minimum_audit_streams:
+      - policy_bundle_change
+      - remote_session_join
+      - remote_session_leave
+      - support_export
+    minimum_evidence:
+      - tenant_scope_ref
+      - key_state_ref
+      - policy_epoch_ref
+      - admin_audit_ref
+      - evidence_window_ref
+    export_notes: >
+      Exports name opaque tenant and key-state refs, region class, and
+      isolation checks. Raw tenant names, raw key material, raw storage
+      paths, and raw admin identities do not appear.
+
+minimum_audit_stream_families:
+  - id: extension_lifecycle
+    required_event_names:
+      - extension_install_requested
+      - extension_install_denied
+      - extension_quarantined
+      - extension_enabled
+      - extension_disabled
+      - extension_updated
+      - extension_removed
+    required_threat_classes:
+      - supply_chain_compromise
+      - credential_theft
+      - unauthorized_mutation
+    required_record_fields:
+      - actor
+      - route
+      - object
+      - target_context
+      - decision
+      - policy_source
+      - approval_ticket
+      - evidence_refs
+      - redaction
+      - export
+      - field_dispositions
+
+  - id: policy_bundle_change
+    required_event_names:
+      - policy_bundle_received
+      - policy_bundle_validated
+      - policy_bundle_applied
+      - policy_bundle_rejected
+      - policy_bundle_expired
+      - policy_bundle_reverted_to_last_known_good
+    required_threat_classes:
+      - unauthorized_mutation
+      - trust_boundary_confusion
+      - unsafe_emergency_action
+      - tenant_isolation_key_management_failure
+    required_record_fields:
+      - actor
+      - route
+      - object
+      - target_context
+      - decision
+      - policy_source
+      - evidence_window_ref
+      - field_dispositions
+
+  - id: workspace_trust_change
+    required_event_names:
+      - workspace_trust_granted
+      - workspace_trust_revoked
+      - workspace_trust_policy_narrowed
+      - workspace_trust_expired
+      - workspace_opened_restricted
+    required_threat_classes:
+      - trust_boundary_confusion
+      - unauthorized_mutation
+      - stale_evidence_misread
+    required_record_fields:
+      - actor
+      - target_context
+      - decision
+      - policy_source
+      - approval_ticket
+      - evidence_refs
+      - field_dispositions
+
+  - id: ai_tool_action
+    required_event_names:
+      - ai_tool_call_requested
+      - ai_tool_call_denied
+      - ai_tool_call_executed
+      - ai_context_export_blocked
+      - ai_tool_result_redacted
+    required_threat_classes:
+      - credential_theft
+      - data_exfiltration
+      - provider_spoofing
+      - trust_boundary_confusion
+    required_record_fields:
+      - actor
+      - route
+      - object
+      - target_context
+      - decision
+      - policy_source
+      - approval_ticket
+      - evidence_refs
+      - redaction
+      - export
+
+  - id: ai_apply_action
+    required_event_names:
+      - ai_apply_preview_created
+      - ai_apply_approved
+      - ai_apply_applied
+      - ai_apply_rejected
+      - ai_apply_reverted
+    required_threat_classes:
+      - unauthorized_mutation
+      - data_exfiltration
+      - stale_evidence_misread
+    required_record_fields:
+      - actor
+      - object
+      - target_context
+      - decision
+      - approval_ticket
+      - evidence_refs
+      - evidence_window_ref
+      - field_dispositions
+
+  - id: collaboration_control_grant
+    required_event_names:
+      - collaboration_control_grant_requested
+      - collaboration_control_grant_admitted
+      - collaboration_control_grant_denied
+      - collaboration_control_grant_spent
+    required_threat_classes:
+      - hostile_collaborator_session_grant_abuse
+      - unauthorized_mutation
+      - trust_boundary_confusion
+    required_record_fields:
+      - actor
+      - route
+      - object
+      - target_context
+      - decision
+      - approval_ticket
+      - evidence_refs
+
+  - id: collaboration_control_revocation
+    required_event_names:
+      - collaboration_control_grant_revoked
+      - collaboration_control_grant_expired
+      - collaboration_control_replay_denied
+    required_threat_classes:
+      - hostile_collaborator_session_grant_abuse
+      - unsafe_emergency_action
+      - stale_evidence_misread
+    required_record_fields:
+      - actor
+      - object
+      - target_context
+      - decision
+      - evidence_refs
+      - evidence_window_ref
+
+  - id: remote_session_join
+    required_event_names:
+      - remote_session_join_requested
+      - remote_session_join_admitted
+      - remote_session_join_denied
+    required_threat_classes:
+      - trust_boundary_confusion
+      - provider_spoofing
+      - tenant_isolation_key_management_failure
+      - hostile_collaborator_session_grant_abuse
+    required_record_fields:
+      - actor
+      - route
+      - object
+      - target_context
+      - decision
+      - policy_source
+      - evidence_refs
+
+  - id: remote_session_leave
+    required_event_names:
+      - remote_session_leave_observed
+      - remote_session_revoked
+      - remote_session_timed_out
+    required_threat_classes:
+      - trust_boundary_confusion
+      - stale_evidence_misread
+      - tenant_isolation_key_management_failure
+      - hostile_collaborator_session_grant_abuse
+    required_record_fields:
+      - actor
+      - route
+      - object
+      - target_context
+      - decision
+      - evidence_refs
+      - field_dispositions
+
+evidence_window_states:
+  - id: current
+    meaning: The event or signal is within its accepted freshness window.
+    export_effect: may_embed
+  - id: reviewable
+    meaning: A reviewer may inspect the record and cited evidence for security, support, advisory, or postmortem purposes.
+    export_effect: may_export_metadata
+  - id: exportable
+    meaning: The record may leave its source boundary under the declared destination and redaction profile.
+    export_effect: may_embed
+  - id: expired
+    meaning: The ordinary retention or export window has elapsed; omitted fields require omitted_by_expiry rows.
+    export_effect: expired_omission
+  - id: redacted
+    meaning: Data exists but has been withheld or transformed under a redaction profile.
+    export_effect: redacted_summary
+  - id: legally_retained
+    meaning: A legal, incident, support, or administrative hold preserves metadata or refs beyond ordinary expiry.
+    export_effect: legal_hold_metadata_only
+
+field_disposition_rules:
+  default_missing_field_meaning: unknown_until_field_disposition_present
+  required_dispositions:
+    - recorded_and_present
+    - not_recorded_by_design
+    - omitted_by_redaction
+    - omitted_by_expiry
+    - omitted_by_policy
+    - omitted_by_legal_hold
+    - unavailable_source
+    - outside_platform_scope
+  rules:
+    - id: missing_never_means_never_recorded
+      statement: >
+        A blank or absent field in an export never means the product
+        failed to record it unless a field_disposition row says
+        not_recorded_by_design.
+    - id: redaction_is_visible
+      statement: >
+        Data withheld by redaction carries omitted_by_redaction plus a
+        redaction class or profile ref.
+    - id: expiry_is_visible
+      statement: >
+        Data outside its evidence window carries omitted_by_expiry and
+        an evidence_window_ref.
+    - id: legal_hold_is_visible
+      statement: >
+        Held material carries omitted_by_legal_hold or legally_retained
+        window state; exports may include metadata refs without embedding
+        the held body.

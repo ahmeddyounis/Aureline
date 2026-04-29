@@ -868,6 +868,18 @@ code.
   [`/schemas/security/text_representation_policy.schema.json`](../schemas/security/text_representation_policy.schema.json);
   worked fixtures in
   [`/fixtures/security/suspicious_content_cases/`](../fixtures/security/suspicious_content_cases/).
+- [`security/threat_model_and_audit_stream_contract.md`](./security/threat_model_and_audit_stream_contract.md)
+  — shared threat-class, audit-stream, evidence-window, redaction,
+  export, and omission-disposition contract for advisories, incidents,
+  approval tickets, support exports, collaboration elevated-control
+  grants, remote join/leave events, and managed tenant/key reviews.
+  Machine-readable companions live in
+  [`/artifacts/security/threat_classes.yaml`](../artifacts/security/threat_classes.yaml),
+  [`/schemas/security/audit_stream_record.schema.json`](../schemas/security/audit_stream_record.schema.json),
+  and
+  [`/schemas/security/evidence_window.schema.json`](../schemas/security/evidence_window.schema.json);
+  worked fixtures live in
+  [`/fixtures/security/audit_stream_cases/`](../fixtures/security/audit_stream_cases/).
 - [`ai/context_assembly_contract.md`](./ai/context_assembly_contract.md)
   — AI context-assembly contract covering included / omitted /
   pinned / redacted / policy-blocked / tainted context segments
