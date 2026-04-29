@@ -1,0 +1,903 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/result_packet.schema.json",
+  "title": "Aureline command invocation result packet",
+  "description": "Boundary schema for the command_result_packet_record frozen in docs/commands/invocation_result_and_parity_contract.md. Every command invocation surface publishes this packet shape after dispatch so desktop, CLI, automation, AI, voice, and companion clients share outcome, warning/error, artifact, notification, rollback, checkpoint, evidence, and export semantics. The packet carries opaque refs only; raw arguments, raw paths, raw URLs, raw prompts, raw provider payloads, raw output, and raw credentials do not cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/command_result_packet_record",
+  "$defs": {
+    "result_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for command result packets. Additive optional fields do not bump this value; enum repurposing is breaking."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe for logs, manifests, journals, support bundles, and claim manifests."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Optional worked-example prelude carried by checked-in fixtures."
+    },
+    "result_issuing_surface": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "global_application_menu",
+        "context_menu",
+        "toolbar_button",
+        "keybinding_chord",
+        "leader_sequence",
+        "cli_surface",
+        "ai_tool_surface",
+        "automation_recipe_surface",
+        "scripted_invocation_surface",
+        "remote_agent_surface",
+        "extension_invocation_surface",
+        "voice_surface",
+        "browser_companion_surface",
+        "mobile_companion_surface"
+      ],
+      "description": "Surface that minted the invocation. Voice and companion values are admitted here so parity can be frozen before those clients exist."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_initiated_local",
+        "user_initiated_shared",
+        "ai_initiated",
+        "extension_initiated",
+        "automation_recipe_initiated",
+        "collaboration_remote_initiated",
+        "admin_policy_initiated"
+      ]
+    },
+    "argument_provenance": {
+      "type": "string",
+      "enum": [
+        "user_typed",
+        "user_selected_from_palette_suggestion",
+        "default_from_descriptor",
+        "inferred_from_focused_context",
+        "inferred_from_selection",
+        "supplied_by_keybinding_args",
+        "supplied_by_cli_argv",
+        "ai_proposed_requires_review",
+        "automation_recipe_supplied",
+        "extension_supplied",
+        "voice_recognition_candidate_requires_review",
+        "companion_handoff_supplied",
+        "policy_pinned_cannot_edit"
+      ]
+    },
+    "enablement_decision_class": {
+      "type": "string",
+      "enum": ["enabled", "disabled_with_reason", "hidden_with_reason"]
+    },
+    "disabled_reason_code": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_lifecycle_retired",
+        "capability_disabled_by_policy",
+        "kill_switch_tripped",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet",
+        "required_provider_unlinked",
+        "required_credential_missing",
+        "required_argument_unresolved",
+        "execution_context_unavailable",
+        "managed_only_channel_required",
+        "dependency_state_below_command_ceiling",
+        "command_deprecated_within_window",
+        "command_retired",
+        "command_version_unknown",
+        "preview_denial_no_safe_preview",
+        "approval_denial_no_approval_path",
+        "publisher_not_permitted",
+        "policy_blocked_in_context",
+        "authority_class_unresolved",
+        "issuing_surface_unresolved",
+        "scope_class_drifted_from_descriptor",
+        "preview_required_not_shown",
+        "basis_snapshot_drifted",
+        "alias_not_resolvable",
+        "companion_mutation_requires_desktop_handoff"
+      ]
+    },
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "no_preview_required",
+        "inline_summary_preview",
+        "structured_diff_preview",
+        "batch_scope_preview",
+        "destructive_bulk_mutation_preview",
+        "broad_workspace_scope_preview",
+        "irreversible_publish_preview",
+        "externally_mutating_preview",
+        "credential_or_secret_access_preview",
+        "policy_authoring_or_waiver_preview",
+        "managed_workspace_control_preview",
+        "remote_attach_preview",
+        "install_or_update_preview",
+        "collaboration_invite_preview",
+        "browser_handoff_preview",
+        "rich_active_content_preview",
+        "bidi_or_invisible_formatting_reveal_preview",
+        "confusable_identifier_reveal_preview"
+      ]
+    },
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "explicit_confirmation_required",
+        "step_up_authentication_required",
+        "admin_policy_approval_required",
+        "second_party_review_required",
+        "managed_only_approval_required"
+      ]
+    },
+    "execution_intent_class": {
+      "type": "string",
+      "enum": [
+        "query_only_no_mutation",
+        "propose_preview_only",
+        "apply_after_preview",
+        "apply_with_approval",
+        "apply_direct_trusted_path",
+        "rollback_or_revert",
+        "simulate_or_dry_run",
+        "schedule_for_background_execution",
+        "cancel_pending_invocation"
+      ]
+    },
+    "result_outcome_code": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "succeeded_with_warnings",
+        "denied_by_enablement",
+        "denied_by_preview",
+        "denied_by_approval",
+        "cancelled_by_user",
+        "failed_with_typed_error",
+        "rolled_back_after_apply",
+        "partially_applied_and_halted",
+        "scheduled_pending_background"
+      ],
+      "description": "Same terminal outcome vocabulary used by invocation-session packets, named outcome_code for external result consumers."
+    },
+    "warning_code": {
+      "type": "string",
+      "enum": [
+        "deprecated_alias_used",
+        "headless_prompt_elided_with_disclosure",
+        "companion_freshness_degraded",
+        "rollback_window_limited",
+        "export_redacted_by_policy",
+        "partial_evidence_retained",
+        "notification_delivery_deferred",
+        "activity_projection_delayed",
+        "background_completion_pending"
+      ]
+    },
+    "error_code": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "policy_blocked_in_context",
+        "preview_required_not_shown",
+        "approval_denial_no_approval_path",
+        "basis_snapshot_drifted",
+        "required_argument_unresolved",
+        "required_credential_missing",
+        "execution_context_unavailable",
+        "command_version_unknown",
+        "alias_not_resolvable",
+        "typed_runtime_failure",
+        "companion_mutation_requires_desktop_handoff",
+        "rollback_failed_typed_reason"
+      ]
+    },
+    "result_contract_class": {
+      "type": "string",
+      "enum": [
+        "no_result_emitted",
+        "typed_value_returned",
+        "artifact_created_ref",
+        "artifact_modified_ref",
+        "artifact_deleted_ref",
+        "journal_entry_appended_ref",
+        "audit_event_emitted_ref",
+        "preview_record_emitted_ref",
+        "approval_ticket_emitted_ref",
+        "browser_handoff_packet_emitted_ref",
+        "evidence_packet_emitted_ref",
+        "rollback_ticket_emitted_ref"
+      ]
+    },
+    "result_artifact_role": {
+      "type": "string",
+      "enum": [
+        "primary_result",
+        "side_effect_record",
+        "audit_record",
+        "preview_record",
+        "approval_ticket",
+        "browser_handoff_packet",
+        "support_export_row",
+        "rollback_ticket"
+      ]
+    },
+    "evidence_ref_class": {
+      "type": "string",
+      "enum": [
+        "preview_record_ref",
+        "approval_ticket_ref",
+        "permission_prompt_ref",
+        "interaction_safety_packet_ref",
+        "mutation_journal_entry_ref",
+        "audit_event_ref",
+        "capability_lifecycle_audit_event_ref",
+        "ai_evidence_packet_ref",
+        "support_export_row_ref",
+        "browser_handoff_packet_ref",
+        "rollback_ticket_ref",
+        "rollback_handle_ref",
+        "checkpoint_ref",
+        "command_result_packet_ref",
+        "notification_event_ref",
+        "activity_event_ref",
+        "docs_citation_anchor_ref"
+      ]
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "workspace_state_checkpoint",
+        "file_set_checkpoint",
+        "profile_settings_checkpoint",
+        "migration_import_checkpoint",
+        "provider_state_snapshot",
+        "approval_authority_snapshot"
+      ]
+    },
+    "rollback_handle_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable_no_mutation",
+        "handle_available",
+        "handle_pending_background",
+        "manual_recovery_only",
+        "not_reversible_by_contract",
+        "expired_or_invalidated"
+      ]
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "exportable_metadata_default",
+        "exportable_with_redaction",
+        "support_bundle_redacted_only",
+        "organization_audit_log_only",
+        "local_user_only",
+        "signing_evidence_only",
+        "export_denied_by_policy"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ]
+        },
+        "hook_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "no_bypass_guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_revalidation_required",
+        "policy_revalidation_required",
+        "permission_prompt_revalidation_required",
+        "preview_path_preserved",
+        "approval_path_preserved",
+        "credential_broker_revalidation_required",
+        "execution_context_revalidation_required",
+        "freshness_floor_revalidation_required",
+        "capability_class_may_not_widen",
+        "result_schema_may_not_be_replaced"
+      ],
+      "properties": {
+        "trust_revalidation_required": { "const": true },
+        "policy_revalidation_required": { "const": true },
+        "permission_prompt_revalidation_required": { "const": true },
+        "preview_path_preserved": { "const": true },
+        "approval_path_preserved": { "const": true },
+        "credential_broker_revalidation_required": { "const": true },
+        "execution_context_revalidation_required": { "const": true },
+        "freshness_floor_revalidation_required": { "const": true },
+        "capability_class_may_not_widen": { "const": true },
+        "result_schema_may_not_be_replaced": { "const": true }
+      },
+      "description": "Schema-pinned no-bypass guard set. Any false value invalidates the packet."
+    },
+    "alias_used_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alias_kind",
+        "alias_id",
+        "alias_state",
+        "resolves_to_canonical_command_id",
+        "migration_trace_ref",
+        "support_window_ref"
+      ],
+      "properties": {
+        "alias_kind": {
+          "type": "string",
+          "enum": [
+            "canonical",
+            "legacy_command_id",
+            "alternate_palette_phrasing",
+            "alternate_cli_verb",
+            "ai_tool_handle",
+            "keybinding_target",
+            "voice_phrase",
+            "companion_handoff_token",
+            "imported_bridge_alias"
+          ]
+        },
+        "alias_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "alias_state": {
+          "type": "string",
+          "enum": ["not_applicable", "active", "deprecated", "retired"]
+        },
+        "resolves_to_canonical_command_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_trace_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "support_window_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "description": "Alias the user, automation, AI, voice recognizer, or companion handoff used. Canonical invocation still records alias_kind = canonical so result packets never leave the field ambiguous."
+    },
+    "argument_provenance_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argument_name", "provenance", "resolved_value_ref"],
+      "properties": {
+        "argument_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "provenance": { "$ref": "#/$defs/argument_provenance" },
+        "resolved_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "context_refs_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focused_entity_ref",
+        "selection_ref",
+        "workspace_ref",
+        "workspace_trust_state",
+        "execution_context_id",
+        "scope_filter_class_ref",
+        "basis_snapshot_ref",
+        "context_object_refs"
+      ],
+      "properties": {
+        "focused_entity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "selection_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "workspace_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "workspace_trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_filter_class_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "basis_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "context_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "enablement_decision_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_class", "disabled_reason_code", "repair_hook_ref"],
+      "properties": {
+        "decision_class": { "$ref": "#/$defs/enablement_decision_class" },
+        "disabled_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disabled_reason_code" }
+          ]
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ]
+        }
+      }
+    },
+    "preview_posture_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preview_class_declared", "preview_shown", "preview_record_ref"],
+      "properties": {
+        "preview_class_declared": { "$ref": "#/$defs/preview_class" },
+        "preview_shown": { "type": "boolean" },
+        "preview_record_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "approval_posture_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_posture_class_declared", "approval_state", "approval_ticket_ref"],
+      "properties": {
+        "approval_posture_class_declared": { "$ref": "#/$defs/approval_posture_class" },
+        "approval_state": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "approval_pending",
+            "approval_granted",
+            "approval_denied",
+            "approval_expired"
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "invocation_minimum_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invocation_session_id",
+        "invocation_attempt_id",
+        "issuing_surface",
+        "authority_class",
+        "canonical_command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "alias_used",
+        "argument_provenance_map",
+        "context_refs",
+        "enablement_decision",
+        "preview_posture",
+        "approval_posture",
+        "execution_intent"
+      ],
+      "properties": {
+        "invocation_session_id": { "$ref": "#/$defs/opaque_id" },
+        "invocation_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "issuing_surface": { "$ref": "#/$defs/result_issuing_surface" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "canonical_command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "alias_used": { "$ref": "#/$defs/alias_used_block" },
+        "argument_provenance_map": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argument_provenance_entry" }
+        },
+        "context_refs": { "$ref": "#/$defs/context_refs_block" },
+        "enablement_decision": { "$ref": "#/$defs/enablement_decision_block" },
+        "preview_posture": { "$ref": "#/$defs/preview_posture_block" },
+        "approval_posture": { "$ref": "#/$defs/approval_posture_block" },
+        "execution_intent": { "$ref": "#/$defs/execution_intent_class" }
+      }
+    },
+    "artifact_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result_contract_class", "artifact_ref", "artifact_role"],
+      "properties": {
+        "result_contract_class": { "$ref": "#/$defs/result_contract_class" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_role": { "$ref": "#/$defs/result_artifact_role" }
+      }
+    },
+    "notification_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notification_ref", "delivery_posture"],
+      "properties": {
+        "notification_ref": { "$ref": "#/$defs/opaque_id" },
+        "delivery_posture": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "queued",
+            "delivered",
+            "suppressed_by_policy",
+            "deferred_by_quiet_hours"
+          ]
+        }
+      }
+    },
+    "activity_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activity_ref", "activity_role"],
+      "properties": {
+        "activity_ref": { "$ref": "#/$defs/opaque_id" },
+        "activity_role": {
+          "type": "string",
+          "enum": [
+            "history_row",
+            "status_item",
+            "audit_log_row",
+            "support_timeline_row",
+            "ai_run_history_row",
+            "companion_timeline_row"
+          ]
+        }
+      }
+    },
+    "checkpoint_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_class", "checkpoint_ref"],
+      "properties": {
+        "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+        "checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "evidence_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_ref_class", "evidence_id"],
+      "properties": {
+        "evidence_ref_class": { "$ref": "#/$defs/evidence_ref_class" },
+        "evidence_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "rollback_handle_ref_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rollback_handle_posture", "rollback_handle_id"],
+      "properties": {
+        "rollback_handle_posture": { "$ref": "#/$defs/rollback_handle_posture" },
+        "rollback_handle_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "rollback_handle_posture": {
+                "enum": ["handle_available", "handle_pending_background"]
+              }
+            },
+            "required": ["rollback_handle_posture"]
+          },
+          "then": {
+            "properties": {
+              "rollback_handle_id": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "export_posture_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_posture_class",
+        "redaction_class",
+        "export_review_ref",
+        "portable_profile_allowed",
+        "support_bundle_allowed"
+      ],
+      "properties": {
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "portable_profile_allowed": { "type": "boolean" },
+        "support_bundle_allowed": { "type": "boolean" }
+      }
+    },
+    "result_body_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome_code",
+        "warning_codes",
+        "error_codes",
+        "created_artifact_refs",
+        "notification_refs",
+        "activity_refs",
+        "rollback_handle_ref",
+        "checkpoint_refs",
+        "evidence_refs",
+        "export_posture"
+      ],
+      "properties": {
+        "outcome_code": { "$ref": "#/$defs/result_outcome_code" },
+        "warning_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/warning_code" }
+        },
+        "error_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/error_code" }
+        },
+        "created_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_ref_entry" }
+        },
+        "notification_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notification_ref_entry" }
+        },
+        "activity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/activity_ref_entry" }
+        },
+        "rollback_handle_ref": { "$ref": "#/$defs/rollback_handle_ref_block" },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/checkpoint_ref_entry" }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_ref_entry" }
+        },
+        "export_posture": { "$ref": "#/$defs/export_posture_block" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "outcome_code": { "const": "succeeded_with_warnings" } },
+            "required": ["outcome_code"]
+          },
+          "then": {
+            "properties": { "warning_codes": { "type": "array", "minItems": 1 } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome_code": {
+                "enum": [
+                  "denied_by_enablement",
+                  "denied_by_preview",
+                  "denied_by_approval",
+                  "failed_with_typed_error"
+                ]
+              }
+            },
+            "required": ["outcome_code"]
+          },
+          "then": {
+            "properties": { "error_codes": { "type": "array", "minItems": 1 } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome_code": { "const": "partially_applied_and_halted" } },
+            "required": ["outcome_code"]
+          },
+          "then": {
+            "properties": {
+              "created_artifact_refs": { "type": "array", "minItems": 1 },
+              "checkpoint_refs": { "type": "array", "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "command_result_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "result_packet_schema_version",
+        "result_packet_id",
+        "invocation",
+        "result",
+        "parity_expectation_ref",
+        "no_bypass_guards",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "command_result_packet_record" },
+        "result_packet_schema_version": { "$ref": "#/$defs/result_packet_schema_version" },
+        "result_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "invocation": { "$ref": "#/$defs/invocation_minimum_block" },
+        "result": { "$ref": "#/$defs/result_body_block" },
+        "parity_expectation_ref": { "$ref": "#/$defs/opaque_id" },
+        "no_bypass_guards": { "$ref": "#/$defs/no_bypass_guards" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Enabled, non-previewed invocations with a declared preview requirement must deny through preview_required_not_shown.",
+          "if": {
+            "properties": {
+              "invocation": {
+                "type": "object",
+                "required": ["enablement_decision", "preview_posture"],
+                "properties": {
+                  "enablement_decision": {
+                    "type": "object",
+                    "properties": { "decision_class": { "const": "enabled" } },
+                    "required": ["decision_class"]
+                  },
+                  "preview_posture": {
+                    "type": "object",
+                    "properties": {
+                      "preview_class_declared": { "not": { "const": "no_preview_required" } },
+                      "preview_shown": { "const": false }
+                    },
+                    "required": ["preview_class_declared", "preview_shown"]
+                  }
+                }
+              }
+            },
+            "required": ["invocation"]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "type": "object",
+                "properties": {
+                  "outcome_code": { "const": "denied_by_preview" },
+                  "error_codes": {
+                    "type": "array",
+                    "contains": { "const": "preview_required_not_shown" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

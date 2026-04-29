@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/rollback_handle.schema.json",
+  "title": "Aureline command rollback handle",
+  "description": "Boundary schema for command_rollback_handle_record. A result packet references this record when an invocation produced a reversible effect, a checkpoint-backed recovery path, or a compensating action. The handle is evidence, not ambient authority: spending it re-runs trust, policy, permission, preview, approval, credential, execution-context, freshness, and drift checks.",
+  "type": "object",
+  "$ref": "#/$defs/command_rollback_handle_record",
+  "$defs": {
+    "rollback_handle_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rollback_kind": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "inverse_operation",
+        "checkpoint_restore",
+        "compensating_command",
+        "external_provider_revert",
+        "migration_rollback",
+        "manual_support_guided"
+      ]
+    },
+    "rollback_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "available",
+        "pending_background_materialization",
+        "completed",
+        "expired",
+        "blocked_by_policy",
+        "unsafe_after_drift",
+        "external_authority_required",
+        "unsupported_for_outcome"
+      ]
+    },
+    "rollback_lifetime_class": {
+      "type": "string",
+      "enum": [
+        "session_only",
+        "bounded_time_window",
+        "until_checkpoint_gc",
+        "release_line_support_window",
+        "support_retained_metadata_only"
+      ]
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "workspace_state_checkpoint",
+        "file_set_checkpoint",
+        "profile_settings_checkpoint",
+        "migration_import_checkpoint",
+        "provider_state_snapshot",
+        "approval_authority_snapshot"
+      ]
+    },
+    "evidence_ref_class": {
+      "type": "string",
+      "enum": [
+        "command_result_packet_ref",
+        "mutation_journal_entry_ref",
+        "audit_event_ref",
+        "checkpoint_ref",
+        "preview_record_ref",
+        "approval_ticket_ref",
+        "support_export_row_ref",
+        "external_provider_receipt_ref"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "no_bypass_guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_revalidation_required",
+        "policy_revalidation_required",
+        "permission_prompt_revalidation_required",
+        "preview_path_preserved",
+        "approval_path_preserved",
+        "credential_broker_revalidation_required",
+        "execution_context_revalidation_required",
+        "freshness_floor_revalidation_required",
+        "basis_drift_check_required",
+        "handle_is_not_ambient_authority"
+      ],
+      "properties": {
+        "trust_revalidation_required": { "const": true },
+        "policy_revalidation_required": { "const": true },
+        "permission_prompt_revalidation_required": { "const": true },
+        "preview_path_preserved": { "const": true },
+        "approval_path_preserved": { "const": true },
+        "credential_broker_revalidation_required": { "const": true },
+        "execution_context_revalidation_required": { "const": true },
+        "freshness_floor_revalidation_required": { "const": true },
+        "basis_drift_check_required": { "const": true },
+        "handle_is_not_ambient_authority": { "const": true }
+      }
+    },
+    "checkpoint_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_class", "checkpoint_ref"],
+      "properties": {
+        "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "affected_artifact_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_ref", "effect_class"],
+      "properties": {
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "effect_class": {
+          "type": "string",
+          "enum": [
+            "created",
+            "modified",
+            "deleted",
+            "external_provider_mutated",
+            "profile_state_mutated",
+            "migration_import_mutated"
+          ]
+        }
+      }
+    },
+    "spend_requirement_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_command_id",
+        "rollback_canonical_verb",
+        "preview_required",
+        "approval_required",
+        "authority_ticket_ref",
+        "no_bypass_guards"
+      ],
+      "properties": {
+        "rollback_command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_canonical_verb": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/canonical_verb" }
+          ]
+        },
+        "preview_required": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "authority_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "no_bypass_guards": { "$ref": "#/$defs/no_bypass_guards" }
+      }
+    },
+    "lifetime_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lifetime_class", "issued_at", "expires_at", "gc_anchor_ref"],
+      "properties": {
+        "lifetime_class": { "$ref": "#/$defs/rollback_lifetime_class" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "gc_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "evidence_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_ref_class", "evidence_id"],
+      "properties": {
+        "evidence_ref_class": { "$ref": "#/$defs/evidence_ref_class" },
+        "evidence_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "command_rollback_handle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "rollback_handle_schema_version",
+        "rollback_handle_id",
+        "result_packet_id",
+        "invocation_session_id",
+        "canonical_command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "rollback_kind",
+        "rollback_state",
+        "lifetime",
+        "checkpoint_refs",
+        "affected_artifact_refs",
+        "spend_requirements",
+        "evidence_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "command_rollback_handle_record" },
+        "rollback_handle_schema_version": { "$ref": "#/$defs/rollback_handle_schema_version" },
+        "rollback_handle_id": { "$ref": "#/$defs/opaque_id" },
+        "result_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "invocation_session_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "rollback_kind": { "$ref": "#/$defs/rollback_kind" },
+        "rollback_state": { "$ref": "#/$defs/rollback_state" },
+        "lifetime": { "$ref": "#/$defs/lifetime_block" },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/checkpoint_ref_entry" }
+        },
+        "affected_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_artifact_ref_entry" }
+        },
+        "spend_requirements": { "$ref": "#/$defs/spend_requirement_block" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_ref_entry" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "rollback_state": { "const": "available" } },
+            "required": ["rollback_state"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_refs": { "type": "array", "minItems": 1 },
+              "affected_artifact_refs": { "type": "array", "minItems": 1 },
+              "evidence_refs": { "type": "array", "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
