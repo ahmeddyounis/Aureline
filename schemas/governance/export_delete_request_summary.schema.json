@@ -1,0 +1,916 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/export_delete_request_summary.schema.json",
+  "title": "Aureline export/delete request summary record",
+  "description": "Boundary schema for export_delete_request_summary_record rows used by export, delete, support purge, export-before-delete, and offboarding flows. Summaries disclose request scope, included/excluded record classes, signal and AI memory classes, legal-hold or policy-retention blockers, current status, remaining local artifacts, post-exit retention notes, destruction notes, and audit linkage. Held or policy-retained data must never be represented as successful deletion. Adding request types, stable delete states, result dispositions, blocker classes, or scope classes is additive-minor and requires export_delete_request_summary_schema_version to advance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "export_delete_request_summary_schema_version",
+    "record_kind",
+    "request_id",
+    "request_type",
+    "requester",
+    "source",
+    "requested_at",
+    "updated_at",
+    "current_status",
+    "stable_delete_state",
+    "stable_state_label",
+    "completion_claim",
+    "request_scope",
+    "record_class_results",
+    "blockers",
+    "remaining_local_artifacts",
+    "post_exit_notes",
+    "audit_linkage",
+    "honesty_assertions",
+    "vocabulary_terms"
+  ],
+  "properties": {
+    "export_delete_request_summary_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "export_delete_request_summary_record"
+    },
+    "request_id": {
+      "$ref": "#/$defs/stable_ref"
+    },
+    "request_type": {
+      "$ref": "#/$defs/request_type"
+    },
+    "requester": {
+      "$ref": "#/$defs/actor"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "requested_at": {
+      "$ref": "#/$defs/chronology"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/chronology"
+    },
+    "current_status": {
+      "$ref": "#/$defs/current_status"
+    },
+    "stable_delete_state": {
+      "$ref": "#/$defs/stable_delete_state"
+    },
+    "stable_state_label": {
+      "$ref": "#/$defs/stable_state_label"
+    },
+    "completion_claim": {
+      "$ref": "#/$defs/completion_claim"
+    },
+    "request_scope": {
+      "$ref": "#/$defs/request_scope"
+    },
+    "record_class_results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/record_class_result"
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+    "remaining_local_artifacts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/remaining_local_artifact"
+      }
+    },
+    "post_exit_notes": {
+      "$ref": "#/$defs/post_exit_notes"
+    },
+    "audit_linkage": {
+      "$ref": "#/$defs/audit_linkage"
+    },
+    "honesty_assertions": {
+      "$ref": "#/$defs/honesty_assertions"
+    },
+    "vocabulary_terms": {
+      "$ref": "#/$defs/vocabulary_terms"
+    },
+    "notes": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block; never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Legal hold states must carry at least one legal-hold blocker and cannot claim complete destruction.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "legal_hold"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "minItems": 1,
+            "contains": {
+              "properties": {
+                "blocker_class": {
+                  "const": "legal_hold"
+                }
+              },
+              "required": ["blocker_class"]
+            }
+          },
+          "completion_claim": {
+            "not": {
+              "const": "delete_completed_all_destroyed"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Policy-retention states must carry at least one policy-retention blocker and cannot claim complete destruction.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "policy_retention"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "minItems": 1,
+            "contains": {
+              "properties": {
+                "blocker_class": {
+                  "const": "policy_retention"
+                }
+              },
+              "required": ["blocker_class"]
+            }
+          },
+          "completion_claim": {
+            "not": {
+              "const": "delete_completed_all_destroyed"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Exported-copy-remains-local states must list at least one remaining local artifact.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "exported_copy_remains_local"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "remaining_local_artifacts": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "description": "Delete-completed state must use a delete-completed completion claim.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "delete_completed"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "completion_claim": {
+            "enum": [
+              "delete_completed_all_destroyed",
+              "delete_completed_with_retained_metadata"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Stable delete state and label must agree for none.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "none"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "stable_state_label": {
+            "const": "None"
+          }
+        }
+      }
+    },
+    {
+      "description": "Stable delete state and label must agree for delete requested.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "delete_requested"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "stable_state_label": {
+            "const": "Delete requested"
+          }
+        }
+      }
+    },
+    {
+      "description": "Stable delete state and label must agree for policy retention.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "policy_retention"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "stable_state_label": {
+            "const": "Policy retention"
+          }
+        }
+      }
+    },
+    {
+      "description": "Stable delete state and label must agree for legal hold.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "legal_hold"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "stable_state_label": {
+            "const": "Legal hold"
+          }
+        }
+      }
+    },
+    {
+      "description": "Stable delete state and label must agree for delete completed.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "delete_completed"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "stable_state_label": {
+            "const": "Delete completed"
+          }
+        }
+      }
+    },
+    {
+      "description": "Stable delete state and label must agree for local export copies.",
+      "if": {
+        "properties": {
+          "stable_delete_state": {
+            "const": "exported_copy_remains_local"
+          }
+        },
+        "required": ["stable_delete_state"]
+      },
+      "then": {
+        "properties": {
+          "stable_state_label": {
+            "const": "Exported copy remains local"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable prose. It must not contain raw payload bodies, raw paths, raw prompts, raw credentials, or raw policy bundle bytes."
+    },
+    "request_type": {
+      "type": "string",
+      "enum": [
+        "export_request",
+        "delete_request",
+        "export_before_delete",
+        "offboarding_export",
+        "offboarding_delete",
+        "support_case_purge"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin",
+        "policy_engine",
+        "system",
+        "support_operator",
+        "automation"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_ref"],
+      "properties": {
+        "actor_class": {
+          "$ref": "#/$defs/actor_class"
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "display_role": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "source_flow": {
+      "type": "string",
+      "enum": [
+        "privacy_settings",
+        "support_bundle_preview",
+        "support_case",
+        "offboarding_flow",
+        "export_delete_flow",
+        "cli_headless",
+        "admin_console",
+        "managed_control_plane"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_flow", "source_ref"],
+      "properties": {
+        "source_flow": {
+          "$ref": "#/$defs/source_flow"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/stable_ref"
+        }
+      }
+    },
+    "chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "utc_instant",
+        "local_iso_with_offset",
+        "timezone_id",
+        "source_clock_class"
+      ],
+      "properties": {
+        "utc_instant": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "local_iso_with_offset": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "timezone_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_clock_class": {
+          "type": "string",
+          "enum": [
+            "local_wall_clock_synchronized",
+            "local_wall_clock_unsynchronized",
+            "remote_host_wall_clock",
+            "imported_external_wall_clock"
+          ]
+        }
+      }
+    },
+    "current_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "export_building",
+        "export_available",
+        "delete_requested",
+        "policy_retention",
+        "legal_hold",
+        "delete_completed",
+        "exported_copy_remains_local",
+        "completed_partial",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "stable_delete_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "delete_requested",
+        "policy_retention",
+        "legal_hold",
+        "delete_completed",
+        "exported_copy_remains_local"
+      ]
+    },
+    "stable_state_label": {
+      "type": "string",
+      "enum": [
+        "None",
+        "Delete requested",
+        "Policy retention",
+        "Legal hold",
+        "Delete completed",
+        "Exported copy remains local"
+      ]
+    },
+    "completion_claim": {
+      "type": "string",
+      "enum": [
+        "no_delete_requested",
+        "delete_requested_not_complete",
+        "delete_completed_all_destroyed",
+        "delete_completed_with_retained_metadata",
+        "delete_completed_with_retained_subset",
+        "export_only_no_delete",
+        "failed_no_completion"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "user_account",
+        "workspace",
+        "organization",
+        "support_case",
+        "collaboration_session",
+        "ai_workspace_state",
+        "device_local_artifacts"
+      ]
+    },
+    "signal_class": {
+      "type": "string",
+      "enum": [
+        "install_update_active_version_counts",
+        "crash_panic_reports",
+        "performance_metrics",
+        "feature_usage_counters",
+        "support_bundle_transfer_events",
+        "managed_analytics_aggregates"
+      ]
+    },
+    "ai_memory_class": {
+      "type": "string",
+      "enum": [
+        "turn_state_ephemeral",
+        "conversation_history_user_visible",
+        "derived_cache_regeneratable",
+        "embedding_row_regeneratable",
+        "reusable_repo_fact_workspace_scope",
+        "retained_evidence_packet_copy",
+        "explicit_saved_memory_user_owned",
+        "not_applicable_no_ai_memory"
+      ]
+    },
+    "request_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "scope_refs",
+        "requested_record_class_ids",
+        "requested_signal_classes",
+        "requested_ai_memory_classes"
+      ],
+      "properties": {
+        "scope_class": {
+          "$ref": "#/$defs/scope_class"
+        },
+        "scope_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "time_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from_utc", "to_utc"],
+          "properties": {
+            "from_utc": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "to_utc": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "requested_record_class_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/lower_snake_id"
+          }
+        },
+        "requested_signal_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/signal_class"
+          }
+        },
+        "requested_ai_memory_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ai_memory_class"
+          }
+        },
+        "scope_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "lifecycle_term": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "uploaded",
+        "redacted",
+        "held",
+        "destroyed",
+        "pending"
+      ]
+    },
+    "lifecycle_terms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/lifecycle_term"
+      }
+    },
+    "result_disposition": {
+      "type": "string",
+      "enum": [
+        "included",
+        "excluded",
+        "redacted",
+        "held",
+        "policy_retained",
+        "destroyed",
+        "pending",
+        "uploaded",
+        "local_only",
+        "not_found",
+        "outside_platform_scope",
+        "manual_local_capture_required"
+      ]
+    },
+    "record_class_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_id",
+        "disposition",
+        "lifecycle_terms",
+        "stable_delete_state",
+        "signal_classes",
+        "ai_memory_classes",
+        "included_artifact_refs",
+        "excluded_artifact_refs",
+        "blocker_refs",
+        "result_note"
+      ],
+      "properties": {
+        "record_class_id": {
+          "$ref": "#/$defs/lower_snake_id"
+        },
+        "disposition": {
+          "$ref": "#/$defs/result_disposition"
+        },
+        "lifecycle_terms": {
+          "$ref": "#/$defs/lifecycle_terms"
+        },
+        "stable_delete_state": {
+          "$ref": "#/$defs/stable_delete_state"
+        },
+        "signal_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/signal_class"
+          }
+        },
+        "ai_memory_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ai_memory_class"
+          }
+        },
+        "included_artifact_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "excluded_artifact_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "blocker_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "retention_policy_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "result_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "blocker_class": {
+      "type": "string",
+      "enum": [
+        "legal_hold",
+        "policy_retention",
+        "export_pending",
+        "entitlement_expired",
+        "service_unavailable",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "redaction_policy",
+        "user_declined",
+        "not_found"
+      ]
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocker_id", "blocker_class", "affected_record_class_ids", "note"],
+      "properties": {
+        "blocker_id": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "blocker_class": {
+          "$ref": "#/$defs/blocker_class"
+        },
+        "hold_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "expected_clear_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "format": "date-time"
+            }
+          ]
+        },
+        "affected_record_class_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/lower_snake_id"
+          }
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "remaining_local_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_ref",
+        "record_class_id",
+        "lifecycle_terms",
+        "user_action_required",
+        "note"
+      ],
+      "properties": {
+        "artifact_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "record_class_id": {
+          "$ref": "#/$defs/lower_snake_id"
+        },
+        "lifecycle_terms": {
+          "$ref": "#/$defs/lifecycle_terms"
+        },
+        "user_action_required": {
+          "type": "boolean"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "post_exit_notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_notes",
+        "destruction_notes",
+        "local_copy_notes",
+        "manual_capture_notes"
+      ],
+      "properties": {
+        "retention_notes": {
+          "$ref": "#/$defs/sentence_array"
+        },
+        "destruction_notes": {
+          "$ref": "#/$defs/sentence_array"
+        },
+        "local_copy_notes": {
+          "$ref": "#/$defs/sentence_array"
+        },
+        "manual_capture_notes": {
+          "$ref": "#/$defs/sentence_array"
+        }
+      }
+    },
+    "audit_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "privacy_history_event_refs",
+        "governed_record_refs",
+        "deletion_job_refs",
+        "destruction_receipt_refs",
+        "support_bundle_refs",
+        "export_manifest_refs",
+        "policy_refs"
+      ],
+      "properties": {
+        "privacy_history_event_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "governed_record_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "deletion_job_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "destruction_receipt_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "support_bundle_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "export_manifest_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "policy_refs": {
+          "$ref": "#/$defs/ref_array"
+        }
+      }
+    },
+    "honesty_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "held_or_retained_not_reported_destroyed",
+        "local_export_copy_disclosed",
+        "raw_payloads_not_embedded"
+      ],
+      "properties": {
+        "held_or_retained_not_reported_destroyed": {
+          "type": "boolean",
+          "const": true
+        },
+        "local_export_copy_disclosed": {
+          "type": "boolean"
+        },
+        "raw_payloads_not_embedded": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "vocabulary_term_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term", "required_label"],
+      "properties": {
+        "term": {
+          "$ref": "#/$defs/lifecycle_term"
+        },
+        "required_label": {
+          "type": "string",
+          "enum": [
+            "Local only",
+            "Uploaded",
+            "Redacted",
+            "Held",
+            "Destroyed",
+            "Pending"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "term": { "const": "local_only" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Local only" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "uploaded" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Uploaded" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "redacted" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Redacted" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "held" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Held" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "destroyed" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Destroyed" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "pending" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Pending" } } }
+        }
+      ]
+    },
+    "vocabulary_terms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/vocabulary_term_entry"
+      }
+    },
+    "ref_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/stable_ref"
+      }
+    },
+    "sentence_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reviewable_sentence"
+      }
+    }
+  }
+}

@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=../../../schemas/governance/privacy_history_event.schema.json
+__fixture__:
+  name: support_bundle_exported_with_redaction
+  scenario: >
+    A user exports a support bundle after reviewing the preview. The
+    event links the uploaded bundle, redaction profile, schema registry
+    row, and governed records so support can reconstruct the consent
+    state in effect when the packet was produced.
+  acceptance_refs:
+    - support-bundle export linkage
+    - redacted and uploaded vocabulary reuse
+    - inspectable privacy history
+
+privacy_history_event_schema_version: 1
+record_kind: privacy_history_event_record
+event_id: privacy.history.support_bundle.exported.2026_04_29_001
+event_type: support_bundle_exported
+actor:
+  actor_class: user
+  actor_ref: actor:user:self
+  display_role: Local user
+source:
+  source_surface: support_bundle_export
+  source_ref: support-bundle:startup-crash:export-001
+  schema_ref: schemas/support/support_bundle_manifest.schema.json
+occurred_at:
+  utc_instant: "2026-04-29T17:05:00Z"
+  local_iso_with_offset: "2026-04-29T10:05:00-07:00"
+  timezone_id: America/Los_Angeles
+  source_clock_class: local_wall_clock_synchronized
+prior_control:
+  control_id: support_bundle_share
+  state: pending_user_review
+  lifecycle_terms:
+    - pending
+    - local_only
+  reason_class: support_export
+  effective_summary: Bundle preview was assembled for local review before export.
+effective_control:
+  control_id: support_bundle_share
+  state: enabled
+  lifecycle_terms:
+    - uploaded
+    - redacted
+  reason_class: support_export
+  effective_summary: The reviewed bundle was exported with the default redaction profile.
+signal_class_resolutions:
+  - signal_class: support_bundle_transfer_events
+    lifecycle_terms:
+      - uploaded
+      - redacted
+    data_class: metadata_only
+    collection_posture: export_only_user_initiated
+    record_class_refs:
+      - support_bundle_archive
+    schema_registry_entry_refs:
+      - support.bundle_manifest
+    destination_ref: support-case:startup-crash:case-001
+    resolution_note: Transfer event carries manifest metadata and upload result, not raw bundle bodies.
+  - signal_class: crash_panic_reports
+    lifecycle_terms:
+      - redacted
+    data_class: high_risk
+    collection_posture: export_only_user_initiated
+    record_class_refs:
+      - crash_diagnostic_payload
+    schema_registry_entry_refs:
+      - diagnostics.crash_payload
+    resolution_note: Crash detail appears only through the reviewed redaction profile.
+ai_memory_class_resolutions:
+  - ai_memory_class: retained_evidence_packet_copy
+    lifecycle_terms:
+      - redacted
+    data_class: code_adjacent
+    collection_posture: export_only_user_initiated
+    record_class_refs:
+      - ai_retained_evidence_packet
+    memory_object_refs:
+      - ai-memory:evidence-copy:startup-crash-summary
+    resolution_note: The bundle references an AI evidence summary by packet ref and excludes raw prompt bodies.
+retention:
+  retention_class: policy_held
+  retention_policy_ref: artifacts/governance/record_class_registry.yaml#support_bundle_archive
+  delete_state: policy_retention
+  export_state: uploaded
+  hold_refs:
+    - support-investigation:startup-crash:case-001
+  destruction_receipt_refs: []
+  local_artifact_refs:
+    - local-export:startup-crash-support-bundle.zip
+  retention_note: Managed support copy follows support-case retention; the downloaded local bundle remains user-controlled.
+audit_linkage:
+  governed_record_refs:
+    - governed-record:support_bundle_archive_startup_crash
+    - governed-record:crash_diagnostic_payload_startup_crash
+  support_bundle_refs:
+    - support-bundle:startup-crash:export-001
+  export_request_refs:
+    - export-request:support-bundle:startup-crash:001
+  delete_request_refs: []
+  policy_decision_refs:
+    - redaction-profile:support.redaction.local_first_default
+  schema_registry_entry_refs:
+    - support.bundle_manifest
+    - diagnostics.crash_payload
+  evidence_packet_refs:
+    - evidence-packet:startup-crash-summary
+vocabulary_terms:
+  - term: uploaded
+    required_label: Uploaded
+  - term: redacted
+    required_label: Redacted
+  - term: held
+    required_label: Held
+  - term: local_only
+    required_label: Local only
+explanation: >
+  The support bundle was exported after review; managed support retention
+  and the remaining local export copy are both visible.

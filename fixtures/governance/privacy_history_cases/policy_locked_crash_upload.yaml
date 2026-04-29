@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=../../../schemas/governance/privacy_history_event.schema.json
+__fixture__:
+  name: policy_locked_crash_upload
+  scenario: >
+    A user requests crash-upload enablement, but managed policy locks
+    crash uploads off. The event records the requested state and the
+    effective policy-enforced state, with the crash payload local-only
+    and redacted.
+  acceptance_refs:
+    - policy-locked crash upload fixture
+    - policy override event
+    - local-only and redacted vocabulary reuse
+
+privacy_history_event_schema_version: 1
+record_kind: privacy_history_event_record
+event_id: privacy.history.crash_upload.policy_locked.2026_04_29_001
+event_type: policy_enforced_override_applied
+actor:
+  actor_class: policy_engine
+  actor_ref: actor:policy:managed_privacy
+  display_role: Managed policy engine
+source:
+  source_surface: admin_policy
+  source_ref: policy-control:crash_upload
+  schema_ref: artifacts/governance/consent_ledger_seed.yaml#diagnostics.crash_payload
+  policy_ref: policy-bundle:managed-privacy-narrowing:017
+  policy_epoch: policy-epoch-017
+occurred_at:
+  utc_instant: "2026-04-29T16:25:00Z"
+  local_iso_with_offset: "2026-04-29T09:25:00-07:00"
+  timezone_id: America/Los_Angeles
+  source_clock_class: local_wall_clock_synchronized
+prior_control:
+  control_id: crash_upload
+  state: disabled
+  lifecycle_terms:
+    - local_only
+  reason_class: user_choice
+  effective_summary: Crash upload was disabled before the policy check.
+requested_control:
+  control_id: crash_upload
+  state: enabled
+  lifecycle_terms:
+    - pending
+  reason_class: user_choice
+  effective_summary: The user requested crash upload enablement.
+effective_control:
+  control_id: crash_upload
+  state: locked_disabled_by_policy
+  lifecycle_terms:
+    - local_only
+    - redacted
+  reason_class: policy_override
+  policy_ref: policy-bundle:managed-privacy-narrowing:017
+  effective_summary: Managed policy keeps crash payloads local-only and redacted.
+signal_class_resolutions:
+  - signal_class: crash_panic_reports
+    lifecycle_terms:
+      - local_only
+      - redacted
+    data_class: high_risk
+    collection_posture: policy_denied
+    record_class_refs:
+      - crash_diagnostic_payload
+    schema_registry_entry_refs:
+      - diagnostics.crash_payload
+    resolution_note: Crash metadata may remain locally inspectable; upload is denied by policy.
+ai_memory_class_resolutions:
+  - ai_memory_class: not_applicable_no_ai_memory
+    lifecycle_terms:
+      - local_only
+    data_class: not_applicable
+    collection_posture: not_collected
+    record_class_refs: []
+    memory_object_refs: []
+    resolution_note: Crash-upload policy does not affect AI memory.
+retention:
+  retention_class: expiring
+  retention_policy_ref: artifacts/governance/record_class_registry.yaml#crash_diagnostic_payload
+  delete_state: none
+  export_state: none
+  hold_refs: []
+  destruction_receipt_refs: []
+  local_artifact_refs:
+    - crash-store:local:latest-policy-locked
+  retention_note: Local crash data remains under local diagnostic retention and is not uploaded.
+audit_linkage:
+  governed_record_refs:
+    - governed-record:crash_upload_control
+    - governed-record:local_crash_store
+  support_bundle_refs: []
+  export_request_refs: []
+  delete_request_refs: []
+  policy_decision_refs:
+    - policy-decision:crash_upload_denied_by_policy
+  schema_registry_entry_refs:
+    - diagnostics.crash_payload
+  evidence_packet_refs: []
+vocabulary_terms:
+  - term: local_only
+    required_label: Local only
+  - term: redacted
+    required_label: Redacted
+  - term: pending
+    required_label: Pending
+explanation: >
+  The requested crash-upload change did not become effective because
+  managed policy locked the control off.

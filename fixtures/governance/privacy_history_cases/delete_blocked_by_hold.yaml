@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=../../../schemas/governance/export_delete_request_summary.schema.json
+__fixture__:
+  name: delete_blocked_by_hold
+  scenario: >
+    A user requests deletion of a support bundle and linked AI evidence
+    summary, but a legal hold blocks destruction of the managed support
+    copy. The summary uses Legal hold and never reports the held data as
+    successfully deleted.
+  acceptance_refs:
+    - delete blocked by hold fixture
+    - held data cannot masquerade as deletion
+    - stable delete state reuse
+
+export_delete_request_summary_schema_version: 1
+record_kind: export_delete_request_summary_record
+request_id: delete-request:support-case:startup-crash:001
+request_type: delete_request
+requester:
+  actor_class: user
+  actor_ref: actor:user:self
+  display_role: Local user
+source:
+  source_flow: export_delete_flow
+  source_ref: privacy-delete-sheet:support-case:startup-crash
+  schema_ref: schemas/governance/export_delete_request_summary.schema.json
+  policy_ref: legal-hold:case-archive:hold-77
+requested_at:
+  utc_instant: "2026-04-29T18:00:00Z"
+  local_iso_with_offset: "2026-04-29T11:00:00-07:00"
+  timezone_id: America/Los_Angeles
+  source_clock_class: local_wall_clock_synchronized
+updated_at:
+  utc_instant: "2026-04-29T18:03:00Z"
+  local_iso_with_offset: "2026-04-29T11:03:00-07:00"
+  timezone_id: America/Los_Angeles
+  source_clock_class: local_wall_clock_synchronized
+current_status: legal_hold
+stable_delete_state: legal_hold
+stable_state_label: Legal hold
+completion_claim: delete_requested_not_complete
+request_scope:
+  scope_class: support_case
+  scope_refs:
+    - support-case:startup-crash:case-001
+  requested_record_class_ids:
+    - support_bundle_archive
+    - crash_diagnostic_payload
+    - ai_retained_evidence_packet
+  requested_signal_classes:
+    - support_bundle_transfer_events
+    - crash_panic_reports
+  requested_ai_memory_classes:
+    - retained_evidence_packet_copy
+  scope_note: Delete request covers managed support copies and linked retained evidence summaries for the named case.
+record_class_results:
+  - record_class_id: support_bundle_archive
+    disposition: held
+    lifecycle_terms:
+      - held
+      - uploaded
+    stable_delete_state: legal_hold
+    signal_classes:
+      - support_bundle_transfer_events
+    ai_memory_classes:
+      - not_applicable_no_ai_memory
+    included_artifact_refs:
+      - support-bundle:startup-crash:export-001
+    excluded_artifact_refs: []
+    blocker_refs:
+      - blocker:legal-hold:case-archive:hold-77
+    retention_policy_ref: artifacts/governance/record_class_registry.yaml#support_bundle_archive
+    result_note: Managed support bundle copy remains held under the case archive legal hold.
+  - record_class_id: ai_retained_evidence_packet
+    disposition: held
+    lifecycle_terms:
+      - held
+      - redacted
+    stable_delete_state: legal_hold
+    signal_classes: []
+    ai_memory_classes:
+      - retained_evidence_packet_copy
+    included_artifact_refs:
+      - evidence-packet:startup-crash-summary
+    excluded_artifact_refs:
+      - raw-prompt-body:omitted
+    blocker_refs:
+      - blocker:legal-hold:case-archive:hold-77
+    retention_policy_ref: artifacts/governance/record_class_registry.yaml#ai_retained_evidence_packet
+    result_note: Redacted evidence summary is held; raw prompt bodies remain excluded from the summary.
+blockers:
+  - blocker_id: blocker:legal-hold:case-archive:hold-77
+    blocker_class: legal_hold
+    hold_ref: legal-hold:case-archive:hold-77
+    policy_ref: policy-bundle:support-case-hold:77
+    expected_clear_at: "2026-05-29T18:00:00Z"
+    affected_record_class_ids:
+      - support_bundle_archive
+      - ai_retained_evidence_packet
+    note: Legal hold blocks destruction until the hold review clears or extends it.
+remaining_local_artifacts:
+  - artifact_ref: local-export:startup-crash-support-bundle.zip
+    record_class_id: support_bundle_archive
+    lifecycle_terms:
+      - local_only
+    user_action_required: true
+    note: The downloaded local export remains on the user's device and is outside the managed delete job.
+post_exit_notes:
+  retention_notes:
+    - Managed support copy and retained evidence summary remain held until the legal hold clears.
+  destruction_notes:
+    - No destruction receipt is emitted because deletion has not completed for held managed copies.
+  local_copy_notes:
+    - The local exported bundle remains user-controlled.
+  manual_capture_notes: []
+audit_linkage:
+  privacy_history_event_refs:
+    - privacy.history.support_bundle.exported.2026_04_29_001
+  governed_record_refs:
+    - governed-record:support_bundle_archive_startup_crash
+    - governed-record:ai_evidence_summary_startup_crash
+  deletion_job_refs:
+    - deletion-job:support-case:startup-crash:001
+  destruction_receipt_refs: []
+  support_bundle_refs:
+    - support-bundle:startup-crash:export-001
+  export_manifest_refs:
+    - export-manifest:support-bundle:startup-crash:001
+  policy_refs:
+    - legal-hold:case-archive:hold-77
+honesty_assertions:
+  held_or_retained_not_reported_destroyed: true
+  local_export_copy_disclosed: true
+  raw_payloads_not_embedded: true
+vocabulary_terms:
+  - term: held
+    required_label: Held
+  - term: uploaded
+    required_label: Uploaded
+  - term: redacted
+    required_label: Redacted
+  - term: local_only
+    required_label: Local only
+notes: >
+  The summary is terminal for review purposes only after hold release;
+  it is not a delete-completed receipt.

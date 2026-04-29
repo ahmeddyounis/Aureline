@@ -1,0 +1,234 @@
+# yaml-language-server: $schema=../../../schemas/governance/export_delete_request_summary.schema.json
+__fixture__:
+  name: offboarding_export_excluded_classes
+  scenario: >
+    An admin prepares an offboarding export that includes profiles,
+    settings, usage aggregates, and redacted AI evidence summaries, but
+    excludes secret material, regenerable caches, and unsynced local
+    history that requires manual device capture.
+  acceptance_refs:
+    - offboarding export with excluded classes
+    - export/delete vocabulary reuse
+    - AI memory-class resolution
+    - remaining local artifacts
+
+export_delete_request_summary_schema_version: 1
+record_kind: export_delete_request_summary_record
+request_id: offboarding-export:acme-user:2026-04-29
+request_type: offboarding_export
+requester:
+  actor_class: admin
+  actor_ref: actor:admin:tenant-privacy
+  display_role: Tenant privacy administrator
+source:
+  source_flow: offboarding_flow
+  source_ref: offboarding:acme-user:export-checklist
+  schema_ref: schemas/governance/export_delete_request_summary.schema.json
+  policy_ref: policy-bundle:tenant-offboarding:2026-04
+requested_at:
+  utc_instant: "2026-04-29T19:00:00Z"
+  local_iso_with_offset: "2026-04-29T12:00:00-07:00"
+  timezone_id: America/Los_Angeles
+  source_clock_class: local_wall_clock_synchronized
+updated_at:
+  utc_instant: "2026-04-29T19:12:00Z"
+  local_iso_with_offset: "2026-04-29T12:12:00-07:00"
+  timezone_id: America/Los_Angeles
+  source_clock_class: local_wall_clock_synchronized
+current_status: exported_copy_remains_local
+stable_delete_state: exported_copy_remains_local
+stable_state_label: Exported copy remains local
+completion_claim: export_only_no_delete
+request_scope:
+  scope_class: user_account
+  scope_refs:
+    - account:acme-user:opaque
+    - tenant:acme
+  time_range:
+    from_utc: "2026-01-01T00:00:00Z"
+    to_utc: "2026-04-29T19:00:00Z"
+  requested_record_class_ids:
+    - user_portable_state
+    - entitlement_usage_export_packet
+    - ai_retained_evidence_packet
+    - local_history_checkpoint
+    - secret_broker_state
+  requested_signal_classes:
+    - managed_analytics_aggregates
+    - support_bundle_transfer_events
+  requested_ai_memory_classes:
+    - conversation_history_user_visible
+    - retained_evidence_packet_copy
+    - derived_cache_regeneratable
+  scope_note: Offboarding export covers user-owned portable state, managed usage aggregates, and AI evidence summaries for the account.
+record_class_results:
+  - record_class_id: user_portable_state
+    disposition: included
+    lifecycle_terms:
+      - uploaded
+      - redacted
+    stable_delete_state: exported_copy_remains_local
+    signal_classes: []
+    ai_memory_classes:
+      - not_applicable_no_ai_memory
+    included_artifact_refs:
+      - export-member:profiles-settings-keybindings.json
+    excluded_artifact_refs: []
+    blocker_refs: []
+    retention_policy_ref: artifacts/governance/record_class_registry.yaml#user_portable_state
+    result_note: Portable settings and profile data are included with credential aliases only.
+  - record_class_id: entitlement_usage_export_packet
+    disposition: included
+    lifecycle_terms:
+      - uploaded
+      - redacted
+    stable_delete_state: policy_retention
+    signal_classes:
+      - managed_analytics_aggregates
+    ai_memory_classes:
+      - not_applicable_no_ai_memory
+    included_artifact_refs:
+      - export-member:usage-aggregate.csv
+    excluded_artifact_refs: []
+    blocker_refs:
+      - blocker:policy-retention:billing-minimum
+    retention_policy_ref: artifacts/governance/record_class_registry.yaml#entitlement_usage_export_packet
+    result_note: Exported usage aggregate is included; billing-policy retention keeps a managed aggregate subset.
+  - record_class_id: ai_retained_evidence_packet
+    disposition: redacted
+    lifecycle_terms:
+      - uploaded
+      - redacted
+    stable_delete_state: exported_copy_remains_local
+    signal_classes: []
+    ai_memory_classes:
+      - conversation_history_user_visible
+      - retained_evidence_packet_copy
+    included_artifact_refs:
+      - export-member:ai-evidence-summary.md
+      - export-member:ai-evidence-summary.json
+    excluded_artifact_refs:
+      - raw-prompt-bodies
+      - raw-model-responses
+    blocker_refs: []
+    retention_policy_ref: artifacts/governance/record_class_registry.yaml#ai_retained_evidence_packet
+    result_note: AI evidence is exported as redacted summaries and structured refs, not raw prompts or responses.
+  - record_class_id: local_history_checkpoint
+    disposition: manual_local_capture_required
+    lifecycle_terms:
+      - local_only
+    stable_delete_state: exported_copy_remains_local
+    signal_classes: []
+    ai_memory_classes:
+      - not_applicable_no_ai_memory
+    included_artifact_refs: []
+    excluded_artifact_refs:
+      - device-local-history:manual-capture-required
+    blocker_refs:
+      - blocker:manual-local-capture:device-history
+    retention_policy_ref: artifacts/governance/record_state_and_policy_simulation_models.md#local-only
+    result_note: Unsynced local history exists only on the device and must be exported from that device if needed.
+  - record_class_id: secret_broker_state
+    disposition: excluded
+    lifecycle_terms:
+      - redacted
+    stable_delete_state: none
+    signal_classes: []
+    ai_memory_classes:
+      - not_applicable_no_ai_memory
+    included_artifact_refs: []
+    excluded_artifact_refs:
+      - raw-secret-material
+    blocker_refs:
+      - blocker:redaction-policy:raw-secret-excluded
+    retention_policy_ref: docs/governance/storage_and_retention_vocabulary.md#raw_secret_excluded
+    result_note: Raw secret material is excluded; aliases and handle classes are represented in the export manifest.
+  - record_class_id: ai_derived_cache
+    disposition: excluded
+    lifecycle_terms:
+      - destroyed
+    stable_delete_state: delete_completed
+    signal_classes: []
+    ai_memory_classes:
+      - derived_cache_regeneratable
+    included_artifact_refs: []
+    excluded_artifact_refs:
+      - derived-cache:workspace-review
+    blocker_refs: []
+    retention_policy_ref: docs/ai/memory_and_reconciliation_contract.md#derived-cache
+    result_note: Regenerable derived caches are not exported and are invalidated for the account scope.
+blockers:
+  - blocker_id: blocker:policy-retention:billing-minimum
+    blocker_class: policy_retention
+    policy_ref: artifacts/governance/record_class_registry.yaml#entitlement_usage_export_packet
+    expected_clear_at: null
+    affected_record_class_ids:
+      - entitlement_usage_export_packet
+    note: Billing-policy retention keeps managed aggregate metadata after the offboarding export.
+  - blocker_id: blocker:manual-local-capture:device-history
+    blocker_class: manual_local_capture_required
+    expected_clear_at: null
+    affected_record_class_ids:
+      - local_history_checkpoint
+    note: Local history is not hosted and requires device-local export by the user.
+  - blocker_id: blocker:redaction-policy:raw-secret-excluded
+    blocker_class: redaction_policy
+    policy_ref: docs/governance/storage_and_retention_vocabulary.md#raw_secret_excluded
+    expected_clear_at: null
+    affected_record_class_ids:
+      - secret_broker_state
+    note: Raw secret material is intentionally excluded from the offboarding package.
+remaining_local_artifacts:
+  - artifact_ref: local-export:offboarding-acme-user.zip
+    record_class_id: user_portable_state
+    lifecycle_terms:
+      - local_only
+    user_action_required: true
+    note: The downloaded offboarding package remains on the admin device and is outside managed deletion.
+  - artifact_ref: device-local-history:manual-capture-required
+    record_class_id: local_history_checkpoint
+    lifecycle_terms:
+      - local_only
+    user_action_required: true
+    note: Local history checkpoints were not captured by the managed offboarding export.
+post_exit_notes:
+  retention_notes:
+    - Billing aggregates remain under policy retention and are listed as a retained subset.
+  destruction_notes:
+    - Regenerable AI derived caches are invalidated rather than exported.
+  local_copy_notes:
+    - The exported package remains local to the admin device after download.
+  manual_capture_notes:
+    - Unsynced local history must be exported from the originating device if required.
+audit_linkage:
+  privacy_history_event_refs:
+    - privacy.history.support_bundle.exported.2026_04_29_001
+  governed_record_refs:
+    - governed-record:user_portable_state_acme_user
+    - governed-record:usage_export_acme_user
+    - governed-record:ai_evidence_acme_user
+  deletion_job_refs:
+    - deletion-job:ai-derived-cache:acme-user
+  destruction_receipt_refs:
+    - destruction-receipt:ai-derived-cache:acme-user
+  support_bundle_refs: []
+  export_manifest_refs:
+    - export-manifest:offboarding-acme-user:2026-04-29
+  policy_refs:
+    - policy-bundle:tenant-offboarding:2026-04
+honesty_assertions:
+  held_or_retained_not_reported_destroyed: true
+  local_export_copy_disclosed: true
+  raw_payloads_not_embedded: true
+vocabulary_terms:
+  - term: local_only
+    required_label: Local only
+  - term: uploaded
+    required_label: Uploaded
+  - term: redacted
+    required_label: Redacted
+  - term: destroyed
+    required_label: Destroyed
+notes: >
+  The offboarding package is an export, not a managed delete completion;
+  retained policy subsets and local export copies remain visible.

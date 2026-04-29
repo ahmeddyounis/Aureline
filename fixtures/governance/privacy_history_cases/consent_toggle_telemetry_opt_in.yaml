@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=../../../schemas/governance/privacy_history_event.schema.json
+__fixture__:
+  name: consent_toggle_telemetry_opt_in
+  scenario: >
+    A user turns on product telemetry from the privacy settings screen.
+    The event shows which signal classes become upload-capable and
+    explicitly records that no AI memory class is affected.
+  acceptance_refs:
+    - consent toggle fixture
+    - signal matrix resolution
+    - shared lifecycle vocabulary
+
+privacy_history_event_schema_version: 1
+record_kind: privacy_history_event_record
+event_id: privacy.history.telemetry.opt_in.2026_04_29_001
+event_type: telemetry_consent_changed
+actor:
+  actor_class: user
+  actor_ref: actor:user:self
+  display_role: Local user
+source:
+  source_surface: privacy_settings
+  source_ref: settings:privacy.telemetry
+  schema_ref: artifacts/governance/consent_ledger_seed.yaml#telemetry.ux_product_event
+occurred_at:
+  utc_instant: "2026-04-29T16:10:00Z"
+  local_iso_with_offset: "2026-04-29T09:10:00-07:00"
+  timezone_id: America/Los_Angeles
+  source_clock_class: local_wall_clock_synchronized
+prior_control:
+  control_id: telemetry_product_usage
+  state: disabled
+  lifecycle_terms:
+    - local_only
+  reason_class: user_choice
+  effective_summary: Product telemetry was off and retained local-only.
+effective_control:
+  control_id: telemetry_product_usage
+  state: enabled
+  lifecycle_terms:
+    - uploaded
+    - pending
+  reason_class: user_choice
+  effective_summary: Coarse product telemetry may upload after local aggregation.
+signal_class_resolutions:
+  - signal_class: install_update_active_version_counts
+    lifecycle_terms:
+      - uploaded
+      - pending
+    data_class: metadata_only
+    collection_posture: explicit_opt_in_upload
+    record_class_refs:
+      - telemetry_contract_schema
+    schema_registry_entry_refs:
+      - telemetry.ux_product_event
+    destination_ref: endpoint:telemetry.metrics
+    resolution_note: Upload is opt-in and limited to coarse version and channel counts.
+  - signal_class: feature_usage_counters
+    lifecycle_terms:
+      - uploaded
+      - pending
+    data_class: metadata_only
+    collection_posture: explicit_opt_in_upload
+    record_class_refs:
+      - telemetry_contract_schema
+    schema_registry_entry_refs:
+      - telemetry.ux_product_event
+    destination_ref: endpoint:telemetry.metrics
+    resolution_note: Feature counters exclude raw code, prompts, file paths, and terminal payloads.
+ai_memory_class_resolutions:
+  - ai_memory_class: not_applicable_no_ai_memory
+    lifecycle_terms:
+      - local_only
+    data_class: not_applicable
+    collection_posture: not_collected
+    record_class_refs: []
+    memory_object_refs: []
+    resolution_note: Telemetry opt-in does not create or upload AI memory.
+retention:
+  retention_class: expiring
+  retention_policy_ref: artifacts/governance/record_class_registry.yaml#telemetry_contract_schema
+  delete_state: none
+  export_state: none
+  hold_refs: []
+  destruction_receipt_refs: []
+  local_artifact_refs:
+    - local-consent-ledger:telemetry_product_usage
+  retention_note: Local consent history is retained for auditability and can be exported with privacy history.
+audit_linkage:
+  governed_record_refs:
+    - governed-record:telemetry_product_usage
+  support_bundle_refs: []
+  export_request_refs: []
+  delete_request_refs: []
+  policy_decision_refs: []
+  schema_registry_entry_refs:
+    - telemetry.ux_product_event
+  evidence_packet_refs: []
+vocabulary_terms:
+  - term: local_only
+    required_label: Local only
+  - term: uploaded
+    required_label: Uploaded
+  - term: pending
+    required_label: Pending
+explanation: >
+  The user enabled telemetry upload for metadata-only signal classes;
+  AI memory remains outside this event.

@@ -1,0 +1,632 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/privacy_history_event.schema.json",
+  "title": "Aureline privacy-history event record",
+  "description": "Boundary schema for privacy_history_event_record rows used by privacy settings, support-bundle preview, support export, export/delete, offboarding, CLI/headless summaries, and admin review. Rows describe consent changes, crash-upload changes, AI usage-sharing changes, support-bundle exports, managed analytics toggles, and policy-enforced overrides without embedding raw logs, raw payloads, raw prompts, raw paths, raw credentials, or raw policy bytes. Adding an event type, lifecycle term, signal class, AI memory projection, control state, actor class, source surface, collection posture, retention class, or linkage field is additive-minor and requires privacy_history_event_schema_version to advance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "privacy_history_event_schema_version",
+    "record_kind",
+    "event_id",
+    "event_type",
+    "actor",
+    "source",
+    "occurred_at",
+    "prior_control",
+    "effective_control",
+    "signal_class_resolutions",
+    "ai_memory_class_resolutions",
+    "retention",
+    "audit_linkage",
+    "vocabulary_terms",
+    "explanation"
+  ],
+  "properties": {
+    "privacy_history_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this privacy-history event shape."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "privacy_history_event_record"
+    },
+    "event_id": {
+      "$ref": "#/$defs/stable_ref",
+      "description": "Stable privacy-history event id. It must not contain raw user names, raw emails, raw ticket numbers, or planning identifiers."
+    },
+    "event_type": {
+      "$ref": "#/$defs/privacy_event_type"
+    },
+    "actor": {
+      "$ref": "#/$defs/actor"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "occurred_at": {
+      "$ref": "#/$defs/chronology"
+    },
+    "prior_control": {
+      "$ref": "#/$defs/control_snapshot"
+    },
+    "effective_control": {
+      "$ref": "#/$defs/control_snapshot"
+    },
+    "requested_control": {
+      "$ref": "#/$defs/control_snapshot",
+      "description": "Optional requested posture when policy or capability constraints changed the effective posture."
+    },
+    "signal_class_resolutions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/signal_class_resolution"
+      },
+      "description": "Resolution through the shared telemetry/support signal-class matrix."
+    },
+    "ai_memory_class_resolutions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/ai_memory_class_resolution"
+      },
+      "description": "Resolution through the shared AI memory-class matrix. Events without AI effect carry not_applicable_no_ai_memory explicitly."
+    },
+    "retention": {
+      "$ref": "#/$defs/retention"
+    },
+    "audit_linkage": {
+      "$ref": "#/$defs/audit_linkage"
+    },
+    "vocabulary_terms": {
+      "$ref": "#/$defs/vocabulary_terms"
+    },
+    "explanation": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "notes": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block; never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Policy-enforced override events require a policy ref and a locked effective state.",
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "policy_enforced_override_applied"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "required": ["policy_ref"]
+          },
+          "effective_control": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "locked_enabled_by_policy",
+                  "locked_disabled_by_policy"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "A locked effective control always requires a policy reference on the event source.",
+      "if": {
+        "properties": {
+          "effective_control": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "locked_enabled_by_policy",
+                  "locked_disabled_by_policy"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        },
+        "required": ["effective_control"]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "required": ["policy_ref"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable prose. It must not contain raw payload bodies, raw paths, raw prompts, raw credentials, or raw policy bundle bytes."
+    },
+    "privacy_event_type": {
+      "type": "string",
+      "enum": [
+        "telemetry_consent_changed",
+        "crash_upload_consent_changed",
+        "ai_usage_sharing_changed",
+        "support_bundle_exported",
+        "managed_analytics_toggle_changed",
+        "policy_enforced_override_applied"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin",
+        "policy_engine",
+        "system",
+        "support_operator",
+        "automation"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_ref"],
+      "properties": {
+        "actor_class": {
+          "$ref": "#/$defs/actor_class"
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "display_role": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "source_surface": {
+      "type": "string",
+      "enum": [
+        "privacy_settings",
+        "support_bundle_preview",
+        "support_bundle_export",
+        "offboarding_flow",
+        "export_delete_flow",
+        "cli_headless",
+        "admin_policy",
+        "managed_control_plane",
+        "schema_registry",
+        "policy_bundle"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_surface", "source_ref"],
+      "properties": {
+        "source_surface": {
+          "$ref": "#/$defs/source_surface"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "utc_instant",
+        "local_iso_with_offset",
+        "timezone_id",
+        "source_clock_class"
+      ],
+      "properties": {
+        "utc_instant": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "local_iso_with_offset": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "timezone_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_clock_class": {
+          "type": "string",
+          "enum": [
+            "local_wall_clock_synchronized",
+            "local_wall_clock_unsynchronized",
+            "remote_host_wall_clock",
+            "imported_external_wall_clock"
+          ]
+        }
+      }
+    },
+    "control_state": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled",
+        "not_applicable",
+        "pending_user_review",
+        "locked_enabled_by_policy",
+        "locked_disabled_by_policy"
+      ]
+    },
+    "control_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_id", "state", "lifecycle_terms"],
+      "properties": {
+        "control_id": {
+          "$ref": "#/$defs/lower_snake_id"
+        },
+        "state": {
+          "$ref": "#/$defs/control_state"
+        },
+        "lifecycle_terms": {
+          "$ref": "#/$defs/lifecycle_terms"
+        },
+        "reason_class": {
+          "type": "string",
+          "enum": [
+            "user_choice",
+            "admin_choice",
+            "policy_override",
+            "support_export",
+            "offboarding_export",
+            "capability_unavailable",
+            "not_applicable"
+          ]
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "effective_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "lifecycle_term": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "uploaded",
+        "redacted",
+        "held",
+        "destroyed",
+        "pending"
+      ]
+    },
+    "lifecycle_terms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/lifecycle_term"
+      }
+    },
+    "signal_class": {
+      "type": "string",
+      "enum": [
+        "install_update_active_version_counts",
+        "crash_panic_reports",
+        "performance_metrics",
+        "feature_usage_counters",
+        "support_bundle_transfer_events",
+        "managed_analytics_aggregates"
+      ]
+    },
+    "ai_memory_class": {
+      "type": "string",
+      "enum": [
+        "turn_state_ephemeral",
+        "conversation_history_user_visible",
+        "derived_cache_regeneratable",
+        "embedding_row_regeneratable",
+        "reusable_repo_fact_workspace_scope",
+        "retained_evidence_packet_copy",
+        "explicit_saved_memory_user_owned",
+        "not_applicable_no_ai_memory"
+      ]
+    },
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk",
+        "not_applicable"
+      ]
+    },
+    "collection_posture": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "explicit_opt_in_upload",
+        "admin_policy_gated",
+        "managed_policy_enabled",
+        "policy_denied",
+        "export_only_user_initiated",
+        "not_collected"
+      ]
+    },
+    "signal_class_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_class",
+        "lifecycle_terms",
+        "data_class",
+        "collection_posture",
+        "record_class_refs",
+        "schema_registry_entry_refs"
+      ],
+      "properties": {
+        "signal_class": {
+          "$ref": "#/$defs/signal_class"
+        },
+        "lifecycle_terms": {
+          "$ref": "#/$defs/lifecycle_terms"
+        },
+        "data_class": {
+          "$ref": "#/$defs/data_class"
+        },
+        "collection_posture": {
+          "$ref": "#/$defs/collection_posture"
+        },
+        "record_class_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "schema_registry_entry_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "destination_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "resolution_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "ai_memory_class_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ai_memory_class",
+        "lifecycle_terms",
+        "data_class",
+        "collection_posture",
+        "record_class_refs"
+      ],
+      "properties": {
+        "ai_memory_class": {
+          "$ref": "#/$defs/ai_memory_class"
+        },
+        "lifecycle_terms": {
+          "$ref": "#/$defs/lifecycle_terms"
+        },
+        "data_class": {
+          "$ref": "#/$defs/data_class"
+        },
+        "collection_posture": {
+          "$ref": "#/$defs/collection_posture"
+        },
+        "record_class_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "memory_object_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "resolution_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "expiring",
+        "pinned",
+        "policy_held",
+        "exportable",
+        "audit_only",
+        "raw_secret_excluded",
+        "not_applicable"
+      ]
+    },
+    "delete_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "delete_requested",
+        "policy_retention",
+        "legal_hold",
+        "delete_completed",
+        "exported_copy_remains_local"
+      ]
+    },
+    "export_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "requested",
+        "building",
+        "available",
+        "uploaded",
+        "expired",
+        "failed",
+        "revoked"
+      ]
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_class",
+        "delete_state",
+        "export_state",
+        "hold_refs",
+        "destruction_receipt_refs",
+        "local_artifact_refs"
+      ],
+      "properties": {
+        "retention_class": {
+          "$ref": "#/$defs/retention_class"
+        },
+        "retention_policy_ref": {
+          "$ref": "#/$defs/stable_ref"
+        },
+        "delete_state": {
+          "$ref": "#/$defs/delete_state"
+        },
+        "export_state": {
+          "$ref": "#/$defs/export_state"
+        },
+        "hold_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "destruction_receipt_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "local_artifact_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "retention_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "audit_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "governed_record_refs",
+        "support_bundle_refs",
+        "export_request_refs",
+        "delete_request_refs",
+        "policy_decision_refs",
+        "schema_registry_entry_refs",
+        "evidence_packet_refs"
+      ],
+      "properties": {
+        "governed_record_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "support_bundle_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "export_request_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "delete_request_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "policy_decision_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "schema_registry_entry_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "evidence_packet_refs": {
+          "$ref": "#/$defs/ref_array"
+        }
+      }
+    },
+    "vocabulary_term_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term", "required_label"],
+      "properties": {
+        "term": {
+          "$ref": "#/$defs/lifecycle_term"
+        },
+        "required_label": {
+          "type": "string",
+          "enum": [
+            "Local only",
+            "Uploaded",
+            "Redacted",
+            "Held",
+            "Destroyed",
+            "Pending"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "term": { "const": "local_only" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Local only" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "uploaded" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Uploaded" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "redacted" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Redacted" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "held" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Held" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "destroyed" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Destroyed" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "pending" } }, "required": ["term"] },
+          "then": { "properties": { "required_label": { "const": "Pending" } } }
+        }
+      ]
+    },
+    "vocabulary_terms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/vocabulary_term_entry"
+      }
+    },
+    "ref_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/stable_ref"
+      }
+    }
+  }
+}
