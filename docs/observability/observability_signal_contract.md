@@ -24,6 +24,11 @@ change.
 - [`/fixtures/observability/signal_slice_cases/`](../../fixtures/observability/signal_slice_cases/)
   contains worked slices for a clipped log stream, imported trace,
   downsampled metric window, and incident timeline export.
+- [`/docs/observability/replay_and_trace_bundle_contract.md`](./replay_and_trace_bundle_contract.md)
+  defines the replay and trace-bundle identity, comparison-class,
+  export-disclosure, and parity-control contract that packages trace
+  slices and performance captures for support, benchmark, and release
+  evidence reuse.
 - [`/docs/governance/time_semantics.md`](../governance/time_semantics.md)
   remains the canonical clock, timezone, and chronology model. Signal
   slices preserve those semantics by reference and by explicit UTC plus

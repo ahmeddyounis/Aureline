@@ -16,12 +16,16 @@ Authoritative design anchors:
 - `.t2/docs/Aureline_PRD.md` rows for time-travel debugging and
   performance regression detection.
 
-Companion machine-readable artifacts:
+Companion artifacts:
 
 - [`/schemas/performance/capture_session.schema.json`](../../schemas/performance/capture_session.schema.json)
 - [`/schemas/performance/regression_baseline.schema.json`](../../schemas/performance/regression_baseline.schema.json)
 - [`/artifacts/performance/capture_classes.yaml`](../../artifacts/performance/capture_classes.yaml)
 - [`/fixtures/performance/capture_cases/`](../../fixtures/performance/capture_cases/)
+- [`/docs/observability/replay_and_trace_bundle_contract.md`](../observability/replay_and_trace_bundle_contract.md)
+  covers bundle identity, comparison-class, export-disclosure, and
+  local/remote/CI/managed parity rules for packaging captures as
+  reusable replay or trace evidence.
 
 ## Contract Scope
 

@@ -1,0 +1,782 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/observability/trace_bundle.schema.json",
+  "title": "Aureline replay and trace bundle",
+  "description": "Boundary schema for trace_bundle_record. A bundle freezes identity, capture scope, build and context identity, source class, symbol/source-map linkage, retention and export posture, sensitive-content class, analysis limitations, parity controls across local/remote/CI/managed contexts, comparison class, and artifact refs. Raw trace chunks, replay sidecars, memory bytes, source text, paths, provider URLs, command lines, and secret material are referenced by opaque ids and digests rather than embedded.",
+  "type": "object",
+  "$ref": "#/$defs/trace_bundle_record",
+  "$defs": {
+    "trace_bundle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the trace-bundle contract."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "trace_bundle_record"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable ref safe for UI, CLI, support bundles, release evidence, and exports. Raw paths, URLs, commands, source text, payload bytes, provider payloads, and secret material never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "reviewable_note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short privacy-safe explanation for UI, CLI, support, or export review."
+    },
+    "utc_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "capture_mode_class": {
+      "type": "string",
+      "enum": [
+        "sampled_profile",
+        "instrumented_trace",
+        "recorded_replay",
+        "summary_only",
+        "ci_baseline_import",
+        "managed_trace_projection",
+        "external_import"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "local_process",
+        "remote_agent",
+        "ci_runner",
+        "managed_provider",
+        "imported_artifact"
+      ]
+    },
+    "collection_mode_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "mirrored",
+        "imported",
+        "offline_replay",
+        "unavailable"
+      ]
+    },
+    "capture_clock_class": {
+      "type": "string",
+      "enum": [
+        "monotonic_single_host",
+        "wall_clock_utc",
+        "distributed_trace_clock",
+        "synthetic_fixture_clock",
+        "unknown"
+      ]
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "event_time",
+        "ingest_time",
+        "query_time",
+        "export_time",
+        "reconstructed_time"
+      ]
+    },
+    "build_mode_class": {
+      "type": "string",
+      "enum": [
+        "debug",
+        "release",
+        "instrumented",
+        "asan",
+        "tsan",
+        "profiled",
+        "unknown"
+      ]
+    },
+    "local_remote_class": {
+      "type": "string",
+      "enum": [
+        "local_desktop",
+        "remote_workspace",
+        "managed_workspace",
+        "ci_runner",
+        "imported_only"
+      ]
+    },
+    "symbol_linkage_state_class": {
+      "type": "string",
+      "enum": [
+        "exact_symbols",
+        "partial_symbols",
+        "symbols_missing",
+        "symbols_not_applicable",
+        "symbols_unavailable",
+        "symbols_policy_restricted"
+      ]
+    },
+    "source_map_linkage_state_class": {
+      "type": "string",
+      "enum": [
+        "exact_source_map",
+        "partial_source_map",
+        "source_map_missing",
+        "source_map_not_applicable",
+        "source_map_stale",
+        "source_map_policy_restricted",
+        "source_unavailable"
+      ]
+    },
+    "mapping_quality_class": {
+      "type": "string",
+      "enum": [
+        "exact_match",
+        "source_only",
+        "artifact_only",
+        "restricted_by_policy",
+        "unavailable",
+        "probable_mismatch",
+        "import_mapping_unverified",
+        "mapping_not_applicable"
+      ]
+    },
+    "unavailable_source_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "symbols_missing",
+        "source_map_missing",
+        "source_root_unavailable",
+        "source_restricted_by_policy",
+        "source_expired_by_retention",
+        "import_mapping_unverified"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral",
+        "local_hot_cache",
+        "pinned_local_evidence",
+        "support_case_retained",
+        "review_packet_retained",
+        "release_evidence_retained",
+        "managed_archive_retained",
+        "imported_reference_only"
+      ]
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "summary_only",
+        "manifest_with_digests",
+        "local_only_raw",
+        "upload_safe_after_redaction",
+        "admin_policy_required",
+        "blocked_sensitive",
+        "not_applicable"
+      ]
+    },
+    "sensitive_content_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "code_adjacent_possible",
+        "user_content_possible",
+        "memory_payload_possible",
+        "secret_material_possible"
+      ]
+    },
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "workspace_metadata",
+        "user_content_possible",
+        "memory_payload_possible",
+        "secret_material_possible"
+      ]
+    },
+    "secret_class": {
+      "type": "string",
+      "enum": [
+        "no_secret_material",
+        "handle_only",
+        "secret_names_possible",
+        "raw_secret_possible"
+      ]
+    },
+    "open_format_claim_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "pprof_profile",
+        "speedscope_json",
+        "chrome_trace_json",
+        "otlp_trace",
+        "perfetto_trace",
+        "documented_aureline_json"
+      ]
+    },
+    "truncation_class": {
+      "type": "string",
+      "enum": [
+        "not_truncated",
+        "clipped_at_start",
+        "clipped_at_end",
+        "clipped_at_both_ends",
+        "clipped_by_retention",
+        "clipped_by_export_limit",
+        "clipped_by_policy_redaction",
+        "truncation_unknown_pending_review"
+      ]
+    },
+    "sampling_class": {
+      "type": "string",
+      "enum": [
+        "not_sampled",
+        "provider_sampled",
+        "product_sampled",
+        "statistical_sample",
+        "sample_state_unknown_pending_review"
+      ]
+    },
+    "downscope_class": {
+      "type": "string",
+      "enum": [
+        "not_downscoped",
+        "policy_downscoped",
+        "workset_downscoped",
+        "provider_projection_downscoped",
+        "retention_downscoped",
+        "source_unavailable_downscoped"
+      ]
+    },
+    "unavailable_source_class": {
+      "type": "string",
+      "enum": [
+        "all_sources_available",
+        "symbols_unavailable",
+        "source_maps_unavailable",
+        "source_roots_unavailable",
+        "provider_source_unavailable",
+        "policy_restricted_sources",
+        "source_expired_by_retention"
+      ]
+    },
+    "execution_location_class": {
+      "type": "string",
+      "enum": [
+        "local_desktop",
+        "remote_workspace",
+        "ci_imported",
+        "managed_trace"
+      ]
+    },
+    "control_posture_class": {
+      "type": "string",
+      "enum": [
+        "interactive_replay_safe",
+        "read_only_replay_safe",
+        "observational_timeline_only",
+        "metadata_only",
+        "unavailable"
+      ]
+    },
+    "replay_verb": {
+      "type": "string",
+      "enum": [
+        "inspect_timeline",
+        "scrub_timeline",
+        "step_forward",
+        "reverse_step",
+        "reverse_continue",
+        "inspect_frame",
+        "inspect_memory",
+        "export_bookmark",
+        "share_read_only_session",
+        "restart_with_recording"
+      ]
+    },
+    "bundle_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_uid",
+        "bundle_digest_ref",
+        "bundle_format_profile",
+        "producer_ref",
+        "created_at",
+        "source_capture_session_ref",
+        "schema_ref"
+      ],
+      "properties": {
+        "bundle_uid": { "$ref": "#/$defs/opaque_ref" },
+        "bundle_digest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "bundle_format_profile": { "$ref": "#/$defs/opaque_ref" },
+        "producer_ref": { "$ref": "#/$defs/opaque_ref" },
+        "created_at": { "$ref": "#/$defs/utc_timestamp" },
+        "source_capture_session_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "schema_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "capture_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_basis_class",
+        "started_at",
+        "ended_at",
+        "duration_ms"
+      ],
+      "properties": {
+        "time_basis_class": { "$ref": "#/$defs/time_basis_class" },
+        "started_at": { "$ref": "#/$defs/utc_timestamp" },
+        "ended_at": { "$ref": "#/$defs/utc_timestamp" },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "capture_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_mode_class",
+        "source_class",
+        "collection_mode_class",
+        "workload_ref",
+        "corpus_ref",
+        "capture_window",
+        "capture_backend_family_ref",
+        "capture_clock_class",
+        "downscope_reason_refs"
+      ],
+      "properties": {
+        "capture_mode_class": { "$ref": "#/$defs/capture_mode_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "collection_mode_class": { "$ref": "#/$defs/collection_mode_class" },
+        "workload_ref": { "$ref": "#/$defs/opaque_ref" },
+        "corpus_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "capture_window": { "$ref": "#/$defs/capture_window" },
+        "capture_backend_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "capture_clock_class": { "$ref": "#/$defs/capture_clock_class" },
+        "downscope_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "build_context_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_ref",
+        "build_id",
+        "source_revision_ref",
+        "build_mode",
+        "execution_context_id",
+        "target_ref",
+        "workspace_ref",
+        "workset_ref",
+        "runtime_ref",
+        "toolchain_ref",
+        "environment_fingerprint_ref",
+        "hardware_profile_ref",
+        "power_posture_ref",
+        "local_remote_class"
+      ],
+      "properties": {
+        "exact_build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "build_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "build_mode": { "$ref": "#/$defs/build_mode_class" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_ref" },
+        "target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "workset_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "runtime_ref": { "$ref": "#/$defs/opaque_ref" },
+        "toolchain_ref": { "$ref": "#/$defs/opaque_ref" },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "hardware_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "power_posture_ref": { "$ref": "#/$defs/opaque_ref" },
+        "local_remote_class": { "$ref": "#/$defs/local_remote_class" }
+      }
+    },
+    "unavailable_source_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disclosure_class",
+        "artifact_ref",
+        "required_wording"
+      ],
+      "properties": {
+        "disclosure_class": { "$ref": "#/$defs/unavailable_source_disclosure_class" },
+        "artifact_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "required_wording": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "symbol_source_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol_manifest_ref",
+        "symbol_linkage_state",
+        "source_map_manifest_ref",
+        "source_map_linkage_state",
+        "mapping_quality_class",
+        "unavailable_source_disclosures"
+      ],
+      "properties": {
+        "symbol_manifest_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "symbol_linkage_state": { "$ref": "#/$defs/symbol_linkage_state_class" },
+        "source_map_manifest_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "source_map_linkage_state": { "$ref": "#/$defs/source_map_linkage_state_class" },
+        "mapping_quality_class": { "$ref": "#/$defs/mapping_quality_class" },
+        "unavailable_source_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unavailable_source_disclosure" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "retention_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_ref",
+        "retention_class",
+        "retained_until",
+        "redaction_profile_ref",
+        "summary_export_posture",
+        "raw_export_posture",
+        "sensitive_content_class",
+        "data_class_ceiling",
+        "secret_class_ceiling",
+        "open_format_claims"
+      ],
+      "properties": {
+        "record_class_ref": { "$ref": "#/$defs/opaque_ref" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retained_until": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_timestamp" }
+          ]
+        },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary_export_posture": { "$ref": "#/$defs/export_posture_class" },
+        "raw_export_posture": { "$ref": "#/$defs/export_posture_class" },
+        "sensitive_content_class": { "$ref": "#/$defs/sensitive_content_class" },
+        "data_class_ceiling": { "$ref": "#/$defs/data_class" },
+        "secret_class_ceiling": { "$ref": "#/$defs/secret_class" },
+        "open_format_claims": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_format_claim_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "analysis_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truncation_class",
+        "sampling_class",
+        "downscope_class",
+        "unavailable_source_class",
+        "sample_rate",
+        "dropped_event_count",
+        "limitation_reason_refs",
+        "export_disclosure_note"
+      ],
+      "properties": {
+        "truncation_class": { "$ref": "#/$defs/truncation_class" },
+        "sampling_class": { "$ref": "#/$defs/sampling_class" },
+        "downscope_class": { "$ref": "#/$defs/downscope_class" },
+        "unavailable_source_class": { "$ref": "#/$defs/unavailable_source_class" },
+        "sample_rate": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+          ]
+        },
+        "dropped_event_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "limitation_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "export_disclosure_note": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_location_class",
+        "control_posture_class",
+        "allowed_verbs",
+        "disabled_verbs",
+        "parity_note"
+      ],
+      "properties": {
+        "execution_location_class": { "$ref": "#/$defs/execution_location_class" },
+        "control_posture_class": { "$ref": "#/$defs/control_posture_class" },
+        "allowed_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_verb" },
+          "uniqueItems": true
+        },
+        "disabled_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_verb" },
+          "uniqueItems": true
+        },
+        "parity_note": { "$ref": "#/$defs/reviewable_note" }
+      }
+    },
+    "artifact_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_trace_refs",
+        "summary_artifact_refs",
+        "replay_sidecar_refs",
+        "digest_refs",
+        "support_bundle_refs",
+        "review_packet_refs",
+        "release_evidence_refs"
+      ],
+      "properties": {
+        "raw_trace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "summary_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "replay_sidecar_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "digest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "support_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "review_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "release_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "trace_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trace_bundle_schema_version",
+        "record_kind",
+        "trace_bundle_id",
+        "title",
+        "bundle_identity",
+        "capture_scope",
+        "build_context_identity",
+        "symbol_source_linkage",
+        "retention_export_posture",
+        "analysis_limits",
+        "parity_matrix",
+        "comparison_class",
+        "artifact_refs"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["name", "scenario"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "scenario": { "type": "string", "minLength": 1 }
+          }
+        },
+        "trace_bundle_schema_version": { "$ref": "#/$defs/trace_bundle_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "trace_bundle_id": { "$ref": "#/$defs/opaque_ref" },
+        "title": { "$ref": "#/$defs/reviewable_note" },
+        "bundle_identity": { "$ref": "#/$defs/bundle_identity" },
+        "capture_scope": { "$ref": "#/$defs/capture_scope" },
+        "build_context_identity": { "$ref": "#/$defs/build_context_identity" },
+        "symbol_source_linkage": { "$ref": "#/$defs/symbol_source_linkage" },
+        "retention_export_posture": { "$ref": "#/$defs/retention_export_posture" },
+        "analysis_limits": { "$ref": "#/$defs/analysis_limits" },
+        "parity_matrix": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/parity_row" },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "execution_location_class": { "const": "local_desktop" }
+                },
+                "required": ["execution_location_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "execution_location_class": { "const": "remote_workspace" }
+                },
+                "required": ["execution_location_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "execution_location_class": { "const": "ci_imported" }
+                },
+                "required": ["execution_location_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "execution_location_class": { "const": "managed_trace" }
+                },
+                "required": ["execution_location_class"]
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "comparison_class": { "$ref": "replay_comparison_class.schema.json#/$defs/replay_comparison_class_record" },
+        "artifact_refs": { "$ref": "#/$defs/artifact_refs" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "capture_scope": {
+                "properties": {
+                  "capture_mode_class": { "const": "recorded_replay" }
+                },
+                "required": ["capture_mode_class"]
+              }
+            },
+            "required": ["capture_scope"]
+          },
+          "then": {
+            "properties": {
+              "artifact_refs": {
+                "properties": {
+                  "replay_sidecar_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "symbol_source_linkage": {
+                "properties": {
+                  "source_map_linkage_state": { "const": "source_map_missing" }
+                },
+                "required": ["source_map_linkage_state"]
+              }
+            },
+            "required": ["symbol_source_linkage"]
+          },
+          "then": {
+            "properties": {
+              "symbol_source_linkage": {
+                "properties": {
+                  "source_map_manifest_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "analysis_limits": {
+                "properties": {
+                  "sampling_class": { "const": "not_sampled" }
+                },
+                "required": ["sampling_class"]
+              }
+            },
+            "required": ["analysis_limits"]
+          },
+          "then": {
+            "properties": {
+              "analysis_limits": {
+                "properties": {
+                  "sample_rate": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "comparison_class": {
+                "properties": {
+                  "comparison_class": { "const": "exact_same_code_data_env_hardware" }
+                },
+                "required": ["comparison_class"]
+              }
+            },
+            "required": ["comparison_class"]
+          },
+          "then": {
+            "properties": {
+              "analysis_limits": {
+                "properties": {
+                  "truncation_class": { "const": "not_truncated" },
+                  "sampling_class": { "const": "not_sampled" },
+                  "downscope_class": { "const": "not_downscoped" },
+                  "unavailable_source_class": { "const": "all_sources_available" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
