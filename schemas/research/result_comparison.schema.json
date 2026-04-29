@@ -1,0 +1,580 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/research/result_comparison.schema.json",
+  "title": "Aureline result comparison record",
+  "description": "Boundary schema for one governed result comparison. The record joins baseline and candidate experiment records, names metric schema/version, comparability label, dataset/corpus/hardware/environment/build/parameter deltas, significance or variance notes, disqualifiers, and presentation-safe summary rows so public-proof, benchmark, AI-eval, design-study, and performance claims cannot hide changed inputs in free-form notes.",
+  "$ref": "#/$defs/result_comparison_record",
+  "$defs": {
+    "result_comparison_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "result_comparison_record"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable ref safe for manifests, support bundles, release evidence, and public-proof packets. No raw URLs, raw file paths outside the repo, raw datasets, raw prompts, raw logs, raw screenshots, private participant identifiers, credentials, or private source names appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "comparison_label": {
+      "type": "string",
+      "enum": [
+        "comparable",
+        "environment_skewed",
+        "data_skewed",
+        "code_skewed",
+        "hardware_skewed",
+        "parameter_skewed",
+        "lineage_missing",
+        "not_comparable",
+        "quarantined"
+      ]
+    },
+    "comparison_purpose": {
+      "type": "string",
+      "enum": [
+        "benchmark_claim",
+        "public_proof_claim",
+        "ai_eval_decision",
+        "design_research_summary",
+        "performance_regression_review",
+        "notebook_result_review",
+        "supportability_review",
+        "internal_exploration"
+      ]
+    },
+    "axis_class": {
+      "type": "string",
+      "enum": [
+        "dataset",
+        "corpus",
+        "hardware",
+        "environment",
+        "build",
+        "code_revision",
+        "parameters",
+        "seed",
+        "metric_schema",
+        "approval",
+        "waiver",
+        "redaction",
+        "publication_posture"
+      ]
+    },
+    "axis_delta_state": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "changed_visible",
+        "changed_narrowed",
+        "missing",
+        "not_applicable"
+      ]
+    },
+    "metric_unit_class": {
+      "type": "string",
+      "enum": [
+        "milliseconds",
+        "bytes",
+        "count",
+        "ratio",
+        "score",
+        "boolean",
+        "qualitative_bucket",
+        "structural_digest"
+      ]
+    },
+    "threshold_state": {
+      "type": "string",
+      "enum": [
+        "within_threshold",
+        "warn_threshold_exceeded",
+        "fail_threshold_exceeded",
+        "waived",
+        "not_comparable",
+        "threshold_not_set"
+      ]
+    },
+    "delta_direction": {
+      "type": "string",
+      "enum": [
+        "improved",
+        "regressed",
+        "unchanged",
+        "mixed",
+        "not_comparable",
+        "unknown"
+      ]
+    },
+    "significance_method": {
+      "type": "string",
+      "enum": [
+        "none_reported",
+        "bootstrap_confidence_interval",
+        "t_test",
+        "mann_whitney",
+        "bayesian_interval",
+        "variance_budget",
+        "qualitative_thematic",
+        "reviewer_consensus",
+        "not_applicable"
+      ]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "reference_grade",
+        "directional",
+        "trend_only",
+        "qualitative",
+        "not_comparable",
+        "unknown"
+      ]
+    },
+    "disqualifier_class": {
+      "type": "string",
+      "enum": [
+        "changed_corpus",
+        "changed_dataset",
+        "changed_hardware",
+        "changed_environment",
+        "changed_metric_schema",
+        "missing_lineage",
+        "redaction_blocks_claim",
+        "insufficient_samples",
+        "approval_missing",
+        "waiver_expired",
+        "policy_blocked",
+        "raw_payload_only",
+        "other"
+      ]
+    },
+    "disqualifier_severity": {
+      "type": "string",
+      "enum": [
+        "advisory",
+        "narrows_claim",
+        "blocks_claim",
+        "quarantines"
+      ]
+    },
+    "summary_posture": {
+      "type": "string",
+      "enum": [
+        "internal_only",
+        "presentation_safe_summary",
+        "public_proof_candidate",
+        "publishable",
+        "quarantined"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "benchmark_report",
+        "public_proof_packet",
+        "claim_manifest",
+        "ai_eval_review",
+        "design_research_report",
+        "release_evidence_packet",
+        "support_export",
+        "notebook_summary",
+        "internal_dashboard"
+      ]
+    },
+    "value_cell": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "$ref": "#/$defs/safe_label" }
+      ]
+    },
+    "run_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "experiment_record_ref",
+        "run_label",
+        "dataset_summary_refs",
+        "exact_build_identity_ref",
+        "hardware_profile_ref",
+        "environment_fingerprint_ref"
+      ],
+      "properties": {
+        "experiment_record_ref": { "$ref": "#/$defs/opaque_ref" },
+        "run_label": { "$ref": "#/$defs/safe_label" },
+        "dataset_summary_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "exact_build_identity_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "hardware_profile_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+    "comparison_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comparison_label",
+        "comparison_purpose",
+        "basis_summary",
+        "metric_schema_ref",
+        "metric_schema_version"
+      ],
+      "properties": {
+        "comparison_label": { "$ref": "#/$defs/comparison_label" },
+        "comparison_purpose": { "$ref": "#/$defs/comparison_purpose" },
+        "basis_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "metric_schema_ref": { "$ref": "#/$defs/opaque_ref" },
+        "metric_schema_version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "axis_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "state",
+        "baseline_ref",
+        "candidate_ref",
+        "summary_ref",
+        "presentation_required"
+      ],
+      "properties": {
+        "axis": { "$ref": "#/$defs/axis_class" },
+        "state": { "$ref": "#/$defs/axis_delta_state" },
+        "baseline_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "candidate_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "summary_ref": { "$ref": "#/$defs/opaque_ref" },
+        "presentation_required": { "type": "boolean" }
+      }
+    },
+    "metric_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "value_ref"
+      ],
+      "properties": {
+        "value": { "$ref": "#/$defs/value_cell" },
+        "value_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+    "metric_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric_id",
+        "display_name",
+        "unit_class",
+        "baseline_value",
+        "candidate_value",
+        "delta_value",
+        "delta_direction",
+        "threshold_state",
+        "significance_or_variance_ref",
+        "context_note_ref"
+      ],
+      "properties": {
+        "metric_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_name": { "$ref": "#/$defs/safe_label" },
+        "unit_class": { "$ref": "#/$defs/metric_unit_class" },
+        "baseline_value": { "$ref": "#/$defs/metric_value" },
+        "candidate_value": { "$ref": "#/$defs/metric_value" },
+        "delta_value": { "$ref": "#/$defs/metric_value" },
+        "delta_direction": { "$ref": "#/$defs/delta_direction" },
+        "threshold_state": { "$ref": "#/$defs/threshold_state" },
+        "significance_or_variance_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "context_note_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "significance_or_variance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method_class",
+        "confidence_class",
+        "variance_class_ref",
+        "variance_note_ref",
+        "sample_count_summary_ref"
+      ],
+      "properties": {
+        "method_class": { "$ref": "#/$defs/significance_method" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "confidence_level": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0, "maximum": 1 }
+          ]
+        },
+        "variance_class_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "variance_note_ref": { "$ref": "#/$defs/opaque_ref" },
+        "sample_count_summary_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "disqualifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disqualifier_class",
+        "severity",
+        "summary_ref",
+        "visible_in_presentation"
+      ],
+      "properties": {
+        "disqualifier_class": { "$ref": "#/$defs/disqualifier_class" },
+        "severity": { "$ref": "#/$defs/disqualifier_severity" },
+        "summary_ref": { "$ref": "#/$defs/opaque_ref" },
+        "visible_in_presentation": { "type": "boolean" }
+      }
+    },
+    "summary_axis": {
+      "type": "string",
+      "enum": [
+        "dataset",
+        "corpus",
+        "hardware",
+        "environment",
+        "build",
+        "parameters",
+        "seed",
+        "waivers",
+        "disqualifiers"
+      ]
+    },
+    "summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "baseline",
+        "candidate",
+        "delta",
+        "context_note"
+      ],
+      "properties": {
+        "label": { "$ref": "#/$defs/safe_label" },
+        "baseline": { "$ref": "#/$defs/safe_label" },
+        "candidate": { "$ref": "#/$defs/safe_label" },
+        "delta": { "$ref": "#/$defs/safe_label" },
+        "context_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "presentation_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_view_id",
+        "summary_posture",
+        "allowed_surfaces",
+        "headline_ref",
+        "required_visible_axes",
+        "changed_corpora_visible",
+        "changed_hardware_visible",
+        "summary_rows"
+      ],
+      "properties": {
+        "summary_view_id": { "$ref": "#/$defs/opaque_ref" },
+        "summary_posture": { "$ref": "#/$defs/summary_posture" },
+        "allowed_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_class" }
+        },
+        "headline_ref": { "$ref": "#/$defs/opaque_ref" },
+        "required_visible_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/summary_axis" }
+        },
+        "changed_corpora_visible": { "type": "boolean" },
+        "changed_hardware_visible": { "type": "boolean" },
+        "summary_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/summary_row" }
+        }
+      }
+    },
+    "link_kind": {
+      "type": "string",
+      "enum": [
+        "experiment_record",
+        "dataset_summary",
+        "benchmark_run_result",
+        "benchmark_publication_pack",
+        "public_proof_packet",
+        "ai_evidence_packet",
+        "ai_graduation_packet",
+        "design_study_packet",
+        "claim_manifest_row",
+        "known_limit_note",
+        "waiver",
+        "approval_ticket",
+        "support_export_packet"
+      ]
+    },
+    "linkage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_kind",
+        "link_ref",
+        "required_for_publication"
+      ],
+      "properties": {
+        "link_kind": { "$ref": "#/$defs/link_kind" },
+        "link_ref": { "$ref": "#/$defs/opaque_ref" },
+        "required_for_publication": { "type": "boolean" }
+      }
+    },
+    "result_comparison_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_comparison_schema_version",
+        "record_kind",
+        "comparison_id",
+        "title",
+        "baseline_run",
+        "candidate_run",
+        "comparison_basis",
+        "axis_deltas",
+        "metric_rows",
+        "significance_or_variance",
+        "disqualifiers",
+        "presentation_summary",
+        "linkage",
+        "created_at"
+      ],
+      "properties": {
+        "result_comparison_schema_version": { "$ref": "#/$defs/result_comparison_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "comparison_id": { "$ref": "#/$defs/opaque_ref" },
+        "title": { "$ref": "#/$defs/safe_label" },
+        "baseline_run": { "$ref": "#/$defs/run_ref" },
+        "candidate_run": { "$ref": "#/$defs/run_ref" },
+        "comparison_basis": { "$ref": "#/$defs/comparison_basis" },
+        "axis_deltas": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/axis_delta" }
+        },
+        "metric_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/metric_row" }
+        },
+        "significance_or_variance": { "$ref": "#/$defs/significance_or_variance" },
+        "disqualifiers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disqualifier" }
+        },
+        "presentation_summary": { "$ref": "#/$defs/presentation_summary" },
+        "linkage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/linkage_entry" }
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Data-skewed comparisons must make the dataset or corpus axis visible in presentation-safe summaries.",
+          "if": {
+            "properties": {
+              "comparison_basis": {
+                "properties": {
+                  "comparison_label": { "const": "data_skewed" }
+                },
+                "required": ["comparison_label"]
+              }
+            },
+            "required": ["comparison_basis"]
+          },
+          "then": {
+            "properties": {
+              "presentation_summary": {
+                "properties": {
+                  "required_visible_axes": {
+                    "contains": {
+                      "enum": [
+                        "dataset",
+                        "corpus"
+                      ]
+                    }
+                  },
+                  "changed_corpora_visible": { "const": true }
+                },
+                "required": [
+                  "required_visible_axes",
+                  "changed_corpora_visible"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Hardware-skewed comparisons must make the hardware axis visible in presentation-safe summaries.",
+          "if": {
+            "properties": {
+              "comparison_basis": {
+                "properties": {
+                  "comparison_label": { "const": "hardware_skewed" }
+                },
+                "required": ["comparison_label"]
+              }
+            },
+            "required": ["comparison_basis"]
+          },
+          "then": {
+            "properties": {
+              "presentation_summary": {
+                "properties": {
+                  "required_visible_axes": {
+                    "contains": { "const": "hardware" }
+                  },
+                  "changed_hardware_visible": { "const": true }
+                },
+                "required": [
+                  "required_visible_axes",
+                  "changed_hardware_visible"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
