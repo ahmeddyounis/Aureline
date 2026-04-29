@@ -1256,5 +1256,15 @@ sets it exercises, and the rules it validates.
 - Bundle manifest schema (machine-readable companion to
   this contract):
   [`/schemas/workflow/bundle_manifest.schema.json`](../../schemas/workflow/bundle_manifest.schema.json).
+- Bundle install / update review, change preview, and
+  rollback-checkpoint contract (source of truth for the
+  `bundle_change_preview_record` review sheet that gates
+  durable apply, the six review-sheet action ids, and the
+  attributable rollback-checkpoint linkage that pairs with
+  this contract's `removal_surface_kind` and
+  `rollback_surface_kind`):
+  [`/docs/workflow/bundle_change_review_contract.md`](./bundle_change_review_contract.md)
+  and
+  [`/schemas/workflow/bundle_change_preview.schema.json`](../../schemas/workflow/bundle_change_preview.schema.json).
 - Worked-example fixtures:
   [`/fixtures/workflow/bundles/`](../../fixtures/workflow/bundles/).

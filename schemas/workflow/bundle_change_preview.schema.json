@@ -1,0 +1,1247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workflow/bundle_change_preview.schema.json",
+  "title": "Aureline workflow-bundle install/update review, change preview, and rollback-checkpoint linkage",
+  "description": "Boundary schema for one bundle_change_preview_record as frozen in docs/workflow/bundle_change_review_contract.md. Every install, update, downgrade, re-apply, partial-apply, or set-up-later flow that touches a workflow_bundle_manifest_record (schemas/workflow/bundle_manifest.schema.json) MUST mint a preview record before any durable side effect runs. The preview enumerates per-axis change_entry rows for the eleven bundle_component_kind slots plus settings/token deltas, layout/profile presets, task/launch/debug additions, docs/tour/glossary packs, template references, trust/permission deltas, toolchain/runtime compatibility deltas, and side-effect envelopes. It binds typed review_sheet_action rows for Compare, Confirm, Cancel, Set up later, Inspect change source, and Create rollback checkpoint, and binds exactly one attributable rollback_checkpoint_linkage block (single attributable checkpoint, paired appearance/workspace checkpoint, or explicitly marked non-reversible with a justification class and a decision row ref). Raw signing keys, raw certificate material, raw repository URLs, raw absolute paths, raw secrets, raw extension binaries, raw token values, raw setting bodies, and raw user-authored content never cross this boundary; records carry opaque refs, content-address digests, closed vocabulary, monotonic timestamps, and short reviewable summaries only. Adding a new change_kind, change_axis, settings_or_token_axis, trust_or_permission_axis, compatibility_axis, side_effect_class, review_action_id, action_rendered_state, disabled_reason_code, rollback_checkpoint_linkage_class, rollback_path_class, or non_reversibility_justification_class value is additive-minor and bumps bundle_change_preview_schema_version; repurposing an existing value is breaking and requires a new decision row in artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "$ref": "#/$defs/bundle_change_preview_record",
+  "$defs": {
+    "bundle_change_preview_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1. Bumped on additive-minor enum or field additions; repurposing or removal is breaking and requires a decision row."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for previews, manifests, support exports, evidence packets, decision rows, and logs. Raw paths, URLs, secrets, key material, and user content never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Short reviewer-facing summary already scrubbed by the producer. Raw paths, URLs, secrets, command lines, and manifest bodies never appear here."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercises": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "bundle_class": {
+      "type": "string",
+      "enum": [
+        "launch_bundle",
+        "imported_user_bundle",
+        "org_approved_bundle",
+        "design_partner_bundle",
+        "local_draft_bundle"
+      ],
+      "description": "Re-exported from schemas/workflow/bundle_manifest.schema.json. See docs/workflow/workflow_bundle_object_model.md §3.1."
+    },
+    "bundle_source_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "managed_approved",
+        "community",
+        "imported",
+        "local_draft"
+      ]
+    },
+    "bundle_status_class": {
+      "type": "string",
+      "enum": [
+        "certified_current",
+        "certified_retest_pending",
+        "managed_approved_current",
+        "community_reviewed",
+        "community_unreviewed",
+        "imported_pending_review",
+        "local_draft",
+        "deprecated_or_archived",
+        "retest_needed",
+        "status_unknown"
+      ]
+    },
+    "bundle_component_kind": {
+      "type": "string",
+      "enum": [
+        "extension_set",
+        "profile_preset",
+        "surface_preset",
+        "task_recipe",
+        "launch_recipe",
+        "debug_recipe",
+        "template_or_scaffold_ref",
+        "docs_pack",
+        "tour_pack",
+        "glossary_pack",
+        "migration_mapping",
+        "certification_target",
+        "evidence_link"
+      ],
+      "description": "Re-exported from schemas/workflow/bundle_manifest.schema.json §3.8."
+    },
+    "mirror_or_offline_packaging_posture": {
+      "type": "string",
+      "enum": [
+        "live_origin_only",
+        "live_or_mirror",
+        "mirror_only",
+        "signed_offline_bundle",
+        "offline_no_bundle",
+        "packaging_posture_unknown"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "officially_supported",
+        "community_supported",
+        "experimental",
+        "legacy_deprecated",
+        "unsupported",
+        "support_unknown"
+      ]
+    },
+    "disabled_reason_code": {
+      "type": "string",
+      "enum": [
+        "policy_narrowed_fleet",
+        "policy_narrowed_admin",
+        "policy_narrowed_workspace_trust",
+        "mirror_only_cached_subset",
+        "signature_review_required",
+        "uncertified_excluded",
+        "target_runtime_unavailable",
+        "network_unreachable",
+        "rebuild_required",
+        "trust_review_required",
+        "permission_grant_review_required",
+        "rollback_checkpoint_unavailable",
+        "non_reversible_review_required",
+        "policy_narrowed_review_pending",
+        "evidence_aged_review_required"
+      ],
+      "description": "Re-exports the bundle-manifest disabled_reason_code set and adds the four review-only narrowing reasons (trust_review_required, permission_grant_review_required, rollback_checkpoint_unavailable, non_reversible_review_required, policy_narrowed_review_pending, evidence_aged_review_required) used by review-sheet actions."
+    },
+
+    "preview_intent_class": {
+      "type": "string",
+      "enum": [
+        "fresh_install_preview",
+        "update_to_newer_revision_preview",
+        "downgrade_to_older_revision_preview",
+        "channel_promotion_preview",
+        "channel_demotion_preview",
+        "reapply_same_revision_preview",
+        "partial_apply_after_failure_preview",
+        "set_up_later_deferred_preview"
+      ],
+      "description": "Why the preview was minted. Frozen in docs/workflow/bundle_change_review_contract.md §3.1."
+    },
+
+    "preview_origin_class": {
+      "type": "string",
+      "enum": [
+        "start_center_review_bundle_action",
+        "browse_bundles_review_bundle_action",
+        "update_detail_review_bundle_action",
+        "project_doctor_recommended_review",
+        "support_export_recommended_review",
+        "cli_or_headless_review",
+        "policy_pinned_revision_review",
+        "imported_bundle_ingress_review"
+      ]
+    },
+
+    "change_kind": {
+      "type": "string",
+      "enum": [
+        "added",
+        "removed",
+        "changed",
+        "revision_bumped",
+        "unchanged_visible",
+        "preserved_local",
+        "blocked_pending_review",
+        "skipped_no_op"
+      ],
+      "description": "Per-entry change posture against the workspace's prior state. unchanged_visible exists so a reviewer sees that an axis was inspected and not silently dropped; preserved_local is required for any local override the bundle would otherwise overwrite. Frozen in §3.2."
+    },
+
+    "change_axis": {
+      "type": "string",
+      "enum": [
+        "extension_set",
+        "profile_preset",
+        "surface_preset",
+        "task_recipe",
+        "launch_recipe",
+        "debug_recipe",
+        "template_or_scaffold_ref",
+        "docs_pack",
+        "tour_pack",
+        "glossary_pack",
+        "migration_mapping",
+        "certification_target",
+        "evidence_link",
+        "settings_or_token",
+        "trust_or_permission",
+        "compatibility_or_runtime",
+        "side_effect"
+      ],
+      "description": "Top-level axis the change entry belongs to. The first thirteen mirror bundle_component_kind from the manifest §3.8; the last four are review-local axes for settings/tokens, trust/permission, compatibility/runtime, and side effects so reviewers see those deltas in the same model as ordinary content changes. Frozen in §3.3."
+    },
+
+    "settings_or_token_axis": {
+      "type": "string",
+      "enum": [
+        "appearance_token_overlay",
+        "appearance_theme_package",
+        "editor_setting",
+        "language_setting",
+        "shell_setting",
+        "workspace_setting",
+        "profile_setting",
+        "policy_pinned_setting",
+        "keymap_binding",
+        "command_alias",
+        "telemetry_setting"
+      ],
+      "description": "Closed set of setting / token domains a bundle delta may touch. appearance_* axes route through schemas/ux/appearance_checkpoint.schema.json so the appearance-session contract owns checkpoint atomicity for visual changes."
+    },
+
+    "settings_value_class": {
+      "type": "string",
+      "enum": [
+        "absent",
+        "present_default",
+        "present_user_set",
+        "present_profile_set",
+        "present_workspace_set",
+        "present_policy_pinned",
+        "present_imported_unreviewed",
+        "present_local_draft",
+        "value_unknown"
+      ],
+      "description": "Closed value-class set so previews never leak raw setting values. The reviewer sees who owns the value rather than the literal payload."
+    },
+
+    "trust_or_permission_axis": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_state",
+        "extension_activation_capability",
+        "extension_network_egress",
+        "extension_filesystem_scope",
+        "extension_subprocess_scope",
+        "task_run_test_debug_execution_scope",
+        "external_provider_grant",
+        "managed_cloud_identity_grant",
+        "signer_continuity_carryover",
+        "signature_review_carryover",
+        "policy_lock_state"
+      ],
+      "description": "Closed set of trust / permission axes a bundle apply may touch. Every entry must cite a before_state and an after_state so escalation never lands silently. Frozen in §3.5."
+    },
+
+    "trust_or_permission_state_class": {
+      "type": "string",
+      "enum": [
+        "denied",
+        "granted_user_review",
+        "granted_managed_policy",
+        "granted_signer_continuous",
+        "granted_imported_pending_review",
+        "granted_local_draft",
+        "policy_locked_unchangeable",
+        "state_unknown_review_required"
+      ],
+      "description": "Closed state class for trust / permission axes."
+    },
+
+    "compatibility_axis": {
+      "type": "string",
+      "enum": [
+        "aureline_runtime_range",
+        "release_channel_compatibility",
+        "extension_set_compatibility",
+        "template_compatibility",
+        "archetype_compatibility",
+        "toolchain_runtime_class",
+        "mirror_or_offline_packaging",
+        "evidence_freshness_window"
+      ]
+    },
+
+    "compatibility_state_class": {
+      "type": "string",
+      "enum": [
+        "compatible_no_change",
+        "compatible_widened",
+        "compatible_narrowed",
+        "incompatible_blocking",
+        "incompatible_review_required",
+        "compatibility_unknown"
+      ]
+    },
+
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_durable_side_effect",
+        "extension_install_or_activate",
+        "extension_uninstall_or_deactivate",
+        "settings_write_user_scope",
+        "settings_write_profile_scope",
+        "settings_write_workspace_scope",
+        "settings_write_policy_scope",
+        "filesystem_scaffold_write",
+        "filesystem_scaffold_overwrite_existing",
+        "shell_command_invocation",
+        "external_provider_request",
+        "managed_cloud_identity_use",
+        "telemetry_event_emission",
+        "rollback_checkpoint_creation",
+        "rollback_checkpoint_omitted_non_reversible"
+      ],
+      "description": "Closed set the side-effect envelope draws from. The preview MUST enumerate every side-effect class the apply would produce; selecting Confirm is the only durable trigger."
+    },
+
+    "side_effect_scope_class": {
+      "type": "string",
+      "enum": [
+        "user_scope",
+        "profile_scope",
+        "workspace_scope",
+        "fleet_managed_scope",
+        "external_provider_scope",
+        "device_scope"
+      ]
+    },
+
+    "review_action_id": {
+      "type": "string",
+      "enum": [
+        "review.compare",
+        "review.confirm",
+        "review.cancel",
+        "review.set_up_later",
+        "review.inspect_change_source",
+        "review.create_rollback_checkpoint"
+      ],
+      "description": "Closed set of review-sheet actions every preview surface offers. A surface that mints a parallel verb (Apply, Skip, Snapshot, Undo) is non-conforming. Frozen in §6."
+    },
+
+    "action_rendered_state": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "visible_disabled",
+        "hidden_not_applicable",
+        "preflight_pending"
+      ],
+      "description": "Closed set for how an action is rendered. visible_disabled requires a disabled_reason_code; hidden_not_applicable is reserved for actions that don't apply to the current bundle_class (for example, rollback on a fresh install with no prior revision)."
+    },
+
+    "rollback_checkpoint_linkage_class": {
+      "type": "string",
+      "enum": [
+        "single_attributable_workspace_checkpoint",
+        "single_attributable_profile_checkpoint",
+        "single_attributable_user_checkpoint",
+        "single_appearance_checkpoint_only_for_visual",
+        "paired_workspace_and_appearance_checkpoint",
+        "non_reversible_with_justification",
+        "non_reversible_pending_review"
+      ],
+      "description": "How the preview ties one durable apply to one attributable rollback handle. Multiple uncoordinated rollback handles are non-conforming; a single paired checkpoint that bundles a workspace-state and an appearance checkpoint is allowed when the apply touches both axes. non_reversible_* values require a justification class and a decision row ref. Frozen in §7."
+    },
+
+    "rollback_path_class": {
+      "type": "string",
+      "enum": [
+        "single_checkpoint_revert",
+        "surface_reload_then_revert",
+        "full_restart_then_revert",
+        "manual_recovery_only",
+        "not_reversible"
+      ]
+    },
+
+    "non_reversibility_justification_class": {
+      "type": "string",
+      "enum": [
+        "external_state_mutation_committed",
+        "provider_grant_unrevocable_in_session",
+        "filesystem_destructive_replace_acknowledged",
+        "mirror_promotion_immutable_revision",
+        "local_draft_no_prior_state",
+        "imported_environment_no_prior_state",
+        "policy_pinned_revision_no_rollback",
+        "telemetry_event_already_emitted"
+      ],
+      "description": "Closed justification set for non-reversible apply paths. Selecting any value requires a decision_row_ref and a reviewable summary that names the side effect that cannot be unwound."
+    },
+
+    "rollback_restorable_axis": {
+      "type": "string",
+      "enum": [
+        "extensions_installed_or_activated",
+        "settings_or_token_overlays",
+        "appearance_session_state",
+        "profile_or_surface_presets",
+        "task_run_test_debug_recipes",
+        "filesystem_scaffolded_files",
+        "trust_or_permission_state",
+        "compatibility_or_runtime_pinning",
+        "managed_provider_grants_session_only",
+        "policy_pinned_revision"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "bundle_identity_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "bundle_revision",
+        "bundle_class",
+        "bundle_source_class",
+        "bundle_status_class"
+      ],
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "bundle_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bundle_revision_semver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "bundle_class": { "$ref": "#/$defs/bundle_class" },
+        "bundle_source_class": { "$ref": "#/$defs/bundle_source_class" },
+        "bundle_status_class": { "$ref": "#/$defs/bundle_status_class" },
+        "manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "manifest_digest_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+
+    "change_source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "source_ref"],
+      "properties": {
+        "source_class": {
+          "type": "string",
+          "enum": [
+            "bundle_manifest_field",
+            "bundle_component_record",
+            "bundle_evidence_link",
+            "bundle_dependency_marker",
+            "bundle_lifecycle_block",
+            "appearance_token_overlay_report",
+            "theme_import_report",
+            "imported_environment_record",
+            "policy_pinned_revision_record",
+            "previous_revision_manifest"
+          ],
+          "description": "Closed set the Inspect change source action drills into. Every change_entry MUST cite at least one source_ref so the reviewer can trace the delta back to a manifest field, evidence link, or report."
+        },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+
+    "component_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_axis",
+        "change_kind",
+        "component_kind",
+        "component_id",
+        "before_revision_ref",
+        "after_revision_ref",
+        "change_summary_ref",
+        "change_source_refs",
+        "disclosure_required",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "change_axis": {
+          "type": "string",
+          "enum": [
+            "extension_set",
+            "profile_preset",
+            "surface_preset",
+            "task_recipe",
+            "launch_recipe",
+            "debug_recipe",
+            "template_or_scaffold_ref",
+            "docs_pack",
+            "tour_pack",
+            "glossary_pack",
+            "migration_mapping",
+            "certification_target",
+            "evidence_link"
+          ]
+        },
+        "change_kind": { "$ref": "#/$defs/change_kind" },
+        "component_kind": { "$ref": "#/$defs/bundle_component_kind" },
+        "component_id": { "$ref": "#/$defs/opaque_id" },
+        "before_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "after_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "change_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/change_source_ref" }
+        },
+        "side_effect_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "preserved_local_override_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "disclosure_required": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "added entries cite an after_revision_ref; before_revision_ref is null.",
+          "if": { "properties": { "change_kind": { "const": "added" } } },
+          "then": {
+            "properties": {
+              "after_revision_ref": { "$ref": "#/$defs/opaque_id" },
+              "before_revision_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "removed entries cite a before_revision_ref; after_revision_ref is null.",
+          "if": { "properties": { "change_kind": { "const": "removed" } } },
+          "then": {
+            "properties": {
+              "before_revision_ref": { "$ref": "#/$defs/opaque_id" },
+              "after_revision_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "changed and revision_bumped entries cite both before and after revision refs.",
+          "if": {
+            "properties": {
+              "change_kind": { "enum": ["changed", "revision_bumped"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "before_revision_ref": { "$ref": "#/$defs/opaque_id" },
+              "after_revision_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "preserved_local entries cite a preserved_local_override_summary_ref so the reviewer sees what the bundle would have overwritten.",
+          "if": { "properties": { "change_kind": { "const": "preserved_local" } } },
+          "then": {
+            "required": ["preserved_local_override_summary_ref"],
+            "properties": {
+              "preserved_local_override_summary_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "settings_or_token_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_axis",
+        "change_kind",
+        "settings_or_token_axis",
+        "settings_or_token_path_id",
+        "before_value_class",
+        "after_value_class",
+        "change_summary_ref",
+        "change_source_refs",
+        "disclosure_required",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "change_axis": { "type": "string", "const": "settings_or_token" },
+        "change_kind": { "$ref": "#/$defs/change_kind" },
+        "settings_or_token_axis": { "$ref": "#/$defs/settings_or_token_axis" },
+        "settings_or_token_path_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque path id (for example, opaque digest of the dotted setting path or the token name); raw setting paths or token names with PII are not permitted."
+        },
+        "before_value_class": { "$ref": "#/$defs/settings_value_class" },
+        "after_value_class": { "$ref": "#/$defs/settings_value_class" },
+        "appearance_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required when settings_or_token_axis is appearance_token_overlay or appearance_theme_package; routes through schemas/ux/appearance_checkpoint.schema.json."
+        },
+        "theme_import_report_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "token_overlay_report_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_pinned": { "type": "boolean" },
+        "change_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/change_source_ref" }
+        },
+        "side_effect_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "preserved_local_override_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "disclosure_required": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "Appearance overlays must route through an appearance checkpoint ref.",
+          "if": {
+            "properties": {
+              "settings_or_token_axis": {
+                "enum": ["appearance_token_overlay", "appearance_theme_package"]
+              }
+            }
+          },
+          "then": {
+            "required": ["appearance_checkpoint_ref"],
+            "properties": {
+              "appearance_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "trust_or_permission_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_axis",
+        "change_kind",
+        "trust_or_permission_axis",
+        "before_state_class",
+        "after_state_class",
+        "requires_explicit_user_grant",
+        "change_summary_ref",
+        "change_source_refs",
+        "disclosure_required",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "change_axis": { "type": "string", "const": "trust_or_permission" },
+        "change_kind": { "$ref": "#/$defs/change_kind" },
+        "trust_or_permission_axis": { "$ref": "#/$defs/trust_or_permission_axis" },
+        "before_state_class": { "$ref": "#/$defs/trust_or_permission_state_class" },
+        "after_state_class": { "$ref": "#/$defs/trust_or_permission_state_class" },
+        "requires_explicit_user_grant": {
+          "type": "boolean",
+          "description": "True whenever after_state_class is more permissive than before_state_class. Hiding an escalation behind bundle apply is non-conforming."
+        },
+        "policy_pinned": { "type": "boolean" },
+        "change_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/change_source_ref" }
+        },
+        "side_effect_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "disclosure_required": { "type": "boolean", "const": true },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      }
+    },
+
+    "compatibility_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_axis",
+        "change_kind",
+        "compatibility_axis",
+        "before_state_class",
+        "after_state_class",
+        "change_summary_ref",
+        "change_source_refs",
+        "disclosure_required",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "change_axis": { "type": "string", "const": "compatibility_or_runtime" },
+        "change_kind": { "$ref": "#/$defs/change_kind" },
+        "compatibility_axis": { "$ref": "#/$defs/compatibility_axis" },
+        "before_state_class": { "$ref": "#/$defs/compatibility_state_class" },
+        "after_state_class": { "$ref": "#/$defs/compatibility_state_class" },
+        "compatibility_note_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "change_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/change_source_ref" }
+        },
+        "side_effect_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "uniqueItems": true
+        },
+        "disclosure_required": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "incompatible_blocking and incompatible_review_required entries name a compatibility note ref.",
+          "if": {
+            "properties": {
+              "after_state_class": {
+                "enum": ["incompatible_blocking", "incompatible_review_required"]
+              }
+            }
+          },
+          "then": {
+            "required": ["compatibility_note_ref"],
+            "properties": {
+              "compatibility_note_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "side_effect_envelope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side_effect_class",
+        "side_effect_scope_class",
+        "summary_ref",
+        "change_source_refs",
+        "reversible_in_rollback",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "side_effect_scope_class": { "$ref": "#/$defs/side_effect_scope_class" },
+        "summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/change_source_ref" }
+        },
+        "reversible_in_rollback": {
+          "type": "boolean",
+          "description": "Whether this side effect is covered by the manifest's rollback_checkpoint_linkage. False values force the linkage to be non_reversible_with_justification or paired with a justification entry."
+        },
+        "non_reversibility_justification_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_reversibility_justification_class" }
+          ]
+        },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "Side effects that are not reversible must cite a justification class.",
+          "if": {
+            "properties": { "reversible_in_rollback": { "const": false } }
+          },
+          "then": {
+            "required": ["non_reversibility_justification_class"],
+            "properties": {
+              "non_reversibility_justification_class": { "$ref": "#/$defs/non_reversibility_justification_class" }
+            }
+          }
+        }
+      ]
+    },
+
+    "review_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "rendered_state",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/review_action_id" },
+        "rendered_state": { "$ref": "#/$defs/action_rendered_state" },
+        "keyboard_reachable": { "type": "boolean", "const": true },
+        "disabled_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disabled_reason_code" }
+          ]
+        },
+        "presentation_label_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "destination_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Where the action navigates: a compare report ref, a defer queue ref, an inspect-source target ref, the rollback checkpoint ref, etc."
+        }
+      },
+      "allOf": [
+        {
+          "description": "visible_disabled actions cite a disabled_reason_code.",
+          "if": { "properties": { "rendered_state": { "const": "visible_disabled" } } },
+          "then": {
+            "required": ["disabled_reason_code"],
+            "properties": {
+              "disabled_reason_code": { "$ref": "#/$defs/disabled_reason_code" }
+            }
+          }
+        }
+      ]
+    },
+
+    "rollback_checkpoint_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "linkage_class",
+        "rollback_path_class",
+        "restores_axes",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "linkage_class": { "$ref": "#/$defs/rollback_checkpoint_linkage_class" },
+        "rollback_path_class": { "$ref": "#/$defs/rollback_path_class" },
+        "workspace_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "profile_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "user_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "appearance_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "When the apply touches appearance state, this points at a record validated by schemas/ux/appearance_checkpoint.schema.json."
+        },
+        "rollback_user_visible_action_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restores_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rollback_restorable_axis" },
+          "uniqueItems": true
+        },
+        "non_reversibility_justification_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_reversibility_justification_class" }
+          ]
+        },
+        "non_reversibility_justification_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "decision_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "Single-checkpoint linkages cite the appropriate scope checkpoint ref.",
+          "if": {
+            "properties": {
+              "linkage_class": { "const": "single_attributable_workspace_checkpoint" }
+            }
+          },
+          "then": {
+            "required": ["workspace_checkpoint_ref"],
+            "properties": {
+              "workspace_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Profile-scope linkages cite a profile checkpoint ref.",
+          "if": {
+            "properties": {
+              "linkage_class": { "const": "single_attributable_profile_checkpoint" }
+            }
+          },
+          "then": {
+            "required": ["profile_checkpoint_ref"],
+            "properties": {
+              "profile_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "User-scope linkages cite a user checkpoint ref.",
+          "if": {
+            "properties": {
+              "linkage_class": { "const": "single_attributable_user_checkpoint" }
+            }
+          },
+          "then": {
+            "required": ["user_checkpoint_ref"],
+            "properties": {
+              "user_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Appearance-only linkages cite an appearance checkpoint ref.",
+          "if": {
+            "properties": {
+              "linkage_class": { "const": "single_appearance_checkpoint_only_for_visual" }
+            }
+          },
+          "then": {
+            "required": ["appearance_checkpoint_ref"],
+            "properties": {
+              "appearance_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Paired linkages cite a workspace and an appearance checkpoint ref.",
+          "if": {
+            "properties": {
+              "linkage_class": { "const": "paired_workspace_and_appearance_checkpoint" }
+            }
+          },
+          "then": {
+            "required": ["workspace_checkpoint_ref", "appearance_checkpoint_ref"],
+            "properties": {
+              "workspace_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "appearance_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Non-reversible linkages cite a justification class, a justification summary ref, and a decision row ref.",
+          "if": {
+            "properties": {
+              "linkage_class": {
+                "enum": [
+                  "non_reversible_with_justification",
+                  "non_reversible_pending_review"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "non_reversibility_justification_class",
+              "non_reversibility_justification_summary_ref",
+              "decision_row_ref"
+            ],
+            "properties": {
+              "non_reversibility_justification_class": { "$ref": "#/$defs/non_reversibility_justification_class" },
+              "non_reversibility_justification_summary_ref": { "$ref": "#/$defs/opaque_id" },
+              "decision_row_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Reversible linkages name a single_checkpoint_revert, surface_reload_then_revert, or full_restart_then_revert path.",
+          "if": {
+            "properties": {
+              "linkage_class": {
+                "enum": [
+                  "single_attributable_workspace_checkpoint",
+                  "single_attributable_profile_checkpoint",
+                  "single_attributable_user_checkpoint",
+                  "single_appearance_checkpoint_only_for_visual",
+                  "paired_workspace_and_appearance_checkpoint"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rollback_path_class": {
+                "enum": [
+                  "single_checkpoint_revert",
+                  "surface_reload_then_revert",
+                  "full_restart_then_revert"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-reversible linkages name not_reversible or manual_recovery_only.",
+          "if": {
+            "properties": {
+              "linkage_class": {
+                "enum": [
+                  "non_reversible_with_justification",
+                  "non_reversible_pending_review"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rollback_path_class": {
+                "enum": ["not_reversible", "manual_recovery_only"]
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "preview_state_class": {
+      "type": "string",
+      "enum": [
+        "preview_minted_pending_validation",
+        "preview_validated_ready_to_confirm",
+        "preview_blocked_review_required",
+        "preview_cancelled",
+        "preview_set_up_later_deferred",
+        "preview_confirmed_apply_started",
+        "preview_apply_succeeded",
+        "preview_apply_failed_rolled_back",
+        "preview_apply_failed_partial",
+        "preview_superseded_by_newer_revision"
+      ]
+    },
+
+    "bundle_change_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "bundle_change_preview_schema_version",
+        "preview_id",
+        "minted_at",
+        "preview_intent_class",
+        "preview_origin_class",
+        "preview_state_class",
+        "target_bundle",
+        "previous_bundle",
+        "component_change_entries",
+        "settings_or_token_change_entries",
+        "trust_or_permission_change_entries",
+        "compatibility_change_entries",
+        "side_effect_envelope",
+        "review_actions",
+        "rollback_checkpoint_linkage",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "bundle_change_preview_record"
+        },
+        "bundle_change_preview_schema_version": { "$ref": "#/$defs/bundle_change_preview_schema_version" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "preview_intent_class": { "$ref": "#/$defs/preview_intent_class" },
+        "preview_origin_class": { "$ref": "#/$defs/preview_origin_class" },
+        "preview_state_class": { "$ref": "#/$defs/preview_state_class" },
+        "target_bundle": { "$ref": "#/$defs/bundle_identity_ref" },
+        "previous_bundle": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bundle_identity_ref" }
+          ],
+          "description": "Identity of the previously installed bundle revision (or the imported source-environment manifest, when preview_intent_class is fresh_install_preview from an imported environment). null when this is a true fresh install with no prior state."
+        },
+        "previous_revision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "compatibility_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "mirror_or_offline_packaging_posture": { "$ref": "#/$defs/mirror_or_offline_packaging_posture" },
+        "component_change_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component_change_entry" }
+        },
+        "settings_or_token_change_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/settings_or_token_change_entry" }
+        },
+        "trust_or_permission_change_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trust_or_permission_change_entry" }
+        },
+        "compatibility_change_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compatibility_change_entry" }
+        },
+        "side_effect_envelope": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/side_effect_envelope_entry" }
+        },
+        "review_actions": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/review_action_record" }
+        },
+        "rollback_checkpoint_linkage": { "$ref": "#/$defs/rollback_checkpoint_linkage" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Review actions must include review.compare.",
+          "properties": {
+            "review_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "review.compare" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Review actions must include review.confirm.",
+          "properties": {
+            "review_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "review.confirm" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Review actions must include review.cancel.",
+          "properties": {
+            "review_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "review.cancel" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Review actions must include review.set_up_later.",
+          "properties": {
+            "review_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "review.set_up_later" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Review actions must include review.inspect_change_source.",
+          "properties": {
+            "review_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "review.inspect_change_source" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Review actions must include review.create_rollback_checkpoint.",
+          "properties": {
+            "review_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "review.create_rollback_checkpoint" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Update, downgrade, channel-promotion, channel-demotion, reapply, and partial-apply previews cite a previous bundle.",
+          "if": {
+            "properties": {
+              "preview_intent_class": {
+                "enum": [
+                  "update_to_newer_revision_preview",
+                  "downgrade_to_older_revision_preview",
+                  "channel_promotion_preview",
+                  "channel_demotion_preview",
+                  "reapply_same_revision_preview",
+                  "partial_apply_after_failure_preview"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "previous_bundle": { "$ref": "#/$defs/bundle_identity_ref" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
