@@ -14,6 +14,14 @@ Companion artifacts:
   content case records.
 - [`/schemas/security/text_representation_policy.schema.json`](../../schemas/security/text_representation_policy.schema.json)
   — boundary schema for representation-labeled copy / export decisions.
+- [`/schemas/security/text_representation_action.schema.json`](../../schemas/security/text_representation_action.schema.json)
+  — action-row schema for availability, defaulting, parity labels, and
+  disclosure requirements for each representation-labeled copy / export
+  action.
+- [`/docs/accessibility/locale_fallback_and_copy_representation_contract.md`](../accessibility/locale_fallback_and_copy_representation_contract.md)
+  — accessibility-facing row contract that keeps locale fallback,
+  mixed-direction inspection, and representation labels reachable in
+  dense, high-zoom, keyboard, and assistive-technology flows.
 - [`/fixtures/security/suspicious_content_cases/`](../../fixtures/security/suspicious_content_cases/)
   — worked examples spanning editor content, docs / help pages, rich
   previews, install / attach / approval review, and metadata-only
@@ -374,6 +382,11 @@ The schemas freeze two boundary layers:
   exports `representation_transfer_record` so copy/export actions,
   representation labels, and metadata-only fallback remain explicit and
   mechanically reviewable.
+- `text_representation_action.schema.json`
+  exports `text_representation_action_record` so each surface can state
+  whether `Copy raw`, `Copy rendered`, `Copy escaped`,
+  `Export sanitized snapshot`, or `Export metadata only` is available,
+  primary, secondary, or fallback.
 
 The fixture corpus under
 [`/fixtures/security/suspicious_content_cases/`](../../fixtures/security/suspicious_content_cases/)

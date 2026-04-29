@@ -1,0 +1,516 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/accessibility/locale_fallback_row.schema.json",
+  "title": "Aureline locale fallback and mixed-direction text inspector rows",
+  "description": "Boundary schema for accessibility-facing locale fallback rows and mixed-direction / invisible-text inspector rows frozen in docs/accessibility/locale_fallback_and_copy_representation_contract.md. The records compose the UX locale-fallback state model and the security suspicious-content vocabulary without carrying raw private workspace text.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/locale_fallback_row_record" },
+    { "$ref": "#/$defs/mixed_direction_text_inspector_record" }
+  ],
+  "$defs": {
+    "locale_fallback_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this accessibility row contract. Additive enum values bump this const; repurposing values is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "locale_fallback_row_record",
+        "mixed_direction_text_inspector_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Opaque id safe for fixtures, logs, support bundles, and accessibility exports."
+    },
+    "message_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bounded_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "bounded_note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200
+    },
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 locale tag."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "docs_preview",
+        "install_review",
+        "terminal_transcript",
+        "support_export",
+        "security_review",
+        "locale_settings",
+        "command_palette",
+        "docs_tour"
+      ],
+      "description": "Accessibility-facing surface family for locale fallback and suspicious-text rows."
+    },
+    "visibility_context": {
+      "type": "string",
+      "enum": [
+        "dense_layout",
+        "high_zoom",
+        "keyboard_only",
+        "assistive_technology",
+        "support_export"
+      ]
+    },
+    "live_region_policy": {
+      "type": "string",
+      "enum": [
+        "none",
+        "polite_on_change",
+        "assertive_for_trust_decision_only"
+      ]
+    },
+    "assistive_access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accessible_name",
+        "announcement",
+        "keyboard_route",
+        "live_region_policy"
+      ],
+      "properties": {
+        "accessible_name": { "$ref": "#/$defs/bounded_label" },
+        "announcement": { "$ref": "#/$defs/bounded_label" },
+        "keyboard_route": { "$ref": "#/$defs/bounded_label" },
+        "live_region_policy": { "$ref": "#/$defs/live_region_policy" },
+        "message_id_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/message_id" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "active_locale_source": {
+      "type": "string",
+      "enum": [
+        "requested_locale_pack",
+        "base_locale_pack",
+        "source_language",
+        "built_in_source_language",
+        "mirrored_pack_snapshot",
+        "policy_last_known_good"
+      ],
+      "description": "Where the visible localized or fallback string came from."
+    },
+    "localization_state": {
+      "type": "string",
+      "enum": [
+        "fully_localized",
+        "partial_fallback",
+        "blocked_source_language_only",
+        "stale_pack_fallback",
+        "missing_pack_fallback",
+        "signature_failed_fallback"
+      ],
+      "description": "User-visible fallback state for the row."
+    },
+    "pack_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_verified",
+        "warm_cached",
+        "stale_cached",
+        "missing",
+        "signature_failed",
+        "not_applicable_source_language"
+      ]
+    },
+    "pack_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "freshness_label"
+      ],
+      "properties": {
+        "pack_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "pack_revision_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "freshness_class": { "$ref": "#/$defs/pack_freshness_class" },
+        "checked_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            { "type": "null" }
+          ]
+        },
+        "freshness_label": { "$ref": "#/$defs/bounded_label" }
+      }
+    },
+    "source_language_disabled_reason": {
+      "type": "string",
+      "enum": [
+        "already_source_language",
+        "source_language_unavailable",
+        "policy_blocked",
+        "surface_read_only",
+        "not_applicable"
+      ]
+    },
+    "source_language_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "available",
+        "default_for_row"
+      ],
+      "properties": {
+        "action_id": { "const": "open_in_source_language" },
+        "label": { "const": "Open in source language" },
+        "available": { "type": "boolean" },
+        "default_for_row": { "type": "boolean" },
+        "command_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "disabled_reason": {
+          "oneOf": [
+            { "$ref": "#/$defs/source_language_disabled_reason" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "affected_string_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "localized_count",
+        "fallback_count",
+        "blocked_count",
+        "total_count"
+      ],
+      "properties": {
+        "localized_count": { "type": "integer", "minimum": 0 },
+        "fallback_count": { "type": "integer", "minimum": 0 },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "total_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "locale_fallback_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "locale_fallback_row_schema_version",
+        "row_id",
+        "surface_family",
+        "requested_locale",
+        "active_locale",
+        "source_language_locale",
+        "active_locale_source",
+        "localization_state",
+        "fallback_chain",
+        "pack_freshness",
+        "affected_string_counts",
+        "source_language_action",
+        "visibility_guarantees",
+        "assistive_access",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": { "const": "locale_fallback_row_record" },
+        "locale_fallback_row_schema_version": {
+          "$ref": "#/$defs/locale_fallback_row_schema_version"
+        },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "upstream_locale_fallback_state_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional ref to a schemas/ux/locale_fallback_state.schema.json record."
+        },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "requested_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "active_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "source_language_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "active_locale_source": { "$ref": "#/$defs/active_locale_source" },
+        "localization_state": { "$ref": "#/$defs/localization_state" },
+        "fallback_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bcp47_locale_tag" }
+        },
+        "pack_freshness": { "$ref": "#/$defs/pack_freshness" },
+        "affected_string_counts": { "$ref": "#/$defs/affected_string_counts" },
+        "source_language_action": { "$ref": "#/$defs/source_language_action" },
+        "row_label": { "$ref": "#/$defs/bounded_label" },
+        "row_note": { "$ref": "#/$defs/bounded_note" },
+        "visibility_guarantees": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/visibility_context" },
+          "uniqueItems": true
+        },
+        "assistive_access": { "$ref": "#/$defs/assistive_access" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "localization_state": { "const": "fully_localized" }
+            },
+            "required": ["localization_state"]
+          },
+          "then": {
+            "properties": {
+              "active_locale_source": { "const": "requested_locale_pack" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "localization_state": {
+                "enum": [
+                  "partial_fallback",
+                  "blocked_source_language_only",
+                  "stale_pack_fallback",
+                  "missing_pack_fallback",
+                  "signature_failed_fallback"
+                ]
+              }
+            },
+            "required": ["localization_state"]
+          },
+          "then": {
+            "properties": {
+              "source_language_action": {
+                "properties": {
+                  "available": { "const": true }
+                },
+                "required": ["available"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "base_direction": {
+      "type": "string",
+      "enum": [
+        "ltr",
+        "rtl",
+        "mixed",
+        "neutral",
+        "unknown"
+      ]
+    },
+    "codepoint_class": {
+      "type": "string",
+      "enum": [
+        "bidi_control",
+        "invisible_formatting",
+        "format_control",
+        "combining_mark",
+        "mixed_script_confusable",
+        "whole_script_confusable",
+        "malformed_decode_replacement",
+        "literal_code_or_path_span",
+        "ordinary_text"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "blocking"
+      ]
+    },
+    "codepoint_class_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class_id",
+        "codepoint_count",
+        "severity"
+      ],
+      "properties": {
+        "class_id": { "$ref": "#/$defs/codepoint_class" },
+        "codepoint_count": { "type": "integer", "minimum": 0 },
+        "sample_escape": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Escaped sample such as U+202E or \\\\u200B. Raw private material is not required."
+        },
+        "severity": { "$ref": "#/$defs/severity" },
+        "note": { "$ref": "#/$defs/bounded_note" }
+      }
+    },
+    "inspection_action_id": {
+      "type": "string",
+      "enum": [
+        "open_raw_view",
+        "open_escaped_view",
+        "copy_raw",
+        "copy_escaped"
+      ]
+    },
+    "inspection_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "available",
+        "default_for_inspector"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/inspection_action_id" },
+        "label": { "$ref": "#/$defs/bounded_label" },
+        "available": { "type": "boolean" },
+        "default_for_inspector": { "type": "boolean" },
+        "command_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "literal_token_class": {
+      "type": "string",
+      "enum": [
+        "path",
+        "code_span",
+        "command_flag",
+        "hostname",
+        "command_id",
+        "url",
+        "package_id"
+      ]
+    },
+    "normalization_posture": {
+      "type": "string",
+      "enum": [
+        "preserved_no_normalization",
+        "escaped_only",
+        "normalization_preview_required"
+      ]
+    },
+    "path_code_span_preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_literal_tokens",
+        "preserved_token_classes",
+        "normalization_posture",
+        "preservation_note"
+      ],
+      "properties": {
+        "preserves_literal_tokens": { "type": "boolean" },
+        "preserved_token_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/literal_token_class" },
+          "uniqueItems": true
+        },
+        "normalization_posture": { "$ref": "#/$defs/normalization_posture" },
+        "preservation_note": { "$ref": "#/$defs/bounded_note" }
+      }
+    },
+    "mixed_direction_text_inspector_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "locale_fallback_row_schema_version",
+        "inspector_id",
+        "surface_family",
+        "subject_ref",
+        "directionality_note",
+        "base_direction",
+        "control_character_count",
+        "codepoint_class_summary",
+        "raw_view_action",
+        "escaped_view_action",
+        "path_code_span_preservation",
+        "visibility_guarantees",
+        "assistive_access",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "record_kind": { "const": "mixed_direction_text_inspector_record" },
+        "locale_fallback_row_schema_version": {
+          "$ref": "#/$defs/locale_fallback_row_schema_version"
+        },
+        "inspector_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "directionality_note": { "$ref": "#/$defs/bounded_label" },
+        "base_direction": { "$ref": "#/$defs/base_direction" },
+        "control_character_count": { "type": "integer", "minimum": 0 },
+        "codepoint_class_summary": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/codepoint_class_summary" }
+        },
+        "raw_view_action": { "$ref": "#/$defs/inspection_action" },
+        "escaped_view_action": { "$ref": "#/$defs/inspection_action" },
+        "path_code_span_preservation": {
+          "$ref": "#/$defs/path_code_span_preservation"
+        },
+        "visibility_guarantees": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/visibility_context" },
+          "uniqueItems": true
+        },
+        "assistive_access": { "$ref": "#/$defs/assistive_access" },
+        "review_note": { "$ref": "#/$defs/bounded_note" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

@@ -53,6 +53,14 @@ Companion artifacts:
 - [`/fixtures/accessibility/ime_and_text_cases/`](../../fixtures/accessibility/ime_and_text_cases/)
   — seeded IME, bidi, copy-parity, virtualization, range-selection, and
   mixed-DPI cases this packet cites.
+- [`/docs/accessibility/locale_fallback_and_copy_representation_contract.md`](./locale_fallback_and_copy_representation_contract.md),
+  [`/schemas/accessibility/locale_fallback_row.schema.json`](../../schemas/accessibility/locale_fallback_row.schema.json),
+  [`/schemas/security/text_representation_action.schema.json`](../../schemas/security/text_representation_action.schema.json),
+  and
+  [`/fixtures/accessibility/representation_review_cases/`](../../fixtures/accessibility/representation_review_cases/)
+  — locale fallback rows, mixed-direction / invisible-text inspector
+  rows, and representation-labeled copy / export actions that IME,
+  bidi, fallback, and copy-parity packet rows cite.
 - [`/fixtures/accessibility/task_corpus_manifest.yaml`](../../fixtures/accessibility/task_corpus_manifest.yaml)
   — stable task ids and acceptance-pack families future benchmark,
   conformance, and release packets will cite.
@@ -110,8 +118,14 @@ of the five states above.
   layout, and whether preedit survived focus churn, filtering, and
   window topology changes.
 - Every copy-parity row MUST distinguish:
-  raw, rendered, and escaped output and state which representation was
-  announced and exported.
+  raw, rendered, escaped, sanitized snapshot, or metadata-only output
+  and state which representation was announced, copied, or exported.
+- Every locale fallback or suspicious-text row MUST cite:
+  one `locale_fallback_row_record`,
+  `mixed_direction_text_inspector_record`, or
+  `text_representation_action_record` when the row depends on locale
+  fallback, bidi / invisible inspection, or copy/export representation
+  labels.
 - Every launch-critical shell packet MUST attach accessibility-tree
   captures for the shell surfaces named in the checklist. A visible
   host-owned control missing from the tree is a correctness failure, not

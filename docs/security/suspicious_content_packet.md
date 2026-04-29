@@ -24,6 +24,14 @@ Companion artifacts:
   — boundary schema for `representation_transfer_record`. Every
   detector outcome resolves to one or more representation-labeled
   transfer records using this schema.
+- [`/schemas/security/text_representation_action.schema.json`](../../schemas/security/text_representation_action.schema.json)
+  — boundary schema for the per-surface action rows that state which
+  representation-labeled transfer is primary, secondary, fallback, or
+  unavailable.
+- [`/docs/accessibility/locale_fallback_and_copy_representation_contract.md`](../accessibility/locale_fallback_and_copy_representation_contract.md)
+  — row-level accessibility contract for locale fallback,
+  mixed-direction / invisible-text inspection, and copy/export
+  representation parity.
 - [`/fixtures/security/suspicious_content_cases/`](../../fixtures/security/suspicious_content_cases/)
   — worked cases spanning raw text, sanitized rich, rich preview with
   downgrade, embedded isolated-remote webview, package/install review,
@@ -215,6 +223,13 @@ Every detector outcome resolves to one or more
 - `export_metadata_only` must state its `fallback_reason` and keep
   `metadata_only_reason` disclosed. It is the fail-closed export.
 - Active content never survives a support/export boundary as active.
+
+Per-surface availability and defaulting are captured by
+`text_representation_action_record` entries under
+`/schemas/security/text_representation_action.schema.json`. The action
+rows preserve the same canonical label stems across editor, diff, docs
+preview, install review, terminal transcript, support export, and
+security review surfaces.
 
 ### Isolated or sanitized is never "trusted local"
 

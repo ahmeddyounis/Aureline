@@ -79,6 +79,12 @@ upstream; it consumes it by reference:
   against deployment profiles mechanically.
 - [`/schemas/governance/capability_lifecycle.schema.json`](../../schemas/governance/capability_lifecycle.schema.json)
   — `redaction_class` and `policy_context` shape for surface records.
+- [`/docs/accessibility/locale_fallback_and_copy_representation_contract.md`](../accessibility/locale_fallback_and_copy_representation_contract.md)
+  and
+  [`/schemas/accessibility/locale_fallback_row.schema.json`](../../schemas/accessibility/locale_fallback_row.schema.json)
+  — accessibility-facing projection of locale fallback rows, source-
+  language actions, pack freshness labels, and dense / high-zoom /
+  assistive-technology reachability.
 
 ## Who reads this contract
 
