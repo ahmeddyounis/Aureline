@@ -1,0 +1,202 @@
+# yaml-language-server: $schema=../../../schemas/integrations/provider_mapping_state.schema.json
+__fixture__:
+  name: cached_read_only_state
+  scenario: >
+    The user's provider seat just expired. The provider session is
+    still loosely valid for read-only inspection during a bounded
+    grace window; new mutation is denied. The
+    provider_account_state_record is limited_scope / grace_mode /
+    seat_grace; the project_or_board_mapping_record narrows
+    sync_mode_class to read_only_sync; metadata_safe_export_only is
+    pinned true so the cached read-only state cannot silently widen
+    export or telemetry scope. A seat_state_changed audit hook
+    explains the transition. No offline-capture control is minted
+    because no new authoring is admitted in this state.
+  exercised_contract_sections:
+    - "Connected-provider account states (limited_scope / grace_mode)"
+    - "Seat or plan posture — seat_grace"
+    - "Project or board mappings — sync_mode_class read_only_sync"
+    - "Account-switch audit hooks — seat_state_changed"
+    - "Acceptance: workflows continue in cached-read-only mode when seat changes"
+  exercised_classes_summary:
+    account_state_class: limited_scope
+    account_kind_class: grace_mode
+    seat_or_plan_state_class: seat_grace
+    sync_mode_class: read_only_sync
+    audit_hook_event_class: seat_state_changed
+
+records:
+  - record_kind: provider_account_state_record
+    provider_mapping_schema_version: 1
+    provider_account_state_id: "provider_account_state:tracker.example:aureline:grace:0001"
+    connected_provider_record_id: "conn_prov:tracker.example:aureline:install-1"
+    provider_identity:
+      provider_class: issue_or_planning
+      canonical_host: "tracker.example"
+      tenant_or_org_scope: "aureline"
+      provider_instance_ref: "provider_instance:tracker.example:aureline"
+      environment_class: public_saas
+    surface_class: issue_or_planning_surface
+    account_state_class: limited_scope
+    account_kind_class: grace_mode
+    actor_class_in_effect: human_account
+    actor_subject_ref: "actor:user_a"
+    seat_or_plan_state_class: seat_grace
+    seat_or_plan_summary: >
+      Seat is in a bounded grace window; read-only inspection is
+      permitted, mutation is denied. Grace expires within seven days.
+    session_freshness_class: bounded_stale
+    default_target_resolution_class: explicit_user_choice
+    default_target_explanation: >
+      Last user-confirmed target preserved; cached read-only state
+      renders against it during the grace window.
+    preserved_handoff_state_refs:
+      - "publish_later:queue_item:tracker.example:aureline:bug_report:0001"
+    metadata_safe_export_only: true
+    diagnostics_links:
+      - diagnostics_link_class: open_seat_or_plan_status
+        link_summary: "Open seat or plan status to repair the expired seat."
+        settings_record_ref: "settings:seat_status:tracker.example:aureline:user_a"
+      - diagnostics_link_class: open_account_settings
+        link_summary: "Open account settings to switch accounts if needed."
+        settings_record_ref: "settings:account:tracker.example:aureline:user_a"
+    active_account_mapping_binding_ref: "account_mapping:tracker.example:aureline:user_a"
+    origin_disclosure:
+      host_identity: "host:device_a"
+      workspace_id: "wks:aureline"
+      actor_subject: "actor:user_a"
+      execution_context_id: "exec_ctx:20260429T100400Z:0001"
+      policy_epoch: "policy_epoch:20260426T000000Z"
+    policy_context:
+      policy_epoch: "policy_epoch:20260426T000000Z"
+      trust_state: trusted
+      execution_context_id: "exec_ctx:20260429T100400Z:0001"
+    captured_at: "2026-04-29T10:04:00Z"
+    state_summary: >
+      Account is in a bounded grace window; cached read-only state
+      remains visible under metadata-safe defaults.
+    redaction_class: metadata_safe_default
+
+  - record_kind: project_or_board_mapping_record
+    provider_mapping_schema_version: 1
+    mapping_id: "mapping:tracker.example:aureline:board:aureline-product:read_only"
+    connected_provider_record_id: "conn_prov:tracker.example:aureline:install-1"
+    provider_identity:
+      provider_class: issue_or_planning
+      canonical_host: "tracker.example"
+      tenant_or_org_scope: "aureline"
+      provider_instance_ref: "provider_instance:tracker.example:aureline"
+      environment_class: public_saas
+    surface_class: issue_or_planning_surface
+    local_scope_ref: "workspace:repo:aureline"
+    provider_scope_ref: "provider_scope:tracker.example:aureline:board:aureline-product"
+    scope_provenance_class: user_default
+    scope_provenance_explanation: >
+      User-default mapping; sync mode narrowed to read_only_sync
+      because the seat is in a bounded grace window.
+    sync_mode_class: read_only_sync
+    permitted_sync_modes:
+      - read_only_sync
+      - offline_capture_only
+    mapping_state_class: active
+    scope_coverage:
+      scope_summary: "Cached read-only inspection of the aureline-product board during grace."
+      covered_object_classes:
+        - issue_or_work_item
+        - comment
+        - label
+        - status_transition
+      metadata_safe_data_classes:
+        - title_only
+        - id_and_url_handle
+        - summary_count_only
+        - label_or_status_class_only
+        - no_attachment_bytes
+        - no_user_pii
+      narrowed_by_admin_policy: false
+    default_target_resolution_class: explicit_user_choice
+    default_target_explanation: >
+      Default target preserved verbatim; mutation is denied in this
+      state.
+    preserved_handoff_state_refs:
+      - "publish_later:queue_item:tracker.example:aureline:bug_report:0001"
+    active_account_mapping_binding_ref: "account_mapping:tracker.example:aureline:user_a"
+    diagnostics_links:
+      - diagnostics_link_class: open_seat_or_plan_status
+        link_summary: "Repair the seat to restore mutation."
+        settings_record_ref: "settings:seat_status:tracker.example:aureline:user_a"
+    origin_disclosure:
+      host_identity: "host:device_a"
+      workspace_id: "wks:aureline"
+      actor_subject: "actor:user_a"
+      execution_context_id: "exec_ctx:20260429T100400Z:0001"
+      policy_epoch: "policy_epoch:20260426T000000Z"
+    policy_context:
+      policy_epoch: "policy_epoch:20260426T000000Z"
+      trust_state: trusted
+      execution_context_id: "exec_ctx:20260429T100400Z:0001"
+    captured_at: "2026-04-29T10:04:00Z"
+    mapping_summary: >
+      Mapping narrowed to read_only_sync during the seat grace
+      window; mutation is denied until the seat is repaired.
+    redaction_class: metadata_safe_default
+
+  - record_kind: account_switch_audit_hook_record
+    provider_mapping_schema_version: 1
+    audit_hook_id: "audit_hook:tracker.example:aureline:seat_state_changed:0001"
+    connected_provider_record_id: "conn_prov:tracker.example:aureline:install-1"
+    provider_identity:
+      provider_class: issue_or_planning
+      canonical_host: "tracker.example"
+      tenant_or_org_scope: "aureline"
+      provider_instance_ref: "provider_instance:tracker.example:aureline"
+      environment_class: public_saas
+    surface_class: issue_or_planning_surface
+    audit_hook_event_class: seat_state_changed
+    from_actor_class: human_account
+    to_actor_class: human_account
+    from_account_state_class: signed_in
+    to_account_state_class: limited_scope
+    from_default_target_resolution_class: explicit_user_choice
+    to_default_target_resolution_class: explicit_user_choice
+    affected_mapping_refs:
+      - "mapping:tracker.example:aureline:board:aureline-product:read_only"
+    preserved_handoff_state_refs:
+      - "publish_later:queue_item:tracker.example:aureline:bug_report:0001"
+    rationale_summary: >
+      Provider seat transitioned from seat_active to seat_grace;
+      sync modes narrowed to read_only_sync until the seat is
+      repaired or replaced.
+    diagnostics_links:
+      - diagnostics_link_class: open_seat_or_plan_status
+        link_summary: "Repair or replace the seat."
+        settings_record_ref: "settings:seat_status:tracker.example:aureline:user_a"
+    origin_disclosure:
+      host_identity: "host:device_a"
+      workspace_id: "wks:aureline"
+      actor_subject: "actor:user_a"
+      execution_context_id: "exec_ctx:20260429T100330Z:0001"
+      policy_epoch: "policy_epoch:20260426T000000Z"
+    policy_context:
+      policy_epoch: "policy_epoch:20260426T000000Z"
+      trust_state: trusted
+      execution_context_id: "exec_ctx:20260429T100330Z:0001"
+    occurred_at: "2026-04-29T10:03:30Z"
+    redaction_class: metadata_safe_default
+
+conformance_tests:
+  - id: grace_mode_pairs_with_seat_grace_or_seat_expired
+    description: >
+      An account_kind_class of grace_mode MUST pair with a
+      seat_or_plan_state_class drawn from seat_grace, seat_expired, or
+      seat_revoked.
+  - id: limited_scope_does_not_widen_export
+    description: >
+      A surface in limited_scope / cached read-only state MUST keep
+      metadata_safe_export_only true so cached read state cannot
+      silently widen export or telemetry scope.
+  - id: seat_state_change_audit_lists_affected_mappings
+    description: >
+      A seat_state_changed audit hook MUST cite at least one
+      affected_mapping_ref so reviewers can see which mappings
+      narrowed when the seat changed.
