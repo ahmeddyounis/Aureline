@@ -1,0 +1,647 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/mirror_promotion_row.schema.json",
+  "title": "Aureline package mirror-promotion row",
+  "description": "Boundary schema for mirror_promotion_row records. A mirror-promotion row compares original source and mirror source, records whether the artifact identity is the same artifact or a repackaged identity, preserves signer and publisher-continuity state, and names freshness before a mirror can serve restore or install traffic. Mirrored or repackaged artifacts cannot masquerade as unchanged public artifacts. Raw registry URLs, hostnames, package bytes, mirror cache bodies, tokens, certificate material, and signing-key material never appear in this record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "mirror_promotion_row_schema_version",
+    "promotion_row_id",
+    "package_manager_family",
+    "package_id",
+    "package_version",
+    "original_source",
+    "mirror_source",
+    "artifact_identity",
+    "signer_continuity",
+    "freshness",
+    "promotion_outcome",
+    "reproducibility_export_linkage",
+    "created_at",
+    "redaction_class",
+    "narrative_refs"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "mirror_promotion_row"
+    },
+    "mirror_promotion_row_schema_version": {
+      "$ref": "#/$defs/schema_version"
+    },
+    "promotion_row_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "package_manager_family": {
+      "$ref": "#/$defs/package_manager_family"
+    },
+    "package_id": {
+      "$ref": "#/$defs/package_id"
+    },
+    "package_version": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "original_source": {
+      "$ref": "#/$defs/source_record"
+    },
+    "mirror_source": {
+      "$ref": "#/$defs/mirror_source_record"
+    },
+    "artifact_identity": {
+      "$ref": "#/$defs/artifact_identity_comparison"
+    },
+    "signer_continuity": {
+      "$ref": "#/$defs/signer_continuity"
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "promotion_outcome": {
+      "$ref": "#/$defs/promotion_outcome_class"
+    },
+    "reproducibility_export_linkage": {
+      "$ref": "#/$defs/reproducibility_export_linkage"
+    },
+    "created_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "redaction_class": {
+      "$ref": "#/$defs/redaction_class"
+    },
+    "narrative_refs": {
+      "$ref": "#/$defs/ref_array"
+    },
+    "notes": {
+      "$ref": "#/$defs/nullable_reviewable_sentence"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Only same-artifact rows can promote; any repackaging, digest mismatch, signature mismatch, or unknown identity blocks.",
+      "if": {
+        "properties": {
+          "artifact_identity": {
+            "properties": {
+              "identity_relationship": {
+                "enum": [
+                  "repackaged_identity",
+                  "digest_mismatch",
+                  "signature_mismatch",
+                  "unknown_blocked"
+                ]
+              }
+            },
+            "required": [
+              "identity_relationship"
+            ]
+          }
+        },
+        "required": [
+          "artifact_identity"
+        ]
+      },
+      "then": {
+        "properties": {
+          "artifact_identity": {
+            "properties": {
+              "same_artifact": {
+                "const": false
+              }
+            },
+            "required": [
+              "same_artifact"
+            ]
+          },
+          "promotion_outcome": {
+            "enum": [
+              "blocked_repackaged_identity",
+              "blocked_digest_mismatch",
+              "blocked_signature_mismatch",
+              "blocked_identity_unknown"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Same-artifact rows must say same_artifact explicitly so support/admin exports do not infer it from prose.",
+      "if": {
+        "properties": {
+          "artifact_identity": {
+            "properties": {
+              "identity_relationship": {
+                "const": "same_artifact"
+              }
+            },
+            "required": [
+              "identity_relationship"
+            ]
+          }
+        },
+        "required": [
+          "artifact_identity"
+        ]
+      },
+      "then": {
+        "properties": {
+          "artifact_identity": {
+            "properties": {
+              "same_artifact": {
+                "const": true
+              }
+            },
+            "required": [
+              "same_artifact"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Signer continuity failures block mirror promotion.",
+      "if": {
+        "properties": {
+          "signer_continuity": {
+            "properties": {
+              "signer_continuity_state": {
+                "enum": [
+                  "signer_changed_blocked",
+                  "signer_revoked_blocked",
+                  "continuity_unknown_blocked"
+                ]
+              }
+            },
+            "required": [
+              "signer_continuity_state"
+            ]
+          }
+        },
+        "required": [
+          "signer_continuity"
+        ]
+      },
+      "then": {
+        "properties": {
+          "promotion_outcome": {
+            "const": "blocked_signer_continuity"
+          }
+        },
+        "required": [
+          "promotion_outcome"
+        ]
+      }
+    },
+    {
+      "description": "A stale or absent revocation snapshot blocks promotion until the mirror refreshes or records a governed exception elsewhere.",
+      "if": {
+        "properties": {
+          "freshness": {
+            "properties": {
+              "revocation_snapshot_age_class": {
+                "enum": [
+                  "stale",
+                  "unverified"
+                ]
+              }
+            },
+            "required": [
+              "revocation_snapshot_age_class"
+            ]
+          }
+        },
+        "required": [
+          "freshness"
+        ]
+      },
+      "then": {
+        "properties": {
+          "promotion_outcome": {
+            "const": "blocked_stale_freshness"
+          }
+        },
+        "required": [
+          "promotion_outcome"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_id"
+        }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "opaque_ref_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/opaque_id"
+      },
+      "uniqueItems": true
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": [
+        "sha256",
+        "sha384",
+        "sha512",
+        "blake3"
+      ]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest_algorithm",
+        "digest_hex"
+      ],
+      "properties": {
+        "digest_algorithm": {
+          "$ref": "#/$defs/digest_algorithm"
+        },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "package_manager_family": {
+      "type": "string",
+      "enum": [
+        "cargo",
+        "npm",
+        "pnpm",
+        "yarn",
+        "bun",
+        "pip",
+        "uv",
+        "poetry",
+        "go_modules",
+        "maven",
+        "gradle",
+        "bundler",
+        "nuget",
+        "system_package_manager",
+        "mixed_workspace",
+        "package_manager_unknown_requires_review"
+      ]
+    },
+    "package_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "installed_copy",
+        "quarantined_installed_copy"
+      ]
+    },
+    "package_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revocation_yank_status_class": {
+      "type": "string",
+      "enum": [
+        "active_not_yanked",
+        "yanked_not_revoked",
+        "revoked",
+        "publisher_quarantined",
+        "artifact_quarantined",
+        "unknown_requires_refresh"
+      ]
+    },
+    "revocation_yank_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status_class",
+        "evidence_ref"
+      ],
+      "properties": {
+        "status_class": {
+          "$ref": "#/$defs/revocation_yank_status_class"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      }
+    },
+    "source_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "source_ref",
+        "artifact_digest",
+        "signature_ref",
+        "publisher_continuity_ref",
+        "revocation_yank_status"
+      ],
+      "properties": {
+        "source_class": {
+          "$ref": "#/$defs/package_source_class"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "artifact_digest": {
+          "$ref": "#/$defs/content_address"
+        },
+        "signature_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "publisher_continuity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "revocation_yank_status": {
+          "$ref": "#/$defs/revocation_yank_status"
+        }
+      }
+    },
+    "mirror_channel_class": {
+      "type": "string",
+      "enum": [
+        "quarantine",
+        "approved",
+        "production"
+      ]
+    },
+    "mirror_source_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "mirror_ref",
+        "channel_class",
+        "artifact_digest",
+        "signature_ref",
+        "policy_owner_ref"
+      ],
+      "properties": {
+        "source_class": {
+          "enum": [
+            "approved_mirror",
+            "private_registry"
+          ]
+        },
+        "mirror_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "channel_class": {
+          "$ref": "#/$defs/mirror_channel_class"
+        },
+        "artifact_digest": {
+          "$ref": "#/$defs/content_address"
+        },
+        "signature_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "policy_owner_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+    "artifact_identity_relationship": {
+      "type": "string",
+      "enum": [
+        "same_artifact",
+        "repackaged_identity",
+        "digest_mismatch",
+        "signature_mismatch",
+        "unknown_blocked"
+      ]
+    },
+    "artifact_identity_comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_relationship",
+        "origin_digest_ref",
+        "mirror_digest_ref",
+        "same_artifact",
+        "identity_evidence_ref"
+      ],
+      "properties": {
+        "identity_relationship": {
+          "$ref": "#/$defs/artifact_identity_relationship"
+        },
+        "origin_digest_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "mirror_digest_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "same_artifact": {
+          "type": "boolean"
+        },
+        "identity_evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      }
+    },
+    "signer_continuity_state": {
+      "type": "string",
+      "enum": [
+        "verified_origin_signer",
+        "verified_cached_origin_signer",
+        "stale_requires_review",
+        "signer_changed_blocked",
+        "signer_revoked_blocked",
+        "continuity_unknown_blocked"
+      ]
+    },
+    "signature_equivalence_class": {
+      "type": "string",
+      "enum": [
+        "origin_signature_reused",
+        "mirror_signature_wraps_origin",
+        "mirror_resigned_repackaged_blocked",
+        "signature_missing_blocked"
+      ]
+    },
+    "signer_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signer_continuity_state",
+        "signature_equivalence_class",
+        "signer_ref",
+        "continuity_evidence_ref"
+      ],
+      "properties": {
+        "signer_continuity_state": {
+          "$ref": "#/$defs/signer_continuity_state"
+        },
+        "signature_equivalence_class": {
+          "$ref": "#/$defs/signature_equivalence_class"
+        },
+        "signer_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "continuity_evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      }
+    },
+    "age_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_snapshot_age_class",
+        "revocation_snapshot_age_class",
+        "advisory_snapshot_age_class",
+        "computed_at",
+        "freshness_evidence_refs"
+      ],
+      "properties": {
+        "mirror_snapshot_age_class": {
+          "$ref": "#/$defs/age_class"
+        },
+        "revocation_snapshot_age_class": {
+          "$ref": "#/$defs/age_class"
+        },
+        "advisory_snapshot_age_class": {
+          "$ref": "#/$defs/age_class"
+        },
+        "computed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "freshness_evidence_refs": {
+          "$ref": "#/$defs/opaque_ref_array"
+        }
+      }
+    },
+    "promotion_outcome_class": {
+      "type": "string",
+      "enum": [
+        "promoted_to_approved",
+        "promoted_to_production",
+        "blocked_repackaged_identity",
+        "blocked_digest_mismatch",
+        "blocked_signature_mismatch",
+        "blocked_identity_unknown",
+        "blocked_signer_continuity",
+        "blocked_stale_freshness",
+        "blocked_policy"
+      ]
+    },
+    "export_scope_class": {
+      "type": "string",
+      "enum": [
+        "support_export",
+        "admin_export",
+        "reproducibility_capsule",
+        "offboarding_package",
+        "local_review_only"
+      ]
+    },
+    "reproducibility_export_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_set_ref",
+        "deterministic_package_set_digest",
+        "source_class_truth_preserved",
+        "export_scope",
+        "support_export_refs",
+        "admin_export_refs"
+      ],
+      "properties": {
+        "package_set_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "deterministic_package_set_digest": {
+          "$ref": "#/$defs/content_address"
+        },
+        "source_class_truth_preserved": {
+          "type": "boolean",
+          "const": true
+        },
+        "export_scope": {
+          "$ref": "#/$defs/export_scope_class"
+        },
+        "support_export_refs": {
+          "$ref": "#/$defs/opaque_ref_array"
+        },
+        "admin_export_refs": {
+          "$ref": "#/$defs/opaque_ref_array"
+        }
+      }
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

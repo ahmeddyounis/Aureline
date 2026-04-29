@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/offline_continuity_card.schema.json",
+  "title": "Aureline offline package-continuity card",
+  "description": "Boundary schema for offline_continuity_card records. The card explains offline snapshot age, included revocation and advisory data, included publisher continuity metadata, source-class preservation, and the refresh or import path before an offline bundle can participate in install, update, restore, support, or admin reproducibility exports. Raw package bytes, bundle payload bytes, registry URLs, hostnames, absolute paths, tokens, and signing-key material never appear in this record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "offline_continuity_card_schema_version",
+    "offline_continuity_card_id",
+    "package_set_id",
+    "package_manager_family",
+    "bundle_source",
+    "snapshot_age",
+    "included_data",
+    "publisher_continuity",
+    "source_class_preservation",
+    "refresh_import_path",
+    "reproducibility_export_linkage",
+    "rendered_at",
+    "redaction_class",
+    "narrative_refs"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "offline_continuity_card"
+    },
+    "offline_continuity_card_schema_version": {
+      "$ref": "#/$defs/schema_version"
+    },
+    "offline_continuity_card_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "package_set_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "package_manager_family": {
+      "$ref": "#/$defs/package_manager_family"
+    },
+    "bundle_source": {
+      "$ref": "#/$defs/bundle_source"
+    },
+    "snapshot_age": {
+      "$ref": "#/$defs/snapshot_age"
+    },
+    "included_data": {
+      "$ref": "#/$defs/included_data"
+    },
+    "publisher_continuity": {
+      "$ref": "#/$defs/publisher_continuity"
+    },
+    "source_class_preservation": {
+      "$ref": "#/$defs/source_class_preservation"
+    },
+    "refresh_import_path": {
+      "$ref": "#/$defs/refresh_import_path"
+    },
+    "reproducibility_export_linkage": {
+      "$ref": "#/$defs/reproducibility_export_linkage"
+    },
+    "rendered_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "redaction_class": {
+      "$ref": "#/$defs/redaction_class"
+    },
+    "narrative_refs": {
+      "$ref": "#/$defs/ref_array"
+    },
+    "notes": {
+      "$ref": "#/$defs/nullable_reviewable_sentence"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Unverified snapshots must block on missing or unusable revocation data.",
+      "if": {
+        "properties": {
+          "snapshot_age": {
+            "properties": {
+              "snapshot_age_class": {
+                "const": "unverified"
+              }
+            },
+            "required": [
+              "snapshot_age_class"
+            ]
+          }
+        },
+        "required": [
+          "snapshot_age"
+        ]
+      },
+      "then": {
+        "properties": {
+          "included_data": {
+            "properties": {
+              "revocation_data_class": {
+                "const": "not_included_blocks_restore"
+              }
+            },
+            "required": [
+              "revocation_data_class"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Every offline continuity card must preserve source-class truth for exports and support review.",
+      "properties": {
+        "source_class_preservation": {
+          "properties": {
+            "source_class_truth_preserved": {
+              "const": true
+            }
+          },
+          "required": [
+            "source_class_truth_preserved"
+          ]
+        }
+      },
+      "required": [
+        "source_class_preservation"
+      ]
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_id"
+        }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "opaque_ref_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/opaque_id"
+      },
+      "uniqueItems": true
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": [
+        "sha256",
+        "sha384",
+        "sha512",
+        "blake3"
+      ]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest_algorithm",
+        "digest_hex"
+      ],
+      "properties": {
+        "digest_algorithm": {
+          "$ref": "#/$defs/digest_algorithm"
+        },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "package_manager_family": {
+      "type": "string",
+      "enum": [
+        "cargo",
+        "npm",
+        "pnpm",
+        "yarn",
+        "bun",
+        "pip",
+        "uv",
+        "poetry",
+        "go_modules",
+        "maven",
+        "gradle",
+        "bundler",
+        "nuget",
+        "system_package_manager",
+        "mixed_workspace",
+        "package_manager_unknown_requires_review"
+      ]
+    },
+    "package_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "installed_copy",
+        "quarantined_installed_copy"
+      ]
+    },
+    "age_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "bundle_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "bundle_ref",
+        "bundle_digest",
+        "original_source_classes"
+      ],
+      "properties": {
+        "source_class": {
+          "const": "offline_bundle"
+        },
+        "bundle_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "bundle_digest": {
+          "$ref": "#/$defs/content_address"
+        },
+        "original_source_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/package_source_class"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "snapshot_age": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exported_at",
+        "evaluated_at",
+        "snapshot_age_class",
+        "policy_window_ref"
+      ],
+      "properties": {
+        "exported_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "snapshot_age_class": {
+          "$ref": "#/$defs/age_class"
+        },
+        "policy_window_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      }
+    },
+    "included_trust_data_class": {
+      "type": "string",
+      "enum": [
+        "included_fresh",
+        "included_warm_cached",
+        "included_stale_blocks_restore",
+        "not_included_blocks_restore"
+      ]
+    },
+    "included_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revocation_data_class",
+        "advisory_data_class",
+        "revocation_snapshot_ref",
+        "advisory_snapshot_ref",
+        "artifact_digest_manifest_ref",
+        "package_count"
+      ],
+      "properties": {
+        "revocation_data_class": {
+          "$ref": "#/$defs/included_trust_data_class"
+        },
+        "advisory_data_class": {
+          "$ref": "#/$defs/included_trust_data_class"
+        },
+        "revocation_snapshot_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "advisory_snapshot_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "artifact_digest_manifest_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "package_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "publisher_continuity_metadata_class": {
+      "type": "string",
+      "enum": [
+        "per_artifact_publisher_continuity",
+        "publisher_refs_only_requires_refresh",
+        "not_included_blocks_restore"
+      ]
+    },
+    "publisher_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metadata_class",
+        "publisher_continuity_refs",
+        "signer_continuity_snapshot_ref"
+      ],
+      "properties": {
+        "metadata_class": {
+          "$ref": "#/$defs/publisher_continuity_metadata_class"
+        },
+        "publisher_continuity_refs": {
+          "$ref": "#/$defs/opaque_ref_array"
+        },
+        "signer_continuity_snapshot_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      }
+    },
+    "source_class_preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserved_source_classes",
+        "source_class_truth_preserved",
+        "package_restore_preview_refs"
+      ],
+      "properties": {
+        "preserved_source_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/package_source_class"
+          },
+          "uniqueItems": true
+        },
+        "source_class_truth_preserved": {
+          "type": "boolean",
+          "const": true
+        },
+        "package_restore_preview_refs": {
+          "$ref": "#/$defs/opaque_ref_array"
+        }
+      }
+    },
+    "import_route_class": {
+      "type": "string",
+      "enum": [
+        "direct_registry_refresh",
+        "approved_mirror_refresh",
+        "offline_bundle_reimport",
+        "local_archive_reimport_with_attestation",
+        "admin_attestation_required",
+        "no_refresh_path_blocked"
+      ]
+    },
+    "refresh_import_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "import_route_class",
+        "refresh_action_ref",
+        "import_preview_ref",
+        "repair_affordance_label"
+      ],
+      "properties": {
+        "import_route_class": {
+          "$ref": "#/$defs/import_route_class"
+        },
+        "refresh_action_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "import_preview_ref": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        },
+        "repair_affordance_label": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "export_scope_class": {
+      "type": "string",
+      "enum": [
+        "support_export",
+        "admin_export",
+        "reproducibility_capsule",
+        "offboarding_package",
+        "local_review_only"
+      ]
+    },
+    "reproducibility_export_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_set_ref",
+        "deterministic_package_set_digest",
+        "source_class_truth_preserved",
+        "export_scope",
+        "support_export_refs",
+        "admin_export_refs"
+      ],
+      "properties": {
+        "package_set_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "deterministic_package_set_digest": {
+          "$ref": "#/$defs/content_address"
+        },
+        "source_class_truth_preserved": {
+          "type": "boolean",
+          "const": true
+        },
+        "export_scope": {
+          "$ref": "#/$defs/export_scope_class"
+        },
+        "support_export_refs": {
+          "$ref": "#/$defs/opaque_ref_array"
+        },
+        "admin_export_refs": {
+          "$ref": "#/$defs/opaque_ref_array"
+        }
+      }
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}
