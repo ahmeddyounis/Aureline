@@ -1,0 +1,952 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/about/about_card.schema.json",
+  "title": "Aureline About card record",
+  "description": "Boundary schema for one about_card_record frozen in docs/about/about_provenance_and_boundary_contract.md. The record is the canonical product self-description surface used by Help / About, the command palette, the settings About pane, diagnostics export, support bundles, and release packets when they describe what build is running, what proves it, what is open and what is not, and where issues should go. The card projects build identity, provenance summary, openness boundary, community handoff, support actions, access points, and reproducibility-packet refs into one place rather than restating those facts. Raw signatures, raw attestations, raw key material, raw SBOM bodies, raw notice text, raw URLs, raw issue-template bodies, raw advisory payloads, raw private mirror endpoints, raw policy bodies, raw tenant identifiers, and raw user identifiers never cross this boundary. Adding a new openness_class, service_dependency_class, channel_class, route_class, privacy_class, disclosure_class, redaction_class, narrowing_reason, claim, action_class, access_point_class, or rendering-contract field is additive-minor and bumps about_card_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/about_card_record",
+  "$defs": {
+    "about_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Additive vocabulary additions bump this integer; repurposing existing values is breaking."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable ref safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, and offline review. Raw payloads and private endpoints do not appear here."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence. Raw secrets, raw license bodies, raw notices, raw URLs, raw advisory payloads, raw issue-template bodies, raw signatures, raw key material, and raw artifact bytes MUST NOT appear."
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "card_id": {
+      "type": "string",
+      "pattern": "^about_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable About-card id. Quoted by reproducibility packets, support exports, release packets, and diagnostics exports."
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "product_name_class": {
+      "type": "string",
+      "enum": ["aureline"],
+      "description": "Aligned with schemas/build/exact_build_identity.schema.json#product_name_class. Only one product name is admissible today."
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Aligned with schemas/build/exact_build_identity.schema.json#release_channel_class."
+    },
+    "tree_state_class": {
+      "type": "string",
+      "enum": [
+        "clean_checkout",
+        "dirty_local",
+        "patched_from_clean",
+        "shallow_clone_accepted",
+        "archive_export_no_git"
+      ],
+      "description": "Aligned with schemas/build/exact_build_identity.schema.json#tree_state_class."
+    },
+    "signing_class": {
+      "type": "string",
+      "enum": [
+        "release_signed",
+        "self_signed_dev",
+        "unsigned",
+        "revoked",
+        "not_applicable"
+      ]
+    },
+    "producer_lane_class": {
+      "type": "string",
+      "enum": [
+        "ci_release",
+        "ci_hotfix",
+        "ci_preview",
+        "ci_nightly",
+        "developer_workstation",
+        "reproducibility_rebuild",
+        "offline_mirror_rebuild"
+      ]
+    },
+    "acquired_via_class": {
+      "type": "string",
+      "enum": [
+        "official_update_feed",
+        "official_download",
+        "platform_package_manager",
+        "enterprise_mirror",
+        "offline_bundle",
+        "air_gapped_media",
+        "local_build",
+        "side_loaded",
+        "unknown"
+      ],
+      "description": "Aligned with schemas/governance/post_install_disclosure.schema.json#acquired_via."
+    },
+    "build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_name_class",
+        "channel_class",
+        "build_id",
+        "running_build_identity_ref",
+        "exact_build_identity_ref",
+        "tree_state_class",
+        "signing_class",
+        "producer_lane_class",
+        "acquired_via_class",
+        "build_disclosure"
+      ],
+      "properties": {
+        "product_name_class": { "$ref": "#/$defs/product_name_class" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "build_id": { "$ref": "#/$defs/non_empty_string" },
+        "running_build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "tree_state_class": { "$ref": "#/$defs/tree_state_class" },
+        "signing_class": { "$ref": "#/$defs/signing_class" },
+        "producer_lane_class": { "$ref": "#/$defs/producer_lane_class" },
+        "acquired_via_class": { "$ref": "#/$defs/acquired_via_class" },
+        "build_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "signature_state": {
+      "type": "string",
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "signature_missing",
+        "signature_revoked",
+        "signature_mismatch",
+        "not_applicable"
+      ],
+      "description": "Aligned with schemas/governance/post_install_disclosure.schema.json#signature_state."
+    },
+    "attestation_state": {
+      "type": "string",
+      "enum": [
+        "attestation_verified",
+        "attestation_present_unverified",
+        "attestation_missing",
+        "attestation_stale",
+        "attestation_policy_blocked",
+        "not_applicable"
+      ]
+    },
+    "checksum_state": {
+      "type": "string",
+      "enum": [
+        "checksum_verified",
+        "checksum_present_unverified",
+        "checksum_missing",
+        "checksum_mismatch",
+        "not_applicable"
+      ]
+    },
+    "revocation_state": {
+      "type": "string",
+      "enum": [
+        "revocation_current",
+        "revocation_snapshot_current",
+        "revocation_snapshot_stale",
+        "revocation_snapshot_expired",
+        "revoked_or_yanked",
+        "revocation_unknown",
+        "not_applicable"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "warm_cached",
+        "stale_requires_review",
+        "expired",
+        "unknown",
+        "not_applicable"
+      ]
+    },
+    "sbom_state": {
+      "type": "string",
+      "enum": [
+        "sbom_attached_verified",
+        "sbom_attached_unverified",
+        "sbom_missing",
+        "sbom_stale",
+        "sbom_policy_blocked",
+        "not_applicable"
+      ]
+    },
+    "sbom_format": {
+      "type": "string",
+      "enum": [
+        "spdx_json",
+        "spdx_tag_value",
+        "spdx_rdf",
+        "cyclonedx_json",
+        "cyclonedx_xml"
+      ]
+    },
+    "mirror_provenance_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror_in_path",
+        "official_mirror",
+        "customer_mirror",
+        "offline_bundle_import",
+        "unknown_mirror"
+      ]
+    },
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "warm_cached",
+        "stale_allowed",
+        "stale_requires_review",
+        "expired",
+        "not_applicable"
+      ]
+    },
+    "advisory_open_state_class": {
+      "type": "string",
+      "enum": [
+        "no_open_advisories",
+        "open_advisories_present",
+        "advisories_unknown",
+        "not_applicable"
+      ]
+    },
+    "provenance_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signature_state",
+        "attestation_state",
+        "checksum_state",
+        "revocation_state",
+        "revocation_freshness_class",
+        "sbom_state",
+        "sbom_formats",
+        "mirror_provenance_class",
+        "mirror_freshness_class",
+        "advisory_open_state_class",
+        "post_install_disclosure_ref",
+        "provenance_badge_refs",
+        "advisory_history_refs",
+        "supply_chain_evidence_refs",
+        "provenance_disclosure"
+      ],
+      "properties": {
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "attestation_state": { "$ref": "#/$defs/attestation_state" },
+        "checksum_state": { "$ref": "#/$defs/checksum_state" },
+        "revocation_state": { "$ref": "#/$defs/revocation_state" },
+        "revocation_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "sbom_state": { "$ref": "#/$defs/sbom_state" },
+        "sbom_formats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sbom_format" },
+          "uniqueItems": true
+        },
+        "mirror_provenance_class": { "$ref": "#/$defs/mirror_provenance_class" },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "advisory_open_state_class": { "$ref": "#/$defs/advisory_open_state_class" },
+        "post_install_disclosure_ref": { "$ref": "#/$defs/opaque_ref" },
+        "provenance_badge_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_history_refs": { "$ref": "#/$defs/ref_array" },
+        "supply_chain_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "provenance_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "openness_row_class": {
+      "type": "string",
+      "enum": [
+        "open_local",
+        "self_hosted",
+        "managed_cloud",
+        "mirrored_offline",
+        "optional_service"
+      ]
+    },
+    "openness_class": {
+      "type": "string",
+      "enum": [
+        "open_source_local_independent",
+        "open_source_self_hosted",
+        "managed_service_with_open_client",
+        "mirrored_official_offline",
+        "optional_managed_service",
+        "not_applicable"
+      ]
+    },
+    "service_dependency_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "optional",
+        "required"
+      ]
+    },
+    "openness_boundary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_class",
+        "row_label",
+        "openness_class",
+        "service_dependency_class",
+        "active_for_workflow",
+        "evidence_refs",
+        "boundary_disclosure"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^about_openness_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "row_class": { "$ref": "#/$defs/openness_row_class" },
+        "row_label": { "$ref": "#/$defs/non_empty_string" },
+        "openness_class": { "$ref": "#/$defs/openness_class" },
+        "service_dependency_class": { "$ref": "#/$defs/service_dependency_class" },
+        "active_for_workflow": { "type": "boolean" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "boundary_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "route_class": {
+      "type": "string",
+      "enum": [
+        "public_issue_tracker",
+        "public_rfc_forum",
+        "private_security_channel",
+        "private_partner_channel",
+        "private_support_channel",
+        "benchmark_council_queue",
+        "governance_packet_queue"
+      ],
+      "description": "Aligned with artifacts/governance/issue_routing.yaml#route_class_vocabulary."
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "public",
+        "private_with_public_advisory",
+        "private_with_public_summary",
+        "private_partner_only",
+        "private_support_only"
+      ]
+    },
+    "disclosure_class": {
+      "type": "string",
+      "enum": [
+        "public_immediate",
+        "public_on_fix",
+        "public_on_advisory",
+        "public_sanitised_summary_on_fix",
+        "private_indefinite"
+      ]
+    },
+    "public_summary_expectation_class": {
+      "type": "string",
+      "enum": ["required", "recommended", "none", "forbidden"]
+    },
+    "handoff_redaction_class": {
+      "type": "string",
+      "enum": [
+        "field_safe_default",
+        "field_safe_with_route_metadata",
+        "security_redaction_raw_allowed_under_pgp",
+        "partner_contractual_redaction",
+        "support_bundle_redaction_profile",
+        "no_raw_attachments"
+      ],
+      "description": "Aligned with artifacts/governance/issue_routing.yaml#redaction_class_vocabulary."
+    },
+    "issue_class_token": {
+      "type": "string",
+      "enum": [
+        "oss_bug",
+        "perf_regression",
+        "docs_truth_defect",
+        "security_issue",
+        "supportability_escalation",
+        "benchmark_dispute",
+        "compatibility_regression",
+        "design_review_issue",
+        "accessibility_defect",
+        "public_rfc",
+        "private_partner_case",
+        "design_partner_case",
+        "governance_truth_defect",
+        "dogfood_issue",
+        "protected_fitness_waiver_request"
+      ]
+    },
+    "community_handoff_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "route_class",
+        "privacy_class",
+        "disclosure_class",
+        "public_summary_expectation",
+        "redaction_class",
+        "destination_descriptor_ref",
+        "intended_for_classes",
+        "disclosure"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^about_handoff_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "route_class": { "$ref": "#/$defs/route_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "disclosure_class": { "$ref": "#/$defs/disclosure_class" },
+        "public_summary_expectation": { "$ref": "#/$defs/public_summary_expectation_class" },
+        "redaction_class": { "$ref": "#/$defs/handoff_redaction_class" },
+        "destination_descriptor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "intended_for_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/issue_class_token" },
+          "uniqueItems": true
+        },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_action_class": {
+      "type": "string",
+      "enum": [
+        "open_post_install_disclosure",
+        "open_notices",
+        "export_sbom",
+        "export_support_bundle",
+        "export_diagnostics",
+        "export_reproducibility_packet",
+        "verify_signature_now",
+        "refresh_revocation_snapshot",
+        "open_release_evidence",
+        "open_advisory_history",
+        "copy_build_identity"
+      ]
+    },
+    "support_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_ref",
+        "action_class",
+        "label",
+        "target_ref",
+        "availability"
+      ],
+      "properties": {
+        "action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_class": { "$ref": "#/$defs/support_action_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/nullable_string" },
+        "availability": {
+          "type": "string",
+          "enum": [
+            "available",
+            "available_read_only",
+            "unavailable_visible",
+            "policy_hidden_visible",
+            "not_applicable_visible"
+          ]
+        }
+      }
+    },
+    "access_point_class": {
+      "type": "string",
+      "enum": [
+        "help_about",
+        "command_palette_about",
+        "settings_about_pane",
+        "diagnostics_export",
+        "support_bundle",
+        "release_packet",
+        "cli_about",
+        "marketplace_or_package_detail",
+        "offline_review"
+      ]
+    },
+    "reachability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "unavailable_visible",
+        "policy_hidden_visible",
+        "not_applicable_visible"
+      ]
+    },
+    "access_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "access_point_class",
+        "reachability_class",
+        "action_ref",
+        "disclosure"
+      ],
+      "properties": {
+        "access_point_class": { "$ref": "#/$defs/access_point_class" },
+        "reachability_class": { "$ref": "#/$defs/reachability_class" },
+        "action_ref": { "$ref": "#/$defs/nullable_string" },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "active_openness_claim": {
+      "type": "string",
+      "enum": [
+        "fully_open_local",
+        "fully_open_self_hosted",
+        "managed_with_optional_services",
+        "mirrored_official_only",
+        "dev_or_unverified_build",
+        "not_claimed"
+      ],
+      "description": "Surface-facing openness claim. fully_open_local and fully_open_self_hosted are the only states under which the card may render fully-open-source or runs-entirely-locally wording. Other states narrow the copy."
+    },
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "dev_local_or_unsigned_build_running",
+        "optional_service_required_active",
+        "managed_service_active",
+        "mirror_revocation_stale",
+        "advisory_open_for_active_build",
+        "provenance_evidence_missing_or_stale"
+      ]
+    },
+    "rendering_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_identity_visible",
+        "provenance_summary_visible",
+        "openness_boundary_visible",
+        "community_handoff_visible",
+        "support_actions_visible",
+        "reproducibility_packet_visible",
+        "auto_narrowed_visible"
+      ],
+      "properties": {
+        "build_identity_visible": { "type": "boolean" },
+        "provenance_summary_visible": { "type": "boolean" },
+        "openness_boundary_visible": { "type": "boolean" },
+        "community_handoff_visible": { "type": "boolean" },
+        "support_actions_visible": { "type": "boolean" },
+        "reproducibility_packet_visible": { "type": "boolean" },
+        "auto_narrowed_visible": { "type": "boolean" }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captured_at", "stale_after", "freshness_state", "next_review_target"],
+      "properties": {
+        "captured_at": { "$ref": "#/$defs/utc_datetime" },
+        "stale_after": { "$ref": "#/$defs/nullable_string" },
+        "freshness_state": {
+          "type": "string",
+          "enum": [
+            "current",
+            "warm_cached",
+            "known_issues",
+            "retest_pending",
+            "stale",
+            "community_reported",
+            "unknown"
+          ]
+        },
+        "next_review_target": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "about_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "about_card_schema_version",
+        "record_kind",
+        "card_id",
+        "emitted_at",
+        "card_summary",
+        "build_identity",
+        "provenance_summary",
+        "openness_boundary",
+        "active_openness_claim",
+        "declared_openness_claim",
+        "active_narrowing_reasons",
+        "auto_narrowed",
+        "community_handoff",
+        "support_actions",
+        "access_points",
+        "reproducibility_packet_refs",
+        "owner",
+        "evidence_owner",
+        "freshness",
+        "rendering_contract",
+        "notes"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-fixture prelude. Runtime producers omit this field."
+        },
+        "about_card_schema_version": { "$ref": "#/$defs/about_card_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "about_card_record"
+        },
+        "card_id": { "$ref": "#/$defs/card_id" },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "card_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "build_identity": { "$ref": "#/$defs/build_identity" },
+        "provenance_summary": { "$ref": "#/$defs/provenance_summary" },
+        "openness_boundary": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/openness_boundary_row" },
+          "allOf": [
+            {
+              "contains": {
+                "properties": { "row_class": { "const": "open_local" } },
+                "required": ["row_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "row_class": { "const": "self_hosted" } },
+                "required": ["row_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "row_class": { "const": "managed_cloud" } },
+                "required": ["row_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "row_class": { "const": "mirrored_offline" } },
+                "required": ["row_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "row_class": { "const": "optional_service" } },
+                "required": ["row_class"]
+              }
+            }
+          ]
+        },
+        "active_openness_claim": { "$ref": "#/$defs/active_openness_claim" },
+        "declared_openness_claim": { "$ref": "#/$defs/active_openness_claim" },
+        "active_narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" },
+          "uniqueItems": true
+        },
+        "auto_narrowed": { "type": "boolean" },
+        "community_handoff": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/community_handoff_row" },
+          "allOf": [
+            {
+              "description": "At least one public lane must be present so community reports do not silently disappear into a private channel.",
+              "contains": {
+                "properties": {
+                  "route_class": {
+                    "enum": ["public_issue_tracker", "public_rfc_forum"]
+                  }
+                },
+                "required": ["route_class"]
+              }
+            },
+            {
+              "description": "A private security channel MUST be present so security reports never default to a public lane.",
+              "contains": {
+                "properties": {
+                  "route_class": { "const": "private_security_channel" }
+                },
+                "required": ["route_class"]
+              }
+            },
+            {
+              "description": "At least one private support or partner channel MUST be present so live support cases never default to a public lane.",
+              "contains": {
+                "properties": {
+                  "route_class": {
+                    "enum": ["private_support_channel", "private_partner_channel"]
+                  }
+                },
+                "required": ["route_class"]
+              }
+            }
+          ]
+        },
+        "support_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_action" }
+        },
+        "access_points": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/access_point" },
+          "allOf": [
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "help_about" } },
+                "required": ["access_point_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "settings_about_pane" } },
+                "required": ["access_point_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "diagnostics_export" } },
+                "required": ["access_point_class"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "access_point_class": { "const": "support_bundle" } },
+                "required": ["access_point_class"]
+              }
+            }
+          ]
+        },
+        "reproducibility_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "owner": { "$ref": "#/$defs/owner_ref" },
+        "evidence_owner": { "$ref": "#/$defs/owner_ref" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "rendering_contract": { "$ref": "#/$defs/rendering_contract" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "fully_open_local requires the open_local row to resolve to open_source_local_independent and forbids any other row from being active with a required service.",
+          "if": {
+            "properties": {
+              "active_openness_claim": { "const": "fully_open_local" }
+            },
+            "required": ["active_openness_claim"]
+          },
+          "then": {
+            "properties": {
+              "openness_boundary": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "row_class": { "const": "open_local" },
+                        "openness_class": { "const": "open_source_local_independent" },
+                        "service_dependency_class": { "const": "none" }
+                      },
+                      "required": ["row_class", "openness_class", "service_dependency_class"]
+                    }
+                  },
+                  {
+                    "not": {
+                      "contains": {
+                        "properties": {
+                          "row_class": { "enum": ["managed_cloud", "optional_service"] },
+                          "active_for_workflow": { "const": true },
+                          "service_dependency_class": { "const": "required" }
+                        },
+                        "required": ["row_class", "active_for_workflow", "service_dependency_class"]
+                      }
+                    }
+                  }
+                ]
+              },
+              "active_narrowing_reasons": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "fully_open_self_hosted requires the self_hosted row to resolve to open_source_self_hosted with active_for_workflow=true and forbids managed_cloud rows from being active with required dependency.",
+          "if": {
+            "properties": {
+              "active_openness_claim": { "const": "fully_open_self_hosted" }
+            },
+            "required": ["active_openness_claim"]
+          },
+          "then": {
+            "properties": {
+              "openness_boundary": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "row_class": { "const": "self_hosted" },
+                        "openness_class": { "const": "open_source_self_hosted" },
+                        "active_for_workflow": { "const": true }
+                      },
+                      "required": ["row_class", "openness_class", "active_for_workflow"]
+                    }
+                  },
+                  {
+                    "not": {
+                      "contains": {
+                        "properties": {
+                          "row_class": { "const": "managed_cloud" },
+                          "active_for_workflow": { "const": true },
+                          "service_dependency_class": { "const": "required" }
+                        },
+                        "required": ["row_class", "active_for_workflow", "service_dependency_class"]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "mirrored_official_only requires the mirrored_offline row to be active and the provenance summary mirror_class to resolve to customer_mirror or offline_bundle_import with a non-expired freshness.",
+          "if": {
+            "properties": {
+              "active_openness_claim": { "const": "mirrored_official_only" }
+            },
+            "required": ["active_openness_claim"]
+          },
+          "then": {
+            "properties": {
+              "openness_boundary": {
+                "contains": {
+                  "properties": {
+                    "row_class": { "const": "mirrored_offline" },
+                    "openness_class": { "const": "mirrored_official_offline" },
+                    "active_for_workflow": { "const": true }
+                  },
+                  "required": ["row_class", "openness_class", "active_for_workflow"]
+                }
+              },
+              "provenance_summary": {
+                "properties": {
+                  "mirror_provenance_class": {
+                    "enum": ["customer_mirror", "offline_bundle_import"]
+                  },
+                  "mirror_freshness_class": {
+                    "enum": ["current", "warm_cached", "stale_allowed", "stale_requires_review"]
+                  }
+                },
+                "required": ["mirror_provenance_class", "mirror_freshness_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_with_optional_services requires at least one managed_cloud or optional_service row to be active.",
+          "if": {
+            "properties": {
+              "active_openness_claim": { "const": "managed_with_optional_services" }
+            },
+            "required": ["active_openness_claim"]
+          },
+          "then": {
+            "properties": {
+              "openness_boundary": {
+                "contains": {
+                  "properties": {
+                    "row_class": { "enum": ["managed_cloud", "optional_service"] },
+                    "active_for_workflow": { "const": true }
+                  },
+                  "required": ["row_class", "active_for_workflow"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When the active claim is narrower than the declared claim, the card MUST set auto_narrowed=true and populate active_narrowing_reasons.",
+          "if": {
+            "properties": {
+              "active_openness_claim": {
+                "enum": ["managed_with_optional_services", "mirrored_official_only", "dev_or_unverified_build", "not_claimed"]
+              },
+              "declared_openness_claim": {
+                "enum": ["fully_open_local", "fully_open_self_hosted"]
+              }
+            },
+            "required": ["active_openness_claim", "declared_openness_claim"]
+          },
+          "then": {
+            "properties": {
+              "auto_narrowed": { "const": true },
+              "active_narrowing_reasons": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "dev_or_unverified_build requires the build to be either a dev_local channel or a non-verified signature, and MUST list dev_local_or_unsigned_build_running among narrowing reasons.",
+          "if": {
+            "properties": {
+              "active_openness_claim": { "const": "dev_or_unverified_build" }
+            },
+            "required": ["active_openness_claim"]
+          },
+          "then": {
+            "properties": {
+              "active_narrowing_reasons": {
+                "contains": { "const": "dev_local_or_unsigned_build_running" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
