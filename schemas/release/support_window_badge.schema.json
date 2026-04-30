@@ -1,0 +1,829 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/support_window_badge.schema.json",
+  "title": "Aureline release-channel identity and support-window badge record",
+  "description": "Boundary schema for the support_window_badge_record frozen in docs/release/channel_support_window_contract.md. The record carries one channel identity, one support class, one support window posture, the badge prominence treatment, the guidance tone, the required surface set the badge MUST appear on (About, update center, issue / report packets, compatibility reports, migration / import workflows), the scoping conditions (archetype, client class, OS, deployment / local-vs-remote mode) under which the channel and support claim hold, the required evidence path the support class leans on, and the scoped recovery guidance the support class admits. The schema mints no new release_channel_class, support_class, support_window_class, deployment_profile_class, client_class, os_family_class, or surface_class value; the channel and support vocabularies are aligned with /schemas/build/exact_build_identity.schema.json, /artifacts/release/channel_matrix.yaml, /artifacts/governance/capability_badge_axes.yaml, and /schemas/release/release_candidate_card.schema.json. Adding a value to a closed vocabulary is additive-minor and bumps support_window_badge_schema_version; repurposing an existing value, weakening any §9 invariant, or collapsing two channel-identity surfaces into one bare label is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/support_window_badge_record",
+  "$defs": {
+    "support_window_badge_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the support-window badge payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, migration exports, and offline review. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_monotonic_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing names but never raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, or raw secret material."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw release prose, raw URLs, raw advisory bodies, raw incident bodies, raw policy bodies, and raw artifact bytes MUST NOT appear."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix",
+        "portable_stable",
+        "portable_preview"
+      ],
+      "description": "Closed channel-identity vocabulary aligned with /schemas/build/exact_build_identity.schema.json#release_channel_class plus the two portable-mode rows from /artifacts/release/channel_matrix.yaml. dev_local is non-promotable and never carries a public support claim."
+    },
+    "channel_badge_prominence_class": {
+      "type": "string",
+      "enum": [
+        "high_prominence_persistent_chip",
+        "medium_prominence_chip_with_disclosure",
+        "low_prominence_inline_label",
+        "do_not_render_publicly"
+      ],
+      "description": "Required visual prominence treatment for the channel badge on the surface. Stable and LTS rows MUST surface support-window and deprecation timing more prominently than nightly or preview, so they bind to high_prominence_persistent_chip. Nightly and dev_local rows bind to do_not_render_publicly on public surfaces (they MAY render on internal release tooling)."
+    },
+    "channel_guidance_tone_class": {
+      "type": "string",
+      "enum": [
+        "experimental_no_support_claim",
+        "pre_release_warn_unverified",
+        "partner_pre_release_published_workarounds",
+        "general_availability_supported",
+        "long_term_support_calendar_bounded",
+        "correction_only_named_scope",
+        "portable_self_contained_no_managed_support",
+        "developer_local_only"
+      ],
+      "description": "Required guidance tone for copy on this channel badge. Tooling MUST NOT mint a marketing tone outside this list."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "not_certified_in_this_mode",
+        "not_configured",
+        "disabled_by_policy",
+        "not_supported"
+      ],
+      "description": "Closed support-class vocabulary. certified, supported, community, experimental are the four positive support classes ordered from strongest to weakest. not_certified_in_this_mode, not_configured, disabled_by_policy, and not_supported are the four distinct refusal states; collapsing them into one generic chip is non-conforming."
+    },
+    "support_window_class": {
+      "type": "string",
+      "enum": [
+        "no_support_claim_dev_local",
+        "no_support_claim_nightly_pre_release",
+        "narrowed_window_pre_release",
+        "rolling_window_stable",
+        "explicit_lts_window",
+        "hotfix_correction_only_window",
+        "portable_no_managed_support",
+        "not_applicable_refusal_state"
+      ],
+      "description": "Closed support-window posture vocabulary. Mirrors /artifacts/release/channel_matrix.yaml#support_window_class_vocabulary plus not_applicable_refusal_state which is reserved for the four refusal support classes."
+    },
+    "end_of_support_risk_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "approaching_window_end",
+        "security_only_window",
+        "past_window",
+        "unknown_pending_review",
+        "not_applicable_refusal_state"
+      ],
+      "description": "Frozen end-of-support risk vocabulary aligned with /schemas/release/release_candidate_card.schema.json#end_of_support_risk_class plus not_applicable_refusal_state for refusal support classes."
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ],
+      "description": "Closed deployment-profile vocabulary aligned with /schemas/release/assurance_claim.schema.json#deployment_profile and /artifacts/governance/deployment_profiles.yaml."
+    },
+    "client_class": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "remote_agent",
+        "headless_agent",
+        "managed_admin_surface",
+        "docs_site",
+        "support_center",
+        "companion_surface",
+        "sdk_or_api"
+      ],
+      "description": "Closed client-class vocabulary aligned with /schemas/governance/capability_lifecycle.schema.json#client_scope plus /schemas/release/assurance_claim.schema.json#client_scope."
+    },
+    "os_family_class": {
+      "type": "string",
+      "enum": [
+        "windows",
+        "macos",
+        "linux",
+        "platform_native_any",
+        "not_applicable_remote_or_managed"
+      ],
+      "description": "Closed OS-family vocabulary. platform_native_any is reserved for archetype rows whose claim holds across every supported desktop OS. not_applicable_remote_or_managed is reserved for remote-agent / managed-cloud rows."
+    },
+    "local_or_remote_mode_class": {
+      "type": "string",
+      "enum": [
+        "local_workstation",
+        "remote_agent_attached",
+        "remote_workspace_only",
+        "managed_cloud_session",
+        "air_gapped_local",
+        "portable_self_contained",
+        "not_applicable_dev_local"
+      ],
+      "description": "Closed local-vs-remote mode vocabulary. The badge MUST condition channel and support claims on this axis when the claim is mode-sensitive (e.g. a feature certified locally but only experimental over a remote agent)."
+    },
+    "scoped_archetype_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable archetype, certified-archetype, compatibility-row, or workflow-bundle ref the support claim is bounded by."
+    },
+    "scope_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archetype_refs",
+        "client_classes",
+        "os_families",
+        "deployment_profiles",
+        "local_or_remote_modes"
+      ],
+      "properties": {
+        "archetype_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scoped_archetype_ref" },
+          "uniqueItems": true,
+          "description": "Archetype, certified-archetype, compatibility-row, or workflow-bundle refs the support claim is bounded by. At least one archetype ref is required so the support claim is never unbounded."
+        },
+        "client_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_class" },
+          "uniqueItems": true
+        },
+        "os_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/os_family_class" },
+          "uniqueItems": true
+        },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "uniqueItems": true
+        },
+        "local_or_remote_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/local_or_remote_mode_class" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Scoping envelope. The support and channel claim hold only inside this envelope; outside the envelope the badge MUST narrow to a refusal class or open a separate badge with its own scope envelope."
+    },
+    "evidence_path_class": {
+      "type": "string",
+      "enum": [
+        "certified_archetype_report",
+        "compatibility_report_supported",
+        "community_evidence_or_partner_attestation",
+        "experimental_runtime_observation_only",
+        "no_evidence_required_refusal_state"
+      ],
+      "description": "Closed evidence-path vocabulary. Each support class binds to one or more evidence paths; refusal classes bind to no_evidence_required_refusal_state."
+    },
+    "required_evidence_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_path_class",
+        "evidence_refs",
+        "freshness_floor_ref",
+        "evidence_note"
+      ],
+      "properties": {
+        "evidence_path_class": { "$ref": "#/$defs/evidence_path_class" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "freshness_floor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Pointer into /docs/governance/evidence_freshness_policy.md (or its companion artifact) that names the freshness floor this support class MUST stay above."
+        },
+        "evidence_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "scoped_recovery_guidance_class": {
+      "type": "string",
+      "enum": [
+        "rollback_to_named_floor_or_lts_train",
+        "in_channel_rollback_to_previous_build",
+        "switch_to_certified_archetype_or_supported_mode",
+        "open_compatibility_report_and_route_to_supported_archetype",
+        "request_managed_admin_action_or_unblock_policy",
+        "configure_required_provider_or_workspace",
+        "no_in_product_recovery_developer_local_only",
+        "open_certified_archetype_report_for_recertification",
+        "follow_partner_pre_release_published_workaround"
+      ],
+      "description": "Closed recovery-guidance vocabulary. Each support class MUST resolve to one or more scoped recovery paths; free-text recovery prose on a badge is non-conforming."
+    },
+    "scoped_recovery_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guidance_class",
+        "guidance_route_ref",
+        "guidance_note"
+      ],
+      "properties": {
+        "guidance_class": { "$ref": "#/$defs/scoped_recovery_guidance_class" },
+        "guidance_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "guidance_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "about_panel",
+        "update_center",
+        "issue_report_packet",
+        "compatibility_report",
+        "migration_or_import_workflow",
+        "release_evidence_packet",
+        "support_export_bundle",
+        "release_notes_card",
+        "service_health_panel",
+        "command_palette_install_review",
+        "marketplace_listing"
+      ],
+      "description": "Closed surface vocabulary. Channel identity and support-window state MUST be visible on at least the five required surfaces (about_panel, update_center, issue_report_packet, compatibility_report, migration_or_import_workflow); other entries are admissible secondary surfaces."
+    },
+    "required_surface_set": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/surface_class" },
+      "uniqueItems": true,
+      "minItems": 5,
+      "description": "Set of surfaces this badge MUST render onto. The five required surfaces (about_panel, update_center, issue_report_packet, compatibility_report, migration_or_import_workflow) are the floor; tooling MAY add more, but MUST NOT drop one."
+    },
+    "channel_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_class",
+        "channel_label",
+        "branch_class_ref",
+        "exact_build_identity_ref",
+        "channel_row_ref",
+        "badge_prominence_class",
+        "guidance_tone_class",
+        "channel_summary"
+      ],
+      "properties": {
+        "channel_class": { "$ref": "#/$defs/release_channel_class" },
+        "channel_label": { "$ref": "#/$defs/reviewable_label" },
+        "branch_class_ref": { "$ref": "#/$defs/opaque_id" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "channel_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "badge_prominence_class": { "$ref": "#/$defs/channel_badge_prominence_class" },
+        "guidance_tone_class": { "$ref": "#/$defs/channel_guidance_tone_class" },
+        "channel_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_window_class",
+        "starts_at",
+        "ends_at",
+        "security_only_until",
+        "end_of_support_risk_class",
+        "policy_ref",
+        "support_window_note"
+      ],
+      "properties": {
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "starts_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "ends_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "security_only_until": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "end_of_support_risk_class": { "$ref": "#/$defs/end_of_support_risk_class" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_window_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_class",
+        "support_class_label",
+        "support_class_summary",
+        "evidence_paths",
+        "recovery_guidance",
+        "support_class_row_ref"
+      ],
+      "properties": {
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_class_label": { "$ref": "#/$defs/reviewable_label" },
+        "support_class_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "evidence_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/required_evidence_path" }
+        },
+        "recovery_guidance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scoped_recovery_guidance" }
+        },
+        "support_class_row_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "support_window_badge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_window_badge_schema_version",
+        "record_kind",
+        "badge_id",
+        "emitted_at",
+        "channel_identity",
+        "support_window",
+        "support_posture",
+        "scope_envelope",
+        "required_surface_set",
+        "channel_matrix_ref",
+        "support_class_rows_ref",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "support_window_badge_schema_version": { "$ref": "#/$defs/support_window_badge_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "support_window_badge_record"
+        },
+        "badge_id": {
+          "type": "string",
+          "pattern": "^support_window_badge:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable badge id. Quoted by About panels, update-center entries, issue / report packets, compatibility reports, migration / import workflows, support exports, and release-evidence packets."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "channel_identity": { "$ref": "#/$defs/channel_identity" },
+        "support_window": { "$ref": "#/$defs/support_window" },
+        "support_posture": { "$ref": "#/$defs/support_posture" },
+        "scope_envelope": { "$ref": "#/$defs/scope_envelope" },
+        "required_surface_set": { "$ref": "#/$defs/required_surface_set" },
+        "channel_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/release/channel_matrix.yaml"
+        },
+        "support_class_rows_ref": {
+          "type": "string",
+          "const": "artifacts/release/support_class_rows.yaml"
+        },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/channel_support_window_contract.md"
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "Stable and LTS channels MUST carry the high-prominence persistent chip when the support class is positive (certified, supported, community). The window MUST be the rolling stable window or the explicit LTS window with a bounded start timestamp. Refusal support classes override these window pairings (see the refusal-class rule below).",
+          "if": {
+            "properties": {
+              "channel_identity": {
+                "properties": {
+                  "channel_class": { "enum": ["stable", "lts"] }
+                },
+                "required": ["channel_class"]
+              },
+              "support_posture": {
+                "properties": {
+                  "support_class": {
+                    "enum": ["certified", "supported", "community"]
+                  }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["channel_identity", "support_posture"]
+          },
+          "then": {
+            "properties": {
+              "channel_identity": {
+                "properties": {
+                  "badge_prominence_class": { "const": "high_prominence_persistent_chip" }
+                }
+              },
+              "support_window": {
+                "properties": {
+                  "support_window_class": {
+                    "enum": ["rolling_window_stable", "explicit_lts_window"]
+                  },
+                  "starts_at": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Nightly and dev_local channels MUST NOT render publicly and MUST NOT carry a positive support claim.",
+          "if": {
+            "properties": {
+              "channel_identity": {
+                "properties": {
+                  "channel_class": { "enum": ["nightly", "dev_local"] }
+                },
+                "required": ["channel_class"]
+              }
+            },
+            "required": ["channel_identity"]
+          },
+          "then": {
+            "properties": {
+              "channel_identity": {
+                "properties": {
+                  "badge_prominence_class": { "const": "do_not_render_publicly" }
+                }
+              },
+              "support_posture": {
+                "properties": {
+                  "support_class": {
+                    "enum": ["experimental", "not_supported"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Preview and beta channels MUST narrow to medium prominence with the narrowed pre-release window when the support class is positive (community, experimental); certified or supported claims are forbidden on these channels. Refusal support classes override the window pairing (see the refusal-class rule below).",
+          "if": {
+            "properties": {
+              "channel_identity": {
+                "properties": {
+                  "channel_class": { "enum": ["preview", "beta"] }
+                },
+                "required": ["channel_class"]
+              },
+              "support_posture": {
+                "properties": {
+                  "support_class": {
+                    "enum": ["community", "experimental"]
+                  }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["channel_identity", "support_posture"]
+          },
+          "then": {
+            "properties": {
+              "channel_identity": {
+                "properties": {
+                  "badge_prominence_class": {
+                    "enum": [
+                      "medium_prominence_chip_with_disclosure",
+                      "high_prominence_persistent_chip"
+                    ]
+                  }
+                }
+              },
+              "support_window": {
+                "properties": {
+                  "support_window_class": { "const": "narrowed_window_pre_release" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Preview and beta channels MUST NOT claim certified or supported support classes regardless of refusal posture; the certified-grade and supported-grade evidence floors are gated to stable / LTS / hotfix rows.",
+          "if": {
+            "properties": {
+              "channel_identity": {
+                "properties": {
+                  "channel_class": { "enum": ["preview", "beta"] }
+                },
+                "required": ["channel_class"]
+              }
+            },
+            "required": ["channel_identity"]
+          },
+          "then": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "support_class": {
+                    "not": {
+                      "enum": ["certified", "supported"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Refusal support classes (not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported) bind to the not_applicable_refusal_state support window, the not_applicable_refusal_state end-of-support risk, and an evidence path of no_evidence_required_refusal_state. They MUST NOT mint a positive support window or quote a certified evidence path.",
+          "if": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "support_class": {
+                    "enum": [
+                      "not_certified_in_this_mode",
+                      "not_configured",
+                      "disabled_by_policy",
+                      "not_supported"
+                    ]
+                  }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["support_posture"]
+          },
+          "then": {
+            "properties": {
+              "support_window": {
+                "properties": {
+                  "support_window_class": { "const": "not_applicable_refusal_state" },
+                  "end_of_support_risk_class": { "const": "not_applicable_refusal_state" },
+                  "starts_at": { "type": "null" },
+                  "ends_at": { "type": "null" },
+                  "security_only_until": { "type": "null" }
+                }
+              },
+              "support_posture": {
+                "properties": {
+                  "evidence_paths": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "evidence_path_class": { "const": "no_evidence_required_refusal_state" }
+                      },
+                      "required": ["evidence_path_class"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The certified support class binds to the certified_archetype_report evidence path with a non-empty evidence_refs list and a non-null freshness floor; it cannot present without backing certified evidence.",
+          "if": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "support_class": { "const": "certified" }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["support_posture"]
+          },
+          "then": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "evidence_paths": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "evidence_path_class": { "const": "certified_archetype_report" },
+                        "evidence_refs": { "type": "array", "minItems": 1 },
+                        "freshness_floor_ref": { "not": { "type": "null" } }
+                      },
+                      "required": ["evidence_path_class", "evidence_refs", "freshness_floor_ref"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The supported support class binds to the compatibility_report_supported evidence path with at least one evidence ref.",
+          "if": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "support_class": { "const": "supported" }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["support_posture"]
+          },
+          "then": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "evidence_paths": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "evidence_path_class": { "const": "compatibility_report_supported" },
+                        "evidence_refs": { "type": "array", "minItems": 1 }
+                      },
+                      "required": ["evidence_path_class", "evidence_refs"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The disabled_by_policy support class MUST quote a guidance route of request_managed_admin_action_or_unblock_policy.",
+          "if": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "support_class": { "const": "disabled_by_policy" }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["support_posture"]
+          },
+          "then": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "recovery_guidance": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "guidance_class": { "const": "request_managed_admin_action_or_unblock_policy" }
+                      },
+                      "required": ["guidance_class"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The not_configured support class MUST quote a guidance route of configure_required_provider_or_workspace so the surface points at the configuration step rather than a generic refusal.",
+          "if": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "support_class": { "const": "not_configured" }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["support_posture"]
+          },
+          "then": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "recovery_guidance": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "guidance_class": { "const": "configure_required_provider_or_workspace" }
+                      },
+                      "required": ["guidance_class"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The not_certified_in_this_mode support class MUST quote a guidance route of switch_to_certified_archetype_or_supported_mode.",
+          "if": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "support_class": { "const": "not_certified_in_this_mode" }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["support_posture"]
+          },
+          "then": {
+            "properties": {
+              "support_posture": {
+                "properties": {
+                  "recovery_guidance": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "guidance_class": { "const": "switch_to_certified_archetype_or_supported_mode" }
+                      },
+                      "required": ["guidance_class"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The required surface set MUST contain the five required surfaces: about_panel, update_center, issue_report_packet, compatibility_report, and migration_or_import_workflow.",
+          "properties": {
+            "required_surface_set": {
+              "allOf": [
+                { "contains": { "const": "about_panel" } },
+                { "contains": { "const": "update_center" } },
+                { "contains": { "const": "issue_report_packet" } },
+                { "contains": { "const": "compatibility_report" } },
+                { "contains": { "const": "migration_or_import_workflow" } }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

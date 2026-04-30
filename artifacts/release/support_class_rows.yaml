@@ -1,0 +1,609 @@
+# Support-class register.
+#
+# Machine-readable companion to docs/release/channel_support_window_contract.md.
+# Every support_class_row binds one support_class value to its required
+# evidence path, the channels that may carry it, the support-window
+# postures that may pair with it, the badge prominence treatment, the
+# guidance tone, and the closed scoped-recovery-guidance set the row
+# admits. Tooling that emits a support_window_badge_record reads exactly
+# one row from this register and projects its values onto the badge
+# without inventing per-surface dialects.
+#
+# Scope. This file freezes the support-class taxonomy used by every
+# release-channel-identity / support-window badge across the product
+# (About panel, update center, issue / report packets, compatibility
+# reports, migration / import workflows, support exports, release
+# packets, marketplace listings). The four refusal classes
+# (not_certified_in_this_mode, not_configured, disabled_by_policy,
+# not_supported) are pinned as DISTINCT states with different recovery
+# paths so a generic "unavailable" chip is non-conforming.
+#
+# Rules.
+#   - Every support_window_badge_record MUST resolve its support_posture
+#     .support_class_row_ref to one row below.
+#   - Adding a support_class value is additive-minor; repurposing is
+#     breaking and opens a decision row in
+#     /artifacts/governance/decision_index.yaml.
+#   - Adding an evidence_path_class or scoped_recovery_guidance_class
+#     value here requires bumping the schema in the same change.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+
+schema_version: 1
+matrix_id: aureline.support_class_rows
+status: seeded
+
+contract_doc_ref: docs/release/channel_support_window_contract.md
+badge_schema_ref: schemas/release/support_window_badge.schema.json
+channel_matrix_ref: artifacts/release/channel_matrix.yaml
+artifact_family_versioning_ref: artifacts/release/artifact_family_versioning.yaml
+capability_badge_axes_ref: artifacts/governance/capability_badge_axes.yaml
+capability_axis_matrix_ref: docs/governance/capability_axis_matrix.md
+assurance_claim_schema_ref: schemas/release/assurance_claim.schema.json
+assurance_claim_rows_ref: artifacts/release/assurance_claim_rows.yaml
+compatibility_row_schema_ref: schemas/release/compatibility_row.schema.json
+certified_archetype_template_ref: docs/release/certified_archetype_report_template.md
+compatibility_report_template_ref: docs/release/compatibility_report_template.md
+evidence_freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+governing_adr_ref: docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
+fixtures_ref: fixtures/release/channel_support_cases
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.20 release rhythm and channel discipline"
+      - "§9.9 mixed-version compatibility, negotiation, and upgrade posture"
+      - "§9.12 enterprise deployment hooks"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 install, portable-mode, and fleet-rollout architecture"
+      - "§26.5 distributed compatibility and version-skew policy"
+      - "§27.8–§27.9 release widening and stable-facing claim movement"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.18 install and update behaviour as product truth"
+      - "§8.12 release widening and stable-facing claim movement"
+      - "§12.1.6 LTS / backport posture"
+
+# ---------------------------------------------------------------------------
+# Closed vocabularies. The schema mirrors these enums; the schema is the
+# boundary, this file is the row table.
+# ---------------------------------------------------------------------------
+
+support_class_vocabulary:
+  - certified
+  - supported
+  - community
+  - experimental
+  - not_certified_in_this_mode
+  - not_configured
+  - disabled_by_policy
+  - not_supported
+
+evidence_path_class_vocabulary:
+  - certified_archetype_report
+  - compatibility_report_supported
+  - community_evidence_or_partner_attestation
+  - experimental_runtime_observation_only
+  - no_evidence_required_refusal_state
+
+scoped_recovery_guidance_class_vocabulary:
+  - rollback_to_named_floor_or_lts_train
+  - in_channel_rollback_to_previous_build
+  - switch_to_certified_archetype_or_supported_mode
+  - open_compatibility_report_and_route_to_supported_archetype
+  - request_managed_admin_action_or_unblock_policy
+  - configure_required_provider_or_workspace
+  - no_in_product_recovery_developer_local_only
+  - open_certified_archetype_report_for_recertification
+  - follow_partner_pre_release_published_workaround
+
+channel_badge_prominence_class_vocabulary:
+  - high_prominence_persistent_chip
+  - medium_prominence_chip_with_disclosure
+  - low_prominence_inline_label
+  - do_not_render_publicly
+
+channel_guidance_tone_class_vocabulary:
+  - experimental_no_support_claim
+  - pre_release_warn_unverified
+  - partner_pre_release_published_workarounds
+  - general_availability_supported
+  - long_term_support_calendar_bounded
+  - correction_only_named_scope
+  - portable_self_contained_no_managed_support
+  - developer_local_only
+
+# ---------------------------------------------------------------------------
+# Support-class rows.
+#
+# One row per support_class value. Order: positive support classes from
+# strongest to weakest (certified > supported > community > experimental),
+# then the four distinct refusal classes (not_certified_in_this_mode >
+# not_configured > disabled_by_policy > not_supported). The order is
+# narrative; tooling reads rows by id, not position.
+# ---------------------------------------------------------------------------
+
+support_class_rows:
+
+  - id: support_class.certified
+    support_class: certified
+    label: "Certified"
+    summary: >
+      The product is certified for the named archetype, client class,
+      OS family, and deployment / local-vs-remote mode. A live
+      certified-archetype report backs the claim and stays inside the
+      freshness floor; widening the claim outside the scope envelope
+      narrows automatically.
+    admissible_channel_classes:
+      - stable
+      - lts
+    admissible_support_window_classes:
+      - rolling_window_stable
+      - explicit_lts_window
+    badge_prominence_class: high_prominence_persistent_chip
+    guidance_tone_class:
+      stable: general_availability_supported
+      lts: long_term_support_calendar_bounded
+    required_evidence_path_classes:
+      - certified_archetype_report
+    admissible_recovery_guidance_classes:
+      - rollback_to_named_floor_or_lts_train
+      - open_certified_archetype_report_for_recertification
+      - switch_to_certified_archetype_or_supported_mode
+    refusal_class: false
+    notes: >
+      Certified is reserved for stable / LTS rows whose certified-
+      archetype report is fresh AND whose scope envelope (archetype,
+      client, OS, deployment, local-or-remote mode) matches the
+      consuming surface. Outside the envelope the badge MUST narrow,
+      typically to not_certified_in_this_mode.
+
+  - id: support_class.supported
+    support_class: supported
+    label: "Supported"
+    summary: >
+      A live supported compatibility row backs the claim for the named
+      scope. The support window is the rolling stable window or the
+      calendar-bounded LTS window. Recovery routes through the
+      compatibility report and the supported archetype.
+    admissible_channel_classes:
+      - stable
+      - lts
+      - hotfix
+    admissible_support_window_classes:
+      - rolling_window_stable
+      - explicit_lts_window
+      - hotfix_correction_only_window
+    badge_prominence_class: high_prominence_persistent_chip
+    guidance_tone_class:
+      stable: general_availability_supported
+      lts: long_term_support_calendar_bounded
+      hotfix: correction_only_named_scope
+    required_evidence_path_classes:
+      - compatibility_report_supported
+    admissible_recovery_guidance_classes:
+      - in_channel_rollback_to_previous_build
+      - rollback_to_named_floor_or_lts_train
+      - open_compatibility_report_and_route_to_supported_archetype
+    refusal_class: false
+    notes: >
+      Supported is the default positive class for stable rows that do
+      NOT carry a certified-archetype report; it requires at least
+      one supported compatibility row.
+
+  - id: support_class.community
+    support_class: community
+    label: "Community-supported"
+    summary: >
+      Community evidence or partner attestation backs the claim. The
+      support window narrows; the badge cites the community or
+      partner evidence packet rather than a vendor certification.
+    admissible_channel_classes:
+      - preview
+      - beta
+      - stable
+    admissible_support_window_classes:
+      - narrowed_window_pre_release
+      - rolling_window_stable
+    badge_prominence_class: medium_prominence_chip_with_disclosure
+    guidance_tone_class:
+      preview: pre_release_warn_unverified
+      beta: partner_pre_release_published_workarounds
+      stable: general_availability_supported
+    required_evidence_path_classes:
+      - community_evidence_or_partner_attestation
+    admissible_recovery_guidance_classes:
+      - open_compatibility_report_and_route_to_supported_archetype
+      - follow_partner_pre_release_published_workaround
+      - in_channel_rollback_to_previous_build
+    refusal_class: false
+    notes: >
+      Community badges MUST cite the community / partner evidence
+      packet by ref. Stable rows MAY carry community when no
+      vendor-certification or supported compatibility row is yet
+      published; the row narrows automatically when the supporting
+      evidence goes stale.
+
+  - id: support_class.experimental
+    support_class: experimental
+    label: "Experimental"
+    summary: >
+      Experimental rows carry runtime observation only. No support
+      window is claimed beyond the narrowed pre-release posture; no
+      vendor certification or supported compatibility row is present.
+    admissible_channel_classes:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+    admissible_support_window_classes:
+      - no_support_claim_dev_local
+      - no_support_claim_nightly_pre_release
+      - narrowed_window_pre_release
+    badge_prominence_class: medium_prominence_chip_with_disclosure
+    guidance_tone_class:
+      dev_local: developer_local_only
+      nightly: experimental_no_support_claim
+      preview: pre_release_warn_unverified
+      beta: partner_pre_release_published_workarounds
+    required_evidence_path_classes:
+      - experimental_runtime_observation_only
+    admissible_recovery_guidance_classes:
+      - in_channel_rollback_to_previous_build
+      - switch_to_certified_archetype_or_supported_mode
+      - no_in_product_recovery_developer_local_only
+    refusal_class: false
+    notes: >
+      Experimental rows MUST NOT collapse into a generic "beta" chip;
+      the badge renders both the channel chip AND the experimental
+      support-class chip per axis, never as one combined label.
+
+  - id: support_class.not_certified_in_this_mode
+    support_class: not_certified_in_this_mode
+    label: "Not certified in this mode"
+    summary: >
+      The product is certified or supported under a different scope
+      envelope (different archetype, client class, OS family, or
+      local-vs-remote mode), but the consuming surface is OUTSIDE
+      that envelope. The badge points the user at the certified or
+      supported mode rather than refusing silently.
+    admissible_channel_classes:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+      - portable_stable
+      - portable_preview
+    admissible_support_window_classes:
+      - not_applicable_refusal_state
+    badge_prominence_class: high_prominence_persistent_chip
+    guidance_tone_class:
+      dev_local: developer_local_only
+      nightly: experimental_no_support_claim
+      preview: pre_release_warn_unverified
+      beta: partner_pre_release_published_workarounds
+      stable: general_availability_supported
+      lts: long_term_support_calendar_bounded
+      hotfix: correction_only_named_scope
+      portable_stable: portable_self_contained_no_managed_support
+      portable_preview: portable_self_contained_no_managed_support
+    required_evidence_path_classes:
+      - no_evidence_required_refusal_state
+    admissible_recovery_guidance_classes:
+      - switch_to_certified_archetype_or_supported_mode
+      - open_compatibility_report_and_route_to_supported_archetype
+      - open_certified_archetype_report_for_recertification
+    refusal_class: true
+    refusal_distinction: >
+      Distinct from not_supported: a certified or supported posture
+      DOES exist for some scope envelope; the consuming surface is
+      simply outside it. Recovery routes the user TO the supported
+      mode rather than telling them the feature does not exist.
+    notes: >
+      Required when the surface (archetype, client, OS, deployment,
+      local-or-remote mode) falls outside the certified or supported
+      scope envelope of an otherwise-certified or otherwise-supported
+      capability.
+
+  - id: support_class.not_configured
+    support_class: not_configured
+    label: "Not configured"
+    summary: >
+      A required provider, workspace, archetype, or local-vs-remote
+      mode is not yet configured. The capability is not refused on
+      principle; it is waiting on configuration.
+    admissible_channel_classes:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+      - portable_stable
+      - portable_preview
+    admissible_support_window_classes:
+      - not_applicable_refusal_state
+    badge_prominence_class: medium_prominence_chip_with_disclosure
+    guidance_tone_class:
+      dev_local: developer_local_only
+      nightly: experimental_no_support_claim
+      preview: pre_release_warn_unverified
+      beta: partner_pre_release_published_workarounds
+      stable: general_availability_supported
+      lts: long_term_support_calendar_bounded
+      hotfix: correction_only_named_scope
+      portable_stable: portable_self_contained_no_managed_support
+      portable_preview: portable_self_contained_no_managed_support
+    required_evidence_path_classes:
+      - no_evidence_required_refusal_state
+    admissible_recovery_guidance_classes:
+      - configure_required_provider_or_workspace
+    refusal_class: true
+    refusal_distinction: >
+      Distinct from disabled_by_policy: nothing has been blocked.
+      Distinct from not_supported: support exists once configuration
+      is complete. Distinct from not_certified_in_this_mode: the
+      scope envelope is not the issue; configuration is.
+    notes: >
+      The badge MUST point at the configuration step (provider sign-
+      in, workspace selection, mode toggle); it MUST NOT route to a
+      generic refusal explainer.
+
+  - id: support_class.disabled_by_policy
+    support_class: disabled_by_policy
+    label: "Disabled by policy"
+    summary: >
+      An admin or tenant policy has actively disabled the capability.
+      The badge cites the policy source (admin policy bundle or
+      tenant policy ref) and routes the user at the managed-admin
+      surface to request unblock.
+    admissible_channel_classes:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+      - portable_stable
+      - portable_preview
+    admissible_support_window_classes:
+      - not_applicable_refusal_state
+    badge_prominence_class: high_prominence_persistent_chip
+    guidance_tone_class:
+      dev_local: developer_local_only
+      nightly: experimental_no_support_claim
+      preview: pre_release_warn_unverified
+      beta: partner_pre_release_published_workarounds
+      stable: general_availability_supported
+      lts: long_term_support_calendar_bounded
+      hotfix: correction_only_named_scope
+      portable_stable: portable_self_contained_no_managed_support
+      portable_preview: portable_self_contained_no_managed_support
+    required_evidence_path_classes:
+      - no_evidence_required_refusal_state
+    admissible_recovery_guidance_classes:
+      - request_managed_admin_action_or_unblock_policy
+    refusal_class: true
+    refusal_distinction: >
+      Distinct from not_supported: the capability would otherwise be
+      supported; an active policy is blocking it. Distinct from
+      not_certified_in_this_mode: the scope envelope is not the
+      issue; the policy is. Distinct from not_configured: the user
+      cannot resolve this themselves.
+    notes: >
+      The badge MUST cite at least one policy ref so the admin
+      audit trail is non-empty. A silent "disabled" chip without a
+      policy ref is non-conforming.
+
+  - id: support_class.not_supported
+    support_class: not_supported
+    label: "Not supported"
+    summary: >
+      The capability is not supported on this channel / archetype /
+      client / OS / deployment / local-or-remote mode AND is not
+      supported under any other scope envelope. There is no
+      configuration step, no policy override, and no supported mode
+      to route to.
+    admissible_channel_classes:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+      - portable_stable
+      - portable_preview
+    admissible_support_window_classes:
+      - not_applicable_refusal_state
+    badge_prominence_class: high_prominence_persistent_chip
+    guidance_tone_class:
+      dev_local: developer_local_only
+      nightly: experimental_no_support_claim
+      preview: pre_release_warn_unverified
+      beta: partner_pre_release_published_workarounds
+      stable: general_availability_supported
+      lts: long_term_support_calendar_bounded
+      hotfix: correction_only_named_scope
+      portable_stable: portable_self_contained_no_managed_support
+      portable_preview: portable_self_contained_no_managed_support
+    required_evidence_path_classes:
+      - no_evidence_required_refusal_state
+    admissible_recovery_guidance_classes:
+      - in_channel_rollback_to_previous_build
+      - rollback_to_named_floor_or_lts_train
+    refusal_class: true
+    refusal_distinction: >
+      Reserved for the case where the consuming surface cannot be
+      reached by configuration, by policy unblock, or by switching
+      to a different scope envelope. Surfaces MUST NOT use
+      not_supported as a stand-in for not_certified_in_this_mode,
+      not_configured, or disabled_by_policy.
+    notes: >
+      Routes only to in-channel rollback or to the named LTS / floor
+      target so the user has a concrete recovery action even when
+      no positive support exists for the capability.
+
+# ---------------------------------------------------------------------------
+# Channel-class to default-support-class admissibility map.
+#
+# Tooling reads this to resolve "which support classes are admissible on
+# this channel?" without scanning every row. Refusal classes are
+# admissible on every channel; positive classes are gated.
+# ---------------------------------------------------------------------------
+
+channel_to_support_class_admission:
+  dev_local:
+    positive: [experimental]
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+  nightly:
+    positive: [experimental]
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+  preview:
+    positive: [community, experimental]
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+  beta:
+    positive: [community, experimental]
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+  stable:
+    positive: [certified, supported, community]
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+  lts:
+    positive: [certified, supported]
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+  hotfix:
+    positive: [supported]
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+  portable_stable:
+    positive: []
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+    notes: >
+      Portable channels carry portable_no_managed_support windows.
+      The support badge on a portable channel MUST narrow to a
+      refusal class (typically not_certified_in_this_mode) so the
+      user knows the portable mode is self-contained without a
+      managed support claim.
+  portable_preview:
+    positive: []
+    refusal: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+
+# ---------------------------------------------------------------------------
+# Required-surface floor.
+#
+# Every support_window_badge_record MUST render onto at least these five
+# surfaces. Tooling MAY add more surfaces; it MUST NOT drop one.
+# ---------------------------------------------------------------------------
+
+required_surface_floor:
+  - about_panel
+  - update_center
+  - issue_report_packet
+  - compatibility_report
+  - migration_or_import_workflow
+
+admissible_secondary_surfaces:
+  - release_evidence_packet
+  - support_export_bundle
+  - release_notes_card
+  - service_health_panel
+  - command_palette_install_review
+  - marketplace_listing
+
+# ---------------------------------------------------------------------------
+# Support-window prominence ordering.
+#
+# Stable and LTS rows MUST surface support-window and deprecation timing
+# more prominently than nightly or preview rows. The ordering below is
+# the floor; surfaces MAY render even more prominently for end-of-support
+# risk, but never less.
+# ---------------------------------------------------------------------------
+
+support_window_prominence_ordering:
+  rightmost_is_most_prominent:
+    - no_support_claim_dev_local
+    - no_support_claim_nightly_pre_release
+    - narrowed_window_pre_release
+    - portable_no_managed_support
+    - hotfix_correction_only_window
+    - rolling_window_stable
+    - explicit_lts_window
+  refusal_state_overlay:
+    - not_applicable_refusal_state
+  notes: >
+    explicit_lts_window is the most prominent because the calendar
+    bound and end-of-support risk are public commitments. Nightly,
+    dev_local, and pre-release windows render with low prominence
+    so they cannot be confused with a stable support claim.
+
+# ---------------------------------------------------------------------------
+# Forbidden cross-axis combinations. Machine-checkable refusals; the
+# schema enforces the structural floor.
+# ---------------------------------------------------------------------------
+
+forbidden_combinations:
+  - id: forbidden.stable_or_lts_with_refusal_window
+    description: >
+      A stable or LTS channel paired with a not_applicable_refusal_state
+      support window is non-conforming. Stable and LTS MUST carry a
+      concrete support window even when the support class is positive.
+    if:
+      channel_class_any_of: [stable, lts]
+    then:
+      support_class_must_be_in: [certified, supported, community]
+      support_window_class_must_not_be: not_applicable_refusal_state
+
+  - id: forbidden.nightly_or_dev_local_publicly_rendered
+    description: >
+      Nightly and dev_local channels MUST NOT render publicly. Their
+      badge prominence is do_not_render_publicly; they MAY render on
+      internal release tooling but not on About / update center /
+      compatibility report / migration workflow surfaces.
+    if:
+      channel_class_any_of: [nightly, dev_local]
+    then:
+      badge_prominence_class_must_be: do_not_render_publicly
+
+  - id: forbidden.preview_or_beta_certified
+    description: >
+      Preview and beta channels MUST NOT carry the certified support
+      class. Certified is gated to stable and LTS where a fresh
+      certified-archetype report can back the claim.
+    if:
+      channel_class_any_of: [preview, beta]
+    then:
+      support_class_must_not_be: certified
+
+  - id: forbidden.refusal_class_collapsed_to_generic_chip
+    description: >
+      The four refusal classes MUST render as four distinct labels.
+      Collapsing them into one generic "unavailable" / "unsupported"
+      / "disabled" chip is non-conforming.
+    if:
+      support_class_in: [not_certified_in_this_mode, not_configured, disabled_by_policy, not_supported]
+    then:
+      badge_label_must_match_support_class_row_label: true
+
+  - id: forbidden.disabled_by_policy_without_policy_ref
+    description: >
+      A disabled_by_policy badge MUST cite at least one policy ref;
+      a silent "disabled" chip is non-conforming.
+    if:
+      support_class: disabled_by_policy
+    then:
+      policy_ref_must_be_non_null: true
+
+# ---------------------------------------------------------------------------
+# Status. Every row above is tagged seeded / proposed at this revision.
+# ---------------------------------------------------------------------------
+
+out_of_scope:
+  - authoring_final_release_prose
+  - operating_release_channels
+  - public_marketing_copy_generation
+  - rendering_badges_from_live_capability_rows
