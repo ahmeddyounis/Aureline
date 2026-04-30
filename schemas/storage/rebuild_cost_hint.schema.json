@@ -1,0 +1,405 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/rebuild_cost_hint.schema.json",
+  "title": "Aureline rebuild-cost hint record",
+  "description": "Boundary schema for the rebuild_cost_hint_record frozen in docs/storage/workspace_storage_detail_contract.md. The hint freezes how the workspace-storage detail surface, the clear-data review preview, the low-disk banner expansion, and the support-bundle storage section explain what it costs to rebuild a class entry: the offline-rebuild-risk class (would removal force a network round-trip, a mirror or offline-bundle round-trip, an admin-signed-pack round-trip, or is the bytes authoritative and not rebuildable at all), the startup-impact class (does removal break a feature, slow first-open, slow first-query, slow first-build, or stay user-invisible), the provenance-continuity class (does the rebuild reconstruct from local truth, from signed source, break provenance until re-mirrored, or is provenance authoritative and irreplaceable), the closed inputs the rebuild needs to consume, and the rebuild-safety summary class (cheap_to_rebuild_safe_to_remove, expensive_to_rebuild_but_safe, impossible_to_rebuild_offline, dangerous_to_delete_authoritative). The hint mints no new rebuild_cost_class; it consumes that vocabulary verbatim from /artifacts/runtime/storage_classes.yaml. Schema rules pair the four summary classes with the offline-risk, startup-impact, and provenance-continuity classes so a surface cannot label an entry 'cheap to rebuild' while also declaring it not rebuildable after removal, and cannot label authoritative state with the same hint copy as a hot disposable cache. Adding a value to a closed vocabulary is additive-minor and bumps rebuild_cost_hint_schema_version; repurposing a value or relaxing the summary-class pairings is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/rebuild_cost_hint_record",
+  "$defs": {
+    "rebuild_cost_hint_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the rebuild-cost hint payload shape. Current value is 1."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw payload bytes, raw paths, raw URLs, raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_no_rebuild",
+        "high_rebuild_cost",
+        "medium_rebuild_cost",
+        "low_rebuild_cost"
+      ],
+      "description": "Re-export of rebuild_cost_class from /artifacts/runtime/storage_classes.yaml."
+    },
+    "offline_rebuild_risk_class": {
+      "type": "string",
+      "enum": [
+        "safe_to_remove_offline",
+        "rebuild_requires_network_resync",
+        "rebuild_requires_mirror_or_offline_bundle",
+        "rebuild_requires_admin_or_policy_signed_pack",
+        "not_rebuildable_after_removal"
+      ],
+      "description": "Closed set naming what the rebuild would need to reach if the entry were removed. safe_to_remove_offline means the rebuild reads only from on-device source and is admissible when fully offline; rebuild_requires_network_resync needs a network round-trip to the provider, index source, or release ring; rebuild_requires_mirror_or_offline_bundle needs a customer-operated mirror, a vendor-published mirror, or an offline-bundle ref to be present and trusted; rebuild_requires_admin_or_policy_signed_pack needs an admin-signed pack, a policy bundle, or a tenant-managed pack to be present and trusted; not_rebuildable_after_removal is the authoritative, no-rebuild posture for user-owned recovery state and admissible authoritative evidence."
+    },
+    "startup_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_user_visible_impact",
+        "slower_first_open_until_warm",
+        "slower_first_query_until_reindexed",
+        "slower_first_build_until_prebuilt",
+        "feature_unavailable_until_rebuilt",
+        "not_applicable_authoritative_state"
+      ],
+      "description": "Closed set naming the startup-impact class the user sees if the entry is removed and the workspace continues. no_user_visible_impact is the cleanest disposable; slower_first_open_until_warm names hot-cache rewarming; slower_first_query_until_reindexed names knowledge-cache reindexing; slower_first_build_until_prebuilt names prebuild / toolchain rewarming; feature_unavailable_until_rebuilt names a feature that simply does not function until the rebuild completes (an offline-only docs pack, an offline-only model pack, a policy bundle); not_applicable_authoritative_state is the authoritative posture where 'startup impact' is the wrong frame because the bytes are not rebuildable at all."
+    },
+    "provenance_continuity_class": {
+      "type": "string",
+      "enum": [
+        "provenance_preserved_rebuild_from_local_truth",
+        "provenance_preserved_rebuild_from_signed_source",
+        "provenance_breaks_until_resigned_or_re_imported",
+        "authoritative_provenance_irreplaceable",
+        "not_applicable_disposable_no_provenance"
+      ],
+      "description": "Closed set naming whether the rebuild preserves the entry's provenance trail. provenance_preserved_rebuild_from_local_truth describes a derived index whose rebuild is reproducible from on-device source and whose provenance carries forward; provenance_preserved_rebuild_from_signed_source describes a mirrored or imported pack whose rebuild reads from the signed source and carries the signer chain forward; provenance_breaks_until_resigned_or_re_imported describes a class whose removal would force a re-import or a re-mirror before provenance can be re-established (an admin-signed offline bundle that is not currently reachable); authoritative_provenance_irreplaceable describes user-owned recovery state and case-bound evidence whose provenance cannot be rebuilt at all; not_applicable_disposable_no_provenance describes a hot disposable cache whose provenance is not material to the user."
+    },
+    "rebuild_input_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_source",
+        "local_history_journal",
+        "network_provider_or_index",
+        "customer_operated_mirror",
+        "vendor_published_mirror",
+        "offline_bundle_local",
+        "vendor_signed_offline_bundle",
+        "customer_signed_mirror",
+        "policy_signed_pack",
+        "no_input_authoritative_state"
+      ],
+      "description": "Closed set naming each input the rebuild needs to consume. The list is enumerated as a closed set so a surface cannot describe a rebuild as 'happens automatically' when it actually requires a mirror, an offline bundle, or an admin-signed pack."
+    },
+    "rebuild_safety_summary_class": {
+      "type": "string",
+      "enum": [
+        "cheap_to_rebuild_safe_to_remove",
+        "expensive_to_rebuild_but_safe",
+        "impossible_to_rebuild_offline",
+        "dangerous_to_delete_authoritative"
+      ],
+      "description": "Closed four-class summary the workspace-storage detail surface, the clear-data review preview, the low-disk drill expansion, and the support bundle render verbatim. cheap_to_rebuild_safe_to_remove is the disposable hot-cache posture; expensive_to_rebuild_but_safe is the rebuildable knowledge-cache or prebuild posture (slow but no provenance loss); impossible_to_rebuild_offline is the mirrored, offline-bundle, or policy-signed-pack posture where removal is unsafe under air-gapped or network-degraded conditions; dangerous_to_delete_authoritative is the user-owned-recovery-state and authoritative-evidence posture where generic clear is refused outright."
+    },
+    "rebuild_cost_hint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "rebuild_cost_hint_schema_version",
+        "rebuild_cost_class",
+        "offline_rebuild_risk_class",
+        "startup_impact_class",
+        "provenance_continuity_class",
+        "rebuild_inputs_required",
+        "rebuild_safety_summary_class",
+        "rebuild_explanation"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "rebuild_cost_hint_record" },
+        "rebuild_cost_hint_schema_version": { "$ref": "#/$defs/rebuild_cost_hint_schema_version" },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "offline_rebuild_risk_class": { "$ref": "#/$defs/offline_rebuild_risk_class" },
+        "startup_impact_class": { "$ref": "#/$defs/startup_impact_class" },
+        "provenance_continuity_class": { "$ref": "#/$defs/provenance_continuity_class" },
+        "rebuild_inputs_required": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rebuild_input_class" },
+          "uniqueItems": true,
+          "description": "Closed list of inputs the rebuild needs. Authoritative state declares exactly [no_input_authoritative_state]; disposable derived state declares at least one local input; mirror / offline / policy-protected entries declare the matching mirror / offline-bundle / policy-pack input."
+        },
+        "rebuild_safety_summary_class": { "$ref": "#/$defs/rebuild_safety_summary_class" },
+        "rebuild_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Authoritative no-rebuild cost forces the dangerous-to-delete summary plus the not-rebuildable-after-removal offline risk plus the not-applicable startup impact plus the irreplaceable provenance class plus the no-input rebuild list.",
+          "if": {
+            "properties": { "rebuild_cost_class": { "const": "authoritative_no_rebuild" } },
+            "required": ["rebuild_cost_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "dangerous_to_delete_authoritative" },
+              "offline_rebuild_risk_class": { "const": "not_rebuildable_after_removal" },
+              "startup_impact_class": { "const": "not_applicable_authoritative_state" },
+              "provenance_continuity_class": { "const": "authoritative_provenance_irreplaceable" },
+              "rebuild_inputs_required": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "no_input_authoritative_state" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Dangerous-to-delete summary requires authoritative no-rebuild cost and the matching authoritative offline-risk / startup-impact / provenance / inputs.",
+          "if": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "dangerous_to_delete_authoritative" }
+            },
+            "required": ["rebuild_safety_summary_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_cost_class": { "const": "authoritative_no_rebuild" },
+              "offline_rebuild_risk_class": { "const": "not_rebuildable_after_removal" },
+              "startup_impact_class": { "const": "not_applicable_authoritative_state" },
+              "provenance_continuity_class": { "const": "authoritative_provenance_irreplaceable" }
+            }
+          }
+        },
+        {
+          "description": "Not-rebuildable-after-removal offline risk forces dangerous-to-delete summary so an authoritative class cannot wear cheap or expensive copy.",
+          "if": {
+            "properties": {
+              "offline_rebuild_risk_class": { "const": "not_rebuildable_after_removal" }
+            },
+            "required": ["offline_rebuild_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "dangerous_to_delete_authoritative" },
+              "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+            }
+          }
+        },
+        {
+          "description": "Not-applicable-authoritative-state startup impact forces the dangerous-to-delete summary so an authoritative class cannot collapse into a generic 'no impact' label.",
+          "if": {
+            "properties": {
+              "startup_impact_class": { "const": "not_applicable_authoritative_state" }
+            },
+            "required": ["startup_impact_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "dangerous_to_delete_authoritative" }
+            }
+          }
+        },
+        {
+          "description": "Irreplaceable-provenance class forces the dangerous-to-delete summary so user-owned authoritative state never carries disposable hint copy.",
+          "if": {
+            "properties": {
+              "provenance_continuity_class": { "const": "authoritative_provenance_irreplaceable" }
+            },
+            "required": ["provenance_continuity_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "dangerous_to_delete_authoritative" }
+            }
+          }
+        },
+        {
+          "description": "Cheap-to-rebuild summary requires safe-offline risk, low-impact startup, preserved-from-local-truth or no-provenance continuity, and a low rebuild cost.",
+          "if": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "cheap_to_rebuild_safe_to_remove" }
+            },
+            "required": ["rebuild_safety_summary_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_rebuild_risk_class": { "const": "safe_to_remove_offline" },
+              "startup_impact_class": {
+                "enum": [
+                  "no_user_visible_impact",
+                  "slower_first_open_until_warm"
+                ]
+              },
+              "provenance_continuity_class": {
+                "enum": [
+                  "provenance_preserved_rebuild_from_local_truth",
+                  "not_applicable_disposable_no_provenance"
+                ]
+              },
+              "rebuild_cost_class": {
+                "enum": ["low_rebuild_cost", "medium_rebuild_cost"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Expensive-but-safe summary requires safe-offline or network-resync risk plus a slower-rebuild startup-impact class plus a preserved-provenance continuity class.",
+          "if": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "expensive_to_rebuild_but_safe" }
+            },
+            "required": ["rebuild_safety_summary_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_rebuild_risk_class": {
+                "enum": [
+                  "safe_to_remove_offline",
+                  "rebuild_requires_network_resync"
+                ]
+              },
+              "startup_impact_class": {
+                "enum": [
+                  "slower_first_query_until_reindexed",
+                  "slower_first_build_until_prebuilt",
+                  "slower_first_open_until_warm"
+                ]
+              },
+              "provenance_continuity_class": {
+                "enum": [
+                  "provenance_preserved_rebuild_from_local_truth",
+                  "provenance_preserved_rebuild_from_signed_source"
+                ]
+              },
+              "rebuild_cost_class": {
+                "enum": ["medium_rebuild_cost", "high_rebuild_cost"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Impossible-to-rebuild-offline summary requires a mirror / offline-bundle / policy-signed-pack offline-risk class and a feature-unavailable-or-slower-startup impact class.",
+          "if": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "impossible_to_rebuild_offline" }
+            },
+            "required": ["rebuild_safety_summary_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_rebuild_risk_class": {
+                "enum": [
+                  "rebuild_requires_mirror_or_offline_bundle",
+                  "rebuild_requires_admin_or_policy_signed_pack"
+                ]
+              },
+              "startup_impact_class": {
+                "enum": [
+                  "slower_first_query_until_reindexed",
+                  "slower_first_build_until_prebuilt",
+                  "feature_unavailable_until_rebuilt"
+                ]
+              },
+              "provenance_continuity_class": {
+                "enum": [
+                  "provenance_preserved_rebuild_from_signed_source",
+                  "provenance_breaks_until_resigned_or_re_imported"
+                ]
+              },
+              "rebuild_cost_class": {
+                "enum": ["high_rebuild_cost", "medium_rebuild_cost"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Network-resync offline risk requires the network-provider rebuild input.",
+          "if": {
+            "properties": {
+              "offline_rebuild_risk_class": { "const": "rebuild_requires_network_resync" }
+            },
+            "required": ["offline_rebuild_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_inputs_required": {
+                "type": "array",
+                "contains": { "const": "network_provider_or_index" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Mirror or offline-bundle offline risk requires at least one mirror / offline-bundle rebuild input.",
+          "if": {
+            "properties": {
+              "offline_rebuild_risk_class": { "const": "rebuild_requires_mirror_or_offline_bundle" }
+            },
+            "required": ["offline_rebuild_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_inputs_required": {
+                "type": "array",
+                "anyOf": [
+                  { "contains": { "const": "customer_operated_mirror" } },
+                  { "contains": { "const": "vendor_published_mirror" } },
+                  { "contains": { "const": "offline_bundle_local" } },
+                  { "contains": { "const": "vendor_signed_offline_bundle" } },
+                  { "contains": { "const": "customer_signed_mirror" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Admin-or-policy-signed-pack offline risk requires the policy-signed-pack rebuild input.",
+          "if": {
+            "properties": {
+              "offline_rebuild_risk_class": { "const": "rebuild_requires_admin_or_policy_signed_pack" }
+            },
+            "required": ["offline_rebuild_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_inputs_required": {
+                "type": "array",
+                "contains": { "const": "policy_signed_pack" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Authoritative no-input rebuild list cannot mix non-authoritative inputs.",
+          "if": {
+            "properties": {
+              "rebuild_inputs_required": {
+                "type": "array",
+                "contains": { "const": "no_input_authoritative_state" }
+              }
+            },
+            "required": ["rebuild_inputs_required"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_inputs_required": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "no_input_authoritative_state" }
+              },
+              "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
