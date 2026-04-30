@@ -1,0 +1,672 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/preview_share_sheet.schema.json",
+  "title": "Aureline preview share-sheet record",
+  "description": "Boundary schema for the preview_share_sheet_record frozen in docs/preview/preview_share_contract.md. The share sheet is the chooser surface a user sees before any preview share is minted. Each sheet record is a typed proposal: it cites the underlying preview_snapshot_record (and optionally the preview_runtime_strip_record, hot_reload_state_record, and device_target_descriptor_record) by opaque ref so share semantics reuse preview/runtime identity instead of inventing a parallel anonymous-link model. The schema enforces that proposed_share_mode_class, proposed_share_audience_class, and proposed_share_destination_class form a closed disjoint partition over the six required share-mode rows (local-only, organization-only, temporary-external, one-time-external, policy-blocked, revoked-or-expired); that public/external proposals forbid no_auth_required and no_revoke_required; that mint_admissible = false MUST cite a typed mint_blocked_reason_class and forbids minting; and that revoked / expired / runtime-restarted / target-changed / stale-capture predecessor links cannot be re-proposed under the same identity without naming a regenerate intent. Raw URLs, raw absolute paths, raw IP addresses, raw hostnames, raw bearer tokens, raw session cookies, raw expiring credentials, raw rendered bytes, raw stack frames, and raw mock-data bodies never cross this boundary; opaque snapshot / runtime / target / sheet / approval / regenerate handles and class labels do. Adding a new proposed_share_mode_class, proposed_share_audience_class, proposed_share_destination_class, proposed_share_auth_class, proposed_share_expiry_class, proposed_share_revoke_path_class, proposed_share_export_posture_class, proposed_share_resolved_state_class, proposed_share_runtime_lineage_class, proposed_share_continuity_state_class, proposed_share_regenerate_path_class, mint_blocked_reason_class, or sheet_disposition_class value is additive-minor and bumps preview_share_sheet_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/preview_share_sheet_record" }
+  ],
+  "$defs": {
+    "preview_share_sheet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this preview share-sheet contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "preview_share_sheet_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw bearer tokens, raw session cookies, and raw expiring credentials never appear here."
+    },
+
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing short label safe to render in share-sheet chrome. Raw URLs, raw hostnames, raw account handles, and raw secret values never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing sentence safe to render in share-sheet chrome and export review."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "preview_lane_class": {
+      "type": "string",
+      "enum": [
+        "browser_preview_lane",
+        "native_preview_lane",
+        "embedded_preview_lane"
+      ]
+    },
+
+    "preview_mode_class": {
+      "type": "string",
+      "enum": [
+        "static_preview",
+        "live_preview",
+        "inspectable_tree_overlay",
+        "visual_edit"
+      ]
+    },
+
+    "proposed_share_mode_class": {
+      "type": "string",
+      "enum": [
+        "local_only_share_mode",
+        "organization_only_share_mode",
+        "temporary_external_share_mode",
+        "one_time_external_share_mode",
+        "policy_blocked_share_mode",
+        "revoked_or_expired_share_mode"
+      ],
+      "description": "Closed disjoint share-mode vocabulary the sheet proposes. Mirrors share_mode_class on preview_share_link.schema.json. revoked_or_expired_share_mode is the proposal posture used when a sheet is opened to regenerate from a previously revoked or expired link."
+    },
+
+    "proposed_share_audience_class": {
+      "type": "string",
+      "enum": [
+        "workspace_local_only_no_share",
+        "workspace_signed_in_only",
+        "organization_signed_in_only",
+        "tenant_signed_in_only",
+        "temporary_external_link_audience",
+        "one_time_external_link_audience",
+        "policy_blocked_no_share_audience",
+        "not_shareable_inherent_surface"
+      ],
+      "description": "Re-export of share_audience_class from preview_share_link.schema.json."
+    },
+
+    "proposed_share_destination_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_anchor_only",
+        "in_app_share_thread",
+        "managed_workspace_share_endpoint",
+        "managed_organization_share_endpoint",
+        "managed_tenant_share_endpoint",
+        "temporary_external_browser_link",
+        "one_time_external_browser_link",
+        "approved_third_party_relay",
+        "no_destination_share_blocked"
+      ],
+      "description": "Re-export of share_destination_class from preview_share_link.schema.json."
+    },
+
+    "proposed_share_auth_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_required",
+        "session_auth_required",
+        "step_up_auth_required",
+        "policy_managed_grant_required",
+        "approval_ticket_required",
+        "one_time_token_required"
+      ],
+      "description": "Re-export of share_auth_class from preview_share_link.schema.json."
+    },
+
+    "proposed_share_expiry_class": {
+      "type": "string",
+      "enum": [
+        "no_expiry_local_only",
+        "session_lifetime_expiry",
+        "short_lived_minutes_expiry",
+        "short_lived_hours_expiry",
+        "explicit_timestamp_expiry",
+        "one_time_use_expiry",
+        "runtime_lifetime_only_expiry",
+        "target_lifetime_only_expiry"
+      ],
+      "description": "Re-export of share_expiry_class from preview_share_link.schema.json minus expired_terminal (a sheet never proposes a terminal-expiry posture)."
+    },
+
+    "proposed_share_revoke_path_class": {
+      "type": "string",
+      "enum": [
+        "no_revoke_required",
+        "user_self_revoke",
+        "workspace_admin_revoke",
+        "organization_admin_revoke",
+        "tenant_admin_revoke",
+        "policy_revocation",
+        "automatic_expiry_only",
+        "emergency_admin_revoke"
+      ],
+      "description": "Re-export of share_revoke_path_class from preview_share_link.schema.json."
+    },
+
+    "proposed_share_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "export_disabled_no_share",
+        "export_metadata_only",
+        "export_static_snapshot_admitted",
+        "export_full_record_admitted_internal_only"
+      ],
+      "description": "Re-export of share_export_posture_class from preview_share_link.schema.json."
+    },
+
+    "proposed_share_resolved_state_class": {
+      "type": "string",
+      "enum": [
+        "resolves_to_live_runtime",
+        "resolves_to_captured_snapshot",
+        "resolves_to_static_export_only",
+        "no_resolution_share_blocked"
+      ],
+      "description": "Closed proposed-resolution vocabulary the sheet declares for the link it would mint. resolves_to_live_runtime requires the underlying preview_snapshot to be in a live posture. no_resolution_share_blocked is reserved for sheets whose mint is refused (policy_blocked / runtime unavailable / target changed at mint / capture stale at mint)."
+    },
+
+    "proposed_share_runtime_lineage_class": {
+      "type": "string",
+      "enum": [
+        "bound_to_current_live_runtime",
+        "bound_to_captured_snapshot_only",
+        "bound_to_static_render_only_no_runtime",
+        "no_lineage_share_blocked"
+      ],
+      "description": "Closed proposed-lineage vocabulary the sheet declares. The four post-mint-only lineage values from preview_share_link.schema.json (bound_to_runtime_now_restarted, bound_to_runtime_now_unavailable, bound_to_target_now_changed, bound_to_revoked_runtime, bound_to_managed_runtime_now_decommissioned) are not admissible as a sheet proposal; if any are observed at sheet open time, the sheet is refused with mint_admissible = false and a typed mint_blocked_reason_class."
+    },
+
+    "proposed_share_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "continuity_intact",
+        "continuity_broken_share_blocked"
+      ],
+      "description": "Closed proposed-continuity vocabulary. A sheet only mints under continuity_intact; continuity_broken_share_blocked records the refusal posture used when the sheet is opened on top of a runtime / target / capture continuity break."
+    },
+
+    "proposed_share_regenerate_path_class": {
+      "type": "string",
+      "enum": [
+        "no_regenerate_required",
+        "regenerate_admitted_user_self",
+        "regenerate_admitted_admin_only",
+        "regenerate_admitted_with_policy_review",
+        "regenerate_admitted_through_approval",
+        "regenerate_admitted_after_runtime_restart",
+        "regenerate_admitted_after_target_rebind",
+        "regenerate_blocked_policy",
+        "regenerate_blocked_no_runtime",
+        "regenerate_blocked_workspace_trust_revoked"
+      ],
+      "description": "Re-export of share_regenerate_path_class from preview_share_link.schema.json. The sheet declares the regenerate path the operator is choosing when the sheet is opened to regenerate from a revoked / expired / terminal predecessor link."
+    },
+
+    "mint_blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_blocked_mint_admissible",
+        "blocked_workspace_trust_revoked",
+        "blocked_share_policy_narrowed",
+        "blocked_audience_not_permitted",
+        "blocked_destination_not_permitted",
+        "blocked_external_audience_no_step_up_auth",
+        "blocked_external_audience_no_revoke_path",
+        "blocked_external_audience_no_expiry",
+        "blocked_one_time_audience_not_one_time_expiry",
+        "blocked_local_only_with_external_destination",
+        "blocked_export_posture_too_broad_for_audience",
+        "blocked_runtime_unavailable_at_mint",
+        "blocked_runtime_now_restarted_at_mint",
+        "blocked_target_changed_during_mint",
+        "blocked_capture_stale_at_mint",
+        "blocked_managed_runtime_decommissioned_at_mint",
+        "blocked_approval_ticket_missing",
+        "blocked_no_destination_admitted",
+        "blocked_predecessor_terminal_no_regenerate_admitted"
+      ],
+      "description": "Closed mint-blocked reason vocabulary. not_blocked_mint_admissible is reserved for the case where mint_admissible = true."
+    },
+
+    "sheet_disposition_class": {
+      "type": "string",
+      "enum": [
+        "sheet_open_proposal",
+        "sheet_admitted_minted_link",
+        "sheet_refused_policy_blocked",
+        "sheet_refused_runtime_unavailable",
+        "sheet_refused_runtime_restarted",
+        "sheet_refused_target_changed",
+        "sheet_refused_capture_stale",
+        "sheet_refused_workspace_trust_revoked",
+        "sheet_refused_audience_not_permitted",
+        "sheet_refused_destination_not_permitted",
+        "sheet_refused_approval_missing",
+        "sheet_admitted_regenerate_from_revoked",
+        "sheet_admitted_regenerate_from_expired",
+        "sheet_admitted_regenerate_from_terminal_predecessor",
+        "sheet_cancelled_by_user"
+      ],
+      "description": "Closed disposition vocabulary naming what happened to the sheet. sheet_open_proposal is the in-flight chooser posture before any decision. sheet_admitted_minted_link is the success posture (a preview_share_link_record is minted). sheet_refused_* are the refusal postures. sheet_admitted_regenerate_from_* are the success postures used when a sheet is opened on top of a revoked / expired / terminal predecessor link."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+
+    "preview_share_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "preview_share_sheet_schema_version",
+        "share_sheet_id",
+        "captured_at",
+        "preview_snapshot_record_ref",
+        "preview_lane_class",
+        "preview_mode_class",
+        "proposed_share_mode_class",
+        "proposed_share_audience_class",
+        "proposed_share_destination_class",
+        "proposed_share_auth_class",
+        "proposed_share_expiry_class",
+        "proposed_share_revoke_path_class",
+        "proposed_share_export_posture_class",
+        "proposed_share_resolved_state_class",
+        "proposed_share_runtime_lineage_class",
+        "proposed_share_continuity_state_class",
+        "proposed_share_regenerate_path_class",
+        "mint_admissible",
+        "mint_blocked_reason_class",
+        "sheet_disposition_class",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "preview_share_sheet_schema_version": { "$ref": "#/$defs/preview_share_sheet_schema_version" },
+        "share_sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "preview_snapshot_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying preview_snapshot_record this sheet projects from. Required so share semantics reuse preview/runtime identity."
+        },
+        "preview_runtime_strip_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "hot_reload_state_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "device_target_descriptor_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+
+        "predecessor_share_link_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the predecessor preview_share_link_record this sheet was opened to regenerate from, when applicable. Required when sheet_disposition_class is in {sheet_admitted_regenerate_from_revoked, sheet_admitted_regenerate_from_expired, sheet_admitted_regenerate_from_terminal_predecessor}."
+        },
+        "minted_share_link_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the preview_share_link_record this sheet minted, when applicable. Required when sheet_disposition_class = sheet_admitted_minted_link or any sheet_admitted_regenerate_from_*."
+        },
+
+        "preview_lane_class": { "$ref": "#/$defs/preview_lane_class" },
+        "preview_mode_class": { "$ref": "#/$defs/preview_mode_class" },
+
+        "proposed_share_mode_class": { "$ref": "#/$defs/proposed_share_mode_class" },
+        "proposed_share_audience_class": { "$ref": "#/$defs/proposed_share_audience_class" },
+        "proposed_share_destination_class": { "$ref": "#/$defs/proposed_share_destination_class" },
+        "proposed_share_auth_class": { "$ref": "#/$defs/proposed_share_auth_class" },
+        "proposed_share_expiry_class": { "$ref": "#/$defs/proposed_share_expiry_class" },
+        "proposed_share_revoke_path_class": { "$ref": "#/$defs/proposed_share_revoke_path_class" },
+        "proposed_share_export_posture_class": { "$ref": "#/$defs/proposed_share_export_posture_class" },
+
+        "proposed_share_resolved_state_class": { "$ref": "#/$defs/proposed_share_resolved_state_class" },
+        "proposed_share_runtime_lineage_class": { "$ref": "#/$defs/proposed_share_runtime_lineage_class" },
+        "proposed_share_continuity_state_class": { "$ref": "#/$defs/proposed_share_continuity_state_class" },
+        "proposed_share_regenerate_path_class": { "$ref": "#/$defs/proposed_share_regenerate_path_class" },
+
+        "proposed_expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Proposed expiry timestamp. Required when proposed_share_expiry_class is in {short_lived_minutes_expiry, short_lived_hours_expiry, explicit_timestamp_expiry}; null otherwise."
+        },
+
+        "mint_admissible": {
+          "type": "boolean",
+          "description": "True iff every proposed posture is admissible against share policy / audience / destination / auth / expiry / revoke / export / runtime lineage / continuity. False forces a non-no_denial mint_blocked_reason_class and a refusal disposition."
+        },
+        "mint_blocked_reason_class": { "$ref": "#/$defs/mint_blocked_reason_class" },
+        "sheet_disposition_class": { "$ref": "#/$defs/sheet_disposition_class" },
+
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque approval-ticket ref required when proposed_share_auth_class = approval_ticket_required."
+        },
+
+        "redacted_audience_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redacted_label" },
+            { "type": "null" }
+          ]
+        },
+        "redacted_destination_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redacted_label" },
+            { "type": "null" }
+          ]
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_summary" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "proposed_share_audience_class = workspace_local_only_no_share MUST pair with proposed_share_mode_class = local_only_share_mode, proposed_share_destination_class = local_workspace_anchor_only, proposed_share_auth_class = no_auth_required, proposed_share_expiry_class = no_expiry_local_only, proposed_share_revoke_path_class = no_revoke_required, proposed_share_export_posture_class in {export_disabled_no_share, export_metadata_only}, and proposed_expires_at = null.",
+          "if": {
+            "properties": { "proposed_share_audience_class": { "const": "workspace_local_only_no_share" } },
+            "required": ["proposed_share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_share_mode_class": { "const": "local_only_share_mode" },
+              "proposed_share_destination_class": { "const": "local_workspace_anchor_only" },
+              "proposed_share_auth_class": { "const": "no_auth_required" },
+              "proposed_share_expiry_class": { "const": "no_expiry_local_only" },
+              "proposed_share_revoke_path_class": { "const": "no_revoke_required" },
+              "proposed_share_export_posture_class": {
+                "enum": ["export_disabled_no_share", "export_metadata_only"]
+              },
+              "proposed_expires_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "proposed_share_audience_class in {workspace_signed_in_only, organization_signed_in_only, tenant_signed_in_only} MUST pair with proposed_share_mode_class = organization_only_share_mode, proposed_share_destination_class in {in_app_share_thread, managed_workspace_share_endpoint, managed_organization_share_endpoint, managed_tenant_share_endpoint}, proposed_share_auth_class != no_auth_required, and proposed_share_revoke_path_class != no_revoke_required.",
+          "if": {
+            "properties": {
+              "proposed_share_audience_class": {
+                "enum": [
+                  "workspace_signed_in_only",
+                  "organization_signed_in_only",
+                  "tenant_signed_in_only"
+                ]
+              }
+            },
+            "required": ["proposed_share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_share_mode_class": { "const": "organization_only_share_mode" },
+              "proposed_share_destination_class": {
+                "enum": [
+                  "in_app_share_thread",
+                  "managed_workspace_share_endpoint",
+                  "managed_organization_share_endpoint",
+                  "managed_tenant_share_endpoint"
+                ]
+              },
+              "proposed_share_auth_class": {
+                "not": { "const": "no_auth_required" }
+              },
+              "proposed_share_revoke_path_class": {
+                "not": { "const": "no_revoke_required" }
+              }
+            }
+          }
+        },
+        {
+          "description": "proposed_share_audience_class = temporary_external_link_audience MUST pair with proposed_share_mode_class = temporary_external_share_mode, proposed_share_destination_class in {temporary_external_browser_link, approved_third_party_relay}, proposed_share_auth_class != no_auth_required, proposed_share_revoke_path_class != no_revoke_required, and proposed_share_expiry_class in {short_lived_minutes_expiry, short_lived_hours_expiry, explicit_timestamp_expiry}.",
+          "if": {
+            "properties": { "proposed_share_audience_class": { "const": "temporary_external_link_audience" } },
+            "required": ["proposed_share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_share_mode_class": { "const": "temporary_external_share_mode" },
+              "proposed_share_destination_class": {
+                "enum": ["temporary_external_browser_link", "approved_third_party_relay"]
+              },
+              "proposed_share_auth_class": {
+                "not": { "const": "no_auth_required" }
+              },
+              "proposed_share_revoke_path_class": {
+                "not": { "const": "no_revoke_required" }
+              },
+              "proposed_share_expiry_class": {
+                "enum": [
+                  "short_lived_minutes_expiry",
+                  "short_lived_hours_expiry",
+                  "explicit_timestamp_expiry"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "proposed_share_audience_class = one_time_external_link_audience MUST pair with proposed_share_mode_class = one_time_external_share_mode, proposed_share_destination_class in {one_time_external_browser_link, approved_third_party_relay}, proposed_share_auth_class in {step_up_auth_required, one_time_token_required, approval_ticket_required}, proposed_share_revoke_path_class != no_revoke_required, and proposed_share_expiry_class = one_time_use_expiry.",
+          "if": {
+            "properties": { "proposed_share_audience_class": { "const": "one_time_external_link_audience" } },
+            "required": ["proposed_share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_share_mode_class": { "const": "one_time_external_share_mode" },
+              "proposed_share_destination_class": {
+                "enum": ["one_time_external_browser_link", "approved_third_party_relay"]
+              },
+              "proposed_share_auth_class": {
+                "enum": [
+                  "step_up_auth_required",
+                  "one_time_token_required",
+                  "approval_ticket_required"
+                ]
+              },
+              "proposed_share_revoke_path_class": {
+                "not": { "const": "no_revoke_required" }
+              },
+              "proposed_share_expiry_class": { "const": "one_time_use_expiry" }
+            }
+          }
+        },
+        {
+          "description": "proposed_share_audience_class = policy_blocked_no_share_audience MUST pair with proposed_share_mode_class = policy_blocked_share_mode, proposed_share_destination_class = no_destination_share_blocked, proposed_share_export_posture_class = export_disabled_no_share, proposed_share_resolved_state_class = no_resolution_share_blocked, proposed_share_runtime_lineage_class = no_lineage_share_blocked, proposed_share_continuity_state_class = continuity_broken_share_blocked, mint_admissible = false, mint_blocked_reason_class != not_blocked_mint_admissible, sheet_disposition_class = sheet_refused_policy_blocked, and proposed_share_regenerate_path_class != no_regenerate_required.",
+          "if": {
+            "properties": { "proposed_share_audience_class": { "const": "policy_blocked_no_share_audience" } },
+            "required": ["proposed_share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_share_mode_class": { "const": "policy_blocked_share_mode" },
+              "proposed_share_destination_class": { "const": "no_destination_share_blocked" },
+              "proposed_share_export_posture_class": { "const": "export_disabled_no_share" },
+              "proposed_share_resolved_state_class": { "const": "no_resolution_share_blocked" },
+              "proposed_share_runtime_lineage_class": { "const": "no_lineage_share_blocked" },
+              "proposed_share_continuity_state_class": { "const": "continuity_broken_share_blocked" },
+              "mint_admissible": { "const": false },
+              "mint_blocked_reason_class": {
+                "not": { "const": "not_blocked_mint_admissible" }
+              },
+              "sheet_disposition_class": { "const": "sheet_refused_policy_blocked" },
+              "proposed_share_regenerate_path_class": {
+                "not": { "const": "no_regenerate_required" }
+              }
+            }
+          }
+        },
+        {
+          "description": "proposed_share_audience_class = not_shareable_inherent_surface MUST pair with proposed_share_mode_class = policy_blocked_share_mode, proposed_share_destination_class = no_destination_share_blocked, mint_admissible = false, and sheet_disposition_class = sheet_refused_policy_blocked.",
+          "if": {
+            "properties": { "proposed_share_audience_class": { "const": "not_shareable_inherent_surface" } },
+            "required": ["proposed_share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_share_mode_class": { "const": "policy_blocked_share_mode" },
+              "proposed_share_destination_class": { "const": "no_destination_share_blocked" },
+              "mint_admissible": { "const": false },
+              "sheet_disposition_class": { "const": "sheet_refused_policy_blocked" }
+            }
+          }
+        },
+        {
+          "description": "mint_admissible = true requires mint_blocked_reason_class = not_blocked_mint_admissible, proposed_share_continuity_state_class = continuity_intact, proposed_share_resolved_state_class != no_resolution_share_blocked, proposed_share_runtime_lineage_class != no_lineage_share_blocked, and sheet_disposition_class in {sheet_admitted_minted_link, sheet_admitted_regenerate_from_revoked, sheet_admitted_regenerate_from_expired, sheet_admitted_regenerate_from_terminal_predecessor}.",
+          "if": {
+            "properties": { "mint_admissible": { "const": true } },
+            "required": ["mint_admissible"]
+          },
+          "then": {
+            "properties": {
+              "mint_blocked_reason_class": { "const": "not_blocked_mint_admissible" },
+              "proposed_share_continuity_state_class": { "const": "continuity_intact" },
+              "proposed_share_resolved_state_class": {
+                "not": { "const": "no_resolution_share_blocked" }
+              },
+              "proposed_share_runtime_lineage_class": {
+                "not": { "const": "no_lineage_share_blocked" }
+              },
+              "sheet_disposition_class": {
+                "enum": [
+                  "sheet_admitted_minted_link",
+                  "sheet_admitted_regenerate_from_revoked",
+                  "sheet_admitted_regenerate_from_expired",
+                  "sheet_admitted_regenerate_from_terminal_predecessor"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "mint_admissible = false forbids mint_blocked_reason_class = not_blocked_mint_admissible.",
+          "if": {
+            "properties": { "mint_admissible": { "const": false } },
+            "required": ["mint_admissible"]
+          },
+          "then": {
+            "properties": {
+              "mint_blocked_reason_class": {
+                "not": { "const": "not_blocked_mint_admissible" }
+              }
+            }
+          }
+        },
+        {
+          "description": "sheet_disposition_class in any sheet_admitted_* posture requires a non-null minted_share_link_record_ref.",
+          "if": {
+            "properties": {
+              "sheet_disposition_class": {
+                "enum": [
+                  "sheet_admitted_minted_link",
+                  "sheet_admitted_regenerate_from_revoked",
+                  "sheet_admitted_regenerate_from_expired",
+                  "sheet_admitted_regenerate_from_terminal_predecessor"
+                ]
+              }
+            },
+            "required": ["sheet_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "minted_share_link_record_ref": { "type": "string" }
+            },
+            "required": ["minted_share_link_record_ref"]
+          }
+        },
+        {
+          "description": "sheet_disposition_class in any sheet_admitted_regenerate_from_* posture requires a non-null predecessor_share_link_record_ref.",
+          "if": {
+            "properties": {
+              "sheet_disposition_class": {
+                "enum": [
+                  "sheet_admitted_regenerate_from_revoked",
+                  "sheet_admitted_regenerate_from_expired",
+                  "sheet_admitted_regenerate_from_terminal_predecessor"
+                ]
+              }
+            },
+            "required": ["sheet_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "predecessor_share_link_record_ref": { "type": "string" }
+            },
+            "required": ["predecessor_share_link_record_ref"]
+          }
+        },
+        {
+          "description": "proposed_share_auth_class = approval_ticket_required requires a non-null approval_ticket_ref.",
+          "if": {
+            "properties": { "proposed_share_auth_class": { "const": "approval_ticket_required" } },
+            "required": ["proposed_share_auth_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "type": "string" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "proposed_share_expiry_class in {short_lived_minutes_expiry, short_lived_hours_expiry, explicit_timestamp_expiry} requires a non-null proposed_expires_at.",
+          "if": {
+            "properties": {
+              "proposed_share_expiry_class": {
+                "enum": [
+                  "short_lived_minutes_expiry",
+                  "short_lived_hours_expiry",
+                  "explicit_timestamp_expiry"
+                ]
+              }
+            },
+            "required": ["proposed_share_expiry_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_expires_at": { "type": "string" }
+            },
+            "required": ["proposed_expires_at"]
+          }
+        },
+        {
+          "description": "proposed_share_export_posture_class = export_full_record_admitted_internal_only is admissible only on proposed_share_audience_class in {workspace_signed_in_only, organization_signed_in_only, tenant_signed_in_only}; external audiences MUST NOT propose a full-record export.",
+          "if": {
+            "properties": { "proposed_share_export_posture_class": { "const": "export_full_record_admitted_internal_only" } },
+            "required": ["proposed_share_export_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "proposed_share_audience_class": {
+                "enum": [
+                  "workspace_signed_in_only",
+                  "organization_signed_in_only",
+                  "tenant_signed_in_only"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One preview share-sheet record. The sheet is a typed proposal: proposed_share_* fields project the audience, destination, auth, expiry, revoke path, export posture, resolution, runtime lineage, continuity, and regenerate-path the operator has chosen. The schema enforces that mint_admissible = true is reachable only when every proposed posture is admissible against share policy, that mint_admissible = false carries a typed mint_blocked_reason_class, and that any sheet_admitted_regenerate_from_* disposition cites the predecessor preview_share_link_record this sheet was opened to regenerate from."
+    }
+  }
+}

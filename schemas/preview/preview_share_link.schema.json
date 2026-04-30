@@ -1,0 +1,1022 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/preview_share_link.schema.json",
+  "title": "Aureline preview share-link record",
+  "description": "Boundary schema for the preview_share_link_record frozen in docs/preview/preview_share_contract.md. Every minted, in-flight, expired, revoked, superseded, or terminal-unavailable preview share carries one record. The record is a projection: it cites the underlying preview_snapshot_record (and optionally the preview_runtime_strip_record, hot_reload_state_record, and device_target_descriptor_record) by opaque ref so share semantics reuse preview/runtime identity instead of inventing a parallel anonymous-link model. The schema enforces that share_mode_class, share_audience_class, and share_destination_class form a closed disjoint partition over the six required share-mode rows (local-only, organization-only, temporary-external, one-time-external, policy-blocked, revoked-or-expired); that public/external visibility forbids no_auth_required and no_revoke_required; that revoked / expired / runtime-restarted / target-changed / stale-capture states transition into a typed terminal state with an explanation and a regenerate path; that resolves_to_live_runtime requires lifecycle_state_class = active_live AND runtime_lineage_class = bound_to_current_live_runtime AND continuity_state_class = continuity_intact AND no expiry / no revoke / no policy-block in flight; and that revoked / expired / superseded / terminal lifecycles forbid resolves_to_live_runtime so old links never masquerade as current live previews. Raw URLs, raw absolute paths, raw IP addresses, raw hostnames, raw bearer tokens, raw session cookies, raw expiring credentials, raw rendered bytes, raw stack frames, and raw mock-data bodies never cross this boundary; opaque snapshot / runtime / target / link / approval / regenerate handles and class labels do. Adding a new share_mode_class, share_audience_class, share_destination_class, share_auth_class, share_expiry_class, share_revoke_path_class, share_export_posture_class, share_resolved_state_class, share_runtime_lineage_class, share_continuity_state_class, share_lifecycle_state_class, share_regenerate_path_class, share_terminal_explanation_class, share_revoke_actor_class, or share_revoke_reason_class value is additive-minor and bumps preview_share_link_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/preview_share_link_record" }
+  ],
+  "$defs": {
+    "preview_share_link_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this preview share-link contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "preview_share_link_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw bearer tokens, raw session cookies, and raw expiring credentials never appear here."
+    },
+
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing short label safe to render in share chrome and export review. Raw URLs, raw hostnames, raw account handles, and raw secret values never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing sentence safe to render in share chrome and export review. Raw URLs, raw rendered bytes, raw cookies, and raw secret values never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "preview_lane_class": {
+      "type": "string",
+      "enum": [
+        "browser_preview_lane",
+        "native_preview_lane",
+        "embedded_preview_lane"
+      ]
+    },
+
+    "preview_mode_class": {
+      "type": "string",
+      "enum": [
+        "static_preview",
+        "live_preview",
+        "inspectable_tree_overlay",
+        "visual_edit"
+      ]
+    },
+
+    "share_mode_class": {
+      "type": "string",
+      "enum": [
+        "local_only_share_mode",
+        "organization_only_share_mode",
+        "temporary_external_share_mode",
+        "one_time_external_share_mode",
+        "policy_blocked_share_mode",
+        "revoked_or_expired_share_mode"
+      ],
+      "description": "Closed disjoint share-mode vocabulary covering the six required share-mode rows. Every preview share-link record MUST declare exactly one mode."
+    },
+
+    "share_audience_class": {
+      "type": "string",
+      "enum": [
+        "workspace_local_only_no_share",
+        "workspace_signed_in_only",
+        "organization_signed_in_only",
+        "tenant_signed_in_only",
+        "temporary_external_link_audience",
+        "one_time_external_link_audience",
+        "policy_blocked_no_share_audience",
+        "not_shareable_inherent_surface"
+      ],
+      "description": "Closed share-audience vocabulary naming who can open the link. workspace_local_only_no_share is a workspace-only anchor that never crosses the workspace boundary. workspace_signed_in_only / organization_signed_in_only / tenant_signed_in_only require a signed-in identity at the corresponding scope. temporary_external_link_audience and one_time_external_link_audience are external; both require a typed expiry and a non-no_auth_required posture. policy_blocked_no_share_audience captures a share request that is refused by policy. not_shareable_inherent_surface captures a preview surface that cannot be shared at all."
+    },
+
+    "share_destination_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_anchor_only",
+        "in_app_share_thread",
+        "managed_workspace_share_endpoint",
+        "managed_organization_share_endpoint",
+        "managed_tenant_share_endpoint",
+        "temporary_external_browser_link",
+        "one_time_external_browser_link",
+        "approved_third_party_relay",
+        "no_destination_share_blocked"
+      ],
+      "description": "Closed share-destination vocabulary. local_workspace_anchor_only is a local-only handle that never leaves the workspace. in_app_share_thread is an in-product share thread within the IDE. managed_workspace / organization / tenant share endpoints are organisation-managed share surfaces. temporary_external_browser_link and one_time_external_browser_link are external links. approved_third_party_relay is reserved for an approved third-party relay (sharing through an approved integration). no_destination_share_blocked records that no destination was minted because the share request was refused."
+    },
+
+    "share_auth_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_required",
+        "session_auth_required",
+        "step_up_auth_required",
+        "policy_managed_grant_required",
+        "approval_ticket_required",
+        "one_time_token_required"
+      ],
+      "description": "Re-export of the share_auth_class vocabulary from preview_snapshot.schema.json plus one_time_token_required for one-time external shares. no_auth_required is admissible only on workspace_local_only_no_share audiences."
+    },
+
+    "share_expiry_class": {
+      "type": "string",
+      "enum": [
+        "no_expiry_local_only",
+        "session_lifetime_expiry",
+        "short_lived_minutes_expiry",
+        "short_lived_hours_expiry",
+        "explicit_timestamp_expiry",
+        "one_time_use_expiry",
+        "runtime_lifetime_only_expiry",
+        "target_lifetime_only_expiry",
+        "expired_terminal"
+      ],
+      "description": "Closed share-expiry vocabulary. no_expiry_local_only applies to workspace_local_only_no_share. session_lifetime_expiry binds the link to the active workspace session. short_lived_minutes / short_lived_hours pin the link to a sub-day window. explicit_timestamp_expiry pins to a specific expires_at. one_time_use_expiry expires after a single open. runtime_lifetime_only_expiry pins to the lifetime of the bound preview runtime. target_lifetime_only_expiry pins to the lifetime of the device target. expired_terminal is the terminal expiry posture used after the link expired."
+    },
+
+    "share_revoke_path_class": {
+      "type": "string",
+      "enum": [
+        "no_revoke_required",
+        "user_self_revoke",
+        "workspace_admin_revoke",
+        "organization_admin_revoke",
+        "tenant_admin_revoke",
+        "policy_revocation",
+        "automatic_expiry_only",
+        "emergency_admin_revoke"
+      ],
+      "description": "Re-export of the share_revoke_path_class vocabulary from preview_snapshot.schema.json plus organization_admin_revoke for organization-only audiences and emergency_admin_revoke for incident-driven revocation. no_revoke_required is admissible only on workspace_local_only_no_share audiences."
+    },
+
+    "share_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "export_disabled_no_share",
+        "export_metadata_only",
+        "export_static_snapshot_admitted",
+        "export_full_record_admitted_internal_only"
+      ],
+      "description": "Closed share-export posture vocabulary. export_disabled_no_share refuses to export anything (used by policy_blocked / revoked_or_expired). export_metadata_only emits opaque-ref metadata only. export_static_snapshot_admitted admits a static-snapshot export. export_full_record_admitted_internal_only admits a full record but only at an internal-scope audience (workspace / organization / tenant signed-in)."
+    },
+
+    "share_resolved_state_class": {
+      "type": "string",
+      "enum": [
+        "resolves_to_live_runtime",
+        "resolves_to_captured_snapshot",
+        "resolves_to_static_export_only",
+        "terminal_unavailable_revoked",
+        "terminal_unavailable_expired",
+        "terminal_unavailable_runtime_restarted",
+        "terminal_unavailable_target_changed",
+        "terminal_unavailable_stale_capture",
+        "terminal_unavailable_policy_blocked",
+        "terminal_unavailable_workspace_trust_revoked"
+      ],
+      "description": "Closed share-resolved-state vocabulary the link reports when opened. resolves_to_live_runtime promises a live runtime (gated; see allOf rules). resolves_to_captured_snapshot resolves to a frozen captured snapshot. resolves_to_static_export_only resolves to a static export. The six terminal_unavailable_* values are controlled end states; each requires a typed terminal explanation and a typed regenerate path."
+    },
+
+    "share_runtime_lineage_class": {
+      "type": "string",
+      "enum": [
+        "bound_to_current_live_runtime",
+        "bound_to_captured_snapshot_only",
+        "bound_to_runtime_now_restarted",
+        "bound_to_runtime_now_unavailable",
+        "bound_to_target_now_changed",
+        "bound_to_revoked_runtime",
+        "bound_to_managed_runtime_now_decommissioned",
+        "bound_to_static_render_only_no_runtime"
+      ],
+      "description": "Closed share-runtime-lineage vocabulary. The link's lineage is the runtime / target it was minted against. bound_to_current_live_runtime is the only lineage class admissible for resolves_to_live_runtime. The remaining classes describe how the underlying runtime / target / capture state has moved since the link was minted."
+    },
+
+    "share_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "continuity_intact",
+        "continuity_broken_runtime_restarted",
+        "continuity_broken_target_changed",
+        "continuity_broken_capture_stale",
+        "continuity_broken_revoked",
+        "continuity_broken_expired",
+        "continuity_broken_policy_changed",
+        "continuity_broken_workspace_trust_revoked"
+      ],
+      "description": "Closed share-continuity vocabulary. continuity_intact is the only value admissible for resolves_to_live_runtime / active_live. The seven continuity_broken_* values are typed reasons the link no longer maps to its declared runtime / target / snapshot identity."
+    },
+
+    "share_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "active_live",
+        "active_captured",
+        "expired",
+        "revoked_by_user",
+        "revoked_by_admin",
+        "revoked_by_policy",
+        "superseded_by_regenerate",
+        "terminal_unavailable_runtime_restart",
+        "terminal_unavailable_target_change",
+        "terminal_unavailable_stale_capture",
+        "terminal_unavailable_policy_blocked",
+        "terminal_unavailable_workspace_trust_revoked"
+      ],
+      "description": "Closed share-lifecycle vocabulary the minted record reports. active_live and active_captured are the only two values that may resolve to live or captured state. expired / revoked_by_* / superseded_by_regenerate / terminal_unavailable_* are terminal end states; each requires a regenerate path and forbids resolves_to_live_runtime."
+    },
+
+    "share_regenerate_path_class": {
+      "type": "string",
+      "enum": [
+        "no_regenerate_required",
+        "regenerate_admitted_user_self",
+        "regenerate_admitted_admin_only",
+        "regenerate_admitted_with_policy_review",
+        "regenerate_admitted_through_approval",
+        "regenerate_admitted_after_runtime_restart",
+        "regenerate_admitted_after_target_rebind",
+        "regenerate_blocked_policy",
+        "regenerate_blocked_no_runtime",
+        "regenerate_blocked_workspace_trust_revoked"
+      ],
+      "description": "Closed share-regenerate-path vocabulary. no_regenerate_required is admissible only on active_live / active_captured. Every terminal end state (expired, revoked, superseded, terminal_unavailable_*) MUST cite a regenerate path that is not no_regenerate_required."
+    },
+
+    "share_terminal_explanation_class": {
+      "type": "string",
+      "enum": [
+        "not_terminal_state",
+        "terminal_explanation_user_self_revoke",
+        "terminal_explanation_workspace_admin_revoke",
+        "terminal_explanation_organization_admin_revoke",
+        "terminal_explanation_tenant_admin_revoke",
+        "terminal_explanation_policy_revocation",
+        "terminal_explanation_emergency_admin_revoke",
+        "terminal_explanation_automatic_expiry",
+        "terminal_explanation_one_time_use_consumed",
+        "terminal_explanation_runtime_restarted",
+        "terminal_explanation_runtime_unavailable",
+        "terminal_explanation_managed_runtime_decommissioned",
+        "terminal_explanation_target_changed",
+        "terminal_explanation_capture_stale",
+        "terminal_explanation_policy_blocked_at_mint",
+        "terminal_explanation_policy_changed_post_mint",
+        "terminal_explanation_workspace_trust_revoked"
+      ],
+      "description": "Closed terminal-explanation vocabulary. not_terminal_state is reserved for active_live / active_captured. Every other lifecycle requires a typed terminal-explanation entry."
+    },
+
+    "share_revoke_actor_class": {
+      "type": "string",
+      "enum": [
+        "not_revoked",
+        "user_self_revoke_actor",
+        "workspace_admin_revoke_actor",
+        "organization_admin_revoke_actor",
+        "tenant_admin_revoke_actor",
+        "policy_revoke_actor",
+        "emergency_admin_revoke_actor",
+        "automatic_expiry_actor"
+      ],
+      "description": "Closed revoke-actor vocabulary. not_revoked is reserved for non-revoked records. automatic_expiry_actor is recorded when the revocation was driven by automatic expiry rather than a human action."
+    },
+
+    "share_revoke_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_revoked",
+        "user_self_revoke_reason_user_request",
+        "user_self_revoke_reason_no_longer_needed",
+        "admin_revoke_reason_audience_change",
+        "admin_revoke_reason_policy_review",
+        "admin_revoke_reason_security_review",
+        "admin_revoke_reason_incident_response",
+        "policy_revoke_reason_workspace_trust_revoked",
+        "policy_revoke_reason_share_policy_narrowed",
+        "policy_revoke_reason_destination_no_longer_admitted",
+        "automatic_expiry_reason_explicit_timestamp",
+        "automatic_expiry_reason_session_ended",
+        "automatic_expiry_reason_one_time_use_consumed",
+        "automatic_expiry_reason_runtime_lifetime_ended",
+        "automatic_expiry_reason_target_lifetime_ended"
+      ],
+      "description": "Closed revoke-reason vocabulary. not_revoked is reserved for non-revoked records. Reasons partition by actor: user reasons, admin reasons, policy reasons, and automatic-expiry reasons each form their own block."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_denial",
+        "denied_workspace_trust_revoked",
+        "denied_share_policy_narrowed",
+        "denied_audience_not_permitted",
+        "denied_destination_not_permitted",
+        "denied_external_audience_no_step_up_auth",
+        "denied_external_audience_no_revoke_path",
+        "denied_external_audience_no_expiry",
+        "denied_one_time_audience_not_one_time_expiry",
+        "denied_local_only_with_external_destination",
+        "denied_export_posture_too_broad_for_audience",
+        "denied_runtime_unavailable_at_mint",
+        "denied_target_changed_during_mint",
+        "denied_capture_stale_at_mint",
+        "denied_approval_ticket_missing",
+        "denied_no_destination_admitted",
+        "denied_collapse_of_terminal_state_into_active",
+        "denied_resolves_to_live_runtime_under_terminal_lifecycle",
+        "denied_no_regenerate_path_under_terminal_lifecycle",
+        "denied_no_terminal_explanation_under_terminal_lifecycle"
+      ],
+      "description": "Closed denial-reason vocabulary used in fixtures and audit traces to name why a share record is in a non-active posture. no_denial is the floor for active_live / active_captured records that minted cleanly."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture metadata block carried only by worked fixtures; not part of the production payload."
+    },
+
+    "preview_share_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "preview_share_link_schema_version",
+        "share_link_id",
+        "captured_at",
+        "preview_snapshot_record_ref",
+        "minted_from_share_sheet_record_ref",
+        "preview_lane_class",
+        "preview_mode_class",
+        "share_mode_class",
+        "share_audience_class",
+        "share_destination_class",
+        "share_auth_class",
+        "share_expiry_class",
+        "share_revoke_path_class",
+        "share_export_posture_class",
+        "share_resolved_state_class",
+        "share_runtime_lineage_class",
+        "share_continuity_state_class",
+        "share_lifecycle_state_class",
+        "share_regenerate_path_class",
+        "share_terminal_explanation_class",
+        "share_revoke_actor_class",
+        "share_revoke_reason_class",
+        "denial_reason_class",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "preview_share_link_schema_version": { "$ref": "#/$defs/preview_share_link_schema_version" },
+        "share_link_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "minted_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Timestamp the link was minted. Null when the share request was refused at mint and no link exists."
+        },
+
+        "preview_snapshot_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying preview_snapshot_record this share link reuses for runtime / source identity. Required so share semantics never invent a parallel anonymous-link model."
+        },
+        "minted_from_share_sheet_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the preview_share_sheet_record that minted this link (or refused to mint it). Required so every link cites the sheet that authorised its audience / destination / auth / expiry / revoke posture."
+        },
+        "preview_runtime_strip_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the preview_runtime_strip_record at mint time. Optional."
+        },
+        "hot_reload_state_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the hot_reload_state_record at mint time. Optional."
+        },
+        "device_target_descriptor_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the device_target_descriptor_record this link was bound to. Optional."
+        },
+
+        "preview_lane_class": { "$ref": "#/$defs/preview_lane_class" },
+        "preview_mode_class": { "$ref": "#/$defs/preview_mode_class" },
+
+        "share_mode_class": { "$ref": "#/$defs/share_mode_class" },
+        "share_audience_class": { "$ref": "#/$defs/share_audience_class" },
+        "share_destination_class": { "$ref": "#/$defs/share_destination_class" },
+        "share_auth_class": { "$ref": "#/$defs/share_auth_class" },
+        "share_expiry_class": { "$ref": "#/$defs/share_expiry_class" },
+        "share_revoke_path_class": { "$ref": "#/$defs/share_revoke_path_class" },
+        "share_export_posture_class": { "$ref": "#/$defs/share_export_posture_class" },
+
+        "share_resolved_state_class": { "$ref": "#/$defs/share_resolved_state_class" },
+        "share_runtime_lineage_class": { "$ref": "#/$defs/share_runtime_lineage_class" },
+        "share_continuity_state_class": { "$ref": "#/$defs/share_continuity_state_class" },
+        "share_lifecycle_state_class": { "$ref": "#/$defs/share_lifecycle_state_class" },
+
+        "share_regenerate_path_class": { "$ref": "#/$defs/share_regenerate_path_class" },
+        "share_terminal_explanation_class": { "$ref": "#/$defs/share_terminal_explanation_class" },
+
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Explicit expiry timestamp. Required when share_expiry_class = explicit_timestamp_expiry / short_lived_minutes_expiry / short_lived_hours_expiry; null otherwise."
+        },
+        "expired_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Observed-expiry timestamp. Set when share_lifecycle_state_class = expired."
+        },
+
+        "revoked_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Observed-revocation timestamp. Set when share_lifecycle_state_class is one of the revoked_by_* values."
+        },
+        "share_revoke_actor_class": { "$ref": "#/$defs/share_revoke_actor_class" },
+        "share_revoke_reason_class": { "$ref": "#/$defs/share_revoke_reason_class" },
+
+        "share_link_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque share-link handle. Raw URLs, raw tokens, raw cookies, and raw expiring credentials never appear here."
+        },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque approval-ticket ref required when share_auth_class = approval_ticket_required or when audience requires policy-managed grant."
+        },
+        "regenerate_target_share_sheet_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to a fresh share-sheet record offered as a regenerate target when this link is in a terminal end state. Required when share_lifecycle_state_class is in any terminal state and share_regenerate_path_class != regenerate_blocked_*."
+        },
+        "superseded_by_share_link_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the successor share-link record. Required when share_lifecycle_state_class = superseded_by_regenerate."
+        },
+
+        "redacted_audience_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redacted_label" },
+            { "type": "null" }
+          ],
+          "description": "Reviewer-facing audience label (group class, organisation class). Raw account handles, raw email addresses, raw hostnames, and raw URLs never appear here."
+        },
+        "redacted_destination_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redacted_label" },
+            { "type": "null" }
+          ],
+          "description": "Reviewer-facing destination label (endpoint class). Raw URLs, raw hostnames, and raw IP addresses never appear here."
+        },
+
+        "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" },
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_summary" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "share_audience_class = workspace_local_only_no_share MUST pair with share_mode_class = local_only_share_mode, share_destination_class = local_workspace_anchor_only, share_auth_class = no_auth_required, share_expiry_class = no_expiry_local_only, share_revoke_path_class = no_revoke_required, share_export_posture_class in {export_disabled_no_share, export_metadata_only}, and expires_at = null.",
+          "if": {
+            "properties": { "share_audience_class": { "const": "workspace_local_only_no_share" } },
+            "required": ["share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "share_mode_class": { "const": "local_only_share_mode" },
+              "share_destination_class": { "const": "local_workspace_anchor_only" },
+              "share_auth_class": { "const": "no_auth_required" },
+              "share_expiry_class": { "const": "no_expiry_local_only" },
+              "share_revoke_path_class": { "const": "no_revoke_required" },
+              "share_export_posture_class": {
+                "enum": ["export_disabled_no_share", "export_metadata_only"]
+              },
+              "expires_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "share_audience_class in {workspace_signed_in_only, organization_signed_in_only, tenant_signed_in_only} MUST pair with share_mode_class = organization_only_share_mode, share_destination_class in {in_app_share_thread, managed_workspace_share_endpoint, managed_organization_share_endpoint, managed_tenant_share_endpoint}, share_auth_class != no_auth_required, and share_revoke_path_class != no_revoke_required.",
+          "if": {
+            "properties": {
+              "share_audience_class": {
+                "enum": [
+                  "workspace_signed_in_only",
+                  "organization_signed_in_only",
+                  "tenant_signed_in_only"
+                ]
+              }
+            },
+            "required": ["share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "share_mode_class": { "const": "organization_only_share_mode" },
+              "share_destination_class": {
+                "enum": [
+                  "in_app_share_thread",
+                  "managed_workspace_share_endpoint",
+                  "managed_organization_share_endpoint",
+                  "managed_tenant_share_endpoint"
+                ]
+              },
+              "share_auth_class": {
+                "not": { "const": "no_auth_required" }
+              },
+              "share_revoke_path_class": {
+                "not": { "const": "no_revoke_required" }
+              }
+            }
+          }
+        },
+        {
+          "description": "share_audience_class = temporary_external_link_audience MUST pair with share_mode_class = temporary_external_share_mode, share_destination_class in {temporary_external_browser_link, approved_third_party_relay}, share_auth_class != no_auth_required, share_revoke_path_class != no_revoke_required, and share_expiry_class in {short_lived_minutes_expiry, short_lived_hours_expiry, explicit_timestamp_expiry}.",
+          "if": {
+            "properties": { "share_audience_class": { "const": "temporary_external_link_audience" } },
+            "required": ["share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "share_mode_class": { "const": "temporary_external_share_mode" },
+              "share_destination_class": {
+                "enum": ["temporary_external_browser_link", "approved_third_party_relay"]
+              },
+              "share_auth_class": {
+                "not": { "const": "no_auth_required" }
+              },
+              "share_revoke_path_class": {
+                "not": { "const": "no_revoke_required" }
+              },
+              "share_expiry_class": {
+                "enum": [
+                  "short_lived_minutes_expiry",
+                  "short_lived_hours_expiry",
+                  "explicit_timestamp_expiry"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "share_audience_class = one_time_external_link_audience MUST pair with share_mode_class = one_time_external_share_mode, share_destination_class in {one_time_external_browser_link, approved_third_party_relay}, share_auth_class in {step_up_auth_required, one_time_token_required, approval_ticket_required}, share_revoke_path_class != no_revoke_required, and share_expiry_class = one_time_use_expiry.",
+          "if": {
+            "properties": { "share_audience_class": { "const": "one_time_external_link_audience" } },
+            "required": ["share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "share_mode_class": { "const": "one_time_external_share_mode" },
+              "share_destination_class": {
+                "enum": ["one_time_external_browser_link", "approved_third_party_relay"]
+              },
+              "share_auth_class": {
+                "enum": [
+                  "step_up_auth_required",
+                  "one_time_token_required",
+                  "approval_ticket_required"
+                ]
+              },
+              "share_revoke_path_class": {
+                "not": { "const": "no_revoke_required" }
+              },
+              "share_expiry_class": { "const": "one_time_use_expiry" }
+            }
+          }
+        },
+        {
+          "description": "share_audience_class = policy_blocked_no_share_audience MUST pair with share_mode_class = policy_blocked_share_mode, share_destination_class = no_destination_share_blocked, share_export_posture_class = export_disabled_no_share, share_resolved_state_class = terminal_unavailable_policy_blocked, share_lifecycle_state_class = terminal_unavailable_policy_blocked, share_regenerate_path_class in {regenerate_blocked_policy, regenerate_admitted_with_policy_review, regenerate_admitted_admin_only, regenerate_blocked_workspace_trust_revoked}, share_terminal_explanation_class in {terminal_explanation_policy_blocked_at_mint, terminal_explanation_policy_changed_post_mint, terminal_explanation_workspace_trust_revoked}, denial_reason_class != no_denial.",
+          "if": {
+            "properties": { "share_audience_class": { "const": "policy_blocked_no_share_audience" } },
+            "required": ["share_audience_class"]
+          },
+          "then": {
+            "properties": {
+              "share_mode_class": { "const": "policy_blocked_share_mode" },
+              "share_destination_class": { "const": "no_destination_share_blocked" },
+              "share_export_posture_class": { "const": "export_disabled_no_share" },
+              "share_resolved_state_class": { "const": "terminal_unavailable_policy_blocked" },
+              "share_lifecycle_state_class": { "const": "terminal_unavailable_policy_blocked" },
+              "share_regenerate_path_class": {
+                "enum": [
+                  "regenerate_blocked_policy",
+                  "regenerate_admitted_with_policy_review",
+                  "regenerate_admitted_admin_only",
+                  "regenerate_blocked_workspace_trust_revoked"
+                ]
+              },
+              "share_terminal_explanation_class": {
+                "enum": [
+                  "terminal_explanation_policy_blocked_at_mint",
+                  "terminal_explanation_policy_changed_post_mint",
+                  "terminal_explanation_workspace_trust_revoked"
+                ]
+              },
+              "denial_reason_class": {
+                "not": { "const": "no_denial" }
+              }
+            }
+          }
+        },
+        {
+          "description": "share_resolved_state_class = resolves_to_live_runtime requires share_lifecycle_state_class = active_live, share_runtime_lineage_class = bound_to_current_live_runtime, share_continuity_state_class = continuity_intact, share_terminal_explanation_class = not_terminal_state, share_revoke_actor_class = not_revoked, share_revoke_reason_class = not_revoked, and share_regenerate_path_class = no_regenerate_required so revoked / expired / restarted / target-changed / stale-capture links can never masquerade as current live previews.",
+          "if": {
+            "properties": { "share_resolved_state_class": { "const": "resolves_to_live_runtime" } },
+            "required": ["share_resolved_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_lifecycle_state_class": { "const": "active_live" },
+              "share_runtime_lineage_class": { "const": "bound_to_current_live_runtime" },
+              "share_continuity_state_class": { "const": "continuity_intact" },
+              "share_terminal_explanation_class": { "const": "not_terminal_state" },
+              "share_revoke_actor_class": { "const": "not_revoked" },
+              "share_revoke_reason_class": { "const": "not_revoked" },
+              "share_regenerate_path_class": { "const": "no_regenerate_required" }
+            }
+          }
+        },
+        {
+          "description": "share_resolved_state_class = resolves_to_captured_snapshot requires share_lifecycle_state_class in {active_live, active_captured} and share_continuity_state_class = continuity_intact.",
+          "if": {
+            "properties": { "share_resolved_state_class": { "const": "resolves_to_captured_snapshot" } },
+            "required": ["share_resolved_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_lifecycle_state_class": {
+                "enum": ["active_live", "active_captured"]
+              },
+              "share_continuity_state_class": { "const": "continuity_intact" }
+            }
+          }
+        },
+        {
+          "description": "share_resolved_state_class = resolves_to_static_export_only requires share_runtime_lineage_class = bound_to_static_render_only_no_runtime, share_lifecycle_state_class in {active_live, active_captured}, and share_continuity_state_class = continuity_intact.",
+          "if": {
+            "properties": { "share_resolved_state_class": { "const": "resolves_to_static_export_only" } },
+            "required": ["share_resolved_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_runtime_lineage_class": { "const": "bound_to_static_render_only_no_runtime" },
+              "share_lifecycle_state_class": {
+                "enum": ["active_live", "active_captured"]
+              },
+              "share_continuity_state_class": { "const": "continuity_intact" }
+            }
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class in any terminal end state forbids share_resolved_state_class in {resolves_to_live_runtime, resolves_to_captured_snapshot, resolves_to_static_export_only}, requires share_regenerate_path_class != no_regenerate_required, and requires share_terminal_explanation_class != not_terminal_state.",
+          "if": {
+            "properties": {
+              "share_lifecycle_state_class": {
+                "enum": [
+                  "expired",
+                  "revoked_by_user",
+                  "revoked_by_admin",
+                  "revoked_by_policy",
+                  "superseded_by_regenerate",
+                  "terminal_unavailable_runtime_restart",
+                  "terminal_unavailable_target_change",
+                  "terminal_unavailable_stale_capture",
+                  "terminal_unavailable_policy_blocked",
+                  "terminal_unavailable_workspace_trust_revoked"
+                ]
+              }
+            },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": {
+                "not": {
+                  "enum": [
+                    "resolves_to_live_runtime",
+                    "resolves_to_captured_snapshot",
+                    "resolves_to_static_export_only"
+                  ]
+                }
+              },
+              "share_regenerate_path_class": {
+                "not": { "const": "no_regenerate_required" }
+              },
+              "share_terminal_explanation_class": {
+                "not": { "const": "not_terminal_state" }
+              }
+            }
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = expired pairs with share_resolved_state_class = terminal_unavailable_expired, share_terminal_explanation_class in {terminal_explanation_automatic_expiry, terminal_explanation_one_time_use_consumed}, share_revoke_actor_class = automatic_expiry_actor, share_continuity_state_class = continuity_broken_expired, and a non-null expired_at.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "expired" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_expired" },
+              "share_terminal_explanation_class": {
+                "enum": [
+                  "terminal_explanation_automatic_expiry",
+                  "terminal_explanation_one_time_use_consumed"
+                ]
+              },
+              "share_revoke_actor_class": { "const": "automatic_expiry_actor" },
+              "share_continuity_state_class": { "const": "continuity_broken_expired" },
+              "expired_at": { "type": "string" }
+            },
+            "required": ["expired_at"]
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = revoked_by_user pairs with share_resolved_state_class = terminal_unavailable_revoked, share_revoke_actor_class = user_self_revoke_actor, share_revoke_reason_class in {user_self_revoke_reason_user_request, user_self_revoke_reason_no_longer_needed}, share_terminal_explanation_class = terminal_explanation_user_self_revoke, share_continuity_state_class = continuity_broken_revoked, and a non-null revoked_at.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "revoked_by_user" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_revoked" },
+              "share_revoke_actor_class": { "const": "user_self_revoke_actor" },
+              "share_revoke_reason_class": {
+                "enum": [
+                  "user_self_revoke_reason_user_request",
+                  "user_self_revoke_reason_no_longer_needed"
+                ]
+              },
+              "share_terminal_explanation_class": { "const": "terminal_explanation_user_self_revoke" },
+              "share_continuity_state_class": { "const": "continuity_broken_revoked" },
+              "revoked_at": { "type": "string" }
+            },
+            "required": ["revoked_at"]
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = revoked_by_admin pairs with share_resolved_state_class = terminal_unavailable_revoked, share_revoke_actor_class in {workspace_admin_revoke_actor, organization_admin_revoke_actor, tenant_admin_revoke_actor, emergency_admin_revoke_actor}, share_revoke_reason_class in admin reasons, share_terminal_explanation_class in admin terminal explanations, share_continuity_state_class = continuity_broken_revoked, and a non-null revoked_at.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "revoked_by_admin" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_revoked" },
+              "share_revoke_actor_class": {
+                "enum": [
+                  "workspace_admin_revoke_actor",
+                  "organization_admin_revoke_actor",
+                  "tenant_admin_revoke_actor",
+                  "emergency_admin_revoke_actor"
+                ]
+              },
+              "share_revoke_reason_class": {
+                "enum": [
+                  "admin_revoke_reason_audience_change",
+                  "admin_revoke_reason_policy_review",
+                  "admin_revoke_reason_security_review",
+                  "admin_revoke_reason_incident_response"
+                ]
+              },
+              "share_terminal_explanation_class": {
+                "enum": [
+                  "terminal_explanation_workspace_admin_revoke",
+                  "terminal_explanation_organization_admin_revoke",
+                  "terminal_explanation_tenant_admin_revoke",
+                  "terminal_explanation_emergency_admin_revoke"
+                ]
+              },
+              "share_continuity_state_class": { "const": "continuity_broken_revoked" },
+              "revoked_at": { "type": "string" }
+            },
+            "required": ["revoked_at"]
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = revoked_by_policy pairs with share_resolved_state_class = terminal_unavailable_revoked, share_revoke_actor_class = policy_revoke_actor, share_revoke_reason_class in policy reasons, share_terminal_explanation_class in {terminal_explanation_policy_revocation, terminal_explanation_policy_changed_post_mint, terminal_explanation_workspace_trust_revoked}, share_continuity_state_class in {continuity_broken_policy_changed, continuity_broken_workspace_trust_revoked}, and a non-null revoked_at.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "revoked_by_policy" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_revoked" },
+              "share_revoke_actor_class": { "const": "policy_revoke_actor" },
+              "share_revoke_reason_class": {
+                "enum": [
+                  "policy_revoke_reason_workspace_trust_revoked",
+                  "policy_revoke_reason_share_policy_narrowed",
+                  "policy_revoke_reason_destination_no_longer_admitted"
+                ]
+              },
+              "share_terminal_explanation_class": {
+                "enum": [
+                  "terminal_explanation_policy_revocation",
+                  "terminal_explanation_policy_changed_post_mint",
+                  "terminal_explanation_workspace_trust_revoked"
+                ]
+              },
+              "share_continuity_state_class": {
+                "enum": [
+                  "continuity_broken_policy_changed",
+                  "continuity_broken_workspace_trust_revoked"
+                ]
+              },
+              "revoked_at": { "type": "string" }
+            },
+            "required": ["revoked_at"]
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = superseded_by_regenerate requires share_resolved_state_class = terminal_unavailable_revoked, share_continuity_state_class in {continuity_broken_revoked, continuity_broken_runtime_restarted, continuity_broken_target_changed, continuity_broken_capture_stale, continuity_broken_policy_changed}, a non-null superseded_by_share_link_record_ref, and a non-null regenerate_target_share_sheet_record_ref.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "superseded_by_regenerate" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_revoked" },
+              "share_continuity_state_class": {
+                "enum": [
+                  "continuity_broken_revoked",
+                  "continuity_broken_runtime_restarted",
+                  "continuity_broken_target_changed",
+                  "continuity_broken_capture_stale",
+                  "continuity_broken_policy_changed"
+                ]
+              },
+              "superseded_by_share_link_record_ref": { "type": "string" },
+              "regenerate_target_share_sheet_record_ref": { "type": "string" }
+            },
+            "required": [
+              "superseded_by_share_link_record_ref",
+              "regenerate_target_share_sheet_record_ref"
+            ]
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = terminal_unavailable_runtime_restart pairs with share_resolved_state_class = terminal_unavailable_runtime_restarted, share_runtime_lineage_class in {bound_to_runtime_now_restarted, bound_to_runtime_now_unavailable, bound_to_managed_runtime_now_decommissioned}, share_continuity_state_class = continuity_broken_runtime_restarted, and share_terminal_explanation_class in {terminal_explanation_runtime_restarted, terminal_explanation_runtime_unavailable, terminal_explanation_managed_runtime_decommissioned}.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "terminal_unavailable_runtime_restart" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_runtime_restarted" },
+              "share_runtime_lineage_class": {
+                "enum": [
+                  "bound_to_runtime_now_restarted",
+                  "bound_to_runtime_now_unavailable",
+                  "bound_to_managed_runtime_now_decommissioned"
+                ]
+              },
+              "share_continuity_state_class": { "const": "continuity_broken_runtime_restarted" },
+              "share_terminal_explanation_class": {
+                "enum": [
+                  "terminal_explanation_runtime_restarted",
+                  "terminal_explanation_runtime_unavailable",
+                  "terminal_explanation_managed_runtime_decommissioned"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = terminal_unavailable_target_change pairs with share_resolved_state_class = terminal_unavailable_target_changed, share_runtime_lineage_class = bound_to_target_now_changed, share_continuity_state_class = continuity_broken_target_changed, and share_terminal_explanation_class = terminal_explanation_target_changed.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "terminal_unavailable_target_change" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_target_changed" },
+              "share_runtime_lineage_class": { "const": "bound_to_target_now_changed" },
+              "share_continuity_state_class": { "const": "continuity_broken_target_changed" },
+              "share_terminal_explanation_class": { "const": "terminal_explanation_target_changed" }
+            }
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = terminal_unavailable_stale_capture pairs with share_resolved_state_class = terminal_unavailable_stale_capture, share_runtime_lineage_class in {bound_to_captured_snapshot_only, bound_to_runtime_now_unavailable}, share_continuity_state_class = continuity_broken_capture_stale, and share_terminal_explanation_class = terminal_explanation_capture_stale.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "terminal_unavailable_stale_capture" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_stale_capture" },
+              "share_runtime_lineage_class": {
+                "enum": [
+                  "bound_to_captured_snapshot_only",
+                  "bound_to_runtime_now_unavailable"
+                ]
+              },
+              "share_continuity_state_class": { "const": "continuity_broken_capture_stale" },
+              "share_terminal_explanation_class": { "const": "terminal_explanation_capture_stale" }
+            }
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class = terminal_unavailable_workspace_trust_revoked pairs with share_resolved_state_class = terminal_unavailable_workspace_trust_revoked, share_continuity_state_class = continuity_broken_workspace_trust_revoked, and share_terminal_explanation_class = terminal_explanation_workspace_trust_revoked.",
+          "if": {
+            "properties": { "share_lifecycle_state_class": { "const": "terminal_unavailable_workspace_trust_revoked" } },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_resolved_state_class": { "const": "terminal_unavailable_workspace_trust_revoked" },
+              "share_continuity_state_class": { "const": "continuity_broken_workspace_trust_revoked" },
+              "share_terminal_explanation_class": { "const": "terminal_explanation_workspace_trust_revoked" }
+            }
+          }
+        },
+        {
+          "description": "share_lifecycle_state_class in {active_live, active_captured} forbids share_terminal_explanation_class != not_terminal_state, share_revoke_actor_class != not_revoked, share_revoke_reason_class != not_revoked, share_continuity_state_class != continuity_intact, and share_regenerate_path_class != no_regenerate_required so an active link can never carry terminal metadata.",
+          "if": {
+            "properties": {
+              "share_lifecycle_state_class": {
+                "enum": ["active_live", "active_captured"]
+              }
+            },
+            "required": ["share_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "share_terminal_explanation_class": { "const": "not_terminal_state" },
+              "share_revoke_actor_class": { "const": "not_revoked" },
+              "share_revoke_reason_class": { "const": "not_revoked" },
+              "share_continuity_state_class": { "const": "continuity_intact" },
+              "share_regenerate_path_class": { "const": "no_regenerate_required" }
+            }
+          }
+        },
+        {
+          "description": "share_export_posture_class = export_full_record_admitted_internal_only is admissible only on share_audience_class in {workspace_signed_in_only, organization_signed_in_only, tenant_signed_in_only}; external audiences MUST NOT mint a full-record export.",
+          "if": {
+            "properties": { "share_export_posture_class": { "const": "export_full_record_admitted_internal_only" } },
+            "required": ["share_export_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "share_audience_class": {
+                "enum": [
+                  "workspace_signed_in_only",
+                  "organization_signed_in_only",
+                  "tenant_signed_in_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "share_auth_class = approval_ticket_required requires a non-null approval_ticket_ref.",
+          "if": {
+            "properties": { "share_auth_class": { "const": "approval_ticket_required" } },
+            "required": ["share_auth_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "type": "string" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "share_expiry_class in {short_lived_minutes_expiry, short_lived_hours_expiry, explicit_timestamp_expiry} requires a non-null expires_at.",
+          "if": {
+            "properties": {
+              "share_expiry_class": {
+                "enum": [
+                  "short_lived_minutes_expiry",
+                  "short_lived_hours_expiry",
+                  "explicit_timestamp_expiry"
+                ]
+              }
+            },
+            "required": ["share_expiry_class"]
+          },
+          "then": {
+            "properties": {
+              "expires_at": { "type": "string" }
+            },
+            "required": ["expires_at"]
+          }
+        }
+      ],
+      "description": "One preview share-link record. Reuses preview/runtime identity through preview_snapshot_record_ref and never invents a parallel anonymous-link model. Active records resolve to live or captured state under continuity_intact; revoked / expired / runtime-restarted / target-changed / stale-capture / policy-blocked / workspace-trust-revoked records transition into a typed terminal end state with a typed terminal explanation, a typed regenerate path, and (where applicable) a successor share-link ref."
+    }
+  }
+}
