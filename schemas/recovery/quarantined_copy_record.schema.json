@@ -1,0 +1,416 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/quarantined_copy_record.schema.json",
+  "title": "Aureline quarantined-copy record",
+  "description": "Boundary schema for quarantined-copy records frozen in docs/reliability/corruption_rescue_compare_contract.md. A quarantined-copy record is the typed preservation receipt produced when a corruption-rescue sheet decides to preserve a suspect artifact before any destructive replace, discard, restore-with-mutation, or rebuild-with-diagnostics action runs. Each record names the corrupt-artifact class and origin, the sensitivity class, the retention posture and clearance owner, the integrity witness, the visibility class (user-visible, support-visible, or local-forensics-only), the closed preserve-reason set, and the closed inspectable-action set the surface MAY offer. Closed corrupt-artifact, preserve-reason, and integrity-witness vocabularies are re-exported verbatim from schemas/recovery/corruption_rescue_sheet.schema.json. Raw file bodies, raw checksums, raw absolute paths, raw credentials, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/quarantined_copy_record" }
+  ],
+  "$defs": {
+    "quarantined_copy_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for quarantined-copy records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "quarantined_copy_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in quarantine cards, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "corrupt_artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_search_index",
+        "workspace_knowledge_cache",
+        "profile_settings_store",
+        "profile_keyring_index",
+        "workspace_authority_checkpoint_index",
+        "local_history_segment",
+        "evidence_packet_index",
+        "update_install_metadata",
+        "mirror_cache_manifest",
+        "offline_bundle_manifest"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/corruption_rescue_sheet.schema.json#corrupt_artifact_class."
+    },
+    "artifact_origin_class": {
+      "type": "string",
+      "enum": [
+        "workspace_local",
+        "profile_local",
+        "install_chain_local",
+        "evidence_local",
+        "mirror_or_offline_bundle_local",
+        "credentials_store_local"
+      ]
+    },
+    "preserved_storage_class": {
+      "type": "string",
+      "enum": [
+        "local_forensics_lane",
+        "local_quarantine_lane",
+        "support_bundle_attached_local",
+        "evidence_packet_attached_local"
+      ]
+    },
+    "data_class_boundary_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "retain_until_user_releases",
+        "retain_until_repair_outcome_ack",
+        "retain_until_pending_investigation_resolved",
+        "retain_until_policy_floor_met",
+        "retain_until_seat_or_workspace_purged",
+        "ephemeral_session_only_with_export_lane"
+      ]
+    },
+    "clearance_owner_class": {
+      "type": "string",
+      "enum": [
+        "user_can_release",
+        "support_must_release",
+        "admin_or_legal_must_release",
+        "automated_after_outcome_ack"
+      ]
+    },
+    "integrity_witness_class": {
+      "type": "string",
+      "enum": [
+        "checksum_recorded",
+        "signature_recorded",
+        "content_addressed",
+        "policy_redacted_witness",
+        "no_integrity_witness"
+      ]
+    },
+    "visibility_class": {
+      "type": "string",
+      "enum": [
+        "user_visible",
+        "support_visible",
+        "local_forensics_only"
+      ]
+    },
+    "preserve_reason_class": {
+      "type": "string",
+      "enum": [
+        "carries_user_authored_bytes",
+        "carries_unexported_user_recovery_state",
+        "carries_diagnostics_value",
+        "carries_policy_bound_evidence",
+        "mixed_user_and_derived_indeterminate",
+        "forensics_required_by_pending_investigation",
+        "ownership_indeterminate"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/corruption_rescue_sheet.schema.json#preserve_reason_class."
+    },
+    "inspectable_action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_metadata_only",
+        "export_to_user_export_lane",
+        "export_to_support_bundle",
+        "attach_to_evidence_packet",
+        "hold_for_pending_investigation"
+      ]
+    },
+    "origin_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corrupt_artifact_class",
+        "artifact_origin_class",
+        "preserved_path_ref",
+        "preserved_storage_class",
+        "summary"
+      ],
+      "properties": {
+        "corrupt_artifact_class": { "$ref": "#/$defs/corrupt_artifact_class" },
+        "artifact_origin_class": { "$ref": "#/$defs/artifact_origin_class" },
+        "preserved_path_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the preserved-copy location. Raw absolute paths NEVER appear here."
+        },
+        "preserved_storage_class": { "$ref": "#/$defs/preserved_storage_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "retention_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_class", "clearance_owner_class", "summary"],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "clearance_owner_class": { "$ref": "#/$defs/clearance_owner_class" },
+        "retention_window_summary": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["integrity_witness_class", "identity_token", "summary"],
+      "properties": {
+        "integrity_witness_class": { "$ref": "#/$defs/integrity_witness_class" },
+        "identity_token": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque identity token for the preserved copy. Raw checksum or signature bytes are NEVER carried here; surfaces that need the witness fetch it under their own contract."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "linkage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rescue_sheet_ref"],
+      "properties": {
+        "rescue_sheet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id of the corruption_rescue_sheet_record that produced this preservation."
+        },
+        "repair_transaction_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "recovery_scenario_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_is_typed",
+        "sensitivity_class_named",
+        "retention_owner_named",
+        "visibility_is_explicit",
+        "never_exits_device_silently"
+      ],
+      "properties": {
+        "origin_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that origin uses the closed corrupt-artifact, artifact-origin, and preserved-storage vocabularies rather than free-form prose."
+        },
+        "sensitivity_class_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that sensitivity_class is one of the closed redaction classes."
+        },
+        "retention_owner_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that clearance_owner_class is set; the copy never sits in quarantine without a typed owner authorized to release it."
+        },
+        "visibility_is_explicit": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that visibility_class is set; the copy is never silently visible to support, admin, or upstream."
+        },
+        "never_exits_device_silently": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that any export of the copy goes through a typed inspectable_action_class; convenience exports never silently leave the device."
+        }
+      }
+    },
+    "quarantined_copy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "quarantined_copy_record_schema_version",
+        "copy_id",
+        "captured_at",
+        "origin",
+        "sensitivity_class",
+        "retention_posture",
+        "identity",
+        "visibility_class",
+        "preserve_reasons",
+        "allowed_inspectable_actions",
+        "linkage",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "quarantined_copy_record_schema_version": { "$ref": "#/$defs/quarantined_copy_record_schema_version" },
+        "copy_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "origin": { "$ref": "#/$defs/origin_block" },
+        "sensitivity_class": { "$ref": "#/$defs/data_class_boundary_class" },
+        "retention_posture": { "$ref": "#/$defs/retention_posture" },
+        "identity": { "$ref": "#/$defs/identity_block" },
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+        "preserve_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/preserve_reason_class" }
+        },
+        "allowed_inspectable_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/inspectable_action_class" }
+        },
+        "linkage": { "$ref": "#/$defs/linkage_block" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "local_forensics_only visibility forbids export_to_user_export_lane; the copy is held on-device and is never user-exportable until visibility widens.",
+          "if": {
+            "properties": {
+              "visibility_class": { "const": "local_forensics_only" }
+            },
+            "required": ["visibility_class"]
+          },
+          "then": {
+            "properties": {
+              "allowed_inspectable_actions": {
+                "type": "array",
+                "not": {
+                  "contains": { "const": "export_to_user_export_lane" }
+                }
+              }
+            },
+            "required": ["allowed_inspectable_actions"]
+          }
+        },
+        {
+          "description": "policy_bound_evidence preservation MUST permit either evidence-packet attachment or a held-for-pending-investigation posture; raw user-export of evidence-bound bytes is never the only inspectable action.",
+          "if": {
+            "properties": {
+              "preserve_reasons": {
+                "type": "array",
+                "contains": { "const": "carries_policy_bound_evidence" }
+              }
+            },
+            "required": ["preserve_reasons"]
+          },
+          "then": {
+            "properties": {
+              "allowed_inspectable_actions": {
+                "type": "array",
+                "anyOf": [
+                  { "contains": { "const": "attach_to_evidence_packet" } },
+                  { "contains": { "const": "hold_for_pending_investigation" } }
+                ]
+              }
+            },
+            "required": ["allowed_inspectable_actions"]
+          }
+        },
+        {
+          "description": "forensics_required_by_pending_investigation MUST list hold_for_pending_investigation; the copy stays held until the investigation is resolved.",
+          "if": {
+            "properties": {
+              "preserve_reasons": {
+                "type": "array",
+                "contains": { "const": "forensics_required_by_pending_investigation" }
+              }
+            },
+            "required": ["preserve_reasons"]
+          },
+          "then": {
+            "properties": {
+              "allowed_inspectable_actions": {
+                "type": "array",
+                "contains": { "const": "hold_for_pending_investigation" }
+              }
+            },
+            "required": ["allowed_inspectable_actions"]
+          }
+        },
+        {
+          "description": "support_bundle_attached_local storage requires export_to_support_bundle in the inspectable-action set; the storage class and the inspectable action MUST agree.",
+          "if": {
+            "properties": {
+              "origin": {
+                "properties": {
+                  "preserved_storage_class": { "const": "support_bundle_attached_local" }
+                },
+                "required": ["preserved_storage_class"]
+              }
+            },
+            "required": ["origin"]
+          },
+          "then": {
+            "properties": {
+              "allowed_inspectable_actions": {
+                "type": "array",
+                "contains": { "const": "export_to_support_bundle" }
+              }
+            },
+            "required": ["allowed_inspectable_actions"]
+          }
+        },
+        {
+          "description": "evidence_packet_attached_local storage requires attach_to_evidence_packet in the inspectable-action set.",
+          "if": {
+            "properties": {
+              "origin": {
+                "properties": {
+                  "preserved_storage_class": { "const": "evidence_packet_attached_local" }
+                },
+                "required": ["preserved_storage_class"]
+              }
+            },
+            "required": ["origin"]
+          },
+          "then": {
+            "properties": {
+              "allowed_inspectable_actions": {
+                "type": "array",
+                "contains": { "const": "attach_to_evidence_packet" }
+              }
+            },
+            "required": ["allowed_inspectable_actions"]
+          }
+        }
+      ]
+    }
+  }
+}

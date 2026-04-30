@@ -1,0 +1,137 @@
+# yaml-language-server: $schema=../../../schemas/recovery/corruption_rescue_sheet.schema.json
+__fixture__:
+  name: corrupted_workspace_search_index
+  scenario: >
+    A workspace_index_corruption scenario where the derived workspace
+    search index lost integrity. Doctor's cache_profile_probe detected
+    an index-hash failure on disposable derived state. The artifact is
+    derived_disposable_only with an authoritative regeneration source
+    (workspace bytes). The compare sheet recommends the rebuild path
+    (verb=rebuild, regeneration, writes_disposable_state_only); no
+    quarantined copy is required because the artifact carries no
+    user-authored bytes, no recovery state, no evidence, and no
+    diagnostics value beyond the Doctor finding evidence row.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Corrupt-artifact classes"
+    - "§3 Artifact value posture"
+    - "§4 Rescue-verb vocabulary"
+    - "§7 Compare preview"
+    - "§8 Preservation decision"
+    - "§11 Honesty invariants"
+
+record_kind: corruption_rescue_sheet_record
+corruption_rescue_sheet_schema_version: 1
+sheet_id: crs-workspace-search-index-rebuild-0001
+generated_at: "mono:6101:09:11:42.0003"
+
+scenario_family_class: workspace_index_corruption
+title: Workspace search index — derived disposable rebuild
+summary: >
+  Derived workspace search index lost integrity. User-authored bytes
+  are intact; the index regenerates from authoritative workspace
+  bytes. No quarantined copy is required.
+
+corrupt_artifact_class: workspace_search_index
+artifact_value_posture: derived_disposable_only
+
+healthy_candidate:
+  source_class: regeneration_from_authoritative_workspace_bytes
+  source_ref: regeneration_source:workspace.authoritative_bytes
+  summary: >
+    The derived index regenerates from authoritative workspace bytes
+    on disk; rebuild is regeneration, not restoration.
+
+compare_preview:
+  corrupt_witness:
+    artifact_identity_token: artifact_identity:workspace_search_index.suspect.0001
+    integrity_witness_class: checksum_recorded
+    redaction_class: metadata_only
+    summary: >
+      Suspect search index witness. Integrity-witness checksum
+      recorded; no raw content is carried.
+  healthy_witness:
+    source_identity_token: source_identity:workspace.authoritative_bytes.0001
+    source_class: regeneration_from_authoritative_workspace_bytes
+    redaction_class: metadata_only
+    summary: >
+      Authoritative workspace bytes serve as the regeneration source;
+      the rebuild reads only durable workspace files.
+  post_action_state_rows:
+    - scope_class: workspace
+      post_action_state_class: kept_intact
+      summary: >
+        User-authored workspace bytes are not touched by the rebuild.
+    - scope_class: derived
+      post_action_state_class: regenerated_from_authoritative
+      summary: >
+        The derived search index is replaced by a fresh build from
+        authoritative workspace bytes.
+  summary: >
+    Compare preview shows workspace bytes kept intact and the derived
+    index regenerated; no other scope is touched.
+
+preservation:
+  preserved_copy_required: false
+  summary: >
+    Rebuild is regeneration on derived_disposable_only state with no
+    diagnostics-value flag set; no quarantined copy is required.
+
+available_actions:
+  - action_class: inspect_only
+    verb_class: inspect
+    reversibility_class: exact_undo
+    destructive_risk_class: non_destructive_read_only
+    summary: >
+      Read the cache_profile_probe Doctor packet and the compare
+      preview; no bytes change.
+  - action_class: rebuild_disposable_state
+    verb_class: rebuild
+    reversibility_class: regeneration
+    destructive_risk_class: writes_disposable_state_only
+    summary: >
+      Rebuild the search index from authoritative workspace bytes.
+
+recommended_action:
+  action_class: rebuild_disposable_state
+  verb_class: rebuild
+  reversibility_class: regeneration
+  destructive_risk_class: writes_disposable_state_only
+  summary: >
+    Rebuild the derived search index from authoritative workspace
+    bytes. User-authored files, profile settings, evidence, and
+    credentials are out of scope.
+
+linkage:
+  project_doctor:
+    probe_family_class: cache_profile_probe
+    doctor_finding_code_refs:
+      - doctor.finding.cache.index_hash_failure
+    scenario_matrix_row_ref: scenario_row:incompatible_cache_profile
+    summary: >
+      The cache_profile_probe Doctor packet names the index-hash
+      failure; the rebuild scope is read from that row.
+  repair_transaction_preview:
+    preview_required: true
+    repair_transaction_ref: repair_transaction:workspace_search_index.disposable_state_rebuild
+    repair_preview_ref: repair_preview:workspace_search_index.disposable_state_rebuild
+    approved_repair_class: disposable_state_rebuild
+    summary: >
+      Rebuild runs through the repair-transaction preview so the
+      reviewer sees the rebuild scope before apply.
+  export_before_destructive_action:
+    export_required: false
+    summary: >
+      Rebuild is regeneration on derived state; no export is gating.
+  recovery_scenario_card_ref: rsc-workspace-index-corruption-0001
+  continuity_status_card_ref: csc-air-gapped-workspace-index-pre-rebuild-0003
+  recovery_action_record_ref: recovery_action:typed_repair_flow.workspace_index_rebuild
+
+honesty_invariants:
+  corrupt_artifact_class_is_closed: true
+  artifact_value_posture_named: true
+  preserved_copy_before_destructive_action: true
+  healthy_candidate_source_named: true
+  retained_versus_replaced_explicit: true
+  no_overpromise_of_reversibility: true
+  linkage_is_typed: true

@@ -1,0 +1,1088 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/corruption_rescue_sheet.schema.json",
+  "title": "Aureline corruption-rescue compare sheet",
+  "description": "Boundary schema for corruption-rescue compare sheets frozen in docs/reliability/corruption_rescue_compare_contract.md. Each sheet describes one suspect artifact (workspace search index, workspace knowledge cache, profile settings store, profile keyring index, workspace-authority checkpoint index, local-history segment, evidence-packet index, update-install metadata, mirror-cache manifest, offline-bundle manifest), the value posture the artifact still carries (user-authored durable, user-owned recovery state, derived disposable, mixed user-and-derived, policy-bound evidence, local-forensics-only, install-chain metadata), the healthy candidate source (or its explicit absence), the typed compare preview binding affected scopes to retained-versus-replaced state, the preservation decision pointing at a quarantined-copy record, and the verb-coded recommended action (inspect, export, rebuild, restore, replace, discard). Closed scenario-family, affected-scope, verb, reversibility, and destructive-risk vocabularies are re-exported verbatim from schemas/recovery/recovery_scenario_card.schema.json. Recovery-promise classes (authoritative_backup, local_checkpoint, sync_replica) come from artifacts/recovery/backup_checkpoint_classes.yaml. Probe-family classes are re-exported verbatim from fixtures/support/scenario_matrix.yaml. Approved-repair classes are re-exported verbatim from schemas/support/scenario_picker.schema.json. Raw file bodies, raw diff hunks, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/corruption_rescue_sheet_record" }
+  ],
+  "$defs": {
+    "corruption_rescue_sheet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for corruption-rescue compare sheets."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "corruption_rescue_sheet_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in rescue sheets, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "recovery_scenario_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_corruption",
+        "workspace_index_corruption",
+        "failed_update",
+        "control_plane_outage",
+        "device_replacement",
+        "seat_loss",
+        "credential_store_unreadable",
+        "mirror_or_offline_bundle_unavailable"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_scenario_card.schema.json#recovery_scenario_family_class."
+    },
+    "corrupt_artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_search_index",
+        "workspace_knowledge_cache",
+        "profile_settings_store",
+        "profile_keyring_index",
+        "workspace_authority_checkpoint_index",
+        "local_history_segment",
+        "evidence_packet_index",
+        "update_install_metadata",
+        "mirror_cache_manifest",
+        "offline_bundle_manifest"
+      ],
+      "description": "Closed corrupt-artifact class. Each sheet resolves to exactly one artifact; sheets never collapse two artifacts into one row."
+    },
+    "artifact_value_posture": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable",
+        "user_owned_recovery_state",
+        "derived_disposable_only",
+        "mixed_user_and_derived",
+        "policy_bound_evidence",
+        "local_forensics_only",
+        "install_chain_metadata"
+      ],
+      "description": "Closed artifact-value posture. Drives the preservation gate; surfaces never invent a private 'broken state' or 'generic corrupt file' bucket."
+    },
+    "rescue_verb_class": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "export",
+        "rebuild",
+        "restore",
+        "replace",
+        "discard"
+      ]
+    },
+    "rescue_action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "export_quarantined_copy",
+        "rebuild_disposable_state",
+        "restore_from_authoritative_backup",
+        "restore_from_sync_replica",
+        "restore_from_local_checkpoint",
+        "replace_with_default_after_quarantine",
+        "discard_after_export_acknowledged"
+      ]
+    },
+    "reversibility_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_action",
+        "regeneration",
+        "checkpoint_restore",
+        "no_undo_export_only"
+      ],
+      "description": "Re-exported verbatim from schemas/support/recovery_action.schema.json#reversal_class."
+    },
+    "destructive_risk_class": {
+      "type": "string",
+      "enum": [
+        "non_destructive_read_only",
+        "non_destructive_writes_local_evidence_only",
+        "writes_disposable_state_only",
+        "writes_user_owned_recovery_state",
+        "mutates_workspace_bytes_with_checkpoint",
+        "mutates_profile_state_with_checkpoint_and_export",
+        "destructive_user_authored_no_undo_export_required"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_scenario_card.schema.json#destructive_risk_class."
+    },
+    "covering_promise_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_backup",
+        "local_checkpoint",
+        "sync_replica"
+      ],
+      "description": "Subset of recovery-promise classes that may cover a restore. mirror_cache and convenience_export are NEVER permitted as covering promises for a restore action."
+    },
+    "healthy_candidate_source_class": {
+      "type": "string",
+      "enum": [
+        "covering_authoritative_backup",
+        "covering_sync_replica",
+        "covering_local_checkpoint",
+        "regeneration_from_authoritative_workspace_bytes",
+        "default_initialization_template",
+        "no_healthy_candidate_available"
+      ]
+    },
+    "post_action_state_class": {
+      "type": "string",
+      "enum": [
+        "kept_intact",
+        "retained_in_quarantine",
+        "regenerated_from_authoritative",
+        "restored_from_covering_promise",
+        "replaced_with_default",
+        "discarded_after_export",
+        "exported_only_no_change"
+      ]
+    },
+    "compare_scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "profile",
+        "evidence",
+        "layout",
+        "credentials",
+        "derived"
+      ],
+      "description": "Compare-preview scope axis. The first four mirror the restore-target classes; 'credentials' and 'derived' add sheet-local precision so the compare preview can label the credentials store and disposable derived state separately."
+    },
+    "preserve_reason_class": {
+      "type": "string",
+      "enum": [
+        "carries_user_authored_bytes",
+        "carries_unexported_user_recovery_state",
+        "carries_diagnostics_value",
+        "carries_policy_bound_evidence",
+        "mixed_user_and_derived_indeterminate",
+        "forensics_required_by_pending_investigation",
+        "ownership_indeterminate"
+      ]
+    },
+    "integrity_witness_class": {
+      "type": "string",
+      "enum": [
+        "checksum_recorded",
+        "signature_recorded",
+        "content_addressed",
+        "policy_redacted_witness",
+        "no_integrity_witness"
+      ]
+    },
+    "data_class_boundary_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "approved_repair_class": {
+      "type": "string",
+      "enum": [
+        "observe_only_no_repair",
+        "disposable_state_rebuild",
+        "extension_isolation",
+        "extension_rollback_reinstall",
+        "execution_context_reresolve",
+        "remote_runtime_repair",
+        "policy_entitlement_refresh",
+        "guided_export_escalation",
+        "support_bundle_export",
+        "trace_capture"
+      ],
+      "description": "Re-exported verbatim from schemas/support/scenario_picker.schema.json#approved_repair_class."
+    },
+    "probe_family_class": {
+      "type": "string",
+      "enum": [
+        "toolchain_probe",
+        "trust_state_probe",
+        "filesystem_watcher_probe",
+        "cache_profile_probe",
+        "extension_host_probe",
+        "target_and_route_probe",
+        "helper_attach_probe",
+        "docs_mirror_probe"
+      ],
+      "description": "Re-exported verbatim from fixtures/support/scenario_matrix.yaml#probe_family_vocabulary."
+    },
+    "completeness_outcome_class": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "complete_with_typed_unknowns",
+        "incomplete_refused_export"
+      ],
+      "description": "Re-exported verbatim from schemas/support/escalation_packet.schema.json#completeness_outcome_class."
+    },
+    "must_precede_class": {
+      "type": "string",
+      "enum": [
+        "export_quarantined_copy",
+        "capture_local_checkpoint",
+        "inspect_only"
+      ],
+      "description": "Pre-actions a destructive rescue MUST complete first. inspect_only is permitted as a 'review compare preview before action' gate; export_quarantined_copy and capture_local_checkpoint are required for replace and discard."
+    },
+    "corrupt_witness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_identity_token", "integrity_witness_class", "redaction_class", "summary"],
+      "properties": {
+        "artifact_identity_token": { "$ref": "#/$defs/opaque_id" },
+        "integrity_witness_class": { "$ref": "#/$defs/integrity_witness_class" },
+        "redaction_class": { "$ref": "#/$defs/data_class_boundary_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "healthy_witness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_identity_token", "source_class", "redaction_class", "summary"],
+      "properties": {
+        "source_identity_token": { "$ref": "#/$defs/opaque_id" },
+        "source_class": {
+          "$ref": "#/$defs/healthy_candidate_source_class",
+          "description": "MUST NOT be no_healthy_candidate_available; that case is represented by omitting healthy_witness and setting healthy_candidate.source_class to no_healthy_candidate_available."
+        },
+        "redaction_class": { "$ref": "#/$defs/data_class_boundary_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "source_class": {
+              "not": { "const": "no_healthy_candidate_available" }
+            }
+          }
+        }
+      ]
+    },
+    "healthy_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "summary"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/healthy_candidate_source_class" },
+        "covering_promise_class": {
+          "$ref": "#/$defs/covering_promise_class",
+          "description": "Required when source_class is one of the covering_* values."
+        },
+        "source_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the backup, replica, checkpoint, regeneration source, or default-template the sheet cites."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "enum": [
+                  "covering_authoritative_backup",
+                  "covering_sync_replica",
+                  "covering_local_checkpoint"
+                ]
+              }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "required": ["covering_promise_class", "source_ref"],
+            "properties": {
+              "covering_promise_class": {
+                "enum": ["authoritative_backup", "sync_replica", "local_checkpoint"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_class": { "const": "regeneration_from_authoritative_workspace_bytes" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "required": ["source_ref"],
+            "properties": {
+              "covering_promise_class": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_class": { "const": "default_initialization_template" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "required": ["source_ref"],
+            "properties": {
+              "covering_promise_class": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_class": { "const": "no_healthy_candidate_available" }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "covering_promise_class": false,
+              "source_ref": false
+            }
+          }
+        }
+      ]
+    },
+    "post_action_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "post_action_state_class", "summary"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/compare_scope_class" },
+        "post_action_state_class": { "$ref": "#/$defs/post_action_state_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "compare_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["corrupt_witness", "post_action_state_rows", "summary"],
+      "properties": {
+        "corrupt_witness": { "$ref": "#/$defs/corrupt_witness" },
+        "healthy_witness": {
+          "$ref": "#/$defs/healthy_witness",
+          "description": "Required when healthy_candidate.source_class is not no_healthy_candidate_available. Cross-field rule enforced on the parent record."
+        },
+        "post_action_state_rows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/post_action_state_row" },
+          "description": "One row per affected scope; bounded by the closed compare-scope vocabulary so the sheet cannot silently expand into an undocumented blast radius."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preserved_copy_required", "summary"],
+      "properties": {
+        "preserved_copy_required": {
+          "type": "boolean",
+          "description": "True when the artifact still carries user-owned data, diagnostics value, policy-bound evidence, or when the recommended action is replace or discard."
+        },
+        "preserved_copy_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id of the quarantined_copy_record produced under schemas/recovery/quarantined_copy_record.schema.json. Required when preserved_copy_required is true."
+        },
+        "preserve_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preserve_reason_class" },
+          "uniqueItems": true,
+          "description": "Closed preserve-reason set. At least one entry is required when preserved_copy_required is true."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "preserved_copy_required": { "const": true } },
+            "required": ["preserved_copy_required"]
+          },
+          "then": {
+            "required": ["preserved_copy_ref", "preserve_reasons"],
+            "properties": {
+              "preserve_reasons": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "available_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "verb_class",
+        "reversibility_class",
+        "destructive_risk_class",
+        "summary"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/rescue_action_class" },
+        "verb_class": { "$ref": "#/$defs/rescue_verb_class" },
+        "reversibility_class": { "$ref": "#/$defs/reversibility_class" },
+        "destructive_risk_class": { "$ref": "#/$defs/destructive_risk_class" },
+        "covering_promise_class": { "$ref": "#/$defs/covering_promise_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        { "$ref": "#/$defs/action_class_to_verb_binding" },
+        { "$ref": "#/$defs/verb_to_reversibility_binding" },
+        { "$ref": "#/$defs/verb_to_destructive_risk_binding" },
+        {
+          "if": {
+            "properties": {
+              "verb_class": { "const": "restore" }
+            },
+            "required": ["verb_class"]
+          },
+          "then": {
+            "required": ["covering_promise_class"]
+          }
+        }
+      ]
+    },
+    "recommended_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "verb_class",
+        "reversibility_class",
+        "destructive_risk_class",
+        "summary"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/rescue_action_class" },
+        "verb_class": { "$ref": "#/$defs/rescue_verb_class" },
+        "reversibility_class": { "$ref": "#/$defs/reversibility_class" },
+        "destructive_risk_class": { "$ref": "#/$defs/destructive_risk_class" },
+        "covering_promise_class": { "$ref": "#/$defs/covering_promise_class" },
+        "must_precede": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/must_precede_class" },
+          "uniqueItems": true
+        },
+        "no_undo_acknowledgement_required": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        { "$ref": "#/$defs/action_class_to_verb_binding" },
+        { "$ref": "#/$defs/verb_to_reversibility_binding" },
+        { "$ref": "#/$defs/verb_to_destructive_risk_binding" },
+        {
+          "description": "Restore actions MUST cite a covering recovery-promise class.",
+          "if": {
+            "properties": {
+              "verb_class": { "const": "restore" }
+            },
+            "required": ["verb_class"]
+          },
+          "then": {
+            "required": ["covering_promise_class"]
+          }
+        },
+        {
+          "description": "Replace and discard MUST list export_quarantined_copy AND capture_local_checkpoint as required pre-actions, AND set the no-undo acknowledgement.",
+          "if": {
+            "properties": {
+              "verb_class": { "enum": ["replace", "discard"] }
+            },
+            "required": ["verb_class"]
+          },
+          "then": {
+            "required": ["must_precede", "no_undo_acknowledgement_required"],
+            "properties": {
+              "must_precede": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "const": "export_quarantined_copy" } },
+                  { "contains": { "const": "capture_local_checkpoint" } }
+                ]
+              },
+              "no_undo_acknowledgement_required": { "const": true },
+              "destructive_risk_class": { "const": "destructive_user_authored_no_undo_export_required" }
+            }
+          }
+        },
+        {
+          "description": "Restore actions MUST list capture_local_checkpoint as a required pre-action so the destructive write is reversible.",
+          "if": {
+            "properties": {
+              "verb_class": { "const": "restore" }
+            },
+            "required": ["verb_class"]
+          },
+          "then": {
+            "required": ["must_precede"],
+            "properties": {
+              "must_precede": {
+                "type": "array",
+                "contains": { "const": "capture_local_checkpoint" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "action_class_to_verb_binding": {
+      "description": "Binds each rescue_action_class to exactly one verb_class so action and verb cannot drift.",
+      "allOf": [
+        {
+          "if": { "properties": { "action_class": { "const": "inspect_only" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "inspect" } }, "required": ["verb_class"] }
+        },
+        {
+          "if": { "properties": { "action_class": { "const": "export_quarantined_copy" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "export" } }, "required": ["verb_class"] }
+        },
+        {
+          "if": { "properties": { "action_class": { "const": "rebuild_disposable_state" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "rebuild" } }, "required": ["verb_class"] }
+        },
+        {
+          "if": { "properties": { "action_class": { "const": "restore_from_authoritative_backup" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "restore" }, "covering_promise_class": { "const": "authoritative_backup" } }, "required": ["verb_class", "covering_promise_class"] }
+        },
+        {
+          "if": { "properties": { "action_class": { "const": "restore_from_sync_replica" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "restore" }, "covering_promise_class": { "const": "sync_replica" } }, "required": ["verb_class", "covering_promise_class"] }
+        },
+        {
+          "if": { "properties": { "action_class": { "const": "restore_from_local_checkpoint" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "restore" }, "covering_promise_class": { "const": "local_checkpoint" } }, "required": ["verb_class", "covering_promise_class"] }
+        },
+        {
+          "if": { "properties": { "action_class": { "const": "replace_with_default_after_quarantine" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "replace" } }, "required": ["verb_class"] }
+        },
+        {
+          "if": { "properties": { "action_class": { "const": "discard_after_export_acknowledged" } }, "required": ["action_class"] },
+          "then": { "properties": { "verb_class": { "const": "discard" } }, "required": ["verb_class"] }
+        }
+      ]
+    },
+    "verb_to_reversibility_binding": {
+      "description": "Binds each rescue verb to its allowed reversibility range; a sheet that says 'discard' cannot claim compensating_action.",
+      "allOf": [
+        {
+          "if": { "properties": { "verb_class": { "const": "inspect" } }, "required": ["verb_class"] },
+          "then": { "properties": { "reversibility_class": { "const": "exact_undo" } }, "required": ["reversibility_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "export" } }, "required": ["verb_class"] },
+          "then": { "properties": { "reversibility_class": { "enum": ["exact_undo", "compensating_action"] } }, "required": ["reversibility_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "rebuild" } }, "required": ["verb_class"] },
+          "then": { "properties": { "reversibility_class": { "const": "regeneration" } }, "required": ["reversibility_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "restore" } }, "required": ["verb_class"] },
+          "then": { "properties": { "reversibility_class": { "enum": ["checkpoint_restore", "compensating_action"] } }, "required": ["reversibility_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "replace" } }, "required": ["verb_class"] },
+          "then": { "properties": { "reversibility_class": { "const": "no_undo_export_only" } }, "required": ["reversibility_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "discard" } }, "required": ["verb_class"] },
+          "then": { "properties": { "reversibility_class": { "const": "no_undo_export_only" } }, "required": ["reversibility_class"] }
+        }
+      ]
+    },
+    "verb_to_destructive_risk_binding": {
+      "description": "Binds each rescue verb to its allowed destructive-risk range; rebuild rides only writes_disposable_state_only, replace/discard ride only the no-undo class.",
+      "allOf": [
+        {
+          "if": { "properties": { "verb_class": { "const": "inspect" } }, "required": ["verb_class"] },
+          "then": { "properties": { "destructive_risk_class": { "const": "non_destructive_read_only" } }, "required": ["destructive_risk_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "export" } }, "required": ["verb_class"] },
+          "then": { "properties": { "destructive_risk_class": { "const": "non_destructive_writes_local_evidence_only" } }, "required": ["destructive_risk_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "rebuild" } }, "required": ["verb_class"] },
+          "then": { "properties": { "destructive_risk_class": { "const": "writes_disposable_state_only" } }, "required": ["destructive_risk_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "const": "restore" } }, "required": ["verb_class"] },
+          "then": { "properties": { "destructive_risk_class": { "enum": ["mutates_workspace_bytes_with_checkpoint", "mutates_profile_state_with_checkpoint_and_export"] } }, "required": ["destructive_risk_class"] }
+        },
+        {
+          "if": { "properties": { "verb_class": { "enum": ["replace", "discard"] } }, "required": ["verb_class"] },
+          "then": { "properties": { "destructive_risk_class": { "const": "destructive_user_authored_no_undo_export_required" } }, "required": ["destructive_risk_class"] }
+        }
+      ]
+    },
+    "linkage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_doctor",
+        "repair_transaction_preview",
+        "export_before_destructive_action"
+      ],
+      "properties": {
+        "project_doctor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["probe_family_class", "summary"],
+          "properties": {
+            "probe_family_class": { "$ref": "#/$defs/probe_family_class" },
+            "doctor_finding_code_refs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/opaque_id" },
+              "uniqueItems": true
+            },
+            "scenario_matrix_row_ref": { "$ref": "#/$defs/opaque_id" },
+            "summary": { "$ref": "#/$defs/short_text" }
+          }
+        },
+        "repair_transaction_preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preview_required", "summary"],
+          "properties": {
+            "preview_required": { "type": "boolean" },
+            "repair_transaction_ref": { "$ref": "#/$defs/opaque_id" },
+            "repair_preview_ref": { "$ref": "#/$defs/opaque_id" },
+            "approved_repair_class": { "$ref": "#/$defs/approved_repair_class" },
+            "summary": { "$ref": "#/$defs/short_text" }
+          }
+        },
+        "support_intake": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scenario_picker_row_ref", "summary"],
+          "properties": {
+            "scenario_picker_row_ref": { "$ref": "#/$defs/opaque_id" },
+            "escalation_packet_ref": { "$ref": "#/$defs/opaque_id" },
+            "completeness_outcome_floor": { "$ref": "#/$defs/completeness_outcome_class" },
+            "summary": { "$ref": "#/$defs/short_text" }
+          }
+        },
+        "export_before_destructive_action": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["export_required", "summary"],
+          "properties": {
+            "export_required": {
+              "type": "boolean",
+              "description": "True when the recommended action carries destructive_user_authored_no_undo_export_required risk. The schema requires export_artifact_ref, redaction_class, and local_only_by_default when this is true."
+            },
+            "export_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+            "redaction_class": { "$ref": "#/$defs/data_class_boundary_class" },
+            "local_only_by_default": {
+              "type": "boolean",
+              "const": true,
+              "description": "Quarantined-copy convenience exports never silently leave the device."
+            },
+            "summary": { "$ref": "#/$defs/short_text" }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "export_required": { "const": true } },
+                "required": ["export_required"]
+              },
+              "then": {
+                "required": ["export_artifact_ref", "redaction_class", "local_only_by_default"]
+              }
+            }
+          ]
+        },
+        "recovery_scenario_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "continuity_status_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "recovery_action_record_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corrupt_artifact_class_is_closed",
+        "artifact_value_posture_named",
+        "preserved_copy_before_destructive_action",
+        "healthy_candidate_source_named",
+        "retained_versus_replaced_explicit",
+        "no_overpromise_of_reversibility",
+        "linkage_is_typed"
+      ],
+      "properties": {
+        "corrupt_artifact_class_is_closed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the sheet resolves to exactly one closed corrupt-artifact class and never collapses two artifacts into one row."
+        },
+        "artifact_value_posture_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the sheet declares one closed value posture; the user is never told the artifact is corrupt without a named anchor for what value it still carries."
+        },
+        "preserved_copy_before_destructive_action": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that any replace or discard action is gated behind a typed quarantined-copy ref, an export_quarantined_copy pre-action, a capture_local_checkpoint pre-action, and a no-undo acknowledgement."
+        },
+        "healthy_candidate_source_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the sheet either names one healthy-candidate source class or names no_healthy_candidate_available explicitly."
+        },
+        "retained_versus_replaced_explicit": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the compare preview carries one closed post-action-state class per affected scope."
+        },
+        "no_overpromise_of_reversibility": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that verb wording binds reversibility class; replace and discard ride no_undo_export_only and never claim compensating_action."
+        },
+        "linkage_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that linkage refs are typed (probe_family_class, repair_transaction_ref, recovery_scenario_card_ref, scenario_picker_row_ref, export_artifact_ref) rather than free-form prose."
+        }
+      }
+    },
+    "corruption_rescue_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "corruption_rescue_sheet_schema_version",
+        "sheet_id",
+        "generated_at",
+        "scenario_family_class",
+        "title",
+        "summary",
+        "corrupt_artifact_class",
+        "artifact_value_posture",
+        "healthy_candidate",
+        "compare_preview",
+        "preservation",
+        "available_actions",
+        "recommended_action",
+        "linkage",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "corruption_rescue_sheet_schema_version": { "$ref": "#/$defs/corruption_rescue_sheet_schema_version" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scenario_family_class": { "$ref": "#/$defs/recovery_scenario_family_class" },
+        "title": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" },
+        "corrupt_artifact_class": { "$ref": "#/$defs/corrupt_artifact_class" },
+        "artifact_value_posture": { "$ref": "#/$defs/artifact_value_posture" },
+        "healthy_candidate": { "$ref": "#/$defs/healthy_candidate" },
+        "compare_preview": { "$ref": "#/$defs/compare_preview" },
+        "preservation": { "$ref": "#/$defs/preservation" },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/available_action" }
+        },
+        "recommended_action": { "$ref": "#/$defs/recommended_action" },
+        "linkage": { "$ref": "#/$defs/linkage_block" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "Preservation is REQUIRED when the artifact still carries user-owned data, recovery state, evidence, forensics value, or install-chain metadata.",
+          "if": {
+            "properties": {
+              "artifact_value_posture": {
+                "enum": [
+                  "user_authored_durable",
+                  "user_owned_recovery_state",
+                  "mixed_user_and_derived",
+                  "policy_bound_evidence",
+                  "local_forensics_only",
+                  "install_chain_metadata"
+                ]
+              }
+            },
+            "required": ["artifact_value_posture"]
+          },
+          "then": {
+            "properties": {
+              "preservation": {
+                "properties": {
+                  "preserved_copy_required": { "const": true }
+                },
+                "required": ["preserved_copy_required"]
+              }
+            },
+            "required": ["preservation"]
+          }
+        },
+        {
+          "description": "Preservation is REQUIRED when the recommended action's verb is replace or discard.",
+          "if": {
+            "properties": {
+              "recommended_action": {
+                "properties": {
+                  "verb_class": { "enum": ["replace", "discard"] }
+                },
+                "required": ["verb_class"]
+              }
+            },
+            "required": ["recommended_action"]
+          },
+          "then": {
+            "properties": {
+              "preservation": {
+                "properties": {
+                  "preserved_copy_required": { "const": true }
+                },
+                "required": ["preserved_copy_required"]
+              },
+              "linkage": {
+                "properties": {
+                  "export_before_destructive_action": {
+                    "properties": {
+                      "export_required": { "const": true }
+                    },
+                    "required": ["export_required"]
+                  }
+                },
+                "required": ["export_before_destructive_action"]
+              }
+            },
+            "required": ["preservation", "linkage"]
+          }
+        },
+        {
+          "description": "Rebuild may only target derived_disposable_only artifacts AND MUST cite regeneration_from_authoritative_workspace_bytes as the healthy-candidate source.",
+          "if": {
+            "properties": {
+              "recommended_action": {
+                "properties": {
+                  "verb_class": { "const": "rebuild" }
+                },
+                "required": ["verb_class"]
+              }
+            },
+            "required": ["recommended_action"]
+          },
+          "then": {
+            "properties": {
+              "artifact_value_posture": { "const": "derived_disposable_only" },
+              "healthy_candidate": {
+                "properties": {
+                  "source_class": { "const": "regeneration_from_authoritative_workspace_bytes" }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["artifact_value_posture", "healthy_candidate"]
+          }
+        },
+        {
+          "description": "Replace may only run when the healthy-candidate source is default_initialization_template AND a quarantined copy has been preserved.",
+          "if": {
+            "properties": {
+              "recommended_action": {
+                "properties": {
+                  "verb_class": { "const": "replace" }
+                },
+                "required": ["verb_class"]
+              }
+            },
+            "required": ["recommended_action"]
+          },
+          "then": {
+            "properties": {
+              "healthy_candidate": {
+                "properties": {
+                  "source_class": { "const": "default_initialization_template" }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["healthy_candidate"]
+          }
+        },
+        {
+          "description": "Restore actions MUST cite a covering recovery-promise via healthy_candidate.source_class drawn from the covering_* set.",
+          "if": {
+            "properties": {
+              "recommended_action": {
+                "properties": {
+                  "verb_class": { "const": "restore" }
+                },
+                "required": ["verb_class"]
+              }
+            },
+            "required": ["recommended_action"]
+          },
+          "then": {
+            "properties": {
+              "healthy_candidate": {
+                "properties": {
+                  "source_class": {
+                    "enum": [
+                      "covering_authoritative_backup",
+                      "covering_sync_replica",
+                      "covering_local_checkpoint"
+                    ]
+                  }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["healthy_candidate"]
+          }
+        },
+        {
+          "description": "When no healthy candidate is available, the recommended action MUST be inspect_only or export_quarantined_copy.",
+          "if": {
+            "properties": {
+              "healthy_candidate": {
+                "properties": {
+                  "source_class": { "const": "no_healthy_candidate_available" }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["healthy_candidate"]
+          },
+          "then": {
+            "properties": {
+              "recommended_action": {
+                "properties": {
+                  "action_class": {
+                    "enum": ["inspect_only", "export_quarantined_copy"]
+                  }
+                },
+                "required": ["action_class"]
+              },
+              "compare_preview": {
+                "not": { "required": ["healthy_witness"] }
+              }
+            },
+            "required": ["recommended_action", "compare_preview"]
+          }
+        },
+        {
+          "description": "When a healthy candidate IS available (any source class other than no_healthy_candidate_available), compare_preview MUST carry a typed healthy_witness.",
+          "if": {
+            "properties": {
+              "healthy_candidate": {
+                "properties": {
+                  "source_class": {
+                    "not": { "const": "no_healthy_candidate_available" }
+                  }
+                },
+                "required": ["source_class"]
+              }
+            },
+            "required": ["healthy_candidate"]
+          },
+          "then": {
+            "properties": {
+              "compare_preview": {
+                "required": ["healthy_witness"]
+              }
+            },
+            "required": ["compare_preview"]
+          }
+        },
+        {
+          "description": "When the recommended action is destructive (verb is replace or discard), the export-before-destructive linkage MUST require an export and the no-undo acknowledgement MUST be set.",
+          "if": {
+            "properties": {
+              "recommended_action": {
+                "properties": {
+                  "destructive_risk_class": { "const": "destructive_user_authored_no_undo_export_required" }
+                },
+                "required": ["destructive_risk_class"]
+              }
+            },
+            "required": ["recommended_action"]
+          },
+          "then": {
+            "properties": {
+              "recommended_action": {
+                "properties": {
+                  "no_undo_acknowledgement_required": { "const": true }
+                },
+                "required": ["no_undo_acknowledgement_required"]
+              },
+              "preservation": {
+                "properties": {
+                  "preserved_copy_required": { "const": true }
+                },
+                "required": ["preserved_copy_required"]
+              },
+              "linkage": {
+                "properties": {
+                  "export_before_destructive_action": {
+                    "properties": {
+                      "export_required": { "const": true }
+                    },
+                    "required": ["export_required"]
+                  }
+                },
+                "required": ["export_before_destructive_action"]
+              }
+            },
+            "required": ["recommended_action", "preservation", "linkage"]
+          }
+        }
+      ]
+    }
+  }
+}

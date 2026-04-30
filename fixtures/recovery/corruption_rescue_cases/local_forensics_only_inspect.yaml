@@ -1,0 +1,156 @@
+# yaml-language-server: $schema=../../../schemas/recovery/corruption_rescue_sheet.schema.json
+__fixture__:
+  name: local_forensics_only_inspect
+  scenario: >
+    A workspace_authority_checkpoint_index whose backing file lost
+    integrity and for which no covering authoritative backup, sync
+    replica, or local checkpoint is available; the bytes carry only
+    forensics value for a pending investigation. The artifact is
+    local_forensics_only with no_healthy_candidate_available. The
+    compare sheet recommends inspect_only; replace, discard, rebuild,
+    and restore are forbidden by the schema in this state. A typed
+    quarantined copy is preserved with visibility=local_forensics_only
+    and is held for the pending investigation.
+  doc_sections:
+    - "§1 Record model"
+    - "§3 Artifact value posture (local_forensics_only)"
+    - "§6 Healthy-candidate sources (no_healthy_candidate_available)"
+    - "§7 Compare preview"
+    - "§8 Preservation decision"
+    - "§11 Honesty invariants"
+    - "§12 Surface rules (rule 8)"
+
+record_kind: corruption_rescue_sheet_record
+corruption_rescue_sheet_schema_version: 1
+sheet_id: crs-workspace-authority-checkpoint-index-forensics-0001
+generated_at: "mono:6101:18:05:11.0002"
+
+scenario_family_class: workspace_index_corruption
+title: Workspace-authority checkpoint index — forensics-only inspect
+summary: >
+  Workspace-authority checkpoint index is corrupt and uncovered by
+  any restore source; the bytes are held for a pending investigation
+  under local-forensics-only visibility. No destructive verb is
+  available; inspect-only is the safe action.
+
+corrupt_artifact_class: workspace_authority_checkpoint_index
+artifact_value_posture: local_forensics_only
+
+healthy_candidate:
+  source_class: no_healthy_candidate_available
+  summary: >
+    No covering authoritative backup, sync replica, or local
+    checkpoint covers the corrupt checkpoint index; rebuild has no
+    authoritative regeneration source for this artifact, and replace
+    against a default is forbidden while a forensics investigation
+    is pending.
+
+compare_preview:
+  corrupt_witness:
+    artifact_identity_token: artifact_identity:workspace_authority_checkpoint_index.suspect.0001
+    integrity_witness_class: no_integrity_witness
+    redaction_class: code_adjacent
+    summary: >
+      Suspect checkpoint index witness; the integrity witness is
+      missing because the file's footer is unreadable.
+  post_action_state_rows:
+    - scope_class: workspace
+      post_action_state_class: kept_intact
+      summary: >
+        User-authored workspace bytes are not touched; inspect-only
+        does not mutate workspace state.
+    - scope_class: derived
+      post_action_state_class: retained_in_quarantine
+      summary: >
+        The corrupt checkpoint-index bytes are retained in
+        quarantine for the pending investigation; the live system
+        runs without the corrupt index.
+    - scope_class: layout
+      post_action_state_class: exported_only_no_change
+      summary: >
+        Window layout is preserved by an out-of-band export; no
+        layout state is mutated by this sheet.
+  summary: >
+    Compare preview shows workspace bytes intact, the corrupt
+    checkpoint-index retained in quarantine, and layout
+    exported-only with no change. No healthy candidate exists for
+    this artifact.
+
+preservation:
+  preserved_copy_required: true
+  preserved_copy_ref: quarantined_copy:workspace_authority_checkpoint_index.0001
+  preserve_reasons:
+    - forensics_required_by_pending_investigation
+    - carries_diagnostics_value
+    - ownership_indeterminate
+  summary: >
+    The corrupt checkpoint-index is preserved for a pending
+    forensics investigation; ownership of the bytes is
+    indeterminate until the investigation resolves.
+
+available_actions:
+  - action_class: inspect_only
+    verb_class: inspect
+    reversibility_class: exact_undo
+    destructive_risk_class: non_destructive_read_only
+    summary: >
+      Inspect the cache_profile_probe Doctor packet and the compare
+      preview; no bytes change.
+  - action_class: export_quarantined_copy
+    verb_class: export
+    reversibility_class: exact_undo
+    destructive_risk_class: non_destructive_writes_local_evidence_only
+    summary: >
+      Write the quarantined-copy export to the local-only support-
+      bundle lane for the pending investigation.
+
+recommended_action:
+  action_class: inspect_only
+  verb_class: inspect
+  reversibility_class: exact_undo
+  destructive_risk_class: non_destructive_read_only
+  no_undo_acknowledgement_required: false
+  summary: >
+    Inspect-only. No destructive verb is available while the
+    forensics investigation is pending; replace, discard, rebuild,
+    and restore are forbidden in this state.
+
+linkage:
+  project_doctor:
+    probe_family_class: cache_profile_probe
+    doctor_finding_code_refs:
+      - doctor.finding.checkpoint.index_footer_unreadable
+    scenario_matrix_row_ref: scenario_row:incompatible_cache_profile
+    summary: >
+      Doctor's cache_profile_probe found the unreadable footer in
+      the workspace-authority checkpoint index; the inspect path
+      reads from that finding.
+  repair_transaction_preview:
+    preview_required: false
+    summary: >
+      No repair is proposed while the forensics investigation is
+      pending; inspect-only is the safe action.
+  support_intake:
+    scenario_picker_row_ref: support_scenario_picker:state_corruption_schema_drift
+    escalation_packet_ref: escalation_packet:workspace_authority_checkpoint_forensics.0001
+    completeness_outcome_floor: complete_with_typed_unknowns
+    summary: >
+      Support intake retains the Doctor finding, the quarantined-
+      copy ref under local-forensics-only visibility, and the
+      pending-investigation note.
+  export_before_destructive_action:
+    export_required: false
+    summary: >
+      No destructive action is recommended; the export-before-
+      destructive gate does not apply.
+  recovery_scenario_card_ref: rsc-workspace-index-corruption-0001
+  continuity_status_card_ref: csc-air-gapped-workspace-index-pre-rebuild-0003
+
+honesty_invariants:
+  corrupt_artifact_class_is_closed: true
+  artifact_value_posture_named: true
+  preserved_copy_before_destructive_action: true
+  healthy_candidate_source_named: true
+  retained_versus_replaced_explicit: true
+  no_overpromise_of_reversibility: true
+  linkage_is_typed: true

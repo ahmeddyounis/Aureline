@@ -1,0 +1,183 @@
+# yaml-language-server: $schema=../../../schemas/recovery/corruption_rescue_sheet.schema.json
+__fixture__:
+  name: suspect_profile_settings_store
+  scenario: >
+    A profile_corruption scenario where the profile-settings store
+    has lost integrity and no authoritative backup or sync replica
+    covers it. The artifact is user_authored_durable. The compare
+    sheet recommends the replace path (verb=replace,
+    no_undo_export_only, destructive_user_authored_no_undo_export_required)
+    against a fresh-default profile template, gated behind a typed
+    quarantined-copy preservation, an export_quarantined_copy
+    pre-action, a capture_local_checkpoint pre-action, and a
+    no-undo acknowledgement.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Corrupt-artifact classes"
+    - "§3 Artifact value posture"
+    - "§4 Rescue-verb vocabulary (replace)"
+    - "§7 Compare preview"
+    - "§8 Preservation decision"
+    - "§9 Recommended action"
+    - "§11 Honesty invariants"
+    - "§12 Surface rules"
+
+record_kind: corruption_rescue_sheet_record
+corruption_rescue_sheet_schema_version: 1
+sheet_id: crs-profile-settings-store-replace-0001
+generated_at: "mono:6101:09:14:08.0001"
+
+scenario_family_class: profile_corruption
+title: Profile settings store — quarantined replace with default
+summary: >
+  Profile-settings store lost integrity; no authoritative backup or
+  sync replica covers it. Quarantine the suspect file, capture a
+  workspace-authority checkpoint, export a convenience copy, and
+  replace with a fresh-default profile template under no-undo
+  acknowledgement.
+
+corrupt_artifact_class: profile_settings_store
+artifact_value_posture: user_authored_durable
+
+healthy_candidate:
+  source_class: default_initialization_template
+  source_ref: default_template:profile_settings.fresh_baseline
+  summary: >
+    No covering backup, replica, or local checkpoint covers the
+    profile-settings store. The fresh-default profile template is
+    the only healthy candidate; replace is the path.
+
+compare_preview:
+  corrupt_witness:
+    artifact_identity_token: artifact_identity:profile_settings_store.suspect.0001
+    integrity_witness_class: checksum_recorded
+    redaction_class: code_adjacent
+    summary: >
+      Suspect profile-settings store witness. Integrity checksum
+      recorded; raw bytes are not carried.
+  healthy_witness:
+    source_identity_token: source_identity:profile_settings.fresh_baseline.0001
+    source_class: default_initialization_template
+    redaction_class: metadata_only
+    summary: >
+      Fresh-default profile template; the post-replace profile is
+      a clean baseline without the user's prior durable settings.
+  post_action_state_rows:
+    - scope_class: profile
+      post_action_state_class: replaced_with_default
+      summary: >
+        The corrupt profile-settings store is replaced by a fresh
+        default; user-typed durable settings are not carried over.
+    - scope_class: workspace
+      post_action_state_class: kept_intact
+      summary: >
+        User-authored workspace bytes are not touched by the
+        replace path.
+    - scope_class: evidence
+      post_action_state_class: kept_intact
+      summary: >
+        Evidence packets are not touched; the quarantined copy of
+        the corrupt store does not commingle with evidence.
+    - scope_class: layout
+      post_action_state_class: kept_intact
+      summary: >
+        Window layout is preserved by the captured checkpoint.
+  summary: >
+    Compare preview shows profile replaced with default while
+    workspace, evidence, and layout remain intact. The corrupt
+    store is preserved in quarantine.
+
+preservation:
+  preserved_copy_required: true
+  preserved_copy_ref: quarantined_copy:profile_settings_store.0001
+  preserve_reasons:
+    - carries_user_authored_bytes
+    - carries_diagnostics_value
+  summary: >
+    The corrupt profile-settings store carries user-typed durable
+    settings and diagnostics value; a quarantined copy is preserved
+    before the replace runs.
+
+available_actions:
+  - action_class: inspect_only
+    verb_class: inspect
+    reversibility_class: exact_undo
+    destructive_risk_class: non_destructive_read_only
+    summary: >
+      Inspect the Doctor finding and compare preview; no bytes
+      change.
+  - action_class: export_quarantined_copy
+    verb_class: export
+    reversibility_class: exact_undo
+    destructive_risk_class: non_destructive_writes_local_evidence_only
+    summary: >
+      Write the quarantined-copy export to the local-only export
+      lane before the replace runs.
+  - action_class: replace_with_default_after_quarantine
+    verb_class: replace
+    reversibility_class: no_undo_export_only
+    destructive_risk_class: destructive_user_authored_no_undo_export_required
+    summary: >
+      Replace the corrupt profile-settings store with the fresh
+      default after the quarantine, checkpoint, and export run.
+
+recommended_action:
+  action_class: replace_with_default_after_quarantine
+  verb_class: replace
+  reversibility_class: no_undo_export_only
+  destructive_risk_class: destructive_user_authored_no_undo_export_required
+  must_precede:
+    - export_quarantined_copy
+    - capture_local_checkpoint
+  no_undo_acknowledgement_required: true
+  summary: >
+    Replace the corrupt profile-settings store with a fresh default.
+    The action is no-undo; the user MUST acknowledge before apply.
+    Quarantine, checkpoint, and export pre-actions are required.
+
+linkage:
+  project_doctor:
+    probe_family_class: cache_profile_probe
+    doctor_finding_code_refs:
+      - doctor.finding.profile.schema_drift
+      - doctor.finding.profile.settings_hash_failure
+    scenario_matrix_row_ref: scenario_row:incompatible_cache_profile
+    summary: >
+      Doctor's cache_profile_probe found schema drift and a
+      settings-store hash failure; replace scope is read from
+      those rows.
+  repair_transaction_preview:
+    preview_required: true
+    repair_transaction_ref: repair_transaction:profile_settings_store.guided_export_escalation
+    repair_preview_ref: repair_preview:profile_settings_store.guided_export_escalation
+    approved_repair_class: guided_export_escalation
+    summary: >
+      The replace path runs through the repair-transaction preview
+      so the reviewer sees the destructive scope before apply.
+  support_intake:
+    scenario_picker_row_ref: support_scenario_picker:state_corruption_schema_drift
+    escalation_packet_ref: escalation_packet:profile_settings_store_replace.0001
+    completeness_outcome_floor: complete_with_typed_unknowns
+    summary: >
+      Support intake retains the Doctor finding, the quarantined-
+      copy ref, the export ref, and the replace repair-preview ref.
+  export_before_destructive_action:
+    export_required: true
+    export_artifact_ref: export_artifact:profile_settings_store.portable_state_pre_replace
+    redaction_class: code_adjacent
+    local_only_by_default: true
+    summary: >
+      A local-only convenience export is required before the
+      replace runs. The export never silently leaves the device.
+  recovery_scenario_card_ref: rsc-profile-corruption-0001
+  continuity_status_card_ref: csc-self-hosted-profile-pre-repair-0007
+  recovery_action_record_ref: recovery_action:typed_repair_flow.profile_settings_store_replace_after_quarantine
+
+honesty_invariants:
+  corrupt_artifact_class_is_closed: true
+  artifact_value_posture_named: true
+  preserved_copy_before_destructive_action: true
+  healthy_candidate_source_named: true
+  retained_versus_replaced_explicit: true
+  no_overpromise_of_reversibility: true
+  linkage_is_typed: true

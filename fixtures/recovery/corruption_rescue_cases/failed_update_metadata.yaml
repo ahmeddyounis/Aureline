@@ -1,0 +1,190 @@
+# yaml-language-server: $schema=../../../schemas/recovery/corruption_rescue_sheet.schema.json
+__fixture__:
+  name: failed_update_metadata
+  scenario: >
+    A failed_update scenario where the install-chain metadata for the
+    applied update lost integrity. The previous install snapshot is
+    on disk as a covering local checkpoint. The artifact is
+    install_chain_metadata; preservation is REQUIRED because the
+    metadata carries diagnostics value the rollback path relies on.
+    The compare sheet recommends the restore path (verb=restore,
+    checkpoint_restore, mutates_profile_state_with_checkpoint_and_export)
+    against covering_local_checkpoint, gated behind a typed
+    quarantined-copy preservation, a capture_local_checkpoint
+    pre-action, and an export_quarantined_copy pre-action.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Corrupt-artifact classes"
+    - "§3 Artifact value posture"
+    - "§4 Rescue-verb vocabulary (restore)"
+    - "§6 Healthy-candidate sources"
+    - "§7 Compare preview"
+    - "§8 Preservation decision"
+    - "§9 Recommended action"
+    - "§11 Honesty invariants"
+
+record_kind: corruption_rescue_sheet_record
+corruption_rescue_sheet_schema_version: 1
+sheet_id: crs-failed-update-metadata-restore-0001
+generated_at: "mono:6101:13:42:18.0007"
+
+scenario_family_class: failed_update
+title: Failed update metadata — restore from previous-install checkpoint
+summary: >
+  Install-chain metadata for the applied update lost integrity; the
+  previous install is on disk as a covering local checkpoint.
+  Quarantine the suspect metadata, capture a workspace-authority
+  checkpoint, export a convenience copy, and restore from the
+  previous-install checkpoint.
+
+corrupt_artifact_class: update_install_metadata
+artifact_value_posture: install_chain_metadata
+
+healthy_candidate:
+  source_class: covering_local_checkpoint
+  covering_promise_class: local_checkpoint
+  source_ref: local_checkpoint:previous_install.snapshot.0009
+  summary: >
+    The previous install's metadata snapshot is on disk and serves as
+    the covering local checkpoint for the restore.
+
+compare_preview:
+  corrupt_witness:
+    artifact_identity_token: artifact_identity:update_install_metadata.suspect.0001
+    integrity_witness_class: signature_recorded
+    redaction_class: environment_adjacent
+    summary: >
+      Suspect install-chain metadata witness. Signature verification
+      failed; raw signature bytes are not carried.
+  healthy_witness:
+    source_identity_token: source_identity:previous_install.snapshot.0009
+    source_class: covering_local_checkpoint
+    redaction_class: environment_adjacent
+    summary: >
+      Previous-install metadata snapshot covering the restore;
+      signature verification succeeds.
+  post_action_state_rows:
+    - scope_class: profile
+      post_action_state_class: restored_from_covering_promise
+      summary: >
+        Install-chain metadata is restored from the previous-install
+        snapshot.
+    - scope_class: workspace
+      post_action_state_class: kept_intact
+      summary: >
+        User-authored workspace bytes are not touched.
+    - scope_class: derived
+      post_action_state_class: regenerated_from_authoritative
+      summary: >
+        Disposable derived caches that depended on the corrupt
+        metadata are regenerated from the restored install state.
+    - scope_class: layout
+      post_action_state_class: kept_intact
+      summary: >
+        Window layout is preserved by the captured checkpoint.
+  summary: >
+    Compare preview shows install-chain metadata restored from the
+    previous-install checkpoint, derived caches regenerated, and
+    workspace and layout intact.
+
+preservation:
+  preserved_copy_required: true
+  preserved_copy_ref: quarantined_copy:update_install_metadata.0001
+  preserve_reasons:
+    - carries_diagnostics_value
+    - mixed_user_and_derived_indeterminate
+  summary: >
+    The suspect install-chain metadata carries diagnostics value the
+    rollback path relies on; a quarantined copy is preserved before
+    the restore runs.
+
+available_actions:
+  - action_class: inspect_only
+    verb_class: inspect
+    reversibility_class: exact_undo
+    destructive_risk_class: non_destructive_read_only
+    summary: >
+      Inspect the toolchain_probe Doctor packet and the compare
+      preview; no bytes change.
+  - action_class: export_quarantined_copy
+    verb_class: export
+    reversibility_class: exact_undo
+    destructive_risk_class: non_destructive_writes_local_evidence_only
+    summary: >
+      Write the quarantined-copy export to the local-only export
+      lane before the restore runs.
+  - action_class: restore_from_local_checkpoint
+    verb_class: restore
+    reversibility_class: checkpoint_restore
+    destructive_risk_class: mutates_profile_state_with_checkpoint_and_export
+    covering_promise_class: local_checkpoint
+    summary: >
+      Restore install-chain metadata from the previous-install
+      snapshot under a captured workspace-authority checkpoint.
+
+recommended_action:
+  action_class: restore_from_local_checkpoint
+  verb_class: restore
+  reversibility_class: checkpoint_restore
+  destructive_risk_class: mutates_profile_state_with_checkpoint_and_export
+  covering_promise_class: local_checkpoint
+  must_precede:
+    - capture_local_checkpoint
+    - export_quarantined_copy
+  no_undo_acknowledgement_required: false
+  summary: >
+    Restore install-chain metadata from the previous-install
+    snapshot. A workspace-authority checkpoint and a quarantined-
+    copy export precede the restore so the destructive write
+    remains reversible.
+
+linkage:
+  project_doctor:
+    probe_family_class: toolchain_probe
+    doctor_finding_code_refs:
+      - doctor.finding.update.metadata_signature_failure
+      - doctor.finding.update.helper_skew
+    scenario_matrix_row_ref: scenario_row:missing_toolchain
+    summary: >
+      Doctor's toolchain_probe found the install-metadata signature
+      failure and the helper-skew finding; restore scope is read
+      from those rows.
+  repair_transaction_preview:
+    preview_required: true
+    repair_transaction_ref: repair_transaction:failed_update.extension_rollback_reinstall
+    repair_preview_ref: repair_preview:failed_update.extension_rollback_reinstall
+    approved_repair_class: extension_rollback_reinstall
+    summary: >
+      Restore is proposed via the repair-transaction preview; apply
+      only after the convenience export and the workspace-authority
+      checkpoint are captured.
+  support_intake:
+    scenario_picker_row_ref: support_scenario_picker:execution_context_mismatch
+    escalation_packet_ref: escalation_packet:failed_update_metadata.0001
+    completeness_outcome_floor: complete_with_typed_unknowns
+    summary: >
+      Support intake retains the toolchain probe finding, the
+      quarantined-copy ref, the export ref, and the restore
+      repair-preview ref.
+  export_before_destructive_action:
+    export_required: true
+    export_artifact_ref: export_artifact:failed_update_metadata.portable_state_pre_restore
+    redaction_class: environment_adjacent
+    local_only_by_default: true
+    summary: >
+      A local-only convenience export is required before the
+      restore runs; the export captures the workspace, profile, and
+      evidence inventory.
+  recovery_scenario_card_ref: rsc-failed-update-0001
+  continuity_status_card_ref: csc-individual-local-pre-rollback-0011
+  restore_preview_ref: restore_preview:failed_update_metadata.previous_install_snapshot
+  recovery_action_record_ref: recovery_action:typed_repair_flow.failed_update_restore_after_quarantine
+
+honesty_invariants:
+  corrupt_artifact_class_is_closed: true
+  artifact_value_posture_named: true
+  preserved_copy_before_destructive_action: true
+  healthy_candidate_source_named: true
+  retained_versus_replaced_explicit: true
+  no_overpromise_of_reversibility: true
+  linkage_is_typed: true
