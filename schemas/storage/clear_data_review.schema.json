@@ -1,0 +1,1367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/clear_data_review.schema.json",
+  "title": "Aureline clear-data review record",
+  "description": "Boundary schema for the clear_data_review_record frozen in docs/storage/clear_data_and_low_disk_contract.md. The record projects the consequences of a class-selective clear (selected classes, affected workspaces, per-class lost / rebuilt / retained / pinned / blocked projection rows with embedded rebuild-cost hints, protected-class refusals for evidence and user-owned recovery state, recovery / export options, deployment context, the explicit confirm action with its irreversible-warning gate, and the inspect-only cancel action) so the clear-data review sheet, low-disk banner drill expansion, pin manager, cleanup-history lane, admin storage console, support bundle, and CLI text formatter all read one shape. The schema mints no new storage_class_id, authority_class, rebuild_cost_class, pin_source_class, mirror_or_import_origin_class, deployment_profile, mirror_offline_state_class, or tenant_org_scope_class value; those re-export verbatim from /artifacts/runtime/storage_classes.yaml, /schemas/runtime/cache_entry_manifest.schema.json, /schemas/storage/storage_class_breakdown.schema.json, /schemas/storage/workspace_storage_detail.schema.json, and /schemas/deployment/deployment_summary_card.schema.json. The embedded rebuild_cost_hint shape mirrors /schemas/storage/rebuild_cost_hint.schema.json verbatim and stays in sync with /schemas/storage/workspace_storage_detail.schema.json. Adding a value to a closed vocabulary is additive-minor and bumps clear_data_review_schema_version; repurposing an existing value, weakening any §9 invariant, or relaxing the protected-class refusals or the export-before-clear pairing is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/clear_data_review_record",
+  "$defs": {
+    "clear_data_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the clear-data review payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing names but never raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, raw command lines, or raw secret material."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw payload bytes, raw paths, raw URLs, raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "selectable_storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache"
+      ],
+      "description": "Subset of storage_class_id admissible for the selected_class_ids list. evidence_support_cache and user_owned_recovery_state are forbidden in the selection (they flow through protected_class_refusals[] and the blocked-protected projection rows instead)."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ]
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_no_rebuild",
+        "high_rebuild_cost",
+        "medium_rebuild_cost",
+        "low_rebuild_cost"
+      ]
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_pin",
+        "explicit_admin_policy_pin",
+        "release_artifact_graph_ref",
+        "case_reference_ref",
+        "review_pack_ref",
+        "offline_bundle_ref",
+        "certified_archetype_or_template_ref",
+        "policy_bundle_last_known_good_ref",
+        "support_export_assembly_ref",
+        "retention_window_ref"
+      ]
+    },
+    "mirror_or_import_origin_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "local_disposable_cache",
+        "local_evidence_capture",
+        "mirrored_copy",
+        "offline_bundle_local",
+        "vendor_signed_offline_local",
+        "customer_signed_mirror_local",
+        "policy_protected_admin_artifact",
+        "not_applicable"
+      ]
+    },
+    "inspector_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_total",
+        "workspace_only",
+        "workset_only",
+        "profile_only",
+        "tenant_only",
+        "slice_only"
+      ]
+    },
+    "scope_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/inspector_scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "device_total scope carries a null scope_ref; every other scope class carries a non-null ref.",
+          "if": {
+            "properties": { "scope_class": { "const": "device_total" } },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "scope_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "mirror_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic",
+        "not_applicable"
+      ]
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "framing_class": {
+      "type": "string",
+      "enum": [
+        "local_only_individual",
+        "mirrored_or_offline",
+        "managed_policy",
+        "managed_policy_air_gapped"
+      ]
+    },
+    "deployment_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profile",
+        "mirror_offline_state_class",
+        "tenant_org_scope_class",
+        "framing_class"
+      ],
+      "properties": {
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile" },
+        "mirror_offline_state_class": { "$ref": "#/$defs/mirror_offline_state_class" },
+        "tenant_org_scope_class": { "$ref": "#/$defs/tenant_org_scope_class" },
+        "framing_class": { "$ref": "#/$defs/framing_class" }
+      },
+      "allOf": [
+        {
+          "description": "local_only_individual framing requires deployment_profile = individual_local and mirror_offline_state_class = not_applicable.",
+          "if": {
+            "properties": { "framing_class": { "const": "local_only_individual" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "individual_local" },
+              "mirror_offline_state_class": { "const": "not_applicable" },
+              "tenant_org_scope_class": {
+                "enum": ["single_user_local", "not_applicable"]
+              }
+            }
+          }
+        },
+        {
+          "description": "mirrored_or_offline framing requires a mirror / offline mirror_offline_state_class.",
+          "if": {
+            "properties": { "framing_class": { "const": "mirrored_or_offline" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_offline_state_class": {
+                "enum": [
+                  "online_mirror_only",
+                  "offline_grace_preserved",
+                  "offline_air_gapped",
+                  "network_disabled_by_user",
+                  "network_degraded_heuristic"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy framing requires a managed deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": {
+                "enum": ["enterprise_online", "managed_cloud", "self_hosted"]
+              },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy_air_gapped framing requires the air_gapped deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy_air_gapped" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "air_gapped" },
+              "mirror_offline_state_class": { "const": "offline_air_gapped" },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rebuild_cost_hint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "rebuild_cost_hint_schema_version",
+        "rebuild_cost_class",
+        "offline_rebuild_risk_class",
+        "startup_impact_class",
+        "provenance_continuity_class",
+        "rebuild_inputs_required",
+        "rebuild_safety_summary_class",
+        "rebuild_explanation"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "rebuild_cost_hint_record" },
+        "rebuild_cost_hint_schema_version": { "type": "integer", "const": 1 },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "offline_rebuild_risk_class": {
+          "type": "string",
+          "enum": [
+            "safe_to_remove_offline",
+            "rebuild_requires_network_resync",
+            "rebuild_requires_mirror_or_offline_bundle",
+            "rebuild_requires_admin_or_policy_signed_pack",
+            "not_rebuildable_after_removal"
+          ]
+        },
+        "startup_impact_class": {
+          "type": "string",
+          "enum": [
+            "no_user_visible_impact",
+            "slower_first_open_until_warm",
+            "slower_first_query_until_reindexed",
+            "slower_first_build_until_prebuilt",
+            "feature_unavailable_until_rebuilt",
+            "not_applicable_authoritative_state"
+          ]
+        },
+        "provenance_continuity_class": {
+          "type": "string",
+          "enum": [
+            "provenance_preserved_rebuild_from_local_truth",
+            "provenance_preserved_rebuild_from_signed_source",
+            "provenance_breaks_until_resigned_or_re_imported",
+            "authoritative_provenance_irreplaceable",
+            "not_applicable_disposable_no_provenance"
+          ]
+        },
+        "rebuild_inputs_required": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "local_workspace_source",
+              "local_history_journal",
+              "network_provider_or_index",
+              "customer_operated_mirror",
+              "vendor_published_mirror",
+              "offline_bundle_local",
+              "vendor_signed_offline_bundle",
+              "customer_signed_mirror",
+              "policy_signed_pack",
+              "no_input_authoritative_state"
+            ]
+          }
+        },
+        "rebuild_safety_summary_class": {
+          "type": "string",
+          "enum": [
+            "cheap_to_rebuild_safe_to_remove",
+            "expensive_to_rebuild_but_safe",
+            "impossible_to_rebuild_offline",
+            "dangerous_to_delete_authoritative"
+          ]
+        },
+        "rebuild_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Authoritative no-rebuild cost forces dangerous-to-delete summary plus authoritative offline-risk / startup-impact / provenance / inputs.",
+          "if": {
+            "properties": { "rebuild_cost_class": { "const": "authoritative_no_rebuild" } },
+            "required": ["rebuild_cost_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_safety_summary_class": { "const": "dangerous_to_delete_authoritative" },
+              "offline_rebuild_risk_class": { "const": "not_rebuildable_after_removal" },
+              "startup_impact_class": { "const": "not_applicable_authoritative_state" },
+              "provenance_continuity_class": { "const": "authoritative_provenance_irreplaceable" },
+              "rebuild_inputs_required": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "no_input_authoritative_state" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Cheap-to-rebuild summary requires safe-offline risk, low-impact startup, preserved-from-local-truth or no-provenance continuity, and a low / medium rebuild cost.",
+          "if": {
+            "properties": { "rebuild_safety_summary_class": { "const": "cheap_to_rebuild_safe_to_remove" } },
+            "required": ["rebuild_safety_summary_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_rebuild_risk_class": { "const": "safe_to_remove_offline" },
+              "startup_impact_class": {
+                "enum": ["no_user_visible_impact", "slower_first_open_until_warm"]
+              },
+              "provenance_continuity_class": {
+                "enum": [
+                  "provenance_preserved_rebuild_from_local_truth",
+                  "not_applicable_disposable_no_provenance"
+                ]
+              },
+              "rebuild_cost_class": {
+                "enum": ["low_rebuild_cost", "medium_rebuild_cost"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Expensive-but-safe summary requires safe-offline or network-resync risk plus a slower-rebuild startup-impact class plus a preserved-provenance continuity class.",
+          "if": {
+            "properties": { "rebuild_safety_summary_class": { "const": "expensive_to_rebuild_but_safe" } },
+            "required": ["rebuild_safety_summary_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_rebuild_risk_class": {
+                "enum": [
+                  "safe_to_remove_offline",
+                  "rebuild_requires_network_resync"
+                ]
+              },
+              "startup_impact_class": {
+                "enum": [
+                  "slower_first_query_until_reindexed",
+                  "slower_first_build_until_prebuilt",
+                  "slower_first_open_until_warm"
+                ]
+              },
+              "provenance_continuity_class": {
+                "enum": [
+                  "provenance_preserved_rebuild_from_local_truth",
+                  "provenance_preserved_rebuild_from_signed_source"
+                ]
+              },
+              "rebuild_cost_class": {
+                "enum": ["medium_rebuild_cost", "high_rebuild_cost"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Impossible-to-rebuild-offline summary requires a mirror or signed-pack offline-risk class.",
+          "if": {
+            "properties": { "rebuild_safety_summary_class": { "const": "impossible_to_rebuild_offline" } },
+            "required": ["rebuild_safety_summary_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_rebuild_risk_class": {
+                "enum": [
+                  "rebuild_requires_mirror_or_offline_bundle",
+                  "rebuild_requires_admin_or_policy_signed_pack"
+                ]
+              },
+              "startup_impact_class": {
+                "enum": [
+                  "slower_first_query_until_reindexed",
+                  "slower_first_build_until_prebuilt",
+                  "feature_unavailable_until_rebuilt"
+                ]
+              },
+              "provenance_continuity_class": {
+                "enum": [
+                  "provenance_preserved_rebuild_from_signed_source",
+                  "provenance_breaks_until_resigned_or_re_imported"
+                ]
+              },
+              "rebuild_cost_class": {
+                "enum": ["high_rebuild_cost", "medium_rebuild_cost"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Authoritative no-input rebuild list cannot mix non-authoritative inputs.",
+          "if": {
+            "properties": {
+              "rebuild_inputs_required": {
+                "type": "array",
+                "contains": { "const": "no_input_authoritative_state" }
+              }
+            },
+            "required": ["rebuild_inputs_required"]
+          },
+          "then": {
+            "properties": {
+              "rebuild_inputs_required": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "no_input_authoritative_state" }
+              },
+              "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+            }
+          }
+        }
+      ]
+    },
+    "pin_source_breakdown_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pin_source_class", "pinned_bytes", "pin_ref_summary_id"],
+      "properties": {
+        "pin_source_class": { "$ref": "#/$defs/pin_source_class" },
+        "pinned_bytes": { "type": "integer", "minimum": 1 },
+        "pin_ref_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "pin_label": { "$ref": "#/$defs/reviewable_label" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "class_consequence_state": {
+      "type": "string",
+      "enum": [
+        "lost_after_clear",
+        "rebuilt_after_clear",
+        "retained_unchanged",
+        "pinned_excluded",
+        "blocked_protected",
+        "blocked_protected_export_required"
+      ]
+    },
+    "consequence_state_label_class": {
+      "type": "string",
+      "enum": [
+        "label_lost_no_rebuild",
+        "label_rebuilt_with_cost",
+        "label_retained_untouched",
+        "label_pinned_excluded_named",
+        "label_blocked_protected_class_specific_review",
+        "label_blocked_protected_export_required",
+        "label_blocked_protected_mirror_or_offline_pack"
+      ]
+    },
+    "class_projection_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class_projection_row_id",
+        "storage_class_id",
+        "class_consequence_state",
+        "consequence_state_label_class",
+        "lost_after_clear_bytes",
+        "rebuilt_after_clear_bytes",
+        "retained_unchanged_bytes",
+        "pinned_excluded_bytes",
+        "blocked_protected_bytes",
+        "pin_source_breakdown",
+        "rebuild_cost_hint",
+        "affected_entry_refs",
+        "class_label",
+        "consequence_sentence"
+      ],
+      "properties": {
+        "class_projection_row_id": { "$ref": "#/$defs/opaque_id" },
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "class_consequence_state": { "$ref": "#/$defs/class_consequence_state" },
+        "consequence_state_label_class": { "$ref": "#/$defs/consequence_state_label_class" },
+        "lost_after_clear_bytes": { "type": "integer", "minimum": 0 },
+        "rebuilt_after_clear_bytes": { "type": "integer", "minimum": 0 },
+        "retained_unchanged_bytes": { "type": "integer", "minimum": 0 },
+        "pinned_excluded_bytes": { "type": "integer", "minimum": 0 },
+        "blocked_protected_bytes": { "type": "integer", "minimum": 0 },
+        "pin_source_breakdown": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pin_source_breakdown_row" }
+        },
+        "rebuild_cost_hint": { "$ref": "#/$defs/rebuild_cost_hint_record" },
+        "affected_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "class_label": { "$ref": "#/$defs/reviewable_label" },
+        "consequence_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_class_specific_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "lost_after_clear consequence is admissible only on evidence_support_cache or user_owned_recovery_state.",
+          "if": {
+            "properties": {
+              "lost_after_clear_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["lost_after_clear_bytes"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "lost_after_clear state requires non-zero lost bytes and lost-no-rebuild label.",
+          "if": {
+            "properties": { "class_consequence_state": { "const": "lost_after_clear" } },
+            "required": ["class_consequence_state"]
+          },
+          "then": {
+            "properties": {
+              "lost_after_clear_bytes": { "type": "integer", "minimum": 1 },
+              "consequence_state_label_class": { "const": "label_lost_no_rebuild" }
+            }
+          }
+        },
+        {
+          "description": "rebuilt_after_clear state requires non-zero rebuilt bytes and rebuilt-with-cost label.",
+          "if": {
+            "properties": { "class_consequence_state": { "const": "rebuilt_after_clear" } },
+            "required": ["class_consequence_state"]
+          },
+          "then": {
+            "properties": {
+              "rebuilt_after_clear_bytes": { "type": "integer", "minimum": 1 },
+              "consequence_state_label_class": { "const": "label_rebuilt_with_cost" },
+              "storage_class_id": {
+                "enum": [
+                  "interactive_hot_cache",
+                  "knowledge_cache",
+                  "artifact_cache",
+                  "prebuild_environment_cache"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "pinned_excluded state requires non-zero pinned bytes plus a non-empty pin breakdown plus pinned-excluded-named label.",
+          "if": {
+            "properties": { "class_consequence_state": { "const": "pinned_excluded" } },
+            "required": ["class_consequence_state"]
+          },
+          "then": {
+            "properties": {
+              "pinned_excluded_bytes": { "type": "integer", "minimum": 1 },
+              "consequence_state_label_class": { "const": "label_pinned_excluded_named" },
+              "pin_source_breakdown": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "retained_unchanged state requires every-other-bucket zero plus retained label.",
+          "if": {
+            "properties": { "class_consequence_state": { "const": "retained_unchanged" } },
+            "required": ["class_consequence_state"]
+          },
+          "then": {
+            "properties": {
+              "lost_after_clear_bytes": { "const": 0 },
+              "rebuilt_after_clear_bytes": { "const": 0 },
+              "pinned_excluded_bytes": { "const": 0 },
+              "blocked_protected_bytes": { "const": 0 },
+              "consequence_state_label_class": { "const": "label_retained_untouched" }
+            }
+          }
+        },
+        {
+          "description": "blocked_protected state requires non-zero blocked-protected bytes plus the protected-class-specific-review or mirror-or-offline-pack label, plus storage_class_id is evidence_support_cache / user_owned_recovery_state, OR the row has a non-empty affected_entry_refs list (mirror / offline / policy-protected entries).",
+          "if": {
+            "properties": { "class_consequence_state": { "const": "blocked_protected" } },
+            "required": ["class_consequence_state"]
+          },
+          "then": {
+            "properties": {
+              "blocked_protected_bytes": { "type": "integer", "minimum": 0 },
+              "consequence_state_label_class": {
+                "enum": [
+                  "label_blocked_protected_class_specific_review",
+                  "label_blocked_protected_mirror_or_offline_pack"
+                ]
+              },
+              "lost_after_clear_bytes": { "const": 0 },
+              "rebuilt_after_clear_bytes": { "const": 0 },
+              "pinned_excluded_bytes": { "const": 0 }
+            }
+          }
+        },
+        {
+          "description": "blocked_protected_export_required state requires evidence_support_cache class and authoritative_no_rebuild rebuild cost.",
+          "if": {
+            "properties": { "class_consequence_state": { "const": "blocked_protected_export_required" } },
+            "required": ["class_consequence_state"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": { "const": "evidence_support_cache" },
+              "consequence_state_label_class": { "const": "label_blocked_protected_export_required" },
+              "blocked_protected_bytes": { "type": "integer", "minimum": 1 },
+              "lost_after_clear_bytes": { "const": 0 },
+              "rebuilt_after_clear_bytes": { "const": 0 },
+              "pinned_excluded_bytes": { "const": 0 },
+              "rebuild_cost_hint": {
+                "properties": {
+                  "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+                },
+                "required": ["rebuild_cost_class"]
+              }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "Disposable-class rows carry zero lost-after-clear bytes (those classes cannot be lost).",
+          "if": {
+            "properties": {
+              "storage_class_id": {
+                "enum": [
+                  "interactive_hot_cache",
+                  "knowledge_cache",
+                  "artifact_cache",
+                  "prebuild_environment_cache"
+                ]
+              }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "lost_after_clear_bytes": { "const": 0 }
+            }
+          }
+        },
+        {
+          "description": "user_owned_recovery_state rows MUST be blocked_protected with class-specific review link and zero loss / rebuild / pinned bytes.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "user_owned_recovery_state" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "class_consequence_state": { "const": "blocked_protected" },
+              "consequence_state_label_class": { "const": "label_blocked_protected_class_specific_review" },
+              "lost_after_clear_bytes": { "const": 0 },
+              "rebuilt_after_clear_bytes": { "const": 0 },
+              "pinned_excluded_bytes": { "const": 0 },
+              "rebuild_cost_hint": {
+                "properties": {
+                  "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+                },
+                "required": ["rebuild_cost_class"]
+              }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "evidence_support_cache rows MUST be blocked_protected or blocked_protected_export_required with the class-specific review link.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "evidence_support_cache" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "class_consequence_state": {
+                "enum": ["blocked_protected", "blocked_protected_export_required"]
+              }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "Non-zero pinned_excluded_bytes requires a non-empty pin_source_breakdown.",
+          "if": {
+            "properties": {
+              "pinned_excluded_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["pinned_excluded_bytes"]
+          },
+          "then": {
+            "properties": {
+              "pin_source_breakdown": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Zero pinned_excluded_bytes carries an empty pin_source_breakdown.",
+          "if": {
+            "properties": { "pinned_excluded_bytes": { "const": 0 } },
+            "required": ["pinned_excluded_bytes"]
+          },
+          "then": {
+            "properties": {
+              "pin_source_breakdown": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "Rows with any non-zero bucket of bytes require a non-empty affected_entry_refs list; zero-byte rows carry an empty list.",
+          "if": {
+            "properties": {
+              "lost_after_clear_bytes": { "const": 0 },
+              "rebuilt_after_clear_bytes": { "const": 0 },
+              "pinned_excluded_bytes": { "const": 0 },
+              "blocked_protected_bytes": { "const": 0 }
+            },
+            "required": [
+              "lost_after_clear_bytes",
+              "rebuilt_after_clear_bytes",
+              "pinned_excluded_bytes",
+              "blocked_protected_bytes"
+            ]
+          },
+          "then": {
+            "properties": {
+              "affected_entry_refs": { "type": "array", "maxItems": 0 }
+            }
+          },
+          "else": {
+            "properties": {
+              "affected_entry_refs": { "type": "array", "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "refusal_class": {
+      "type": "string",
+      "enum": [
+        "class_specific_review_required",
+        "authoritative_user_owned_clear_refused",
+        "policy_held_clear_refused",
+        "mirror_or_offline_pin_excluded"
+      ]
+    },
+    "protected_class_refusal_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "refused_class_id",
+        "refusal_class",
+        "linked_class_specific_review_ref",
+        "linked_pin_manager_route_ref",
+        "refusal_label"
+      ],
+      "properties": {
+        "refused_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "refusal_class": { "$ref": "#/$defs/refusal_class" },
+        "linked_class_specific_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_pin_manager_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "refusal_label": { "$ref": "#/$defs/reviewable_label" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "class_specific_review_required refusal is required for evidence_support_cache and requires a non-null class-specific review ref and a null pin-manager ref.",
+          "if": {
+            "properties": { "refusal_class": { "const": "class_specific_review_required" } },
+            "required": ["refusal_class"]
+          },
+          "then": {
+            "properties": {
+              "refused_class_id": { "const": "evidence_support_cache" },
+              "linked_class_specific_review_ref": { "not": { "type": "null" } },
+              "linked_pin_manager_route_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "authoritative_user_owned_clear_refused refusal is required for user_owned_recovery_state and requires a non-null class-specific review ref and a null pin-manager ref.",
+          "if": {
+            "properties": { "refusal_class": { "const": "authoritative_user_owned_clear_refused" } },
+            "required": ["refusal_class"]
+          },
+          "then": {
+            "properties": {
+              "refused_class_id": { "const": "user_owned_recovery_state" },
+              "linked_class_specific_review_ref": { "not": { "type": "null" } },
+              "linked_pin_manager_route_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "policy_held_clear_refused refusal requires a non-null pin-manager ref and a null class-specific review ref.",
+          "if": {
+            "properties": { "refusal_class": { "const": "policy_held_clear_refused" } },
+            "required": ["refusal_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_pin_manager_route_ref": { "not": { "type": "null" } },
+              "linked_class_specific_review_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "mirror_or_offline_pin_excluded refusal requires a non-null pin-manager ref and a null class-specific review ref.",
+          "if": {
+            "properties": { "refusal_class": { "const": "mirror_or_offline_pin_excluded" } },
+            "required": ["refusal_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_pin_manager_route_ref": { "not": { "type": "null" } },
+              "linked_class_specific_review_ref": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "option_class": {
+      "type": "string",
+      "enum": [
+        "export_required_before_clear_offered",
+        "export_offered_metadata_safe",
+        "export_offered_operator_only",
+        "recovery_review_offered_class_specific",
+        "pin_release_review_offered",
+        "no_recovery_required_disposable_only"
+      ]
+    },
+    "recovery_export_option_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "option_class",
+        "option_label",
+        "linked_target_ref"
+      ],
+      "properties": {
+        "option_class": { "$ref": "#/$defs/option_class" },
+        "option_label": { "$ref": "#/$defs/reviewable_label" },
+        "linked_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "no_recovery_required_disposable_only is the only option class that admits a null linked_target_ref.",
+          "if": {
+            "properties": { "option_class": { "const": "no_recovery_required_disposable_only" } },
+            "required": ["option_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_target_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "linked_target_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "confirm_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "removes_disposable_cache",
+        "removes_rebuildable_derived_state",
+        "pauses_pinned_excluded_items",
+        "preserves_authoritative_state"
+      ]
+    },
+    "confirm_clear_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "revalidation_on_confirm",
+        "irreversible_warning_required",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "explicit_user_confirm_required" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/confirm_side_effect_class" },
+          "contains": { "const": "preserves_authoritative_state" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "revalidation_on_confirm": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_recompute_on_confirm"]
+        },
+        "irreversible_warning_required": { "type": "boolean" },
+        "modal_prohibited": { "type": "boolean", "const": false }
+      }
+    },
+    "cancel_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      }
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "clear_data_review",
+        "low_disk_banner_drill",
+        "pin_manager",
+        "cleanup_history_lane",
+        "admin_storage_console",
+        "support_packet_export",
+        "cli_text_formatter"
+      ]
+    },
+    "clear_data_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "clear_data_review_schema_version",
+        "review_id",
+        "emitted_at",
+        "parent_card_id_ref",
+        "review_scope",
+        "selected_class_ids",
+        "affected_workspaces",
+        "class_projection_rows",
+        "protected_class_refusals",
+        "recovery_export_options",
+        "confirm_clear_action",
+        "cancel_action",
+        "deployment_context",
+        "consumer_surfaces",
+        "redaction_class",
+        "export_safe",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "clear_data_review_record" },
+        "clear_data_review_schema_version": { "$ref": "#/$defs/clear_data_review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "parent_card_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_scope": { "$ref": "#/$defs/scope_block" },
+        "selected_class_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/selectable_storage_class_id" }
+        },
+        "affected_workspaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_block" }
+        },
+        "class_projection_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/class_projection_row" }
+        },
+        "protected_class_refusals": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/protected_class_refusal_row" }
+        },
+        "recovery_export_options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_export_option_row" }
+        },
+        "confirm_clear_action": { "$ref": "#/$defs/confirm_clear_action" },
+        "cancel_action": { "$ref": "#/$defs/cancel_action" },
+        "deployment_context": { "$ref": "#/$defs/deployment_context" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_low_disk_banner_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_pin_manager_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_class_specific_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "linked_cleanup_history_lane_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_deployment_summary_card_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "Broad scopes (device_total / workspace_only / tenant_only) MUST list both protected-class refusals.",
+          "if": {
+            "properties": {
+              "review_scope": {
+                "properties": {
+                  "scope_class": {
+                    "enum": ["device_total", "workspace_only", "tenant_only"]
+                  }
+                },
+                "required": ["scope_class"]
+              }
+            },
+            "required": ["review_scope"]
+          },
+          "then": {
+            "properties": {
+              "protected_class_refusals": {
+                "type": "array",
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "refusal_class": { "const": "authoritative_user_owned_clear_refused" }
+                      },
+                      "required": ["refusal_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "refusal_class": {
+                          "enum": ["class_specific_review_required", "policy_held_clear_refused"]
+                        }
+                      },
+                      "required": ["refusal_class"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Records with at least one lost_after_clear or blocked_protected_export_required projection row MUST carry the irreversible-warning gate on confirm.",
+          "if": {
+            "properties": {
+              "class_projection_rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "class_consequence_state": {
+                      "enum": ["lost_after_clear", "blocked_protected_export_required"]
+                    }
+                  },
+                  "required": ["class_consequence_state"]
+                }
+              }
+            },
+            "required": ["class_projection_rows"]
+          },
+          "then": {
+            "properties": {
+              "confirm_clear_action": {
+                "properties": {
+                  "irreversible_warning_required": { "const": true }
+                },
+                "required": ["irreversible_warning_required"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Records with at least one rebuilt_after_clear projection row MUST list removes_rebuildable_derived_state in confirm side effects.",
+          "if": {
+            "properties": {
+              "class_projection_rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "class_consequence_state": { "const": "rebuilt_after_clear" }
+                  },
+                  "required": ["class_consequence_state"]
+                }
+              }
+            },
+            "required": ["class_projection_rows"]
+          },
+          "then": {
+            "properties": {
+              "confirm_clear_action": {
+                "properties": {
+                  "side_effects": {
+                    "type": "array",
+                    "contains": { "const": "removes_rebuildable_derived_state" }
+                  }
+                },
+                "required": ["side_effects"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Records with at least one mirror-or-offline pin-excluded refusal MUST list pauses_pinned_excluded_items in confirm side effects.",
+          "if": {
+            "properties": {
+              "protected_class_refusals": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "refusal_class": { "const": "mirror_or_offline_pin_excluded" }
+                  },
+                  "required": ["refusal_class"]
+                }
+              }
+            },
+            "required": ["protected_class_refusals"]
+          },
+          "then": {
+            "properties": {
+              "confirm_clear_action": {
+                "properties": {
+                  "side_effects": {
+                    "type": "array",
+                    "contains": { "const": "pauses_pinned_excluded_items" }
+                  }
+                },
+                "required": ["side_effects"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Records carrying any blocked_protected_export_required projection row MUST also carry an export_required_before_clear_offered recovery option.",
+          "if": {
+            "properties": {
+              "class_projection_rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "class_consequence_state": { "const": "blocked_protected_export_required" }
+                  },
+                  "required": ["class_consequence_state"]
+                }
+              }
+            },
+            "required": ["class_projection_rows"]
+          },
+          "then": {
+            "properties": {
+              "recovery_export_options": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "option_class": { "const": "export_required_before_clear_offered" }
+                  },
+                  "required": ["option_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Records carrying an authoritative-user-owned or class-specific-review refusal MUST also carry a recovery_review_offered_class_specific recovery option.",
+          "if": {
+            "properties": {
+              "protected_class_refusals": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "refusal_class": {
+                      "enum": ["authoritative_user_owned_clear_refused", "class_specific_review_required"]
+                    }
+                  },
+                  "required": ["refusal_class"]
+                }
+              }
+            },
+            "required": ["protected_class_refusals"]
+          },
+          "then": {
+            "properties": {
+              "recovery_export_options": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "option_class": { "const": "recovery_review_offered_class_specific" }
+                  },
+                  "required": ["option_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Exported records MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

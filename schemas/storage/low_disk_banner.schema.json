@@ -1,0 +1,833 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/low_disk_banner.schema.json",
+  "title": "Aureline low-disk / quota banner record",
+  "description": "Boundary schema for the low_disk_banner_record frozen in docs/storage/clear_data_and_low_disk_contract.md. The record projects current pressure posture (pressure class, pressure source, paused work lanes, ordered next-eviction ladder steps, protected-class visibility tokens, protected pin sources, deployment context, banner copy class, the inspect-only override and open-inspector actions) so the inspector banner, status-bar storage cell, cleanup-history lane header, pin manager, admin storage console, support bundle, About-panel storage excerpt, and CLI text formatter all read one shape. The schema mints no new storage_class_id, pin_source_class, low_disk_ladder_step, deployment_profile, mirror_offline_state_class, or tenant_org_scope_class value; those re-export verbatim from /artifacts/runtime/storage_classes.yaml, /schemas/runtime/cache_entry_manifest.schema.json, /schemas/storage/storage_class_breakdown.schema.json, and /schemas/deployment/deployment_summary_card.schema.json. The banner pairs with a clear_data_review_record by ref through linked_clear_data_review_ref. Adding a value to a closed vocabulary is additive-minor and bumps low_disk_banner_schema_version; repurposing an existing value, weakening any §9 invariant, or relaxing the protected-class visibility or the next-eviction-step admissibility rules is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/low_disk_banner_record",
+  "$defs": {
+    "low_disk_banner_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the low-disk banner payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "inspector_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_total",
+        "workspace_only",
+        "workset_only",
+        "profile_only",
+        "tenant_only",
+        "slice_only"
+      ]
+    },
+    "scope_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/inspector_scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "device_total scope carries a null scope_ref; every other scope class carries a non-null ref.",
+          "if": {
+            "properties": { "scope_class": { "const": "device_total" } },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "scope_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "mirror_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic",
+        "not_applicable"
+      ]
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "framing_class": {
+      "type": "string",
+      "enum": [
+        "local_only_individual",
+        "mirrored_or_offline",
+        "managed_policy",
+        "managed_policy_air_gapped"
+      ]
+    },
+    "deployment_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profile",
+        "mirror_offline_state_class",
+        "tenant_org_scope_class",
+        "framing_class"
+      ],
+      "properties": {
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile" },
+        "mirror_offline_state_class": { "$ref": "#/$defs/mirror_offline_state_class" },
+        "tenant_org_scope_class": { "$ref": "#/$defs/tenant_org_scope_class" },
+        "framing_class": { "$ref": "#/$defs/framing_class" }
+      },
+      "allOf": [
+        {
+          "description": "local_only_individual framing requires deployment_profile = individual_local and mirror_offline_state_class = not_applicable.",
+          "if": {
+            "properties": { "framing_class": { "const": "local_only_individual" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "individual_local" },
+              "mirror_offline_state_class": { "const": "not_applicable" },
+              "tenant_org_scope_class": {
+                "enum": ["single_user_local", "not_applicable"]
+              }
+            }
+          }
+        },
+        {
+          "description": "mirrored_or_offline framing requires a mirror / offline mirror_offline_state_class.",
+          "if": {
+            "properties": { "framing_class": { "const": "mirrored_or_offline" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_offline_state_class": {
+                "enum": [
+                  "online_mirror_only",
+                  "offline_grace_preserved",
+                  "offline_air_gapped",
+                  "network_disabled_by_user",
+                  "network_degraded_heuristic"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy framing requires a managed deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": {
+                "enum": ["enterprise_online", "managed_cloud", "self_hosted"]
+              },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy_air_gapped framing requires the air_gapped deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy_air_gapped" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "air_gapped" },
+              "mirror_offline_state_class": { "const": "offline_air_gapped" },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "pressure_class": {
+      "type": "string",
+      "enum": [
+        "not_pressure",
+        "pressure_constrained",
+        "pressure_degraded",
+        "pressure_protect_core",
+        "pressure_quota_exceeded",
+        "pressure_connectivity_constrained",
+        "pressure_managed_policy_throttle",
+        "pressure_unknown_low_privilege_scan"
+      ]
+    },
+    "pressure_source_class": {
+      "type": "string",
+      "enum": [
+        "free_disk_floor_breach",
+        "per_class_quota_exceeded",
+        "per_workspace_quota_exceeded",
+        "per_tenant_quota_exceeded",
+        "policy_bound_evidence_quota_exceeded",
+        "connectivity_event_observed",
+        "managed_policy_throttle_active"
+      ]
+    },
+    "lane_class": {
+      "type": "string",
+      "enum": [
+        "provider_refresh",
+        "ai_context_expansion",
+        "extension_timer",
+        "telemetry_forward",
+        "mirror_pull",
+        "pack_refresh",
+        "prefetch",
+        "speculative_index_warmup",
+        "support_export_assembly"
+      ]
+    },
+    "lane_state": {
+      "type": "string",
+      "enum": [
+        "paused_under_pressure",
+        "queued_for_replay",
+        "throttled"
+      ]
+    },
+    "paused_work_lane_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lane_class", "lane_state", "lane_label"],
+      "properties": {
+        "lane_class": { "$ref": "#/$defs/lane_class" },
+        "lane_state": { "$ref": "#/$defs/lane_state" },
+        "lane_label": { "$ref": "#/$defs/reviewable_label" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "low_disk_ladder_step": {
+      "type": "string",
+      "enum": [
+        "stop_speculative_fetch_and_prefetch",
+        "pause_managed_replication_and_pack_refresh",
+        "trim_interactive_hot_cache",
+        "trim_knowledge_cache_rebuildable",
+        "trim_artifact_cache_unpinned",
+        "trim_prebuild_environment_unpinned",
+        "expire_unpinned_evidence_past_retention",
+        "user_owned_recovery_state_only_under_explicit_review"
+      ]
+    },
+    "protected_class_visibility": {
+      "type": "string",
+      "enum": [
+        "evidence_support_cache_visible",
+        "user_owned_recovery_state_visible"
+      ]
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_pin",
+        "explicit_admin_policy_pin",
+        "release_artifact_graph_ref",
+        "case_reference_ref",
+        "review_pack_ref",
+        "offline_bundle_ref",
+        "certified_archetype_or_template_ref",
+        "policy_bundle_last_known_good_ref",
+        "support_export_assembly_ref",
+        "retention_window_ref"
+      ]
+    },
+    "override_class": {
+      "type": "string",
+      "enum": [
+        "open_clear_data_review",
+        "open_pin_manager",
+        "open_class_specific_review",
+        "not_offered_managed_policy_throttle"
+      ]
+    },
+    "override_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "override_class",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "override_class": { "$ref": "#/$defs/override_class" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "description": "not_offered_managed_policy_throttle override carries an empty side-effects list and a null target_route_ref.",
+          "if": {
+            "properties": { "override_class": { "const": "not_offered_managed_policy_throttle" } },
+            "required": ["override_class"]
+          },
+          "then": {
+            "properties": {
+              "side_effects": { "type": "array", "maxItems": 0 },
+              "target_route_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "side_effects": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "no_side_effect_inspect_only" }
+              },
+              "target_route_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "open_inspector_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "revalidation_on_open",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_open_read_only"]
+        },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      }
+    },
+    "banner_copy_class": {
+      "type": "string",
+      "enum": [
+        "paused_speculative_only_disposable_safe",
+        "trimming_disposable_and_rebuildable",
+        "quota_exceeded_named_source",
+        "connectivity_constrained_pack_refresh_paused",
+        "managed_policy_throttle_no_override",
+        "unknown_low_privilege_scan_consent_offered"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "low_disk_banner",
+        "status_bar_storage_cell_expansion",
+        "clear_data_review",
+        "cleanup_history_lane",
+        "pin_manager",
+        "admin_storage_console",
+        "support_packet_export",
+        "about_panel_storage_excerpt",
+        "cli_text_formatter"
+      ]
+    },
+    "low_disk_banner_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "low_disk_banner_schema_version",
+        "banner_id",
+        "emitted_at",
+        "parent_card_id_ref",
+        "banner_scope",
+        "pressure_class",
+        "pressure_source_class",
+        "pressure_started_at",
+        "pressure_observed_at",
+        "paused_work_lanes",
+        "next_eviction_steps",
+        "protected_class_visibility",
+        "protected_pin_sources",
+        "override_action",
+        "open_inspector_action",
+        "banner_copy_class",
+        "deployment_context",
+        "consumer_surfaces",
+        "redaction_class",
+        "export_safe",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "low_disk_banner_record" },
+        "low_disk_banner_schema_version": { "$ref": "#/$defs/low_disk_banner_schema_version" },
+        "banner_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "parent_card_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "banner_scope": { "$ref": "#/$defs/scope_block" },
+        "pressure_class": { "$ref": "#/$defs/pressure_class" },
+        "pressure_source_class": { "$ref": "#/$defs/pressure_source_class" },
+        "pressure_started_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "pressure_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "paused_work_lanes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/paused_work_lane_row" }
+        },
+        "next_eviction_steps": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/low_disk_ladder_step" }
+        },
+        "protected_class_visibility": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/protected_class_visibility" }
+        },
+        "protected_pin_sources": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/pin_source_class" }
+        },
+        "override_action": { "$ref": "#/$defs/override_action" },
+        "open_inspector_action": { "$ref": "#/$defs/open_inspector_action" },
+        "banner_copy_class": { "$ref": "#/$defs/banner_copy_class" },
+        "deployment_context": { "$ref": "#/$defs/deployment_context" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_clear_data_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_pin_manager_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_low_disk_drill_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_deployment_summary_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "not_pressure pressure class carries empty paused work lanes and empty next eviction steps.",
+          "if": {
+            "properties": { "pressure_class": { "const": "not_pressure" } },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "paused_work_lanes": { "type": "array", "maxItems": 0 },
+              "next_eviction_steps": { "type": "array", "maxItems": 0 },
+              "pressure_started_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Active pressure (every class except not_pressure and pressure_unknown_low_privilege_scan) requires a non-null pressure_started_at and a non-empty paused work lanes list.",
+          "if": {
+            "properties": {
+              "pressure_class": {
+                "enum": [
+                  "pressure_constrained",
+                  "pressure_degraded",
+                  "pressure_protect_core",
+                  "pressure_quota_exceeded",
+                  "pressure_connectivity_constrained",
+                  "pressure_managed_policy_throttle"
+                ]
+              }
+            },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "pressure_started_at": { "not": { "type": "null" } },
+              "paused_work_lanes": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "pressure_unknown_low_privilege_scan carries a null pressure_started_at; the surface renders a consent affordance instead of a typed pressure class.",
+          "if": {
+            "properties": { "pressure_class": { "const": "pressure_unknown_low_privilege_scan" } },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "pressure_started_at": { "type": "null" },
+              "banner_copy_class": { "const": "unknown_low_privilege_scan_consent_offered" }
+            }
+          }
+        },
+        {
+          "description": "pressure_constrained admits only the speculative-stop and managed-replication-pause ladder steps.",
+          "if": {
+            "properties": { "pressure_class": { "const": "pressure_constrained" } },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "next_eviction_steps": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "stop_speculative_fetch_and_prefetch",
+                    "pause_managed_replication_and_pack_refresh"
+                  ]
+                }
+              },
+              "banner_copy_class": { "const": "paused_speculative_only_disposable_safe" }
+            }
+          }
+        },
+        {
+          "description": "pressure_degraded and pressure_protect_core admit the trimming-disposable-and-rebuildable banner copy class.",
+          "if": {
+            "properties": {
+              "pressure_class": {
+                "enum": ["pressure_degraded", "pressure_protect_core"]
+              }
+            },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "banner_copy_class": { "const": "trimming_disposable_and_rebuildable" }
+            }
+          }
+        },
+        {
+          "description": "pressure_quota_exceeded admits the quota-exceeded banner copy class.",
+          "if": {
+            "properties": { "pressure_class": { "const": "pressure_quota_exceeded" } },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "banner_copy_class": { "const": "quota_exceeded_named_source" }
+            }
+          }
+        },
+        {
+          "description": "pressure_connectivity_constrained admits the connectivity banner copy class and forbids evidence-expiry / recovery-state ladder steps.",
+          "if": {
+            "properties": { "pressure_class": { "const": "pressure_connectivity_constrained" } },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "banner_copy_class": { "const": "connectivity_constrained_pack_refresh_paused" },
+              "next_eviction_steps": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "stop_speculative_fetch_and_prefetch",
+                    "pause_managed_replication_and_pack_refresh",
+                    "trim_interactive_hot_cache",
+                    "trim_knowledge_cache_rebuildable",
+                    "trim_artifact_cache_unpinned",
+                    "trim_prebuild_environment_unpinned"
+                  ]
+                }
+              },
+              "pressure_source_class": { "const": "connectivity_event_observed" }
+            }
+          }
+        },
+        {
+          "description": "pressure_managed_policy_throttle admits the managed-policy banner copy class, forces the not_offered_managed_policy_throttle override, and forbids evidence-expiry / recovery-state ladder steps.",
+          "if": {
+            "properties": { "pressure_class": { "const": "pressure_managed_policy_throttle" } },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "banner_copy_class": { "const": "managed_policy_throttle_no_override" },
+              "pressure_source_class": { "const": "managed_policy_throttle_active" },
+              "next_eviction_steps": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "stop_speculative_fetch_and_prefetch",
+                    "pause_managed_replication_and_pack_refresh",
+                    "trim_interactive_hot_cache",
+                    "trim_knowledge_cache_rebuildable",
+                    "trim_artifact_cache_unpinned",
+                    "trim_prebuild_environment_unpinned"
+                  ]
+                }
+              },
+              "override_action": {
+                "properties": {
+                  "override_class": { "const": "not_offered_managed_policy_throttle" }
+                },
+                "required": ["override_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "pressure_quota_exceeded forces a quota-related pressure source.",
+          "if": {
+            "properties": { "pressure_class": { "const": "pressure_quota_exceeded" } },
+            "required": ["pressure_class"]
+          },
+          "then": {
+            "properties": {
+              "pressure_source_class": {
+                "enum": [
+                  "per_class_quota_exceeded",
+                  "per_workspace_quota_exceeded",
+                  "per_tenant_quota_exceeded",
+                  "policy_bound_evidence_quota_exceeded"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Per-tenant quota source forces a managed tenant scope.",
+          "if": {
+            "properties": { "pressure_source_class": { "const": "per_tenant_quota_exceeded" } },
+            "required": ["pressure_source_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_context": {
+                "properties": {
+                  "tenant_org_scope_class": {
+                    "enum": ["customer_tenant", "shared_multi_tenant"]
+                  }
+                },
+                "required": ["tenant_org_scope_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "free-disk-floor source forces a low-disk-floor pressure class.",
+          "if": {
+            "properties": { "pressure_source_class": { "const": "free_disk_floor_breach" } },
+            "required": ["pressure_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pressure_class": {
+                "enum": [
+                  "pressure_constrained",
+                  "pressure_degraded",
+                  "pressure_protect_core"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Broad scopes (device_total / workspace_only / tenant_only) MUST list both protected-class visibility tokens.",
+          "if": {
+            "properties": {
+              "banner_scope": {
+                "properties": {
+                  "scope_class": {
+                    "enum": ["device_total", "workspace_only", "tenant_only"]
+                  }
+                },
+                "required": ["scope_class"]
+              }
+            },
+            "required": ["banner_scope"]
+          },
+          "then": {
+            "properties": {
+              "protected_class_visibility": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "const": "evidence_support_cache_visible" } },
+                  { "contains": { "const": "user_owned_recovery_state_visible" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Banners that include the user_owned_recovery_state explicit-review ladder step MUST cite a linked clear-data review ref.",
+          "if": {
+            "properties": {
+              "next_eviction_steps": {
+                "type": "array",
+                "contains": { "const": "user_owned_recovery_state_only_under_explicit_review" }
+              }
+            },
+            "required": ["next_eviction_steps"]
+          },
+          "then": {
+            "required": ["linked_clear_data_review_ref"]
+          }
+        },
+        {
+          "description": "Banners that include the evidence-expiry ladder step MUST cite a linked clear-data review ref.",
+          "if": {
+            "properties": {
+              "next_eviction_steps": {
+                "type": "array",
+                "contains": { "const": "expire_unpinned_evidence_past_retention" }
+              }
+            },
+            "required": ["next_eviction_steps"]
+          },
+          "then": {
+            "required": ["linked_clear_data_review_ref"]
+          }
+        },
+        {
+          "description": "Exported banners MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
