@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/export_verification_result.schema.json",
+  "title": "Aureline export-verification result",
+  "description": "Boundary schema for export-verification result records frozen in docs/reliability/export_before_reset_contract.md §15. Each record carries the per-row verification outcome for one export-before-reset checklist plus the typed reset-authorization state the destructive-action gate consumes verbatim. Closed verification-result, follow-up-guidance, and reset-authorization-state vocabularies are re-exported from schemas/recovery/export_before_reset_checklist.schema.json. Raw file bodies, raw diff hunks, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/export_verification_result_record" }
+  ],
+  "$defs": {
+    "export_verification_result_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for export-verification result records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "export_verification_result_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in checklists, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "verification_result_class": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "partial",
+        "blocked_by_policy",
+        "unsupported_class",
+        "user_declined"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/export_before_reset_checklist.schema.json#verification_result_class."
+    },
+    "follow_up_guidance_class": {
+      "type": "string",
+      "enum": [
+        "proceed_to_reset_acknowledged",
+        "retry_export_after_policy_review",
+        "skip_unsupported_class_acknowledged",
+        "defer_reset_until_user_returns",
+        "escalate_to_admin_seat_recovery",
+        "escalate_to_support_with_evidence",
+        "abort_reset"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/export_before_reset_checklist.schema.json#follow_up_guidance_class."
+    },
+    "reset_authorization_state_class": {
+      "type": "string",
+      "enum": [
+        "authorized_for_reset",
+        "blocked_pending_user_acknowledgement",
+        "blocked_pending_admin_seat",
+        "blocked_by_policy",
+        "blocked_unsupported_class",
+        "declined_by_user",
+        "aborted_by_user"
+      ],
+      "description": "Closed reset-authorization-state vocabulary. The destructive-action gate consumes exactly one."
+    },
+    "verification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id_ref",
+        "result_class",
+        "summary"
+      ],
+      "properties": {
+        "row_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref back to the matching checklist row's row_id."
+        },
+        "result_class": { "$ref": "#/$defs/verification_result_class" },
+        "follow_up_guidance_class": { "$ref": "#/$defs/follow_up_guidance_class" },
+        "acknowledgement_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the typed acknowledgement (no-undo, skip-unsupported, decline) recorded for this row when the result class is anything other than verified."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "Non-verified rows MUST carry a follow-up-guidance class. Free-form prose is non-conforming.",
+          "if": {
+            "properties": {
+              "result_class": { "not": { "const": "verified" } }
+            },
+            "required": ["result_class"]
+          },
+          "then": {
+            "required": ["follow_up_guidance_class"]
+          }
+        }
+      ]
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_row_has_typed_result",
+        "non_verified_row_has_typed_followup",
+        "unsupported_or_policy_row_visible_in_overall",
+        "reset_authorization_is_typed",
+        "linkage_back_to_checklist_is_typed"
+      ],
+      "properties": {
+        "every_row_has_typed_result": {
+          "type": "boolean",
+          "const": true
+        },
+        "non_verified_row_has_typed_followup": {
+          "type": "boolean",
+          "const": true
+        },
+        "unsupported_or_policy_row_visible_in_overall": {
+          "type": "boolean",
+          "const": true
+        },
+        "reset_authorization_is_typed": {
+          "type": "boolean",
+          "const": true
+        },
+        "linkage_back_to_checklist_is_typed": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "export_verification_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_verification_result_schema_version",
+        "verification_id",
+        "checklist_id_ref",
+        "generated_at",
+        "overall_result_class",
+        "verification_rows",
+        "reset_authorization_state_class",
+        "summary",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "export_verification_result_schema_version": { "$ref": "#/$defs/export_verification_result_schema_version" },
+        "verification_id": { "$ref": "#/$defs/opaque_id" },
+        "checklist_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "overall_result_class": { "$ref": "#/$defs/verification_result_class" },
+        "verification_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/verification_row" },
+          "uniqueItems": true,
+          "description": "One row per checklist row. A surface that omits a row is non-conforming."
+        },
+        "reset_authorization_state_class": { "$ref": "#/$defs/reset_authorization_state_class" },
+        "decline_acknowledgement_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the typed acknowledgement the user recorded for any user_declined or not_recoverable_after_reset row."
+        },
+        "summary": { "$ref": "#/$defs/short_text" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "overall_result_class = verified is admitted only when every row's result_class is verified.",
+          "if": {
+            "properties": {
+              "overall_result_class": { "const": "verified" }
+            },
+            "required": ["overall_result_class"]
+          },
+          "then": {
+            "properties": {
+              "verification_rows": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "result_class": { "const": "verified" }
+                  },
+                  "required": ["result_class"]
+                }
+              }
+            },
+            "required": ["verification_rows"]
+          }
+        },
+        {
+          "description": "reset_authorization_state_class = authorized_for_reset is admitted only when overall_result_class is verified OR every non-verified row carries a typed acknowledgement_ref.",
+          "if": {
+            "properties": {
+              "reset_authorization_state_class": { "const": "authorized_for_reset" }
+            },
+            "required": ["reset_authorization_state_class"]
+          },
+          "then": {
+            "properties": {
+              "verification_rows": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "result_class": { "const": "verified" }
+                      },
+                      "required": ["result_class"]
+                    },
+                    {
+                      "required": ["acknowledgement_ref"]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["verification_rows"]
+          }
+        },
+        {
+          "description": "When at least one row carries result_class = blocked_by_policy and the reset_authorization_state_class is blocked_by_policy, the gate is closed; this rule pins the binding.",
+          "if": {
+            "properties": {
+              "reset_authorization_state_class": { "const": "blocked_by_policy" }
+            },
+            "required": ["reset_authorization_state_class"]
+          },
+          "then": {
+            "properties": {
+              "verification_rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "result_class": { "const": "blocked_by_policy" }
+                  },
+                  "required": ["result_class"]
+                }
+              }
+            },
+            "required": ["verification_rows"]
+          }
+        },
+        {
+          "description": "When the gate is blocked_unsupported_class, at least one row MUST carry unsupported_class.",
+          "if": {
+            "properties": {
+              "reset_authorization_state_class": { "const": "blocked_unsupported_class" }
+            },
+            "required": ["reset_authorization_state_class"]
+          },
+          "then": {
+            "properties": {
+              "verification_rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "result_class": { "const": "unsupported_class" }
+                  },
+                  "required": ["result_class"]
+                }
+              }
+            },
+            "required": ["verification_rows"]
+          }
+        }
+      ]
+    }
+  }
+}

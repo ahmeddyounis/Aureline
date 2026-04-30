@@ -1,0 +1,208 @@
+# yaml-language-server: $schema=../../../schemas/recovery/export_before_reset_checklist.schema.json
+__fixture__:
+  name: policy_blocked_export
+  scenario: >
+    A managed-tenant profile-reset where active policy blocks export of
+    profile_defaults and credentials at preflight. The user has a
+    verified authoritative backup of workspace bytes and an active
+    admin seat for the seat_or_license_token. Profile reset cannot
+    proceed until the policy review path completes; the verification
+    result records blocked_by_policy and the reset-authorization gate
+    sits at blocked_by_policy. The fixture demonstrates that a policy
+    block is visible under policy_exclusions[] (not hidden behind the
+    generic 'Reset blocked' banner) and the reset-review language
+    surfaces the policy-excluded classes separately from the deleted
+    and retained sets.
+  doc_sections:
+    - "§1 Record model"
+    - "§5 Unsupported-class disclosure"
+    - "§7 Export-action vocabulary"
+    - "§8 Verification-result vocabulary"
+    - "§9 Follow-up guidance vocabulary"
+    - "§10 Reset-review language block"
+    - "§16 Reset-authorization-state vocabulary"
+
+record_kind: export_before_reset_checklist_record
+export_before_reset_checklist_schema_version: 1
+checklist_id: ebr-policy-blocked-export-0001
+generated_at: "mono:7104:14:08:33.0017"
+
+scenario_family_class: profile_corruption
+reset_kind_class: profile_reset
+title: Profile reset — managed-tenant policy blocks export
+summary: >
+  Active managed-tenant policy blocks export of profile defaults and
+  credentials at preflight. Reset is gated until the policy review
+  path completes; workspace, evidence, layout, local-history, and
+  autosave remain externally recoverable from the verified
+  authoritative backup.
+
+deployment_profile_scope_class: managed_tenant
+
+checklist_rows:
+  - row_id: ebr-row-profile-defaults-0002
+    artifact_class: profile_defaults
+    value_posture: user_authored_durable
+    external_recoverability_class: externally_recoverable_authoritative_backup
+    external_source_ref: authoritative_backup:managed_tenant.profile.0042
+    export_action_class: export_blocked_by_policy
+    redaction_class: high_risk
+    estimated_size:
+      bytes_estimate: 786432
+      precision_class: estimated_preflight
+      summary: >
+        Profile body would carry portable settings; preflight detected
+        a policy-block on the convenience-export transport.
+    verification_result_class: blocked_by_policy
+    follow_up_guidance_class: retry_export_after_policy_review
+    post_reset_state_class: externally_recoverable_after_reset
+    summary: >
+      Policy refused profile export; the verified authoritative backup
+      already covers a future restore so the row is externally
+      recoverable after reset.
+  - row_id: ebr-row-credentials-0002
+    artifact_class: credentials
+    value_posture: user_authored_durable
+    external_recoverability_class: externally_recoverable_managed_admin_seat
+    external_source_ref: admin_seat_record:managed_tenant.seat.0042
+    export_action_class: export_blocked_by_policy
+    redaction_class: high_risk
+    estimated_size:
+      bytes_estimate: 0
+      precision_class: bounded_upper
+    verification_result_class: blocked_by_policy
+    follow_up_guidance_class: escalate_to_admin_seat_recovery
+    post_reset_state_class: externally_recoverable_after_reset
+    summary: >
+      Policy refused credentials export; admin seat re-issuance
+      remains the recovery path.
+  - row_id: ebr-row-workspace-state-0002
+    artifact_class: workspace_state
+    value_posture: user_authored_durable
+    external_recoverability_class: externally_recoverable_authoritative_backup
+    external_source_ref: authoritative_backup:managed_tenant.workspace.0042
+    export_action_class: export_offered
+    export_artifact_ref: export_artifact:policy_blocked_export.workspace_state
+    redaction_class: code_adjacent
+    estimated_size:
+      bytes_estimate: 33554432
+      precision_class: estimated_preflight
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Workspace bytes are not deleted by profile_reset; export was
+      offered and verified for convenience.
+  - row_id: ebr-row-evidence-packets-0002
+    artifact_class: evidence_packets
+    value_posture: policy_bound_evidence
+    external_recoverability_class: externally_recoverable_authoritative_backup
+    external_source_ref: authoritative_backup:managed_tenant.evidence.0042
+    export_action_class: export_offered
+    export_artifact_ref: export_artifact:policy_blocked_export.evidence_packets
+    redaction_class: environment_adjacent
+    estimated_size:
+      bytes_estimate: 2097152
+      precision_class: estimated_preflight
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Evidence packets retained; the authoritative backup still covers
+      the row externally.
+
+unsupported_classes: []
+
+policy_exclusions:
+  - excluded_class: profile_defaults
+    policy_ref: policy:managed_tenant.export.profile_defaults_blocked
+    redaction_class: high_risk
+    summary: >
+      Active managed-tenant policy blocks convenience export of profile
+      defaults; reset is gated until the policy review path completes.
+  - excluded_class: credentials
+    policy_ref: policy:managed_tenant.export.credentials_blocked
+    redaction_class: high_risk
+    summary: >
+      Active managed-tenant policy blocks convenience export of
+      credentials; admin seat re-issuance is the recovery path.
+
+reset_review_language:
+  summary: >
+    Profile defaults and credentials cannot be exported under the
+    active policy; reset is blocked until the policy review path
+    completes. Workspace, evidence, local-history, and layout remain
+    externally recoverable from the verified authoritative backup.
+  will_be_deleted: []
+  will_be_retained:
+    - workspace_state
+    - evidence_packets
+  externally_recoverable_after_reset:
+    - artifact_class: profile_defaults
+      external_recoverability_class: externally_recoverable_authoritative_backup
+      external_source_ref: authoritative_backup:managed_tenant.profile.0042
+      summary: >
+        The verified authoritative backup carries the profile body; a
+        future restore re-hydrates the profile after the policy review
+        path resolves.
+    - artifact_class: credentials
+      external_recoverability_class: externally_recoverable_managed_admin_seat
+      external_source_ref: admin_seat_record:managed_tenant.seat.0042
+      summary: >
+        Admin seat re-issuance is the credential recovery path.
+  not_exported:
+    unsupported_classes: []
+    policy_excluded_classes:
+      - profile_defaults
+      - credentials
+    user_declined_classes: []
+
+verification_result_ref: evr-policy-blocked-export-0001
+
+glossary:
+  externally_recoverable_definition_const: true
+  merely_local_definition_const: true
+
+linkage:
+  recovery_scenario_card:
+    card_ref: rsc-profile-corruption-managed-tenant-0001
+    matrix_row_ref: matrix_row:profile_corruption
+    summary: >
+      Recovery-scenario card describes the profile-corruption posture;
+      the matrix row authorizes profile_reset only after export.
+  support_bundle:
+    support_bundle_ref: support_bundle:policy_blocked_export.0001
+    support_bundle_preview_ref: support_bundle_preview:policy_blocked_export.0001
+    redaction_class: code_adjacent
+    summary: >
+      Support bundle attaches the workspace and evidence exports;
+      profile and credentials are excluded under policy and surfaced
+      in the bundle as policy_excluded_classes.
+  repair_transaction:
+    repair_transaction_ref: repair_transaction:profile_reset.policy_blocked
+    repair_preview_ref: repair_preview:profile_reset.policy_blocked
+    approved_repair_class: guided_export_escalation
+    summary: >
+      Reset runs through the repair-transaction preview under the
+      guided_export_escalation approved-repair class; policy review
+      is the next step before apply.
+  restore_destination_review:
+    summary: >
+      No destination-review record yet; a future restore from the
+      authoritative backup will produce one.
+  continuity_status_card_ref: csc-managed-tenant-profile-pre-reset-0001
+  project_doctor:
+    probe_family_class: cache_profile_probe
+    doctor_finding_code_refs:
+      - doctor.finding.profile.schema_drift
+    summary: >
+      The cache_profile_probe Doctor packet names the schema drift;
+      reset is gated on policy review.
+  admin_seat_recovery_ref: admin_seat_recovery:managed_tenant.seat.0042
+
+honesty_invariants:
+  scenario_family_is_closed: true
+  reset_kind_is_closed: true
+  unsupported_classes_explicit: true
+  policy_exclusions_explicit: true
+  external_recoverability_per_row: true
+  reset_review_language_distinguishes_four_buckets: true
+  linkage_is_typed: true

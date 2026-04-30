@@ -1,0 +1,233 @@
+# yaml-language-server: $schema=../../../schemas/recovery/export_before_reset_checklist.schema.json
+__fixture__:
+  name: local_only_reset
+  scenario: >
+    A local-only credential-store reset on a self-hosted device whose
+    OS-level keyring is unreadable. The user has no managed admin seat,
+    no sync replica, and no authoritative backup of credential bytes.
+    The export step covers the surrounding artifacts (workspace state,
+    profile defaults, evidence packets) under user_authored_durable
+    posture; the credential-store row itself is unsupported because the
+    convenience-export transport never carries OS-bound credentials.
+    The checklist demonstrates the locally_recoverable_only_no_external_source
+    branch: workspace, profile, layout, evidence, local-history, and
+    autosave are exported as the only copies on the device, and the
+    user records the no-undo acknowledgement before credential_store_reset
+    proceeds.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Reset-kind vocabulary"
+    - "§3 Artifact-class vocabulary"
+    - "§4 Per-row checklist fields"
+    - "§5 Unsupported-class disclosure"
+    - "§6 External-recoverability vocabulary"
+    - "§10 Reset-review language block"
+    - "§13 Honesty invariants"
+
+record_kind: export_before_reset_checklist_record
+export_before_reset_checklist_schema_version: 1
+checklist_id: ebr-credential-store-local-only-0001
+generated_at: "mono:7012:11:42:01.0001"
+
+scenario_family_class: credential_store_unreadable
+reset_kind_class: credential_store_reset
+title: Credential-store reset — local-only export-before-reset gate
+summary: >
+  OS-level keyring unreadable on a self-hosted device. The export
+  step covers workspace, profile, evidence, layout, local-history,
+  and autosave as the only local copies. The credential-store row
+  itself is unsupported by the convenience-export transport.
+
+deployment_profile_scope_class: self_hosted
+
+checklist_rows:
+  - row_id: ebr-row-workspace-state-0001
+    artifact_class: workspace_state
+    value_posture: user_authored_durable
+    external_recoverability_class: locally_recoverable_only_no_external_source
+    export_action_class: export_required
+    export_artifact_ref: export_artifact:local_only_reset.workspace_state
+    redaction_class: code_adjacent
+    estimated_size:
+      bytes_estimate: 18874368
+      precision_class: estimated_preflight
+      summary: >
+        Workspace-authority body plus active worksets.
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Workspace bytes are exported and retained; credential-store
+      reset does not touch workspace authority.
+  - row_id: ebr-row-profile-defaults-0001
+    artifact_class: profile_defaults
+    value_posture: user_authored_durable
+    external_recoverability_class: locally_recoverable_only_no_external_source
+    export_action_class: export_required
+    export_artifact_ref: export_artifact:local_only_reset.profile_defaults
+    redaction_class: environment_adjacent
+    estimated_size:
+      bytes_estimate: 524288
+      precision_class: estimated_preflight
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Profile defaults exported; reset preserves the profile body.
+  - row_id: ebr-row-layout-topology-0001
+    artifact_class: layout_topology
+    value_posture: user_authored_durable
+    external_recoverability_class: locally_recoverable_only_no_external_source
+    export_action_class: export_recommended
+    export_artifact_ref: export_artifact:local_only_reset.layout_topology
+    redaction_class: metadata_only
+    estimated_size:
+      bytes_estimate: 32768
+      precision_class: exact_preflight
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Layout topology exported; reset preserves window topology.
+  - row_id: ebr-row-evidence-packets-0001
+    artifact_class: evidence_packets
+    value_posture: policy_bound_evidence
+    external_recoverability_class: locally_recoverable_only_no_external_source
+    export_action_class: export_required
+    export_artifact_ref: export_artifact:local_only_reset.evidence_packets
+    redaction_class: environment_adjacent
+    estimated_size:
+      bytes_estimate: 4194304
+      precision_class: estimated_preflight
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Evidence-packet index exported and retained; the local body is
+      the only copy on a self-hosted device.
+  - row_id: ebr-row-local-history-lane-0001
+    artifact_class: local_history_lane
+    value_posture: user_owned_recovery_state
+    external_recoverability_class: locally_recoverable_only_no_external_source
+    export_action_class: export_required
+    export_artifact_ref: export_artifact:local_only_reset.local_history_lane
+    redaction_class: code_adjacent
+    estimated_size:
+      bytes_estimate: 8388608
+      precision_class: estimated_preflight
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Local-history lane exported; reset does not touch local-history.
+  - row_id: ebr-row-autosave-journal-0001
+    artifact_class: autosave_journal
+    value_posture: user_owned_recovery_state
+    external_recoverability_class: locally_recoverable_only_no_external_source
+    export_action_class: export_recommended
+    export_artifact_ref: export_artifact:local_only_reset.autosave_journal
+    redaction_class: code_adjacent
+    estimated_size:
+      bytes_estimate: 1048576
+      precision_class: estimated_preflight
+    verification_result_class: verified
+    post_reset_state_class: will_be_retained
+    summary: >
+      Autosave journal exported; reset does not touch autosave.
+  - row_id: ebr-row-credentials-0001
+    artifact_class: credentials
+    value_posture: user_authored_durable
+    external_recoverability_class: not_recoverable_after_reset
+    export_action_class: export_unsupported
+    redaction_class: high_risk
+    estimated_size:
+      bytes_estimate: 0
+      precision_class: bounded_upper
+      summary: >
+        Convenience-export transport refuses to carry OS-level
+        credential bytes; bytes_estimate is bounded at zero.
+    verification_result_class: unsupported_class
+    follow_up_guidance_class: skip_unsupported_class_acknowledged
+    post_reset_state_class: will_be_deleted
+    summary: >
+      OS-level credentials cannot be exported; the credential-store
+      reset will delete the local entries with no recovery path.
+
+unsupported_classes:
+  - unsupported_class: credentials
+    unsupported_reason_class: transport_does_not_carry_class
+    redaction_class: high_risk
+    summary: >
+      The convenience-export transport never carries OS-level keyring
+      bytes; the user MUST re-authenticate after reset.
+
+policy_exclusions: []
+
+reset_review_language:
+  summary: >
+    Six classes (workspace, profile, layout, evidence, local-history,
+    autosave) are exported and retained on this device. The
+    credential-store row will be deleted with no external recovery
+    source; the user has acknowledged the no-undo path.
+  will_be_deleted:
+    - credentials
+  will_be_retained:
+    - workspace_state
+    - profile_defaults
+    - layout_topology
+    - evidence_packets
+    - local_history_lane
+    - autosave_journal
+  externally_recoverable_after_reset: []
+  not_exported:
+    unsupported_classes:
+      - credentials
+    policy_excluded_classes: []
+    user_declined_classes: []
+
+verification_result_ref: evr-credential-store-local-only-0001
+
+glossary:
+  externally_recoverable_definition_const: true
+  merely_local_definition_const: true
+
+linkage:
+  recovery_scenario_card:
+    card_ref: rsc-credential-store-unreadable-self-hosted-0001
+    matrix_row_ref: matrix_row:credential_store_unreadable
+    summary: >
+      Recovery-scenario card describes the credential-store-unreadable
+      posture; the matrix row authorizes credential_store_reset only.
+  support_bundle:
+    support_bundle_ref: support_bundle:local_only_reset.0001
+    support_bundle_preview_ref: support_bundle_preview:local_only_reset.0001
+    redaction_class: high_risk
+    summary: >
+      Support bundle attaches the workspace, profile, layout, evidence,
+      local-history, and autosave exports under high_risk redaction
+      (because credential-store deletion is in scope).
+  repair_transaction:
+    repair_transaction_ref: repair_transaction:credential_store_reset.local_only
+    repair_preview_ref: repair_preview:credential_store_reset.local_only
+    approved_repair_class: support_bundle_export
+    summary: >
+      Reset runs through the repair-transaction preview; the support-
+      bundle-export approved-repair class governs the exported
+      artifacts.
+  restore_destination_review:
+    review_ref: rdr-local-only-reset-future-restore-0001
+    summary: >
+      A future restore from the convenience export bundle is reviewed
+      by the destination-review record.
+  continuity_status_card_ref: csc-self-hosted-credential-store-pre-reset-0001
+  project_doctor:
+    probe_family_class: trust_state_probe
+    doctor_finding_code_refs:
+      - doctor.finding.credential_store.unlock_failure
+    summary: >
+      The trust_state_probe Doctor packet names the unlock failure;
+      reset is gated on the export-before-reset checklist.
+
+honesty_invariants:
+  scenario_family_is_closed: true
+  reset_kind_is_closed: true
+  unsupported_classes_explicit: true
+  policy_exclusions_explicit: true
+  external_recoverability_per_row: true
+  reset_review_language_distinguishes_four_buckets: true
+  linkage_is_typed: true
