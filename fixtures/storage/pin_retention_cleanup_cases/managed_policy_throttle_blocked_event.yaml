@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=../../../schemas/storage/cleanup_history_event.schema.json
+$schema: "https://aureline.dev/schemas/storage/cleanup_history_event.schema.json"
+__fixture__:
+  name: managed_policy_throttle_blocked_event
+  scenario: >
+    The system_cache_manager_gc attempted a low-disk eviction on a
+    managed-tenant install but was blocked under managed-policy
+    throttle. event_class is cleanup_blocked_managed_policy_throttle;
+    bytes_reclaimed_total and entries_reclaimed_total are zero;
+    triggering_low_disk_banner_ref is non-null; deployment context
+    is managed_policy with a customer_tenant scope. The blocked
+    items summary names blocked_managed_policy_throttle plus a
+    blocked_policy_held_pin row that links the case 42 evidence
+    pin entry. The evidence_disclosure_class is
+    evidence_class_held_under_policy.
+  contract_sections:
+    - "§4 The cleanup-history event record"
+    - "§9 Cleanup-history vocabulary"
+    - "§10 Actor framing"
+    - "§11 Deployment-context block"
+    - "§12 Cross-record invariants"
+    - "§13 Worked acceptance scenarios"
+  exercised_axes:
+    event_class: cleanup_blocked_managed_policy_throttle
+    actor_class: system_cache_manager_gc
+    actor_framing_class: automatic_system_acted
+    evidence_disclosure_class: evidence_class_held_under_policy
+    framing_class: managed_policy
+record_kind: cleanup_history_event_record
+cleanup_history_event_schema_version: 1
+event_id: "cleanup.history.tenant.acme_corp.managed_policy_throttle.001"
+emitted_at: "2026-04-29T05:30:01Z"
+event_at: "2026-04-29T05:30:00Z"
+parent_card_id_ref: "card.storage.tenant.acme_corp"
+event_scope:
+  scope_class: tenant_only
+  scope_ref: "tenant.acme_corp"
+  scope_label: "Tenant: ACME Corp (managed)"
+event_class: cleanup_blocked_managed_policy_throttle
+actor_class: system_cache_manager_gc
+actor_framing_class: automatic_system_acted
+actor_label: "Cache manager (automatic) — refused under tenant policy"
+affected_class_rows:
+  - storage_class_id: artifact_cache
+    bytes_reclaimed: 0
+    entries_reclaimed: 0
+    blocked_pinned_entries_count: 0
+    blocked_protected_entries_count: 0
+    resulting_posture: pressure_trimmed
+    resulting_class_state_class: managed_policy_throttle_no_change
+    evidence_disclosure_class: not_applicable
+    class_label: "Artifact cache — tenant"
+    notes: >
+      Tenant policy throttle prevents automatic trimming of the
+      artifact cache; reclaim window is paused.
+  - storage_class_id: evidence_support_cache
+    bytes_reclaimed: 0
+    entries_reclaimed: 0
+    blocked_pinned_entries_count: 1
+    blocked_protected_entries_count: 0
+    resulting_posture: retained_for_evidence
+    resulting_class_state_class: managed_policy_throttle_no_change
+    evidence_disclosure_class: evidence_class_held_under_policy
+    class_label: "Case 42 — exported evidence packet"
+blocked_items_summary:
+  - blocked_reason_class: blocked_managed_policy_throttle
+    blocked_storage_class_id: artifact_cache
+    blocked_entry_count: 0
+    blocked_bytes: 0
+    linked_pin_retention_entry_ref: null
+    linked_class_specific_review_ref: null
+    blocked_label: "Artifact cache — tenant policy throttle"
+    notes: >
+      Tenant policy refuses automatic eviction; the cleanup
+      scheduler is paused.
+  - blocked_reason_class: blocked_policy_held_pin
+    blocked_storage_class_id: evidence_support_cache
+    blocked_entry_count: 1
+    blocked_bytes: 41943040
+    linked_pin_retention_entry_ref: "pin.entry.tenant.case_42.policy_pin.001"
+    linked_class_specific_review_ref: null
+    blocked_label: "Case 42 evidence — held by tenant policy pin"
+    notes: >
+      Tenant policy holds the case 42 evidence packet; release is
+      possible only via the admin pin manager.
+bytes_reclaimed_total: 0
+entries_reclaimed_total: 0
+blocked_pinned_entries_total: 1
+blocked_protected_entries_total: 0
+evidence_disclosure_class: evidence_class_held_under_policy
+preview_ref: null
+triggering_low_disk_banner_ref: "banner.low_disk.tenant.acme_corp.managed_policy_throttle.001"
+ladder_step_applied: null
+follow_up_actions_required:
+  - no_follow_up_required
+reopen_inspector_action:
+  action_id: "action.cleanup_history.tenant.acme_corp.managed_policy_throttle.reopen_inspector"
+  label: "Reopen storage inspector for ACME Corp tenant"
+  target_route_ref: "route.storage_inspector.tenant.acme_corp"
+  scope_class: scope_local_only
+  authority_class: user_local_authority
+  consent_class: no_consent_required_safe_default
+  side_effects:
+    - no_side_effect_inspect_only
+  preserves_evidence_context: true
+  revalidation_on_open: snapshot_open_read_only
+  modal_prohibited: true
+deployment_context:
+  deployment_profile: enterprise_online
+  mirror_offline_state_class: online_live_allowed
+  tenant_org_scope_class: customer_tenant
+  framing_class: managed_policy
+consumer_surfaces:
+  - cleanup_history_lane
+  - low_disk_banner
+  - admin_storage_console
+  - support_packet_export
+  - cli_text_formatter
+redaction_class: operator_only_restricted
+export_safe: true
+note: >
+  Tenant policy throttle prevented automatic cleanup. The case 42
+  evidence packet is held by the tenant policy pin; admin
+  intervention is required to release it.
+linked_low_disk_banner_ref: "banner.low_disk.tenant.acme_corp.managed_policy_throttle.001"
+linked_pin_retention_entry_refs:
+  - "pin.entry.tenant.case_42.policy_pin.001"

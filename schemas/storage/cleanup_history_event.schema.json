@@ -1,0 +1,1055 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/cleanup_history_event.schema.json",
+  "title": "Aureline cleanup-history event record",
+  "description": "Boundary schema for the cleanup_history_event_record frozen in docs/storage/pin_retention_cleanup_history_contract.md. The record is one inspectable post-action attribution row in the cleanup-history lane describing what happened to one inspector scope: the event_class (user clear, admin policy clear, automatic low-disk-governor eviction, automatic retention expiry, automatic schema-drift invalidation, automatic corrupt-cache repair, support-export-assembly drain, blocked-pinned-or-protected, blocked-managed-policy-throttle), the actor class with its coarse framing, the affected per-class outcome rows (storage class, bytes reclaimed, entries reclaimed, blocked-pinned and blocked-protected counts, resulting posture, resulting class state, evidence disclosure), the totals, the originating clear-data review or low-disk banner refs (when applicable), the ladder step applied, the inspect-only reopen-inspector action, the deployment context, and the redaction discipline. The record is the source of truth for the cleanup-history lane, the clear-data review sheet's history excerpt, the low-disk banner's history-link affordance, the pin manager's blocked-history list, the admin storage console, the support-bundle storage section, and the CLI text formatter. The schema mints no new storage_class_id, authority_class, storage_posture_class, low_disk_ladder_step, actor_class, deployment_profile, mirror_offline_state_class, or tenant_org_scope_class value; those re-export verbatim from /artifacts/runtime/storage_classes.yaml, /schemas/runtime/cache_entry_manifest.schema.json, /schemas/storage/storage_class_breakdown.schema.json, /schemas/storage/clear_data_review.schema.json, /schemas/storage/low_disk_banner.schema.json, and /schemas/deployment/deployment_summary_card.schema.json. Adding a value to a closed vocabulary is additive-minor and bumps cleanup_history_event_schema_version; repurposing a value, weakening the evidence-disclosure pairings, or relaxing the blocked-cleanup totals invariant is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/cleanup_history_event_record",
+  "$defs": {
+    "cleanup_history_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the cleanup-history event payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, raw command lines, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw payload bytes, raw paths, raw URLs, raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "storage_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "rebuild_pending",
+        "pressure_trimmed",
+        "reset_candidate",
+        "retained_for_evidence",
+        "missing"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "system_low_disk_governor",
+        "system_retention_policy",
+        "system_schema_drift_invalidator",
+        "system_corrupt_cache_detector",
+        "system_cache_manager_gc",
+        "user_clear_data_review",
+        "user_pin_manager_action",
+        "admin_policy_action",
+        "support_export_assembly"
+      ]
+    },
+    "actor_framing_class": {
+      "type": "string",
+      "enum": [
+        "user_acted",
+        "admin_or_tenant_policy_acted",
+        "automatic_system_acted",
+        "support_export_acted"
+      ]
+    },
+    "low_disk_ladder_step": {
+      "type": "string",
+      "enum": [
+        "stop_speculative_fetch_and_prefetch",
+        "pause_managed_replication_and_pack_refresh",
+        "trim_interactive_hot_cache",
+        "trim_knowledge_cache_rebuildable",
+        "trim_artifact_cache_unpinned",
+        "trim_prebuild_environment_unpinned",
+        "expire_unpinned_evidence_past_retention",
+        "user_owned_recovery_state_only_under_explicit_review"
+      ]
+    },
+    "follow_up_action_class": {
+      "type": "string",
+      "enum": [
+        "rebuild_knowledge_cache",
+        "rewarm_prebuild_environment_cache",
+        "redownload_artifact_cache",
+        "reissue_support_export_after_case_closure",
+        "rerun_class_specific_review_for_evidence",
+        "rerun_class_specific_review_for_user_owned_recovery_state",
+        "no_follow_up_required"
+      ]
+    },
+    "inspector_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_total",
+        "workspace_only",
+        "workset_only",
+        "profile_only",
+        "tenant_only",
+        "slice_only"
+      ]
+    },
+    "scope_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/inspector_scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "device_total scope carries a null scope_ref; every other scope class carries a non-null ref.",
+          "if": {
+            "properties": { "scope_class": { "const": "device_total" } },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "scope_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "mirror_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic",
+        "not_applicable"
+      ]
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "framing_class": {
+      "type": "string",
+      "enum": [
+        "local_only_individual",
+        "mirrored_or_offline",
+        "managed_policy",
+        "managed_policy_air_gapped"
+      ]
+    },
+    "deployment_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profile",
+        "mirror_offline_state_class",
+        "tenant_org_scope_class",
+        "framing_class"
+      ],
+      "properties": {
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile" },
+        "mirror_offline_state_class": { "$ref": "#/$defs/mirror_offline_state_class" },
+        "tenant_org_scope_class": { "$ref": "#/$defs/tenant_org_scope_class" },
+        "framing_class": { "$ref": "#/$defs/framing_class" }
+      },
+      "allOf": [
+        {
+          "description": "local_only_individual framing requires deployment_profile = individual_local and mirror_offline_state_class = not_applicable.",
+          "if": {
+            "properties": { "framing_class": { "const": "local_only_individual" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "individual_local" },
+              "mirror_offline_state_class": { "const": "not_applicable" },
+              "tenant_org_scope_class": {
+                "enum": ["single_user_local", "not_applicable"]
+              }
+            }
+          }
+        },
+        {
+          "description": "mirrored_or_offline framing requires a mirror / offline mirror_offline_state_class.",
+          "if": {
+            "properties": { "framing_class": { "const": "mirrored_or_offline" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_offline_state_class": {
+                "enum": [
+                  "online_mirror_only",
+                  "offline_grace_preserved",
+                  "offline_air_gapped",
+                  "network_disabled_by_user",
+                  "network_degraded_heuristic"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy framing requires a managed deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": {
+                "enum": ["enterprise_online", "managed_cloud", "self_hosted"]
+              },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy_air_gapped framing requires the air_gapped deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy_air_gapped" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "air_gapped" },
+              "mirror_offline_state_class": { "const": "offline_air_gapped" },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "event_class": {
+      "type": "string",
+      "enum": [
+        "user_clear_data_committed",
+        "admin_policy_clear_committed",
+        "automatic_low_disk_governor_eviction",
+        "automatic_retention_policy_expiry",
+        "automatic_schema_drift_invalidation",
+        "automatic_corrupt_cache_repair",
+        "support_export_assembly_drained",
+        "cleanup_blocked_pinned_or_protected",
+        "cleanup_blocked_managed_policy_throttle"
+      ],
+      "description": "Closed event-class vocabulary covering every cleanup-history row a surface can render. Adding a value is additive-minor; repurposing is breaking."
+    },
+    "resulting_class_state_class": {
+      "type": "string",
+      "enum": [
+        "cleared_class_now_disposable_only",
+        "cleared_class_with_pin_exclusions_remaining",
+        "cleared_class_with_blocked_protected_remaining",
+        "retention_expired_evidence_now_eligible_for_review",
+        "retention_window_held_no_change",
+        "schema_drift_invalidated_class_rebuilt_or_pending",
+        "corrupt_cache_repaired_class_now_clean",
+        "support_export_assembly_drained_class_now_clean",
+        "managed_policy_throttle_no_change",
+        "blocked_class_unchanged_pending_class_specific_review"
+      ],
+      "description": "Closed resulting-state vocabulary the lane projects per affected class. The pairing with event_class is schema-enforced."
+    },
+    "evidence_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "evidence_class_not_touched",
+        "evidence_class_retention_expired_eligible_for_review",
+        "evidence_class_export_required_before_clear_unblocked",
+        "evidence_class_blocked_class_specific_review_pending",
+        "evidence_class_held_under_policy",
+        "support_export_assembly_pin_drained",
+        "user_owned_recovery_state_blocked_class_specific_review_pending",
+        "not_applicable"
+      ],
+      "description": "Special-treatment disclosure for evidence and support artifacts (and user-owned recovery state). Required so durable evidence cannot be mistaken for ordinary cache eviction. The pairing with event_class and the affected_class_rows storage_class_id is schema-enforced."
+    },
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "blocked_evidence_class_specific_review_required",
+        "blocked_authoritative_user_owned_clear_refused",
+        "blocked_policy_held_pin",
+        "blocked_mirror_or_offline_pinned",
+        "blocked_managed_policy_throttle",
+        "blocked_user_pinned_indefinite",
+        "blocked_admin_pinned_indefinite",
+        "blocked_corrupt_cache_repair_pending"
+      ]
+    },
+    "blocked_item_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocked_reason_class",
+        "blocked_storage_class_id",
+        "blocked_entry_count",
+        "blocked_bytes",
+        "linked_pin_retention_entry_ref"
+      ],
+      "properties": {
+        "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "blocked_storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "blocked_entry_count": { "type": "integer", "minimum": 0 },
+        "blocked_bytes": { "type": "integer", "minimum": 0 },
+        "linked_pin_retention_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_class_specific_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "blocked_label": { "$ref": "#/$defs/reviewable_label" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "blocked_evidence_class_specific_review_required pairs with evidence_support_cache and a non-null class-specific review ref.",
+          "if": {
+            "properties": { "blocked_reason_class": { "const": "blocked_evidence_class_specific_review_required" } },
+            "required": ["blocked_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_storage_class_id": { "const": "evidence_support_cache" },
+              "linked_class_specific_review_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "blocked_authoritative_user_owned_clear_refused pairs with user_owned_recovery_state and a non-null class-specific review ref.",
+          "if": {
+            "properties": { "blocked_reason_class": { "const": "blocked_authoritative_user_owned_clear_refused" } },
+            "required": ["blocked_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_storage_class_id": { "const": "user_owned_recovery_state" },
+              "linked_class_specific_review_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "blocked_policy_held_pin / blocked_mirror_or_offline_pinned / blocked_user_pinned_indefinite / blocked_admin_pinned_indefinite require a non-null pin_retention_entry ref.",
+          "if": {
+            "properties": {
+              "blocked_reason_class": {
+                "enum": [
+                  "blocked_policy_held_pin",
+                  "blocked_mirror_or_offline_pinned",
+                  "blocked_user_pinned_indefinite",
+                  "blocked_admin_pinned_indefinite"
+                ]
+              }
+            },
+            "required": ["blocked_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_pin_retention_entry_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "affected_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storage_class_id",
+        "bytes_reclaimed",
+        "entries_reclaimed",
+        "blocked_pinned_entries_count",
+        "blocked_protected_entries_count",
+        "resulting_posture",
+        "resulting_class_state_class",
+        "evidence_disclosure_class",
+        "class_label"
+      ],
+      "properties": {
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "bytes_reclaimed": { "type": "integer", "minimum": 0 },
+        "entries_reclaimed": { "type": "integer", "minimum": 0 },
+        "blocked_pinned_entries_count": { "type": "integer", "minimum": 0 },
+        "blocked_protected_entries_count": { "type": "integer", "minimum": 0 },
+        "resulting_posture": { "$ref": "#/$defs/storage_posture_class" },
+        "resulting_class_state_class": { "$ref": "#/$defs/resulting_class_state_class" },
+        "evidence_disclosure_class": { "$ref": "#/$defs/evidence_disclosure_class" },
+        "class_label": { "$ref": "#/$defs/reviewable_label" },
+        "linked_class_specific_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "user_owned_recovery_state rows MUST report zero bytes / entries reclaimed and a non-cleared resulting state. The class never disappears under a generic clear.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "user_owned_recovery_state" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "bytes_reclaimed": { "const": 0 },
+              "entries_reclaimed": { "const": 0 },
+              "resulting_class_state_class": {
+                "enum": [
+                  "retention_window_held_no_change",
+                  "managed_policy_throttle_no_change",
+                  "blocked_class_unchanged_pending_class_specific_review"
+                ]
+              },
+              "evidence_disclosure_class": {
+                "enum": [
+                  "user_owned_recovery_state_blocked_class_specific_review_pending",
+                  "not_applicable"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_support_cache rows pair the evidence-disclosure class with the non-evidence_class_not_touched, non-not_applicable taxonomy.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "evidence_support_cache" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "evidence_disclosure_class": {
+                "enum": [
+                  "evidence_class_retention_expired_eligible_for_review",
+                  "evidence_class_export_required_before_clear_unblocked",
+                  "evidence_class_blocked_class_specific_review_pending",
+                  "evidence_class_held_under_policy",
+                  "support_export_assembly_pin_drained"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Disposable cache rows carry not_applicable evidence-disclosure unless the row is the support_export_assembly_drained event class (handled at the parent level).",
+          "if": {
+            "properties": {
+              "storage_class_id": {
+                "enum": [
+                  "interactive_hot_cache",
+                  "knowledge_cache",
+                  "artifact_cache",
+                  "prebuild_environment_cache"
+                ]
+              }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "evidence_disclosure_class": {
+                "enum": ["not_applicable", "support_export_assembly_pin_drained"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-zero entries_reclaimed requires non-zero bytes_reclaimed (and vice versa).",
+          "if": {
+            "properties": {
+              "entries_reclaimed": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["entries_reclaimed"]
+          },
+          "then": {
+            "properties": {
+              "bytes_reclaimed": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        {
+          "description": "retention_expired_evidence_now_eligible_for_review state requires evidence_class_retention_expired_eligible_for_review disclosure plus a class-specific review link.",
+          "if": {
+            "properties": { "resulting_class_state_class": { "const": "retention_expired_evidence_now_eligible_for_review" } },
+            "required": ["resulting_class_state_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": { "const": "evidence_support_cache" },
+              "evidence_disclosure_class": { "const": "evidence_class_retention_expired_eligible_for_review" },
+              "linked_class_specific_review_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "blocked_class_unchanged_pending_class_specific_review state requires a class-specific review link and zero reclaimed bytes / entries.",
+          "if": {
+            "properties": { "resulting_class_state_class": { "const": "blocked_class_unchanged_pending_class_specific_review" } },
+            "required": ["resulting_class_state_class"]
+          },
+          "then": {
+            "properties": {
+              "bytes_reclaimed": { "const": 0 },
+              "entries_reclaimed": { "const": 0 },
+              "linked_class_specific_review_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "cleanup_history_lane",
+        "clear_data_review",
+        "low_disk_banner",
+        "pin_manager",
+        "admin_storage_console",
+        "support_packet_export",
+        "cli_text_formatter"
+      ]
+    },
+    "reopen_inspector_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "revalidation_on_open",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_open_read_only"]
+        },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      },
+      "description": "Inspect-only reopen-inspector action. Every cleanup-history event MUST carry exactly one so users can navigate from the history row back to the originating inspector card without firing any side effect."
+    },
+    "cleanup_history_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "cleanup_history_event_schema_version",
+        "event_id",
+        "emitted_at",
+        "event_at",
+        "parent_card_id_ref",
+        "event_scope",
+        "event_class",
+        "actor_class",
+        "actor_framing_class",
+        "actor_label",
+        "affected_class_rows",
+        "blocked_items_summary",
+        "bytes_reclaimed_total",
+        "entries_reclaimed_total",
+        "blocked_pinned_entries_total",
+        "blocked_protected_entries_total",
+        "evidence_disclosure_class",
+        "ladder_step_applied",
+        "follow_up_actions_required",
+        "reopen_inspector_action",
+        "deployment_context",
+        "consumer_surfaces",
+        "redaction_class",
+        "export_safe",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "cleanup_history_event_record" },
+        "cleanup_history_event_schema_version": { "$ref": "#/$defs/cleanup_history_event_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "event_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "parent_card_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "event_scope": { "$ref": "#/$defs/scope_block" },
+        "event_class": { "$ref": "#/$defs/event_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_framing_class": { "$ref": "#/$defs/actor_framing_class" },
+        "actor_label": { "$ref": "#/$defs/reviewable_label" },
+        "affected_class_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affected_class_row" }
+        },
+        "blocked_items_summary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_item_summary_row" },
+          "uniqueItems": false
+        },
+        "bytes_reclaimed_total": { "type": "integer", "minimum": 0 },
+        "entries_reclaimed_total": { "type": "integer", "minimum": 0 },
+        "blocked_pinned_entries_total": { "type": "integer", "minimum": 0 },
+        "blocked_protected_entries_total": { "type": "integer", "minimum": 0 },
+        "evidence_disclosure_class": { "$ref": "#/$defs/evidence_disclosure_class" },
+        "preview_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the originating clear_data_review_record. Required non-null for user_clear_data_committed and admin_policy_clear_committed events; required null for automatic system events that were not preview-initiated."
+        },
+        "triggering_low_disk_banner_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the low-disk banner that triggered the eviction. Required non-null for automatic_low_disk_governor_eviction and cleanup_blocked_managed_policy_throttle events; required null otherwise."
+        },
+        "ladder_step_applied": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/low_disk_ladder_step" }
+          ],
+          "description": "Required non-null for automatic_low_disk_governor_eviction events; required null for every other event class."
+        },
+        "follow_up_actions_required": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/follow_up_action_class" }
+        },
+        "reopen_inspector_action": { "$ref": "#/$defs/reopen_inspector_action" },
+        "deployment_context": { "$ref": "#/$defs/deployment_context" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_clear_data_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_low_disk_banner_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_pin_retention_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "linked_class_specific_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "linked_workspace_storage_detail_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "linked_deployment_summary_card_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "user_clear_data_committed events pair with the user_clear_data_review actor and the user_acted framing, require preview_ref non-null, and forbid ladder_step_applied / triggering_low_disk_banner_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "user_clear_data_committed" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class": { "const": "user_clear_data_review" },
+              "actor_framing_class": { "const": "user_acted" },
+              "preview_ref": { "not": { "type": "null" } },
+              "ladder_step_applied": { "type": "null" },
+              "triggering_low_disk_banner_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "admin_policy_clear_committed events pair with the admin_policy_action actor and the admin_or_tenant_policy_acted framing, require preview_ref non-null, and forbid ladder_step_applied / triggering_low_disk_banner_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "admin_policy_clear_committed" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class": { "const": "admin_policy_action" },
+              "actor_framing_class": { "const": "admin_or_tenant_policy_acted" },
+              "preview_ref": { "not": { "type": "null" } },
+              "ladder_step_applied": { "type": "null" },
+              "triggering_low_disk_banner_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "automatic_low_disk_governor_eviction events pair with the system_low_disk_governor actor, the automatic_system_acted framing, a non-null ladder_step_applied, and a non-null triggering_low_disk_banner_ref. preview_ref MUST be null.",
+          "if": {
+            "properties": { "event_class": { "const": "automatic_low_disk_governor_eviction" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class": { "const": "system_low_disk_governor" },
+              "actor_framing_class": { "const": "automatic_system_acted" },
+              "ladder_step_applied": { "not": { "type": "null" } },
+              "triggering_low_disk_banner_ref": { "not": { "type": "null" } },
+              "preview_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "automatic_retention_policy_expiry events pair with the system_retention_policy actor, the automatic_system_acted framing, the evidence_class_retention_expired_eligible_for_review disclosure, and forbid ladder_step_applied / triggering_low_disk_banner_ref / preview_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "automatic_retention_policy_expiry" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class": { "const": "system_retention_policy" },
+              "actor_framing_class": { "const": "automatic_system_acted" },
+              "evidence_disclosure_class": { "const": "evidence_class_retention_expired_eligible_for_review" },
+              "ladder_step_applied": { "type": "null" },
+              "triggering_low_disk_banner_ref": { "type": "null" },
+              "preview_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "automatic_schema_drift_invalidation events pair with the system_schema_drift_invalidator actor, the automatic_system_acted framing, and forbid ladder_step_applied / triggering_low_disk_banner_ref / preview_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "automatic_schema_drift_invalidation" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class": { "const": "system_schema_drift_invalidator" },
+              "actor_framing_class": { "const": "automatic_system_acted" },
+              "ladder_step_applied": { "type": "null" },
+              "triggering_low_disk_banner_ref": { "type": "null" },
+              "preview_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "automatic_corrupt_cache_repair events pair with the system_corrupt_cache_detector actor, the automatic_system_acted framing, and forbid ladder_step_applied / triggering_low_disk_banner_ref / preview_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "automatic_corrupt_cache_repair" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class": { "const": "system_corrupt_cache_detector" },
+              "actor_framing_class": { "const": "automatic_system_acted" },
+              "ladder_step_applied": { "type": "null" },
+              "triggering_low_disk_banner_ref": { "type": "null" },
+              "preview_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "support_export_assembly_drained events pair with the support_export_assembly actor, the support_export_acted framing, the support_export_assembly_pin_drained disclosure, and forbid ladder_step_applied / triggering_low_disk_banner_ref / preview_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "support_export_assembly_drained" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class": { "const": "support_export_assembly" },
+              "actor_framing_class": { "const": "support_export_acted" },
+              "evidence_disclosure_class": { "const": "support_export_assembly_pin_drained" },
+              "ladder_step_applied": { "type": "null" },
+              "triggering_low_disk_banner_ref": { "type": "null" },
+              "preview_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "cleanup_blocked_pinned_or_protected events report zero reclaimed bytes / entries totals and a non-empty blocked_items_summary.",
+          "if": {
+            "properties": { "event_class": { "const": "cleanup_blocked_pinned_or_protected" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "bytes_reclaimed_total": { "const": 0 },
+              "entries_reclaimed_total": { "const": 0 },
+              "blocked_items_summary": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "cleanup_blocked_managed_policy_throttle events report zero reclaimed bytes / entries, an automatic system actor, the managed_policy or managed_policy_air_gapped framing, a non-null triggering_low_disk_banner_ref, and a non-empty blocked_items_summary that contains at least one blocked_managed_policy_throttle row.",
+          "if": {
+            "properties": { "event_class": { "const": "cleanup_blocked_managed_policy_throttle" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "bytes_reclaimed_total": { "const": 0 },
+              "entries_reclaimed_total": { "const": 0 },
+              "actor_class": {
+                "enum": ["system_low_disk_governor", "system_cache_manager_gc"]
+              },
+              "actor_framing_class": { "const": "automatic_system_acted" },
+              "triggering_low_disk_banner_ref": { "not": { "type": "null" } },
+              "deployment_context": {
+                "properties": {
+                  "framing_class": {
+                    "enum": ["managed_policy", "managed_policy_air_gapped"]
+                  }
+                },
+                "required": ["framing_class"]
+              },
+              "blocked_items_summary": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "blocked_reason_class": { "const": "blocked_managed_policy_throttle" }
+                  },
+                  "required": ["blocked_reason_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Records carrying any affected_class_rows row whose storage_class_id is evidence_support_cache or user_owned_recovery_state MUST set the parent evidence_disclosure_class to a non-not_applicable value (so durable evidence cannot hide behind generic cache eviction).",
+          "if": {
+            "properties": {
+              "affected_class_rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "storage_class_id": {
+                      "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+                    }
+                  },
+                  "required": ["storage_class_id"]
+                }
+              }
+            },
+            "required": ["affected_class_rows"]
+          },
+          "then": {
+            "properties": {
+              "evidence_disclosure_class": {
+                "not": { "const": "not_applicable" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Records exported under export_safe = true MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Records carrying a non-empty linked_pin_retention_entry_refs array MUST also reference at least one blocked_items_summary row whose linked_pin_retention_entry_ref is non-null.",
+          "if": {
+            "properties": {
+              "linked_pin_retention_entry_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["linked_pin_retention_entry_refs"]
+          },
+          "then": {
+            "properties": {
+              "blocked_items_summary": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "linked_pin_retention_entry_ref": { "not": { "type": "null" } }
+                  },
+                  "required": ["linked_pin_retention_entry_ref"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Records whose actor_class is user_clear_data_review / user_pin_manager_action pair with the user_acted framing.",
+          "if": {
+            "properties": {
+              "actor_class": {
+                "enum": ["user_clear_data_review", "user_pin_manager_action"]
+              }
+            },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "user_acted" }
+            }
+          }
+        },
+        {
+          "description": "Records whose actor_class is admin_policy_action pair with the admin_or_tenant_policy_acted framing.",
+          "if": {
+            "properties": { "actor_class": { "const": "admin_policy_action" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "admin_or_tenant_policy_acted" }
+            }
+          }
+        },
+        {
+          "description": "Records whose actor_class is one of the system actors pair with the automatic_system_acted framing.",
+          "if": {
+            "properties": {
+              "actor_class": {
+                "enum": [
+                  "system_low_disk_governor",
+                  "system_retention_policy",
+                  "system_schema_drift_invalidator",
+                  "system_corrupt_cache_detector",
+                  "system_cache_manager_gc"
+                ]
+              }
+            },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "automatic_system_acted" }
+            }
+          }
+        },
+        {
+          "description": "Records whose actor_class is support_export_assembly pair with the support_export_acted framing.",
+          "if": {
+            "properties": { "actor_class": { "const": "support_export_assembly" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "support_export_acted" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

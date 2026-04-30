@@ -1,0 +1,1101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/pin_retention_entry.schema.json",
+  "title": "Aureline pin / retention entry record",
+  "description": "Boundary schema for the pin_retention_entry_record frozen in docs/storage/pin_retention_cleanup_history_contract.md. The record is one inspectable row in the pin / retention manager describing why a referenced object is being held on disk: the storage class, authority class, pin source, the actor class that declared the pin, the pin-expiry class and the expiry timestamp or anchor block, the live expiry posture, the unpin-path class with its opaque route ref, the bytes and entry count held, and (when the object is durable evidence or support state) the export path the surface offers before any clear. The record is the source of truth for the pin manager, the clear-data review sheet's protected-class refusals, the low-disk banner's protected-pin-source list, the cleanup-history lane's blocked-items projection, the admin storage console, the support-bundle storage section, and the CLI text formatter; surfaces consume the same record family without recomputing field names. The schema mints no new storage_class_id, authority_class, pin_source_class, deployment_profile, mirror_offline_state_class, or tenant_org_scope_class value; those re-export verbatim from /artifacts/runtime/storage_classes.yaml, /schemas/runtime/cache_entry_manifest.schema.json, /schemas/storage/storage_class_breakdown.schema.json, and /schemas/deployment/deployment_summary_card.schema.json. Adding a value to a closed vocabulary is additive-minor and bumps pin_retention_entry_schema_version; repurposing a value, weakening the evidence-export pairings, or relaxing the user-owned-recovery / evidence-class invariants is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/pin_retention_entry_record",
+  "$defs": {
+    "pin_retention_entry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the pin / retention entry payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, raw command lines, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing names but never raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, raw command lines, or raw secret material."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw payload bytes, raw paths, raw URLs, raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "pinnable_storage_class_id": {
+      "type": "string",
+      "enum": [
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ],
+      "description": "Subset of storage_class_id admissible on a pin / retention entry. interactive_hot_cache is forbidden because the cache-manager protection class for the hot cache is generic_clear_always_allowed and the hot cache cannot be the target of a pin ref. Surfaces that try to pin a hot-cache entry are non-conforming."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ]
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_pin",
+        "explicit_admin_policy_pin",
+        "release_artifact_graph_ref",
+        "case_reference_ref",
+        "review_pack_ref",
+        "offline_bundle_ref",
+        "certified_archetype_or_template_ref",
+        "policy_bundle_last_known_good_ref",
+        "support_export_assembly_ref",
+        "retention_window_ref"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "system_low_disk_governor",
+        "system_retention_policy",
+        "system_schema_drift_invalidator",
+        "system_corrupt_cache_detector",
+        "system_cache_manager_gc",
+        "user_clear_data_review",
+        "user_pin_manager_action",
+        "admin_policy_action",
+        "support_export_assembly"
+      ]
+    },
+    "actor_framing_class": {
+      "type": "string",
+      "enum": [
+        "user_acted",
+        "admin_or_tenant_policy_acted",
+        "automatic_system_acted",
+        "support_export_acted"
+      ],
+      "description": "Coarse framing the surface renders alongside the precise actor_class so a pin or cleanup row can be read at a glance without exposing raw policy bodies."
+    },
+    "inspector_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_total",
+        "workspace_only",
+        "workset_only",
+        "profile_only",
+        "tenant_only",
+        "slice_only"
+      ]
+    },
+    "scope_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/inspector_scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "device_total scope carries a null scope_ref; every other scope class carries a non-null ref.",
+          "if": {
+            "properties": { "scope_class": { "const": "device_total" } },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "scope_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "mirror_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic",
+        "not_applicable"
+      ]
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "framing_class": {
+      "type": "string",
+      "enum": [
+        "local_only_individual",
+        "mirrored_or_offline",
+        "managed_policy",
+        "managed_policy_air_gapped"
+      ]
+    },
+    "deployment_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profile",
+        "mirror_offline_state_class",
+        "tenant_org_scope_class",
+        "framing_class"
+      ],
+      "properties": {
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile" },
+        "mirror_offline_state_class": { "$ref": "#/$defs/mirror_offline_state_class" },
+        "tenant_org_scope_class": { "$ref": "#/$defs/tenant_org_scope_class" },
+        "framing_class": { "$ref": "#/$defs/framing_class" }
+      },
+      "allOf": [
+        {
+          "description": "local_only_individual framing requires deployment_profile = individual_local and mirror_offline_state_class = not_applicable.",
+          "if": {
+            "properties": { "framing_class": { "const": "local_only_individual" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "individual_local" },
+              "mirror_offline_state_class": { "const": "not_applicable" },
+              "tenant_org_scope_class": {
+                "enum": ["single_user_local", "not_applicable"]
+              }
+            }
+          }
+        },
+        {
+          "description": "mirrored_or_offline framing requires a mirror / offline mirror_offline_state_class.",
+          "if": {
+            "properties": { "framing_class": { "const": "mirrored_or_offline" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_offline_state_class": {
+                "enum": [
+                  "online_mirror_only",
+                  "offline_grace_preserved",
+                  "offline_air_gapped",
+                  "network_disabled_by_user",
+                  "network_degraded_heuristic"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy framing requires a managed deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": {
+                "enum": ["enterprise_online", "managed_cloud", "self_hosted"]
+              },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_policy_air_gapped framing requires the air_gapped deployment profile and a managed-tenant scope.",
+          "if": {
+            "properties": { "framing_class": { "const": "managed_policy_air_gapped" } },
+            "required": ["framing_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile": { "const": "air_gapped" },
+              "mirror_offline_state_class": { "const": "offline_air_gapped" },
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "referenced_object_class": {
+      "type": "string",
+      "enum": [
+        "cache_entry_manifest_node",
+        "workspace_storage_detail_row",
+        "mirror_offline_artifact_row",
+        "case_or_review_pack_node",
+        "release_artifact_graph_node",
+        "offline_bundle_segment_node",
+        "certified_archetype_or_template_node",
+        "policy_signed_pack_node",
+        "support_export_assembly_node",
+        "retention_window_node",
+        "user_owned_recovery_journal_node"
+      ],
+      "description": "Closed taxonomy of upstream object kinds a pin / retention entry can reference. The surface uses this discriminator to route the unpin path; surfaces that mint a parallel ref class are non-conforming."
+    },
+    "pin_kind_class": {
+      "type": "string",
+      "enum": [
+        "user_pin",
+        "admin_policy_pin",
+        "tenant_policy_pin",
+        "case_or_review_reference_pin",
+        "release_or_offline_bundle_pin",
+        "certified_template_or_signed_pack_pin",
+        "support_export_assembly_pin",
+        "retention_window_pin"
+      ],
+      "description": "Coarse pin-kind framing every surface renders next to the precise pin_source_class so users can see why an artifact remains on disk without reading raw policy ids. The pairing with pin_source_class is schema-enforced."
+    },
+    "pin_expiry_class": {
+      "type": "string",
+      "enum": [
+        "expiry_required_with_anchor",
+        "expiry_required_with_timestamp",
+        "expiry_user_unpin_only_indefinite",
+        "expiry_admin_unpin_only_indefinite"
+      ]
+    },
+    "pin_expiry_anchor": {
+      "type": "string",
+      "enum": [
+        "case_closure_plus_policy_window",
+        "review_pack_closure_plus_policy_window",
+        "release_ring_retention_window",
+        "offline_bundle_validity_window",
+        "certification_window",
+        "next_signed_policy_epoch",
+        "export_assembly_in_flight_only",
+        "retention_window_elapsed",
+        "user_unpin_only",
+        "admin_unpin_only"
+      ],
+      "description": "Pin-expiry anchor vocabulary re-exported verbatim from /schemas/runtime/cache_entry_manifest.schema.json (pin_ref.pin_expiry_or_policy_window.anchor)."
+    },
+    "pin_expiry_or_policy_window": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["anchor", "note"],
+          "properties": {
+            "anchor": { "$ref": "#/$defs/pin_expiry_anchor" },
+            "note": { "$ref": "#/$defs/reviewable_sentence" }
+          }
+        }
+      ],
+      "description": "Either an absolute RFC 3339 expiry timestamp, an anchor block referencing the upstream window the expiry depends on, or null when the pin is held indefinitely under user_unpin_only / admin_unpin_only."
+    },
+    "expires_at_state_class": {
+      "type": "string",
+      "enum": [
+        "active_within_window",
+        "expiring_soon_within_grace",
+        "past_retention_eligible_for_expiry",
+        "past_grace_pending_explicit_review",
+        "never_expires_indefinite"
+      ],
+      "description": "Live expiry posture every surface renders. expiring_soon_within_grace surfaces the grace banner; past_retention_eligible_for_expiry surfaces the unpin admissibility cue; past_grace_pending_explicit_review surfaces the class-specific review path; never_expires_indefinite pairs with user_unpin_only / admin_unpin_only."
+    },
+    "unpin_path_class": {
+      "type": "string",
+      "enum": [
+        "user_unpin_self",
+        "admin_unpin_policy_action",
+        "case_closure_or_review_pack_closure_required",
+        "release_artifact_pin_release_required",
+        "offline_bundle_unpin_required",
+        "certified_template_recertify_or_release_required",
+        "policy_pack_resign_or_supersede_required",
+        "support_export_assembly_complete_or_drain_required",
+        "retention_window_must_elapse",
+        "class_specific_review_required_user_owned_or_evidence"
+      ],
+      "description": "Closed unpin-path vocabulary every pin / retention entry renders. The surface MUST link a target route ref so the user can see which path is the only admissible unpin."
+    },
+    "evidence_export_class": {
+      "type": "string",
+      "enum": [
+        "export_required_before_clear",
+        "export_offered_metadata_safe",
+        "export_offered_operator_only",
+        "export_unsupported_class",
+        "not_applicable_disposable"
+      ],
+      "description": "Closed export-path vocabulary the pin / retention entry surfaces when the referenced object is durable evidence or user-owned recovery state. The schema forbids not_applicable_disposable on evidence_support_cache and user_owned_recovery_state rows."
+    },
+    "protected_class_visibility_token": {
+      "type": "string",
+      "enum": [
+        "evidence_support_cache_visible",
+        "user_owned_recovery_state_visible",
+        "mirror_or_offline_pack_visible",
+        "policy_signed_pack_visible",
+        "not_applicable"
+      ],
+      "description": "Tokens the entry surfaces so a pin manager row never reads as a generic cache row when a protected class is involved. mirror_or_offline_pack_visible / policy_signed_pack_visible appear when the referenced object is a mirror / offline / signed pack."
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "pin_manager",
+        "clear_data_review",
+        "low_disk_banner",
+        "cleanup_history_lane",
+        "admin_storage_console",
+        "support_packet_export",
+        "cli_text_formatter"
+      ]
+    },
+    "open_inspect_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "revalidation_on_open",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_open_read_only"]
+        },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      },
+      "description": "Inspect-only open action shape mirrored from the storage-inspector contract. The pin / retention entry carries one for the unpin route and one for the export route (when applicable); both stay inspect-only and never widen authority."
+    },
+    "pin_retention_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "pin_retention_entry_schema_version",
+        "entry_id",
+        "emitted_at",
+        "parent_card_id_ref",
+        "entry_scope",
+        "storage_class_id",
+        "authority_class",
+        "referenced_object_class",
+        "referenced_object_ref",
+        "referenced_object_label",
+        "pin_source_class",
+        "pin_kind_class",
+        "declared_by_actor_class",
+        "actor_framing_class",
+        "pin_expiry_class",
+        "pin_expiry_or_policy_window",
+        "expires_at_state_class",
+        "pinned_bytes",
+        "pinned_entry_count",
+        "unpin_path_class",
+        "open_unpin_path_action",
+        "evidence_export_class",
+        "protected_class_visibility",
+        "deployment_context",
+        "consumer_surfaces",
+        "redaction_class",
+        "export_safe",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "pin_retention_entry_record" },
+        "pin_retention_entry_schema_version": { "$ref": "#/$defs/pin_retention_entry_schema_version" },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "parent_card_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "entry_scope": { "$ref": "#/$defs/scope_block" },
+        "storage_class_id": { "$ref": "#/$defs/pinnable_storage_class_id" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "referenced_object_class": { "$ref": "#/$defs/referenced_object_class" },
+        "referenced_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "referenced_object_label": { "$ref": "#/$defs/reviewable_label" },
+        "pin_source_class": { "$ref": "#/$defs/pin_source_class" },
+        "pin_kind_class": { "$ref": "#/$defs/pin_kind_class" },
+        "declared_by_actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_framing_class": { "$ref": "#/$defs/actor_framing_class" },
+        "pin_expiry_class": { "$ref": "#/$defs/pin_expiry_class" },
+        "pin_expiry_or_policy_window": { "$ref": "#/$defs/pin_expiry_or_policy_window" },
+        "expires_at_state_class": { "$ref": "#/$defs/expires_at_state_class" },
+        "pinned_bytes": { "type": "integer", "minimum": 0 },
+        "pinned_entry_count": { "type": "integer", "minimum": 0 },
+        "unpin_path_class": { "$ref": "#/$defs/unpin_path_class" },
+        "open_unpin_path_action": { "$ref": "#/$defs/open_inspect_action" },
+        "evidence_export_class": { "$ref": "#/$defs/evidence_export_class" },
+        "open_export_path_action": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/open_inspect_action" }
+          ],
+          "description": "Inspect-only open action that routes to the export path when evidence_export_class is export_required_before_clear / export_offered_metadata_safe / export_offered_operator_only. Required null on disposable rows and on export_unsupported_class rows."
+        },
+        "protected_class_visibility": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/protected_class_visibility_token" }
+        },
+        "deployment_context": { "$ref": "#/$defs/deployment_context" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_clear_data_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_low_disk_banner_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_class_specific_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_cleanup_history_lane_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_workspace_storage_detail_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_mirror_offline_artifact_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_deployment_summary_card_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "user_authored_durable_truth authority is never a pin / retention target. Surfaces route through the profile / state-map storage path instead.",
+          "not": {
+            "properties": {
+              "authority_class": { "const": "user_authored_durable_truth" }
+            },
+            "required": ["authority_class"]
+          }
+        },
+        {
+          "description": "user_owned_recovery_state authority binds to the user_owned_recovery_state class, the user_owned_recovery_journal_node referenced object, and the class-specific-review unpin path. Generic clear is refused outright.",
+          "if": {
+            "properties": { "authority_class": { "const": "user_owned_recovery_state" } },
+            "required": ["authority_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": { "const": "user_owned_recovery_state" },
+              "referenced_object_class": { "const": "user_owned_recovery_journal_node" },
+              "unpin_path_class": { "const": "class_specific_review_required_user_owned_or_evidence" },
+              "evidence_export_class": {
+                "enum": ["export_required_before_clear", "export_offered_operator_only", "export_unsupported_class"]
+              },
+              "protected_class_visibility": {
+                "type": "array",
+                "contains": { "const": "user_owned_recovery_state_visible" }
+              }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "user_owned_recovery_state class always pairs with the user_owned_recovery_state authority class.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "user_owned_recovery_state" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "user_owned_recovery_state" }
+            }
+          }
+        },
+        {
+          "description": "evidence_support_cache class always pairs with the admin_or_control_artifact authority class, the case_or_review_pack_node / retention_window_node / support_export_assembly_node referenced object, and a non-disposable evidence-export class. The surface MUST link the class-specific review path.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "evidence_support_cache" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "admin_or_control_artifact" },
+              "referenced_object_class": {
+                "enum": [
+                  "case_or_review_pack_node",
+                  "retention_window_node",
+                  "support_export_assembly_node",
+                  "policy_signed_pack_node"
+                ]
+              },
+              "evidence_export_class": {
+                "enum": [
+                  "export_required_before_clear",
+                  "export_offered_metadata_safe",
+                  "export_offered_operator_only"
+                ]
+              },
+              "protected_class_visibility": {
+                "type": "array",
+                "contains": { "const": "evidence_support_cache_visible" }
+              }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "Disposable cache classes (knowledge_cache / artifact_cache / prebuild_environment_cache) carry the disposable_derived_cache authority and the not_applicable_disposable evidence-export class.",
+          "if": {
+            "properties": {
+              "storage_class_id": {
+                "enum": [
+                  "knowledge_cache",
+                  "artifact_cache",
+                  "prebuild_environment_cache"
+                ]
+              }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "disposable_derived_cache" },
+              "evidence_export_class": { "const": "not_applicable_disposable" }
+            }
+          }
+        },
+        {
+          "description": "explicit_user_pin source pairs with user_pin kind, user_pin_manager_action actor, user_acted framing, expiry_user_unpin_only_indefinite expiry class, never_expires_indefinite expiry state, and user_unpin_self unpin path.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "explicit_user_pin" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "user_pin" },
+              "declared_by_actor_class": { "const": "user_pin_manager_action" },
+              "actor_framing_class": { "const": "user_acted" },
+              "pin_expiry_class": { "const": "expiry_user_unpin_only_indefinite" },
+              "expires_at_state_class": { "const": "never_expires_indefinite" },
+              "unpin_path_class": { "const": "user_unpin_self" }
+            }
+          }
+        },
+        {
+          "description": "explicit_admin_policy_pin source pairs with admin_policy_pin or tenant_policy_pin kind, admin_policy_action actor, admin_or_tenant_policy_acted framing, expiry_admin_unpin_only_indefinite expiry class, never_expires_indefinite expiry state, and admin_unpin_policy_action unpin path.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "explicit_admin_policy_pin" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": {
+                "enum": ["admin_policy_pin", "tenant_policy_pin"]
+              },
+              "declared_by_actor_class": { "const": "admin_policy_action" },
+              "actor_framing_class": { "const": "admin_or_tenant_policy_acted" },
+              "pin_expiry_class": { "const": "expiry_admin_unpin_only_indefinite" },
+              "expires_at_state_class": { "const": "never_expires_indefinite" },
+              "unpin_path_class": { "const": "admin_unpin_policy_action" }
+            }
+          }
+        },
+        {
+          "description": "case_reference_ref / review_pack_ref source pairs with case_or_review_reference_pin kind, an admin or system actor, an anchor-based expiry class, and the case-or-review-closure unpin path. Referenced object class is case_or_review_pack_node.",
+          "if": {
+            "properties": {
+              "pin_source_class": {
+                "enum": ["case_reference_ref", "review_pack_ref"]
+              }
+            },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "case_or_review_reference_pin" },
+              "referenced_object_class": { "const": "case_or_review_pack_node" },
+              "pin_expiry_class": { "const": "expiry_required_with_anchor" },
+              "unpin_path_class": { "const": "case_closure_or_review_pack_closure_required" }
+            }
+          }
+        },
+        {
+          "description": "release_artifact_graph_ref source pairs with release_or_offline_bundle_pin kind, the release-artifact unpin path, and a release-ring-anchored expiry class.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "release_artifact_graph_ref" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "release_or_offline_bundle_pin" },
+              "referenced_object_class": { "const": "release_artifact_graph_node" },
+              "pin_expiry_class": { "const": "expiry_required_with_anchor" },
+              "unpin_path_class": { "const": "release_artifact_pin_release_required" }
+            }
+          }
+        },
+        {
+          "description": "offline_bundle_ref source pairs with release_or_offline_bundle_pin kind, the offline-bundle unpin path, and an offline-bundle-anchored expiry class.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "offline_bundle_ref" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "release_or_offline_bundle_pin" },
+              "referenced_object_class": { "const": "offline_bundle_segment_node" },
+              "pin_expiry_class": { "const": "expiry_required_with_anchor" },
+              "unpin_path_class": { "const": "offline_bundle_unpin_required" }
+            }
+          }
+        },
+        {
+          "description": "certified_archetype_or_template_ref source pairs with certified_template_or_signed_pack_pin kind, the certified-template recertify-or-release unpin path, and a certification-anchored expiry class.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "certified_archetype_or_template_ref" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "certified_template_or_signed_pack_pin" },
+              "referenced_object_class": { "const": "certified_archetype_or_template_node" },
+              "pin_expiry_class": { "const": "expiry_required_with_anchor" },
+              "unpin_path_class": { "const": "certified_template_recertify_or_release_required" }
+            }
+          }
+        },
+        {
+          "description": "policy_bundle_last_known_good_ref source pairs with certified_template_or_signed_pack_pin kind, the policy-pack resign-or-supersede unpin path, and a next-signed-policy-epoch-anchored expiry class.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "policy_bundle_last_known_good_ref" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "certified_template_or_signed_pack_pin" },
+              "referenced_object_class": { "const": "policy_signed_pack_node" },
+              "pin_expiry_class": { "const": "expiry_required_with_anchor" },
+              "unpin_path_class": { "const": "policy_pack_resign_or_supersede_required" }
+            }
+          }
+        },
+        {
+          "description": "support_export_assembly_ref source pairs with support_export_assembly_pin kind, support_export_assembly actor, support_export_acted framing, the export-assembly-in-flight expiry anchor, and the support-export-assembly-complete-or-drain unpin path.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "support_export_assembly_ref" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "support_export_assembly_pin" },
+              "referenced_object_class": { "const": "support_export_assembly_node" },
+              "declared_by_actor_class": { "const": "support_export_assembly" },
+              "actor_framing_class": { "const": "support_export_acted" },
+              "pin_expiry_class": { "const": "expiry_required_with_anchor" },
+              "unpin_path_class": { "const": "support_export_assembly_complete_or_drain_required" }
+            }
+          }
+        },
+        {
+          "description": "retention_window_ref source pairs with retention_window_pin kind, system_retention_policy actor, automatic_system_acted framing, the retention-window-elapsed unpin path, and a retention-window-anchored expiry class.",
+          "if": {
+            "properties": { "pin_source_class": { "const": "retention_window_ref" } },
+            "required": ["pin_source_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_kind_class": { "const": "retention_window_pin" },
+              "referenced_object_class": { "const": "retention_window_node" },
+              "declared_by_actor_class": { "const": "system_retention_policy" },
+              "actor_framing_class": { "const": "automatic_system_acted" },
+              "pin_expiry_class": { "const": "expiry_required_with_anchor" },
+              "unpin_path_class": { "const": "retention_window_must_elapse" }
+            }
+          }
+        },
+        {
+          "description": "expiry_required_with_anchor expiry class requires the pin_expiry_or_policy_window to be an anchor object.",
+          "if": {
+            "properties": { "pin_expiry_class": { "const": "expiry_required_with_anchor" } },
+            "required": ["pin_expiry_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_expiry_or_policy_window": {
+                "type": "object",
+                "required": ["anchor", "note"]
+              }
+            }
+          }
+        },
+        {
+          "description": "expiry_required_with_timestamp expiry class requires the pin_expiry_or_policy_window to be a string timestamp.",
+          "if": {
+            "properties": { "pin_expiry_class": { "const": "expiry_required_with_timestamp" } },
+            "required": ["pin_expiry_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_expiry_or_policy_window": { "type": "string" }
+            }
+          }
+        },
+        {
+          "description": "expiry_user_unpin_only_indefinite / expiry_admin_unpin_only_indefinite expiry classes require pin_expiry_or_policy_window to be null.",
+          "if": {
+            "properties": {
+              "pin_expiry_class": {
+                "enum": ["expiry_user_unpin_only_indefinite", "expiry_admin_unpin_only_indefinite"]
+              }
+            },
+            "required": ["pin_expiry_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_expiry_or_policy_window": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "never_expires_indefinite expiry state requires an indefinite expiry class.",
+          "if": {
+            "properties": { "expires_at_state_class": { "const": "never_expires_indefinite" } },
+            "required": ["expires_at_state_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_expiry_class": {
+                "enum": ["expiry_user_unpin_only_indefinite", "expiry_admin_unpin_only_indefinite"]
+              }
+            }
+          }
+        },
+        {
+          "description": "past_retention_eligible_for_expiry / past_grace_pending_explicit_review states require an anchor- or timestamp-bounded expiry class.",
+          "if": {
+            "properties": {
+              "expires_at_state_class": {
+                "enum": ["past_retention_eligible_for_expiry", "past_grace_pending_explicit_review"]
+              }
+            },
+            "required": ["expires_at_state_class"]
+          },
+          "then": {
+            "properties": {
+              "pin_expiry_class": {
+                "enum": ["expiry_required_with_anchor", "expiry_required_with_timestamp"]
+              }
+            }
+          }
+        },
+        {
+          "description": "past_grace_pending_explicit_review states require a class-specific review link and apply only to evidence_support_cache or user_owned_recovery_state.",
+          "if": {
+            "properties": { "expires_at_state_class": { "const": "past_grace_pending_explicit_review" } },
+            "required": ["expires_at_state_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+              }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "system actor classes pair with the automatic_system_acted framing.",
+          "if": {
+            "properties": {
+              "declared_by_actor_class": {
+                "enum": [
+                  "system_low_disk_governor",
+                  "system_retention_policy",
+                  "system_schema_drift_invalidator",
+                  "system_corrupt_cache_detector",
+                  "system_cache_manager_gc"
+                ]
+              }
+            },
+            "required": ["declared_by_actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "automatic_system_acted" }
+            }
+          }
+        },
+        {
+          "description": "user_clear_data_review / user_pin_manager_action actor classes pair with the user_acted framing.",
+          "if": {
+            "properties": {
+              "declared_by_actor_class": {
+                "enum": ["user_clear_data_review", "user_pin_manager_action"]
+              }
+            },
+            "required": ["declared_by_actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "user_acted" }
+            }
+          }
+        },
+        {
+          "description": "admin_policy_action actor pairs with the admin_or_tenant_policy_acted framing.",
+          "if": {
+            "properties": { "declared_by_actor_class": { "const": "admin_policy_action" } },
+            "required": ["declared_by_actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "admin_or_tenant_policy_acted" }
+            }
+          }
+        },
+        {
+          "description": "support_export_assembly actor pairs with the support_export_acted framing.",
+          "if": {
+            "properties": { "declared_by_actor_class": { "const": "support_export_assembly" } },
+            "required": ["declared_by_actor_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_framing_class": { "const": "support_export_acted" }
+            }
+          }
+        },
+        {
+          "description": "tenant_policy_pin kind requires a managed-tenant scope and the managed_policy or managed_policy_air_gapped framing.",
+          "if": {
+            "properties": { "pin_kind_class": { "const": "tenant_policy_pin" } },
+            "required": ["pin_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_context": {
+                "properties": {
+                  "framing_class": {
+                    "enum": ["managed_policy", "managed_policy_air_gapped"]
+                  },
+                  "tenant_org_scope_class": {
+                    "enum": ["customer_tenant", "shared_multi_tenant"]
+                  }
+                },
+                "required": ["framing_class", "tenant_org_scope_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Mirror / offline / signed-pack referenced objects MUST surface the matching protected-class-visibility token and link a mirror_offline_artifact_row_ref when the object is a mirror or offline-bundle node.",
+          "if": {
+            "properties": {
+              "referenced_object_class": {
+                "enum": ["offline_bundle_segment_node", "mirror_offline_artifact_row"]
+              }
+            },
+            "required": ["referenced_object_class"]
+          },
+          "then": {
+            "properties": {
+              "protected_class_visibility": {
+                "type": "array",
+                "contains": { "const": "mirror_or_offline_pack_visible" }
+              }
+            },
+            "required": ["linked_mirror_offline_artifact_row_ref"]
+          }
+        },
+        {
+          "description": "policy_signed_pack_node referenced objects surface the policy_signed_pack_visible token.",
+          "if": {
+            "properties": { "referenced_object_class": { "const": "policy_signed_pack_node" } },
+            "required": ["referenced_object_class"]
+          },
+          "then": {
+            "properties": {
+              "protected_class_visibility": {
+                "type": "array",
+                "contains": { "const": "policy_signed_pack_visible" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Disposable rows carry export_unsupported_class only when the storage class is interactive_hot_cache (forbidden anyway by pinnable_storage_class_id) or disposable cache; the schema enforces not_applicable_disposable on those rows. open_export_path_action MUST be null on disposable rows.",
+          "if": {
+            "properties": { "evidence_export_class": { "const": "not_applicable_disposable" } },
+            "required": ["evidence_export_class"]
+          },
+          "then": {
+            "properties": {
+              "open_export_path_action": { "type": "null" },
+              "storage_class_id": {
+                "enum": ["knowledge_cache", "artifact_cache", "prebuild_environment_cache"]
+              }
+            }
+          }
+        },
+        {
+          "description": "export_unsupported_class evidence-export class requires open_export_path_action to be null and applies only to user_owned_recovery_state rows.",
+          "if": {
+            "properties": { "evidence_export_class": { "const": "export_unsupported_class" } },
+            "required": ["evidence_export_class"]
+          },
+          "then": {
+            "properties": {
+              "open_export_path_action": { "type": "null" },
+              "storage_class_id": { "const": "user_owned_recovery_state" }
+            }
+          }
+        },
+        {
+          "description": "export_required_before_clear / export_offered_metadata_safe / export_offered_operator_only require open_export_path_action to be a non-null inspect-only action.",
+          "if": {
+            "properties": {
+              "evidence_export_class": {
+                "enum": [
+                  "export_required_before_clear",
+                  "export_offered_metadata_safe",
+                  "export_offered_operator_only"
+                ]
+              }
+            },
+            "required": ["evidence_export_class"]
+          },
+          "then": {
+            "properties": {
+              "open_export_path_action": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Records exported under export_safe = true MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-zero pinned_bytes requires non-zero pinned_entry_count and vice versa.",
+          "if": {
+            "properties": {
+              "pinned_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["pinned_bytes"]
+          },
+          "then": {
+            "properties": {
+              "pinned_entry_count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

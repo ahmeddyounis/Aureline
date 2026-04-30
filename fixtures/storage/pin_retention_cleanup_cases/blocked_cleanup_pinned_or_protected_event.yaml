@@ -1,0 +1,155 @@
+# yaml-language-server: $schema=../../../schemas/storage/cleanup_history_event.schema.json
+$schema: "https://aureline.dev/schemas/storage/cleanup_history_event.schema.json"
+__fixture__:
+  name: blocked_cleanup_pinned_or_protected_event
+  scenario: >
+    User-initiated clear-data review on a single workspace was
+    blocked because every candidate row was either pinned or
+    protected. The event_class is cleanup_blocked_pinned_or_protected;
+    bytes_reclaimed_total and entries_reclaimed_total are zero;
+    the blocked_items_summary names three reasons in product
+    terms: blocked_evidence_class_specific_review_required (an
+    evidence packet on the workspace), blocked_authoritative_user_owned_clear_refused
+    (the local recovery journal), and blocked_user_pinned_indefinite
+    (a user-pinned knowledge-cache index). The
+    evidence_disclosure_class is
+    evidence_class_blocked_class_specific_review_pending so durable
+    evidence is not mistaken for ordinary cache eviction. Deployment
+    context is local_only_individual.
+  contract_sections:
+    - "§4 The cleanup-history event record"
+    - "§4.4 blocked_items_summary[]"
+    - "§9 Cleanup-history vocabulary"
+    - "§10 Actor framing"
+    - "§11 Deployment-context block"
+    - "§12 Cross-record invariants"
+    - "§13 Worked acceptance scenarios"
+  exercised_axes:
+    event_class: cleanup_blocked_pinned_or_protected
+    actor_class: user_clear_data_review
+    actor_framing_class: user_acted
+    evidence_disclosure_class: evidence_class_blocked_class_specific_review_pending
+    framing_class: local_only_individual
+record_kind: cleanup_history_event_record
+cleanup_history_event_schema_version: 1
+event_id: "cleanup.history.swlp.blocked_pinned_or_protected.001"
+emitted_at: "2026-04-29T02:00:01Z"
+event_at: "2026-04-29T02:00:00Z"
+parent_card_id_ref: "card.storage.single_workspace_local_profile"
+event_scope:
+  scope_class: workspace_only
+  scope_ref: "ws.local.aurelia_web"
+  scope_label: "Workspace: aurelia/web (local)"
+event_class: cleanup_blocked_pinned_or_protected
+actor_class: user_clear_data_review
+actor_framing_class: user_acted
+actor_label: "Clear-data review (committed by you)"
+affected_class_rows:
+  - storage_class_id: knowledge_cache
+    bytes_reclaimed: 0
+    entries_reclaimed: 0
+    blocked_pinned_entries_count: 1
+    blocked_protected_entries_count: 0
+    resulting_posture: healthy
+    resulting_class_state_class: cleared_class_with_pin_exclusions_remaining
+    evidence_disclosure_class: not_applicable
+    class_label: "Search and graph index — aurelia/web"
+    notes: >
+      Pinned by the user; the pin manager remains the only
+      admissible release path.
+  - storage_class_id: evidence_support_cache
+    bytes_reclaimed: 0
+    entries_reclaimed: 0
+    blocked_pinned_entries_count: 0
+    blocked_protected_entries_count: 1
+    resulting_posture: retained_for_evidence
+    resulting_class_state_class: blocked_class_unchanged_pending_class_specific_review
+    evidence_disclosure_class: evidence_class_blocked_class_specific_review_pending
+    class_label: "Evidence packet — aurelia/web case 17"
+    linked_class_specific_review_ref: "review.storage.swlp.evidence_support_cache.case_17.class_specific"
+  - storage_class_id: user_owned_recovery_state
+    bytes_reclaimed: 0
+    entries_reclaimed: 0
+    blocked_pinned_entries_count: 0
+    blocked_protected_entries_count: 1
+    resulting_posture: retained_for_evidence
+    resulting_class_state_class: blocked_class_unchanged_pending_class_specific_review
+    evidence_disclosure_class: user_owned_recovery_state_blocked_class_specific_review_pending
+    class_label: "Local recovery journal — aurelia/web"
+    linked_class_specific_review_ref: "review.storage.swlp.user_owned_recovery_state.class_specific"
+blocked_items_summary:
+  - blocked_reason_class: blocked_user_pinned_indefinite
+    blocked_storage_class_id: knowledge_cache
+    blocked_entry_count: 1
+    blocked_bytes: 314572800
+    linked_pin_retention_entry_ref: "pin.entry.swlp.knowledge_cache.user_pin.001"
+    linked_class_specific_review_ref: null
+    blocked_label: "Search and graph index — held by your pin"
+    notes: >
+      Released only by you from the pin manager.
+  - blocked_reason_class: blocked_evidence_class_specific_review_required
+    blocked_storage_class_id: evidence_support_cache
+    blocked_entry_count: 1
+    blocked_bytes: 18874368
+    linked_pin_retention_entry_ref: null
+    linked_class_specific_review_ref: "review.storage.swlp.evidence_support_cache.case_17.class_specific"
+    blocked_label: "Evidence packet — class-specific review required"
+    notes: >
+      Evidence packets are not eligible for the generic clear
+      path; route through the class-specific review.
+  - blocked_reason_class: blocked_authoritative_user_owned_clear_refused
+    blocked_storage_class_id: user_owned_recovery_state
+    blocked_entry_count: 1
+    blocked_bytes: 8388608
+    linked_pin_retention_entry_ref: null
+    linked_class_specific_review_ref: "review.storage.swlp.user_owned_recovery_state.class_specific"
+    blocked_label: "Local recovery journal — generic clear refused"
+    notes: >
+      Authoritative user-owned recovery state. Generic clear is
+      refused; the class-specific review is the only admissible
+      path and offers export-before-clear.
+bytes_reclaimed_total: 0
+entries_reclaimed_total: 0
+blocked_pinned_entries_total: 1
+blocked_protected_entries_total: 2
+evidence_disclosure_class: evidence_class_blocked_class_specific_review_pending
+preview_ref: null
+triggering_low_disk_banner_ref: null
+ladder_step_applied: null
+follow_up_actions_required:
+  - rerun_class_specific_review_for_evidence
+  - rerun_class_specific_review_for_user_owned_recovery_state
+reopen_inspector_action:
+  action_id: "action.cleanup_history.swlp.blocked_pinned_or_protected.reopen_inspector"
+  label: "Reopen storage inspector for this workspace"
+  target_route_ref: "route.storage_inspector.swlp"
+  scope_class: scope_local_only
+  authority_class: user_local_authority
+  consent_class: no_consent_required_safe_default
+  side_effects:
+    - no_side_effect_inspect_only
+  preserves_evidence_context: true
+  revalidation_on_open: snapshot_open_read_only
+  modal_prohibited: true
+deployment_context:
+  deployment_profile: individual_local
+  mirror_offline_state_class: not_applicable
+  tenant_org_scope_class: single_user_local
+  framing_class: local_only_individual
+consumer_surfaces:
+  - cleanup_history_lane
+  - clear_data_review
+  - pin_manager
+  - cli_text_formatter
+redaction_class: metadata_safe_default
+export_safe: true
+note: >
+  Your clear-data review was blocked: one pinned knowledge-cache
+  index, one evidence packet, and the local recovery journal are
+  protected from generic clear. The reasons name each path; the
+  inspector is the next step.
+linked_pin_retention_entry_refs:
+  - "pin.entry.swlp.knowledge_cache.user_pin.001"
+linked_class_specific_review_refs:
+  - "review.storage.swlp.evidence_support_cache.case_17.class_specific"
+  - "review.storage.swlp.user_owned_recovery_state.class_specific"
