@@ -1,0 +1,533 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/hot_reload_state.schema.json",
+  "title": "Aureline preview hot-reload state, source-mapping projection, and recovery-route record",
+  "description": "Boundary schema for the hot_reload_state_record frozen in docs/preview/preview_runtime_surface_contract.md. Every preview-runtime hot-reload status badge emits one record. The record carries the spec-frozen six-class hot_reload_state_class vocabulary (applied / partial / restart_required / rebuild_required / failed / unavailable), the strip-projection three-class source_mapping_state_class vocabulary (exact / approximate / unavailable), the inspect-to-source and mapped-edit gating booleans, and the closed list of source-safe recovery routes admissible from the current state. The schema enforces the projection map between source_mapping_state_class and the underlying preview_snapshot mapping_confidence_class, the gate that mapped_edit_admissible requires source_mapping_state_class = exact and hot_reload_state_class in {applied, partial}, and the per-state allowed recovery-route set so failed and rebuild_required states never collapse into a vague stale label. Raw stack frames, raw stderr lines, raw rendered bytes, raw URLs, raw absolute paths, and raw secret values never cross this boundary; opaque snapshot / runtime / log / approval handles and class labels do. Adding a new last_failure_reason_class, recovery_route_class, hot_reload_state_class, source_mapping_state_class, or mapped_edit_blocked_reason_class value is additive-minor and bumps hot_reload_state_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/hot_reload_state_record" }
+  ],
+  "$defs": {
+    "hot_reload_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this hot-reload state contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "hot_reload_state_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw bearer tokens, and raw stack frames never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing one-sentence summary safe to render in the badge. Raw stack frames, raw stderr lines, raw rendered bytes, raw URLs, raw absolute paths, and raw secret values never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "hot_reload_state_class": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "partial",
+        "restart_required",
+        "rebuild_required",
+        "failed",
+        "unavailable"
+      ],
+      "description": "Spec-frozen six-class hot-reload state vocabulary. applied: most recent source change reflected. partial: some change reflected, some pending. restart_required: dev-server or runtime must restart. rebuild_required: a build step must run. failed: the most recent reload errored. unavailable: hot reload is not supported by this runtime / adapter / target."
+    },
+
+    "source_mapping_state_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "unavailable"
+      ],
+      "description": "Strip-projection three-class source-mapping vocabulary. exact projects from the snapshot's exact_source_mapping. approximate projects from approximate_mapping or unmappable_node_present. unavailable projects from stale_mapping, runtime_only_no_source_mapping, or unknown_mapping."
+    },
+
+    "underlying_mapping_confidence_class": {
+      "type": "string",
+      "enum": [
+        "exact_source_mapping",
+        "approximate_mapping",
+        "stale_mapping",
+        "unmappable_node_present",
+        "runtime_only_no_source_mapping",
+        "unknown_mapping"
+      ],
+      "description": "Re-export of the six-class mapping_confidence_class from preview_snapshot.schema.json so the projection map between strip and snapshot is locally typed. The schema enforces the projection."
+    },
+
+    "last_failure_reason_class": {
+      "type": "string",
+      "enum": [
+        "compile_error",
+        "runtime_error",
+        "adapter_incompatibility",
+        "asset_pipeline_error",
+        "transport_lost",
+        "policy_blocked"
+      ],
+      "description": "Re-export of the last_failure_reason_class vocabulary from preview_snapshot.schema.json. Required when hot_reload_state_class = failed; null otherwise."
+    },
+
+    "recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "no_recovery_required_applied",
+        "no_recovery_required_static_preview_unavailable",
+        "wait_for_partial_to_settle",
+        "restart_runtime_recovery",
+        "rebuild_then_reload_recovery",
+        "inspect_only_with_diff_against_source_recovery",
+        "export_metadata_only_recovery",
+        "open_canonical_source_recovery",
+        "open_runtime_logs_recovery",
+        "request_managed_runtime_recovery"
+      ],
+      "description": "Closed source-safe recovery-route vocabulary. failed and rebuild_required states MUST cite at least one entry from this list and MUST NOT collapse into a vague stale label."
+    },
+
+    "mapped_edit_blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_blocked_edit_admissible",
+        "mapping_not_exact",
+        "hot_reload_state_disallows_edit",
+        "snapshot_not_visual_edit",
+        "transform_manifest_missing",
+        "round_trip_proof_unproven",
+        "trust_or_policy_narrowed",
+        "runtime_unavailable"
+      ],
+      "description": "Closed reason vocabulary explaining why mapped_edit_admissible = false on the current record. not_blocked_edit_admissible is reserved for the case where mapped_edit_admissible = true."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture metadata block carried only by worked fixtures; not part of the production payload."
+    },
+
+    "hot_reload_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "hot_reload_state_schema_version",
+        "hot_reload_state_id",
+        "preview_snapshot_record_ref",
+        "observed_at",
+        "hot_reload_state_class",
+        "source_mapping_state_class",
+        "underlying_mapping_confidence_class",
+        "inspect_to_source_admissible",
+        "mapped_edit_admissible",
+        "mapped_edit_blocked_reason_class",
+        "recovery_routes",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "hot_reload_state_schema_version": { "$ref": "#/$defs/hot_reload_state_schema_version" },
+        "hot_reload_state_id": { "$ref": "#/$defs/opaque_id" },
+
+        "preview_snapshot_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying preview_snapshot_record this hot-reload state record projects from. Required."
+        },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "hot_reload_state_class": { "$ref": "#/$defs/hot_reload_state_class" },
+        "source_mapping_state_class": { "$ref": "#/$defs/source_mapping_state_class" },
+        "underlying_mapping_confidence_class": { "$ref": "#/$defs/underlying_mapping_confidence_class" },
+
+        "last_failure_reason_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/last_failure_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Required when hot_reload_state_class = failed; null otherwise."
+        },
+        "last_attempt_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+
+        "inspect_to_source_admissible": {
+          "type": "boolean",
+          "description": "True iff source_mapping_state_class in {exact, approximate} AND hot_reload_state_class in {applied, partial, restart_required, rebuild_required}. failed and unavailable set this to false. The schema enforces this gate."
+        },
+        "mapped_edit_admissible": {
+          "type": "boolean",
+          "description": "True iff source_mapping_state_class = exact AND hot_reload_state_class in {applied, partial} AND the underlying snapshot is a visual_edit snapshot in fully_editable_through_mapped_edits. The schema enforces the first two clauses; the third clause is enforced by the consumer surface against the snapshot record."
+        },
+        "mapped_edit_blocked_reason_class": { "$ref": "#/$defs/mapped_edit_blocked_reason_class" },
+
+        "recovery_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_route_class" },
+          "uniqueItems": true,
+          "minItems": 1,
+          "description": "Source-safe recovery routes admissible from the current state. The schema enforces the per-state allowed set."
+        },
+
+        "transform_manifest_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the transform manifest. Required when mapped_edit_admissible = true."
+        },
+        "rollback_checkpoint_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the rollback checkpoint. Required when mapped_edit_admissible = true."
+        },
+
+        "runtime_log_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the runtime log surface. Carried when recovery_routes contains open_runtime_logs_recovery; raw stack frames and raw stderr lines never appear here."
+        },
+        "managed_runtime_request_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the managed-runtime request. Carried when recovery_routes contains request_managed_runtime_recovery."
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Projection map: source_mapping_state_class = exact MUST correspond to underlying_mapping_confidence_class = exact_source_mapping.",
+          "if": {
+            "properties": { "source_mapping_state_class": { "const": "exact" } },
+            "required": ["source_mapping_state_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_mapping_confidence_class": { "const": "exact_source_mapping" }
+            }
+          }
+        },
+        {
+          "description": "Projection map: source_mapping_state_class = approximate MUST correspond to underlying_mapping_confidence_class in {approximate_mapping, unmappable_node_present}.",
+          "if": {
+            "properties": { "source_mapping_state_class": { "const": "approximate" } },
+            "required": ["source_mapping_state_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_mapping_confidence_class": {
+                "enum": ["approximate_mapping", "unmappable_node_present"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Projection map: source_mapping_state_class = unavailable MUST correspond to underlying_mapping_confidence_class in {stale_mapping, runtime_only_no_source_mapping, unknown_mapping}.",
+          "if": {
+            "properties": { "source_mapping_state_class": { "const": "unavailable" } },
+            "required": ["source_mapping_state_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_mapping_confidence_class": {
+                "enum": ["stale_mapping", "runtime_only_no_source_mapping", "unknown_mapping"]
+              }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_state_class = failed MUST carry a non-null last_failure_reason_class.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "failed" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "last_failure_reason_class": { "$ref": "#/$defs/last_failure_reason_class" }
+            },
+            "required": ["last_failure_reason_class"]
+          }
+        },
+        {
+          "description": "hot_reload_state_class != failed MUST carry last_failure_reason_class = null.",
+          "if": {
+            "properties": {
+              "hot_reload_state_class": {
+                "enum": ["applied", "partial", "restart_required", "rebuild_required", "unavailable"]
+              }
+            },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "last_failure_reason_class": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Inspect gate: hot_reload_state_class in {failed, unavailable} forces inspect_to_source_admissible = false.",
+          "if": {
+            "properties": {
+              "hot_reload_state_class": { "enum": ["failed", "unavailable"] }
+            },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "inspect_to_source_admissible": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Inspect gate: source_mapping_state_class = unavailable forces inspect_to_source_admissible = false.",
+          "if": {
+            "properties": {
+              "source_mapping_state_class": { "const": "unavailable" }
+            },
+            "required": ["source_mapping_state_class"]
+          },
+          "then": {
+            "properties": {
+              "inspect_to_source_admissible": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Mapped-edit gate: hot_reload_state_class not in {applied, partial} forces mapped_edit_admissible = false.",
+          "if": {
+            "properties": {
+              "hot_reload_state_class": {
+                "enum": ["restart_required", "rebuild_required", "failed", "unavailable"]
+              }
+            },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "mapped_edit_admissible": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Mapped-edit gate: source_mapping_state_class != exact forces mapped_edit_admissible = false.",
+          "if": {
+            "properties": {
+              "source_mapping_state_class": { "enum": ["approximate", "unavailable"] }
+            },
+            "required": ["source_mapping_state_class"]
+          },
+          "then": {
+            "properties": {
+              "mapped_edit_admissible": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Mapped-edit gate: mapped_edit_admissible = true requires non-null transform_manifest_ref and rollback_checkpoint_ref and mapped_edit_blocked_reason_class = not_blocked_edit_admissible.",
+          "if": {
+            "properties": { "mapped_edit_admissible": { "const": true } },
+            "required": ["mapped_edit_admissible"]
+          },
+          "then": {
+            "properties": {
+              "transform_manifest_ref": { "type": "string" },
+              "rollback_checkpoint_ref": { "type": "string" },
+              "mapped_edit_blocked_reason_class": { "const": "not_blocked_edit_admissible" }
+            },
+            "required": ["transform_manifest_ref", "rollback_checkpoint_ref"]
+          }
+        },
+        {
+          "description": "Mapped-edit gate: mapped_edit_admissible = false forbids mapped_edit_blocked_reason_class = not_blocked_edit_admissible.",
+          "if": {
+            "properties": { "mapped_edit_admissible": { "const": false } },
+            "required": ["mapped_edit_admissible"]
+          },
+          "then": {
+            "properties": {
+              "mapped_edit_blocked_reason_class": {
+                "not": { "const": "not_blocked_edit_admissible" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery-route gate: hot_reload_state_class = applied requires recovery_routes = [no_recovery_required_applied].",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "applied" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "contains": { "const": "no_recovery_required_applied" },
+                "items": {
+                  "enum": ["no_recovery_required_applied"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery-route gate: hot_reload_state_class = partial requires recovery_routes to contain wait_for_partial_to_settle.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "partial" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "contains": { "const": "wait_for_partial_to_settle" },
+                "items": {
+                  "enum": [
+                    "wait_for_partial_to_settle",
+                    "open_canonical_source_recovery",
+                    "inspect_only_with_diff_against_source_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery-route gate: hot_reload_state_class = restart_required requires recovery_routes to contain restart_runtime_recovery.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "restart_required" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "contains": { "const": "restart_runtime_recovery" },
+                "items": {
+                  "enum": [
+                    "restart_runtime_recovery",
+                    "open_canonical_source_recovery",
+                    "inspect_only_with_diff_against_source_recovery",
+                    "request_managed_runtime_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery-route gate: hot_reload_state_class = rebuild_required requires recovery_routes to contain rebuild_then_reload_recovery.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "rebuild_required" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "contains": { "const": "rebuild_then_reload_recovery" },
+                "items": {
+                  "enum": [
+                    "rebuild_then_reload_recovery",
+                    "open_canonical_source_recovery",
+                    "inspect_only_with_diff_against_source_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery-route gate: hot_reload_state_class = failed requires recovery_routes to contain at least one source-safe recovery route from the per-state allowed set and to NOT collapse into a vague stale label (the schema rejects empty / no_recovery_required arrays for failed).",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "failed" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "minItems": 1,
+                "items": {
+                  "enum": [
+                    "inspect_only_with_diff_against_source_recovery",
+                    "export_metadata_only_recovery",
+                    "open_canonical_source_recovery",
+                    "open_runtime_logs_recovery",
+                    "request_managed_runtime_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery-route gate: hot_reload_state_class = unavailable allows no_recovery_required_static_preview_unavailable, export_metadata_only_recovery, open_canonical_source_recovery, and request_managed_runtime_recovery.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "unavailable" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "items": {
+                  "enum": [
+                    "no_recovery_required_static_preview_unavailable",
+                    "export_metadata_only_recovery",
+                    "open_canonical_source_recovery",
+                    "request_managed_runtime_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "open_runtime_logs_recovery in recovery_routes requires non-null runtime_log_ref.",
+          "if": {
+            "properties": {
+              "recovery_routes": {
+                "contains": { "const": "open_runtime_logs_recovery" }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runtime_log_ref": { "type": "string" }
+            },
+            "required": ["runtime_log_ref"]
+          }
+        },
+        {
+          "description": "request_managed_runtime_recovery in recovery_routes requires non-null managed_runtime_request_ref.",
+          "if": {
+            "properties": {
+              "recovery_routes": {
+                "contains": { "const": "request_managed_runtime_recovery" }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "managed_runtime_request_ref": { "type": "string" }
+            },
+            "required": ["managed_runtime_request_ref"]
+          }
+        }
+      ],
+      "description": "One hot-reload state record emitted by a preview-runtime hot-reload status badge. Carries the six-class hot-reload vocabulary, the strip-projection three-class source-mapping vocabulary, the inspect-to-source and mapped-edit admissibility booleans, and the closed list of source-safe recovery routes admissible from the current state."
+    }
+  }
+}

@@ -1,0 +1,745 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/preview_runtime_strip.schema.json",
+  "title": "Aureline preview-runtime strip surface record",
+  "description": "Boundary schema for the preview_runtime_strip_record frozen in docs/preview/preview_runtime_surface_contract.md. Every protected preview surface emits one strip record to render its top-of-surface chrome strip. The strip is a projection of the cross-surface preview_snapshot_record (referenced by preview_snapshot_record_ref); it does not duplicate snapshot source-of-truth fields. The schema enforces the strip's required disclosure floor (runtime source class, trust state, policy state, connectivity state, degraded note when not live, target kind, source revision chip, theme identity, device identity summary, session freshness, mapping quality, hot-reload state, recovery route) and the rule that live_or_editable_claim_class = live_runtime / mapped_edit_offered MUST NOT be claimed without a non-stale runtime, target kind, freshness, and mapping quality on the same record. Raw URLs, raw absolute paths, raw IP addresses, raw hostnames, raw device serial numbers, raw bearer tokens, raw session cookies, raw rendered bytes, raw stack frames, and raw mock-data bodies never cross this boundary; opaque snapshot / runtime / theme / device / log / approval handles and class labels do. Adding a new runtime_source_class, target_kind_class, theme_identity_class, policy_state_class, live_or_editable_claim_class, mapping_quality_class, source_sync_state_class, or degraded_reason_trigger value is additive-minor and bumps preview_runtime_strip_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/preview_runtime_strip_record" }
+  ],
+  "$defs": {
+    "preview_runtime_strip_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "preview_runtime_strip_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw bearer tokens, and raw secret values never appear here."
+    },
+
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing short label safe to render in strip chrome. Raw URLs, raw hostnames, raw device serials, raw account handles, and raw secret values never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing sentence safe to render in strip chrome and export review."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "preview_lane_class": {
+      "type": "string",
+      "enum": [
+        "browser_preview_lane",
+        "native_preview_lane",
+        "embedded_preview_lane"
+      ]
+    },
+
+    "preview_mode_class": {
+      "type": "string",
+      "enum": [
+        "static_preview",
+        "live_preview",
+        "inspectable_tree_overlay",
+        "visual_edit"
+      ]
+    },
+
+    "runtime_source_class": {
+      "type": "string",
+      "enum": [
+        "framework_dev_server",
+        "static_site_renderer",
+        "story_or_component_runner",
+        "notebook_renderer_runtime",
+        "docs_renderer_runtime",
+        "design_token_overlay_runtime",
+        "native_simulator_runtime",
+        "remote_workspace_preview_runtime",
+        "extension_provided_preview_runtime",
+        "external_browser_handoff_runtime",
+        "static_render_only_no_runtime"
+      ],
+      "description": "Closed runtime-source vocabulary the strip displays. Mirrors preview_runtime_kind_class on the snapshot plus static_render_only_no_runtime for static_preview snapshots that have no live runtime."
+    },
+
+    "target_kind_class": {
+      "type": "string",
+      "enum": [
+        "local_dev_server",
+        "remote_preview_runtime",
+        "managed_preview_runtime",
+        "containerised_preview_runtime",
+        "extension_host_preview_runtime",
+        "external_browser_handoff_target",
+        "external_device_handoff_target",
+        "static_render_only_no_runtime"
+      ],
+      "description": "Re-export of target_environment_class from preview_snapshot.schema.json."
+    },
+
+    "trust_state_class": {
+      "type": "string",
+      "enum": [
+        "TrustedLocalActive",
+        "IsolatedRemoteActive"
+      ],
+      "description": "Re-export of the safe-preview trust-class values admissible to executable preview surfaces."
+    },
+
+    "policy_state_class": {
+      "type": "string",
+      "enum": [
+        "policy_in_force",
+        "policy_in_review",
+        "policy_narrowed",
+        "policy_revoked",
+        "policy_not_applicable"
+      ],
+      "description": "Workspace-policy state vocabulary the strip displays."
+    },
+
+    "connectivity_state_class": {
+      "type": "string",
+      "enum": [
+        "local_not_applicable",
+        "connected_verified",
+        "connected_unverified",
+        "disconnected_static_snapshot",
+        "disconnected_metadata_only"
+      ],
+      "description": "Re-export of the safe-preview connectivity_state vocabulary."
+    },
+
+    "degraded_reason_trigger": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_revoked",
+        "policy_narrowed",
+        "origin_changed",
+        "origin_missing",
+        "connectivity_lost",
+        "sanitizer_failed",
+        "sandbox_unavailable",
+        "runtime_unhealthy",
+        "support_export_boundary",
+        "source_representation_missing",
+        "approval_scope_changed",
+        "delete_review_preserve_last_evidence",
+        "source_revision_drifted",
+        "framework_adapter_revision_changed",
+        "preview_runtime_restart_required",
+        "preview_runtime_rebuild_required",
+        "preview_runtime_unavailable",
+        "device_target_mismatch",
+        "mock_data_set_changed",
+        "captured_replay_expired",
+        "mapping_invalidated_by_hot_reload"
+      ],
+      "description": "Re-export of the downgrade_trigger vocabulary from preview_snapshot.schema.json. The strip's degraded_note MUST cite one of these triggers when the strip is in any non-live posture."
+    },
+
+    "degraded_note_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degraded_reason_trigger",
+        "degraded_note_summary"
+      ],
+      "properties": {
+        "degraded_reason_trigger": { "$ref": "#/$defs/degraded_reason_trigger" },
+        "degraded_note_summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Reviewer-facing one-sentence summary of the degraded reason. Raw stack frames, raw URLs, and raw secret values never appear here."
+        }
+      }
+    },
+
+    "source_sync_state_class": {
+      "type": "string",
+      "enum": [
+        "source_in_sync",
+        "source_drifted_since_render",
+        "source_revision_unknown",
+        "source_revision_redacted",
+        "source_unmappable_for_runtime"
+      ],
+      "description": "Re-export of source_sync_state from preview_snapshot.schema.json."
+    },
+
+    "source_revision_class": {
+      "type": "string",
+      "enum": [
+        "vcs_commit_pinned",
+        "working_tree_with_pending_edits",
+        "release_tag_pinned",
+        "build_artifact_digest_pinned",
+        "remote_ref_pinned",
+        "unknown_revision"
+      ]
+    },
+
+    "source_revision_chip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_sync_state_class",
+        "source_revision_class"
+      ],
+      "properties": {
+        "source_sync_state_class": { "$ref": "#/$defs/source_sync_state_class" },
+        "source_revision_class": { "$ref": "#/$defs/source_revision_class" },
+        "source_revision_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque revision handle (commit-id-class, tag-class, working-tree fingerprint). Raw absolute paths, raw branch URLs, and raw remote endpoints never appear here."
+        },
+        "drifted_paths_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+
+    "theme_identity_class": {
+      "type": "string",
+      "enum": [
+        "light_default",
+        "dark_default",
+        "high_contrast_light",
+        "high_contrast_dark",
+        "custom_workspace_theme",
+        "custom_user_profile_theme",
+        "external_design_system_theme",
+        "theme_not_applicable"
+      ],
+      "description": "Closed theme-identity vocabulary the strip displays. external_design_system_theme covers any theme bound through a connected design-system source."
+    },
+
+    "theme_identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["theme_identity_class"],
+      "properties": {
+        "theme_identity_class": { "$ref": "#/$defs/theme_identity_class" },
+        "theme_revision_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque theme-revision pin. Required for custom_workspace_theme, custom_user_profile_theme, and external_design_system_theme."
+        }
+      }
+    },
+
+    "device_target_class": {
+      "type": "string",
+      "enum": [
+        "viewport_preset_only",
+        "tethered_device",
+        "remote_attached_device",
+        "managed_device_pool",
+        "browser_window_target",
+        "browser_tab_target",
+        "embedded_canvas_target"
+      ]
+    },
+
+    "viewport_preset_class": {
+      "type": "string",
+      "enum": [
+        "desktop_default_preset",
+        "tablet_landscape_preset",
+        "tablet_portrait_preset",
+        "phone_landscape_preset",
+        "phone_portrait_preset",
+        "custom_preset",
+        "preset_not_applicable"
+      ]
+    },
+
+    "device_identity_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_target_class",
+        "viewport_preset_class"
+      ],
+      "properties": {
+        "device_target_class": { "$ref": "#/$defs/device_target_class" },
+        "viewport_preset_class": { "$ref": "#/$defs/viewport_preset_class" },
+        "device_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "redacted_device_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redacted_label" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "session_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh_within_session",
+        "fresh_within_minutes",
+        "fresh_within_hour",
+        "stale_beyond_hour",
+        "stale_unknown_age",
+        "freshness_not_applicable"
+      ],
+      "description": "Re-export of freshness_class from preview_snapshot.schema.json."
+    },
+
+    "mapping_quality_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "unavailable"
+      ],
+      "description": "Strip-projection three-class source-mapping vocabulary. Mirrors source_mapping_state_class on the hot_reload_state record."
+    },
+
+    "hot_reload_state_class": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "partial",
+        "restart_required",
+        "rebuild_required",
+        "failed",
+        "unavailable"
+      ]
+    },
+
+    "recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "no_recovery_required_applied",
+        "no_recovery_required_static_preview_unavailable",
+        "wait_for_partial_to_settle",
+        "restart_runtime_recovery",
+        "rebuild_then_reload_recovery",
+        "inspect_only_with_diff_against_source_recovery",
+        "export_metadata_only_recovery",
+        "open_canonical_source_recovery",
+        "open_runtime_logs_recovery",
+        "request_managed_runtime_recovery"
+      ]
+    },
+
+    "live_or_editable_claim_class": {
+      "type": "string",
+      "enum": [
+        "live_runtime",
+        "live_runtime_inspect_only",
+        "static_snapshot_only",
+        "stale_snapshot_only",
+        "frozen_due_to_policy_or_trust",
+        "runtime_unavailable_export_only",
+        "mapped_edit_offered"
+      ],
+      "description": "Closed claim vocabulary the strip projects. live_runtime and mapped_edit_offered are the only two values that imply live or editable status, and the schema requires a non-stale runtime + target kind + freshness + mapping quality + hot-reload state on the same record before either may be claimed."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture metadata block carried only by worked fixtures; not part of the production payload."
+    },
+
+    "preview_runtime_strip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "preview_runtime_strip_schema_version",
+        "strip_id",
+        "captured_at",
+        "preview_snapshot_record_ref",
+        "preview_lane_class",
+        "preview_mode_class",
+        "runtime_source_class",
+        "target_kind_class",
+        "trust_state_class",
+        "policy_state_class",
+        "connectivity_state_class",
+        "source_revision_chip",
+        "theme_identity",
+        "device_identity_summary",
+        "session_freshness_class",
+        "mapping_quality_class",
+        "hot_reload_state_class",
+        "recovery_route_class",
+        "live_or_editable_claim_class",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "preview_runtime_strip_schema_version": { "$ref": "#/$defs/preview_runtime_strip_schema_version" },
+        "strip_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "preview_snapshot_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying preview_snapshot_record this strip projects from. Required."
+        },
+        "hot_reload_state_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the hot_reload_state_record the strip's hot-reload chip projects from. Optional."
+        },
+        "device_target_descriptor_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the selected device_target_descriptor_record. Optional."
+        },
+
+        "preview_lane_class": { "$ref": "#/$defs/preview_lane_class" },
+        "preview_mode_class": { "$ref": "#/$defs/preview_mode_class" },
+
+        "runtime_source_class": { "$ref": "#/$defs/runtime_source_class" },
+        "target_kind_class": { "$ref": "#/$defs/target_kind_class" },
+
+        "trust_state_class": { "$ref": "#/$defs/trust_state_class" },
+        "policy_state_class": { "$ref": "#/$defs/policy_state_class" },
+        "connectivity_state_class": { "$ref": "#/$defs/connectivity_state_class" },
+
+        "degraded_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/degraded_note_block" },
+            { "type": "null" }
+          ],
+          "description": "Required when the strip is in a non-live posture (live_or_editable_claim_class != live_runtime AND != mapped_edit_offered)."
+        },
+
+        "source_revision_chip": { "$ref": "#/$defs/source_revision_chip" },
+        "theme_identity": { "$ref": "#/$defs/theme_identity_block" },
+        "device_identity_summary": { "$ref": "#/$defs/device_identity_summary" },
+
+        "session_freshness_class": { "$ref": "#/$defs/session_freshness_class" },
+        "mapping_quality_class": { "$ref": "#/$defs/mapping_quality_class" },
+        "hot_reload_state_class": { "$ref": "#/$defs/hot_reload_state_class" },
+        "recovery_route_class": { "$ref": "#/$defs/recovery_route_class" },
+
+        "live_or_editable_claim_class": { "$ref": "#/$defs/live_or_editable_claim_class" },
+
+        "share_sheet_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional opaque ref to a share-sheet record. Raw URLs, raw tokens, and raw cookies never appear here."
+        },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional approval-ticket ref for sandbox / trust expansion."
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_summary" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "static_preview MUST carry runtime_source_class in {static_site_renderer, static_render_only_no_runtime, extension_provided_preview_runtime}, target_kind_class in {static_render_only_no_runtime, extension_host_preview_runtime}, hot_reload_state_class = unavailable, and live_or_editable_claim_class != live_runtime AND != mapped_edit_offered.",
+          "if": {
+            "properties": { "preview_mode_class": { "const": "static_preview" } },
+            "required": ["preview_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "runtime_source_class": {
+                "enum": [
+                  "static_site_renderer",
+                  "static_render_only_no_runtime",
+                  "extension_provided_preview_runtime"
+                ]
+              },
+              "target_kind_class": {
+                "enum": [
+                  "static_render_only_no_runtime",
+                  "extension_host_preview_runtime"
+                ]
+              },
+              "hot_reload_state_class": { "const": "unavailable" },
+              "live_or_editable_claim_class": {
+                "not": { "enum": ["live_runtime", "mapped_edit_offered"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "live_or_editable_claim_class = live_runtime requires runtime_source_class != static_render_only_no_runtime, target_kind_class != static_render_only_no_runtime, session_freshness_class in {fresh_within_session, fresh_within_minutes, fresh_within_hour}, mapping_quality_class != unavailable, and hot_reload_state_class != failed AND != unavailable.",
+          "if": {
+            "properties": { "live_or_editable_claim_class": { "const": "live_runtime" } },
+            "required": ["live_or_editable_claim_class"]
+          },
+          "then": {
+            "properties": {
+              "runtime_source_class": {
+                "not": { "const": "static_render_only_no_runtime" }
+              },
+              "target_kind_class": {
+                "not": { "const": "static_render_only_no_runtime" }
+              },
+              "session_freshness_class": {
+                "enum": ["fresh_within_session", "fresh_within_minutes", "fresh_within_hour"]
+              },
+              "mapping_quality_class": {
+                "not": { "const": "unavailable" }
+              },
+              "hot_reload_state_class": {
+                "not": { "enum": ["failed", "unavailable"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "live_or_editable_claim_class = mapped_edit_offered requires preview_mode_class = visual_edit, mapping_quality_class = exact, hot_reload_state_class in {applied, partial}, session_freshness_class != stale_beyond_hour AND != stale_unknown_age, and recovery_route_class in {no_recovery_required_applied, wait_for_partial_to_settle}.",
+          "if": {
+            "properties": { "live_or_editable_claim_class": { "const": "mapped_edit_offered" } },
+            "required": ["live_or_editable_claim_class"]
+          },
+          "then": {
+            "properties": {
+              "preview_mode_class": { "const": "visual_edit" },
+              "mapping_quality_class": { "const": "exact" },
+              "hot_reload_state_class": { "enum": ["applied", "partial"] },
+              "session_freshness_class": {
+                "not": { "enum": ["stale_beyond_hour", "stale_unknown_age"] }
+              },
+              "recovery_route_class": {
+                "enum": ["no_recovery_required_applied", "wait_for_partial_to_settle"]
+              }
+            }
+          }
+        },
+        {
+          "description": "live_or_editable_claim_class != live_runtime AND != mapped_edit_offered requires a non-null degraded_note.",
+          "if": {
+            "properties": {
+              "live_or_editable_claim_class": {
+                "enum": [
+                  "live_runtime_inspect_only",
+                  "static_snapshot_only",
+                  "stale_snapshot_only",
+                  "frozen_due_to_policy_or_trust",
+                  "runtime_unavailable_export_only"
+                ]
+              }
+            },
+            "required": ["live_or_editable_claim_class"]
+          },
+          "then": {
+            "properties": {
+              "degraded_note": { "$ref": "#/$defs/degraded_note_block" }
+            },
+            "required": ["degraded_note"]
+          }
+        },
+        {
+          "description": "hot_reload_state_class = applied requires recovery_route_class = no_recovery_required_applied.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "applied" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_route_class": { "const": "no_recovery_required_applied" }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_state_class = partial requires recovery_route_class = wait_for_partial_to_settle.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "partial" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_route_class": { "const": "wait_for_partial_to_settle" }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_state_class = restart_required requires recovery_route_class = restart_runtime_recovery.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "restart_required" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_route_class": { "const": "restart_runtime_recovery" }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_state_class = rebuild_required requires recovery_route_class = rebuild_then_reload_recovery.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "rebuild_required" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_route_class": { "const": "rebuild_then_reload_recovery" }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_state_class = failed requires recovery_route_class in {inspect_only_with_diff_against_source_recovery, export_metadata_only_recovery, open_canonical_source_recovery, open_runtime_logs_recovery, request_managed_runtime_recovery} so the strip never collapses into a vague stale label.",
+          "if": {
+            "properties": { "hot_reload_state_class": { "const": "failed" } },
+            "required": ["hot_reload_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_route_class": {
+                "enum": [
+                  "inspect_only_with_diff_against_source_recovery",
+                  "export_metadata_only_recovery",
+                  "open_canonical_source_recovery",
+                  "open_runtime_logs_recovery",
+                  "request_managed_runtime_recovery"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_state_class = unavailable on a non-static_preview strip requires recovery_route_class in {export_metadata_only_recovery, open_canonical_source_recovery, request_managed_runtime_recovery}.",
+          "if": {
+            "allOf": [
+              {
+                "properties": { "hot_reload_state_class": { "const": "unavailable" } },
+                "required": ["hot_reload_state_class"]
+              },
+              {
+                "properties": {
+                  "preview_mode_class": {
+                    "enum": ["live_preview", "inspectable_tree_overlay", "visual_edit"]
+                  }
+                },
+                "required": ["preview_mode_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "recovery_route_class": {
+                "enum": [
+                  "export_metadata_only_recovery",
+                  "open_canonical_source_recovery",
+                  "request_managed_runtime_recovery"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Static-preview strips with hot_reload_state_class = unavailable allow recovery_route_class = no_recovery_required_static_preview_unavailable.",
+          "if": {
+            "allOf": [
+              {
+                "properties": { "preview_mode_class": { "const": "static_preview" } },
+                "required": ["preview_mode_class"]
+              },
+              {
+                "properties": { "hot_reload_state_class": { "const": "unavailable" } },
+                "required": ["hot_reload_state_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "recovery_route_class": {
+                "enum": [
+                  "no_recovery_required_static_preview_unavailable",
+                  "export_metadata_only_recovery",
+                  "open_canonical_source_recovery"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "viewport_preset_only device_target_class on the strip requires device_handle_ref = null.",
+          "if": {
+            "properties": {
+              "device_identity_summary": {
+                "properties": { "device_target_class": { "const": "viewport_preset_only" } },
+                "required": ["device_target_class"]
+              }
+            },
+            "required": ["device_identity_summary"]
+          },
+          "then": {
+            "properties": {
+              "device_identity_summary": {
+                "properties": {
+                  "device_handle_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Custom or external theme identity classes require a non-null theme_revision_ref.",
+          "if": {
+            "properties": {
+              "theme_identity": {
+                "properties": {
+                  "theme_identity_class": {
+                    "enum": [
+                      "custom_workspace_theme",
+                      "custom_user_profile_theme",
+                      "external_design_system_theme"
+                    ]
+                  }
+                },
+                "required": ["theme_identity_class"]
+              }
+            },
+            "required": ["theme_identity"]
+          },
+          "then": {
+            "properties": {
+              "theme_identity": {
+                "properties": {
+                  "theme_revision_ref": { "type": "string" }
+                },
+                "required": ["theme_revision_ref"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One preview-runtime strip record emitted by a protected preview surface for its top-of-surface chrome strip."
+    }
+  }
+}

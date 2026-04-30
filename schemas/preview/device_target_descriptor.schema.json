@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/device_target_descriptor.schema.json",
+  "title": "Aureline preview device-target / viewport picker descriptor record",
+  "description": "Boundary schema for the device_target_descriptor_record frozen in docs/preview/preview_runtime_surface_contract.md. Every row in the device-target / viewport picker is one descriptor. The picker is partitioned by picker_group_class so viewport presets (desktop / tablet / phone / custom) remain visibly distinct from real runtime targets (attached browsers, simulators, emulators, physical devices, managed device pools, external handoffs). The schema enforces that descriptors in viewport_presets_group set is_real_runtime_target = false and a null device_handle_ref; descriptors in every other group set is_real_runtime_target = true and a non-null device_handle_ref. Raw URLs, raw absolute paths, raw IP addresses, raw hostnames, raw device serial numbers, raw bearer tokens, raw session cookies, and raw account handles never cross this boundary; opaque device / pool / handoff handles and class labels do. Adding a new picker_group_class, device_target_class, viewport_preset_class, availability_class, pairing_requirement_class, or device_pixel_ratio_class value is additive-minor and bumps device_target_descriptor_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/device_target_descriptor_record" }
+  ],
+  "$defs": {
+    "device_target_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this device-target descriptor contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "device_target_descriptor_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw device serial numbers, raw account handles, and raw bearer tokens never appear here."
+    },
+
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing short label for the picker row. Raw serial numbers, raw IP addresses, raw hostnames, raw account handles, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "picker_group_class": {
+      "type": "string",
+      "enum": [
+        "viewport_presets_group",
+        "attached_browsers_group",
+        "simulators_group",
+        "emulators_group",
+        "physical_devices_group",
+        "managed_device_pool_group",
+        "external_handoff_group"
+      ],
+      "description": "Closed disjoint partition every picker descriptor MUST declare. viewport_presets_group never carries a real runtime target; the other six groups always do. The picker UI MUST render the seven groups as visually distinct sections."
+    },
+
+    "device_target_class": {
+      "type": "string",
+      "enum": [
+        "viewport_preset_only",
+        "tethered_device",
+        "remote_attached_device",
+        "managed_device_pool",
+        "browser_window_target",
+        "browser_tab_target",
+        "embedded_canvas_target"
+      ],
+      "description": "Re-export of the device_target_class vocabulary from preview_snapshot.schema.json. Mirrors the snapshot's device-target row exactly so picker descriptors and snapshot rows share one vocabulary."
+    },
+
+    "viewport_preset_class": {
+      "type": "string",
+      "enum": [
+        "desktop_default_preset",
+        "tablet_landscape_preset",
+        "tablet_portrait_preset",
+        "phone_landscape_preset",
+        "phone_portrait_preset",
+        "custom_preset",
+        "preset_not_applicable"
+      ],
+      "description": "Re-export of the viewport_preset_class vocabulary. A viewport preset describes the displayed layout; it never implies the preview ran on a real device of that class."
+    },
+
+    "device_pixel_ratio_class": {
+      "type": "string",
+      "enum": ["one_x", "two_x", "three_x", "fractional"]
+    },
+
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "available_now",
+        "available_with_warmup",
+        "available_remote_only",
+        "unavailable_temporarily",
+        "unavailable_permanently",
+        "requires_approval",
+        "requires_pairing"
+      ],
+      "description": "Closed availability vocabulary. available_now means the descriptor can be selected without further setup. available_with_warmup means a runtime spin-up will run on selection. available_remote_only means the target is reachable only through a remote workspace. unavailable_temporarily means the target is offline / disconnected and can be retried. unavailable_permanently means the target is retired or removed. requires_approval means a managed-runtime approval ticket is required. requires_pairing means the descriptor MUST be paired to a real device handle before it can be selected."
+    },
+
+    "pairing_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_pairing_required",
+        "first_run_pairing_required",
+        "session_pairing_required",
+        "managed_pool_reservation_required",
+        "external_handoff_handshake_required"
+      ],
+      "description": "Closed pairing-requirement vocabulary. Mirrors the picker's per-row pairing precondition. Selection of a descriptor whose pairing_requirement_class is not no_pairing_required MUST resolve the pairing before the underlying preview runtime is bound."
+    },
+
+    "approval_ticket_ref": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Opaque approval-ticket ref required when availability_class = requires_approval. Reuses the integration approval-ticket family."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture metadata block carried only by worked fixtures; not part of the production payload."
+    },
+
+    "device_target_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "device_target_descriptor_schema_version",
+        "descriptor_id",
+        "captured_at",
+        "picker_group_class",
+        "device_target_class",
+        "viewport_preset_class",
+        "is_real_runtime_target",
+        "availability_class",
+        "pairing_requirement_class",
+        "redacted_label"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "device_target_descriptor_schema_version": { "$ref": "#/$defs/device_target_descriptor_schema_version" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "picker_group_class": { "$ref": "#/$defs/picker_group_class" },
+        "device_target_class": { "$ref": "#/$defs/device_target_class" },
+        "viewport_preset_class": { "$ref": "#/$defs/viewport_preset_class" },
+
+        "is_real_runtime_target": {
+          "type": "boolean",
+          "description": "True when this descriptor represents a real runtime target (a real browser process, simulator, emulator, physical device, managed pool reservation, or external handoff). False when this descriptor represents a viewport preset only."
+        },
+
+        "device_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque handle for the actual attached / pooled / handoff device or browser process. MUST be null when picker_group_class = viewport_presets_group. MUST be non-null in every other group."
+        },
+
+        "redacted_label": { "$ref": "#/$defs/redacted_label" },
+
+        "viewport_pixel_width": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "viewport_pixel_height": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "device_pixel_ratio_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/device_pixel_ratio_class" },
+            { "type": "null" }
+          ]
+        },
+
+        "availability_class": { "$ref": "#/$defs/availability_class" },
+        "availability_observed_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "pairing_requirement_class": { "$ref": "#/$defs/pairing_requirement_class" },
+        "approval_ticket_ref": { "$ref": "#/$defs/approval_ticket_ref" },
+
+        "managed_pool_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the managed device pool. Required when picker_group_class = managed_device_pool_group; null otherwise."
+        },
+        "external_handoff_target_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the external-handoff target. Required when picker_group_class = external_handoff_group; null otherwise."
+        },
+
+        "bound_preview_snapshot_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the preview_snapshot_record this descriptor was selected for, if any. Optional; null when the descriptor is currently not bound to a snapshot."
+        },
+
+        "summary": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 480,
+          "description": "Reviewer-facing one-sentence summary safe to render in picker chrome. Raw serial numbers, raw IP addresses, raw hostnames, raw URLs, and raw account handles never appear here."
+        }
+      },
+      "allOf": [
+        {
+          "description": "viewport_presets_group MUST set is_real_runtime_target = false, device_handle_ref = null, device_target_class = viewport_preset_only, and managed_pool_ref / external_handoff_target_ref / approval_ticket_ref to null.",
+          "if": {
+            "properties": { "picker_group_class": { "const": "viewport_presets_group" } },
+            "required": ["picker_group_class"]
+          },
+          "then": {
+            "properties": {
+              "is_real_runtime_target": { "const": false },
+              "device_handle_ref": { "type": "null" },
+              "device_target_class": { "const": "viewport_preset_only" },
+              "managed_pool_ref": { "type": "null" },
+              "external_handoff_target_ref": { "type": "null" },
+              "approval_ticket_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Every group other than viewport_presets_group MUST set is_real_runtime_target = true and a non-null device_handle_ref.",
+          "if": {
+            "properties": {
+              "picker_group_class": {
+                "enum": [
+                  "attached_browsers_group",
+                  "simulators_group",
+                  "emulators_group",
+                  "physical_devices_group",
+                  "managed_device_pool_group",
+                  "external_handoff_group"
+                ]
+              }
+            },
+            "required": ["picker_group_class"]
+          },
+          "then": {
+            "properties": {
+              "is_real_runtime_target": { "const": true },
+              "device_handle_ref": { "type": "string" }
+            }
+          }
+        },
+        {
+          "description": "attached_browsers_group MUST carry device_target_class in {browser_window_target, browser_tab_target, embedded_canvas_target}.",
+          "if": {
+            "properties": { "picker_group_class": { "const": "attached_browsers_group" } },
+            "required": ["picker_group_class"]
+          },
+          "then": {
+            "properties": {
+              "device_target_class": {
+                "enum": ["browser_window_target", "browser_tab_target", "embedded_canvas_target"]
+              }
+            }
+          }
+        },
+        {
+          "description": "simulators_group, emulators_group, and physical_devices_group MUST carry device_target_class in {tethered_device, remote_attached_device}.",
+          "if": {
+            "properties": {
+              "picker_group_class": {
+                "enum": ["simulators_group", "emulators_group", "physical_devices_group"]
+              }
+            },
+            "required": ["picker_group_class"]
+          },
+          "then": {
+            "properties": {
+              "device_target_class": {
+                "enum": ["tethered_device", "remote_attached_device"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_device_pool_group MUST carry device_target_class = managed_device_pool and a non-null managed_pool_ref.",
+          "if": {
+            "properties": { "picker_group_class": { "const": "managed_device_pool_group" } },
+            "required": ["picker_group_class"]
+          },
+          "then": {
+            "properties": {
+              "device_target_class": { "const": "managed_device_pool" },
+              "managed_pool_ref": { "type": "string" }
+            },
+            "required": ["managed_pool_ref"]
+          }
+        },
+        {
+          "description": "external_handoff_group MUST carry a non-null external_handoff_target_ref.",
+          "if": {
+            "properties": { "picker_group_class": { "const": "external_handoff_group" } },
+            "required": ["picker_group_class"]
+          },
+          "then": {
+            "properties": {
+              "external_handoff_target_ref": { "type": "string" }
+            },
+            "required": ["external_handoff_target_ref"]
+          }
+        },
+        {
+          "description": "availability_class = requires_approval MUST carry a non-null approval_ticket_ref.",
+          "if": {
+            "properties": { "availability_class": { "const": "requires_approval" } },
+            "required": ["availability_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "type": "string" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "availability_class = requires_pairing MUST carry pairing_requirement_class != no_pairing_required.",
+          "if": {
+            "properties": { "availability_class": { "const": "requires_pairing" } },
+            "required": ["availability_class"]
+          },
+          "then": {
+            "properties": {
+              "pairing_requirement_class": {
+                "not": { "const": "no_pairing_required" }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One row in the device / viewport picker. Viewport presets and real runtime targets are always rendered in disjoint groups; the schema enforces is_real_runtime_target and device_handle_ref accordingly."
+    }
+  }
+}
