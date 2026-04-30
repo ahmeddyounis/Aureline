@@ -1,0 +1,194 @@
+# yaml-language-server: $schema=../../../schemas/release/compatibility_window_report.schema.json
+$schema: "https://aureline.dev/schemas/release/compatibility_window_report.schema.json"
+__fixture__:
+  name: approaching_end_of_support_extension_compatibility_drift_report
+  scenario: >
+    Companion compatibility-window report for the approaching-EOS
+    notice on stable 2.1.x. The report breaks down the affected
+    categories (extensions, command-action schemas) row-by-row,
+    carries a migration-helper handoff with the seven distinct
+    actions (scan, preview, backup, apply, rollback, dry-run,
+    export environment summary), and demands a one-click checkpoint
+    before apply because the apply alters durable user state and
+    the compatibility mode of the build.
+  contract_sections:
+    - "§8 Compatibility-window report"
+    - "§8.1 Category-window state"
+    - "§9 Migration-helper handoff"
+    - "§9.2 One-click backup or checkpoint requirement"
+    - "§10 Export paths"
+compatibility_window_report_schema_version: 1
+record_kind: compatibility_window_report_record
+report_id: compatibility_window_report:desktop.stable.2_1_0.approaching_window_end
+emitted_at: "2026-04-30T09:01:00Z"
+originating_notice_ref: end_of_support_notice:desktop.stable.2_1_0.approaching_window_end
+scope_envelope:
+  affected_category_classes:
+    - extensions
+    - command_or_action_schemas
+  build_identity_refs:
+    - exact_build:desktop.macos.universal.2_1_0
+    - exact_build:desktop.linux.x86_64.2_1_0
+  channel_row_refs:
+    - channel.stable
+  support_window_badge_refs:
+    - support_window_badge:desktop.stable.general_availability.macos_universal
+  scope_summary: >
+    Affected categories on the desktop stable 2.1.x train approaching
+    the end of its rolling support window.
+category_rows:
+  - row_id: compat_window_row:desktop.stable.2_1_0.extensions
+    affected_category_class: extensions
+    category_window_state_class: approaching_end_of_window_action_within_named_window
+    category_label: "Installed extensions"
+    compatibility_row_refs:
+      - compat_row:extension_host_envelope
+    version_skew_register_refs:
+      - skew_register:extension_host_envelope
+    support_window_badge_refs:
+      - support_window_badge:desktop.stable.general_availability.macos_universal
+    extension_impact_forecast_refs:
+      - extension_impact_forecast:desktop.stable.2_1_0.installed_extensions_drift
+    named_replacement_label: null
+    remediation_summary: >
+      Run the migration-helper preview and apply path; the helper
+      republishes installed extensions against the 2.2.x extension
+      host envelope.
+  - row_id: compat_window_row:desktop.stable.2_1_0.command_action_schemas
+    affected_category_class: command_or_action_schemas
+    category_window_state_class: approaching_end_of_window_action_within_named_window
+    category_label: "Command and action schemas"
+    compatibility_row_refs:
+      - compat_row:command_action_schema_envelope
+    version_skew_register_refs:
+      - skew_register:command_action_schema_envelope
+    support_window_badge_refs:
+      - support_window_badge:desktop.stable.general_availability.macos_universal
+    extension_impact_forecast_refs: []
+    named_replacement_label: null
+    remediation_summary: >
+      Command-action schema envelope narrows on 2026-06-29; the
+      migration helper carries the supported envelope into the
+      2.2.x train.
+migration_helper_handoff:
+  actions:
+    - action_class: scan_environment_read_only
+      action_label: "Scan environment"
+      action_route_ref: route.migration_helper.scan_environment
+      action_routing_kind_class: interactive_user_initiated
+      mutation_class: no_mutation_inspect_only
+      preview_diff_ref: null
+      checkpoint_ref: null
+      rollback_ref: null
+      export_artifact_ref: null
+      policy_ref: null
+      action_summary: >
+        Read-only scan of installed extensions, command-action
+        schemas, and durable workspace state.
+    - action_class: preview_planned_changes_dry_run
+      action_label: "Preview planned changes"
+      action_route_ref: route.migration_helper.preview_planned_changes
+      action_routing_kind_class: interactive_user_initiated
+      mutation_class: no_mutation_inspect_only
+      preview_diff_ref: import_diff_preview:desktop.stable.2_1_0.to_2_2_0
+      checkpoint_ref: null
+      rollback_ref: null
+      export_artifact_ref: null
+      policy_ref: null
+      action_summary: >
+        Preview the planned migration. No durable writes; consumes
+        the first-run import diff preview packet shape.
+    - action_class: backup_or_checkpoint_durable_state
+      action_label: "One-click checkpoint"
+      action_route_ref: route.migration_helper.create_checkpoint
+      action_routing_kind_class: interactive_user_initiated
+      mutation_class: no_mutation_inspect_only
+      preview_diff_ref: null
+      checkpoint_ref: import_rollback_checkpoint:desktop.stable.2_1_0.to_2_2_0
+      rollback_ref: null
+      export_artifact_ref: null
+      policy_ref: null
+      action_summary: >
+        One-click checkpoint of profile, settings, layout, and
+        workspace state before apply.
+    - action_class: apply_planned_changes
+      action_label: "Apply migration"
+      action_route_ref: route.migration_helper.apply_planned_changes
+      action_routing_kind_class: interactive_user_initiated
+      mutation_class: alters_durable_user_state_and_compatibility_mode
+      preview_diff_ref: import_diff_preview:desktop.stable.2_1_0.to_2_2_0
+      checkpoint_ref: import_rollback_checkpoint:desktop.stable.2_1_0.to_2_2_0
+      rollback_ref: null
+      export_artifact_ref: null
+      policy_ref: null
+      action_summary: >
+        Apply the previewed migration. Mutates durable user state
+        and the compatibility mode of the build; the checkpoint is
+        the rollback target.
+    - action_class: rollback_to_checkpoint
+      action_label: "Rollback to checkpoint"
+      action_route_ref: route.migration_helper.rollback_to_checkpoint
+      action_routing_kind_class: interactive_user_initiated
+      mutation_class: alters_durable_user_state_and_compatibility_mode
+      preview_diff_ref: null
+      checkpoint_ref: import_rollback_checkpoint:desktop.stable.2_1_0.to_2_2_0
+      rollback_ref: rollback_revocation_panel:desktop.stable.2_1_0.to_2_2_0
+      export_artifact_ref: null
+      policy_ref: null
+      action_summary: >
+        Roll back durable user state and compatibility mode to the
+        checkpoint taken before apply.
+    - action_class: dry_run_apply_no_durable_writes
+      action_label: "Dry-run apply"
+      action_route_ref: route.migration_helper.dry_run_apply
+      action_routing_kind_class: headless_dry_run_only
+      mutation_class: no_mutation_inspect_only
+      preview_diff_ref: null
+      checkpoint_ref: null
+      rollback_ref: null
+      export_artifact_ref: null
+      policy_ref: null
+      action_summary: >
+        Dry-run the apply path with no durable writes; available
+        from the headless surface for support reproduction.
+    - action_class: export_environment_summary_for_review
+      action_label: "Export environment summary"
+      action_route_ref: route.migration_helper.export_environment_summary
+      action_routing_kind_class: support_export_only
+      mutation_class: no_mutation_inspect_only
+      preview_diff_ref: null
+      checkpoint_ref: null
+      rollback_ref: null
+      export_artifact_ref: release_evidence_packet:desktop.stable.2_1_0.environment_summary
+      policy_ref: null
+      action_summary: >
+        Export the environment summary into a release-evidence
+        packet for support review.
+  backup_requirement:
+    backup_requirement_class: one_click_checkpoint_required_before_apply
+    checkpoint_ref: import_rollback_checkpoint:desktop.stable.2_1_0.to_2_2_0
+    one_click_route_ref: route.migration_helper.create_checkpoint
+    backup_summary: >
+      One-click checkpoint required before apply because the apply
+      alters durable user state and the supported compatibility mode.
+  handoff_summary: >
+    Seven distinct migration-helper actions with paired apply,
+    rollback, and one-click checkpoint. No collapsed "upgrade"
+    button.
+export_paths:
+  - export_path_class: compatibility_window_report_yaml_export
+    export_artifact_ref: export_artifact:desktop.stable.2_1_0.approaching_window_end.yaml
+    export_format_label: "YAML export"
+    export_summary: >
+      Reviewer-facing YAML export of the report.
+  - export_path_class: support_bundle_compatibility_packet
+    export_artifact_ref: support_bundle:desktop.stable.2_1_0.approaching_window_end
+    export_format_label: "Support-bundle compatibility packet"
+    export_summary: >
+      Compatibility packet inside the support bundle for the
+      approaching-EOS scope.
+contract_doc_ref: docs/release/end_of_support_and_migration_contract.md
+channel_matrix_ref: artifacts/release/channel_matrix.yaml
+notes: >
+  Worked example of the seven-action migration-helper handoff with
+  a required one-click checkpoint and the apply / rollback pairing.

@@ -1,0 +1,687 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/end_of_support_notice.schema.json",
+  "title": "Aureline end-of-support and breaking-compatibility notice record",
+  "description": "Boundary schema for the end_of_support_notice_record frozen in docs/release/end_of_support_and_migration_contract.md. The record carries one notice class (approaching_end_of_support, past_end_of_support, active_deprecation, breaking_compatibility_ahead), the exact cutoff (calendar date, release version, calendar window, or version window), the machine-readable affected scope (build, channel, extensions, automations, schemas, profiles, workspace or layout schemas, remote agents, helpers, CLI or SDK, marketplace, support-export format), at least one factual what_still_works projection, at least one typed risk_after_cutoff projection, exactly one safest_next_step, the required surface set the notice MUST render onto, and the cross-links into the channel-and-support-window badge, the compatibility-window report, and the migration-helper handoff packet so consuming surfaces never reconstruct the notice from prose. Generic fear copy (\"end of support\" with no factual what-still-works, no typed risk class, and no named safest next step) is non-conforming. Raw advisory bodies, raw policy bodies, raw release prose, raw URLs, raw signing material, and raw artifact bytes never appear; records carry refs, typed states, and bounded reviewable summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/end_of_support_notice_record",
+  "$defs": {
+    "end_of_support_notice_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the end-of-support notice payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, and migration exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw release prose, raw URLs, raw advisory bodies, raw incident bodies, raw policy bodies, and raw artifact bytes MUST NOT appear."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "notice_class": {
+      "type": "string",
+      "enum": [
+        "approaching_end_of_support",
+        "past_end_of_support",
+        "active_deprecation",
+        "breaking_compatibility_ahead"
+      ],
+      "description": "Closed notice-class vocabulary. Each class binds different cutoff, evidence, and recovery rules in the schema's allOf block."
+    },
+    "notice_severity_class": {
+      "type": "string",
+      "enum": [
+        "informational_no_action_yet",
+        "plan_named_action_within_window",
+        "act_now_to_avoid_compatibility_loss",
+        "inspect_export_before_breaking_change_ships"
+      ],
+      "description": "Closed severity vocabulary. Generic fear severities (\"warning\", \"danger\") are not admitted; severity is bound to a named factual posture."
+    },
+    "cutoff_kind_class": {
+      "type": "string",
+      "enum": [
+        "exact_calendar_date",
+        "exact_release_version",
+        "range_calendar_window",
+        "range_version_window",
+        "not_yet_set_pending_council_review"
+      ],
+      "description": "Closed cutoff-kind vocabulary. Approaching, past, and active-deprecation classes MUST quote a concrete calendar or version cutoff; breaking-compatibility-ahead MAY quote a calendar window, a version window, or a not-yet-set posture if the change is still pending council review."
+    },
+    "affected_scope_class": {
+      "type": "string",
+      "enum": [
+        "desktop_product_build",
+        "release_channel",
+        "extensions",
+        "automations_or_macros",
+        "command_or_action_schemas",
+        "profiles_and_settings",
+        "workspace_or_layout_schemas",
+        "remote_agents",
+        "helpers_or_sidecars",
+        "cli_or_headless_surface",
+        "sdk_or_api",
+        "marketplace_listings",
+        "support_export_format"
+      ],
+      "description": "Closed affected-scope vocabulary. Every notice MUST bind at least one scope class so the affected surface set is never implicit."
+    },
+    "risk_after_cutoff_class": {
+      "type": "string",
+      "enum": [
+        "security_only_updates_remaining_no_feature_updates",
+        "no_security_updates_remaining",
+        "compatibility_drift_against_supported_compatibility_rows",
+        "new_signed_artifact_install_blocked",
+        "extension_or_marketplace_publication_blocked",
+        "helper_or_remote_agent_negotiation_will_fail",
+        "profile_or_workspace_state_loss_risk_without_migration",
+        "mirror_or_air_gapped_install_will_fall_behind",
+        "not_applicable_pre_release_only"
+      ],
+      "description": "Closed risk-after-cutoff vocabulary. Generic risk copy (\"things may break\") is non-conforming; every notice MUST bind at least one typed risk class."
+    },
+    "what_still_works_class": {
+      "type": "string",
+      "enum": [
+        "read_only_inspection_remains_safe",
+        "existing_workflows_continue_until_cutoff",
+        "existing_extensions_continue_until_cutoff",
+        "existing_remote_agent_attach_continues_until_helper_skew_window_ends",
+        "existing_durable_state_remains_owned_by_user",
+        "no_runtime_change_until_breaking_change_ships",
+        "not_applicable_breaking_change_only"
+      ],
+      "description": "Closed what-still-works vocabulary. The notice MUST bind at least one factual what-still-works projection so the banner cannot collapse to fear copy."
+    },
+    "safest_next_step_class": {
+      "type": "string",
+      "enum": [
+        "update_to_named_supported_floor",
+        "switch_to_lts_train_or_named_floor",
+        "migrate_extensions_via_compatibility_window_report",
+        "run_migration_helper_handoff_with_required_backup",
+        "export_environment_summary_then_review_compatibility_window_report",
+        "request_managed_admin_action_or_unblock_policy",
+        "open_compatibility_report_and_route_to_supported_archetype",
+        "in_channel_rollback_to_previous_build",
+        "pause_until_named_release_lands_on_stable",
+        "no_action_required_continue_inspecting"
+      ],
+      "description": "Closed safest-next-step vocabulary. Every notice MUST bind exactly one typed safest_next_step. The banner copy resolves against this class; free-text \"upgrade now\" calls to action are non-conforming."
+    },
+    "required_surface_class": {
+      "type": "string",
+      "enum": [
+        "update_center_banner",
+        "about_panel_banner",
+        "compatibility_report_banner",
+        "migration_or_import_workflow_banner",
+        "release_notes_card",
+        "issue_report_packet",
+        "headless_dry_run_output",
+        "support_export_bundle"
+      ],
+      "description": "Closed surface-class vocabulary. The four required floor surfaces are update_center_banner, about_panel_banner, compatibility_report_banner, and migration_or_import_workflow_banner; the remaining classes are admissible secondary surfaces."
+    },
+    "cutoff_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cutoff_kind_class",
+        "cutoff_at",
+        "cutoff_window_starts_at",
+        "cutoff_window_ends_at",
+        "cutoff_version_label",
+        "cutoff_release_artifact_ref",
+        "cutoff_summary"
+      ],
+      "properties": {
+        "cutoff_kind_class": { "$ref": "#/$defs/cutoff_kind_class" },
+        "cutoff_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Exact calendar cutoff for exact_calendar_date kind. Null for exact_release_version, range_calendar_window, range_version_window, and not_yet_set_pending_council_review kinds."
+        },
+        "cutoff_window_starts_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Window start for range_calendar_window kind. Null otherwise."
+        },
+        "cutoff_window_ends_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Window end for range_calendar_window kind. Null otherwise."
+        },
+        "cutoff_version_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ],
+          "description": "Reviewable version label for exact_release_version and range_version_window kinds (e.g. \"2.0.0\" or \"2.x to 3.x\"). Null otherwise."
+        },
+        "cutoff_release_artifact_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /artifacts/release/channel_matrix.yaml or /docs/release/release_artifact_graph.md for the release artifact carrying the cutoff. Null when the cutoff is not yet bound to a published release."
+        },
+        "cutoff_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Cutoff target. Notices for approaching, past, and active-deprecation classes MUST resolve to a concrete calendar or version cutoff; breaking-compatibility-ahead MAY resolve to a window or a not-yet-set posture if the change is still pending council review."
+    },
+    "affected_scope_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_scope_classes",
+        "build_identity_refs",
+        "channel_row_refs",
+        "support_window_badge_refs",
+        "compatibility_row_refs",
+        "compatibility_window_report_ref",
+        "scope_summary"
+      ],
+      "properties": {
+        "affected_scope_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/affected_scope_class" }
+        },
+        "build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of exact-build identity refs the notice narrows onto. Empty when the notice is channel-wide or category-wide."
+        },
+        "channel_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of /artifacts/release/channel_matrix.yaml channel-row refs the notice applies to. Empty when the notice is build-wide or category-wide."
+        },
+        "support_window_badge_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of /schemas/release/support_window_badge.schema.json badge ids the notice supersedes. Empty when no badge yet exists for the affected scope."
+        },
+        "compatibility_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of /schemas/release/compatibility_row.schema.json row ids the notice narrows. Empty when no compatibility row yet exists for the affected scope."
+        },
+        "compatibility_window_report_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into a compatibility_window_report_record carrying the row-by-row breakdown. Required when the affected scope includes extensions, automations, command_or_action_schemas, profiles_and_settings, workspace_or_layout_schemas, remote_agents, or helpers_or_sidecars; null otherwise."
+        },
+        "scope_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Scope envelope. The notice MUST bind at least one affected_scope_class; build, channel, badge, and row refs are admissible narrowing axes."
+    },
+    "what_still_works_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["what_still_works_class", "evidence_refs", "what_still_works_note"],
+      "properties": {
+        "what_still_works_class": { "$ref": "#/$defs/what_still_works_class" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional refs into a compatibility row, certified-archetype report, or release-evidence packet that backs the what-still-works claim. Empty for not_applicable_breaking_change_only."
+        },
+        "what_still_works_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "risk_after_cutoff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk_after_cutoff_class", "evidence_refs", "risk_note"],
+      "properties": {
+        "risk_after_cutoff_class": { "$ref": "#/$defs/risk_after_cutoff_class" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional refs into a compatibility row, version-skew register, certified-archetype report, or supply-chain trust-framework matrix that backs the risk projection."
+        },
+        "risk_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "safest_next_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "safest_next_step_class",
+        "next_step_route_ref",
+        "migration_helper_handoff_ref",
+        "compatibility_window_report_ref",
+        "next_step_summary"
+      ],
+      "properties": {
+        "safest_next_step_class": { "$ref": "#/$defs/safest_next_step_class" },
+        "next_step_route_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable route ref into the surface that performs the safest next step (e.g. update center route, migration workflow route, compatibility report route). Null only for no_action_required_continue_inspecting and pause_until_named_release_lands_on_stable."
+        },
+        "migration_helper_handoff_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into a /schemas/release/compatibility_window_report.schema.json migration_helper_handoff block when the safest next step is run_migration_helper_handoff_with_required_backup. Null otherwise."
+        },
+        "compatibility_window_report_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into a compatibility_window_report_record. Required when the safest next step is migrate_extensions_via_compatibility_window_report, run_migration_helper_handoff_with_required_backup, or export_environment_summary_then_review_compatibility_window_report; null otherwise."
+        },
+        "next_step_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "required_surface_set": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/required_surface_class" },
+      "uniqueItems": true,
+      "minItems": 4,
+      "description": "Set of surfaces this notice MUST render onto. The four required floor surfaces (update_center_banner, about_panel_banner, compatibility_report_banner, migration_or_import_workflow_banner) are mandatory; tooling MAY add more, but MUST NOT drop one."
+    },
+    "end_of_support_notice_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "end_of_support_notice_schema_version",
+        "record_kind",
+        "notice_id",
+        "emitted_at",
+        "notice_class",
+        "notice_severity_class",
+        "headline_label",
+        "cutoff_target",
+        "affected_scope",
+        "what_still_works",
+        "risk_after_cutoff",
+        "safest_next_step",
+        "required_surface_set",
+        "contract_doc_ref",
+        "channel_matrix_ref",
+        "notes"
+      ],
+      "properties": {
+        "end_of_support_notice_schema_version": {
+          "$ref": "#/$defs/end_of_support_notice_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "end_of_support_notice_record"
+        },
+        "notice_id": {
+          "type": "string",
+          "pattern": "^end_of_support_notice:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable notice id. Quoted by update-center banners, About panels, compatibility reports, migration / import workflows, support exports, and release-notes cards."
+        },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "notice_class": { "$ref": "#/$defs/notice_class" },
+        "notice_severity_class": { "$ref": "#/$defs/notice_severity_class" },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the banner. Free-text fear copy is non-conforming; the headline MUST resolve against the notice_class plus the safest_next_step_class."
+        },
+        "cutoff_target": { "$ref": "#/$defs/cutoff_target" },
+        "affected_scope": { "$ref": "#/$defs/affected_scope_envelope" },
+        "what_still_works": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/what_still_works_entry" },
+          "description": "At least one factual what-still-works projection. The schema's per-notice-class allOf block forbids the not_applicable_breaking_change_only class on approaching and past notices."
+        },
+        "risk_after_cutoff": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/risk_after_cutoff_entry" },
+          "description": "At least one typed risk projection. The schema's per-notice-class allOf block forbids the not_applicable_pre_release_only class on past_end_of_support notices."
+        },
+        "safest_next_step": { "$ref": "#/$defs/safest_next_step" },
+        "required_surface_set": { "$ref": "#/$defs/required_surface_set" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/end_of_support_and_migration_contract.md"
+        },
+        "channel_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/release/channel_matrix.yaml"
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "approaching_end_of_support and past_end_of_support notices MUST resolve to an exact calendar date, an exact release version, a calendar window, or a version window; the not_yet_set_pending_council_review cutoff kind is forbidden because the cutoff is, by definition, already known. They MUST NOT use the not_applicable_breaking_change_only what-still-works class because the build is still installable.",
+          "if": {
+            "properties": {
+              "notice_class": { "enum": ["approaching_end_of_support", "past_end_of_support"] }
+            },
+            "required": ["notice_class"]
+          },
+          "then": {
+            "properties": {
+              "cutoff_target": {
+                "properties": {
+                  "cutoff_kind_class": {
+                    "enum": [
+                      "exact_calendar_date",
+                      "exact_release_version",
+                      "range_calendar_window",
+                      "range_version_window"
+                    ]
+                  }
+                }
+              },
+              "what_still_works": {
+                "items": {
+                  "properties": {
+                    "what_still_works_class": {
+                      "not": { "const": "not_applicable_breaking_change_only" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "past_end_of_support notices forbid the not_applicable_pre_release_only risk class because the affected build has reached general-availability cutoff and the risk is no longer pre-release-only.",
+          "if": {
+            "properties": { "notice_class": { "const": "past_end_of_support" } },
+            "required": ["notice_class"]
+          },
+          "then": {
+            "properties": {
+              "risk_after_cutoff": {
+                "items": {
+                  "properties": {
+                    "risk_after_cutoff_class": {
+                      "not": { "const": "not_applicable_pre_release_only" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "breaking_compatibility_ahead notices MUST be inspectable and exportable BEFORE the platform change ships as stable or LTS truth. The safest next step MUST be export_environment_summary_then_review_compatibility_window_report or migrate_extensions_via_compatibility_window_report or run_migration_helper_handoff_with_required_backup or pause_until_named_release_lands_on_stable, and the affected scope MUST cite a non-null compatibility_window_report_ref.",
+          "if": {
+            "properties": { "notice_class": { "const": "breaking_compatibility_ahead" } },
+            "required": ["notice_class"]
+          },
+          "then": {
+            "properties": {
+              "safest_next_step": {
+                "properties": {
+                  "safest_next_step_class": {
+                    "enum": [
+                      "export_environment_summary_then_review_compatibility_window_report",
+                      "migrate_extensions_via_compatibility_window_report",
+                      "run_migration_helper_handoff_with_required_backup",
+                      "pause_until_named_release_lands_on_stable"
+                    ]
+                  }
+                }
+              },
+              "affected_scope": {
+                "properties": {
+                  "compatibility_window_report_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "active_deprecation notices MUST resolve to an exact calendar or version cutoff so the deprecation window is bounded; the not_yet_set kind is forbidden.",
+          "if": {
+            "properties": { "notice_class": { "const": "active_deprecation" } },
+            "required": ["notice_class"]
+          },
+          "then": {
+            "properties": {
+              "cutoff_target": {
+                "properties": {
+                  "cutoff_kind_class": {
+                    "enum": [
+                      "exact_calendar_date",
+                      "exact_release_version",
+                      "range_calendar_window",
+                      "range_version_window"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "exact_calendar_date cutoffs MUST quote a non-null cutoff_at timestamp.",
+          "if": {
+            "properties": {
+              "cutoff_target": {
+                "properties": {
+                  "cutoff_kind_class": { "const": "exact_calendar_date" }
+                },
+                "required": ["cutoff_kind_class"]
+              }
+            },
+            "required": ["cutoff_target"]
+          },
+          "then": {
+            "properties": {
+              "cutoff_target": {
+                "properties": { "cutoff_at": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "range_calendar_window cutoffs MUST quote both a non-null cutoff_window_starts_at and a non-null cutoff_window_ends_at.",
+          "if": {
+            "properties": {
+              "cutoff_target": {
+                "properties": {
+                  "cutoff_kind_class": { "const": "range_calendar_window" }
+                },
+                "required": ["cutoff_kind_class"]
+              }
+            },
+            "required": ["cutoff_target"]
+          },
+          "then": {
+            "properties": {
+              "cutoff_target": {
+                "properties": {
+                  "cutoff_window_starts_at": { "not": { "type": "null" } },
+                  "cutoff_window_ends_at": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "exact_release_version and range_version_window cutoffs MUST quote a non-null cutoff_version_label so the version cutoff is reviewable.",
+          "if": {
+            "properties": {
+              "cutoff_target": {
+                "properties": {
+                  "cutoff_kind_class": {
+                    "enum": ["exact_release_version", "range_version_window"]
+                  }
+                },
+                "required": ["cutoff_kind_class"]
+              }
+            },
+            "required": ["cutoff_target"]
+          },
+          "then": {
+            "properties": {
+              "cutoff_target": {
+                "properties": { "cutoff_version_label": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "When the affected scope includes extensions, automations_or_macros, command_or_action_schemas, profiles_and_settings, workspace_or_layout_schemas, remote_agents, or helpers_or_sidecars, the notice MUST cite a non-null compatibility_window_report_ref so consuming surfaces can pivot in O(1) into the row-by-row breakdown.",
+          "if": {
+            "properties": {
+              "affected_scope": {
+                "properties": {
+                  "affected_scope_classes": {
+                    "contains": {
+                      "enum": [
+                        "extensions",
+                        "automations_or_macros",
+                        "command_or_action_schemas",
+                        "profiles_and_settings",
+                        "workspace_or_layout_schemas",
+                        "remote_agents",
+                        "helpers_or_sidecars"
+                      ]
+                    }
+                  }
+                },
+                "required": ["affected_scope_classes"]
+              }
+            },
+            "required": ["affected_scope"]
+          },
+          "then": {
+            "properties": {
+              "affected_scope": {
+                "properties": {
+                  "compatibility_window_report_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When the safest next step is migrate_extensions_via_compatibility_window_report, run_migration_helper_handoff_with_required_backup, or export_environment_summary_then_review_compatibility_window_report, the safest_next_step block MUST cite a non-null compatibility_window_report_ref.",
+          "if": {
+            "properties": {
+              "safest_next_step": {
+                "properties": {
+                  "safest_next_step_class": {
+                    "enum": [
+                      "migrate_extensions_via_compatibility_window_report",
+                      "run_migration_helper_handoff_with_required_backup",
+                      "export_environment_summary_then_review_compatibility_window_report"
+                    ]
+                  }
+                },
+                "required": ["safest_next_step_class"]
+              }
+            },
+            "required": ["safest_next_step"]
+          },
+          "then": {
+            "properties": {
+              "safest_next_step": {
+                "properties": {
+                  "compatibility_window_report_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When the safest next step is run_migration_helper_handoff_with_required_backup, the safest_next_step block MUST cite a non-null migration_helper_handoff_ref.",
+          "if": {
+            "properties": {
+              "safest_next_step": {
+                "properties": {
+                  "safest_next_step_class": {
+                    "const": "run_migration_helper_handoff_with_required_backup"
+                  }
+                },
+                "required": ["safest_next_step_class"]
+              }
+            },
+            "required": ["safest_next_step"]
+          },
+          "then": {
+            "properties": {
+              "safest_next_step": {
+                "properties": {
+                  "migration_helper_handoff_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The required surface set MUST contain the four floor surfaces: update_center_banner, about_panel_banner, compatibility_report_banner, and migration_or_import_workflow_banner.",
+          "properties": {
+            "required_surface_set": {
+              "allOf": [
+                { "contains": { "const": "update_center_banner" } },
+                { "contains": { "const": "about_panel_banner" } },
+                { "contains": { "const": "compatibility_report_banner" } },
+                { "contains": { "const": "migration_or_import_workflow_banner" } }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
