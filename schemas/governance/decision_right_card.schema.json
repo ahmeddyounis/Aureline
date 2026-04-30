@@ -1,0 +1,1201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/decision_right_card.schema.json",
+  "title": "Aureline decision-right card, forum-reason grammar, and concurrence-state contract",
+  "description": "Boundary schema for one decision_right_card_record frozen in docs/governance/decision_right_and_release_truth_contract.md. The card is the reusable projection that the governance dashboard, the milestone scorecard, the release-evidence shiproom packet, the release-truth summary, the support bundle, the public claim manifest, the compatibility-window report, and the enterprise / managed-tenant review quote when 'who can decide the next move' has to be visible and exportable. Every card names a typed decision subject, a typed reason for review (public CLI schema change, security-sensitive egress class, protected release artifact, compatibility claim narrowing, release-blocking waiver, protected metric threshold change, public-truth publication, stable-promotion decision, claim or archetype publication, support-window or LTS decision, architecture freeze or unfreeze, discipline waiver request, workflow-bundle certification change, temporary-handoff or ownership resolution, or a decision-route-unresolved degraded sentinel), the typed required council or forum, the role-based accountable owner and concurrence roles, the typed decision-right state token (pending inside window, pending nearing deadline, pending past deadline, satisfied via concurrence, satisfied with named narrowing, satisfied under active waiver, blocked on failed concurrence, blocked on unresolved owner, blocked on missing decision route, superseded by a later decision, or withdrawn), the target milestone or freeze deadline, the linked evidence packets / scorecard lanes / claim rows / fitness-function rows / waivers / decision-index rows, the typed degraded-state label that surfaces MUST render when ownership is unresolved or no decision route is named, the typed escalation path when concurrence fails, and the audience-specific role-export ceilings. An at-risk decision without a named forum can never render as complete; a contested decision can never collapse into a clean approved chip; a release-blocking waiver can never run without the waiver ref. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, and raw private meeting refs MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new reason-for-review class, required-forum class, decision-right-state class, escalation-path class, degraded-state label, role-export class, or reuse class is additive-minor and bumps decision_right_card_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two distinct refusal / degraded states into one bare label is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/decision_right_card_record",
+  "$defs": {
+    "decision_right_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the decision-right card payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, enterprise-review exports, and screenshots. Raw URLs, raw absolute paths, raw email addresses, raw phone numbers, raw chat-room URLs, raw calendar URLs, raw on-call rotation entries, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration (e.g. P30D)."
+    },
+    "nullable_iso_duration": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/iso_duration" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw on-call rotation entries, and raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "decision_subject_class": {
+      "type": "string",
+      "enum": [
+        "subsystem",
+        "runtime_host_class",
+        "public_truth_area",
+        "supportability_family",
+        "packet_family",
+        "review_family",
+        "protected_metric_or_fitness_function",
+        "compatibility_or_certified_archetype_claim",
+        "security_sensitive_egress_class",
+        "release_candidate_or_promotion_target",
+        "lts_line_or_support_window",
+        "workflow_bundle_or_extension_certification",
+        "temporary_handoff_or_ownership_resolution"
+      ],
+      "description": "Closed thirteen-class decision-subject vocabulary. Names what kind of object the decision-right card grades. The first nine values mirror surface_identity_class on /schemas/governance/service_ownership_card.schema.json verbatim so an ownership card and a decision-right card on the same surface agree on subject identity; the four release-bearing values are kept distinct so release-candidate, LTS-line, workflow-bundle, and temporary-handoff decisions can be reconstructed without fanning into the surface vocabulary."
+    },
+    "reason_for_review_class": {
+      "type": "string",
+      "enum": [
+        "public_cli_schema_change",
+        "security_sensitive_egress_class_change",
+        "protected_release_artifact_change",
+        "compatibility_claim_narrowing",
+        "release_blocking_waiver",
+        "protected_metric_threshold_change",
+        "public_truth_publication",
+        "stable_promotion_decision",
+        "claim_or_archetype_publication",
+        "support_window_or_lts_decision",
+        "architecture_freeze_or_unfreeze",
+        "discipline_waiver_request",
+        "workflow_bundle_certification_change",
+        "temporary_handoff_or_ownership_resolution",
+        "decision_route_unresolved_degraded"
+      ],
+      "description": "Closed fifteen-class reason-for-review vocabulary. Captures why this forum is required for this decision in plain language so reviewers do not need to read meeting notes. decision_route_unresolved_degraded is the explicit refusal sentinel: a card whose accountable owner cannot resolve and whose required forum cannot be named MUST render the sentinel rather than collapsing into a clean reason."
+    },
+    "required_forum_class": {
+      "type": "string",
+      "enum": [
+        "architecture_council",
+        "performance_council",
+        "security_trust_review",
+        "accessibility_review",
+        "compatibility_ecosystem_review",
+        "product_scope_review",
+        "open_community_sync",
+        "benchmark_council",
+        "release_council",
+        "shiproom_executive_scope_review",
+        "no_forum_named_degraded"
+      ],
+      "description": "Closed eleven-class required-forum vocabulary. The first ten values mirror docs/governance/forum_charters.md and artifacts/governance/forum_matrix.yaml verbatim so a decision-right card and a forum charter agree on routing. no_forum_named_degraded is the explicit refusal sentinel: a card whose required forum cannot be named MUST render the sentinel rather than defaulting to a real forum, and the schema's allOf block forces the parent state to blocked_no_decision_route_named plus degraded_decision_route_missing."
+    },
+    "decision_right_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_review_within_window",
+        "pending_review_nearing_deadline",
+        "pending_review_past_deadline",
+        "satisfied_concurrence_complete",
+        "satisfied_with_named_narrowing",
+        "satisfied_with_active_waiver",
+        "blocked_concurrence_failed",
+        "blocked_owner_unresolved",
+        "blocked_no_decision_route_named",
+        "superseded_by_later_decision",
+        "withdrawn_no_longer_required"
+      ],
+      "description": "Closed eleven-class decision-right state vocabulary. A 'satisfied' card carries the closed concurrence outcome; a 'pending' card carries the deadline proximity; a 'blocked' card carries the typed blocker reason and forces a typed degraded label. A card whose state cannot be typed denies with decision_right_state_class_unresolved rather than defaulting to satisfied."
+    },
+    "concurrence_outcome_class": {
+      "type": "string",
+      "enum": [
+        "concurrence_complete",
+        "concurrence_partial_pending_remaining_roles",
+        "concurrence_pending_within_window",
+        "concurrence_pending_past_deadline",
+        "concurrence_failed_escalation_in_flight",
+        "concurrence_not_required_for_class",
+        "concurrence_not_applicable_withdrawn_or_superseded"
+      ],
+      "description": "Closed seven-class concurrence-outcome vocabulary. Names the live state of the required concurrence roles independent of the parent decision-right state so a partially-acked decision cannot collapse into 'complete' on a release packet."
+    },
+    "deadline_proximity_class": {
+      "type": "string",
+      "enum": [
+        "expired_past_due",
+        "due_today_or_within_24h",
+        "nearing_deadline_within_seven_days",
+        "nearing_deadline_within_thirty_days",
+        "not_yet_due_window_open",
+        "no_deadline_pinned"
+      ],
+      "description": "Closed six-class deadline-proximity vocabulary. Mirrors the expiry-proximity vocabulary on /schemas/governance/waiver_expiry_item.schema.json verbatim so the decision-right card and the waiver-expiry queue route through the same proximity grammar."
+    },
+    "degraded_state_label_class": {
+      "type": "string",
+      "enum": [
+        "not_degraded_satisfied_or_pending",
+        "degraded_owner_unresolved",
+        "degraded_decision_route_missing",
+        "degraded_concurrence_failed_pending_escalation",
+        "degraded_evidence_stale",
+        "degraded_waiver_expired",
+        "degraded_past_deadline_no_decision"
+      ],
+      "description": "Closed seven-class degraded-state-label vocabulary. A card cannot be satisfied and degraded simultaneously. Mirrors the degraded-state shapes on /schemas/governance/service_ownership_card.schema.json (ownership) and adds the four release-truth degradations: missing decision route, failed concurrence pending escalation, stale evidence, and waiver expired."
+    },
+    "escalation_path_class": {
+      "type": "string",
+      "enum": [
+        "escalate_to_dri",
+        "escalate_to_backup_owner",
+        "escalate_to_decision_forum",
+        "escalate_to_release_council",
+        "escalate_to_shiproom",
+        "escalate_to_support",
+        "no_escalation_required"
+      ],
+      "description": "Closed seven-class escalation-path vocabulary. Mirrors /schemas/governance/waiver_expiry_item.schema.json#escalation_path_class and /schemas/governance/service_ownership_card.schema.json#escalation_path_class verbatim so the decision-right card, the waiver-expiry queue, and the ownership card route through the same councils."
+    },
+    "reuse_class": {
+      "type": "string",
+      "enum": [
+        "required_named_decision_right",
+        "recommended_named_decision_right",
+        "not_applicable_internal_tooling"
+      ],
+      "description": "Closed three-class reuse-class vocabulary. Surfaces marked required cannot run without a non-degraded card; recommended surfaces SHOULD carry one; internal-tooling lanes are exempt. A protected release artifact, a security-sensitive egress class, a public-truth surface, a compatibility claim, and a release-bearing decision MUST be required."
+    },
+    "role_export_class": {
+      "type": "string",
+      "enum": [
+        "role_id_only",
+        "role_id_with_decision_forum",
+        "role_id_with_concurrence_set",
+        "role_id_with_deadline_summary",
+        "redacted_role_class_only_no_role_id"
+      ],
+      "description": "Closed five-class role-export-class vocabulary. Audience-specific ceilings keep personal contact details, private schedules, and on-call calendars out of every export path. Mirrors /schemas/governance/service_ownership_card.schema.json#role_export_class in shape; the role_id_with_concurrence_set value names the concurrence roles for shiproom / release-packet review and the role_id_with_deadline_summary value names the deadline proximity for the waiver-expiry queue."
+    },
+    "linked_evidence_kind_class": {
+      "type": "string",
+      "enum": [
+        "release_evidence_packet",
+        "governance_packet",
+        "signoff_row",
+        "certified_archetype_report",
+        "compatibility_row",
+        "claim_manifest_row",
+        "scorecard_lane",
+        "fitness_function_catalog_row",
+        "protected_metrics_row",
+        "waiver_record",
+        "decision_index_row",
+        "decision_register_row",
+        "service_ownership_card",
+        "support_export_packet",
+        "release_truth_summary"
+      ],
+      "description": "Closed fifteen-class linked-evidence kind vocabulary. Mirrors /schemas/governance/service_ownership_card.schema.json#linked_evidence_kind_class and adds decision_register_row, service_ownership_card, and release_truth_summary so the card can cite the launch decision register, the parent ownership card, and the release-truth summary it feeds."
+    },
+
+    "decision_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_subject_class",
+        "subject_ref",
+        "lane_ref",
+        "protected_path_ref",
+        "headline_label",
+        "subject_summary"
+      ],
+      "properties": {
+        "decision_subject_class": { "$ref": "#/$defs/decision_subject_class" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the underlying object the decision grades (subsystem id, runtime host-class id, public-truth area id, supportability family id, packet family id, review family id, fitness-function row id, compatibility row id, certified-archetype row id, claim row id, security-sensitive egress class id, release-candidate id, LTS-line id, workflow-bundle id, temporary-handoff id)."
+        },
+        "lane_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the lane (scorecard lane id, dri-map lane label) the subject sits on. Null only when the subject is not pinned to a scorecard lane."
+        },
+        "protected_path_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the protected path the subject sits on (catalog row id, claim row id, compatibility-surface id, security-sensitive egress class id, runtime host-class id). Required when the decision_subject_class implies a protected-path floor (see allOf rules)."
+        },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the card. Resolves against decision_subject_class plus the lane scope; free-text 'all good' / 'needs review' copy is non-conforming."
+        },
+        "subject_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the decision subject and its lane scope. Names what the card grades; raw absolute paths and raw URLs do not appear."
+        }
+      }
+    },
+
+    "reason_for_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_for_review_class",
+        "reason_summary"
+      ],
+      "properties": {
+        "reason_for_review_class": { "$ref": "#/$defs/reason_for_review_class" },
+        "reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of why this forum is required for this decision (e.g. 'narrowing the macOS dock-tile compatibility claim from supported to community for the 2.0 release', 'rotating the code-signing chain'). Reviewers SHOULD be able to tell who owns the next decision and why without reading meeting notes."
+        }
+      }
+    },
+
+    "required_forum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_forum_class",
+        "decision_forum_ref",
+        "forum_summary"
+      ],
+      "properties": {
+        "required_forum_class": { "$ref": "#/$defs/required_forum_class" },
+        "decision_forum_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into a forum id from docs/governance/forum_charters.md and artifacts/governance/forum_matrix.yaml. Required to be non-null whenever required_forum_class is anything other than no_forum_named_degraded; null only when the card is in the explicit decision-route-missing refusal state."
+        },
+        "forum_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of which forum is required and how concurrence is reached. Personal handles and raw meeting refs do not appear."
+        }
+      }
+    },
+
+    "accountable_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accountable_owner_role_ref",
+        "concurrence_role_refs",
+        "co_owner_role_refs",
+        "linked_waiver_ref",
+        "linked_service_ownership_card_ref",
+        "concurrence_outcome_class",
+        "ownership_summary"
+      ],
+      "properties": {
+        "accountable_owner_role_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Role id (e.g. role:chief_architect, role:release_owner, role:security_lead) of the accountable owner for this decision. Resolves to an active person through artifacts/governance/ownership_matrix.yaml. Null admissible only when decision_right_state_class = blocked_owner_unresolved."
+        },
+        "concurrence_role_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Role ids of concurrence roles required by the decision-rights matrix for this decision class. Empty admissible only when concurrence_outcome_class = concurrence_not_required_for_class."
+        },
+        "co_owner_role_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Role ids of co-owning roles (shared accountability). Empty when there is no shared ownership."
+        },
+        "linked_waiver_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into a waiver in artifacts/governance/ownership_matrix.yaml when the decision rides on a waiver (e.g. release-floor-breach waiver, single-maintainer-backup waiver, discipline waiver). Required to be non-null when decision_right_state_class = satisfied_with_active_waiver or when reason_for_review_class = release_blocking_waiver."
+        },
+        "linked_service_ownership_card_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the parent service_ownership_card_record on /schemas/governance/service_ownership_card.schema.json so a decision-right card and the underlying ownership card agree on accountability. Null admissible only when decision_subject_class is in { release_candidate_or_promotion_target, lts_line_or_support_window, workflow_bundle_or_extension_certification, temporary_handoff_or_ownership_resolution } where the parent ownership card resolves through the release-truth summary instead."
+        },
+        "concurrence_outcome_class": { "$ref": "#/$defs/concurrence_outcome_class" },
+        "ownership_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of who is accountable and what concurrence is required (active owner, shared owner, waiver-backed coverage, escalated). Personal handles, raw email addresses, raw phone numbers, and raw calendar URLs MUST NOT appear."
+        }
+      }
+    },
+
+    "decision_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_right_state_class",
+        "deadline_proximity_class",
+        "target_milestone_ref",
+        "target_due_at",
+        "decided_at",
+        "state_summary"
+      ],
+      "properties": {
+        "decision_right_state_class": { "$ref": "#/$defs/decision_right_state_class" },
+        "deadline_proximity_class": { "$ref": "#/$defs/deadline_proximity_class" },
+        "target_milestone_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the target milestone or release-train id by which the decision MUST be closed. Null admissible only when deadline_proximity_class = no_deadline_pinned."
+        },
+        "target_due_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Declared due-by timestamp. Null admissible only when deadline_proximity_class = no_deadline_pinned. For pending_review_past_deadline the timestamp MUST be in the past relative to evaluated_at."
+        },
+        "decided_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Timestamp at which the decision closed. Required to be non-null when decision_right_state_class is in { satisfied_concurrence_complete, satisfied_with_named_narrowing, satisfied_with_active_waiver, superseded_by_later_decision, withdrawn_no_longer_required }; null otherwise."
+        },
+        "state_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the live decision state, the target milestone or deadline, and the closure outcome (when closed). Raw policy bodies and raw waiver justifications do not appear."
+        }
+      }
+    },
+
+    "escalation_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_path_class",
+        "decision_forum_ref",
+        "escalation_chain_role_refs",
+        "escalation_summary"
+      ],
+      "properties": {
+        "escalation_path_class": { "$ref": "#/$defs/escalation_path_class" },
+        "decision_forum_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into a forum id from docs/governance/forum_charters.md the escalation routes through. Required when escalation_path_class is in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom }. Null admissible only when escalation_path_class = no_escalation_required."
+        },
+        "escalation_chain_role_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Ordered list of role ids the escalation routes through. Empty admissible only when escalation_path_class = no_escalation_required."
+        },
+        "escalation_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the escalation path when concurrence fails. Personal handles and raw meeting refs do not appear."
+        }
+      }
+    },
+
+    "linked_evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linked_evidence_kind_class", "linked_evidence_id"],
+      "properties": {
+        "linked_evidence_kind_class": { "$ref": "#/$defs/linked_evidence_kind_class" },
+        "linked_evidence_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "role_export_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard_export_class",
+        "scorecard_export_class",
+        "release_packet_export_class",
+        "support_export_class",
+        "governance_packet_export_class",
+        "claim_manifest_export_class",
+        "enterprise_review_export_class"
+      ],
+      "properties": {
+        "dashboard_export_class": { "$ref": "#/$defs/role_export_class" },
+        "scorecard_export_class": { "$ref": "#/$defs/role_export_class" },
+        "release_packet_export_class": { "$ref": "#/$defs/role_export_class" },
+        "support_export_class": { "$ref": "#/$defs/role_export_class" },
+        "governance_packet_export_class": { "$ref": "#/$defs/role_export_class" },
+        "claim_manifest_export_class": { "$ref": "#/$defs/role_export_class" },
+        "enterprise_review_export_class": { "$ref": "#/$defs/role_export_class" }
+      },
+      "description": "Per-audience role-export class. The schema enforces audience-specific ceilings: claim manifest cannot exceed redacted_role_class_only_no_role_id; support export and enterprise review cannot exceed role_id_with_deadline_summary or role_id_with_concurrence_set; release packet and shiproom cannot exceed role_id_with_concurrence_set or role_id_with_deadline_summary."
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_scorecard",
+        "render_on_release_packet",
+        "render_on_release_truth_summary",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest",
+        "render_on_enterprise_review"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_release_truth_summary": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" },
+        "render_on_enterprise_review": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the card MUST render the same decision_subject, reason_for_review, required_forum, accountable_ownership, decision_state, escalation_route, degraded_state_label_class, and reuse_class. Setting render_on_release_packet, render_on_release_truth_summary, render_on_support_export, render_on_governance_packet, render_on_claim_manifest, or render_on_enterprise_review to true signals that the card is part of public / release / support truth and MUST satisfy the per-state export rules in the schema's allOf block."
+    },
+
+    "decision_right_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_right_card_schema_version",
+        "record_kind",
+        "decision_right_card_id",
+        "evaluated_at",
+        "decision_subject",
+        "reason_for_review",
+        "required_forum",
+        "accountable_ownership",
+        "decision_state",
+        "escalation_route",
+        "linked_evidence_refs",
+        "linked_release_truth_summary_refs",
+        "current_decision_right_state",
+        "degraded_state_label_class",
+        "degraded_state_summary",
+        "role_export_rules",
+        "reuse_class",
+        "export_fields",
+        "contract_doc_ref",
+        "release_truth_summary_schema_ref",
+        "service_ownership_card_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "decision_right_card_schema_version": { "$ref": "#/$defs/decision_right_card_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "decision_right_card_record"
+        },
+        "decision_right_card_id": {
+          "type": "string",
+          "pattern": "^decision_right_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by the dashboard, the milestone scorecard, the weekly governance review, the release-evidence shiproom packet, the release-truth summary, the support bundle, the public claim manifest, the compatibility-window report, and the enterprise / managed-tenant review."
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the card was projected. Distinct from decision_state.target_due_at and decision_state.decided_at; the same row can be reprojected when deadline-proximity windows tick or when concurrence completes."
+        },
+        "decision_subject": { "$ref": "#/$defs/decision_subject" },
+        "reason_for_review": { "$ref": "#/$defs/reason_for_review" },
+        "required_forum": { "$ref": "#/$defs/required_forum" },
+        "accountable_ownership": { "$ref": "#/$defs/accountable_ownership" },
+        "decision_state": { "$ref": "#/$defs/decision_state" },
+        "escalation_route": { "$ref": "#/$defs/escalation_route" },
+        "linked_evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/linked_evidence_ref" },
+          "description": "Typed refs into release evidence packets, governance packets, signoff rows, certified-archetype reports, compatibility rows, claim-manifest rows, scorecard lanes, fitness-function catalog rows, protected-metrics rows, waiver records, decision-index rows, decision-register rows, parent service-ownership cards, support-export packets, and release-truth summaries. A card whose reuse_class is required_named_decision_right MUST cite at least one entry."
+        },
+        "linked_release_truth_summary_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into release_truth_summary_records that consume this decision-right card. Empty when the card is not yet linked into a release-truth summary (e.g. an architecture freeze decision that no candidate is gating on yet). Non-empty when reason_for_review_class is in { stable_promotion_decision, support_window_or_lts_decision, release_blocking_waiver, protected_release_artifact_change }."
+        },
+        "current_decision_right_state": { "$ref": "#/$defs/decision_right_state_class" },
+        "degraded_state_label_class": { "$ref": "#/$defs/degraded_state_label_class" },
+        "degraded_state_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the degraded-state label. Names the unresolved owner, the missing decision route, the failed concurrence, the stale evidence, the expired waiver, or the past-deadline no-decision case; raw policy bodies and raw waiver justifications do not appear."
+        },
+        "role_export_rules": { "$ref": "#/$defs/role_export_rules" },
+        "reuse_class": { "$ref": "#/$defs/reuse_class" },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/decision_right_and_release_truth_contract.md"
+        },
+        "release_truth_summary_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/release_truth_summary.schema.json"
+        },
+        "service_ownership_card_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/service_ownership_card.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "current_decision_right_state MUST equal decision_state.decision_right_state_class so the export-parity convenience field cannot drift from the canonical class.",
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "pending_review_within_window" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": { "current_decision_right_state": { "const": "pending_review_within_window" } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "pending_review_nearing_deadline" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "pending_review_nearing_deadline" },
+              "decision_state": {
+                "properties": {
+                  "deadline_proximity_class": {
+                    "enum": [
+                      "due_today_or_within_24h",
+                      "nearing_deadline_within_seven_days",
+                      "nearing_deadline_within_thirty_days"
+                    ]
+                  },
+                  "target_due_at": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "pending_review_past_deadline" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "pending_review_past_deadline" },
+              "decision_state": {
+                "properties": {
+                  "deadline_proximity_class": { "const": "expired_past_due" },
+                  "target_due_at": { "not": { "type": "null" } }
+                }
+              },
+              "degraded_state_label_class": { "const": "degraded_past_deadline_no_decision" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "satisfied_concurrence_complete" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "satisfied_concurrence_complete" },
+              "decision_state": {
+                "properties": { "decided_at": { "not": { "type": "null" } } }
+              },
+              "accountable_ownership": {
+                "properties": {
+                  "concurrence_outcome_class": {
+                    "enum": ["concurrence_complete", "concurrence_not_required_for_class"]
+                  }
+                }
+              },
+              "degraded_state_label_class": { "const": "not_degraded_satisfied_or_pending" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "satisfied_with_named_narrowing" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "satisfied_with_named_narrowing" },
+              "decision_state": {
+                "properties": { "decided_at": { "not": { "type": "null" } } }
+              },
+              "degraded_state_label_class": { "const": "not_degraded_satisfied_or_pending" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "satisfied_with_active_waiver" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "satisfied_with_active_waiver" },
+              "decision_state": {
+                "properties": { "decided_at": { "not": { "type": "null" } } }
+              },
+              "accountable_ownership": {
+                "properties": { "linked_waiver_ref": { "not": { "type": "null" } } }
+              },
+              "degraded_state_label_class": { "const": "not_degraded_satisfied_or_pending" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "blocked_concurrence_failed" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "blocked_concurrence_failed" },
+              "accountable_ownership": {
+                "properties": {
+                  "concurrence_outcome_class": { "const": "concurrence_failed_escalation_in_flight" }
+                }
+              },
+              "escalation_route": {
+                "properties": {
+                  "escalation_path_class": {
+                    "enum": [
+                      "escalate_to_decision_forum",
+                      "escalate_to_release_council",
+                      "escalate_to_shiproom"
+                    ]
+                  },
+                  "decision_forum_ref": { "not": { "type": "null" } }
+                }
+              },
+              "degraded_state_label_class": { "const": "degraded_concurrence_failed_pending_escalation" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "blocked_owner_unresolved" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "blocked_owner_unresolved" },
+              "degraded_state_label_class": { "const": "degraded_owner_unresolved" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "decision_right_state_class": { "const": "blocked_no_decision_route_named" } },
+                "required": ["decision_right_state_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "current_decision_right_state": { "const": "blocked_no_decision_route_named" },
+              "required_forum": {
+                "properties": {
+                  "required_forum_class": { "const": "no_forum_named_degraded" },
+                  "decision_forum_ref": { "type": "null" }
+                }
+              },
+              "reason_for_review": {
+                "properties": {
+                  "reason_for_review_class": { "const": "decision_route_unresolved_degraded" }
+                }
+              },
+              "degraded_state_label_class": { "const": "degraded_decision_route_missing" }
+            }
+          }
+        },
+        {
+          "description": "decision_route_unresolved_degraded reason MUST pair with the no_forum_named_degraded forum, the blocked_no_decision_route_named state, and the degraded_decision_route_missing label so an at-risk decision without a named forum cannot render as complete on any consuming surface.",
+          "if": {
+            "properties": {
+              "reason_for_review": {
+                "properties": { "reason_for_review_class": { "const": "decision_route_unresolved_degraded" } },
+                "required": ["reason_for_review_class"]
+              }
+            },
+            "required": ["reason_for_review"]
+          },
+          "then": {
+            "properties": {
+              "required_forum": {
+                "properties": {
+                  "required_forum_class": { "const": "no_forum_named_degraded" }
+                }
+              },
+              "decision_state": {
+                "properties": {
+                  "decision_right_state_class": { "const": "blocked_no_decision_route_named" }
+                }
+              },
+              "degraded_state_label_class": { "const": "degraded_decision_route_missing" }
+            }
+          }
+        },
+        {
+          "description": "no_forum_named_degraded MUST force decision_forum_ref to null and force the parent state into the blocked_no_decision_route_named refusal so an at-risk decision without a named forum cannot collapse into a real forum.",
+          "if": {
+            "properties": {
+              "required_forum": {
+                "properties": { "required_forum_class": { "const": "no_forum_named_degraded" } },
+                "required": ["required_forum_class"]
+              }
+            },
+            "required": ["required_forum"]
+          },
+          "then": {
+            "properties": {
+              "required_forum": {
+                "properties": { "decision_forum_ref": { "type": "null" } }
+              },
+              "decision_state": {
+                "properties": {
+                  "decision_right_state_class": { "const": "blocked_no_decision_route_named" }
+                }
+              },
+              "degraded_state_label_class": { "const": "degraded_decision_route_missing" }
+            }
+          }
+        },
+        {
+          "description": "Required-forum classes other than no_forum_named_degraded MUST cite a non-null decision_forum_ref.",
+          "if": {
+            "properties": {
+              "required_forum": {
+                "properties": {
+                  "required_forum_class": {
+                    "enum": [
+                      "architecture_council",
+                      "performance_council",
+                      "security_trust_review",
+                      "accessibility_review",
+                      "compatibility_ecosystem_review",
+                      "product_scope_review",
+                      "open_community_sync",
+                      "benchmark_council",
+                      "release_council",
+                      "shiproom_executive_scope_review"
+                    ]
+                  }
+                },
+                "required": ["required_forum_class"]
+              }
+            },
+            "required": ["required_forum"]
+          },
+          "then": {
+            "properties": {
+              "required_forum": {
+                "properties": { "decision_forum_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "reason_for_review_class = release_blocking_waiver requires a non-null linked_waiver_ref.",
+          "if": {
+            "properties": {
+              "reason_for_review": {
+                "properties": { "reason_for_review_class": { "const": "release_blocking_waiver" } },
+                "required": ["reason_for_review_class"]
+              }
+            },
+            "required": ["reason_for_review"]
+          },
+          "then": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "linked_waiver_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "reason_for_review_class = security_sensitive_egress_class_change forces required_forum_class into the security / release / shiproom triad.",
+          "if": {
+            "properties": {
+              "reason_for_review": {
+                "properties": { "reason_for_review_class": { "const": "security_sensitive_egress_class_change" } },
+                "required": ["reason_for_review_class"]
+              }
+            },
+            "required": ["reason_for_review"]
+          },
+          "then": {
+            "properties": {
+              "required_forum": {
+                "properties": {
+                  "required_forum_class": {
+                    "enum": [
+                      "security_trust_review",
+                      "release_council",
+                      "shiproom_executive_scope_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "reason_for_review_class = compatibility_claim_narrowing forces required_forum_class to compatibility_ecosystem_review or release_council so a narrowing claim cannot collapse into an unrelated forum.",
+          "if": {
+            "properties": {
+              "reason_for_review": {
+                "properties": { "reason_for_review_class": { "const": "compatibility_claim_narrowing" } },
+                "required": ["reason_for_review_class"]
+              }
+            },
+            "required": ["reason_for_review"]
+          },
+          "then": {
+            "properties": {
+              "required_forum": {
+                "properties": {
+                  "required_forum_class": {
+                    "enum": [
+                      "compatibility_ecosystem_review",
+                      "release_council",
+                      "shiproom_executive_scope_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "reason_for_review_class = stable_promotion_decision forces required_forum_class to release_council or shiproom and reuse_class to required_named_decision_right.",
+          "if": {
+            "properties": {
+              "reason_for_review": {
+                "properties": { "reason_for_review_class": { "const": "stable_promotion_decision" } },
+                "required": ["reason_for_review_class"]
+              }
+            },
+            "required": ["reason_for_review"]
+          },
+          "then": {
+            "properties": {
+              "required_forum": {
+                "properties": {
+                  "required_forum_class": {
+                    "enum": [
+                      "release_council",
+                      "shiproom_executive_scope_review"
+                    ]
+                  }
+                }
+              },
+              "reuse_class": { "const": "required_named_decision_right" }
+            }
+          }
+        },
+        {
+          "description": "decision_subject_class in { protected_metric_or_fitness_function, compatibility_or_certified_archetype_claim, security_sensitive_egress_class, public_truth_area, packet_family, supportability_family, runtime_host_class, review_family, release_candidate_or_promotion_target, lts_line_or_support_window, workflow_bundle_or_extension_certification } forces reuse_class = required_named_decision_right so promotion cannot silently lose the card.",
+          "if": {
+            "properties": {
+              "decision_subject": {
+                "properties": {
+                  "decision_subject_class": {
+                    "enum": [
+                      "protected_metric_or_fitness_function",
+                      "compatibility_or_certified_archetype_claim",
+                      "security_sensitive_egress_class",
+                      "public_truth_area",
+                      "packet_family",
+                      "supportability_family",
+                      "runtime_host_class",
+                      "review_family",
+                      "release_candidate_or_promotion_target",
+                      "lts_line_or_support_window",
+                      "workflow_bundle_or_extension_certification"
+                    ]
+                  }
+                },
+                "required": ["decision_subject_class"]
+              }
+            },
+            "required": ["decision_subject"]
+          },
+          "then": {
+            "properties": { "reuse_class": { "const": "required_named_decision_right" } }
+          }
+        },
+        {
+          "description": "reuse_class = required_named_decision_right requires a non-empty linked_evidence_refs array so a required decision cannot run without evidence.",
+          "if": {
+            "properties": { "reuse_class": { "const": "required_named_decision_right" } },
+            "required": ["reuse_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_evidence_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "deadline_proximity_class = no_deadline_pinned forces target_due_at and target_milestone_ref to null.",
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": { "deadline_proximity_class": { "const": "no_deadline_pinned" } },
+                "required": ["deadline_proximity_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "decision_state": {
+                "properties": {
+                  "target_due_at": { "type": "null" },
+                  "target_milestone_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Deadline-proximity classes other than no_deadline_pinned require a non-null target_due_at.",
+          "if": {
+            "properties": {
+              "decision_state": {
+                "properties": {
+                  "deadline_proximity_class": {
+                    "enum": [
+                      "expired_past_due",
+                      "due_today_or_within_24h",
+                      "nearing_deadline_within_seven_days",
+                      "nearing_deadline_within_thirty_days",
+                      "not_yet_due_window_open"
+                    ]
+                  }
+                },
+                "required": ["deadline_proximity_class"]
+              }
+            },
+            "required": ["decision_state"]
+          },
+          "then": {
+            "properties": {
+              "decision_state": {
+                "properties": { "target_due_at": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "escalation_path_class = no_escalation_required forces decision_forum_ref to null and escalation_chain_role_refs to empty.",
+          "if": {
+            "properties": {
+              "escalation_route": {
+                "properties": { "escalation_path_class": { "const": "no_escalation_required" } },
+                "required": ["escalation_path_class"]
+              }
+            },
+            "required": ["escalation_route"]
+          },
+          "then": {
+            "properties": {
+              "escalation_route": {
+                "properties": {
+                  "decision_forum_ref": { "type": "null" },
+                  "escalation_chain_role_refs": { "maxItems": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "escalation_path_class in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom } requires a non-null decision_forum_ref.",
+          "if": {
+            "properties": {
+              "escalation_route": {
+                "properties": {
+                  "escalation_path_class": {
+                    "enum": [
+                      "escalate_to_decision_forum",
+                      "escalate_to_release_council",
+                      "escalate_to_shiproom"
+                    ]
+                  }
+                },
+                "required": ["escalation_path_class"]
+              }
+            },
+            "required": ["escalation_route"]
+          },
+          "then": {
+            "properties": {
+              "escalation_route": {
+                "properties": { "decision_forum_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "concurrence_outcome_class = concurrence_not_required_for_class forces concurrence_role_refs to empty so the absence of required concurrence cannot be silently filled in.",
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "concurrence_outcome_class": { "const": "concurrence_not_required_for_class" } },
+                "required": ["concurrence_outcome_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "concurrence_role_refs": { "maxItems": 0 } }
+              }
+            }
+          }
+        },
+        {
+          "description": "claim_manifest_export_class MUST be redacted_role_class_only_no_role_id so role IDs never reach a public claim manifest.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "claim_manifest_export_class": { "const": "redacted_role_class_only_no_role_id" }
+              }
+            }
+          }
+        },
+        {
+          "description": "support_export_class MUST stay inside the support-bundle ceiling.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "support_export_class": {
+                  "enum": [
+                    "role_id_only",
+                    "role_id_with_deadline_summary",
+                    "role_id_with_concurrence_set"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "release_packet_export_class MUST stay inside the shiproom / release-packet ceiling.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "release_packet_export_class": {
+                  "enum": [
+                    "role_id_only",
+                    "role_id_with_decision_forum",
+                    "role_id_with_concurrence_set",
+                    "role_id_with_deadline_summary"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "enterprise_review_export_class MUST stay inside the enterprise / managed-tenant ceiling.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "enterprise_review_export_class": {
+                  "enum": [
+                    "role_id_only",
+                    "role_id_with_deadline_summary",
+                    "role_id_with_concurrence_set"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

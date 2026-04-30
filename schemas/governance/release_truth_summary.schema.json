@@ -1,0 +1,891 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/release_truth_summary.schema.json",
+  "title": "Aureline release-truth summary, ship-or-no-ship posture, and decision-right linkage contract",
+  "description": "Boundary schema for one release_truth_summary_record frozen in docs/governance/decision_right_and_release_truth_contract.md. The record is the reusable projection that the governance dashboard, the milestone scorecard, the release-evidence shiproom packet, the support bundle, the public claim manifest, the compatibility-window report, and the enterprise / managed-tenant review quote when the live ship-or-no-ship posture for a release candidate, an LTS line, a workflow-bundle certification, or a public-truth publication has to be visible and exportable from the same object family that names the underlying decision-right cards. Every summary names a typed release target, a typed ship-or-no-ship posture (ship satisfied, ship with named narrowing, hold blockers open, hold waived blockers within expiry, no-ship blockers, no-ship decision-route unresolved, rollback or yank in flight), the typed open blockers (each pinned to a decision-right card), the typed waived blockers with expiry proximity, the count of stale evidence rows holding ship plus the linked stale-evidence refs, the typed mitigations (narrower scope, slower path, less portable, temporarily blocked, waiver-held, partial-profile, early-signal drift, escalated-pending-decision), the typed export-packet action (publish, hold, rollback, yank, repin, mirror-only, no-action, escalate-for-break-glass), the machine-readable decision-right card refs that gate the posture, and the typed degraded-state label that surfaces MUST render when ownership is unresolved or no decision route is named. A 'ship satisfied' posture cannot ride open blockers; a 'no-ship decision-route unresolved' summary cannot collapse into a release-packet 'go' chip; a waived blocker past its expiry cannot render as held. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw policy bodies, and raw waiver justifications MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new ship-or-no-ship posture, blocker-kind class, mitigation class, export-packet-action class, or stale-evidence summary class is additive-minor and bumps release_truth_summary_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two distinct refusal / degraded states into one bare label is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/release_truth_summary_record",
+  "$defs": {
+    "release_truth_summary_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the release-truth summary payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, enterprise-review exports, and screenshots. Raw URLs, raw absolute paths, raw email addresses, raw phone numbers, raw chat-room URLs, raw calendar URLs, raw on-call rotation entries, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw on-call rotation entries, raw policy bodies, raw waiver justifications, and raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "release_target_class": {
+      "type": "string",
+      "enum": [
+        "stable_release_candidate",
+        "lts_line_creation_or_renewal",
+        "preview_or_beta_promotion",
+        "workflow_bundle_certification",
+        "claim_or_archetype_publication",
+        "public_truth_publication",
+        "support_window_or_end_of_support_notice",
+        "compatibility_window_publication",
+        "rollback_or_yank_in_flight"
+      ],
+      "description": "Closed nine-class release-target vocabulary. Names what kind of release moment the summary grades. Mirrors the publish-target classes on /schemas/release/publish_target.schema.json (Public preview / Stable / LTS / Mirror / Registry / Emergency) plus the governance-bearing publication moments (workflow-bundle certification, claim or archetype publication, public-truth publication, support-window notice, compatibility-window publication, rollback or yank in flight)."
+    },
+    "ship_or_no_ship_posture_class": {
+      "type": "string",
+      "enum": [
+        "ship_satisfied_no_blockers",
+        "ship_with_named_narrowing",
+        "hold_blockers_open",
+        "hold_waived_blockers_within_expiry",
+        "no_ship_blockers_or_unresolved",
+        "no_ship_decision_route_unresolved",
+        "rollback_or_yank_in_flight"
+      ],
+      "description": "Closed seven-class ship-or-no-ship posture vocabulary. ship_satisfied_no_blockers = all decision-right cards are satisfied and no blockers, waived blockers, or stale evidence rows are holding ship. ship_with_named_narrowing = ship is approved with at least one named narrowing recorded as a satisfied_with_named_narrowing decision-right card and at least one mitigation entry. hold_blockers_open = at least one open blocker is gating ship; the summary MUST NOT render as 'go' on any consuming surface. hold_waived_blockers_within_expiry = at least one waived blocker is gating ship under an active waiver inside its expiry window. no_ship_blockers_or_unresolved = ship is refused on at least one open blocker or unresolved owner. no_ship_decision_route_unresolved = at least one decision-right card is in blocked_no_decision_route_named; the summary MUST render as degraded with degraded_decision_route_missing rather than collapsing into 'at risk'. rollback_or_yank_in_flight = a previously-published artifact is being rolled back, yanked, revoked, or repinned."
+    },
+    "blocker_kind_class": {
+      "type": "string",
+      "enum": [
+        "protected_metric_failure",
+        "compatibility_claim_failure",
+        "security_egress_class_failure",
+        "protected_release_artifact_failure",
+        "public_cli_schema_break",
+        "migration_helper_failure",
+        "support_drill_failure",
+        "nightly_governance_failure",
+        "ownership_unresolved_failure",
+        "decision_route_unresolved_failure",
+        "evidence_stale_failure",
+        "waiver_expired_failure"
+      ],
+      "description": "Closed twelve-class blocker-kind vocabulary. Names what kind of blocker is gating the release moment. Mirrors the run-state grammar on /schemas/governance/nightly_report_row.schema.json (blocked_by_failure, blocked_by_drift, waiver_expired_failure, evidence_stale) plus the ownership-and-decision-route degradations (ownership_unresolved_failure, decision_route_unresolved_failure)."
+    },
+    "waived_blocker_authority_class": {
+      "type": "string",
+      "enum": [
+        "performance_council",
+        "architecture_council",
+        "release_council",
+        "shiproom_executive_scope_review",
+        "security_trust_review",
+        "compatibility_ecosystem_review",
+        "product_scope_review",
+        "not_applicable_no_active_waiver"
+      ],
+      "description": "Closed eight-class waived-blocker authority vocabulary. Mirrors /schemas/governance/waiver_expiry_item.schema.json#waiver_authority_class plus the security / compatibility / product-scope councils so the summary, the live tile, and the waiver-expiry queue agree on which body issued the waiver."
+    },
+    "expiry_proximity_class": {
+      "type": "string",
+      "enum": [
+        "expired_past_due",
+        "due_today_or_within_24h",
+        "nearing_expiry_within_seven_days",
+        "nearing_expiry_within_thirty_days",
+        "not_yet_due_review_window_open",
+        "no_expiry_pinned"
+      ],
+      "description": "Closed six-class expiry-proximity vocabulary. Mirrors /schemas/governance/waiver_expiry_item.schema.json#expiry_proximity_class verbatim so the release-truth summary and the waiver-expiry queue route through the same proximity grammar."
+    },
+    "mitigation_class": {
+      "type": "string",
+      "enum": [
+        "no_mitigation_required_satisfied",
+        "narrower_scope_until_concurrence",
+        "slower_path_active_until_concurrence",
+        "less_portable_temporarily",
+        "temporarily_blocked_pending_decision",
+        "waiver_holds_release_until_expiry",
+        "partial_profile_result_pending_full_capture",
+        "early_signal_drift_owner_inspecting",
+        "escalated_pending_council_decision",
+        "rollback_in_flight_pending_revalidation"
+      ],
+      "description": "Closed ten-class mitigation vocabulary. Mirrors /schemas/governance/fitness_tile.schema.json#mitigation_note_class for the live-evidence cases and /schemas/governance/nightly_report_row.schema.json#mitigation_status_class for the recurring-evidence cases. Adds escalated_pending_council_decision and rollback_in_flight_pending_revalidation so a release-truth summary can name the meanwhile posture without collapsing into a generic 'in progress' label."
+    },
+    "stale_evidence_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_stale_evidence",
+        "one_stale_evidence_row_named",
+        "multiple_stale_evidence_rows_named",
+        "many_stale_evidence_rows_capped"
+      ],
+      "description": "Closed four-class stale-evidence summary vocabulary. Pairs with the integer stale_evidence_count so a summary that says 'no stale evidence' cannot also render a non-zero count and a summary with stale evidence cannot collapse into a clean ship posture."
+    },
+    "export_packet_action_class": {
+      "type": "string",
+      "enum": [
+        "publish_to_target_after_concurrence",
+        "hold_publish_pending_blocker",
+        "hold_publish_pending_waiver_renewal",
+        "rollback_to_prior_stable",
+        "yank_or_revoke_active_artifact",
+        "repin_supported_floor",
+        "mirror_only_emergency_push",
+        "no_action_required_already_at_target",
+        "escalate_for_break_glass_review"
+      ],
+      "description": "Closed nine-class export-packet-action vocabulary. Mirrors the publish-target / break-glass / rollback / yank / revoke / repin actions on /schemas/release/publish_target.schema.json and /schemas/release/rollback_revocation_panel.schema.json so the release-truth summary names the next concrete publication step rather than free-form prose."
+    },
+    "degraded_state_label_class": {
+      "type": "string",
+      "enum": [
+        "not_degraded_satisfied_or_pending",
+        "degraded_owner_unresolved",
+        "degraded_decision_route_missing",
+        "degraded_concurrence_failed_pending_escalation",
+        "degraded_evidence_stale",
+        "degraded_waiver_expired",
+        "degraded_past_deadline_no_decision",
+        "degraded_rollback_or_yank_in_flight"
+      ],
+      "description": "Closed eight-class degraded-state-label vocabulary. Mirrors /schemas/governance/decision_right_card.schema.json#degraded_state_label_class plus degraded_rollback_or_yank_in_flight for the rollback-or-yank-in-flight posture. A summary cannot be satisfied and degraded simultaneously."
+    },
+
+    "release_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_target_class",
+        "release_candidate_ref",
+        "publish_target_ref",
+        "channel_ref",
+        "lts_line_ref",
+        "headline_label",
+        "release_target_summary"
+      ],
+      "properties": {
+        "release_target_class": { "$ref": "#/$defs/release_target_class" },
+        "release_candidate_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the underlying release-candidate card on /schemas/release/release_candidate_card.schema.json. Required when release_target_class is in { stable_release_candidate, preview_or_beta_promotion, rollback_or_yank_in_flight }."
+        },
+        "publish_target_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the publish-target row on /schemas/release/publish_target.schema.json. Required when release_target_class is in { stable_release_candidate, lts_line_creation_or_renewal, preview_or_beta_promotion, rollback_or_yank_in_flight }."
+        },
+        "channel_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the release channel id on /schemas/release/release_channel_identity.schema.json. Required when release_target_class is in { stable_release_candidate, lts_line_creation_or_renewal, preview_or_beta_promotion, support_window_or_end_of_support_notice, compatibility_window_publication, rollback_or_yank_in_flight }."
+        },
+        "lts_line_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the LTS-line id. Required to be non-null when release_target_class is lts_line_creation_or_renewal."
+        },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the summary. Resolves against release_target_class plus the candidate / channel / LTS scope; free-text 'all good' / 'at risk' copy is non-conforming."
+        },
+        "release_target_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the release moment the summary grades. Names the candidate, the channel, and the publish target; raw absolute paths and raw URLs do not appear."
+        }
+      }
+    },
+
+    "blocker_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocker_kind_class",
+        "decision_right_card_ref",
+        "linked_evidence_ref",
+        "blocker_summary"
+      ],
+      "properties": {
+        "blocker_kind_class": { "$ref": "#/$defs/blocker_kind_class" },
+        "decision_right_card_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the decision_right_card_record gating this blocker. Required so the blocker can be reconstructed back to who owns the next decision and why that forum is required."
+        },
+        "linked_evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the underlying evidence packet, fitness-function row, compatibility row, certified-archetype row, security-egress-class row, claim-manifest row, scorecard lane, or governance packet that captured the blocker. Null only when blocker_kind_class is in { ownership_unresolved_failure, decision_route_unresolved_failure } where the absence of evidence is the blocker."
+        },
+        "blocker_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary naming what is blocking ship. Raw measurement bytes, raw policy bodies, and raw waiver justifications do not appear."
+        }
+      }
+    },
+
+    "waived_blocker_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocker_kind_class",
+        "decision_right_card_ref",
+        "waiver_ref",
+        "waiver_authority_class",
+        "expiry_proximity_class",
+        "waiver_expires_on",
+        "linked_evidence_ref",
+        "waiver_summary"
+      ],
+      "properties": {
+        "blocker_kind_class": { "$ref": "#/$defs/blocker_kind_class" },
+        "decision_right_card_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the decision_right_card_record (state = satisfied_with_active_waiver) gating this waived blocker. Required so the waiver can be reconstructed back to who held it and which forum approved it."
+        },
+        "waiver_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the waiver record in artifacts/governance/ownership_matrix.yaml. Required."
+        },
+        "waiver_authority_class": { "$ref": "#/$defs/waived_blocker_authority_class" },
+        "expiry_proximity_class": { "$ref": "#/$defs/expiry_proximity_class" },
+        "waiver_expires_on": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Expiry timestamp copied from the waiver record. Required to be non-null whenever expiry_proximity_class is anything other than no_expiry_pinned. For expired_past_due the timestamp MUST be in the past relative to evaluated_at."
+        },
+        "linked_evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the underlying evidence packet, fitness-function row, compatibility row, certified-archetype row, security-egress-class row, claim-manifest row, scorecard lane, or governance packet covered by the waiver."
+        },
+        "waiver_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the waiver posture. Raw waiver justification text MUST NOT appear; the summary names the authority, the expiry, and the held release condition."
+        }
+      }
+    },
+
+    "stale_evidence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocker_kind_class",
+        "linked_evidence_ref",
+        "decision_right_card_ref",
+        "captured_at",
+        "expires_at",
+        "stale_evidence_summary"
+      ],
+      "properties": {
+        "blocker_kind_class": { "$ref": "#/$defs/blocker_kind_class" },
+        "linked_evidence_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the stale evidence packet, fitness-tile row, nightly-report row, compatibility row, or scorecard lane row holding ship."
+        },
+        "decision_right_card_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the decision_right_card_record gating this stale-evidence blocker. Null admissible only when the stale evidence is informational (e.g. a near-expiry compatibility row that has not yet aged out)."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "captured_at copied from the underlying evidence packet header. Null only when the evidence is missing rather than expired."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Computed captured_at + stale_after copied from the underlying evidence packet header. Null only when the evidence is missing rather than expired."
+        },
+        "stale_evidence_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary naming why the evidence is stale (time window passed, rerun trigger fired, missing) and what is held meanwhile."
+        }
+      }
+    },
+
+    "mitigation_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mitigation_class",
+        "what_users_should_do",
+        "what_operators_should_do",
+        "mitigation_summary"
+      ],
+      "properties": {
+        "mitigation_class": { "$ref": "#/$defs/mitigation_class" },
+        "what_users_should_do": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable instruction for the user / consumer. Resolves against mitigation_class; free-text fear copy is non-conforming."
+        },
+        "what_operators_should_do": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable instruction for the lane DRI / operator. Resolves against mitigation_class."
+        },
+        "mitigation_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary describing what is narrower, slower, less portable, temporarily blocked, waiver-held, partial-profile, escalated, or rolling back. Surfaces MUST NOT collapse this into a generic 'see release notes' link."
+        }
+      }
+    },
+
+    "export_packet_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_action_class",
+        "release_packet_ref",
+        "publish_target_ref",
+        "rollback_or_revocation_panel_ref",
+        "support_export_packet_ref",
+        "action_summary"
+      ],
+      "properties": {
+        "export_packet_action_class": { "$ref": "#/$defs/export_packet_action_class" },
+        "release_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the release-evidence packet that the action publishes, holds, or rolls back. Required when export_packet_action_class is in { publish_to_target_after_concurrence, hold_publish_pending_blocker, hold_publish_pending_waiver_renewal, escalate_for_break_glass_review }."
+        },
+        "publish_target_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the publish-target row on /schemas/release/publish_target.schema.json the action would publish to. Required when export_packet_action_class is in { publish_to_target_after_concurrence, hold_publish_pending_blocker, hold_publish_pending_waiver_renewal, mirror_only_emergency_push, escalate_for_break_glass_review }."
+        },
+        "rollback_or_revocation_panel_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the rollback-or-revocation panel on /schemas/release/rollback_revocation_panel.schema.json. Required when export_packet_action_class is in { rollback_to_prior_stable, yank_or_revoke_active_artifact, repin_supported_floor }."
+        },
+        "support_export_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the support-export packet that downstream support / enterprise reviews consume. Required when render_on_support_export = true on the parent record."
+        },
+        "action_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary naming the next concrete publication step. Free-text 'see release notes' copy is non-conforming."
+        }
+      }
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_scorecard",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest",
+        "render_on_enterprise_review"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" },
+        "render_on_enterprise_review": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the summary MUST render the same release_target, ship_or_no_ship_posture_class, blockers, waived_blockers, stale_evidence_count, mitigations, export_packet_action, linked_decision_right_card_refs, and degraded_state_label_class. Setting render_on_release_packet, render_on_support_export, render_on_governance_packet, render_on_claim_manifest, or render_on_enterprise_review to true signals that the summary is part of public / release / support truth and MUST satisfy the per-state export rules in the schema's allOf block."
+    },
+
+    "release_truth_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_truth_summary_schema_version",
+        "record_kind",
+        "release_truth_summary_id",
+        "evaluated_at",
+        "release_target",
+        "ship_or_no_ship_posture_class",
+        "headline_label",
+        "blockers",
+        "waived_blockers",
+        "stale_evidence_count",
+        "stale_evidence_summary_class",
+        "stale_evidence_entries",
+        "mitigations",
+        "export_packet_action",
+        "linked_decision_right_card_refs",
+        "degraded_state_label_class",
+        "degraded_state_summary",
+        "export_fields",
+        "contract_doc_ref",
+        "decision_right_card_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "release_truth_summary_schema_version": { "$ref": "#/$defs/release_truth_summary_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "release_truth_summary_record"
+        },
+        "release_truth_summary_id": {
+          "type": "string",
+          "pattern": "^release_truth_summary:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by the dashboard, the milestone scorecard, the release-evidence shiproom packet, the support bundle, the public claim manifest, the compatibility-window report, and the enterprise / managed-tenant review."
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the summary was projected. Distinct from the underlying evidence captured_at and decision-right card evaluated_at; the summary can be reprojected when a blocker closes, a waiver expires, or stale evidence ages out."
+        },
+        "release_target": { "$ref": "#/$defs/release_target" },
+        "ship_or_no_ship_posture_class": { "$ref": "#/$defs/ship_or_no_ship_posture_class" },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the summary. Resolves against ship_or_no_ship_posture_class plus release_target_class; free-text 'all good' / 'all bad' copy is non-conforming."
+        },
+        "blockers": {
+          "type": "array",
+          "uniqueItems": false,
+          "items": { "$ref": "#/$defs/blocker_entry" },
+          "description": "Open blockers gating this release moment. Empty admissible only when ship_or_no_ship_posture_class is in { ship_satisfied_no_blockers, ship_with_named_narrowing, hold_waived_blockers_within_expiry, rollback_or_yank_in_flight }."
+        },
+        "waived_blockers": {
+          "type": "array",
+          "uniqueItems": false,
+          "items": { "$ref": "#/$defs/waived_blocker_entry" },
+          "description": "Waived blockers gating this release moment under an active waiver inside its expiry window. Required to be non-empty when ship_or_no_ship_posture_class = hold_waived_blockers_within_expiry."
+        },
+        "stale_evidence_count": {
+          "$ref": "#/$defs/non_negative_integer",
+          "description": "Count of stale evidence rows holding ship. Pairs with stale_evidence_summary_class and stale_evidence_entries; zero when stale_evidence_summary_class = no_stale_evidence."
+        },
+        "stale_evidence_summary_class": { "$ref": "#/$defs/stale_evidence_summary_class" },
+        "stale_evidence_entries": {
+          "type": "array",
+          "uniqueItems": false,
+          "items": { "$ref": "#/$defs/stale_evidence_entry" },
+          "description": "Typed stale-evidence entries. Length MUST match stale_evidence_count up to the cap; surfaces MAY render the cap label when stale_evidence_summary_class = many_stale_evidence_rows_capped."
+        },
+        "mitigations": {
+          "type": "array",
+          "uniqueItems": false,
+          "items": { "$ref": "#/$defs/mitigation_entry" },
+          "description": "Typed mitigations naming what is narrower, slower, less portable, temporarily blocked, waiver-held, partial-profile, escalated, or rolling back. At least one entry is required when ship_or_no_ship_posture_class is in { ship_with_named_narrowing, hold_blockers_open, hold_waived_blockers_within_expiry, no_ship_blockers_or_unresolved, no_ship_decision_route_unresolved, rollback_or_yank_in_flight }."
+        },
+        "export_packet_action": { "$ref": "#/$defs/export_packet_action" },
+        "linked_decision_right_card_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into the decision_right_card_records that gate this summary. Required to be non-empty so the ship-or-no-ship posture is always reconstructable back to who can decide the next move and why the forum is required. Each blocker_entry, waived_blocker_entry, and stale_evidence_entry decision_right_card_ref MUST appear in this array."
+        },
+        "degraded_state_label_class": { "$ref": "#/$defs/degraded_state_label_class" },
+        "degraded_state_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the degraded-state label. Names the unresolved owner, the missing decision route, the failed concurrence, the stale evidence, the expired waiver, the past-deadline no-decision case, or the rollback / yank in flight; raw policy bodies and raw waiver justifications do not appear."
+        },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/decision_right_and_release_truth_contract.md"
+        },
+        "decision_right_card_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/decision_right_card.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "ship_satisfied_no_blockers requires no blockers, no waived blockers, zero stale evidence, no mitigations other than no_mitigation_required_satisfied, an export action of publish or no-action, and the not-degraded label.",
+          "if": {
+            "properties": { "ship_or_no_ship_posture_class": { "const": "ship_satisfied_no_blockers" } },
+            "required": ["ship_or_no_ship_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "blockers": { "maxItems": 0 },
+              "waived_blockers": { "maxItems": 0 },
+              "stale_evidence_count": { "const": 0 },
+              "stale_evidence_summary_class": { "const": "no_stale_evidence" },
+              "stale_evidence_entries": { "maxItems": 0 },
+              "mitigations": {
+                "items": {
+                  "properties": {
+                    "mitigation_class": { "const": "no_mitigation_required_satisfied" }
+                  }
+                }
+              },
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": {
+                    "enum": [
+                      "publish_to_target_after_concurrence",
+                      "no_action_required_already_at_target"
+                    ]
+                  }
+                }
+              },
+              "degraded_state_label_class": { "const": "not_degraded_satisfied_or_pending" }
+            }
+          }
+        },
+        {
+          "description": "ship_with_named_narrowing requires at least one mitigation entry naming the narrowing and forces the not-degraded label.",
+          "if": {
+            "properties": { "ship_or_no_ship_posture_class": { "const": "ship_with_named_narrowing" } },
+            "required": ["ship_or_no_ship_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "mitigations": { "minItems": 1 },
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": {
+                    "enum": [
+                      "publish_to_target_after_concurrence",
+                      "no_action_required_already_at_target"
+                    ]
+                  }
+                }
+              },
+              "degraded_state_label_class": { "const": "not_degraded_satisfied_or_pending" }
+            }
+          }
+        },
+        {
+          "description": "hold_blockers_open requires at least one blocker entry, at least one mitigation entry, and an export action of hold_publish_pending_blocker.",
+          "if": {
+            "properties": { "ship_or_no_ship_posture_class": { "const": "hold_blockers_open" } },
+            "required": ["ship_or_no_ship_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "blockers": { "minItems": 1 },
+              "mitigations": { "minItems": 1 },
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": { "const": "hold_publish_pending_blocker" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "hold_waived_blockers_within_expiry requires at least one waived blocker, no expired-past-due waivers, and the waiver-holds-release-until-expiry mitigation.",
+          "if": {
+            "properties": { "ship_or_no_ship_posture_class": { "const": "hold_waived_blockers_within_expiry" } },
+            "required": ["ship_or_no_ship_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "waived_blockers": {
+                "minItems": 1,
+                "items": {
+                  "properties": {
+                    "expiry_proximity_class": {
+                      "enum": [
+                        "due_today_or_within_24h",
+                        "nearing_expiry_within_seven_days",
+                        "nearing_expiry_within_thirty_days",
+                        "not_yet_due_review_window_open",
+                        "no_expiry_pinned"
+                      ]
+                    }
+                  }
+                }
+              },
+              "mitigations": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "mitigation_class": { "const": "waiver_holds_release_until_expiry" }
+                  }
+                }
+              },
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": {
+                    "enum": [
+                      "hold_publish_pending_waiver_renewal",
+                      "hold_publish_pending_blocker",
+                      "publish_to_target_after_concurrence"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "no_ship_blockers_or_unresolved requires at least one blocker entry and an export action of hold_publish_pending_blocker, rollback, yank-or-revoke, or escalate-for-break-glass.",
+          "if": {
+            "properties": { "ship_or_no_ship_posture_class": { "const": "no_ship_blockers_or_unresolved" } },
+            "required": ["ship_or_no_ship_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "blockers": { "minItems": 1 },
+              "mitigations": { "minItems": 1 },
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": {
+                    "enum": [
+                      "hold_publish_pending_blocker",
+                      "rollback_to_prior_stable",
+                      "yank_or_revoke_active_artifact",
+                      "escalate_for_break_glass_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "no_ship_decision_route_unresolved requires at least one blocker of kind decision_route_unresolved_failure or ownership_unresolved_failure and forces the degraded_decision_route_missing label so 'at risk' without a named forum cannot appear complete.",
+          "if": {
+            "properties": { "ship_or_no_ship_posture_class": { "const": "no_ship_decision_route_unresolved" } },
+            "required": ["ship_or_no_ship_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "blockers": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "blocker_kind_class": {
+                      "enum": ["decision_route_unresolved_failure", "ownership_unresolved_failure"]
+                    }
+                  }
+                }
+              },
+              "mitigations": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "mitigation_class": {
+                      "enum": [
+                        "escalated_pending_council_decision",
+                        "temporarily_blocked_pending_decision"
+                      ]
+                    }
+                  }
+                }
+              },
+              "degraded_state_label_class": { "const": "degraded_decision_route_missing" },
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": {
+                    "enum": [
+                      "hold_publish_pending_blocker",
+                      "escalate_for_break_glass_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rollback_or_yank_in_flight requires the rollback_or_yank_in_flight mitigation, a non-null rollback_or_revocation_panel_ref, and the degraded_rollback_or_yank_in_flight label.",
+          "if": {
+            "properties": { "ship_or_no_ship_posture_class": { "const": "rollback_or_yank_in_flight" } },
+            "required": ["ship_or_no_ship_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "mitigations": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "mitigation_class": { "const": "rollback_in_flight_pending_revalidation" }
+                  }
+                }
+              },
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": {
+                    "enum": [
+                      "rollback_to_prior_stable",
+                      "yank_or_revoke_active_artifact",
+                      "repin_supported_floor",
+                      "mirror_only_emergency_push"
+                    ]
+                  },
+                  "rollback_or_revocation_panel_ref": { "not": { "type": "null" } }
+                }
+              },
+              "degraded_state_label_class": { "const": "degraded_rollback_or_yank_in_flight" }
+            }
+          }
+        },
+        {
+          "description": "stale_evidence_count = 0 forces stale_evidence_summary_class = no_stale_evidence and stale_evidence_entries empty.",
+          "if": {
+            "properties": { "stale_evidence_count": { "const": 0 } },
+            "required": ["stale_evidence_count"]
+          },
+          "then": {
+            "properties": {
+              "stale_evidence_summary_class": { "const": "no_stale_evidence" },
+              "stale_evidence_entries": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "stale_evidence_count >= 1 forces stale_evidence_summary_class out of no_stale_evidence and stale_evidence_entries to be non-empty so a non-zero count cannot collapse into a clean ship posture.",
+          "if": {
+            "properties": { "stale_evidence_count": { "minimum": 1 } },
+            "required": ["stale_evidence_count"]
+          },
+          "then": {
+            "properties": {
+              "stale_evidence_summary_class": {
+                "enum": [
+                  "one_stale_evidence_row_named",
+                  "multiple_stale_evidence_rows_named",
+                  "many_stale_evidence_rows_capped"
+                ]
+              },
+              "stale_evidence_entries": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "publish_to_target_after_concurrence requires a non-null release_packet_ref and a non-null publish_target_ref.",
+          "if": {
+            "properties": {
+              "export_packet_action": {
+                "properties": { "export_packet_action_class": { "const": "publish_to_target_after_concurrence" } },
+                "required": ["export_packet_action_class"]
+              }
+            },
+            "required": ["export_packet_action"]
+          },
+          "then": {
+            "properties": {
+              "export_packet_action": {
+                "properties": {
+                  "release_packet_ref": { "not": { "type": "null" } },
+                  "publish_target_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rollback_to_prior_stable, yank_or_revoke_active_artifact, and repin_supported_floor require a non-null rollback_or_revocation_panel_ref.",
+          "if": {
+            "properties": {
+              "export_packet_action": {
+                "properties": {
+                  "export_packet_action_class": {
+                    "enum": [
+                      "rollback_to_prior_stable",
+                      "yank_or_revoke_active_artifact",
+                      "repin_supported_floor"
+                    ]
+                  }
+                },
+                "required": ["export_packet_action_class"]
+              }
+            },
+            "required": ["export_packet_action"]
+          },
+          "then": {
+            "properties": {
+              "export_packet_action": {
+                "properties": { "rollback_or_revocation_panel_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "Each waived_blocker entry whose expiry_proximity_class = expired_past_due forces the parent posture out of hold_waived_blockers_within_expiry and into no_ship_blockers_or_unresolved so a lapsed waiver cannot render as held.",
+          "if": {
+            "properties": {
+              "waived_blockers": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "expiry_proximity_class": { "const": "expired_past_due" }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ship_or_no_ship_posture_class": {
+                "not": { "const": "hold_waived_blockers_within_expiry" }
+              }
+            }
+          }
+        },
+        {
+          "description": "lts_line_creation_or_renewal requires a non-null lts_line_ref.",
+          "if": {
+            "properties": {
+              "release_target": {
+                "properties": { "release_target_class": { "const": "lts_line_creation_or_renewal" } },
+                "required": ["release_target_class"]
+              }
+            },
+            "required": ["release_target"]
+          },
+          "then": {
+            "properties": {
+              "release_target": {
+                "properties": { "lts_line_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
