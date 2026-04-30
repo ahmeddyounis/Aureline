@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ci/log_view.schema.json",
+  "title": "Aureline CI / pipeline log pane view",
+  "description": "Boundary schema for the pipeline_log_view_record frozen in docs/ci/pipeline_run_and_control_contract.md. Every CI / pipeline / job / step log pane (in-product log pane, inline detail, support packet excerpt, AI evidence packet excerpt) emits one pipeline_log_view_record. The record is a projection of the underlying output_viewer_object_record (referenced by output_viewer_object_ref) with pipeline-specific identity, search-scope-on-the-pipeline, chunk / pin state, raw export path, partial-log semantics, and live-vs-cached posture added on top. Size, truncation, viewer-mode, freeze / autoscroll, copy / export representation, and live-stream delivery / buffering remain owned by the underlying output_viewer_object_record and live_set_state_record. Raw step output bytes, raw artifact bodies, raw URLs (provider host, run URL, branch URL, commit URL, artifact URL), raw absolute paths, raw author email addresses, and raw bearer / OAuth / delegated / approval tokens never cross this boundary. Adding a new step_identity_class, live_vs_cached_class, search_scope_on_pipeline_class, chunk_state, pin_state, raw_export_path_class, raw_export_scope_class, or partial_log_semantics value is additive-minor and bumps pipeline_log_view_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/pipeline_log_view_record" }
+  ],
+  "$defs": {
+    "pipeline_log_view_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the pipeline-log-view boundary. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "pipeline_log_view_record"
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support / export packets."
+    },
+
+    "redaction_aware_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing short label. Redaction-aware; raw secrets, raw URLs, raw hostnames, raw absolute paths, raw author email addresses, and raw step output bytes never appear here."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "step_identity_class": {
+      "type": "string",
+      "enum": [
+        "named_step",
+        "matrix_step",
+        "composite_action_step",
+        "service_container_step",
+        "post_step",
+        "setup_step",
+        "teardown_step",
+        "not_applicable_run_level_log",
+        "unknown_step_class_provider_owned"
+      ],
+      "description": "Closed step-identity class vocabulary. not_applicable_run_level_log is the correct posture when the pane shows the workflow / job level log rather than a single step."
+    },
+
+    "step_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_identity_class"],
+      "properties": {
+        "step_identity_class": { "$ref": "#/$defs/step_identity_class" },
+        "step_ref": { "$ref": "#/$defs/opaque_id" },
+        "step_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Pipeline step identity. A step-level pane MUST cite a non-empty step_ref and step_label; a run-level pane MAY omit them and use not_applicable_run_level_log."
+    },
+
+    "live_vs_cached_class": {
+      "type": "string",
+      "enum": [
+        "live_streaming_provider_tail",
+        "live_streaming_local_relay",
+        "cached_post_run_replay",
+        "partial_provider_retention_bound",
+        "imported_from_support_packet",
+        "denied_no_log_visibility",
+        "unknown_live_state_provider_owned"
+      ],
+      "description": "Closed live-vs-cached vocabulary. Only live_streaming_provider_tail and live_streaming_local_relay may be paired with authoritative_live freshness on the underlying viewer object."
+    },
+
+    "search_scope_on_pipeline_class": {
+      "type": "string",
+      "enum": [
+        "current_step_only",
+        "current_job_only",
+        "entire_run_loaded_window",
+        "entire_run_full_source_loaded",
+        "cross_run_history_not_supported",
+        "not_applicable_no_search"
+      ],
+      "description": "Closed pipeline-search-scope vocabulary. A search that only scans the current step MUST NOT be labeled \"search the whole run\"."
+    },
+
+    "chunk_state": {
+      "type": "string",
+      "enum": [
+        "live_tail_chunk",
+        "head_chunk_loaded",
+        "tail_chunk_loaded",
+        "range_chunk_loaded",
+        "random_access_window_loaded",
+        "static_full_log_loaded",
+        "denied_no_chunks"
+      ],
+      "description": "Closed chunk-state vocabulary describing what slice of the producer log is currently loaded."
+    },
+
+    "pin_state": {
+      "type": "string",
+      "enum": [
+        "no_pin",
+        "pinned_first_failure",
+        "pinned_last_warning",
+        "pinned_step_boundary",
+        "pinned_user_anchor"
+      ],
+      "description": "Closed pin-state vocabulary. Pinning is anchor-based; raw line numbers do not cross this boundary."
+    },
+
+    "raw_export_path_class": {
+      "type": "string",
+      "enum": [
+        "exact_export_path_available",
+        "approximate_export_path_provider_owned",
+        "unknown_export_path",
+        "not_permitted_export_blocked"
+      ],
+      "description": "Closed raw-export-path class vocabulary."
+    },
+
+    "raw_export_scope_class": {
+      "type": "string",
+      "enum": [
+        "provider_raw_download",
+        "loaded_materialized_set",
+        "named_snapshot_only",
+        "metadata_only",
+        "denied_export_blocked_by_policy"
+      ],
+      "description": "Closed raw-export-scope vocabulary. Re-exported and narrowed from the live-set / output-viewer export-scope vocabulary; export scope is always representation-labeled."
+    },
+
+    "raw_export_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_export_path_class", "raw_export_scope_class"],
+      "properties": {
+        "raw_export_path_class": { "$ref": "#/$defs/raw_export_path_class" },
+        "raw_export_scope_class": { "$ref": "#/$defs/raw_export_scope_class" },
+        "export_path_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the raw export path / target. Null when raw_export_path_class is unknown_export_path or not_permitted_export_blocked."
+        },
+        "export_path_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Raw export path disclosure. Raw download URLs, raw absolute paths, and raw provider URLs MUST NOT appear here; the path is rendered as an opaque ref plus a typed scope class."
+    },
+
+    "partial_log_semantics": {
+      "type": "string",
+      "enum": [
+        "complete_log_in_loaded_window",
+        "head_partial_provider_retention_dropped",
+        "tail_partial_run_still_in_progress",
+        "tail_partial_provider_truncated",
+        "middle_elided_provider_owned",
+        "middle_elided_client_redaction",
+        "denied_partial_no_log_access",
+        "unknown_partiality_provider_owned"
+      ],
+      "description": "Closed partial-log semantics vocabulary. A pane MUST set this to a typed value whenever the loaded window is not a complete projection of the producer's output. A run still in progress whose tail is naturally not yet emitted MUST use tail_partial_run_still_in_progress, not tail_partial_provider_truncated."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness-class re-exported from the capability-lifecycle and safe-preview contracts."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": [
+            "account_free_local",
+            "self_hosted_org",
+            "managed_workspace"
+          ]
+        },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ]
+        },
+        "id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "live_to_cached_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transition_event_ref", "transition_label"],
+      "properties": {
+        "transition_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "transition_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "transitioned_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Disclosure that the pane has lost a previous live tail. Required when live_vs_cached_class is cached_post_run_replay or partial_provider_retention_bound and the pane was previously live."
+    },
+
+    "pipeline_log_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "pipeline_log_view_schema_version",
+        "log_view_id",
+        "scope_ref",
+        "pipeline_run_row_ref",
+        "output_viewer_object_ref",
+        "step_identity",
+        "live_vs_cached_class",
+        "freshness_class",
+        "search_scope_on_pipeline_class",
+        "chunk_state",
+        "pin_state",
+        "raw_export_path",
+        "partial_log_semantics",
+        "policy_context",
+        "redaction_class",
+        "review_summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "pipeline_log_view_record" },
+        "pipeline_log_view_schema_version": {
+          "$ref": "#/$defs/pipeline_log_view_schema_version"
+        },
+        "log_view_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "pipeline_run_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference to the pipeline_run_row_record this pane is reading."
+        },
+        "output_viewer_object_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference to the underlying output_viewer_object_record. Size, truncation, viewer-mode, freeze / autoscroll, copy, and export remain owned there."
+        },
+        "step_identity": { "$ref": "#/$defs/step_identity" },
+        "live_vs_cached_class": { "$ref": "#/$defs/live_vs_cached_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "search_scope_on_pipeline_class": { "$ref": "#/$defs/search_scope_on_pipeline_class" },
+        "chunk_state": { "$ref": "#/$defs/chunk_state" },
+        "pin_state": { "$ref": "#/$defs/pin_state" },
+        "raw_export_path": { "$ref": "#/$defs/raw_export_path" },
+        "partial_log_semantics": { "$ref": "#/$defs/partial_log_semantics" },
+        "partial_log_explanation_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "live_to_cached_transition": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/live_to_cached_transition" }
+          ],
+          "description": "Disclosure for live-to-cached transitions. Required (non-null) when the pane was previously live and is no longer live; null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "review_summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Only live streaming live_vs_cached classes may pair with authoritative_live freshness.",
+          "if": {
+            "type": "object",
+            "required": ["live_vs_cached_class"],
+            "properties": {
+              "live_vs_cached_class": {
+                "enum": [
+                  "cached_post_run_replay",
+                  "partial_provider_retention_bound",
+                  "imported_from_support_packet",
+                  "denied_no_log_visibility",
+                  "unknown_live_state_provider_owned"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "freshness_class": {
+                "not": { "const": "authoritative_live" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Step-level identity classes MUST cite step_ref and step_label.",
+          "if": {
+            "type": "object",
+            "required": ["step_identity"],
+            "properties": {
+              "step_identity": {
+                "type": "object",
+                "required": ["step_identity_class"],
+                "properties": {
+                  "step_identity_class": {
+                    "enum": [
+                      "named_step",
+                      "matrix_step",
+                      "composite_action_step",
+                      "service_container_step",
+                      "post_step",
+                      "setup_step",
+                      "teardown_step"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "step_identity": {
+                "type": "object",
+                "required": ["step_ref", "step_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Partial-log semantics other than complete_log_in_loaded_window MUST cite a partial_log_explanation_label.",
+          "if": {
+            "type": "object",
+            "required": ["partial_log_semantics"],
+            "properties": {
+              "partial_log_semantics": {
+                "enum": [
+                  "head_partial_provider_retention_dropped",
+                  "tail_partial_run_still_in_progress",
+                  "tail_partial_provider_truncated",
+                  "middle_elided_provider_owned",
+                  "middle_elided_client_redaction",
+                  "denied_partial_no_log_access",
+                  "unknown_partiality_provider_owned"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["partial_log_explanation_label"]
+          }
+        },
+        {
+          "description": "Cached / partial / imported / denied panes MUST carry a live_to_cached_transition disclosure when the pane was previously live; the runtime cannot enforce previously-live without state, so a non-null transition is required for partial_provider_retention_bound and cached_post_run_replay.",
+          "if": {
+            "type": "object",
+            "required": ["live_vs_cached_class"],
+            "properties": {
+              "live_vs_cached_class": {
+                "enum": ["cached_post_run_replay", "partial_provider_retention_bound"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["live_to_cached_transition"],
+            "properties": {
+              "live_to_cached_transition": {
+                "type": "object",
+                "required": ["transition_event_ref", "transition_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "denied_no_log_visibility panes MUST set chunk_state to denied_no_chunks.",
+          "if": {
+            "type": "object",
+            "required": ["live_vs_cached_class"],
+            "properties": {
+              "live_vs_cached_class": { "const": "denied_no_log_visibility" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "chunk_state": { "const": "denied_no_chunks" }
+            }
+          }
+        },
+        {
+          "description": "not_permitted_export_blocked MUST resolve to denied_export_blocked_by_policy and a null export_path_ref.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "raw_export_path": {
+                "type": "object",
+                "required": ["raw_export_path_class"],
+                "properties": {
+                  "raw_export_path_class": { "const": "not_permitted_export_blocked" }
+                }
+              }
+            },
+            "required": ["raw_export_path"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "raw_export_path": {
+                "type": "object",
+                "required": ["raw_export_scope_class", "export_path_ref"],
+                "properties": {
+                  "raw_export_scope_class": { "const": "denied_export_blocked_by_policy" },
+                  "export_path_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

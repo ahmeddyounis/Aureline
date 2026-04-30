@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=../../../schemas/ci/log_view.schema.json
+__fixture__:
+  name: partial_log_provider_retention_dropped
+  scenario: >
+    A job log pane bound to a job_run row whose head bytes were
+    rotated by provider retention. The pane resolves
+    live_vs_cached_class = partial_provider_retention_bound,
+    partial_log_semantics =
+    head_partial_provider_retention_dropped, freshness_class =
+    degraded_cached, and chunk_state = range_chunk_loaded. The
+    underlying output_viewer_object_record already owns size /
+    truncation / viewer-mode truth; this record adds the
+    pipeline-specific reason for the gap. A paired
+    request_log_rehydrate run-control review for this pane would
+    resolve blocked_provider_does_not_support_control because the
+    provider does not support log rehydrate after retention rotation.
+  exercised_axes:
+    live_vs_cached_class: partial_provider_retention_bound
+    partial_log_semantics: head_partial_provider_retention_dropped
+    chunk_state: range_chunk_loaded
+    pin_state: pinned_first_failure
+    raw_export_path_class: not_permitted_export_blocked
+    search_scope_on_pipeline_class: entire_run_loaded_window
+    freshness_class: degraded_cached
+  contract_sections:
+    - "2. Log pane"
+    - "2.2 Live-to-cached transition rule (frozen)"
+    - "2.3 Partial-log honesty rule (frozen)"
+
+record_kind: pipeline_log_view_record
+pipeline_log_view_schema_version: 1
+log_view_id: pipeline.log.view.0001.job.lint_test_build.lint_step
+scope_ref:
+  class: workspace
+  id: workspace.repo.aureline
+pipeline_run_row_ref: pipeline.run.row.0001.workflow.aureline_main_ci.pr_4711
+output_viewer_object_ref: output_viewer.0001.job.lint_test_build.lint_step
+step_identity:
+  step_identity_class: named_step
+  step_ref: provider.step.lint_test_build.lint
+  step_label: "lint"
+live_vs_cached_class: partial_provider_retention_bound
+freshness_class: degraded_cached
+search_scope_on_pipeline_class: entire_run_loaded_window
+chunk_state: range_chunk_loaded
+pin_state: pinned_first_failure
+raw_export_path:
+  raw_export_path_class: not_permitted_export_blocked
+  raw_export_scope_class: denied_export_blocked_by_policy
+  export_path_ref: null
+  export_path_label: "Raw download blocked: provider retention dropped the head bytes."
+partial_log_semantics: head_partial_provider_retention_dropped
+partial_log_explanation_label: >
+  Provider retention rotated the first 8 KiB of this step's log
+  before it could be cached locally. The loaded window starts at
+  the first failure anchor.
+live_to_cached_transition:
+  transition_event_ref: provider_event.code_host_primary.log_rotated.lint_step
+  transition_label: >
+    Live tail closed when the run completed; provider retention
+    then rotated the head bytes. Pane is now a partial cached
+    replay.
+  transitioned_at: "2026-04-30T20:46:00Z"
+policy_context:
+  identity_mode: self_hosted_org
+  policy_epoch: policy-epoch:42
+  trust_state: trusted
+  execution_context_id: execution_context.local.task.lint_test_build.20260430T204233Z
+redaction_class: metadata_safe_default
+review_summary_label: >
+  Partial log pane: the head was rotated by provider retention,
+  the loaded window starts at the first failure, and raw export
+  is denied by policy.
+minted_at: "2026-04-30T20:46:02Z"
