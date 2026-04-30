@@ -1,0 +1,512 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/continuity_status_card.schema.json",
+  "title": "Aureline continuity-status card",
+  "description": "Boundary schema for continuity-status cards frozen in docs/reliability/continuity_status_card_contract.md. The card projects backup, checkpoint, sync, mirror, and export sources into a single inspectable record so a user, support engineer, or admin can tell how recoverable the current workspace, profile, evidence, and layout targets are before any destructive repair, migration, or restore path runs. Recovery promise classes (authoritative_backup, local_checkpoint, sync_replica, mirror_cache, convenience_export) and restore-target classes (workspace, profile, evidence, layout) come from artifacts/recovery/backup_checkpoint_classes.yaml. Raw file bodies, raw diff hunks, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/continuity_status_card_record" }
+  ],
+  "$defs": {
+    "continuity_status_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for continuity-status card records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "continuity_status_card_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in status cards, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "recovery_promise_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_backup",
+        "local_checkpoint",
+        "sync_replica",
+        "mirror_cache",
+        "convenience_export"
+      ],
+      "description": "Closed recovery-promise class. Re-exported verbatim from artifacts/recovery/backup_checkpoint_classes.yaml."
+    },
+    "restore_target_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "profile",
+        "evidence",
+        "layout"
+      ],
+      "description": "Closed restore-target class. Workspace bytes, profile/durable settings, evidence packets, and window topology stay separately inspectable."
+    },
+    "restorability_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "stale",
+        "unverified",
+        "missing",
+        "partially_restorable"
+      ]
+    },
+    "verification_state": {
+      "type": "string",
+      "enum": [
+        "verified_recent",
+        "verified_within_policy_window",
+        "stale_verification",
+        "never_verified",
+        "verification_unavailable"
+      ]
+    },
+    "local_history_health_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "retention_pressure",
+        "quota_exhausted",
+        "storage_unavailable",
+        "never_initialized",
+        "cleared_by_user"
+      ]
+    },
+    "sync_replication_state_class": {
+      "type": "string",
+      "enum": [
+        "not_configured",
+        "in_sync",
+        "lagging_within_window",
+        "stale_outside_window",
+        "paused_by_user",
+        "paused_by_policy",
+        "divergent_requires_review",
+        "sync_unavailable"
+      ]
+    },
+    "export_availability_class": {
+      "type": "string",
+      "enum": [
+        "export_on_disk_recent",
+        "export_on_disk_stale",
+        "export_offered_not_taken",
+        "export_in_progress",
+        "export_blocked_by_policy",
+        "export_not_offered_metadata_only",
+        "export_unavailable"
+      ]
+    },
+    "deployment_profile_scope_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "air_gapped",
+        "managed_tenant",
+        "cross_plane_failover_pending"
+      ]
+    },
+    "local_safe_guidance_class": {
+      "type": "string",
+      "enum": [
+        "continue_local_work",
+        "export_now_before_change",
+        "verify_backup_locally",
+        "re_capture_local_checkpoint",
+        "import_offline_bundle",
+        "reauthorize_sync_after_review",
+        "rebuild_from_authoritative_source",
+        "restore_unsupported_use_partial_recovery",
+        "escalate_to_support_with_evidence"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "deployment_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_scope_class"],
+      "properties": {
+        "profile_scope_class": { "$ref": "#/$defs/deployment_profile_scope_class" },
+        "profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "device_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "description": "Deployment / profile scope the card describes. The card MUST NOT mix scopes; cross-scope continuity uses one card per scope."
+    },
+    "verification_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verification_state"],
+      "properties": {
+        "verification_state": { "$ref": "#/$defs/verification_state" },
+        "last_verified_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "verifier_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "description": "Verification posture for one source. last_verified_at is required for verified_recent and verified_within_policy_window."
+    },
+    "last_backup_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promise_class",
+        "presence_class",
+        "verification"
+      ],
+      "properties": {
+        "promise_class": { "$ref": "#/$defs/recovery_promise_class" },
+        "presence_class": {
+          "type": "string",
+          "enum": [
+            "absent_no_source",
+            "present_authoritative",
+            "present_unverified",
+            "present_stale",
+            "scheduled_not_yet_run"
+          ]
+        },
+        "last_backup_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "verification": { "$ref": "#/$defs/verification_summary" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "description": "Most recent backup source the surface knows about. promise_class MUST NOT be local_checkpoint, mirror_cache, or convenience_export here."
+    },
+    "last_checkpoint_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promise_class",
+        "presence_class"
+      ],
+      "properties": {
+        "promise_class": {
+          "type": "string",
+          "enum": [
+            "local_checkpoint"
+          ]
+        },
+        "presence_class": {
+          "type": "string",
+          "enum": [
+            "absent_no_source",
+            "present_recent",
+            "present_stale",
+            "present_evicted_stub_only"
+          ]
+        },
+        "last_checkpoint_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "verification": { "$ref": "#/$defs/verification_summary" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "description": "Most recent local-history or autosave checkpoint. The promise class is fixed to local_checkpoint by the contract; sync replicas and backups are reported in their own sections."
+    },
+    "local_history_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["health_class", "ordinary_cache_clear_excluded"],
+      "properties": {
+        "health_class": { "$ref": "#/$defs/local_history_health_class" },
+        "last_capture_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "retained_entries_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ordinary_cache_clear_excluded": {
+          "type": "boolean",
+          "const": true,
+          "description": "Mirrors the local-history contract: ordinary cache-clear flows never touch local-history entries. Constants prevent silent demotion."
+        },
+        "eviction_pressure_class": {
+          "type": "string",
+          "enum": [
+            "no_pressure",
+            "approaching_window",
+            "evicting_oldest_first",
+            "stub_only_after_expiry"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "sync_or_replication_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_class"],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/sync_replication_state_class" },
+        "last_sync_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "replica_ref": { "$ref": "#/$defs/opaque_id" },
+        "lag_within_policy_window": { "type": "boolean" },
+        "policy_window_summary": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "export_availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "availability_class",
+        "redaction_class",
+        "local_only_by_default"
+      ],
+      "properties": {
+        "availability_class": { "$ref": "#/$defs/export_availability_class" },
+        "last_export_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "export_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "local_only_by_default": {
+          "type": "boolean",
+          "const": true,
+          "description": "Mirrors local_only_posture from the local-history contract; convenience exports never silently leave the device."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "restore_target_inventory_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "restorability_state",
+        "covering_promise_class",
+        "verification",
+        "local_safe_guidance",
+        "summary"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/restore_target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "restorability_state": { "$ref": "#/$defs/restorability_state" },
+        "covering_promise_class": { "$ref": "#/$defs/recovery_promise_class" },
+        "advisory_promise_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_promise_class" },
+          "uniqueItems": true
+        },
+        "verification": { "$ref": "#/$defs/verification_summary" },
+        "covered_state_categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "user_authored_durable_state",
+              "workspace_authored_durable_state",
+              "derived_disposable_state",
+              "recovery_journal_state",
+              "audit_trust_security_state",
+              "evidence_support_state"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "missing_dependency_summary": { "$ref": "#/$defs/short_text" },
+        "local_safe_guidance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/local_safe_guidance_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "convenience_export and mirror_cache are advisory only; they never satisfy a restore promise on their own.",
+          "not": {
+            "properties": {
+              "covering_promise_class": {
+                "enum": ["convenience_export", "mirror_cache"]
+              }
+            },
+            "required": ["covering_promise_class"]
+          }
+        },
+        {
+          "description": "Evidence target may only be covered by an authoritative backup. Sync replicas and local checkpoints never carry evidence bodies.",
+          "if": {
+            "properties": {
+              "target_class": { "const": "evidence" }
+            },
+            "required": ["target_class"]
+          },
+          "then": {
+            "properties": {
+              "covering_promise_class": { "const": "authoritative_backup" }
+            },
+            "required": ["covering_promise_class"]
+          }
+        },
+        {
+          "description": "Profile target rejects local_checkpoint as a covering promise; profile-wide durable state is not contained in local checkpoints.",
+          "if": {
+            "properties": {
+              "target_class": { "const": "profile" }
+            },
+            "required": ["target_class"]
+          },
+          "then": {
+            "properties": {
+              "covering_promise_class": {
+                "enum": [
+                  "authoritative_backup",
+                  "sync_replica"
+                ]
+              }
+            },
+            "required": ["covering_promise_class"]
+          }
+        },
+        {
+          "description": "missing or partially_restorable rows MUST carry a missing_dependency_summary so the surface never shows a blank reason.",
+          "if": {
+            "properties": {
+              "restorability_state": {
+                "enum": ["missing", "partially_restorable"]
+              }
+            },
+            "required": ["restorability_state"]
+          },
+          "then": {
+            "required": ["missing_dependency_summary"]
+          }
+        },
+        {
+          "description": "ready rows MUST be backed by a verified or within-policy verification state.",
+          "if": {
+            "properties": {
+              "restorability_state": { "const": "ready" }
+            },
+            "required": ["restorability_state"]
+          },
+          "then": {
+            "properties": {
+              "verification": {
+                "properties": {
+                  "verification_state": {
+                    "enum": [
+                      "verified_recent",
+                      "verified_within_policy_window"
+                    ]
+                  }
+                },
+                "required": ["verification_state"]
+              }
+            },
+            "required": ["verification"]
+          }
+        }
+      ]
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinary_cache_clear_excluded",
+        "no_promise_blurring",
+        "missing_targets_have_local_safe_guidance"
+      ],
+      "properties": {
+        "ordinary_cache_clear_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "no_promise_blurring": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the card never collapses backup, checkpoint, sync replica, mirror cache, and convenience export into one ambiguous promise."
+        },
+        "missing_targets_have_local_safe_guidance": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that missing or partially_restorable rows always emit at least one local_safe_guidance value."
+        }
+      }
+    },
+    "continuity_status_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "continuity_status_card_schema_version",
+        "card_id",
+        "generated_at",
+        "deployment_scope",
+        "last_backup",
+        "last_checkpoint",
+        "local_history_health",
+        "sync_or_replication_state",
+        "export_availability",
+        "restore_targets",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "continuity_status_card_schema_version": { "$ref": "#/$defs/continuity_status_card_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "deployment_scope": { "$ref": "#/$defs/deployment_scope" },
+        "last_backup": { "$ref": "#/$defs/last_backup_status" },
+        "last_checkpoint": { "$ref": "#/$defs/last_checkpoint_status" },
+        "local_history_health": { "$ref": "#/$defs/local_history_health" },
+        "sync_or_replication_state": { "$ref": "#/$defs/sync_or_replication_state" },
+        "export_availability": { "$ref": "#/$defs/export_availability" },
+        "restore_targets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/restore_target_inventory_row" },
+          "description": "One row per restore-target class. Surfaces never collapse workspace, profile, evidence, and layout into one generic restore button."
+        },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    }
+  }
+}

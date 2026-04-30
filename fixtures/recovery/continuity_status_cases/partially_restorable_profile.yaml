@@ -1,0 +1,172 @@
+# yaml-language-server: $schema=../../../schemas/recovery/continuity_status_card.schema.json
+__fixture__:
+  name: partially_restorable_profile
+  scenario: >
+    A managed-tenant profile being restored on a fresh device. The
+    sync replica is in sync within the policy window for most
+    profile-wide settings, but a missing extension equivalence map
+    means a subset of profile state cannot be rehydrated without
+    rebuild. Workspace bytes recover from a verified backup; layout
+    rehydrates partially because the missing extensions left
+    placeholder panes; evidence is covered by the verified backup.
+    The card flags the profile and layout targets as
+    partially_restorable with explicit local-safe guidance.
+  doc_sections:
+    - "§7 Restore-target inventory"
+    - "§7.1 Restorability states"
+    - "§10 Composition with adjacent contracts"
+
+record_kind: continuity_status_card_record
+continuity_status_card_schema_version: 1
+card_id: csc-partially-restorable-profile-0001
+generated_at: "mono:5402:08:11:42.0000"
+
+deployment_scope:
+  profile_scope_class: managed_tenant
+  profile_ref: profile-tenant-globex-priya
+  workspace_ref: ws-globex-aureline-rehydrate
+  device_ref: dev-laptop-priya-0002
+  tenant_ref: tenant-globex
+  summary: Managed-tenant profile being restored on a replacement laptop.
+
+last_backup:
+  promise_class: authoritative_backup
+  presence_class: present_authoritative
+  last_backup_at: "mono:5402:00:00:00.0000"
+  source_ref: backup-globex-priya-0301
+  verification:
+    verification_state: verified_within_policy_window
+    last_verified_at: "mono:5402:00:00:30.0000"
+    verifier_ref: verifier-content-addressed-0001
+    evidence_ref: evidence-backup-verify-0301
+    summary: Backup verified earlier this morning before device replacement.
+  summary: Verified authoritative backup retained on tenant-managed storage.
+
+last_checkpoint:
+  promise_class: local_checkpoint
+  presence_class: present_recent
+  last_checkpoint_at: "mono:5402:08:11:30.4001"
+  source_ref: lh-entry-rehydrate-0008
+  verification:
+    verification_state: verified_recent
+    last_verified_at: "mono:5402:08:11:30.4001"
+    summary: First local-history capture after rehydrate.
+  summary: New device captured a fresh local-history entry post-rehydrate.
+
+local_history_health:
+  health_class: healthy
+  last_capture_at: "mono:5402:08:11:30.4001"
+  retained_entries_count: 8
+  ordinary_cache_clear_excluded: true
+  eviction_pressure_class: no_pressure
+  summary: Local history reset on the new device; small but healthy.
+
+sync_or_replication_state:
+  state_class: in_sync
+  last_sync_at: "mono:5402:08:11:38.0000"
+  replica_ref: replica-globex-priya-0002
+  lag_within_policy_window: true
+  policy_window_summary: Replica lag is four seconds; policy window allows up to thirty minutes.
+  summary: Replica is in sync within the policy window.
+
+export_availability:
+  availability_class: export_offered_not_taken
+  redaction_class: metadata_only
+  local_only_by_default: true
+  summary: A convenience export is offered to capture the partial state before next change.
+
+restore_targets:
+  - target_class: workspace
+    target_ref: target-workspace-rehydrate
+    restorability_state: ready
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - local_checkpoint
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5402:00:00:30.0000"
+      summary: Workspace bytes covered by the verified backup.
+    covered_state_categories:
+      - workspace_authored_durable_state
+      - recovery_journal_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Workspace bytes recovered cleanly from the verified backup.
+
+  - target_class: profile
+    target_ref: target-profile-rehydrate
+    restorability_state: partially_restorable
+    covering_promise_class: sync_replica
+    advisory_promise_classes:
+      - authoritative_backup
+      - convenience_export
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5402:08:11:38.0000"
+      summary: Replica is in sync, but a subset of profile state lacks an equivalence map.
+    covered_state_categories:
+      - user_authored_durable_state
+      - audit_trust_security_state
+    missing_dependency_summary: >
+      A subset of profile-wide settings depends on a deprecated
+      extension whose schema-equivalence map is missing on this
+      device. Restore-provenance handles the gap with placeholder
+      cards; full coverage requires rebuild from the authoritative
+      backup once the equivalence map ships.
+    local_safe_guidance:
+      - restore_unsupported_use_partial_recovery
+      - rebuild_from_authoritative_source
+      - export_now_before_change
+    summary: Profile is partially restorable; missing extension equivalence map blocks full restore.
+
+  - target_class: evidence
+    target_ref: target-evidence-rehydrate
+    restorability_state: ready
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5402:00:00:30.0000"
+      summary: Evidence packets covered by the verified backup.
+    covered_state_categories:
+      - evidence_support_state
+      - audit_trust_security_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Evidence packets recovered cleanly from the verified backup.
+
+  - target_class: layout
+    target_ref: target-layout-rehydrate
+    restorability_state: partially_restorable
+    covering_promise_class: sync_replica
+    advisory_promise_classes:
+      - authoritative_backup
+      - local_checkpoint
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5402:08:11:38.0000"
+      summary: Layout rehydrated with placeholders for panes whose extensions are missing.
+    covered_state_categories:
+      - user_authored_durable_state
+      - workspace_authored_durable_state
+    missing_dependency_summary: >
+      Two layout panes depend on the missing extension and are
+      preserved as placeholder cards via the missing-dependency
+      placeholder contract. Full layout restore requires the
+      extension to install or its equivalence map to ship.
+    local_safe_guidance:
+      - restore_unsupported_use_partial_recovery
+      - re_capture_local_checkpoint
+    summary: Layout is partially restored; placeholder cards stand in for two panes.
+
+honesty_invariants:
+  ordinary_cache_clear_excluded: true
+  no_promise_blurring: true
+  missing_targets_have_local_safe_guidance: true
+
+summary: >
+  Profile and layout targets land partially_restorable: a verified
+  backup and an in-sync replica cover most state, but a missing
+  extension equivalence map keeps two layout panes as placeholders
+  and a subset of profile settings unmapped until rebuild.

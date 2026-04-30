@@ -1,0 +1,410 @@
+# Recovery promise classes, restorability states, and restore-target
+# inventory vocabulary for the continuity-status card.
+#
+# Companion to docs/reliability/continuity_status_card_contract.md and
+# schemas/recovery/continuity_status_card.schema.json. Every continuity
+# surface (status strip, recovery dashboard, support bundle, evidence
+# packet, CLI listing, recovery ladder packet) MUST project back to the
+# recovery-promise, restorability, and restore-target ids declared
+# here. No surface invents a private "backup", "checkpoint", "replica",
+# "mirror", or "export" class.
+
+schema_version: 1
+artifact_id: aureline.recovery.backup_checkpoint_classes
+title: Recovery promise classes, restore-target inventory, and continuity-status vocabulary
+
+contract_source: docs/reliability/continuity_status_card_contract.md
+
+related_docs:
+  - docs/reliability/local_history_contract.md
+  - docs/reliability/local_history_restore_preview_contract.md
+  - docs/reliability/autosave_journal_and_guided_replay_contract.md
+  - docs/state/restore_provenance_and_placeholder_contract.md
+  - docs/runtime/storage_classes_and_gc.md
+  - docs/state/state_object_inventory.md
+  - docs/deployment/drill_catalog_seed.md
+
+companion_refs:
+  continuity_status_card_schema_ref: schemas/recovery/continuity_status_card.schema.json
+  continuity_status_cases_ref: fixtures/recovery/continuity_status_cases
+  storage_classes_ref: artifacts/runtime/storage_classes.yaml
+  state_objects_ref: artifacts/state/state_objects.yaml
+  drill_catalog_ref: artifacts/support/deployment_drill_catalog_seed.yaml
+
+# --------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Re-exported verbatim from the contract source. Adding a value is
+# additive-minor and MUST bump schema_version; repurposing a value is
+# breaking and requires a new decision row.
+# --------------------------------------------------------------------------
+
+# The five recovery-promise classes a continuity surface may attach to a
+# backup, checkpoint, replica, mirror, or export source. Each class is
+# inspectable on its own; surfaces never collapse them into one generic
+# "recovery available" promise.
+recovery_promise_class_vocabulary:
+  - authoritative_backup
+  - local_checkpoint
+  - sync_replica
+  - mirror_cache
+  - convenience_export
+
+# Each restore-target inventory row carries one target-class. The row
+# vocabulary stays separately inspectable so the surface never collapses
+# workspace bytes, profile-scoped state, evidence packets, and window
+# layout into one generic "restore" button.
+restore_target_class_vocabulary:
+  - workspace
+  - profile
+  - evidence
+  - layout
+
+# Closed restorability states. Every restore-target row resolves to one
+# state plus a local-safe guidance label; no row may be left blank or
+# rendered with a private "ok"/"degraded" label.
+restorability_state_vocabulary:
+  - ready
+  - stale
+  - unverified
+  - missing
+  - partially_restorable
+
+# Closed verification states. Surfaces label what was verified, when, and
+# whether the verification is still trustworthy.
+verification_state_vocabulary:
+  - verified_recent
+  - verified_within_policy_window
+  - stale_verification
+  - never_verified
+  - verification_unavailable
+
+# Closed local-history health states. Reused from the local-history
+# contract so the continuity card and the timeline lane label health the
+# same way.
+local_history_health_vocabulary:
+  - healthy
+  - retention_pressure
+  - quota_exhausted
+  - storage_unavailable
+  - never_initialized
+  - cleared_by_user
+
+# Closed sync / replication state vocabulary. The continuity card uses
+# this to tell the user whether the replica is authoritative, lagging,
+# divergent, or absent.
+sync_replication_state_vocabulary:
+  - not_configured
+  - in_sync
+  - lagging_within_window
+  - stale_outside_window
+  - paused_by_user
+  - paused_by_policy
+  - divergent_requires_review
+  - sync_unavailable
+
+# Closed export-availability vocabulary. Names whether an export is
+# already on disk, currently offered, or blocked.
+export_availability_vocabulary:
+  - export_on_disk_recent
+  - export_on_disk_stale
+  - export_offered_not_taken
+  - export_in_progress
+  - export_blocked_by_policy
+  - export_not_offered_metadata_only
+  - export_unavailable
+
+# Closed deployment / profile scopes. Re-exported from the deployment
+# locality matrix so the continuity card never invents a private scope.
+deployment_profile_scope_vocabulary:
+  - individual_local
+  - self_hosted
+  - air_gapped
+  - managed_tenant
+  - cross_plane_failover_pending
+
+# Closed local-safe guidance labels. Every restorability state must map
+# to at least one of these so no row leaves the user without a next
+# action that does not require a managed service.
+local_safe_guidance_vocabulary:
+  - continue_local_work
+  - export_now_before_change
+  - verify_backup_locally
+  - re_capture_local_checkpoint
+  - import_offline_bundle
+  - reauthorize_sync_after_review
+  - rebuild_from_authoritative_source
+  - restore_unsupported_use_partial_recovery
+  - escalate_to_support_with_evidence
+
+# --------------------------------------------------------------------------
+# Recovery promise rows.
+#
+# Each row binds one recovery-promise class to its authoritative posture,
+# the restore-target classes it can safely cover, the restore-target
+# classes it MUST NOT replace, and the documents that own the underlying
+# storage rules.
+# --------------------------------------------------------------------------
+
+recovery_promise_classes:
+  - id: authoritative_backup
+    display_label: Authoritative backup
+    can_replace_target_classes:
+      - workspace
+      - profile
+      - evidence
+      - layout
+    cannot_replace_target_classes: []
+    required_verification_states:
+      - verified_recent
+      - verified_within_policy_window
+    typical_storage_classes:
+      - user_owned_recovery_state
+    typical_state_categories:
+      - user_authored_durable_state
+      - workspace_authored_durable_state
+      - recovery_journal_state
+    rationale: >
+      Signed, verified, content-addressable backup of user-authored
+      durable state. The only class that may be presented as the sole
+      restore source for any target class. Verification time is
+      mandatory; an unverified backup downgrades to local_checkpoint
+      semantics for the duration of the unverified window.
+
+  - id: local_checkpoint
+    display_label: Local checkpoint
+    can_replace_target_classes:
+      - workspace
+      - layout
+    cannot_replace_target_classes:
+      - profile
+      - evidence
+    required_verification_states:
+      - verified_recent
+      - verified_within_policy_window
+      - never_verified
+    typical_storage_classes:
+      - user_owned_recovery_state
+    typical_state_categories:
+      - recovery_journal_state
+    rationale: >
+      Local-history checkpoints, autosave journals, and dirty-buffer
+      sentinels. Authoritative for in-flight workspace state and window
+      layout but never a substitute for profile-wide durable truth or
+      retained evidence packets.
+
+  - id: sync_replica
+    display_label: Sync replica
+    can_replace_target_classes:
+      - profile
+      - layout
+    cannot_replace_target_classes:
+      - workspace
+      - evidence
+    required_verification_states:
+      - verified_recent
+      - verified_within_policy_window
+      - stale_verification
+    typical_storage_classes:
+      - user_owned_recovery_state
+      - artifact_cache
+    typical_state_categories:
+      - user_authored_durable_state
+    rationale: >
+      Optional, opt-in profile sync replica. May rehydrate a profile
+      after device loss and may carry a layout snapshot, but it is not
+      a substitute for in-progress workspace bytes (which live in local
+      checkpoints) and never carries evidence or support-case bodies.
+
+  - id: mirror_cache
+    display_label: Mirror cache
+    can_replace_target_classes: []
+    cannot_replace_target_classes:
+      - workspace
+      - profile
+      - evidence
+      - layout
+    required_verification_states:
+      - verified_recent
+      - verified_within_policy_window
+      - stale_verification
+    typical_storage_classes:
+      - knowledge_cache
+      - artifact_cache
+      - prebuild_environment_cache
+    typical_state_categories:
+      - derived_disposable_state
+    rationale: >
+      Signed mirror or offline-bundle cache of upstream artifacts. Lets
+      the workspace continue to read and reproduce known-good bytes
+      without an upstream fetch, but holds no user-authored truth and
+      is never a restore source for workspace, profile, evidence, or
+      layout state.
+
+  - id: convenience_export
+    display_label: Convenience export
+    can_replace_target_classes: []
+    cannot_replace_target_classes:
+      - workspace
+      - profile
+      - evidence
+      - layout
+    required_verification_states:
+      - verified_recent
+      - verified_within_policy_window
+      - stale_verification
+      - never_verified
+    typical_storage_classes:
+      - evidence_support_cache
+      - user_owned_recovery_state
+    typical_state_categories:
+      - evidence_support_state
+    rationale: >
+      User-initiated export (portable-state package, support bundle,
+      patch export, evidence packet). Useful for off-device import and
+      audit but not authoritative. The continuity card may surface it
+      to encourage an export-before-change posture; it never satisfies
+      a restore promise on its own.
+
+# --------------------------------------------------------------------------
+# Restore-target inventory rows.
+#
+# Each row binds one restore-target class to the recovery-promise classes
+# that may cover it, the local-safe guidance labels it may emit, and the
+# state categories it covers. The continuity card's restore-target
+# inventory MUST cite exactly these ids.
+# --------------------------------------------------------------------------
+
+restore_target_classes:
+  - id: workspace
+    display_label: Workspace bytes
+    covered_state_categories:
+      - workspace_authored_durable_state
+      - recovery_journal_state
+    authoritative_promise_classes:
+      - authoritative_backup
+      - local_checkpoint
+    advisory_promise_classes:
+      - sync_replica
+      - convenience_export
+    minimum_local_safe_guidance:
+      - continue_local_work
+      - re_capture_local_checkpoint
+      - export_now_before_change
+    rationale: >
+      In-progress and saved workspace bytes (open buffers, files,
+      multi-file edits). Authoritative source is a verified backup or
+      a fresh local-history checkpoint; sync replica is advisory only
+      because it may lag behind unsaved work.
+
+  - id: profile
+    display_label: Profile and durable settings
+    covered_state_categories:
+      - user_authored_durable_state
+      - audit_trust_security_state
+    authoritative_promise_classes:
+      - authoritative_backup
+      - sync_replica
+    advisory_promise_classes:
+      - convenience_export
+    minimum_local_safe_guidance:
+      - continue_local_work
+      - export_now_before_change
+      - reauthorize_sync_after_review
+      - rebuild_from_authoritative_source
+    rationale: >
+      Profile-wide durable state: settings, keybindings, snippets,
+      themes, command aliases, layout presets, extension selection,
+      audit/trust posture. Local checkpoints do not cover this class;
+      a verified backup or a sync replica is required.
+
+  - id: evidence
+    display_label: Evidence and support packets
+    covered_state_categories:
+      - evidence_support_state
+      - audit_trust_security_state
+    authoritative_promise_classes:
+      - authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    minimum_local_safe_guidance:
+      - continue_local_work
+      - export_now_before_change
+      - escalate_to_support_with_evidence
+    rationale: >
+      Evidence packets, support cases, signed bundle witnesses. Only a
+      verified authoritative backup may stand in. Sync replicas and
+      mirror caches never carry evidence bodies; convenience exports
+      may carry a redacted projection but cannot replace the original.
+
+  - id: layout
+    display_label: Window topology and layout
+    covered_state_categories:
+      - user_authored_durable_state
+      - workspace_authored_durable_state
+    authoritative_promise_classes:
+      - authoritative_backup
+      - local_checkpoint
+      - sync_replica
+    advisory_promise_classes:
+      - convenience_export
+    minimum_local_safe_guidance:
+      - continue_local_work
+      - re_capture_local_checkpoint
+      - restore_unsupported_use_partial_recovery
+    rationale: >
+      Window topology, pane tree, recent-work list, restore cards. A
+      local checkpoint, sync replica, or backup may rehydrate it; a
+      partial restore composes with the placeholder contract and is
+      labeled partially_restorable rather than ready when dependencies
+      are missing.
+
+# --------------------------------------------------------------------------
+# Cross-class invariants.
+#
+# Honesty rules consumed by the continuity-status card schema and by
+# every surface that projects a continuity status. Each rule is testable
+# from the card body alone.
+# --------------------------------------------------------------------------
+
+cross_class_invariants:
+  - id: authoritative_backup_is_only_universal_source
+    statement: >
+      Only authoritative_backup may appear as the sole recovery promise
+      for the evidence target class. mirror_cache and convenience_export
+      MUST NOT appear in restore_targets[].covering_promise_class for
+      any target.
+
+  - id: never_verified_demotes_promise
+    statement: >
+      A backup row whose verification_state is never_verified MUST be
+      rendered as local_checkpoint-equivalent in restore_targets[],
+      even when its source class is authoritative_backup.
+
+  - id: stale_outside_window_blocks_sync_replica_promise
+    statement: >
+      sync_replication_state of stale_outside_window or
+      divergent_requires_review forbids sync_replica from being cited
+      as the authoritative promise on any restore-target row.
+
+  - id: convenience_export_never_authoritative
+    statement: >
+      convenience_export MUST NOT appear in
+      restore_targets[].covering_promise_class. It only appears under
+      export_availability and as an advisory hint on local-safe
+      guidance.
+
+  - id: missing_target_requires_local_safe_guidance
+    statement: >
+      A restore-target row whose restorability_state is missing or
+      partially_restorable MUST list at least one local_safe_guidance
+      value drawn from local_safe_guidance_vocabulary.
+
+  - id: ordinary_cache_clear_excluded
+    statement: >
+      Continuity-status cards MUST report ordinary_cache_clear_excluded
+      as true. Ordinary "clear caches" flows never alter the
+      authoritative_backup, local_checkpoint, sync_replica, or evidence
+      sources cited here. Mirror_cache rows may be evicted by class-
+      selective clear flows; the card surfaces that as restorability
+      state, not as a silent change to the promise class.

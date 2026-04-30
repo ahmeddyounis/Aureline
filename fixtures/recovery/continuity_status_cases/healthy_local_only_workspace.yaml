@@ -1,0 +1,151 @@
+# yaml-language-server: $schema=../../../schemas/recovery/continuity_status_card.schema.json
+__fixture__:
+  name: healthy_local_only_workspace
+  scenario: >
+    A solo developer running an air-gapped workspace with no managed
+    sync. The most recent authoritative_backup was verified within the
+    policy window, the local-history lane is healthy and capturing,
+    and a recent convenience export is on disk. Workspace, profile,
+    evidence, and layout are all ready; sync is not configured. No
+    promise blurring; mirror_cache is absent.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Recovery promise classes"
+    - "§7 Restore-target inventory"
+
+record_kind: continuity_status_card_record
+continuity_status_card_schema_version: 1
+card_id: csc-healthy-local-only-0001
+generated_at: "mono:5012:00:08:11.0001"
+
+deployment_scope:
+  profile_scope_class: air_gapped
+  profile_ref: profile-airgap-solo-0001
+  workspace_ref: ws-airgap-aureline
+  device_ref: dev-airgap-laptop-0001
+  summary: Single-user air-gapped profile on a developer laptop.
+
+last_backup:
+  promise_class: authoritative_backup
+  presence_class: present_authoritative
+  last_backup_at: "mono:5011:23:00:00.0000"
+  source_ref: backup-airgap-laptop-0042
+  verification:
+    verification_state: verified_within_policy_window
+    last_verified_at: "mono:5011:23:00:30.0000"
+    verifier_ref: verifier-content-addressed-0001
+    evidence_ref: evidence-backup-verify-0042
+    summary: Content-addressed backup hash verified locally last night.
+  summary: Verified authoritative backup retained on local secondary disk.
+
+last_checkpoint:
+  promise_class: local_checkpoint
+  presence_class: present_recent
+  last_checkpoint_at: "mono:5012:00:07:48.4001"
+  source_ref: lh-entry-recent-0019
+  verification:
+    verification_state: verified_recent
+    last_verified_at: "mono:5012:00:07:48.4001"
+    summary: Latest local-history entry is content-addressed and intact.
+  summary: Local-history capture under twelve seconds old.
+
+local_history_health:
+  health_class: healthy
+  last_capture_at: "mono:5012:00:07:48.4001"
+  retained_entries_count: 1842
+  ordinary_cache_clear_excluded: true
+  eviction_pressure_class: no_pressure
+  summary: Local history is well within the retention window.
+
+sync_or_replication_state:
+  state_class: not_configured
+  summary: Profile sync is intentionally not configured for the air-gapped profile.
+
+export_availability:
+  availability_class: export_on_disk_recent
+  last_export_at: "mono:5011:18:00:00.0000"
+  export_artifact_refs:
+    - export-portable-state-0007
+  redaction_class: code_adjacent
+  local_only_by_default: true
+  summary: Recent portable-state package retained on the device, never uploaded.
+
+restore_targets:
+  - target_class: workspace
+    target_ref: target-workspace-airgap-aureline
+    restorability_state: ready
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - local_checkpoint
+      - convenience_export
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5011:23:00:30.0000"
+      summary: Backup verified; local-history checkpoints fresh.
+    covered_state_categories:
+      - workspace_authored_durable_state
+      - recovery_journal_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Workspace bytes are recoverable from a verified backup, with fresh local checkpoints.
+
+  - target_class: profile
+    target_ref: target-profile-airgap-solo
+    restorability_state: ready
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5011:23:00:30.0000"
+      summary: Profile-wide settings included in last night's verified backup.
+    covered_state_categories:
+      - user_authored_durable_state
+      - audit_trust_security_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Profile state is fully recoverable from the local authoritative backup.
+
+  - target_class: evidence
+    target_ref: target-evidence-airgap-solo
+    restorability_state: ready
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5011:23:00:30.0000"
+      summary: Evidence packets included in the verified backup.
+    covered_state_categories:
+      - evidence_support_state
+      - audit_trust_security_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Evidence packets are covered by the verified authoritative backup.
+
+  - target_class: layout
+    target_ref: target-layout-airgap-aureline
+    restorability_state: ready
+    covering_promise_class: local_checkpoint
+    advisory_promise_classes:
+      - authoritative_backup
+    verification:
+      verification_state: verified_recent
+      last_verified_at: "mono:5012:00:07:48.4001"
+      summary: Window topology checkpoint captured by latest local-history entry.
+    covered_state_categories:
+      - user_authored_durable_state
+      - workspace_authored_durable_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Window topology and layout are recoverable from the latest local checkpoint.
+
+honesty_invariants:
+  ordinary_cache_clear_excluded: true
+  no_promise_blurring: true
+  missing_targets_have_local_safe_guidance: true
+
+summary: >
+  Air-gapped workspace with verified authoritative backup, healthy
+  local-history lane, and recent convenience export. Sync is not
+  configured by design.

@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=../../../schemas/recovery/continuity_status_card.schema.json
+__fixture__:
+  name: mirror_only_cache
+  scenario: >
+    A self-hosted profile that has only a verified mirror cache of
+    upstream artifacts and a fresh local-history checkpoint. There is
+    no authoritative_backup yet, sync is not configured, and a
+    convenience export has not been taken. The card demonstrates that
+    mirror_cache MUST NOT appear as a covering_promise_class on any
+    restore-target row: workspace and layout are covered by the local
+    checkpoint, while profile and evidence are reported as missing
+    with explicit local-safe guidance to capture an authoritative
+    backup.
+  doc_sections:
+    - "§2 Recovery promise classes"
+    - "§7 Restore-target inventory"
+    - "§9 Surface rules"
+
+record_kind: continuity_status_card_record
+continuity_status_card_schema_version: 1
+card_id: csc-mirror-only-cache-0001
+generated_at: "mono:5304:11:42:08.0000"
+
+deployment_scope:
+  profile_scope_class: self_hosted
+  profile_ref: profile-self-hosted-newdev-0001
+  workspace_ref: ws-self-hosted-bootstrap
+  device_ref: dev-self-hosted-laptop-0007
+  summary: New self-hosted profile relying on a signed mirror cache for upstream artifacts.
+
+last_backup:
+  promise_class: authoritative_backup
+  presence_class: absent_no_source
+  verification:
+    verification_state: verification_unavailable
+    summary: No authoritative backup has been captured yet.
+  summary: No authoritative backup is configured for this profile.
+
+last_checkpoint:
+  promise_class: local_checkpoint
+  presence_class: present_recent
+  last_checkpoint_at: "mono:5304:11:42:01.4222"
+  source_ref: lh-entry-bootstrap-0061
+  verification:
+    verification_state: verified_recent
+    last_verified_at: "mono:5304:11:42:01.4222"
+    summary: Latest local-history entry intact and content-addressed.
+  summary: Local-history capture under seven seconds old.
+
+local_history_health:
+  health_class: healthy
+  last_capture_at: "mono:5304:11:42:01.4222"
+  retained_entries_count: 61
+  ordinary_cache_clear_excluded: true
+  eviction_pressure_class: no_pressure
+  summary: Local history is small but healthy on a freshly bootstrapped profile.
+
+sync_or_replication_state:
+  state_class: not_configured
+  summary: Profile sync is not configured for this profile.
+
+export_availability:
+  availability_class: export_offered_not_taken
+  redaction_class: metadata_only
+  local_only_by_default: true
+  summary: A convenience export is offered to bridge the gap before authoritative_backup exists.
+
+restore_targets:
+  - target_class: workspace
+    target_ref: target-workspace-bootstrap
+    restorability_state: ready
+    covering_promise_class: local_checkpoint
+    advisory_promise_classes:
+      - mirror_cache
+      - convenience_export
+    verification:
+      verification_state: verified_recent
+      last_verified_at: "mono:5304:11:42:01.4222"
+      summary: Workspace covered by the latest local checkpoint; mirror cache supplies upstream bytes.
+    covered_state_categories:
+      - workspace_authored_durable_state
+      - recovery_journal_state
+    local_safe_guidance:
+      - continue_local_work
+      - export_now_before_change
+    summary: Workspace bytes recoverable from the local checkpoint; mirror cache is advisory only.
+
+  - target_class: profile
+    target_ref: target-profile-bootstrap
+    restorability_state: missing
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: verification_unavailable
+      summary: No authoritative backup has been captured for this profile yet.
+    covered_state_categories:
+      - user_authored_durable_state
+      - audit_trust_security_state
+    missing_dependency_summary: >
+      Profile-wide durable state requires an authoritative_backup or
+      a sync_replica to be recoverable. Neither is configured on this
+      newly bootstrapped profile; mirror cache cannot stand in.
+    local_safe_guidance:
+      - export_now_before_change
+      - rebuild_from_authoritative_source
+      - escalate_to_support_with_evidence
+    summary: Profile target is missing an authoritative source; mirror cache is not authoritative.
+
+  - target_class: evidence
+    target_ref: target-evidence-bootstrap
+    restorability_state: missing
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: verification_unavailable
+      summary: No verified authoritative backup carrying evidence packets exists.
+    covered_state_categories:
+      - evidence_support_state
+      - audit_trust_security_state
+    missing_dependency_summary: >
+      Evidence packets are only covered by an authoritative_backup;
+      no backup exists yet on this profile. Mirror cache and sync
+      replica never carry evidence bodies.
+    local_safe_guidance:
+      - export_now_before_change
+      - escalate_to_support_with_evidence
+    summary: Evidence target is missing; only an authoritative backup may cover it.
+
+  - target_class: layout
+    target_ref: target-layout-bootstrap
+    restorability_state: ready
+    covering_promise_class: local_checkpoint
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: verified_recent
+      last_verified_at: "mono:5304:11:42:01.4222"
+      summary: Layout snapshot captured by the latest local-history entry.
+    covered_state_categories:
+      - user_authored_durable_state
+      - workspace_authored_durable_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Window topology recoverable from the latest local checkpoint.
+
+honesty_invariants:
+  ordinary_cache_clear_excluded: true
+  no_promise_blurring: true
+  missing_targets_have_local_safe_guidance: true
+
+summary: >
+  Mirror cache supplies upstream bytes but cannot stand in as a
+  recovery source. Profile and evidence targets are missing; surface
+  guidance directs the user toward an authoritative backup before
+  any destructive change.

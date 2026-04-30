@@ -1,0 +1,159 @@
+# yaml-language-server: $schema=../../../schemas/recovery/continuity_status_card.schema.json
+__fixture__:
+  name: stale_sync_replica
+  scenario: >
+    A managed-tenant profile whose opt-in sync replica drifted past
+    the policy lag window because the device was offline for a week.
+    The local-history lane is healthy and the most recent backup is
+    still verified within window. The card flags the profile target
+    as stale, requires a sync reauthorization review before relying
+    on the replica again, and refuses to cite sync_replica as the
+    covering promise on any target row.
+  doc_sections:
+    - "§5 Sync or replication state"
+    - "§7 Restore-target inventory"
+    - "§9 Surface rules"
+
+record_kind: continuity_status_card_record
+continuity_status_card_schema_version: 1
+card_id: csc-stale-sync-replica-0001
+generated_at: "mono:5108:14:23:01.0000"
+
+deployment_scope:
+  profile_scope_class: managed_tenant
+  profile_ref: profile-tenant-acme-jane
+  workspace_ref: ws-acme-aureline-feature
+  device_ref: dev-laptop-jane-0001
+  tenant_ref: tenant-acme
+  summary: Managed-tenant profile on a developer laptop after a week offline.
+
+last_backup:
+  promise_class: authoritative_backup
+  presence_class: present_authoritative
+  last_backup_at: "mono:5101:09:00:00.0000"
+  source_ref: backup-laptop-jane-0099
+  verification:
+    verification_state: verified_within_policy_window
+    last_verified_at: "mono:5101:09:00:30.0000"
+    verifier_ref: verifier-content-addressed-0001
+    evidence_ref: evidence-backup-verify-0099
+    summary: Backup verified the day before going offline; still inside the policy window.
+  summary: Verified backup remains within the policy window.
+
+last_checkpoint:
+  promise_class: local_checkpoint
+  presence_class: present_recent
+  last_checkpoint_at: "mono:5108:14:22:51.7000"
+  source_ref: lh-entry-laptop-jane-0312
+  verification:
+    verification_state: verified_recent
+    last_verified_at: "mono:5108:14:22:51.7000"
+    summary: Latest local-history entry intact and content-addressed.
+  summary: Local-history capture under ten seconds old.
+
+local_history_health:
+  health_class: healthy
+  last_capture_at: "mono:5108:14:22:51.7000"
+  retained_entries_count: 1206
+  ordinary_cache_clear_excluded: true
+  eviction_pressure_class: no_pressure
+  summary: Local-history retention is healthy.
+
+sync_or_replication_state:
+  state_class: stale_outside_window
+  last_sync_at: "mono:5101:08:30:00.0000"
+  replica_ref: replica-tenant-acme-jane-0001
+  lag_within_policy_window: false
+  policy_window_summary: Replica lag is seven days; policy window allows up to twenty-four hours.
+  summary: Replica is outside the policy window; reauthorize after review.
+
+export_availability:
+  availability_class: export_offered_not_taken
+  redaction_class: metadata_only
+  local_only_by_default: true
+  summary: A portable-state export is offered but not yet taken by the user.
+
+restore_targets:
+  - target_class: workspace
+    target_ref: target-workspace-acme-feature
+    restorability_state: ready
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - local_checkpoint
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5101:09:00:30.0000"
+      summary: Backup remains within the policy window.
+    covered_state_categories:
+      - workspace_authored_durable_state
+      - recovery_journal_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Workspace bytes recoverable from the verified local backup; replica not needed.
+
+  - target_class: profile
+    target_ref: target-profile-tenant-acme-jane
+    restorability_state: stale
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: stale_verification
+      last_verified_at: "mono:5101:09:00:30.0000"
+      summary: Backup verification has not refreshed since the device went offline.
+    covered_state_categories:
+      - user_authored_durable_state
+      - audit_trust_security_state
+    missing_dependency_summary: >
+      Profile sync replica is outside the policy window; profile claim
+      cannot widen until the replica is reauthorized after review or
+      a fresh backup verification completes.
+    local_safe_guidance:
+      - reauthorize_sync_after_review
+      - verify_backup_locally
+      - export_now_before_change
+    summary: Profile is stale until sync is reauthorized or backup re-verified.
+
+  - target_class: evidence
+    target_ref: target-evidence-acme-jane
+    restorability_state: ready
+    covering_promise_class: authoritative_backup
+    advisory_promise_classes:
+      - convenience_export
+    verification:
+      verification_state: verified_within_policy_window
+      last_verified_at: "mono:5101:09:00:30.0000"
+      summary: Evidence packets included in the still-within-window verified backup.
+    covered_state_categories:
+      - evidence_support_state
+      - audit_trust_security_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Evidence packets remain recoverable from the verified backup.
+
+  - target_class: layout
+    target_ref: target-layout-acme-feature
+    restorability_state: ready
+    covering_promise_class: local_checkpoint
+    advisory_promise_classes:
+      - authoritative_backup
+    verification:
+      verification_state: verified_recent
+      last_verified_at: "mono:5108:14:22:51.7000"
+      summary: Layout checkpoint included in latest local-history entry.
+    covered_state_categories:
+      - user_authored_durable_state
+      - workspace_authored_durable_state
+    local_safe_guidance:
+      - continue_local_work
+    summary: Window topology recoverable from the latest local checkpoint.
+
+honesty_invariants:
+  ordinary_cache_clear_excluded: true
+  no_promise_blurring: true
+  missing_targets_have_local_safe_guidance: true
+
+summary: >
+  Sync replica drifted past the policy window after a week offline.
+  Profile target reported stale; sync_replica is not cited as a
+  covering promise on any restore-target row.
