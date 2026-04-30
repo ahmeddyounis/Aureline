@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/token_overlay.schema.json",
+  "title": "Aureline token-overlay state record",
+  "description": "Boundary schema for the token_overlay_record frozen in docs/design/appearance_session_contract.md. The schema captures the in-effect token overlay state for an appearance session: overlay scope, validation result, fallback chain, and the closed per-token value-state vocabulary inherited / overridden / deprecated / unmapped. Each entry names whether the value was supplied by the active theme package, by an override scope, by a deprecated alias awaiting replacement, or by an unmapped slot that survives as an inert placeholder. The session record, the live-follow-system policy, and revision events live in schemas/design/appearance_session.schema.json and cross this boundary by id only. Token-family vocabulary is re-exported from schemas/design/token_export_manifest.schema.json without modification. Raw token values, raw paths, raw URLs, raw screenshots, and raw user content never cross this boundary; records carry opaque refs, closed vocabulary, counts, and short privacy-safe labels only.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/token_overlay_record" }
+  ],
+  "$defs": {
+    "token_overlay_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for token-overlay records. Vocabulary additions are additive-minor and require a version bump."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "token_family_class": {
+      "type": "string",
+      "enum": [
+        "color_brand",
+        "color_functional_accent",
+        "color_neutral",
+        "color_state",
+        "color_semantic_theme",
+        "color_syntax",
+        "color_diff",
+        "color_chart",
+        "typography_role",
+        "typography_scale",
+        "text_rule",
+        "spacing",
+        "sizing",
+        "radius",
+        "border_stroke",
+        "elevation",
+        "opacity_scrim",
+        "layer_portal_order",
+        "motion_duration",
+        "motion_easing",
+        "motion_restriction",
+        "density",
+        "icon_treatment",
+        "semantic_status",
+        "trust_visual_state"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "overlay_scope_class": {
+      "type": "string",
+      "enum": [
+        "theme_package_default",
+        "user_global",
+        "profile",
+        "workspace",
+        "policy_managed",
+        "extension_contributed",
+        "imported_theme"
+      ]
+    },
+
+    "value_state_class": {
+      "type": "string",
+      "enum": [
+        "inherited",
+        "overridden",
+        "deprecated",
+        "unmapped"
+      ],
+      "description": "Closed per-token value-state vocabulary. inherited: effective value is the active theme package's value. overridden: a higher-priority overlay supplied a different value. deprecated: overlay points at a deprecated token; replacement ref is mandatory. unmapped: overlay references a slot with no current target token; inert placeholder is required."
+    },
+
+    "validation_state_class": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "valid_with_warnings",
+        "inert_unresolved",
+        "blocked_policy",
+        "rolled_back"
+      ]
+    },
+
+    "fallback_step_kind": {
+      "type": "string",
+      "enum": [
+        "theme_package_default",
+        "scope_override",
+        "deprecated_alias",
+        "inert_placeholder"
+      ]
+    },
+
+    "fallback_chain_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_index",
+        "step_scope",
+        "step_kind",
+        "target_token_ref",
+        "applied"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "step_scope": { "$ref": "#/$defs/overlay_scope_class" },
+        "step_kind": { "$ref": "#/$defs/fallback_step_kind" },
+        "target_token_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "applied": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      },
+      "allOf": [
+        {
+          "description": "inert_placeholder steps must have null target_token_ref.",
+          "if": {
+            "properties": { "step_kind": { "const": "inert_placeholder" } },
+            "required": ["step_kind"]
+          },
+          "then": {
+            "properties": {
+              "target_token_ref": { "type": "null" },
+              "applied": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Non-inert steps must cite a target token ref.",
+          "if": {
+            "properties": {
+              "step_kind": {
+                "enum": [
+                  "theme_package_default",
+                  "scope_override",
+                  "deprecated_alias"
+                ]
+              }
+            },
+            "required": ["step_kind"]
+          },
+          "then": {
+            "properties": {
+              "target_token_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "token_overlay_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "token_ref",
+        "token_family_class",
+        "value_state_class",
+        "effective_scope",
+        "fallback_chain_ref",
+        "deprecated_replacement_ref",
+        "unmapped_source_slot_ref",
+        "validation_state"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "token_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_family_class": { "$ref": "#/$defs/token_family_class" },
+        "value_state_class": { "$ref": "#/$defs/value_state_class" },
+        "effective_scope": { "$ref": "#/$defs/overlay_scope_class" },
+        "fallback_chain_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "deprecated_replacement_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "unmapped_source_slot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "validation_state": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "valid_with_warnings",
+            "inert_unresolved",
+            "blocked_policy"
+          ]
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      },
+      "allOf": [
+        {
+          "description": "inherited entries resolve to theme_package_default scope.",
+          "if": {
+            "properties": { "value_state_class": { "const": "inherited" } },
+            "required": ["value_state_class"]
+          },
+          "then": {
+            "properties": {
+              "effective_scope": { "const": "theme_package_default" },
+              "deprecated_replacement_ref": { "type": "null" },
+              "unmapped_source_slot_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "overridden entries must not resolve to theme_package_default scope.",
+          "if": {
+            "properties": { "value_state_class": { "const": "overridden" } },
+            "required": ["value_state_class"]
+          },
+          "then": {
+            "properties": {
+              "effective_scope": {
+                "enum": [
+                  "user_global",
+                  "profile",
+                  "workspace",
+                  "policy_managed",
+                  "extension_contributed",
+                  "imported_theme"
+                ]
+              },
+              "deprecated_replacement_ref": { "type": "null" },
+              "unmapped_source_slot_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "deprecated entries must cite a replacement ref.",
+          "if": {
+            "properties": { "value_state_class": { "const": "deprecated" } },
+            "required": ["value_state_class"]
+          },
+          "then": {
+            "properties": {
+              "deprecated_replacement_ref": { "$ref": "#/$defs/opaque_id" },
+              "unmapped_source_slot_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "unmapped entries must cite a source slot ref and resolve to inert_unresolved validation.",
+          "if": {
+            "properties": { "value_state_class": { "const": "unmapped" } },
+            "required": ["value_state_class"]
+          },
+          "then": {
+            "properties": {
+              "unmapped_source_slot_ref": { "$ref": "#/$defs/opaque_id" },
+              "deprecated_replacement_ref": { "type": "null" },
+              "validation_state": { "const": "inert_unresolved" }
+            }
+          }
+        }
+      ]
+    },
+
+    "summary_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inherited_count",
+        "overridden_count",
+        "deprecated_count",
+        "unmapped_count"
+      ],
+      "properties": {
+        "inherited_count": { "type": "integer", "minimum": 0 },
+        "overridden_count": { "type": "integer", "minimum": 0 },
+        "deprecated_count": { "type": "integer", "minimum": 0 },
+        "unmapped_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "token_overlay_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "token_overlay_schema_version",
+        "token_overlay_id",
+        "appearance_session_ref",
+        "overlay_scope",
+        "validation_state",
+        "entries",
+        "summary_counts",
+        "fallback_chain",
+        "source_import_report_ref",
+        "rollback_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "token_overlay_record" },
+        "token_overlay_schema_version": { "$ref": "#/$defs/token_overlay_schema_version" },
+        "token_overlay_id": { "$ref": "#/$defs/opaque_id" },
+        "appearance_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_scope": { "$ref": "#/$defs/overlay_scope_class" },
+        "validation_state": { "$ref": "#/$defs/validation_state_class" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/token_overlay_entry" }
+        },
+        "summary_counts": { "$ref": "#/$defs/summary_counts" },
+        "fallback_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_chain_step" }
+        },
+        "source_import_report_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notes": { "$ref": "#/$defs/short_note_text" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "rolled_back overlays must cite a rollback ref.",
+          "if": {
+            "properties": { "validation_state": { "const": "rolled_back" } },
+            "required": ["validation_state"]
+          },
+          "then": {
+            "properties": {
+              "rollback_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "blocked_policy overlays must be policy_managed in scope.",
+          "if": {
+            "properties": { "validation_state": { "const": "blocked_policy" } },
+            "required": ["validation_state"]
+          },
+          "then": {
+            "properties": {
+              "overlay_scope": { "const": "policy_managed" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

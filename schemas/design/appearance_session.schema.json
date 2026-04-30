@@ -1,0 +1,755 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/appearance_session.schema.json",
+  "title": "Aureline appearance-session, live-follow-system policy, and revision-event records",
+  "description": "Boundary schema for the appearance_session_record, live_follow_system_policy_record, and appearance_session_revision_event_record frozen in docs/design/appearance_session_contract.md. The schema captures the in-effect appearance state (theme package, mode, contrast, accent, density, text scale, reduced motion, follow-system posture, preview state, checkpoint and rollback refs), the per-axis live-update policy (live_apply_no_review, live_apply_with_revertable_checkpoint, confirm_review_required, policy_blocked), and a versioned event trail tying OS signals, user confirms, policy changes, and rollbacks to monotonically increasing session revisions. The token overlay body lives in schemas/design/token_overlay.schema.json and crosses this boundary by id only. Theme classes, density classes, accessibility postures, and trust-visual-state values are re-exported from schemas/design/token_export_manifest.schema.json without modification. Raw token values, raw paths, raw URLs, raw screenshots, and raw user content never cross this boundary; records carry opaque refs, closed vocabulary, counts, and short privacy-safe labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/appearance_session_record" },
+    { "$ref": "#/$defs/live_follow_system_policy_record" },
+    { "$ref": "#/$defs/appearance_session_revision_event_record" }
+  ],
+  "$defs": {
+    "appearance_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for appearance-session, live-follow-system policy, and revision-event records. Vocabulary additions are additive-minor and require a version bump."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "theme_class": {
+      "type": "string",
+      "enum": [
+        "dark_reference",
+        "light_parity",
+        "high_contrast_dark",
+        "high_contrast_light"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "density_class": {
+      "type": "string",
+      "enum": ["compact", "standard", "comfortable"],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "accessibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "motion_standard",
+        "motion_reduced",
+        "motion_low_motion",
+        "motion_power_saver",
+        "motion_critical_hot_path"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "contrast_mode": {
+      "type": "string",
+      "enum": [
+        "contrast_standard",
+        "contrast_high",
+        "contrast_forced_colors"
+      ]
+    },
+
+    "accent_source_class": {
+      "type": "string",
+      "enum": [
+        "system_accent",
+        "theme_package_accent",
+        "user_selected_accent",
+        "policy_locked_accent",
+        "not_applicable"
+      ]
+    },
+
+    "reduced_motion_source": {
+      "type": "string",
+      "enum": [
+        "os_signal",
+        "user_setting",
+        "policy_cap",
+        "power_saver_signal",
+        "critical_hot_path",
+        "not_applicable"
+      ]
+    },
+
+    "follow_system_posture": {
+      "type": "string",
+      "enum": [
+        "follow_system",
+        "manual_override",
+        "managed_policy_override",
+        "unavailable_platform_signal"
+      ]
+    },
+
+    "preview_state": {
+      "type": "string",
+      "enum": [
+        "not_previewing",
+        "preview_pending_validation",
+        "preview_live",
+        "preview_failed_reverted",
+        "preview_committed",
+        "rollback_applied"
+      ]
+    },
+
+    "text_scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale_percent", "source"],
+      "properties": {
+        "scale_percent": {
+          "type": "integer",
+          "minimum": 75,
+          "maximum": 200
+        },
+        "source": {
+          "type": "string",
+          "enum": ["system", "user", "profile", "workspace", "policy"]
+        },
+        "locked_by_policy": { "type": "boolean" }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "appearance_axis": {
+      "type": "string",
+      "enum": [
+        "mode_theme_class",
+        "contrast_mode",
+        "accent_source",
+        "density_class",
+        "text_scale",
+        "reduced_motion_posture",
+        "follow_system_posture"
+      ]
+    },
+
+    "live_update_class": {
+      "type": "string",
+      "enum": [
+        "live_apply_no_review",
+        "live_apply_with_revertable_checkpoint",
+        "confirm_review_required",
+        "policy_blocked"
+      ]
+    },
+
+    "os_signal_class": {
+      "type": "string",
+      "enum": [
+        "os_theme_signal",
+        "os_contrast_signal",
+        "os_accent_signal",
+        "os_density_signal",
+        "os_text_scale_signal",
+        "os_reduced_motion_signal",
+        "os_forced_colors_signal",
+        "none"
+      ]
+    },
+
+    "policy_lock_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_locked",
+        "managed_policy_cap",
+        "restricted_workspace_cap",
+        "critical_hot_path_cap",
+        "platform_unavailable"
+      ]
+    },
+
+    "surface_scope_class": {
+      "type": "string",
+      "enum": [
+        "global_appearance",
+        "profile_appearance",
+        "workspace_appearance",
+        "extension_surface_appearance"
+      ]
+    },
+
+    "live_axis_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "live_update_class",
+        "os_signal_class",
+        "requires_checkpoint",
+        "requires_user_confirm",
+        "policy_lock_reason_class",
+        "surface_scope"
+      ],
+      "properties": {
+        "axis": { "$ref": "#/$defs/appearance_axis" },
+        "live_update_class": { "$ref": "#/$defs/live_update_class" },
+        "os_signal_class": { "$ref": "#/$defs/os_signal_class" },
+        "requires_checkpoint": { "type": "boolean" },
+        "requires_user_confirm": { "type": "boolean" },
+        "policy_lock_reason_class": { "$ref": "#/$defs/policy_lock_reason_class" },
+        "surface_scope": { "$ref": "#/$defs/surface_scope_class" },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      },
+      "allOf": [
+        {
+          "description": "live_apply_with_revertable_checkpoint requires a checkpoint.",
+          "if": {
+            "properties": {
+              "live_update_class": { "const": "live_apply_with_revertable_checkpoint" }
+            },
+            "required": ["live_update_class"]
+          },
+          "then": {
+            "properties": {
+              "requires_checkpoint": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "confirm_review_required requires a user confirm and a checkpoint.",
+          "if": {
+            "properties": {
+              "live_update_class": { "const": "confirm_review_required" }
+            },
+            "required": ["live_update_class"]
+          },
+          "then": {
+            "properties": {
+              "requires_user_confirm": { "const": true },
+              "requires_checkpoint": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "policy_blocked rows must cite a non-not_locked lock reason.",
+          "if": {
+            "properties": {
+              "live_update_class": { "const": "policy_blocked" }
+            },
+            "required": ["live_update_class"]
+          },
+          "then": {
+            "properties": {
+              "policy_lock_reason_class": {
+                "enum": [
+                  "managed_policy_cap",
+                  "restricted_workspace_cap",
+                  "critical_hot_path_cap",
+                  "platform_unavailable"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "live_apply_no_review is forbidden for text_scale, mode_theme_class (except when paired with os_theme_signal), and follow_system_posture.",
+          "if": {
+            "properties": {
+              "live_update_class": { "const": "live_apply_no_review" }
+            },
+            "required": ["live_update_class"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "properties": { "axis": { "const": "text_scale" } },
+                  "required": ["axis"]
+                },
+                {
+                  "properties": { "axis": { "const": "follow_system_posture" } },
+                  "required": ["axis"]
+                },
+                {
+                  "allOf": [
+                    {
+                      "properties": { "axis": { "const": "mode_theme_class" } },
+                      "required": ["axis"]
+                    },
+                    {
+                      "not": {
+                        "properties": { "os_signal_class": { "const": "os_theme_signal" } },
+                        "required": ["os_signal_class"]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    "cause_class": {
+      "type": "string",
+      "enum": [
+        "os_signal_change",
+        "user_explicit_setting",
+        "policy_change",
+        "import_apply",
+        "import_revert",
+        "overlay_apply",
+        "overlay_revert",
+        "preview_start",
+        "preview_commit",
+        "preview_revert",
+        "checkpoint_rollback",
+        "power_saver_engaged",
+        "critical_hot_path_engaged"
+      ]
+    },
+
+    "appearance_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_session_schema_version",
+        "appearance_session_id",
+        "session_revision",
+        "active_theme_package_ref",
+        "active_theme_revision_ref",
+        "mode_theme_class",
+        "contrast_mode",
+        "accent_source",
+        "density_class",
+        "text_scale",
+        "reduced_motion_posture",
+        "reduced_motion_source",
+        "follow_system_posture",
+        "preview_state",
+        "current_checkpoint_ref",
+        "rollback_ref",
+        "live_follow_system_policy_ref",
+        "token_overlay_ref",
+        "active_import_report_refs",
+        "policy_context",
+        "redaction_class",
+        "revision_minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "appearance_session_record" },
+        "appearance_session_schema_version": { "$ref": "#/$defs/appearance_session_schema_version" },
+        "appearance_session_id": { "$ref": "#/$defs/opaque_id" },
+        "session_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_theme_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_theme_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "mode_theme_class": { "$ref": "#/$defs/theme_class" },
+        "contrast_mode": { "$ref": "#/$defs/contrast_mode" },
+        "accent_source": { "$ref": "#/$defs/accent_source_class" },
+        "density_class": { "$ref": "#/$defs/density_class" },
+        "text_scale": { "$ref": "#/$defs/text_scale" },
+        "reduced_motion_posture": { "$ref": "#/$defs/accessibility_posture_class" },
+        "reduced_motion_source": { "$ref": "#/$defs/reduced_motion_source" },
+        "follow_system_posture": { "$ref": "#/$defs/follow_system_posture" },
+        "preview_state": { "$ref": "#/$defs/preview_state" },
+        "current_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "live_follow_system_policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_overlay_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "active_import_report_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "confirm_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notes": { "$ref": "#/$defs/short_note_text" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "revision_minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Live previews and committed previews must cite a current checkpoint.",
+          "if": {
+            "properties": {
+              "preview_state": {
+                "enum": [
+                  "preview_pending_validation",
+                  "preview_live",
+                  "preview_committed"
+                ]
+              }
+            },
+            "required": ["preview_state"]
+          },
+          "then": {
+            "properties": {
+              "current_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Rollback_applied sessions must cite a rollback ref.",
+          "if": {
+            "properties": {
+              "preview_state": { "const": "rollback_applied" }
+            },
+            "required": ["preview_state"]
+          },
+          "then": {
+            "properties": {
+              "rollback_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "critical_hot_path source pairs with motion_critical_hot_path.",
+          "if": {
+            "properties": {
+              "reduced_motion_source": { "const": "critical_hot_path" }
+            },
+            "required": ["reduced_motion_source"]
+          },
+          "then": {
+            "properties": {
+              "reduced_motion_posture": { "const": "motion_critical_hot_path" }
+            }
+          }
+        }
+      ]
+    },
+
+    "live_follow_system_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_session_schema_version",
+        "live_follow_system_policy_id",
+        "appearance_session_ref",
+        "axes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "live_follow_system_policy_record" },
+        "appearance_session_schema_version": { "$ref": "#/$defs/appearance_session_schema_version" },
+        "live_follow_system_policy_id": { "$ref": "#/$defs/opaque_id" },
+        "appearance_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "axes": {
+          "type": "array",
+          "minItems": 7,
+          "items": { "$ref": "#/$defs/live_axis_row" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Axes must include mode_theme_class.",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "mode_theme_class" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Axes must include contrast_mode.",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "contrast_mode" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Axes must include accent_source.",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "accent_source" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Axes must include density_class.",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "density_class" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Axes must include text_scale.",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "text_scale" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Axes must include reduced_motion_posture.",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "reduced_motion_posture" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Axes must include follow_system_posture.",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "axis": { "const": "follow_system_posture" } },
+                "required": ["axis"]
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "appearance_session_revision_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "appearance_session_schema_version",
+        "event_id",
+        "appearance_session_ref",
+        "prior_session_revision",
+        "resulting_session_revision",
+        "cause_class",
+        "os_signal_ref",
+        "confirm_action_ref",
+        "checkpoint_ref",
+        "rollback_ref",
+        "changed_axes",
+        "applied_under_live_class",
+        "policy_context",
+        "redaction_class",
+        "recorded_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "appearance_session_revision_event_record" },
+        "appearance_session_schema_version": { "$ref": "#/$defs/appearance_session_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "appearance_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "prior_session_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resulting_session_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cause_class": { "$ref": "#/$defs/cause_class" },
+        "os_signal_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "confirm_action_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "changed_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_axis" },
+          "uniqueItems": true
+        },
+        "applied_under_live_class": { "$ref": "#/$defs/live_update_class" },
+        "notes": { "$ref": "#/$defs/short_note_text" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "confirm_review_required events must cite a confirm action and a checkpoint.",
+          "if": {
+            "properties": {
+              "applied_under_live_class": { "const": "confirm_review_required" }
+            },
+            "required": ["applied_under_live_class"]
+          },
+          "then": {
+            "properties": {
+              "confirm_action_ref": { "$ref": "#/$defs/opaque_id" },
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "live_apply_with_revertable_checkpoint events must cite a checkpoint.",
+          "if": {
+            "properties": {
+              "applied_under_live_class": { "const": "live_apply_with_revertable_checkpoint" }
+            },
+            "required": ["applied_under_live_class"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "checkpoint_rollback events must cite a rollback ref.",
+          "if": {
+            "properties": {
+              "cause_class": { "const": "checkpoint_rollback" }
+            },
+            "required": ["cause_class"]
+          },
+          "then": {
+            "properties": {
+              "rollback_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "critical_hot_path_engaged events apply under live_apply_no_review and change reduced_motion_posture.",
+          "if": {
+            "properties": {
+              "cause_class": { "const": "critical_hot_path_engaged" }
+            },
+            "required": ["cause_class"]
+          },
+          "then": {
+            "properties": {
+              "applied_under_live_class": { "const": "live_apply_no_review" },
+              "changed_axes": {
+                "type": "array",
+                "contains": { "const": "reduced_motion_posture" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Resulting session revision must equal prior + 1.",
+          "if": { "required": ["prior_session_revision", "resulting_session_revision"] },
+          "then": {
+            "properties": {
+              "resulting_session_revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

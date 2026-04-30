@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=../../../schemas/design/token_overlay.schema.json
+#
+# Managed-policy overlay attempting to override the typography-scale
+# token. Managed policy locks `text_scale`, so the overlay validates as
+# `blocked_policy` and the entry validation is `blocked_policy`. The
+# fallback chain still resolves to the policy-managed value so the
+# session can render; the inert step is recorded for the rejected
+# attempt.
+__fixture__:
+  name: policy_blocked_text_scale_overlay
+  scenario: >
+    A workspace tried to bump the typography scale through a custom
+    overlay, but the managed-policy live policy marks `text_scale` as
+    `policy_blocked`. The overlay record is emitted with
+    `validation_state: blocked_policy` and `overlay_scope:
+    policy_managed`; the workspace attempt is rejected with a denial
+    note, and the policy-managed scale stays in effect.
+  exercised_axes:
+    overlay_scope: policy_managed
+    validation_state: blocked_policy
+    value_state_classes:
+      - overridden
+  contract_sections:
+    - "§3 Live follow-system policy"
+    - "§4 Token-overlay state contract"
+
+record_kind: token_overlay_record
+token_overlay_schema_version: 1
+token_overlay_id: token_overlay:policy_managed:text_scale:01
+appearance_session_ref: appearance_session:profile.default:steady:01
+overlay_scope: policy_managed
+validation_state: blocked_policy
+entries:
+  - entry_id: token_overlay_entry:policy_managed:text_scale:01
+    token_ref: design:token:typography.role.body.scale
+    token_family_class: typography_scale
+    value_state_class: overridden
+    effective_scope: policy_managed
+    fallback_chain_ref: token_overlay_step:policy_managed:text_scale:override
+    deprecated_replacement_ref: null
+    unmapped_source_slot_ref: null
+    validation_state: blocked_policy
+    notes: Workspace attempted to bump the body scale; managed policy denied the change so the policy-managed scale is the effective value.
+summary_counts:
+  inherited_count: 0
+  overridden_count: 1
+  deprecated_count: 0
+  unmapped_count: 0
+fallback_chain:
+  - step_id: token_overlay_step:policy_managed:text_scale:override
+    step_index: 0
+    step_scope: policy_managed
+    step_kind: scope_override
+    target_token_ref: design:token:typography.role.body.scale
+    applied: true
+    notes: Managed-policy scale resolved at index 0; the workspace attempt was rejected before reaching the chain.
+source_import_report_ref: null
+rollback_ref: null
+notes: >
+  The cited live-follow-system policy MUST mark `text_scale` as
+  `policy_blocked` for this overlay to be valid; the steady-state
+  default-profile fixture covers the unblocked policy. Pair this with a
+  managed-policy live-policy fixture in deployment evidence packs.
+policy_context:
+  policy_epoch: pe:2026-04-29:01
+  trust_state: trusted
+redaction_class: metadata_safe_default
+minted_at: "2026-04-29T09:00:00Z"
