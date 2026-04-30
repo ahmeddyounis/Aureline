@@ -1,0 +1,972 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/scaffolding/generated_project_recovery.schema.json",
+  "title": "Aureline scaffold reopen-preflight and delete-generated-output recovery contract",
+  "description": "Boundary schema for the two recovery records frozen in docs/scaffolding/generated_project_handoff_contract.md. Every reopen of a generated workspace (whether the workspace is in sync with its bound template revision, an update is available, the revision was archived, the lineage packet is missing after re-import, the workspace drifted, the policy epoch changed after create, the workspace-trust state was revoked, the target runtime is unavailable, or required dependencies are missing) MUST publish exactly one reopen_preflight_record. Every delete of generated output (whether the user invokes Delete generated output from the post-create handoff sheet, the recent-work / restore card, the doctor surface, or the support / export reader) MUST publish exactly one delete_generated_output_record. Both records cite the bound generated_project_lineage_record by ref so the on-disk lineage projection is the source of truth; this schema mints no parallel lineage / hook / setup-task / file vocabulary. Both records preserve the create-without-starter bypass routes at equal weight regardless of disposition: a workspace whose lineage packet is missing or whose template revision is archived or whose policy changed after create is still openable as a plain folder, plain workspace, plain clone, plain create-empty, or continue-without-starter route. Raw bearer tokens, raw API keys, raw passwords, raw signing keys, raw certificate / key material, raw absolute filesystem paths, raw repository URLs, raw author email addresses, raw container registry URLs, raw devcontainer image tags, raw lockfile bodies, raw extension marketplace urls, raw stdout / stderr, and raw post-install script bodies never cross this boundary; the schema carries opaque ids, closed vocabulary, content-addresses, and short reviewable sentences only. Adding a new reopen_preflight_disposition_class, reopen_preflight_blocker_class, delete_generated_output_disposition_class, delete_provenance_preservation_class, recovery_route_class, or denial_reason_class value is additive-minor and bumps the per-record schema_version const; repurposing an existing value is breaking and requires a new decision row in artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/reopen_preflight_record" },
+    { "$ref": "#/$defs/delete_generated_output_record" }
+  ],
+  "$defs": {
+    "reopen_preflight_record_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "delete_generated_output_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw paths, raw URLs, raw JSON payloads, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bypass_path_id": {
+      "type": "string",
+      "enum": [
+        "bypass.open_folder_without_starter",
+        "bypass.open_workspace_without_starter",
+        "bypass.clone_repository_without_starter",
+        "bypass.create_empty_workspace",
+        "bypass.open_prebuild_minimal",
+        "bypass.set_up_later",
+        "bypass.continue_without_starter"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.9 without modification."
+    },
+    "generated_project_lineage_state_class": {
+      "type": "string",
+      "enum": [
+        "linked_to_template_revision",
+        "linked_to_template_revision_with_local_overrides",
+        "unlinked_user_disclaimed_link",
+        "unlinked_template_revision_archived",
+        "drifted_from_template_revision_user_review_required",
+        "rebased_to_newer_template_revision",
+        "forked_to_local_template_revision",
+        "lineage_unknown_imported_without_lineage_packet",
+        "ai_tool_proposed_relink_pending_review",
+        "lineage_state_class_unknown_requires_review"
+      ],
+      "description": "Re-exported from schemas/scaffolding/scaffold_run.schema.json without modification."
+    },
+    "generated_project_update_or_rebase_state_class": {
+      "type": "string",
+      "enum": [
+        "in_sync_with_bound_template_revision",
+        "update_available_minor_no_breaking_change",
+        "update_available_major_breaking_change_review_required",
+        "rebase_required_breaking_change_pending_user_review",
+        "rebase_blocked_pending_user_admit",
+        "rebase_blocked_pending_policy_review",
+        "rebase_blocked_pending_workspace_trust",
+        "no_update_path_template_revision_archived",
+        "no_update_path_unlinked_or_lineage_unknown",
+        "update_state_class_unknown_requires_review"
+      ],
+      "description": "Re-exported from schemas/scaffolding/scaffold_run.schema.json without modification."
+    },
+    "template_reopen_preflight_class": {
+      "type": "string",
+      "enum": [
+        "reopen_preflight_in_sync_admissible",
+        "reopen_preflight_template_revision_unchanged_admissible",
+        "reopen_preflight_template_revision_advanced_update_available",
+        "reopen_preflight_template_revision_advanced_breaking_rebase_required",
+        "reopen_preflight_template_revision_archived_no_update_path",
+        "reopen_preflight_template_revision_unverifiable_user_review_required",
+        "reopen_preflight_lineage_unknown_imported_without_lineage_packet"
+      ],
+      "description": "Re-exported from schemas/scaffolding/scaffold_run.schema.json without modification."
+    },
+    "delete_generated_output_recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "delete_with_lockfile_checkpoint_recovery",
+        "delete_with_workspace_snapshot_recovery",
+        "delete_with_local_history_recovery_only",
+        "delete_with_regenerate_from_template_recovery",
+        "delete_with_no_lineage_packet_local_history_only_review_required",
+        "delete_unrecoverable_user_review_required"
+      ],
+      "description": "Re-exported from schemas/scaffolding/scaffold_run.schema.json without modification."
+    },
+    "provenance_anchor_class": {
+      "type": "string",
+      "enum": [
+        "lineage_metadata_file_under_vcs",
+        "rollback_checkpoint_handle_only",
+        "workspace_snapshot_handle_only",
+        "local_history_breadcrumb_only",
+        "managed_workspace_envelope_anchor",
+        "bypass_anchor_no_workspace_materialised",
+        "provenance_anchor_class_unknown_requires_review"
+      ],
+      "description": "Re-exported from schemas/scaffolding/post_create_handoff.schema.json without modification."
+    },
+    "recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "no_recovery_required_succeeded",
+        "recovery_via_run_later_actions",
+        "recovery_via_rollback_to_checkpoint",
+        "recovery_via_regenerate_from_template",
+        "recovery_via_review_files_then_continue",
+        "recovery_via_open_manifest_review",
+        "recovery_via_delete_generated_output",
+        "recovery_via_local_only_continuation",
+        "recovery_via_report_to_template_owner",
+        "recovery_via_bypass_to_open_without_starter",
+        "recovery_via_request_workspace_trust_grant",
+        "recovery_via_request_policy_review",
+        "recovery_via_admit_ai_proposed_run",
+        "recovery_route_class_unknown_requires_review"
+      ],
+      "description": "Re-exported from schemas/scaffolding/post_create_handoff.schema.json without modification."
+    },
+    "reopen_preflight_disposition_class": {
+      "type": "string",
+      "enum": [
+        "reopen_preflight_admitted_in_sync",
+        "reopen_preflight_admitted_with_update_available",
+        "reopen_preflight_admitted_with_local_overrides",
+        "reopen_preflight_admitted_after_breaking_rebase_review",
+        "reopen_preflight_blocked_template_revision_archived",
+        "reopen_preflight_blocked_lineage_unknown_user_review_required",
+        "reopen_preflight_blocked_workspace_trust_required",
+        "reopen_preflight_blocked_policy_changed_pending_user_admit",
+        "reopen_preflight_blocked_environment_changed_user_review_required",
+        "reopen_preflight_blocked_missing_dependencies_user_review_required",
+        "reopen_preflight_blocked_drifted_from_template_user_review_required",
+        "reopen_preflight_blocked_target_runtime_unavailable",
+        "reopen_preflight_blocked_signature_review_required",
+        "reopen_preflight_pending_ai_admission",
+        "reopen_preflight_disposition_class_unknown_requires_review"
+      ],
+      "description": "Closed disposition for the reopen-preflight sheet. Drives whether the reopen flow admits the workspace as-is, admits with an update banner, admits after breaking-rebase review, or routes through a typed blocker (archived revision / unknown lineage / trust required / policy changed / environment changed / missing dependencies / drift / target runtime unavailable / signature review required / AI admission). The bypass routes (create_without_starter_route_ids) MUST remain at equal weight in every disposition. Adding a value bumps reopen_preflight_record_schema_version."
+    },
+    "reopen_preflight_blocker_class": {
+      "type": "string",
+      "enum": [
+        "no_blocker_admissible",
+        "policy_changed_after_create",
+        "workspace_trust_revoked_after_create",
+        "target_runtime_unavailable_after_create",
+        "network_unavailable_after_create",
+        "mirror_or_origin_unreachable_after_create",
+        "signature_review_required_after_create",
+        "template_revision_archived_after_create",
+        "template_revision_unverifiable_user_review_required",
+        "lineage_packet_missing_after_import",
+        "local_divergence_drift_user_review_required",
+        "missing_required_dependencies_after_create",
+        "secret_broker_handle_revoked_after_create",
+        "managed_workspace_envelope_revoked_after_create",
+        "ai_tool_proposed_relink_pending_review",
+        "reopen_preflight_blocker_class_unknown_requires_review"
+      ],
+      "description": "Closed per-blocker class. Each blocker that the reopen-preflight surface enumerates resolves to exactly one of these. Free-form 'environment changed' verbs are non-conforming."
+    },
+    "delete_generated_output_disposition_class": {
+      "type": "string",
+      "enum": [
+        "delete_admissible_lockfile_checkpoint_recovery",
+        "delete_admissible_workspace_snapshot_recovery",
+        "delete_admissible_local_history_recovery_only",
+        "delete_admissible_regenerate_from_template_recovery",
+        "delete_admissible_no_lineage_packet_local_history_only_review_required",
+        "delete_blocked_unrecoverable_user_review_required",
+        "delete_blocked_workspace_trust_required",
+        "delete_blocked_policy_narrowed",
+        "delete_blocked_lineage_packet_locked",
+        "delete_pending_ai_admission",
+        "delete_disposition_class_unknown_requires_review"
+      ],
+      "description": "Closed disposition for a Delete-generated-output flow. Every admissible class names the recovery posture that survives the delete; every blocked class names a typed blocker. delete_blocked_unrecoverable_user_review_required is admissible only when no checkpoint, no snapshot, no local-history breadcrumb, and no template revision reference are available."
+    },
+    "delete_provenance_preservation_class": {
+      "type": "string",
+      "enum": [
+        "provenance_preserved_via_lineage_packet_export",
+        "provenance_preserved_via_rollback_checkpoint",
+        "provenance_preserved_via_workspace_snapshot",
+        "provenance_preserved_via_local_history_only",
+        "provenance_preserved_via_regenerate_from_template_only",
+        "provenance_preserved_via_managed_workspace_envelope",
+        "provenance_not_preserved_user_review_required",
+        "provenance_preservation_class_unknown_requires_review"
+      ],
+      "description": "Closed class naming what survives the delete as on-disk provenance. The lineage packet export route is the strongest preservation; managed-workspace envelopes preserve provenance through the managed runtime contract; rollback-checkpoint / workspace-snapshot / local-history routes preserve recovery without preserving lineage; regenerate-from-template preserves the template revision pointer only. provenance_not_preserved_user_review_required is the typed escape hatch when no other route applies."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_denial_recovery_admissible",
+        "policy_changed_after_create_user_must_admit",
+        "workspace_trust_unset_or_restricted",
+        "target_runtime_unavailable_after_create",
+        "network_unavailable_after_create",
+        "signature_review_required_user_review_required",
+        "template_revision_archived_no_apply_path",
+        "template_revision_unverifiable_user_review_required",
+        "lineage_packet_missing_after_import",
+        "local_divergence_drift_user_review_required",
+        "missing_required_dependencies_after_create",
+        "secret_broker_handle_revoked_after_create",
+        "managed_workspace_envelope_revoked_after_create",
+        "unrecoverable_delete_user_review_required",
+        "provenance_not_preserved_user_review_required",
+        "lineage_packet_locked_user_must_unlock",
+        "ai_tool_proposed_relink_must_not_apply_pending_admission",
+        "lineage_metadata_must_be_plain_reviewable_file",
+        "create_without_starter_route_must_remain_at_equal_weight",
+        "denial_reason_class_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary on the recovery records. Every blocked / denied disposition cites a denial value other than no_denial_recovery_admissible; every admissible disposition cites no_denial_recovery_admissible."
+    },
+    "reopen_preflight_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "reopen_preflight_record_schema_version",
+        "reopen_preflight_id",
+        "bound_lineage_record_ref",
+        "reopen_preflight_disposition_class",
+        "reopen_preflight_blocker_class_set",
+        "generated_project_lineage_state_class_carried",
+        "generated_project_update_or_rebase_state_class_carried",
+        "template_reopen_preflight_class_carried",
+        "recovery_route_class_set",
+        "create_without_starter_route_ids",
+        "denial_reason_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "reopen_preflight_record" },
+        "reopen_preflight_record_schema_version": {
+          "$ref": "#/$defs/reopen_preflight_record_schema_version"
+        },
+        "reopen_preflight_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_lineage_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "bound_template_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "reopen_preflight_disposition_class": {
+          "$ref": "#/$defs/reopen_preflight_disposition_class"
+        },
+        "reopen_preflight_blocker_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reopen_preflight_blocker_class" },
+          "description": "Closed list of blockers the preflight enumerates. Admissible dispositions cite the singleton no_blocker_admissible; blocked / pending dispositions cite at least one typed blocker class."
+        },
+        "generated_project_lineage_state_class_carried": {
+          "$ref": "#/$defs/generated_project_lineage_state_class"
+        },
+        "generated_project_update_or_rebase_state_class_carried": {
+          "$ref": "#/$defs/generated_project_update_or_rebase_state_class"
+        },
+        "template_reopen_preflight_class_carried": {
+          "$ref": "#/$defs/template_reopen_preflight_class"
+        },
+        "recovery_route_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/recovery_route_class" }
+        },
+        "create_without_starter_route_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bypass_path_id" }
+        },
+        "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" },
+        "ai_tool_proposed_review_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Admitted dispositions cite no_blocker_admissible (singleton) and no_denial_recovery_admissible.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "enum": [
+                  "reopen_preflight_admitted_in_sync",
+                  "reopen_preflight_admitted_with_update_available",
+                  "reopen_preflight_admitted_with_local_overrides",
+                  "reopen_preflight_admitted_after_breaking_rebase_review"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "no_blocker_admissible" }
+              },
+              "denial_reason_class": {
+                "const": "no_denial_recovery_admissible"
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocked dispositions MUST NOT cite no_blocker_admissible and MUST cite a denial_reason_class other than no_denial_recovery_admissible.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "enum": [
+                  "reopen_preflight_blocked_template_revision_archived",
+                  "reopen_preflight_blocked_lineage_unknown_user_review_required",
+                  "reopen_preflight_blocked_workspace_trust_required",
+                  "reopen_preflight_blocked_policy_changed_pending_user_admit",
+                  "reopen_preflight_blocked_environment_changed_user_review_required",
+                  "reopen_preflight_blocked_missing_dependencies_user_review_required",
+                  "reopen_preflight_blocked_drifted_from_template_user_review_required",
+                  "reopen_preflight_blocked_target_runtime_unavailable",
+                  "reopen_preflight_blocked_signature_review_required"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "items": {
+                  "not": { "const": "no_blocker_admissible" }
+                }
+              },
+              "denial_reason_class": {
+                "not": { "const": "no_denial_recovery_admissible" }
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_template_revision_archived MUST cite template_revision_archived_after_create blocker and template_revision_archived_no_apply_path denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_template_revision_archived"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "template_revision_archived_after_create"
+                }
+              },
+              "denial_reason_class": {
+                "const": "template_revision_archived_no_apply_path"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_lineage_unknown_user_review_required MUST cite lineage_packet_missing_after_import blocker, lineage_unknown_imported_without_lineage_packet lineage state, and lineage_packet_missing_after_import denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_lineage_unknown_user_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "lineage_packet_missing_after_import"
+                }
+              },
+              "generated_project_lineage_state_class_carried": {
+                "const": "lineage_unknown_imported_without_lineage_packet"
+              },
+              "template_reopen_preflight_class_carried": {
+                "const": "reopen_preflight_lineage_unknown_imported_without_lineage_packet"
+              },
+              "denial_reason_class": {
+                "const": "lineage_packet_missing_after_import"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_workspace_trust_required MUST cite workspace_trust_revoked_after_create blocker and workspace_trust_unset_or_restricted denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_workspace_trust_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "workspace_trust_revoked_after_create"
+                }
+              },
+              "denial_reason_class": {
+                "const": "workspace_trust_unset_or_restricted"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_policy_changed_pending_user_admit MUST cite policy_changed_after_create blocker and policy_changed_after_create_user_must_admit denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_policy_changed_pending_user_admit"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "policy_changed_after_create"
+                }
+              },
+              "denial_reason_class": {
+                "const": "policy_changed_after_create_user_must_admit"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_missing_dependencies_user_review_required MUST cite missing_required_dependencies_after_create blocker and missing_required_dependencies_after_create denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_missing_dependencies_user_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "missing_required_dependencies_after_create"
+                }
+              },
+              "denial_reason_class": {
+                "const": "missing_required_dependencies_after_create"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_drifted_from_template_user_review_required MUST cite local_divergence_drift_user_review_required blocker, drifted_from_template_revision_user_review_required lineage state, and local_divergence_drift_user_review_required denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_drifted_from_template_user_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "local_divergence_drift_user_review_required"
+                }
+              },
+              "generated_project_lineage_state_class_carried": {
+                "const": "drifted_from_template_revision_user_review_required"
+              },
+              "denial_reason_class": {
+                "const": "local_divergence_drift_user_review_required"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_target_runtime_unavailable MUST cite target_runtime_unavailable_after_create blocker and target_runtime_unavailable_after_create denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_target_runtime_unavailable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "target_runtime_unavailable_after_create"
+                }
+              },
+              "denial_reason_class": {
+                "const": "target_runtime_unavailable_after_create"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_blocked_signature_review_required MUST cite signature_review_required_after_create blocker and signature_review_required_user_review_required denial.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_blocked_signature_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "signature_review_required_after_create"
+                }
+              },
+              "denial_reason_class": {
+                "const": "signature_review_required_user_review_required"
+              }
+            }
+          }
+        },
+        {
+          "description": "reopen_preflight_pending_ai_admission MUST cite ai_tool_proposed_relink_pending_review blocker, ai_tool_proposed_relink_pending_review lineage state, ai_tool_proposed_relink_must_not_apply_pending_admission denial, and a non-null ai_tool_proposed_review_ticket_ref.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_pending_ai_admission"
+              }
+            }
+          },
+          "then": {
+            "required": ["ai_tool_proposed_review_ticket_ref"],
+            "properties": {
+              "reopen_preflight_blocker_class_set": {
+                "type": "array",
+                "contains": {
+                  "const": "ai_tool_proposed_relink_pending_review"
+                }
+              },
+              "generated_project_lineage_state_class_carried": {
+                "const": "ai_tool_proposed_relink_pending_review"
+              },
+              "denial_reason_class": {
+                "const": "ai_tool_proposed_relink_must_not_apply_pending_admission"
+              },
+              "ai_tool_proposed_review_ticket_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "Admitted-with-update-available pairing forces a non-archived bound revision and an update_available_* update / rebase state.",
+          "if": {
+            "properties": {
+              "reopen_preflight_disposition_class": {
+                "const": "reopen_preflight_admitted_with_update_available"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "generated_project_update_or_rebase_state_class_carried": {
+                "enum": [
+                  "update_available_minor_no_breaking_change",
+                  "update_available_major_breaking_change_review_required"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-reopen-preflight record. Every reopen of a generated workspace emits one of these. The record never collapses archived-revision / unknown-lineage / drift / policy-changed / trust-revoked / missing-dependency states into a generic 'cannot open' label, and the bypass routes remain at equal weight on every disposition."
+    },
+    "delete_generated_output_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "delete_generated_output_schema_version",
+        "delete_id",
+        "bound_lineage_record_ref",
+        "delete_generated_output_disposition_class",
+        "delete_generated_output_recovery_route_class",
+        "delete_provenance_preservation_class",
+        "provenance_anchor_class",
+        "denial_reason_class",
+        "create_without_starter_route_ids",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "delete_generated_output_record" },
+        "delete_generated_output_schema_version": {
+          "$ref": "#/$defs/delete_generated_output_schema_version"
+        },
+        "delete_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_lineage_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_scaffold_run_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "delete_generated_output_disposition_class": {
+          "$ref": "#/$defs/delete_generated_output_disposition_class"
+        },
+        "delete_generated_output_recovery_route_class": {
+          "$ref": "#/$defs/delete_generated_output_recovery_route_class"
+        },
+        "delete_generated_output_recovery_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "delete_provenance_preservation_class": {
+          "$ref": "#/$defs/delete_provenance_preservation_class"
+        },
+        "provenance_anchor_class": {
+          "$ref": "#/$defs/provenance_anchor_class"
+        },
+        "rollback_checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "regenerate_target_template_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" },
+        "create_without_starter_route_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bypass_path_id" }
+        },
+        "ai_tool_proposed_review_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "delete_admissible_lockfile_checkpoint_recovery MUST cite delete_with_lockfile_checkpoint_recovery, provenance_preserved_via_rollback_checkpoint, no_denial_recovery_admissible, and a non-null rollback_checkpoint_ref.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_admissible_lockfile_checkpoint_recovery"
+              }
+            }
+          },
+          "then": {
+            "required": ["rollback_checkpoint_ref"],
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_with_lockfile_checkpoint_recovery"
+              },
+              "delete_provenance_preservation_class": {
+                "const": "provenance_preserved_via_rollback_checkpoint"
+              },
+              "denial_reason_class": {
+                "const": "no_denial_recovery_admissible"
+              },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "delete_admissible_workspace_snapshot_recovery MUST cite delete_with_workspace_snapshot_recovery, provenance_preserved_via_workspace_snapshot, and no_denial_recovery_admissible.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_admissible_workspace_snapshot_recovery"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_with_workspace_snapshot_recovery"
+              },
+              "delete_provenance_preservation_class": {
+                "const": "provenance_preserved_via_workspace_snapshot"
+              },
+              "denial_reason_class": {
+                "const": "no_denial_recovery_admissible"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_admissible_local_history_recovery_only MUST cite delete_with_local_history_recovery_only, provenance_preserved_via_local_history_only, and no_denial_recovery_admissible.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_admissible_local_history_recovery_only"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_with_local_history_recovery_only"
+              },
+              "delete_provenance_preservation_class": {
+                "const": "provenance_preserved_via_local_history_only"
+              },
+              "denial_reason_class": {
+                "const": "no_denial_recovery_admissible"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_admissible_regenerate_from_template_recovery MUST cite delete_with_regenerate_from_template_recovery, provenance_preserved_via_regenerate_from_template_only, no_denial_recovery_admissible, and a non-null regenerate_target_template_revision_ref.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_admissible_regenerate_from_template_recovery"
+              }
+            }
+          },
+          "then": {
+            "required": ["regenerate_target_template_revision_ref"],
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_with_regenerate_from_template_recovery"
+              },
+              "delete_provenance_preservation_class": {
+                "const": "provenance_preserved_via_regenerate_from_template_only"
+              },
+              "denial_reason_class": {
+                "const": "no_denial_recovery_admissible"
+              },
+              "regenerate_target_template_revision_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_admissible_no_lineage_packet_local_history_only_review_required MUST cite delete_with_no_lineage_packet_local_history_only_review_required and lineage_packet_missing_after_import denial. provenance is preserved via local-history-only or marked not preserved.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_admissible_no_lineage_packet_local_history_only_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_with_no_lineage_packet_local_history_only_review_required"
+              },
+              "delete_provenance_preservation_class": {
+                "enum": [
+                  "provenance_preserved_via_local_history_only",
+                  "provenance_not_preserved_user_review_required"
+                ]
+              },
+              "denial_reason_class": {
+                "const": "lineage_packet_missing_after_import"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_blocked_unrecoverable_user_review_required MUST cite delete_unrecoverable_user_review_required, provenance_not_preserved_user_review_required, and unrecoverable_delete_user_review_required denial.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_blocked_unrecoverable_user_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_unrecoverable_user_review_required"
+              },
+              "delete_provenance_preservation_class": {
+                "const": "provenance_not_preserved_user_review_required"
+              },
+              "denial_reason_class": {
+                "const": "unrecoverable_delete_user_review_required"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_blocked_workspace_trust_required MUST cite workspace_trust_unset_or_restricted denial.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_blocked_workspace_trust_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "const": "workspace_trust_unset_or_restricted"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_blocked_policy_narrowed MUST cite policy_changed_after_create_user_must_admit denial.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_blocked_policy_narrowed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "const": "policy_changed_after_create_user_must_admit"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_blocked_lineage_packet_locked MUST cite lineage_packet_locked_user_must_unlock denial.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_blocked_lineage_packet_locked"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "const": "lineage_packet_locked_user_must_unlock"
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_pending_ai_admission MUST cite ai_tool_proposed_relink_must_not_apply_pending_admission denial and a non-null ai_tool_proposed_review_ticket_ref.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "const": "delete_pending_ai_admission"
+              }
+            }
+          },
+          "then": {
+            "required": ["ai_tool_proposed_review_ticket_ref"],
+            "properties": {
+              "denial_reason_class": {
+                "const": "ai_tool_proposed_relink_must_not_apply_pending_admission"
+              },
+              "ai_tool_proposed_review_ticket_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "Every admissible disposition cites a non-null delete_generated_output_recovery_route_ref so the per-action handle resolves.",
+          "if": {
+            "properties": {
+              "delete_generated_output_disposition_class": {
+                "enum": [
+                  "delete_admissible_lockfile_checkpoint_recovery",
+                  "delete_admissible_workspace_snapshot_recovery",
+                  "delete_admissible_local_history_recovery_only",
+                  "delete_admissible_regenerate_from_template_recovery",
+                  "delete_admissible_no_lineage_packet_local_history_only_review_required"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["delete_generated_output_recovery_route_ref"],
+            "properties": {
+              "delete_generated_output_recovery_route_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-delete record. Every Delete-generated-output flow emits one of these. The record never silently approves an unrecoverable delete and always names the provenance preservation class so deleted output retains a tracked recovery posture rather than leaving stray files with no lineage."
+    }
+  }
+}

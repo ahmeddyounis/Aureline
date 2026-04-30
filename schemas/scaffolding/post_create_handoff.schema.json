@@ -1,0 +1,719 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/scaffolding/post_create_handoff.schema.json",
+  "title": "Aureline scaffold post-create handoff contract",
+  "description": "Boundary schema for the post-create handoff record frozen in docs/scaffolding/generated_project_handoff_contract.md. Every completion of a starter-driven scaffold flow (whether the run applied all files, applied with partial post-create success, failed during post-create, was bypassed without materialising a workspace, was blocked by post-create policy, or is queued pending an AI-proposed-run admission) MUST publish exactly one post_create_handoff_record against this schema. The record enumerates the per-action setup-task and hook disposition (succeeded / skipped / partially applied / failed / blocked / pending-user-invoke), the handoff-action set (Run now, Run later, Review files, Open manifest, Delete generated output, Rollback to checkpoint, Regenerate from template, Local-only continuation, Report to template owner, Bypass-to-open-without-starter), the recovery-route set, the delete-generated-output recovery route plus provenance anchor, and the create-without-starter bypass routes — all preserved at equal weight on every health state. The record cites the bound scaffold_run_record by ref so post-create truth never mints a parallel hook / setup-task / file vocabulary; the manifest remains the source of truth for declared rows. Raw bearer tokens, raw API keys, raw passwords, raw signing keys, raw certificate / key material, raw absolute filesystem paths, raw repository URLs, raw author email addresses, raw container registry URLs, raw devcontainer image tags, raw lockfile bodies, raw extension marketplace urls, raw stdout / stderr, raw post-install script bodies, and raw user-supplied parameter values never cross this boundary; the schema carries opaque ids, closed vocabulary, content-addresses, and short reviewable sentences only. Adding a new post_create_handoff_disposition_class, setup_outcome_class, setup_action_class, setup_action_disposition_class, handoff_action_class, recovery_route_class, provenance_anchor_class, or denial_reason_class value is additive-minor and bumps post_create_handoff_schema_version; repurposing an existing value is breaking and requires a new decision row in artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "$ref": "#/$defs/post_create_handoff_record",
+  "$defs": {
+    "post_create_handoff_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw paths, raw URLs, raw JSON payloads, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Short reviewable sentence intended for the post-create handoff sheet, the recovery banner, and the support / export reader."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bypass_path_id": {
+      "type": "string",
+      "enum": [
+        "bypass.open_folder_without_starter",
+        "bypass.open_workspace_without_starter",
+        "bypass.clone_repository_without_starter",
+        "bypass.create_empty_workspace",
+        "bypass.open_prebuild_minimal",
+        "bypass.set_up_later",
+        "bypass.continue_without_starter"
+      ],
+      "description": "Re-exported from docs/ux/template_and_prebuild_contract.md §3.9 without modification."
+    },
+    "template_health_state_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "validation_pending",
+        "validation_stale",
+        "validation_failed",
+        "known_issue_active_workaround_documented",
+        "known_issue_active_blocking_user_review_required",
+        "deprecated",
+        "unsupported",
+        "preview_or_experimental",
+        "ai_tool_proposed_pending_review",
+        "health_state_unknown_requires_review"
+      ],
+      "description": "Re-exported from schemas/scaffolding/template_card.schema.json without modification."
+    },
+    "delete_generated_output_recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "delete_with_lockfile_checkpoint_recovery",
+        "delete_with_workspace_snapshot_recovery",
+        "delete_with_local_history_recovery_only",
+        "delete_with_regenerate_from_template_recovery",
+        "delete_with_no_lineage_packet_local_history_only_review_required",
+        "delete_unrecoverable_user_review_required"
+      ],
+      "description": "Re-exported from schemas/scaffolding/scaffold_run.schema.json without modification."
+    },
+    "post_create_handoff_disposition_class": {
+      "type": "string",
+      "enum": [
+        "handoff_admissible_run_now_offered",
+        "handoff_admissible_run_later_offered",
+        "handoff_review_files_only",
+        "handoff_partial_success_recovery_offered",
+        "handoff_failure_recovery_required",
+        "handoff_policy_blocked_review_required",
+        "handoff_blocked_workspace_trust_required",
+        "handoff_blocked_signature_review_required",
+        "handoff_bypass_taken_no_workspace_materialised",
+        "handoff_ai_proposed_pending_admission",
+        "handoff_disposition_class_unknown_requires_review"
+      ],
+      "description": "Closed disposition for the post-create handoff sheet. Drives whether the sheet's primary action is Run now / Run later / Review files only, or whether the sheet routes through a recovery / policy-review / trust-required / AI-admission path. The bypass routes (create_without_starter_route_ids) MUST remain at equal weight in every disposition. Adding a value bumps post_create_handoff_schema_version."
+    },
+    "setup_outcome_class": {
+      "type": "string",
+      "enum": [
+        "all_actions_succeeded",
+        "partial_success",
+        "failed",
+        "bypass_taken_no_workspace_materialised",
+        "deferred_user_must_invoke",
+        "pending_ai_admission",
+        "setup_outcome_class_unknown_requires_review"
+      ],
+      "description": "Closed roll-up of the per-action setup outcome. Mirrors the UX template-and-prebuild contract §3.13 setup_outcome_summary closed subset and extends it with bypass_taken_no_workspace_materialised, deferred_user_must_invoke, and pending_ai_admission so the handoff sheet never collapses any of them into a generic setup_succeeded label."
+    },
+    "setup_action_class": {
+      "type": "string",
+      "enum": [
+        "required_setup_action",
+        "optional_setup_action",
+        "deferred_setup_action_user_must_invoke",
+        "policy_blocked_setup_action",
+        "bypassed_setup_action",
+        "setup_action_class_unknown_requires_review"
+      ],
+      "description": "Closed class telling the handoff sheet whether each per-action row is required (must run for the workspace to be usable), optional (advisory), deferred (user must explicitly invoke later), policy-blocked (the action was blocked by policy), or bypassed (the user took the create-without-starter route). A handoff that collapses required-vs-optional setup tasks is non-conforming."
+    },
+    "setup_action_disposition_class": {
+      "type": "string",
+      "enum": [
+        "succeeded_immediate",
+        "succeeded_after_retry",
+        "skipped_under_bypass_path",
+        "skipped_user_deferred",
+        "skipped_optional_not_needed",
+        "partially_applied_user_review_required",
+        "failed_user_review_required",
+        "blocked_workspace_trust_required",
+        "blocked_policy_narrowed",
+        "blocked_signature_review_required",
+        "blocked_target_runtime_unavailable",
+        "blocked_network_unavailable",
+        "blocked_secret_broker_handle_unavailable",
+        "blocked_managed_workspace_envelope_unavailable",
+        "blocked_missing_required_dependency",
+        "pending_user_invoke",
+        "pending_ai_admission",
+        "setup_action_disposition_class_unknown_requires_review"
+      ],
+      "description": "Closed per-action disposition. Each declared hook / setup task that the scaffold runner attempted resolves to exactly one of these. Free-form 'failed for unknown reason' verbs are non-conforming."
+    },
+    "handoff_action_class": {
+      "type": "string",
+      "enum": [
+        "run_now_action",
+        "run_later_action",
+        "review_files_action",
+        "open_manifest_action",
+        "delete_generated_output_action",
+        "rollback_to_checkpoint_action",
+        "regenerate_from_template_action",
+        "local_only_continuation_action",
+        "report_to_template_owner_action",
+        "bypass_open_without_starter_action",
+        "handoff_action_class_unknown_requires_review"
+      ],
+      "description": "Closed set of actions the post-create handoff sheet MAY render. The sheet MUST always render review_files_action and open_manifest_action when files were materialised (so the user can audit before continuing), and MUST always render at least one bypass_open_without_starter_action so the create-without-starter route remains at equal weight."
+    },
+    "recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "no_recovery_required_succeeded",
+        "recovery_via_run_later_actions",
+        "recovery_via_rollback_to_checkpoint",
+        "recovery_via_regenerate_from_template",
+        "recovery_via_review_files_then_continue",
+        "recovery_via_open_manifest_review",
+        "recovery_via_delete_generated_output",
+        "recovery_via_local_only_continuation",
+        "recovery_via_report_to_template_owner",
+        "recovery_via_bypass_to_open_without_starter",
+        "recovery_via_request_workspace_trust_grant",
+        "recovery_via_request_policy_review",
+        "recovery_via_admit_ai_proposed_run",
+        "recovery_route_class_unknown_requires_review"
+      ],
+      "description": "Closed set of recovery routes the handoff sheet MAY enumerate. Every non-succeeded outcome MUST cite at least one recovery_route_class other than no_recovery_required_succeeded. A handoff that resolves to failure / partial-success / policy-blocked without enumerating a recovery route is non-conforming."
+    },
+    "provenance_anchor_class": {
+      "type": "string",
+      "enum": [
+        "lineage_metadata_file_under_vcs",
+        "rollback_checkpoint_handle_only",
+        "workspace_snapshot_handle_only",
+        "local_history_breadcrumb_only",
+        "managed_workspace_envelope_anchor",
+        "bypass_anchor_no_workspace_materialised",
+        "provenance_anchor_class_unknown_requires_review"
+      ],
+      "description": "Closed set naming what survives a delete-generated-output flow as on-disk provenance (or, on bypass_taken, names that no workspace was materialised). lineage_metadata_file_under_vcs is the on-disk projection of generated_project_lineage_record (schemas/scaffolding/scaffold_run.schema.json) and is the preferred anchor; the others fall back to checkpoint / snapshot / breadcrumb / managed-envelope handles. A handoff that produced files but cites bypass_anchor_no_workspace_materialised is non-conforming."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_denial_handoff_admissible",
+        "partial_apply_recovery_required",
+        "failed_apply_recovery_required",
+        "policy_blocked_post_create_action",
+        "workspace_trust_unset_or_restricted",
+        "signature_review_required_user_review_required",
+        "unrecoverable_delete_user_review_required",
+        "lineage_packet_missing_after_import",
+        "template_revision_archived_no_apply_path",
+        "ai_tool_proposed_run_must_not_apply_pending_admission",
+        "provenance_not_preserved_user_review_required",
+        "create_without_starter_route_must_remain_at_equal_weight",
+        "lineage_metadata_must_be_plain_reviewable_file",
+        "missing_required_dependencies_after_create",
+        "managed_workspace_envelope_unavailable_after_create",
+        "secret_broker_handle_unavailable_after_create",
+        "denial_reason_class_unknown_requires_review"
+      ],
+      "description": "Closed denial-reason vocabulary specialised to the post-create handoff. Re-exports the scaffold-run / generation-preflight denial values that survive into post-create truth and adds the post-create-only values (partial_apply_recovery_required, failed_apply_recovery_required, policy_blocked_post_create_action, missing_required_dependencies_after_create, managed_workspace_envelope_unavailable_after_create, secret_broker_handle_unavailable_after_create, provenance_not_preserved_user_review_required)."
+    },
+    "setup_action_disposition_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setup_action_id_ref",
+        "setup_action_kind",
+        "setup_action_class",
+        "setup_action_disposition_class"
+      ],
+      "properties": {
+        "setup_action_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the manifest's declared_hooks or declared_setup_tasks registry. Resolves through schemas/scaffolding/template_manifest.schema.json — the manifest is the source of truth for declared rows."
+        },
+        "setup_action_kind": {
+          "type": "string",
+          "enum": [
+            "declared_hook_invocation",
+            "declared_setup_task_invocation"
+          ],
+          "description": "Whether the action was a declared_hook_invocation or a declared_setup_task_invocation. The manifest's bound row resolves the specific class. Free-form invocations are non-conforming."
+        },
+        "setup_action_class": { "$ref": "#/$defs/setup_action_class" },
+        "setup_action_disposition_class": {
+          "$ref": "#/$defs/setup_action_disposition_class"
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "handoff_action_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_action_class"],
+      "properties": {
+        "handoff_action_class": { "$ref": "#/$defs/handoff_action_class" },
+        "handoff_action_handle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into a per-action registry (e.g. a queueable_action_record, a delete_generated_output_record, a reopen_preflight_record, a regenerate_target_template_revision_ref). Required when the action class is delete_generated_output_action, rollback_to_checkpoint_action, regenerate_from_template_action, run_later_action, or report_to_template_owner_action."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "delete_generated_output_action MUST cite a non-null handoff_action_handle_ref pointing at a delete_generated_output_record so the recovery route is resolvable.",
+          "if": {
+            "properties": {
+              "handoff_action_class": {
+                "const": "delete_generated_output_action"
+              }
+            }
+          },
+          "then": {
+            "required": ["handoff_action_handle_ref"],
+            "properties": {
+              "handoff_action_handle_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "rollback_to_checkpoint_action MUST cite a non-null handoff_action_handle_ref pointing at the rollback_checkpoint_ref.",
+          "if": {
+            "properties": {
+              "handoff_action_class": {
+                "const": "rollback_to_checkpoint_action"
+              }
+            }
+          },
+          "then": {
+            "required": ["handoff_action_handle_ref"],
+            "properties": {
+              "handoff_action_handle_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "regenerate_from_template_action MUST cite a non-null handoff_action_handle_ref pointing at the target template revision.",
+          "if": {
+            "properties": {
+              "handoff_action_class": {
+                "const": "regenerate_from_template_action"
+              }
+            }
+          },
+          "then": {
+            "required": ["handoff_action_handle_ref"],
+            "properties": {
+              "handoff_action_handle_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+    "post_create_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "post_create_handoff_schema_version",
+        "handoff_id",
+        "bound_scaffold_run_id_ref",
+        "bound_template_card_record_ref",
+        "bound_template_manifest_record_ref",
+        "bound_template_id_ref",
+        "bound_template_revision_ref",
+        "post_create_handoff_disposition_class",
+        "setup_outcome_class",
+        "setup_action_disposition_set",
+        "handoff_action_set",
+        "recovery_route_class_set",
+        "create_without_starter_route_ids",
+        "delete_generated_output_recovery_route_class",
+        "provenance_anchor_class",
+        "denial_reason_class",
+        "template_health_state_class_carried",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "post_create_handoff_record" },
+        "post_create_handoff_schema_version": {
+          "$ref": "#/$defs/post_create_handoff_schema_version"
+        },
+        "handoff_id": { "$ref": "#/$defs/opaque_id" },
+        "bound_scaffold_run_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_card_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_manifest_record_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "bound_template_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_template_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_workspace_lineage_record_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the on-disk generated_project_lineage_record (schemas/scaffolding/scaffold_run.schema.json) the workspace carries. Required (non-null) on every outcome that materialised files; null only on bypass_taken_no_workspace_materialised."
+        },
+        "post_create_handoff_disposition_class": {
+          "$ref": "#/$defs/post_create_handoff_disposition_class"
+        },
+        "setup_outcome_class": { "$ref": "#/$defs/setup_outcome_class" },
+        "setup_action_disposition_set": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/setup_action_disposition_descriptor"
+          },
+          "description": "Per-action disposition list. One entry per declared hook or declared setup task the scaffold runner attempted (subset of the manifest's declared rows). May be empty only on bypass_taken_no_workspace_materialised."
+        },
+        "handoff_action_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/handoff_action_descriptor" },
+          "description": "Actions rendered on the handoff sheet. MUST include at least one bypass_open_without_starter_action so the create-without-starter route remains at equal weight, and MUST include review_files_action and open_manifest_action when files were materialised."
+        },
+        "recovery_route_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/recovery_route_class" },
+          "description": "Recovery routes the handoff sheet exposes. MUST be non-empty in every disposition; success outcomes name no_recovery_required_succeeded and at least one continue route, failure / partial-success outcomes name at least one non-trivial recovery route."
+        },
+        "create_without_starter_route_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bypass_path_id" },
+          "description": "Non-empty bypass route list. Surfaces that hide every bypass route under any health state or any handoff disposition deny with create_without_starter_route_must_remain_at_equal_weight."
+        },
+        "delete_generated_output_recovery_route_class": {
+          "$ref": "#/$defs/delete_generated_output_recovery_route_class"
+        },
+        "delete_generated_output_recovery_route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into a delete_generated_output_record (schemas/scaffolding/generated_project_recovery.schema.json). Required (non-null) when delete_generated_output_recovery_route_class is anything other than delete_unrecoverable_user_review_required."
+        },
+        "provenance_anchor_class": {
+          "$ref": "#/$defs/provenance_anchor_class"
+        },
+        "rollback_checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into the rollback-checkpoint registry the scaffold-run record planted. Required (non-null) on partial_success / failed / handoff_partial_success_recovery_offered / handoff_failure_recovery_required dispositions; otherwise admissible to be null."
+        },
+        "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" },
+        "template_health_state_class_carried": {
+          "$ref": "#/$defs/template_health_state_class"
+        },
+        "ai_tool_proposed_review_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "handoff_admissible_run_now_offered and handoff_admissible_run_later_offered require denial_reason_class no_denial_handoff_admissible.",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "enum": [
+                  "handoff_admissible_run_now_offered",
+                  "handoff_admissible_run_later_offered",
+                  "handoff_review_files_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "const": "no_denial_handoff_admissible"
+              }
+            }
+          }
+        },
+        {
+          "description": "handoff_partial_success_recovery_offered MUST cite partial_apply_recovery_required denial, partial_success outcome, and a non-null rollback_checkpoint_ref.",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_partial_success_recovery_offered"
+              }
+            }
+          },
+          "then": {
+            "required": ["rollback_checkpoint_ref"],
+            "properties": {
+              "denial_reason_class": {
+                "const": "partial_apply_recovery_required"
+              },
+              "setup_outcome_class": { "const": "partial_success" },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "handoff_failure_recovery_required MUST cite failed_apply_recovery_required denial, failed outcome, and a non-null rollback_checkpoint_ref so the recovery sheet can resolve the rollback handle.",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_failure_recovery_required"
+              }
+            }
+          },
+          "then": {
+            "required": ["rollback_checkpoint_ref"],
+            "properties": {
+              "denial_reason_class": {
+                "const": "failed_apply_recovery_required"
+              },
+              "setup_outcome_class": { "const": "failed" },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "handoff_policy_blocked_review_required MUST cite policy_blocked_post_create_action denial.",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_policy_blocked_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "const": "policy_blocked_post_create_action"
+              }
+            }
+          }
+        },
+        {
+          "description": "handoff_blocked_workspace_trust_required MUST cite workspace_trust_unset_or_restricted denial.",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_blocked_workspace_trust_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "const": "workspace_trust_unset_or_restricted"
+              }
+            }
+          }
+        },
+        {
+          "description": "handoff_blocked_signature_review_required MUST cite signature_review_required_user_review_required denial.",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_blocked_signature_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "const": "signature_review_required_user_review_required"
+              }
+            }
+          }
+        },
+        {
+          "description": "handoff_bypass_taken_no_workspace_materialised MUST resolve setup_outcome_class to bypass_taken_no_workspace_materialised, leave created_workspace_lineage_record_ref null, set provenance_anchor_class to bypass_anchor_no_workspace_materialised, and pin delete_generated_output_recovery_route_class to delete_with_no_lineage_packet_local_history_only_review_required (no files were materialised, so there is nothing to delete with a real recovery route).",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_bypass_taken_no_workspace_materialised"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "setup_outcome_class": {
+                "const": "bypass_taken_no_workspace_materialised"
+              },
+              "created_workspace_lineage_record_ref": { "type": "null" },
+              "provenance_anchor_class": {
+                "const": "bypass_anchor_no_workspace_materialised"
+              },
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_with_no_lineage_packet_local_history_only_review_required"
+              }
+            }
+          }
+        },
+        {
+          "description": "handoff_ai_proposed_pending_admission MUST cite ai_tool_proposed_run_must_not_apply_pending_admission denial, ai_tool_proposed_pending_review carried health, pending_ai_admission outcome, and a non-null ai_tool_proposed_review_ticket_ref.",
+          "if": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_ai_proposed_pending_admission"
+              }
+            }
+          },
+          "then": {
+            "required": ["ai_tool_proposed_review_ticket_ref"],
+            "properties": {
+              "denial_reason_class": {
+                "const": "ai_tool_proposed_run_must_not_apply_pending_admission"
+              },
+              "template_health_state_class_carried": {
+                "const": "ai_tool_proposed_pending_review"
+              },
+              "setup_outcome_class": { "const": "pending_ai_admission" },
+              "ai_tool_proposed_review_ticket_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "Outcomes that materialised files MUST cite a non-null created_workspace_lineage_record_ref so on-disk lineage exists, and MUST NOT cite bypass_anchor_no_workspace_materialised.",
+          "if": {
+            "properties": {
+              "setup_outcome_class": {
+                "enum": [
+                  "all_actions_succeeded",
+                  "partial_success",
+                  "failed",
+                  "deferred_user_must_invoke"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["created_workspace_lineage_record_ref"],
+            "properties": {
+              "created_workspace_lineage_record_ref": {
+                "$ref": "#/$defs/opaque_id"
+              },
+              "provenance_anchor_class": {
+                "not": { "const": "bypass_anchor_no_workspace_materialised" }
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_generated_output_recovery_route_class delete_unrecoverable_user_review_required forces the disposition out of the admissible run-now / run-later / review-files set; an unrecoverable delete route can never be silently approved on a handoff.",
+          "if": {
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "const": "delete_unrecoverable_user_review_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "not": {
+                  "enum": [
+                    "handoff_admissible_run_now_offered",
+                    "handoff_admissible_run_later_offered",
+                    "handoff_review_files_only"
+                  ]
+                }
+              },
+              "denial_reason_class": {
+                "enum": [
+                  "unrecoverable_delete_user_review_required",
+                  "failed_apply_recovery_required",
+                  "partial_apply_recovery_required",
+                  "policy_blocked_post_create_action",
+                  "provenance_not_preserved_user_review_required",
+                  "workspace_trust_unset_or_restricted",
+                  "signature_review_required_user_review_required"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_generated_output_recovery_route_class non-unrecoverable values MUST cite a non-null delete_generated_output_recovery_route_ref so the per-record handle resolves.",
+          "if": {
+            "properties": {
+              "delete_generated_output_recovery_route_class": {
+                "enum": [
+                  "delete_with_lockfile_checkpoint_recovery",
+                  "delete_with_workspace_snapshot_recovery",
+                  "delete_with_local_history_recovery_only",
+                  "delete_with_regenerate_from_template_recovery",
+                  "delete_with_no_lineage_packet_local_history_only_review_required"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["delete_generated_output_recovery_route_ref"],
+            "properties": {
+              "delete_generated_output_recovery_route_ref": {
+                "$ref": "#/$defs/opaque_id"
+              }
+            }
+          }
+        },
+        {
+          "description": "Health-state classes that block apply force the handoff disposition into a typed blocked / pending class — an ai_tool_proposed_pending_review carried state can never resolve to handoff_admissible_run_now_offered.",
+          "if": {
+            "properties": {
+              "template_health_state_class_carried": {
+                "const": "ai_tool_proposed_pending_review"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "post_create_handoff_disposition_class": {
+                "const": "handoff_ai_proposed_pending_admission"
+              }
+            }
+          }
+        },
+        {
+          "description": "Every non-bypass disposition's handoff_action_set MUST contain at least one bypass_open_without_starter_action so the create-without-starter route renders at equal weight regardless of disposition.",
+          "properties": {
+            "handoff_action_set": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "handoff_action_class": {
+                    "const": "bypass_open_without_starter_action"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-handoff record. Every completion of a starter-driven scaffold flow emits one of these. The record never collapses partial-success / failure / policy-blocked / bypass-taken / pending-AI states into a single Setup complete label, and the bypass routes remain at equal weight on every disposition."
+    }
+  }
+}

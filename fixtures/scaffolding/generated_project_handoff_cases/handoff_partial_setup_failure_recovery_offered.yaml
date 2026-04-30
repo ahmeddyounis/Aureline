@@ -1,0 +1,120 @@
+__fixture__:
+  name: handoff_partial_setup_failure_recovery_offered
+  scenario: >
+    Post-create handoff for the partial-apply rollback scenario in
+    fixtures/scaffolding/template_cases/partial_apply_rollback.yaml.
+    The self-hosted-org Node / pnpm template materialised files,
+    formatted them, wrote the lineage metadata file under VCS,
+    detected the toolchain, and materialised settings — then
+    package_restore_pnpm failed and the runner rolled back the
+    partially-applied workspace via the lockfile checkpoint.
+    setup_outcome_class is partial_success;
+    post_create_handoff_disposition_class is
+    handoff_partial_success_recovery_offered;
+    rollback_checkpoint_ref is non-null;
+    delete_generated_output_recovery_route_class is
+    delete_with_lockfile_checkpoint_recovery; the recovery_route_class_set
+    enumerates rollback-to-checkpoint, review-files-then-continue,
+    delete-generated-output, report-to-template-owner, and bypass-to-
+    open-without-starter so the user has multiple no-surprises
+    routes forward. The setup-action set names the failed
+    package-restore action with disposition
+    failed_user_review_required.
+  contract_sections:
+    - "docs/scaffolding/generated_project_handoff_contract.md §3.1 rule 3 (partial-success pairing)"
+    - "docs/scaffolding/generated_project_handoff_contract.md §3.2 rule 3 (per-action enumeration on partial / failed)"
+    - "docs/scaffolding/generated_project_handoff_contract.md §3.5 (recovery routes)"
+    - "docs/scaffolding/generated_project_handoff_contract.md §6 rule 3 (rollback checkpoint preserved across recovery)"
+  acceptance_bullets:
+    - "Post-create handoff always exposes a no-surprises recovery route after generation or failed setup"
+    - "Generated output can be reviewed or deleted with preserved provenance rather than leaving stray files with no tracked lineage"
+record_kind: post_create_handoff_record
+post_create_handoff_schema_version: 1
+handoff_id: post_create_handoff:self_hosted_org.node.web_app:partial_rollback:01
+bound_scaffold_run_id_ref: scaffold_run:self_hosted_org.node.web_app:partial_rollback:01
+bound_template_card_record_ref: template_card:self_hosted_org.node.web_app:01
+bound_template_manifest_record_ref: template_manifest_record:self_hosted_org.node.web_app:2026.04.18-02
+bound_template_id_ref: template:self_hosted_org.node.web_app:01
+bound_template_revision_ref: template-rev:self_hosted_org.node.web_app:2026.04.18-02
+created_workspace_lineage_record_ref: lineage:self_hosted_org.node.web_app:workspace:01
+post_create_handoff_disposition_class: handoff_partial_success_recovery_offered
+setup_outcome_class: partial_success
+setup_action_disposition_set:
+  - setup_action_id_ref: hook:pre_write_validate_parameters
+    setup_action_kind: declared_hook_invocation
+    setup_action_class: required_setup_action
+    setup_action_disposition_class: succeeded_immediate
+    summary: Validated parameters before write; no mutation.
+  - setup_action_id_ref: hook:post_write_format_local
+    setup_action_kind: declared_hook_invocation
+    setup_action_class: required_setup_action
+    setup_action_disposition_class: succeeded_immediate
+    summary: Formatted generated files locally.
+  - setup_action_id_ref: hook:post_write_apply_lineage
+    setup_action_kind: declared_hook_invocation
+    setup_action_class: required_setup_action
+    setup_action_disposition_class: succeeded_immediate
+    summary: Wrote the plain-JSON lineage metadata file under VCS.
+  - setup_action_id_ref: task:toolchain_detect
+    setup_action_kind: declared_setup_task_invocation
+    setup_action_class: required_setup_action
+    setup_action_disposition_class: succeeded_immediate
+    summary: Detected node / pnpm presence locally.
+  - setup_action_id_ref: task:settings_materialize
+    setup_action_kind: declared_setup_task_invocation
+    setup_action_class: required_setup_action
+    setup_action_disposition_class: succeeded_immediate
+    summary: Materialized the workspace settings overlay.
+  - setup_action_id_ref: task:package_restore_pnpm
+    setup_action_kind: declared_setup_task_invocation
+    setup_action_class: required_setup_action
+    setup_action_disposition_class: failed_user_review_required
+    summary: pnpm restore failed; rollback to the lockfile checkpoint is offered.
+handoff_action_set:
+  - handoff_action_class: rollback_to_checkpoint_action
+    handoff_action_handle_ref: rollback_checkpoint:self_hosted_org.node.web_app:lockfile:01
+    summary: Roll back to the lockfile checkpoint planted before apply.
+  - handoff_action_class: review_files_action
+    handoff_action_handle_ref: review_files:self_hosted_org.node.web_app:01
+    summary: Open the partially-applied tree for review before deciding.
+  - handoff_action_class: open_manifest_action
+    handoff_action_handle_ref: open_manifest:self_hosted_org.node.web_app:01
+    summary: Open the bound template manifest for inspection.
+  - handoff_action_class: delete_generated_output_action
+    handoff_action_handle_ref: delete_generated_output:self_hosted_org.node.web_app:lockfile:01
+    summary: Delete generated output via the lockfile-checkpoint recovery route.
+  - handoff_action_class: report_to_template_owner_action
+    handoff_action_handle_ref: report_to_template_owner:self_hosted_org.node.web_app:01
+    summary: Send an evidence packet to the template owner.
+  - handoff_action_class: local_only_continuation_action
+    handoff_action_handle_ref: continuation:local_only:self_hosted_org.node.web_app:01
+    summary: Continue locally without finishing the package restore.
+  - handoff_action_class: bypass_open_without_starter_action
+    handoff_action_handle_ref: bypass:open_workspace_without_starter:01
+    summary: Open the workspace without the starter scaffold.
+recovery_route_class_set:
+  - recovery_via_rollback_to_checkpoint
+  - recovery_via_review_files_then_continue
+  - recovery_via_open_manifest_review
+  - recovery_via_delete_generated_output
+  - recovery_via_local_only_continuation
+  - recovery_via_report_to_template_owner
+  - recovery_via_bypass_to_open_without_starter
+create_without_starter_route_ids:
+  - bypass.open_folder_without_starter
+  - bypass.open_workspace_without_starter
+  - bypass.continue_without_starter
+delete_generated_output_recovery_route_class: delete_with_lockfile_checkpoint_recovery
+delete_generated_output_recovery_route_ref: delete_generated_output:self_hosted_org.node.web_app:lockfile:01
+provenance_anchor_class: lineage_metadata_file_under_vcs
+rollback_checkpoint_ref: rollback_checkpoint:self_hosted_org.node.web_app:lockfile:01
+denial_reason_class: partial_apply_recovery_required
+template_health_state_class_carried: fresh
+ai_tool_proposed_review_ticket_ref: null
+summary: >
+  Partial setup failure on package_restore_pnpm; rollback to
+  lockfile checkpoint, delete-generated-output, review-files,
+  report-to-template-owner, and bypass-to-open-without-starter
+  recovery routes are offered at equal weight.
+notes_ref: null
+minted_at: "2026-04-22T11:14:30Z"
