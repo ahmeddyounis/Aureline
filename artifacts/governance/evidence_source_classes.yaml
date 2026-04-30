@@ -1,0 +1,612 @@
+# Evidence-source classes register.
+#
+# Canonical machine-readable register of the closed evidence-source-class
+# vocabulary that the chronology-context contract pins onto every
+# history-heavy surface (run history, captures, comments / review threads,
+# deletion-event rows, audit rows, incident-timeline rows, enterprise-
+# session rows, support-bundle rows, AI-evidence packet rows). The contract
+# at /docs/governance/chronology_context_contract.md is the normative
+# narrative; the schema at
+# /schemas/governance/chronology_context.schema.json is the cross-tool
+# boundary; this file is the authoritative class-by-class register every
+# rendering surface MUST resolve through.
+#
+# Scope. Names every admissible source class for an evidence row, the
+# rendering rule that surface MUST follow when the class is resolved, the
+# imported/offline-vs-live posture the row MUST carry, the export and
+# support-parity rules the row MUST honor, and the deny vocabulary that
+# fires when a row tries to upgrade an imported/offline/mirrored source
+# into live system truth.
+#
+# Out of scope. This register does not implement time-sync, retention,
+# import pipelines, or replay backends; it only freezes the vocabulary
+# every consumer reuses. Adding a new source class is additive-minor and
+# requires both the schema's chronology_evidence_source_class enum to
+# advance and a new decision row under
+# /artifacts/governance/decision_register.yaml. Repurposing or removing a
+# class is breaking and requires a new decision row.
+#
+# Invariants every surface MUST honor:
+#   - A row whose source class names live or live_with_bounded_skew MUST
+#     bind a synchronized or synchronized-with-bounded-skew clock through
+#     the timestamp envelope; otherwise the row is non-conforming.
+#   - A row whose source class names anything in the imported, mirrored,
+#     offline, or replayed families MUST resolve current_state_class to a
+#     retained_artifact value and MUST NOT render as live system truth.
+#   - A row whose source class names support_bundle_replay or
+#     recovery_snapshot_replay MUST cite the support-bundle or recovery
+#     manifest the replay came from on the chronology-context record's
+#     evidence_source_ref field.
+#   - Raw hostnames, raw NTP peer addresses, raw IP addresses, raw device
+#     serial numbers, raw user identifiers, raw billing-account ids, raw
+#     API keys, raw OAuth tokens, raw mTLS material, raw model weights,
+#     raw pack bytes, raw buffer text, raw terminal bytes, raw debug
+#     payloads, and raw absolute paths never cross this register or its
+#     companion schema; rows carry typed enums plus opaque
+#     evidence_source_ref ids only.
+#   - Free-text source phrases such as "source unknown", "imported",
+#     "offline copy", or "live data" are non-conforming on any surface
+#     governed by this register; the closed vocabulary below is the only
+#     allowed text.
+
+schema_version: 1
+catalog_id: aureline.evidence_source_classes
+status: seeded
+
+contract_doc_ref: docs/governance/chronology_context_contract.md
+schema_ref: schemas/governance/chronology_context.schema.json
+timestamp_envelope_schema_ref: schemas/governance/timestamp_envelope.schema.json
+record_state_schema_ref: schemas/governance/record_state.schema.json
+fixtures_dir: fixtures/governance/chronology_context_cases/
+
+# -----------------------------------------------------------------------------
+# Closed evidence-source-class vocabulary.
+#
+# Every chronology_context_record MUST resolve evidence_source_class to
+# exactly one of these rows. The schema's enum is generated from this list
+# verbatim; if the two disagree, the schema is authoritative for tooling and
+# this register must be updated in the same change.
+# -----------------------------------------------------------------------------
+evidence_source_classes:
+  - source_class: live_system_truth
+    title: Live system truth
+    summary: >
+      The row reflects current product state captured by the observing
+      runtime on a synchronized clock. Joining and ordering against other
+      live rows on the same runtime is sound.
+    current_state_required: live_current_system_state
+    timestamp_envelope_pairing:
+      clock_source_class_allowed:
+        - local_monotonic_reference_clock
+        - local_system_wall_clock
+        - ntp_synchronized_wall_clock
+        - trusted_platform_authenticated_clock
+      clock_sync_state_class_allowed:
+        - synchronized
+      partial_order_label_class_allowed:
+        - fully_ordered_monotonic
+        - partially_ordered_same_runtime
+      import_origin_class_required: not_imported
+    rendering_rule: >
+      Surfaces MAY render a live state chip and a relative-time label that
+      counts from "now" on the rendering surface. Both absolute and
+      relative time MUST coexist on consequential or safety-critical rows.
+    export_parity_rule: >
+      Exports preserve evidence_source_class verbatim. The chronology
+      export preview pins time_zone_class = utc and
+      absolute_time_format_class = iso_8601_utc.
+    deny_examples:
+      - clock_sync_state_class is unsynchronized
+      - import_origin_class is not_imported but evidence_source_ref names
+        an external manifest
+
+  - source_class: live_with_bounded_skew
+    title: Live with bounded skew
+    summary: >
+      The row reflects current product state but the observing clock has a
+      measured skew bound. The skew label MUST render so a reader does not
+      treat the row as zero-skew live truth.
+    current_state_required: live_current_system_state
+    timestamp_envelope_pairing:
+      clock_source_class_allowed:
+        - local_monotonic_reference_clock
+        - local_system_wall_clock
+        - ntp_synchronized_wall_clock
+        - trusted_platform_authenticated_clock
+      clock_sync_state_class_required: synchronized_with_bounded_skew
+      partial_order_label_class_allowed:
+        - fully_ordered_monotonic
+        - partially_ordered_same_runtime
+      import_origin_class_required: not_imported
+    rendering_rule: >
+      Surfaces MUST render a skew label on the row. Relative-time labels
+      MAY render but MUST NOT be presented as zero-skew.
+    export_parity_rule: >
+      Exports preserve the skew block verbatim from the timestamp envelope
+      and pin canonical_export_time_zone_class to utc.
+    deny_examples:
+      - skew block missing
+      - skew_label_rendered is false on the local_render block
+
+  - source_class: mirrored_managed_surface
+    title: Mirrored managed surface
+    summary: >
+      The row was captured on the observing runtime but the authoritative
+      copy lives on a managed surface (managed cloud, hosted session
+      archive, managed claim manifest). The mirror is read-only on the
+      observing runtime and may lag the managed origin.
+    current_state_required: retained_artifact_managed_authoritative
+    timestamp_envelope_pairing:
+      clock_source_class_allowed:
+        - local_monotonic_reference_clock
+        - ntp_synchronized_wall_clock
+        - trusted_platform_authenticated_clock
+        - remote_agent_reported_clock
+        - imported_external_audit_trail_clock
+      clock_sync_state_class_allowed:
+        - synchronized
+        - synchronized_with_bounded_skew
+        - unsynchronized_partial_order_only
+      import_origin_class_allowed:
+        - not_imported
+        - companion_surface_export
+    rendering_rule: >
+      Surfaces MUST render a mirrored-surface chip and MUST NOT imply the
+      mirror is the authoritative origin. A relative-time label MAY render
+      but MUST be qualified by a mirror-lag note when partial-order is
+      anything other than fully_ordered_monotonic.
+    export_parity_rule: >
+      Exports cite the managed-surface evidence_source_ref and preserve
+      the mirror posture; an export that drops the mirror class is
+      non-conforming.
+
+  - source_class: imported_remote_agent
+    title: Imported remote-agent evidence
+    summary: >
+      The row was reported by a remote agent (devcontainer, SSH host,
+      cloud workspace, sandbox) and imported by the observing runtime.
+      The remote clock is not directly attestable.
+    current_state_required: retained_artifact_imported_origin
+    timestamp_envelope_pairing:
+      clock_source_class_required: remote_agent_reported_clock
+      clock_sync_state_class_allowed:
+        - synchronized_with_bounded_skew
+        - unsynchronized
+        - unsynchronized_partial_order_only
+        - unsynchronized_import_only
+      partial_order_label_class_allowed:
+        - partially_ordered_same_runtime
+        - partially_ordered_causal_only
+        - partially_ordered_import_window
+        - unordered_only_grouping
+      import_origin_class_required: remote_agent_export
+      import_declared_required: true
+    rendering_rule: >
+      Surfaces MUST render an imported chip plus the import-window label.
+      A live-state chip MUST NOT render. Relative-time text MUST count
+      from the import_window_end_utc, not from "now".
+    export_parity_rule: >
+      Exports preserve the import_declared block verbatim. An export that
+      drops the import window or rebrands it as live denies with
+      live_state_claimed_on_imported_row.
+
+  - source_class: imported_extension
+    title: Imported extension evidence
+    summary: >
+      The row was reported by an extension host that the observing
+      runtime does not attest synchronization for. Treated as imported
+      for chronology purposes.
+    current_state_required: retained_artifact_imported_origin
+    timestamp_envelope_pairing:
+      clock_source_class_required: extension_reported_clock
+      clock_sync_state_class_allowed:
+        - synchronized_with_bounded_skew
+        - unsynchronized
+        - unsynchronized_partial_order_only
+        - unsynchronized_import_only
+      partial_order_label_class_allowed:
+        - partially_ordered_same_runtime
+        - partially_ordered_causal_only
+        - partially_ordered_import_window
+        - unordered_only_grouping
+      import_origin_class_required: extension_export
+      import_declared_required: true
+    rendering_rule: >
+      Surfaces MUST render an imported-extension chip. A live-state chip
+      MUST NOT render. Relative-time text counts from the import window.
+    export_parity_rule: >
+      Exports preserve the extension's import_source_ref as opaque; raw
+      extension hostnames or raw extension package paths MUST NOT cross
+      the export boundary.
+
+  - source_class: imported_external_audit_trail
+    title: Imported external audit trail
+    summary: >
+      The row came from an external audit trail (compliance archive, SIEM
+      export, third-party audit ledger) admitted as evidence by the
+      observing runtime. The clock is the audit trail's, not the
+      runtime's.
+    current_state_required: retained_artifact_imported_origin
+    timestamp_envelope_pairing:
+      clock_source_class_required: imported_external_audit_trail_clock
+      clock_sync_state_class_allowed:
+        - synchronized_with_bounded_skew
+        - unsynchronized
+        - unsynchronized_partial_order_only
+        - unsynchronized_import_only
+      partial_order_label_class_allowed:
+        - partially_ordered_causal_only
+        - partially_ordered_import_window
+        - unordered_only_grouping
+      import_origin_class_required: external_audit_trail
+      import_declared_required: true
+    rendering_rule: >
+      Surfaces MUST render an external-audit-trail chip plus a skew label
+      and a partial-order label. A live-state chip MUST NOT render and
+      relative-time text MUST count from the import window, not from
+      "now".
+    export_parity_rule: >
+      Exports preserve the audit-trail import_source_ref and the declared
+      skew block verbatim. The external audit trail's authoritative copy
+      remains at the import origin and is outside Aureline's delete path.
+
+  - source_class: offline_local_evidence_packet
+    title: Offline local evidence packet
+    summary: >
+      The row was captured by the observing runtime while disconnected
+      from any managed surface or peer (offline workspace, air-gapped
+      lab, local-only support bundle). The packet is authoritative for
+      the disconnected window but not synchronized against any external
+      reference.
+    current_state_required: retained_artifact_offline_local
+    timestamp_envelope_pairing:
+      clock_source_class_allowed:
+        - local_monotonic_reference_clock
+        - local_system_wall_clock
+      clock_sync_state_class_allowed:
+        - unsynchronized
+        - unsynchronized_partial_order_only
+      partial_order_label_class_allowed:
+        - partially_ordered_same_runtime
+        - partially_ordered_causal_only
+        - unordered_only_grouping
+      import_origin_class_required: not_imported
+    rendering_rule: >
+      Surfaces MUST render an offline-evidence chip plus a partial-order
+      label. A live-state chip MUST NOT render once the runtime
+      reconnects; the row remains a retained artifact of the offline
+      window.
+    export_parity_rule: >
+      Exports preserve the offline-window posture so a later online
+      reviewer cannot mistake the packet for live state. The chronology
+      export preview pins iso_8601_utc.
+
+  - source_class: support_bundle_replay
+    title: Support-bundle replay
+    summary: >
+      The row was reconstructed from a support-bundle replay. The
+      observing runtime did not record the row directly; the bundle did.
+    current_state_required: retained_artifact_support_replay
+    timestamp_envelope_pairing:
+      clock_source_class_required: reconstructed_from_backup_clock
+      clock_sync_state_class_allowed:
+        - unsynchronized_import_only
+        - synthesized_for_fixture
+      partial_order_label_class_allowed:
+        - partially_ordered_import_window
+        - unordered_only_grouping
+      import_origin_class_required: support_bundle_replay
+      import_declared_required: true
+    rendering_rule: >
+      Surfaces MUST render a replay chip and MUST cite the support-bundle
+      evidence_source_ref. A live-state chip MUST NOT render. Relative-
+      time text counts from the replay window, not from "now".
+    export_parity_rule: >
+      Exports cite the support-bundle id verbatim. A re-export that drops
+      the support-bundle ref is non-conforming.
+
+  - source_class: recovery_snapshot_replay
+    title: Recovery-snapshot replay
+    summary: >
+      The row was reconstructed from a recovery snapshot (workspace
+      crash-recovery archive, journaled checkpoint, incident
+      reconstruction). The observing runtime did not record the row
+      directly; the snapshot did.
+    current_state_required: retained_artifact_recovery_replay
+    timestamp_envelope_pairing:
+      clock_source_class_required: reconstructed_from_backup_clock
+      clock_sync_state_class_allowed:
+        - unsynchronized_import_only
+        - synthesized_for_fixture
+      partial_order_label_class_allowed:
+        - partially_ordered_import_window
+        - unordered_only_grouping
+      import_origin_class_required: recovery_snapshot_replay
+      import_declared_required: true
+    rendering_rule: >
+      Surfaces MUST render a recovery-replay chip and MUST cite the
+      recovery snapshot's evidence_source_ref. A live-state chip MUST
+      NOT render.
+    export_parity_rule: >
+      Exports cite the recovery-snapshot id verbatim and preserve the
+      partial-order label.
+
+  - source_class: synthetic_fixture_only
+    title: Synthetic fixture only
+    summary: >
+      The row was minted by a harness fixture or replay test; its
+      timestamps are seeded ticks. Surfaces MUST NOT present synthetic
+      rows as live or imported truth to a reviewer.
+    current_state_required: retained_artifact_synthetic_fixture
+    timestamp_envelope_pairing:
+      clock_source_class_required: synthetic_fixture_tick_source
+      clock_sync_state_class_required: synthesized_for_fixture
+      partial_order_label_class_allowed:
+        - partially_ordered_same_runtime
+        - partially_ordered_causal_only
+        - partially_ordered_import_window
+        - unordered_only_grouping
+      import_origin_class_allowed:
+        - not_imported
+        - support_bundle_replay
+        - recovery_snapshot_replay
+    rendering_rule: >
+      Surfaces MUST render a synthetic-fixture chip when the row is
+      consumed outside a test harness. A live-state chip MUST NOT render
+      and the row MUST NOT appear in published claim manifests, public
+      truth, or release packets.
+    export_parity_rule: >
+      Exports preserve the synthetic-fixture posture; a release packet
+      that ships a synthetic row denies with
+      synthetic_fixture_in_release_packet.
+
+# -----------------------------------------------------------------------------
+# Closed current-state vocabulary.
+#
+# Every chronology_context_record MUST resolve current_state_class to one of
+# the values below. The live_current_system_state value is the only value
+# that admits a live-state chip on the rendering surface. Every other value
+# is a retained-artifact posture and MUST be rendered with the matching
+# retained-artifact chip.
+# -----------------------------------------------------------------------------
+current_state_classes:
+  - state_class: live_current_system_state
+    summary: >
+      The row reflects current system state on the observing runtime.
+      Allowed only for evidence_source_class values
+      live_system_truth and live_with_bounded_skew.
+    rendering_rule: >
+      Surfaces MAY render a live chip and a relative-time label that
+      counts from "now". Both absolute and relative time MUST coexist on
+      consequential or safety-critical rows.
+
+  - state_class: retained_artifact_managed_authoritative
+    summary: >
+      The row reflects a managed surface's authoritative copy. The
+      observing runtime mirrors but does not own the row.
+    rendering_rule: >
+      Surfaces MUST render a managed-mirror chip and MUST NOT imply the
+      mirror is the origin.
+
+  - state_class: retained_artifact_imported_origin
+    summary: >
+      The row reflects an imported origin (remote agent, extension,
+      external audit trail). The observing runtime did not record it.
+    rendering_rule: >
+      Surfaces MUST render an imported chip and the import-window label.
+      A live chip MUST NOT render.
+
+  - state_class: retained_artifact_offline_local
+    summary: >
+      The row reflects an offline local evidence packet captured while
+      disconnected from any managed surface.
+    rendering_rule: >
+      Surfaces MUST render an offline chip and a partial-order label.
+
+  - state_class: retained_artifact_support_replay
+    summary: >
+      The row reflects a support-bundle replay reconstructed by the
+      runtime from the bundle.
+    rendering_rule: >
+      Surfaces MUST render a support-replay chip and cite the bundle
+      evidence_source_ref.
+
+  - state_class: retained_artifact_recovery_replay
+    summary: >
+      The row reflects a recovery-snapshot replay reconstructed by the
+      runtime from a crash-recovery or incident reconstruction archive.
+    rendering_rule: >
+      Surfaces MUST render a recovery-replay chip and cite the
+      recovery snapshot's evidence_source_ref.
+
+  - state_class: retained_artifact_synthetic_fixture
+    summary: >
+      The row was minted by a harness fixture and is not real evidence.
+    rendering_rule: >
+      Surfaces MUST render a synthetic-fixture chip when consumed outside
+      a test harness; the row MUST NOT appear in release packets, public
+      truth, or claim manifests.
+
+# -----------------------------------------------------------------------------
+# Closed consumer-row-kind vocabulary.
+#
+# The chronology-context contract pins this list onto the schema's
+# chronology_consumer_row_kind enum. Every history-heavy surface row family
+# MUST resolve through one of these kinds; surfaces that mint a private kind
+# deny with consumer_row_kind_unresolved.
+# -----------------------------------------------------------------------------
+consumer_row_kinds:
+  - kind: run_history_row
+    summary: >
+      One run-history row (build, test, benchmark, support drill,
+      governance recurring report). Carries a run id and a
+      time_range_envelope when start/finish pairs are required.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+      - time_range_envelope_record
+
+  - kind: capture_event_row
+    summary: >
+      One capture event row (log capture, metric capture, trace capture,
+      session capture, screenshot or screen-recording capture).
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+
+  - kind: comment_or_review_thread_row
+    summary: >
+      One anchored comment, review thread post, or shared annotation.
+      Imported review-thread imports (e.g. mirrored from an external
+      code-review provider) MUST resolve to an imported source class.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+
+  - kind: deletion_event_row
+    summary: >
+      One deletion event row on the deletion timeline (delete requested,
+      policy retention named, legal-hold blocker raised, deletion
+      completed, exported-local-copy disclosure, recovery deletion).
+      Held or policy-retained rows MUST NOT render with a live chip.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+
+  - kind: audit_event_row
+    summary: >
+      One audit-stream row (governance audit, policy decision, support
+      audit, AI evidence audit). Imported audit trails MUST resolve to
+      imported_external_audit_trail.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+
+  - kind: incident_timeline_row
+    summary: >
+      One incident-timeline row. Incident timelines stitch together live,
+      mirrored, and imported sources; every row resolves through this
+      register so the source class survives the stitch.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+      - partial_chronology_segment_record
+
+  - kind: enterprise_session_row
+    summary: >
+      One enterprise-session row covering participant presence, elevated-
+      control grants, recording-state transitions, and session-end
+      reasons. Raw code is NOT stored in the row unless policy explicitly
+      enables capture; the row carries metadata only by default.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+      - time_range_envelope_record
+
+  - kind: support_bundle_row
+    summary: >
+      One support-bundle row. Support bundles often stitch live,
+      mirrored, and imported sources; every row resolves the source
+      class verbatim.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+      - partial_chronology_segment_record
+
+  - kind: ai_evidence_packet_row
+    summary: >
+      One AI-evidence packet row. AI evidence packets often replay
+      reconstructed rows; the source class distinguishes live capture
+      from replay so a reviewer cannot misread replay as live.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+
+  - kind: chronology_export_preview_row
+    summary: >
+      One chronology export preview row. Export previews pin
+      iso_8601_utc and time_zone_class = utc through the timestamp
+      envelope's local_render block.
+    timestamp_envelope_record_kinds_required:
+      - timestamp_envelope_record
+      - partial_chronology_segment_record
+
+# -----------------------------------------------------------------------------
+# Enterprise-session field requirements.
+#
+# Enterprise sessions need named participant presence, elevated-control
+# grant timing, recording-state transitions, and a session-end reason
+# without forcing storage of raw code unless policy explicitly enables
+# capture. The list below names the typed fields the chronology-context
+# record MUST carry on enterprise_session_row rows. Surfaces that drop a
+# field deny with enterprise_session_field_missing.
+# -----------------------------------------------------------------------------
+enterprise_session_required_fields:
+  - field: participant_presence_class
+    summary: Closed presence vocabulary naming whether the actor was
+      joining, present, temporarily-paused, or left.
+  - field: elevated_control_grant_class
+    summary: Closed grant vocabulary naming the elevated-control posture
+      (terminal, debugger, runbook, no_grant_active) for this row.
+  - field: recording_state_class
+    summary: Closed recording-state vocabulary mirrored verbatim from
+      schemas/collaboration/recorded_artifact_row.schema.json.
+  - field: session_end_reason_class
+    summary: Closed end-reason vocabulary naming why a session row
+      finalized (host_left, all_participants_left, policy_terminated,
+      legal_hold_terminated, recovery_terminated, no_end_yet_session_open).
+  - field: raw_code_capture_admitted
+    summary: Boolean. False by default. Becomes true only when policy
+      explicitly enables raw-code capture; surfaces MUST render a
+      raw-code-capture-on chip when true.
+  - field: policy_enabled_capture_ref
+    summary: Opaque ref to the policy bundle row that admitted raw-code
+      capture. Required (non-null) only when raw_code_capture_admitted is
+      true.
+
+# -----------------------------------------------------------------------------
+# Forbidden user-facing phrases.
+#
+# These phrases describe an evidence row's source without naming the
+# evidence_source_class or current_state_class above and are non-conforming
+# on any surface governed by this register. Drift scans MUST reject them.
+# -----------------------------------------------------------------------------
+forbidden_user_facing_phrases:
+  - phrase: "live data"
+    rule: only permitted on rows whose evidence_source_class is
+      live_system_truth or live_with_bounded_skew.
+  - phrase: "real-time"
+    rule: only permitted on rows whose evidence_source_class is
+      live_system_truth.
+  - phrase: "imported"
+    rule: only permitted as the rendered text of an imported chip on
+      rows whose evidence_source_class is in the imported family.
+  - phrase: "offline copy"
+    rule: only permitted as the rendered text of an offline chip on
+      rows whose evidence_source_class is offline_local_evidence_packet.
+  - phrase: "source unknown"
+    rule: never permitted; surfaces MUST resolve evidence_source_class.
+  - phrase: "from cache"
+    rule: not a substitute for retained_artifact_managed_authoritative
+      or retained_artifact_imported_origin; never permitted on its own.
+
+# -----------------------------------------------------------------------------
+# Denial vocabulary.
+#
+# The schema's chronology_context_denial_reason enum is generated from this
+# list verbatim. Denials fail closed; surfaces MUST emit one of these
+# stable labels rather than admit silent drift.
+# -----------------------------------------------------------------------------
+denial_reasons:
+  - denial_reason: evidence_source_class_unresolved
+  - denial_reason: current_state_class_unresolved
+  - denial_reason: consumer_row_kind_unresolved
+  - denial_reason: timestamp_envelope_ref_missing
+  - denial_reason: live_state_claimed_on_imported_row
+  - denial_reason: live_state_claimed_on_offline_row
+  - denial_reason: live_state_claimed_on_replay_row
+  - denial_reason: live_state_claimed_on_synthetic_row
+  - denial_reason: imported_row_missing_import_declared_block
+  - denial_reason: imported_row_missing_evidence_source_ref
+  - denial_reason: support_bundle_replay_missing_support_bundle_ref
+  - denial_reason: recovery_snapshot_replay_missing_recovery_manifest_ref
+  - denial_reason: synthetic_fixture_in_release_packet
+  - denial_reason: enterprise_session_field_missing
+  - denial_reason: raw_code_capture_admitted_without_policy_ref
+  - denial_reason: deletion_event_held_row_rendered_as_completed
+  - denial_reason: chronology_export_preview_not_utc
+  - denial_reason: relative_time_rendered_on_unordered_only_grouping_row
+  - denial_reason: skew_label_not_rendered_on_unsynchronized_row
+  - denial_reason: forbidden_phrase_emitted
+  - denial_reason: chronology_context_schema_version_lagging

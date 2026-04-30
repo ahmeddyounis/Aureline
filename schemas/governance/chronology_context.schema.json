@@ -1,0 +1,979 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/chronology_context.schema.json",
+  "title": "Aureline chronology-context, timestamp-timezone, and imported-vs-live evidence-distinction contract",
+  "description": "Boundary schema for the chronology_context_record frozen in docs/governance/chronology_context_contract.md. One record of this kind is what every history-heavy surface (run history, capture event lanes, comments / review threads, deletion-event timelines, audit-event lanes, incident timelines, enterprise-session inspectors, support-bundle rows, AI-evidence packet rows, chronology export previews) embeds when it answers four questions in user-facing terms: when did this happen, in what timezone basis, did this come from live system truth or a retained artifact, and from which evidence-source class. The record cites a timestamp_envelope_record (or time_range_envelope_record / partial_chronology_segment_record) from schemas/governance/timestamp_envelope.schema.json so canonical UTC, monotonic ordering, skew, partial-order labelling, and import windows survive verbatim; the record then layers the closed evidence_source_class, current_state_class, consumer_row_kind, and relative-time presentation vocabulary from artifacts/governance/evidence_source_classes.yaml on top so an imported, mirrored, offline, or replayed row cannot masquerade as live system truth in the UI, in the export, or in the support flow. Enterprise-session rows additionally carry typed participant-presence, elevated-control-grant, recording-state, and session-end-reason fields plus a raw_code_capture_admitted boolean that defaults false; raw code is admitted only when policy explicitly enables capture and the row cites the admitting policy bundle. Raw hostnames, raw NTP peer addresses, raw IP addresses, raw device serial numbers, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw buffer text, raw terminal bytes, raw debug payloads, and raw absolute paths never cross this schema boundary; rows carry typed enums plus opaque evidence_source_ref / policy_enabled_capture_ref / linked_*_ref ids only. The eventual chronology Rust types are the schema of record; this file is the cross-tool boundary every non-owning chronology / inspector / export / support / admin surface reads. Adding a new evidence_source_class, current_state_class, consumer_row_kind, participant_presence_class, elevated_control_grant_class, session_end_reason_class, recording_state_class, relative_time_basis_class, mirror_lag_state_class, deletion_event_state_class, or chronology_context_denial_reason value is additive-minor and bumps chronology_context_schema_version; repurposing or removing a value is breaking and requires a new decision row in artifacts/governance/decision_register.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "chronology_context_schema_version",
+    "record_kind",
+    "chronology_context_id",
+    "consumer_row_kind",
+    "evidence_source_class",
+    "current_state_class",
+    "evidence_source_ref",
+    "timestamp_envelope_ref",
+    "timestamp_envelope_record_kind",
+    "timezone_basis",
+    "relative_time_presentation",
+    "imported_artifact_disclosure",
+    "row_summary_label",
+    "minted_at"
+  ],
+  "$defs": {
+    "chronology_context_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this chronology-context vocabulary export. Current value is 1. Bumped on breaking payload changes only; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe on manifests / journal entries / support bundles / evidence packets / claim manifests / admin chronology consoles. Raw hostnames, raw NTP peer addresses, raw IP addresses, raw device serial numbers, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw buffer text, raw terminal bytes, raw debug payloads, and raw absolute paths never appear here."
+    },
+
+    "utc_wall_clock_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC wall-clock timestamp. MUST use the Z suffix (or +00:00). Local-zone presentation lives only on the cited timestamp_envelope_record's local_render block."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280,
+      "description": "Short human-readable sentence safe to show on chronology-row chips, inspectors, export previews, and admin surfaces. Never contains raw hostnames, raw paths, raw payload bytes, raw credentials, or raw user identifiers."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "consumer_row_kind": {
+      "type": "string",
+      "enum": [
+        "run_history_row",
+        "capture_event_row",
+        "comment_or_review_thread_row",
+        "deletion_event_row",
+        "audit_event_row",
+        "incident_timeline_row",
+        "enterprise_session_row",
+        "support_bundle_row",
+        "ai_evidence_packet_row",
+        "chronology_export_preview_row"
+      ],
+      "description": "Frozen consumer-row-kind vocabulary. Mirrors artifacts/governance/evidence_source_classes.yaml#consumer_row_kinds verbatim."
+    },
+
+    "evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "live_system_truth",
+        "live_with_bounded_skew",
+        "mirrored_managed_surface",
+        "imported_remote_agent",
+        "imported_extension",
+        "imported_external_audit_trail",
+        "offline_local_evidence_packet",
+        "support_bundle_replay",
+        "recovery_snapshot_replay",
+        "synthetic_fixture_only"
+      ],
+      "description": "Frozen evidence-source-class vocabulary. Mirrors artifacts/governance/evidence_source_classes.yaml#evidence_source_classes verbatim. Only live_system_truth and live_with_bounded_skew may resolve current_state_class to live_current_system_state; every other value is a retained artifact."
+    },
+
+    "current_state_class": {
+      "type": "string",
+      "enum": [
+        "live_current_system_state",
+        "retained_artifact_managed_authoritative",
+        "retained_artifact_imported_origin",
+        "retained_artifact_offline_local",
+        "retained_artifact_support_replay",
+        "retained_artifact_recovery_replay",
+        "retained_artifact_synthetic_fixture"
+      ],
+      "description": "Frozen current-state vocabulary. live_current_system_state is the only value that admits a live-state chip on the rendering surface. Every other value is a retained-artifact posture and MUST be rendered with the matching retained-artifact chip."
+    },
+
+    "timestamp_envelope_record_kind": {
+      "type": "string",
+      "enum": [
+        "timestamp_envelope_record",
+        "time_range_envelope_record",
+        "partial_chronology_segment_record"
+      ],
+      "description": "Re-exported from schemas/governance/timestamp_envelope.schema.json. Names which envelope record kind the timestamp_envelope_ref resolves to."
+    },
+
+    "timezone_basis_class": {
+      "type": "string",
+      "enum": [
+        "canonical_utc",
+        "device_local_iana",
+        "deployment_pinned_iana",
+        "observer_skew_labeled",
+        "imported_origin_zone_labeled",
+        "not_rendered_canonical_utc_only"
+      ],
+      "description": "Frozen timezone-basis vocabulary used by the chronology-context layer to name the timezone the rendering surface commits to. canonical_utc and not_rendered_canonical_utc_only pin UTC. device_local_iana and deployment_pinned_iana name a real IANA zone the surface MUST also carry under display_time_zone_iana on the cited timestamp_envelope_record's local_render block. observer_skew_labeled is reserved for rows whose observing client's wall clock is unreliable; the display label MUST say so. imported_origin_zone_labeled is reserved for imported rows whose displayed time is the import origin's zone; the display label MUST name the origin zone explicitly."
+    },
+
+    "relative_time_basis_class": {
+      "type": "string",
+      "enum": [
+        "since_now_live",
+        "since_now_with_skew_label",
+        "since_import_window_end",
+        "since_replay_window_end",
+        "since_offline_window_end",
+        "since_session_end",
+        "not_rendered_partial_order_only",
+        "not_rendered_synthetic_fixture"
+      ],
+      "description": "Frozen relative-time-basis vocabulary. since_now_live is permitted only on rows whose evidence_source_class is live_system_truth. since_now_with_skew_label is permitted only on rows whose evidence_source_class is live_with_bounded_skew or mirrored_managed_surface. since_import_window_end is required on imported_remote_agent / imported_extension / imported_external_audit_trail rows so relative-time text counts from the import window end, not from 'now'. since_replay_window_end is required on support_bundle_replay and recovery_snapshot_replay rows. since_offline_window_end is required on offline_local_evidence_packet rows. since_session_end is permitted on enterprise_session_row rows whose session has ended. not_rendered_partial_order_only is required when the cited timestamp_envelope_record's partial_order_label_class is unordered_only_grouping. not_rendered_synthetic_fixture is required on rows whose evidence_source_class is synthetic_fixture_only."
+    },
+
+    "imported_artifact_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "not_imported_live_or_local",
+        "imported_window_disclosed",
+        "imported_window_disclosed_with_skew_label",
+        "replay_window_disclosed",
+        "offline_window_disclosed",
+        "synthetic_fixture_disclosed"
+      ],
+      "description": "Frozen imported-artifact-disclosure vocabulary. Names what the rendering surface MUST show beside the timestamp so a reader does not misread imported / offline / replayed evidence as live."
+    },
+
+    "mirror_lag_state_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror_live_or_imported",
+        "mirror_in_sync_no_lag_observed",
+        "mirror_lag_within_tolerance",
+        "mirror_lag_outside_tolerance_partial_order_only",
+        "mirror_origin_unreachable_partial_order_only"
+      ],
+      "description": "Frozen mirror-lag vocabulary. Only mirrored_managed_surface rows MAY resolve to a non-default value; every other source class MUST resolve to no_mirror_live_or_imported."
+    },
+
+    "participant_presence_class": {
+      "type": "string",
+      "enum": [
+        "joining",
+        "present_active",
+        "present_observing_only",
+        "temporarily_paused",
+        "left",
+        "removed_by_policy",
+        "no_participant_row"
+      ],
+      "description": "Frozen participant-presence vocabulary on enterprise_session_row rows. no_participant_row is required when the row is not a participant-presence row."
+    },
+
+    "elevated_control_grant_class": {
+      "type": "string",
+      "enum": [
+        "no_grant_active",
+        "terminal_grant_active",
+        "debugger_grant_active",
+        "runbook_grant_active",
+        "remote_session_grant_active",
+        "elevated_admin_grant_active",
+        "grant_just_revoked"
+      ],
+      "description": "Frozen elevated-control-grant vocabulary on enterprise_session_row rows."
+    },
+
+    "recording_state_class": {
+      "type": "string",
+      "enum": [
+        "default_ephemeral_no_capture",
+        "explicit_enable_pending_capture",
+        "capturing_now",
+        "captured_no_export",
+        "captured_export_available",
+        "paused_temporary",
+        "stopped_finalized",
+        "never_admitted_at_this_mode"
+      ],
+      "description": "Re-exported from schemas/collaboration/recorded_artifact_row.schema.json#recording_state_class without modification."
+    },
+
+    "session_end_reason_class": {
+      "type": "string",
+      "enum": [
+        "host_left",
+        "all_participants_left",
+        "policy_terminated",
+        "legal_hold_terminated",
+        "recovery_terminated",
+        "no_end_yet_session_open"
+      ],
+      "description": "Frozen session-end-reason vocabulary on enterprise_session_row rows. no_end_yet_session_open is the only admissible value while the session has not finalized."
+    },
+
+    "deletion_event_state_class": {
+      "type": "string",
+      "enum": [
+        "delete_requested",
+        "policy_retention",
+        "legal_hold",
+        "delete_completed",
+        "exported_copy_remains_local",
+        "not_applicable_non_deletion_row"
+      ],
+      "description": "Re-exported from schemas/governance/export_delete_request_summary.schema.json#stable_delete_state without modification. not_applicable_non_deletion_row is required when consumer_row_kind is not deletion_event_row."
+    },
+
+    "deletion_event_extras": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deletion_event_state_class",
+        "delete_request_state_ref",
+        "deletion_event_label"
+      ],
+      "properties": {
+        "deletion_event_state_class": { "$ref": "#/$defs/deletion_event_state_class" },
+        "delete_request_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound delete_request_state_record on schemas/governance/export_delete_request_summary.schema.json. Required so a deletion-timeline row can resolve held / retained / completed posture without re-reading the export-delete summary."
+        },
+        "deletion_event_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Required block on consumer_row_kind = deletion_event_row rows. Held or policy-retained rows MUST resolve deletion_event_state_class to legal_hold or policy_retention; rendering them as delete_completed is non-conforming."
+    },
+
+    "import_declared_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "import_window_start_utc",
+        "import_window_end_utc",
+        "import_origin_label",
+        "import_source_ref"
+      ],
+      "properties": {
+        "import_window_start_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "import_window_end_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "import_origin_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short privacy-safe label naming the import origin (for example 'Remote agent A', 'External audit trail B'). Raw hostnames, raw peer addresses, and raw device identifiers MUST NOT appear here."
+        },
+        "import_source_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the import-source manifest the row came from. Re-exported from schemas/governance/timestamp_envelope.schema.json#import_declared_block."
+        }
+      },
+      "description": "Declared import window. Required (non-null) on rows whose evidence_source_class is in the imported / replayed family."
+    },
+
+    "offline_window_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline_window_start_utc",
+        "offline_window_end_utc",
+        "offline_window_label"
+      ],
+      "properties": {
+        "offline_window_start_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "offline_window_end_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "offline_window_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Declared offline window. Required (non-null) on rows whose evidence_source_class is offline_local_evidence_packet."
+    },
+
+    "relative_time_presentation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_time_basis_class",
+        "absolute_time_basis_class",
+        "both_forms_coexist_on_row"
+      ],
+      "properties": {
+        "relative_time_basis_class": { "$ref": "#/$defs/relative_time_basis_class" },
+        "absolute_time_basis_class": {
+          "type": "string",
+          "enum": [
+            "iso_8601_utc",
+            "iso_8601_local_with_offset",
+            "local_date_time_short",
+            "local_date_time_long",
+            "local_time_only_when_today",
+            "not_rendered"
+          ],
+          "description": "Re-exported from schemas/governance/timestamp_envelope.schema.json#absolute_time_format_class. iso_8601_utc is required on chronology_export_preview_row rows."
+        },
+        "both_forms_coexist_on_row": {
+          "type": "boolean",
+          "description": "True when the surface commits to rendering both absolute and relative time on the row. MUST be true on consequential and safety-critical rows so a reader does not have to choose between 'when exactly' and 'how long ago'."
+        },
+        "relative_time_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Optional reviewable sentence the surface MAY render as the relative-time text (for example 'About two minutes ago' for since_now_live, 'Imported 14 minutes after the window ended' for since_import_window_end). Forbidden phrases ('just now', 'recently', 'as of now', 'a moment ago', 'last known', 'seen around') MUST NOT appear."
+          }
+      },
+      "description": "Per-surface relative-time and absolute-time presentation. The cited timestamp_envelope_record's local_render block carries the timezone-class details; this block names the basis the rendering surface counts from."
+    },
+
+    "imported_artifact_disclosure_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imported_artifact_disclosure_class",
+        "disclosure_label"
+      ],
+      "properties": {
+        "imported_artifact_disclosure_class": { "$ref": "#/$defs/imported_artifact_disclosure_class" },
+        "disclosure_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence the surface MUST render beside the timestamp so a reader does not misread imported / offline / replayed evidence as live system truth. Free-text 'imported' / 'offline copy' / 'live data' substitutes are non-conforming; the label MUST name the source class explicitly."
+        }
+      },
+      "description": "Disclosure block the rendering surface uses to keep the imported / offline / replayed posture visible."
+    },
+
+    "enterprise_session_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participant_presence_class",
+        "elevated_control_grant_class",
+        "recording_state_class",
+        "session_end_reason_class",
+        "raw_code_capture_admitted",
+        "session_ref"
+      ],
+      "properties": {
+        "participant_presence_class": { "$ref": "#/$defs/participant_presence_class" },
+        "elevated_control_grant_class": { "$ref": "#/$defs/elevated_control_grant_class" },
+        "recording_state_class": { "$ref": "#/$defs/recording_state_class" },
+        "session_end_reason_class": { "$ref": "#/$defs/session_end_reason_class" },
+        "raw_code_capture_admitted": {
+          "type": "boolean",
+          "description": "Default false. True only when policy explicitly enables raw-code capture for this session row. A row that admits raw-code capture without citing the admitting policy bundle denies with raw_code_capture_admitted_without_policy_ref."
+        },
+        "policy_enabled_capture_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the policy bundle that admitted raw-code capture. Required (non-null) only when raw_code_capture_admitted is true; MUST be null otherwise."
+        },
+        "session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound enterprise session row in schemas/collaboration/session_state.schema.json. Required so a reviewer can resolve the session identity from the same chip."
+        },
+        "session_start_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_wall_clock_timestamp" }
+          ],
+          "description": "Canonical UTC start. Null only when consumer_row_kind is not enterprise_session_row."
+        },
+        "session_end_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_wall_clock_timestamp" }
+          ],
+          "description": "Canonical UTC end. Null when session_end_reason_class is no_end_yet_session_open."
+        }
+      },
+      "description": "Required block on consumer_row_kind = enterprise_session_row rows. Carries participant presence, elevated-control grant, recording state, session-end reason, and raw-code capture posture without forcing storage of raw code unless policy explicitly enables it."
+    },
+
+    "linked_evidence_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "linked_history_row_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_run_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_trace_span_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_task_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_record_state_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_support_bundle_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_recovery_manifest_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_chronology_export_preview_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "description": "Optional cross-surface back-references. Linked refs are preserved across exports; an export that drops a linked ref during projection is non-conforming."
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+    "chronology_context_schema_version": { "$ref": "#/$defs/chronology_context_schema_version" },
+
+    "record_kind": {
+      "type": "string",
+      "const": "chronology_context_record",
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "chronology_context_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable id for this chronology-context record. Quoted by every consuming surface that joins on the row."
+    },
+
+    "consumer_row_kind": { "$ref": "#/$defs/consumer_row_kind" },
+
+    "evidence_source_class": { "$ref": "#/$defs/evidence_source_class" },
+
+    "current_state_class": { "$ref": "#/$defs/current_state_class" },
+
+    "evidence_source_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque ref to the manifest, packet, archive, or session that is authoritative for this row's evidence. Required on every row so a reviewer can resolve provenance from the chip without re-reading the producer surface. For live_system_truth and live_with_bounded_skew rows this is the runtime-recording manifest. For mirrored / imported / replayed / offline rows this is the manifest of the authoritative origin (managed surface, remote agent, extension host, external audit trail, support bundle, recovery snapshot, offline packet)."
+    },
+
+    "timestamp_envelope_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque ref to the bound timestamp_envelope_record / time_range_envelope_record / partial_chronology_segment_record on schemas/governance/timestamp_envelope.schema.json. Every row MUST cite an envelope so canonical UTC, monotonic ordering, skew, partial-order labelling, and import-window posture survive verbatim; a row without timestamp_envelope_ref denies with timestamp_envelope_ref_missing."
+    },
+
+    "timestamp_envelope_record_kind": { "$ref": "#/$defs/timestamp_envelope_record_kind" },
+
+    "timezone_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timezone_basis_class"],
+      "properties": {
+        "timezone_basis_class": { "$ref": "#/$defs/timezone_basis_class" },
+        "display_time_zone_iana": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "IANA time-zone name when timezone_basis_class is device_local_iana, deployment_pinned_iana, or imported_origin_zone_labeled. Null otherwise."
+        },
+        "timezone_basis_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Optional reviewable sentence the surface MAY render to explain the timezone basis (for example 'Times shown in your device's time zone (America/Los_Angeles)' or 'Times shown in the import origin's time zone (Europe/Berlin)'). MUST NOT embed raw hostnames or raw peer addresses."
+        }
+      },
+      "description": "Per-surface timezone-basis pin. Composes with the cited timestamp_envelope_record's local_render block; canonical storage is always UTC regardless of this pin."
+    },
+
+    "relative_time_presentation": { "$ref": "#/$defs/relative_time_presentation_block" },
+
+    "imported_artifact_disclosure": { "$ref": "#/$defs/imported_artifact_disclosure_block" },
+
+    "import_declared": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/import_declared_block" }
+      ],
+      "description": "Required (non-null) on rows whose evidence_source_class is imported_remote_agent, imported_extension, imported_external_audit_trail, support_bundle_replay, or recovery_snapshot_replay. MUST be null on live_system_truth, live_with_bounded_skew, and offline_local_evidence_packet rows."
+    },
+
+    "offline_window": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/offline_window_block" }
+      ],
+      "description": "Required (non-null) on rows whose evidence_source_class is offline_local_evidence_packet. MUST be null otherwise."
+    },
+
+    "mirror_lag_state_class": { "$ref": "#/$defs/mirror_lag_state_class" },
+
+    "deletion_event_extras": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/deletion_event_extras" }
+      ],
+      "description": "Required (non-null) on rows whose consumer_row_kind is deletion_event_row. MUST be null on every other consumer_row_kind."
+    },
+
+    "enterprise_session_extras": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/enterprise_session_block" }
+      ],
+      "description": "Required (non-null) on rows whose consumer_row_kind is enterprise_session_row. MUST be null on every other consumer_row_kind."
+    },
+
+    "linked_evidence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/linked_evidence_block" }
+      ],
+      "description": "Optional cross-surface linkage block."
+    },
+
+    "row_summary_label": {
+      "$ref": "#/$defs/reviewable_sentence",
+      "description": "Short reviewable sentence describing what the row is about (for example 'Build run #482 finished on the macOS reference laptop'). Never contains raw payload bytes, raw paths, or raw credential material."
+    },
+
+    "minted_at": {
+      "$ref": "#/$defs/utc_wall_clock_timestamp",
+      "description": "Canonical UTC instant the chronology-context record was minted. Mirrors timestamp_envelope_record.canonical_utc_wall_clock conceptually; reproduced here so chronology-context consumers do not need to dereference the envelope to render the chip."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "evidence_source_class = live_system_truth MUST resolve current_state_class to live_current_system_state.",
+      "if": {
+        "properties": { "evidence_source_class": { "const": "live_system_truth" } },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "live_current_system_state" },
+          "import_declared": { "type": "null" },
+          "offline_window": { "type": "null" },
+          "mirror_lag_state_class": { "const": "no_mirror_live_or_imported" }
+        },
+        "required": ["current_state_class", "import_declared", "offline_window", "mirror_lag_state_class"]
+      }
+    },
+    {
+      "description": "evidence_source_class = live_with_bounded_skew MUST resolve current_state_class to live_current_system_state and MUST set relative_time_basis_class to since_now_with_skew_label.",
+      "if": {
+        "properties": { "evidence_source_class": { "const": "live_with_bounded_skew" } },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "live_current_system_state" },
+          "import_declared": { "type": "null" },
+          "offline_window": { "type": "null" },
+          "mirror_lag_state_class": { "const": "no_mirror_live_or_imported" },
+          "relative_time_presentation": {
+            "type": "object",
+            "properties": {
+              "relative_time_basis_class": { "const": "since_now_with_skew_label" }
+            },
+            "required": ["relative_time_basis_class"]
+          }
+        },
+        "required": ["current_state_class", "import_declared", "offline_window", "mirror_lag_state_class", "relative_time_presentation"]
+      }
+    },
+    {
+      "description": "evidence_source_class = mirrored_managed_surface MUST resolve current_state_class to retained_artifact_managed_authoritative.",
+      "if": {
+        "properties": { "evidence_source_class": { "const": "mirrored_managed_surface" } },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "retained_artifact_managed_authoritative" },
+          "offline_window": { "type": "null" },
+          "mirror_lag_state_class": {
+            "enum": [
+              "mirror_in_sync_no_lag_observed",
+              "mirror_lag_within_tolerance",
+              "mirror_lag_outside_tolerance_partial_order_only",
+              "mirror_origin_unreachable_partial_order_only"
+            ]
+          }
+        },
+        "required": ["current_state_class", "offline_window", "mirror_lag_state_class"]
+      }
+    },
+    {
+      "description": "evidence_source_class in the imported family (remote agent / extension / external audit trail) MUST carry a non-null import_declared block, MUST resolve current_state_class to retained_artifact_imported_origin, and MUST set relative_time_basis_class to since_import_window_end.",
+      "if": {
+        "properties": {
+          "evidence_source_class": {
+            "enum": [
+              "imported_remote_agent",
+              "imported_extension",
+              "imported_external_audit_trail"
+            ]
+          }
+        },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "retained_artifact_imported_origin" },
+          "import_declared": { "$ref": "#/$defs/import_declared_block" },
+          "offline_window": { "type": "null" },
+          "mirror_lag_state_class": { "const": "no_mirror_live_or_imported" },
+          "relative_time_presentation": {
+            "type": "object",
+            "properties": {
+              "relative_time_basis_class": { "const": "since_import_window_end" }
+            },
+            "required": ["relative_time_basis_class"]
+          }
+        },
+        "required": ["current_state_class", "import_declared", "offline_window", "mirror_lag_state_class", "relative_time_presentation"]
+      }
+    },
+    {
+      "description": "evidence_source_class = offline_local_evidence_packet MUST carry a non-null offline_window block, MUST resolve current_state_class to retained_artifact_offline_local, and MUST set relative_time_basis_class to since_offline_window_end.",
+      "if": {
+        "properties": { "evidence_source_class": { "const": "offline_local_evidence_packet" } },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "retained_artifact_offline_local" },
+          "import_declared": { "type": "null" },
+          "offline_window": { "$ref": "#/$defs/offline_window_block" },
+          "mirror_lag_state_class": { "const": "no_mirror_live_or_imported" },
+          "relative_time_presentation": {
+            "type": "object",
+            "properties": {
+              "relative_time_basis_class": { "const": "since_offline_window_end" }
+            },
+            "required": ["relative_time_basis_class"]
+          }
+        },
+        "required": ["current_state_class", "import_declared", "offline_window", "mirror_lag_state_class", "relative_time_presentation"]
+      }
+    },
+    {
+      "description": "evidence_source_class = support_bundle_replay MUST carry a non-null import_declared block, MUST resolve current_state_class to retained_artifact_support_replay, and MUST set relative_time_basis_class to since_replay_window_end.",
+      "if": {
+        "properties": { "evidence_source_class": { "const": "support_bundle_replay" } },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "retained_artifact_support_replay" },
+          "import_declared": { "$ref": "#/$defs/import_declared_block" },
+          "offline_window": { "type": "null" },
+          "mirror_lag_state_class": { "const": "no_mirror_live_or_imported" },
+          "relative_time_presentation": {
+            "type": "object",
+            "properties": {
+              "relative_time_basis_class": { "const": "since_replay_window_end" }
+            },
+            "required": ["relative_time_basis_class"]
+          }
+        },
+        "required": ["current_state_class", "import_declared", "offline_window", "mirror_lag_state_class", "relative_time_presentation"]
+      }
+    },
+    {
+      "description": "evidence_source_class = recovery_snapshot_replay MUST carry a non-null import_declared block, MUST resolve current_state_class to retained_artifact_recovery_replay, and MUST set relative_time_basis_class to since_replay_window_end.",
+      "if": {
+        "properties": { "evidence_source_class": { "const": "recovery_snapshot_replay" } },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "retained_artifact_recovery_replay" },
+          "import_declared": { "$ref": "#/$defs/import_declared_block" },
+          "offline_window": { "type": "null" },
+          "mirror_lag_state_class": { "const": "no_mirror_live_or_imported" },
+          "relative_time_presentation": {
+            "type": "object",
+            "properties": {
+              "relative_time_basis_class": { "const": "since_replay_window_end" }
+            },
+            "required": ["relative_time_basis_class"]
+          }
+        },
+        "required": ["current_state_class", "import_declared", "offline_window", "mirror_lag_state_class", "relative_time_presentation"]
+      }
+    },
+    {
+      "description": "evidence_source_class = synthetic_fixture_only MUST resolve current_state_class to retained_artifact_synthetic_fixture and MUST set relative_time_basis_class to not_rendered_synthetic_fixture.",
+      "if": {
+        "properties": { "evidence_source_class": { "const": "synthetic_fixture_only" } },
+        "required": ["evidence_source_class"]
+      },
+      "then": {
+        "properties": {
+          "current_state_class": { "const": "retained_artifact_synthetic_fixture" },
+          "offline_window": { "type": "null" },
+          "mirror_lag_state_class": { "const": "no_mirror_live_or_imported" },
+          "relative_time_presentation": {
+            "type": "object",
+            "properties": {
+              "relative_time_basis_class": { "const": "not_rendered_synthetic_fixture" }
+            },
+            "required": ["relative_time_basis_class"]
+          }
+        },
+        "required": ["current_state_class", "offline_window", "mirror_lag_state_class", "relative_time_presentation"]
+      }
+    },
+    {
+      "description": "consumer_row_kind = deletion_event_row MUST carry a non-null deletion_event_extras block.",
+      "if": {
+        "properties": { "consumer_row_kind": { "const": "deletion_event_row" } },
+        "required": ["consumer_row_kind"]
+      },
+      "then": {
+        "properties": { "deletion_event_extras": { "$ref": "#/$defs/deletion_event_extras" } },
+        "required": ["deletion_event_extras"]
+      }
+    },
+    {
+      "description": "consumer_row_kind != deletion_event_row MUST set deletion_event_extras to null.",
+      "if": {
+        "properties": {
+          "consumer_row_kind": {
+            "enum": [
+              "run_history_row",
+              "capture_event_row",
+              "comment_or_review_thread_row",
+              "audit_event_row",
+              "incident_timeline_row",
+              "enterprise_session_row",
+              "support_bundle_row",
+              "ai_evidence_packet_row",
+              "chronology_export_preview_row"
+            ]
+          }
+        },
+        "required": ["consumer_row_kind"]
+      },
+      "then": {
+        "properties": { "deletion_event_extras": { "type": "null" } },
+        "required": ["deletion_event_extras"]
+      }
+    },
+    {
+      "description": "consumer_row_kind = enterprise_session_row MUST carry a non-null enterprise_session_extras block.",
+      "if": {
+        "properties": { "consumer_row_kind": { "const": "enterprise_session_row" } },
+        "required": ["consumer_row_kind"]
+      },
+      "then": {
+        "properties": { "enterprise_session_extras": { "$ref": "#/$defs/enterprise_session_block" } },
+        "required": ["enterprise_session_extras"]
+      }
+    },
+    {
+      "description": "consumer_row_kind != enterprise_session_row MUST set enterprise_session_extras to null.",
+      "if": {
+        "properties": {
+          "consumer_row_kind": {
+            "enum": [
+              "run_history_row",
+              "capture_event_row",
+              "comment_or_review_thread_row",
+              "deletion_event_row",
+              "audit_event_row",
+              "incident_timeline_row",
+              "support_bundle_row",
+              "ai_evidence_packet_row",
+              "chronology_export_preview_row"
+            ]
+          }
+        },
+        "required": ["consumer_row_kind"]
+      },
+      "then": {
+        "properties": { "enterprise_session_extras": { "type": "null" } },
+        "required": ["enterprise_session_extras"]
+      }
+    },
+    {
+      "description": "consumer_row_kind = chronology_export_preview_row MUST pin timezone_basis_class to canonical_utc and absolute_time_basis_class to iso_8601_utc.",
+      "if": {
+        "properties": { "consumer_row_kind": { "const": "chronology_export_preview_row" } },
+        "required": ["consumer_row_kind"]
+      },
+      "then": {
+        "properties": {
+          "timezone_basis": {
+            "type": "object",
+            "properties": {
+              "timezone_basis_class": { "const": "canonical_utc" }
+            },
+            "required": ["timezone_basis_class"]
+          },
+          "relative_time_presentation": {
+            "type": "object",
+            "properties": {
+              "absolute_time_basis_class": { "const": "iso_8601_utc" }
+            },
+            "required": ["absolute_time_basis_class"]
+          }
+        },
+        "required": ["timezone_basis", "relative_time_presentation"]
+      }
+    },
+    {
+      "description": "timezone_basis_class in {device_local_iana, deployment_pinned_iana, imported_origin_zone_labeled} MUST carry a non-null display_time_zone_iana.",
+      "if": {
+        "properties": {
+          "timezone_basis": {
+            "type": "object",
+            "properties": {
+              "timezone_basis_class": {
+                "enum": [
+                  "device_local_iana",
+                  "deployment_pinned_iana",
+                  "imported_origin_zone_labeled"
+                ]
+              }
+            },
+            "required": ["timezone_basis_class"]
+          }
+        },
+        "required": ["timezone_basis"]
+      },
+      "then": {
+        "properties": {
+          "timezone_basis": {
+            "type": "object",
+            "properties": {
+              "display_time_zone_iana": { "type": "string", "minLength": 1 }
+            },
+            "required": ["display_time_zone_iana"]
+          }
+        }
+      }
+    },
+    {
+      "description": "An enterprise_session_extras block whose raw_code_capture_admitted is true MUST carry a non-null policy_enabled_capture_ref.",
+      "if": {
+        "properties": {
+          "enterprise_session_extras": {
+            "type": "object",
+            "properties": {
+              "raw_code_capture_admitted": { "const": true }
+            },
+            "required": ["raw_code_capture_admitted"]
+          }
+        },
+        "required": ["enterprise_session_extras"]
+      },
+      "then": {
+        "properties": {
+          "enterprise_session_extras": {
+            "type": "object",
+            "properties": {
+              "policy_enabled_capture_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["policy_enabled_capture_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "An enterprise_session_extras block whose raw_code_capture_admitted is false MUST set policy_enabled_capture_ref to null.",
+      "if": {
+        "properties": {
+          "enterprise_session_extras": {
+            "type": "object",
+            "properties": {
+              "raw_code_capture_admitted": { "const": false }
+            },
+            "required": ["raw_code_capture_admitted"]
+          }
+        },
+        "required": ["enterprise_session_extras"]
+      },
+      "then": {
+        "properties": {
+          "enterprise_session_extras": {
+            "type": "object",
+            "properties": {
+              "policy_enabled_capture_ref": { "type": "null" }
+            },
+            "required": ["policy_enabled_capture_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "A deletion_event_extras block whose deletion_event_state_class is policy_retention or legal_hold MUST NOT carry deletion_event_state_class = delete_completed (held / retained rows MUST NOT render as completed).",
+      "if": {
+        "properties": {
+          "deletion_event_extras": {
+            "type": "object",
+            "properties": {
+              "deletion_event_state_class": { "enum": ["policy_retention", "legal_hold"] }
+            },
+            "required": ["deletion_event_state_class"]
+          }
+        },
+        "required": ["deletion_event_extras"]
+      },
+      "then": {
+        "properties": {
+          "deletion_event_extras": {
+            "type": "object",
+            "properties": {
+              "deletion_event_state_class": { "enum": ["policy_retention", "legal_hold"] }
+            },
+            "required": ["deletion_event_state_class"]
+          }
+        }
+      }
+    }
+  ]
+}
