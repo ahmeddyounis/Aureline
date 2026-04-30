@@ -1,0 +1,859 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/fitness_tile.schema.json",
+  "title": "Aureline fitness-dashboard tile, threshold-state grammar, and evidence-freshness degradation contract",
+  "description": "Boundary schema for one fitness_tile_record frozen in docs/governance/fitness_dashboard_contract.md. The record is the reusable projection that the protected fitness-function dashboard, the milestone scorecard, the release-evidence shiproom packet, the support bundle, and the public claim manifest quote when they need to render the live state of a protected fitness function. Every tile names a stable fitness function (or family), the live tile_state token from the closed six-class state grammar (passing, warning, blocked, waived, waiver_expired, evidence_stale), the threshold snapshot it was evaluated against, the evidence freshness posture, the owner DRI and waiver authority, the linked evidence refs, the corpus / profile identity, and the typed mitigation note explaining what is narrower, slower, less portable, or temporarily blocked. A waived failure can never collapse into a clean pass; stale evidence can never retain fresh-pass semantics. Raw measurement bytes, raw evidence bodies, raw waiver justifications, and raw user identifiers MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new state, freshness class, mitigation class, corpus / profile class, or partial-profile class is additive-minor and bumps fitness_tile_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/fitness_tile_record",
+  "$defs": {
+    "fitness_tile_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the fitness-tile payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, and screenshots. Raw URLs, raw absolute paths, raw policy bodies, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration (e.g. P14D)."
+    },
+    "nullable_iso_duration": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/iso_duration" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw measurement bytes, raw evidence bodies, raw policy bodies, raw waiver justifications, and raw user identifiers MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "tile_state_class": {
+      "type": "string",
+      "enum": [
+        "passing",
+        "warning",
+        "blocked",
+        "waived",
+        "waiver_expired",
+        "evidence_stale"
+      ],
+      "description": "Closed six-class state grammar. passing = threshold met on fresh evidence with no live waiver. warning = early-signal drift, threshold not yet breached, but trending toward it; surfaces MUST render the warning token, not collapse to passing. blocked = threshold breached on fresh evidence with no waiver covering the breach. waived = a release-bearing failure or near-failure is held open by an active waiver; surfaces MUST render the waiver expiry, authority, and the mitigation note alongside, never as a generic pass. waiver_expired = a previously waived failure whose waiver expired without renewal; the tile MUST NOT render as passing and MUST cite the previous waiver ref. evidence_stale = the underlying evidence packet expired by time, by rerun trigger, or is missing required metadata; the prior numeric pass result MUST NOT be projected as authoritative. A generic 'green' / 'red' chip is non-conforming; every surface renders one of these tokens."
+    },
+    "threshold_mode_class": {
+      "type": "string",
+      "enum": [
+        "absolute_p50_and_p95",
+        "absolute_p95_only",
+        "ratio_gate",
+        "counts_only",
+        "boolean_gate",
+        "to_be_set_by_benchmark_council"
+      ],
+      "description": "Closed threshold-mode vocabulary. Mirrors the threshold_modes set in artifacts/bench/fitness_function_catalog.yaml so the tile and the catalog never diverge on how a threshold is interpreted."
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "near_expiry",
+        "stale_by_time",
+        "stale_by_trigger",
+        "missing",
+        "not_applicable_provisional"
+      ],
+      "description": "Closed evidence-freshness vocabulary. fresh = packet is inside its stale_after window and matches the trigger revision. near_expiry = packet is within ten percent of its stale_after window; surfaces MAY decorate with a refresh-soon hint but the tile is still passing. stale_by_time = captured_at + stale_after is in the past; tile MUST move to evidence_stale. stale_by_trigger = a named rerun trigger fired (hardware image, corpus revision, schema, claim binding, support window, deployment topology) and the packet has not been recaptured; tile MUST move to evidence_stale even when the time window is open. missing = the required evidence packet is not present or required metadata fields are absent; treated as expired for tile, scorecard, signoff, and claim use. not_applicable_provisional = the fitness function row is row_status: provisional with no wired data source; the tile renders provisional_no_action_until_seeded mitigation."
+    },
+    "mitigation_note_class": {
+      "type": "string",
+      "enum": [
+        "no_mitigation_required_passing",
+        "narrower_scope_until_refresh",
+        "slower_path_active_until_refresh",
+        "less_portable_temporarily",
+        "temporarily_blocked_pending_owner_action",
+        "waiver_holds_release_until_expiry",
+        "partial_profile_result_pending_full_capture",
+        "provisional_no_action_until_seeded",
+        "early_signal_drift_owner_inspecting"
+      ],
+      "description": "Closed mitigation-note vocabulary. Every tile MUST resolve to exactly one class. The class explains what is narrower, slower, less portable, or temporarily blocked, and what users or operators should do meanwhile. Free-text mitigation copy collapsed into one opaque 'in progress' label is non-conforming."
+    },
+    "corpus_profile_identity_class": {
+      "type": "string",
+      "enum": [
+        "reference_hardware",
+        "design_partner_workspace",
+        "air_gapped_lab",
+        "managed_saas_ring",
+        "general_corpus_no_profile_pin"
+      ],
+      "description": "Closed corpus / profile identity vocabulary. Pins the evidence to a named reference surface so a tile cannot project a result captured on the reference hardware as if it were captured on an air-gapped lab, on a design-partner workspace, or on a managed SaaS ring. general_corpus_no_profile_pin is admissible only when the fitness function is host-independent and the corpus manifest does not require a profile pin."
+    },
+    "partial_profile_result_class": {
+      "type": "string",
+      "enum": [
+        "not_partial_full_corpus_run",
+        "single_profile_only",
+        "subset_of_profiles_covered",
+        "subset_of_corpus_rows_covered"
+      ],
+      "description": "Closed partial-profile vocabulary. A tile whose evidence covers only a subset of the declared corpus / profile set MUST render a partial-profile class other than not_partial_full_corpus_run; in that case the tile_state MUST be one of warning, blocked, waived, waiver_expired, or evidence_stale, and the mitigation_note_class MUST be partial_profile_result_pending_full_capture (or, when an active waiver covers the gap, waiver_holds_release_until_expiry)."
+    },
+    "waiver_authority_class": {
+      "type": "string",
+      "enum": [
+        "performance_council",
+        "architecture_council",
+        "release_council",
+        "shiproom_executive_scope_review",
+        "not_applicable_no_active_waiver"
+      ],
+      "description": "Closed waiver-authority vocabulary. Mirrors artifacts/bench/fitness_function_catalog.yaml#waiver_authorities. not_applicable_no_active_waiver is the admissible value for tiles whose tile_state is not waived or waiver_expired."
+    },
+
+    "owner_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_dri", "owning_lane", "co_owning_lane", "backup_owner", "backup_waiver_ref"],
+      "properties": {
+        "primary_dri": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Primary DRI handle. Resolves into artifacts/governance/ownership_matrix.yaml. No silent blanks."
+        },
+        "owning_lane": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Owning scorecard lane. MUST resolve to a value in ownership_matrix.scorecard_lane_index."
+        },
+        "co_owning_lane": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ],
+          "description": "Optional co-owning scorecard lane. Null when no co-owner is named in the catalog row."
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ],
+          "description": "Backup owner handle. Null is admissible only when backup_waiver_ref is non-null."
+        },
+        "backup_waiver_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Waiver id from ownership_matrix.waivers covering the absence of a backup_owner. Required when backup_owner is null."
+        }
+      }
+    },
+
+    "threshold_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "threshold_mode_class",
+        "threshold_label",
+        "measured_label",
+        "snapshot_summary"
+      ],
+      "properties": {
+        "threshold_mode_class": { "$ref": "#/$defs/threshold_mode_class" },
+        "threshold_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable threshold label rendered alongside the tile (e.g. 'p50 <= 16 ms / p95 <= 32 ms', 'match rate >= 0.99', 'compare-before-write must hold'). Free-text fear copy is non-conforming."
+        },
+        "measured_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable label of the most recent measurement (e.g. 'p50 = 14 ms / p95 = 28 ms', 'match rate = 0.97', 'compare-before-write held'). For tile_state = evidence_stale this label MUST be prefixed with the typed stale marker (e.g. 'last seen ...'); raw measurement bytes do not appear."
+        },
+        "snapshot_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the comparison against threshold. Names the comparison outcome, never the underlying raw bytes."
+        }
+      }
+    },
+
+    "evidence_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_freshness_class",
+        "evidence_packet_ref",
+        "captured_at",
+        "stale_after",
+        "expires_at",
+        "rerun_trigger_ref",
+        "freshness_summary"
+      ],
+      "properties": {
+        "evidence_freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "evidence_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the underlying evidence packet (benchmark report, compatibility report, support drill, migration packet). Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "captured_at value copied from the evidence packet header. Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "stale_after": {
+          "$ref": "#/$defs/nullable_iso_duration",
+          "description": "stale_after value copied from the evidence packet header (ISO 8601 duration). Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Computed captured_at + stale_after. Null only for evidence_freshness_class in { missing, not_applicable_provisional }. For stale_by_time the timestamp MUST be in the past relative to the tile evaluation time."
+        },
+        "rerun_trigger_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required when evidence_freshness_class = stale_by_trigger; resolves into artifacts/governance/evidence_rerun_triggers.yaml. Null otherwise."
+        },
+        "freshness_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of why the evidence is in this freshness class. Names the time window or the named trigger; raw policy bodies and raw measurement bytes do not appear."
+        }
+      }
+    },
+
+    "corpus_profile_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_profile_identity_class",
+        "corpus_refs",
+        "profile_pin_ref",
+        "partial_profile_result_class",
+        "identity_summary"
+      ],
+      "properties": {
+        "corpus_profile_identity_class": { "$ref": "#/$defs/corpus_profile_identity_class" },
+        "corpus_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Corpus ids the evidence was captured against. Empty only for corpus_profile_identity_class = general_corpus_no_profile_pin and only when the fitness function row is host-independent."
+        },
+        "profile_pin_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref pinning the named reference surface (reference hardware row, design-partner workspace id, air-gapped lab id, managed SaaS ring id). Required when corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, managed_saas_ring."
+        },
+        "partial_profile_result_class": { "$ref": "#/$defs/partial_profile_result_class" },
+        "identity_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the corpus and profile identity behind the evidence. Names the reference surface so the result cannot float free of where it was captured."
+        }
+      }
+    },
+
+    "waiver_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiver_authority_class",
+        "active_waiver_ref",
+        "previous_waiver_ref",
+        "waiver_expires_on",
+        "waiver_summary"
+      ],
+      "properties": {
+        "waiver_authority_class": { "$ref": "#/$defs/waiver_authority_class" },
+        "active_waiver_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the active waiver covering the failure or near-failure. Required when tile_state = waived; null otherwise."
+        },
+        "previous_waiver_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the most recent waiver that has now expired. Required when tile_state = waiver_expired; null otherwise."
+        },
+        "waiver_expires_on": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Expiry timestamp copied from the waiver record. Required when tile_state = waived. For tile_state = waiver_expired this MUST be the prior expiry timestamp and MUST be in the past."
+        },
+        "waiver_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the waiver posture. Raw waiver justification text MUST NOT appear; the summary names the authority, the expiry, and the held release condition."
+        }
+      }
+    },
+
+    "mitigation_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mitigation_note_class",
+        "what_users_should_do",
+        "what_operators_should_do",
+        "mitigation_summary"
+      ],
+      "properties": {
+        "mitigation_note_class": { "$ref": "#/$defs/mitigation_note_class" },
+        "what_users_should_do": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable instruction for the user / consumer. Resolves against the mitigation_note_class; free-text fear copy is non-conforming."
+        },
+        "what_operators_should_do": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable instruction for the lane DRI / operator. Resolves against the mitigation_note_class."
+        },
+        "mitigation_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary describing what is narrower, slower, less portable, or temporarily blocked and the meanwhile posture. Surfaces MUST NOT collapse this into a generic 'see release notes' link."
+        }
+      }
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_scorecard",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_claim_manifest"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every surface that renders the tile MUST render the same tile_state token, threshold_label, measured_label, evidence_freshness_class, owner, corpus / profile identity, and mitigation_note. This block records which surfaces consume the tile; setting render_on_release_packet or render_on_claim_manifest to true signals that the tile is also part of public claim truth and MUST satisfy the per-state export rules in the schema's allOf block."
+    },
+
+    "fitness_tile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fitness_tile_schema_version",
+        "record_kind",
+        "tile_id",
+        "fitness_function_row_ref",
+        "fitness_function_family",
+        "evaluated_at",
+        "tile_state",
+        "headline_label",
+        "threshold_snapshot",
+        "evidence_freshness",
+        "owner",
+        "corpus_profile_identity",
+        "waiver",
+        "mitigation_note",
+        "linked_evidence_refs",
+        "linked_scorecard_lane_refs",
+        "export_fields",
+        "contract_doc_ref",
+        "fitness_function_catalog_ref",
+        "state_rows_ref",
+        "notes"
+      ],
+      "properties": {
+        "fitness_tile_schema_version": { "$ref": "#/$defs/fitness_tile_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "fitness_tile_record"
+        },
+        "tile_id": {
+          "type": "string",
+          "pattern": "^fitness_tile:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable tile id. Quoted by the dashboard, the scorecard, the release-evidence shiproom packet, the support bundle, and the public claim manifest."
+        },
+        "fitness_function_row_ref": {
+          "type": "string",
+          "pattern": "^ff\\.[a-z0-9_]+$",
+          "description": "Stable fitness-function row id from artifacts/bench/fitness_function_catalog.yaml#rows[].id (e.g. ff.input_to_paint). The catalog is the source of truth; a tile whose row id is absent from the catalog is non-conforming."
+        },
+        "fitness_function_family": {
+          "type": "string",
+          "enum": [
+            "startup_and_first_useful_work",
+            "input_response",
+            "render_submission",
+            "quick_open_and_command_dispatch",
+            "save_and_filesystem_correctness",
+            "recoverability_and_restore",
+            "remote_reconnect",
+            "rename_with_preview",
+            "ai_first_response",
+            "power_and_thermal_posture",
+            "command_graph_parity",
+            "benchmark_lab_operational_health"
+          ],
+          "description": "Closed fitness-function-family vocabulary. Mirrors artifacts/bench/fitness_function_catalog.yaml#protected_slo_families so dashboards can group rows by family without re-deriving the mapping."
+        },
+        "evaluated_at": { "$ref": "#/$defs/utc_datetime" },
+        "tile_state": { "$ref": "#/$defs/tile_state_class" },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the tile. The label MUST resolve against the tile_state plus the fitness_function_row_ref; free-text 'all good' / 'all bad' copy is non-conforming."
+        },
+        "threshold_snapshot": { "$ref": "#/$defs/threshold_snapshot" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "owner": { "$ref": "#/$defs/owner_ref" },
+        "corpus_profile_identity": { "$ref": "#/$defs/corpus_profile_identity" },
+        "waiver": { "$ref": "#/$defs/waiver_envelope" },
+        "mitigation_note": { "$ref": "#/$defs/mitigation_note" },
+        "linked_evidence_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs to release-evidence packets, certified-archetype reports, support-export bundles, claim-manifest rows, and shiproom packets that consume this tile. Empty only when the tile is not yet linked into a downstream surface (e.g. a provisional row)."
+        },
+        "linked_scorecard_lane_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into ownership_matrix.scorecard_lane_index for the lanes whose status this tile influences. At least one entry is required so a tile can never float free of a lane."
+        },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/fitness_dashboard_contract.md"
+        },
+        "fitness_function_catalog_ref": {
+          "type": "string",
+          "const": "artifacts/bench/fitness_function_catalog.yaml"
+        },
+        "state_rows_ref": {
+          "type": "string",
+          "const": "artifacts/governance/fitness_state_rows.yaml"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "tile_state = passing requires fresh or near-expiry evidence (or not_applicable_provisional for provisional rows), no_mitigation_required_passing or provisional_no_action_until_seeded mitigation, and no active waiver. A passing tile MUST NOT carry a non-null active_waiver_ref or previous_waiver_ref.",
+          "if": {
+            "properties": { "tile_state": { "const": "passing" } },
+            "required": ["tile_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": {
+                    "enum": ["fresh", "near_expiry", "not_applicable_provisional"]
+                  }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": ["no_mitigation_required_passing", "provisional_no_action_until_seeded"]
+                  }
+                }
+              },
+              "waiver": {
+                "properties": {
+                  "waiver_authority_class": { "const": "not_applicable_no_active_waiver" },
+                  "active_waiver_ref": { "type": "null" },
+                  "previous_waiver_ref": { "type": "null" },
+                  "waiver_expires_on": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "tile_state = warning requires fresh or near-expiry evidence (drift cannot be diagnosed from stale numbers) and the early_signal_drift_owner_inspecting mitigation class. A warning tile MUST NOT carry an active waiver.",
+          "if": {
+            "properties": { "tile_state": { "const": "warning" } },
+            "required": ["tile_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "enum": ["fresh", "near_expiry"] }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "early_signal_drift_owner_inspecting",
+                      "narrower_scope_until_refresh",
+                      "partial_profile_result_pending_full_capture"
+                    ]
+                  }
+                }
+              },
+              "waiver": {
+                "properties": {
+                  "waiver_authority_class": { "const": "not_applicable_no_active_waiver" },
+                  "active_waiver_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "tile_state = blocked requires fresh evidence (a blocker on stale evidence MUST migrate to evidence_stale instead) and one of the temporarily_blocked_pending_owner_action / narrower_scope_until_refresh / slower_path_active_until_refresh / less_portable_temporarily mitigation classes. A blocked tile has no active waiver covering the breach.",
+          "if": {
+            "properties": { "tile_state": { "const": "blocked" } },
+            "required": ["tile_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "enum": ["fresh", "near_expiry"] }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "temporarily_blocked_pending_owner_action",
+                      "narrower_scope_until_refresh",
+                      "slower_path_active_until_refresh",
+                      "less_portable_temporarily"
+                    ]
+                  }
+                }
+              },
+              "waiver": {
+                "properties": {
+                  "waiver_authority_class": { "const": "not_applicable_no_active_waiver" },
+                  "active_waiver_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "tile_state = waived requires a non-null active_waiver_ref, a non-null waiver_expires_on (in the future), a typed waiver_authority_class other than not_applicable_no_active_waiver, and the waiver_holds_release_until_expiry mitigation class. A waived failure can never collapse into a clean pass; its render MUST quote the waiver expiry and authority alongside the tile state.",
+          "if": {
+            "properties": { "tile_state": { "const": "waived" } },
+            "required": ["tile_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver": {
+                "properties": {
+                  "active_waiver_ref": { "not": { "type": "null" } },
+                  "waiver_expires_on": { "not": { "type": "null" } },
+                  "waiver_authority_class": {
+                    "enum": [
+                      "performance_council",
+                      "architecture_council",
+                      "release_council",
+                      "shiproom_executive_scope_review"
+                    ]
+                  }
+                },
+                "required": ["active_waiver_ref", "waiver_expires_on", "waiver_authority_class"]
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": { "const": "waiver_holds_release_until_expiry" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "tile_state = waiver_expired requires a non-null previous_waiver_ref and a waiver_expires_on in the past, MUST cite a non-null active_waiver_ref of null (renewal has not happened), and MUST resolve to the temporarily_blocked_pending_owner_action mitigation class. A tile in waiver_expired MUST NOT render as passing on any surface.",
+          "if": {
+            "properties": { "tile_state": { "const": "waiver_expired" } },
+            "required": ["tile_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver": {
+                "properties": {
+                  "active_waiver_ref": { "type": "null" },
+                  "previous_waiver_ref": { "not": { "type": "null" } },
+                  "waiver_expires_on": { "not": { "type": "null" } },
+                  "waiver_authority_class": {
+                    "enum": [
+                      "performance_council",
+                      "architecture_council",
+                      "release_council",
+                      "shiproom_executive_scope_review"
+                    ]
+                  }
+                },
+                "required": ["previous_waiver_ref", "waiver_expires_on", "waiver_authority_class"]
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": { "const": "temporarily_blocked_pending_owner_action" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "tile_state = evidence_stale requires evidence_freshness_class in { stale_by_time, stale_by_trigger, missing }, MUST resolve to one of the narrower_scope_until_refresh, slower_path_active_until_refresh, less_portable_temporarily, or partial_profile_result_pending_full_capture mitigation classes, and MUST NOT carry a measured_label that projects the underlying numeric pass result as authoritative without the typed stale marker.",
+          "if": {
+            "properties": { "tile_state": { "const": "evidence_stale" } },
+            "required": ["tile_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": {
+                    "enum": ["stale_by_time", "stale_by_trigger", "missing"]
+                  }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "narrower_scope_until_refresh",
+                      "slower_path_active_until_refresh",
+                      "less_portable_temporarily",
+                      "partial_profile_result_pending_full_capture"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_freshness_class = stale_by_trigger requires a non-null rerun_trigger_ref so the stale-by-trigger reason can be resolved against artifacts/governance/evidence_rerun_triggers.yaml.",
+          "if": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "const": "stale_by_trigger" }
+                },
+                "required": ["evidence_freshness_class"]
+              }
+            },
+            "required": ["evidence_freshness"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": { "rerun_trigger_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_freshness_class in { missing, not_applicable_provisional } MUST carry null evidence_packet_ref, captured_at, stale_after, and expires_at fields; the absence of evidence cannot be silently filled in.",
+          "if": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": {
+                    "enum": ["missing", "not_applicable_provisional"]
+                  }
+                },
+                "required": ["evidence_freshness_class"]
+              }
+            },
+            "required": ["evidence_freshness"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_packet_ref": { "type": "null" },
+                  "captured_at": { "type": "null" },
+                  "stale_after": { "type": "null" },
+                  "expires_at": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_freshness_class = not_applicable_provisional requires partial_profile_result_class = not_partial_full_corpus_run and mitigation_note_class = provisional_no_action_until_seeded; provisional rows do not project partial-profile results.",
+          "if": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "const": "not_applicable_provisional" }
+                },
+                "required": ["evidence_freshness_class"]
+              }
+            },
+            "required": ["evidence_freshness"]
+          },
+          "then": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "partial_profile_result_class": { "const": "not_partial_full_corpus_run" }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": { "const": "provisional_no_action_until_seeded" }
+                }
+              },
+              "tile_state": { "const": "passing" }
+            }
+          }
+        },
+        {
+          "description": "When corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, or managed_saas_ring, the corpus_profile_identity envelope MUST cite a non-null profile_pin_ref and a non-empty corpus_refs array so the tile cannot float free of where it was captured.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": {
+                    "enum": [
+                      "reference_hardware",
+                      "design_partner_workspace",
+                      "air_gapped_lab",
+                      "managed_saas_ring"
+                    ]
+                  }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "profile_pin_ref": { "not": { "type": "null" } },
+                  "corpus_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "partial_profile_result_class != not_partial_full_corpus_run requires tile_state to be one of warning, blocked, waived, waiver_expired, or evidence_stale, and the mitigation_note_class to be partial_profile_result_pending_full_capture or waiver_holds_release_until_expiry. A passing tile MUST NOT project a partial-profile result as a clean pass.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "partial_profile_result_class": {
+                    "enum": [
+                      "single_profile_only",
+                      "subset_of_profiles_covered",
+                      "subset_of_corpus_rows_covered"
+                    ]
+                  }
+                },
+                "required": ["partial_profile_result_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "tile_state": {
+                "enum": ["warning", "blocked", "waived", "waiver_expired", "evidence_stale"]
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "partial_profile_result_pending_full_capture",
+                      "waiver_holds_release_until_expiry",
+                      "narrower_scope_until_refresh"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When export_fields.render_on_release_packet or render_on_claim_manifest is true, tile_state MUST NOT be passing if waiver.previous_waiver_ref is non-null without waiver.active_waiver_ref also being non-null; an expired waiver cannot ride into release / claim publication as a clean pass.",
+          "if": {
+            "properties": {
+              "export_fields": {
+                "anyOf": [
+                  { "properties": { "render_on_release_packet": { "const": true } } },
+                  { "properties": { "render_on_claim_manifest": { "const": true } } }
+                ]
+              },
+              "waiver": {
+                "properties": { "previous_waiver_ref": { "not": { "type": "null" } } },
+                "required": ["previous_waiver_ref"]
+              }
+            },
+            "required": ["export_fields", "waiver"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "waiver": {
+                    "properties": { "active_waiver_ref": { "not": { "type": "null" } } }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "tile_state": {
+                    "enum": ["waived", "waiver_expired", "evidence_stale", "blocked", "warning"]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

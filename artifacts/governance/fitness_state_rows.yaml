@@ -1,0 +1,513 @@
+# Fitness-dashboard state-grammar register.
+#
+# Single machine-readable register of the closed vocabularies the
+# fitness-dashboard tile, the milestone scorecard, the release-evidence
+# shiproom packet, the support bundle, and the public claim manifest
+# resolve against by stable id.
+#
+# This file is the artifact form. The narrative companion is
+# docs/governance/fitness_dashboard_contract.md and the boundary schema is
+# schemas/governance/fitness_tile.schema.json. If they disagree, the doc
+# wins for vocabulary and the schema wins for tooling, and this file is
+# updated in the same change.
+#
+# Conformance:
+#   - Every fitness_tile_record consumed by tooling MUST resolve every
+#     state, threshold-mode, freshness, mitigation, corpus / profile, and
+#     waiver-authority value to one of the rows below.
+#   - A tile whose state cannot be resolved here is non-conforming.
+#   - Adding a row is additive-minor and lands here, in the schema, and
+#     in the contract document in the same change.
+#   - Renaming a row is breaking and opens a decision row in
+#     artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+register_id: aureline.fitness_dashboard_state_rows
+register_revision: 1
+
+vocabulary_source: docs/governance/fitness_dashboard_contract.md
+schema_ref: schemas/governance/fitness_tile.schema.json
+fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+evidence_freshness_slos_ref: artifacts/governance/evidence_freshness_slos.yaml
+evidence_rerun_triggers_ref: artifacts/governance/evidence_rerun_triggers.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+
+# -----------------------------------------------------------------------------
+# Tile-state grammar.
+#
+# Closed six-class vocabulary. Surfaces MUST render the token verbatim; a
+# generic 'green' / 'red' chip is non-conforming. Visual and export parity
+# rules: every surface that renders the tile MUST render the same state
+# token, threshold label, measured label, evidence-freshness class, owner,
+# corpus / profile identity, and mitigation note. A waived failure can
+# never collapse into a clean pass; stale evidence can never retain
+# fresh-pass semantics.
+# -----------------------------------------------------------------------------
+tile_states:
+  - id: passing
+    title: Passing
+    description: >
+      Threshold met on fresh (or near-expiry) evidence with no live
+      waiver. Mitigation class is no_mitigation_required_passing or
+      provisional_no_action_until_seeded.
+    visual_floor: render_state_token_with_threshold_label_and_measured_label
+    export_floor: render_state_token_on_every_consuming_surface
+    forbidden_collapses:
+      - rendering_a_passing_token_when_evidence_is_stale_or_missing
+      - rendering_a_passing_token_when_a_partial_profile_result_is_active
+      - rendering_a_passing_token_when_a_waiver_holds_the_release_open
+    cannot_coexist_with:
+      - active_waiver_ref_non_null
+      - previous_waiver_ref_non_null_without_active_waiver
+      - evidence_freshness_class_in_stale_by_time_or_stale_by_trigger_or_missing
+
+  - id: warning
+    title: Warning
+    description: >
+      Early-signal drift on fresh evidence. The threshold has not yet
+      been breached but the measurement is trending toward it. Surfaces
+      MUST render the warning token, not collapse to passing.
+    visual_floor: render_warning_token_with_drift_summary_and_owner_handle
+    export_floor: render_warning_token_on_every_consuming_surface
+    forbidden_collapses:
+      - rendering_warning_as_passing_to_avoid_alarming_consumers
+      - rendering_warning_without_a_named_owner_inspecting
+    cannot_coexist_with:
+      - active_waiver_ref_non_null
+      - evidence_freshness_class_in_stale_by_time_or_stale_by_trigger_or_missing
+
+  - id: blocked
+    title: Blocked
+    description: >
+      Threshold breached on fresh evidence with no active waiver covering
+      the breach. Mitigation class explains what is narrower, slower,
+      less portable, or temporarily blocked, and what users or operators
+      should do meanwhile.
+    visual_floor: render_blocked_token_with_threshold_label_and_owner_handle
+    export_floor: render_blocked_token_on_every_consuming_surface
+    forbidden_collapses:
+      - rendering_blocked_as_warning_when_threshold_is_clearly_breached
+      - rendering_blocked_without_a_typed_mitigation_note
+    cannot_coexist_with:
+      - active_waiver_ref_non_null
+      - evidence_freshness_class_in_stale_by_time_or_stale_by_trigger_or_missing
+
+  - id: waived
+    title: Waived
+    description: >
+      A release-bearing failure or near-failure is held open by an active
+      waiver. The tile MUST render the waiver authority and expiry
+      alongside the state token; the mitigation class is
+      waiver_holds_release_until_expiry. A waived tile is never rendered
+      as a clean pass on any surface.
+    visual_floor: render_waived_token_with_waiver_authority_and_expiry
+    export_floor: render_waived_token_on_every_consuming_surface_with_waiver_envelope
+    forbidden_collapses:
+      - rendering_waived_as_passing_or_warning_to_compress_the_chip
+      - omitting_the_waiver_authority_or_expiry_on_release_packets
+    cannot_coexist_with:
+      - active_waiver_ref_null
+      - waiver_expires_on_null
+      - waiver_expires_on_in_the_past
+      - waiver_authority_class_not_applicable_no_active_waiver
+
+  - id: waiver_expired
+    title: Expired waiver
+    description: >
+      A previously waived failure whose waiver expired without renewal.
+      The tile MUST cite the previous waiver ref and the expired
+      timestamp, and MUST NOT render as passing on any surface.
+      Mitigation class is temporarily_blocked_pending_owner_action.
+    visual_floor: render_waiver_expired_token_with_previous_waiver_ref_and_expired_timestamp
+    export_floor: render_waiver_expired_token_on_every_consuming_surface
+    forbidden_collapses:
+      - rendering_waiver_expired_as_passing_to_unblock_release_publication
+      - rendering_waiver_expired_without_the_previous_waiver_ref
+    cannot_coexist_with:
+      - previous_waiver_ref_null
+      - waiver_expires_on_null
+      - waiver_expires_on_in_the_future
+      - active_waiver_ref_non_null
+
+  - id: evidence_stale
+    title: Evidence stale
+    description: >
+      The underlying evidence packet expired by time or by named rerun
+      trigger, or required metadata is missing. The prior numeric pass
+      result MUST NOT be projected as authoritative; surfaces render the
+      stale marker on the measured label and the typed freshness class.
+    visual_floor: render_evidence_stale_token_with_freshness_class_and_typed_stale_marker
+    export_floor: render_evidence_stale_token_on_every_consuming_surface
+    forbidden_collapses:
+      - retaining_fresh_pass_semantics_after_captured_at_plus_stale_after
+      - hiding_a_named_rerun_trigger_match_behind_a_passing_chip
+      - rendering_a_measured_label_without_the_typed_stale_marker
+    cannot_coexist_with:
+      - evidence_freshness_class_fresh
+      - evidence_freshness_class_near_expiry
+      - mitigation_note_class_no_mitigation_required_passing
+
+# -----------------------------------------------------------------------------
+# Threshold-mode rows. Mirrors artifacts/bench/fitness_function_catalog.yaml
+# #threshold_modes one-for-one so the tile and the catalog never diverge on
+# how a threshold is interpreted. A tile whose threshold mode is not in this
+# set is non-conforming.
+# -----------------------------------------------------------------------------
+threshold_modes:
+  - id: absolute_p50_and_p95
+    description: Latency rows with two numeric targets on a named SLI.
+  - id: absolute_p95_only
+    description: Tail-only rows.
+  - id: ratio_gate
+    description: Pass / fail on a ratio (e.g. match rate, parity rate).
+  - id: counts_only
+    description: Event counters; zero unless noted.
+  - id: boolean_gate
+    description: Hard must-pass contract assertion.
+  - id: to_be_set_by_benchmark_council
+    description: Provisional placeholder; the tile renders the placeholder verbatim.
+
+# -----------------------------------------------------------------------------
+# Evidence-freshness rows.
+#
+# Closed six-class vocabulary. Names the live freshness posture the tile
+# is evaluated against. Pairs with evidence_freshness_slos.yaml (the proof-
+# class ceilings) and evidence_rerun_triggers.yaml (the named triggers
+# that expire packets before their time window closes).
+# -----------------------------------------------------------------------------
+evidence_freshness_classes:
+  - id: fresh
+    description: Packet is inside its stale_after window and matches the trigger revision.
+    forces_tile_state_in: [passing, warning, blocked, waived, waiver_expired]
+    cannot_coexist_with:
+      - tile_state_evidence_stale
+  - id: near_expiry
+    description: Packet is within ten percent of its stale_after window. Surfaces MAY decorate with a refresh-soon hint; the tile is still admissible as passing.
+    forces_tile_state_in: [passing, warning, blocked, waived, waiver_expired]
+    cannot_coexist_with:
+      - tile_state_evidence_stale
+  - id: stale_by_time
+    description: captured_at + stale_after is in the past. The tile MUST move to evidence_stale.
+    forces_tile_state_in: [evidence_stale]
+    cannot_coexist_with:
+      - tile_state_passing
+      - tile_state_warning
+      - tile_state_blocked
+  - id: stale_by_trigger
+    description: A named rerun trigger fired and the packet has not been recaptured. Tile MUST move to evidence_stale even when the time window is open. rerun_trigger_ref is required.
+    forces_tile_state_in: [evidence_stale]
+    requires_non_null:
+      - rerun_trigger_ref
+    cannot_coexist_with:
+      - tile_state_passing
+      - tile_state_warning
+      - tile_state_blocked
+  - id: missing
+    description: The required evidence packet is not present or required metadata fields are absent. Treated as expired for tile, scorecard, signoff, and claim use.
+    forces_tile_state_in: [evidence_stale]
+    cannot_coexist_with:
+      - tile_state_passing
+      - tile_state_warning
+      - tile_state_blocked
+  - id: not_applicable_provisional
+    description: The fitness function row is row_status provisional and the tile renders the provisional placeholder. evidence_packet_ref, captured_at, stale_after, and expires_at MUST be null.
+    forces_tile_state_in: [passing]
+    requires_null:
+      - evidence_packet_ref
+      - captured_at
+      - stale_after
+      - expires_at
+
+# -----------------------------------------------------------------------------
+# Mitigation-note rows.
+#
+# Closed nine-class vocabulary. Each tile carries exactly one mitigation
+# class. Mitigation copy is bounded by the tile_state grammar and the
+# evidence-freshness class; collapsing all mitigation copy into one
+# opaque 'in progress' label is non-conforming.
+# -----------------------------------------------------------------------------
+mitigation_note_classes:
+  - id: no_mitigation_required_passing
+    summary: Threshold met on fresh evidence; no narrower / slower / less-portable posture is in effect.
+    admissible_tile_states: [passing]
+    naming_rule: >
+      The mitigation summary names the threshold and the measured value.
+      Free-text 'all good' copy is non-conforming.
+
+  - id: narrower_scope_until_refresh
+    summary: Claim scope is narrower than the row's full corpus / profile coverage until the evidence is recaptured.
+    admissible_tile_states: [warning, blocked, waiver_expired, evidence_stale]
+    naming_rule: >
+      The mitigation summary names which corpus / profile rows are inside
+      the narrower scope and which are outside. Surfaces MUST NOT widen
+      the claim back to the full corpus until the tile_state returns to
+      passing.
+
+  - id: slower_path_active_until_refresh
+    summary: A slower path (degraded cache, fallback resolution, mirror-only mode) is active until the evidence is recaptured.
+    admissible_tile_states: [blocked, waiver_expired, evidence_stale]
+    naming_rule: >
+      The mitigation summary names the slower path and the user-visible
+      cost (e.g. first-paint slower, save pipeline slower, command
+      dispatch slower). Free-text 'temporary slowdown' copy is
+      non-conforming.
+
+  - id: less_portable_temporarily
+    summary: The tile is rendered against a narrower portability set (one OS, one host class, one ring) until the evidence is recaptured.
+    admissible_tile_states: [blocked, waiver_expired, evidence_stale]
+    naming_rule: >
+      The mitigation summary names the portability set in scope and the
+      portability set out of scope.
+
+  - id: temporarily_blocked_pending_owner_action
+    summary: The tile is blocked pending a named owner action (capture, rerun, refresh, escalate).
+    admissible_tile_states: [blocked, waiver_expired]
+    naming_rule: >
+      The mitigation summary names the owner handle and the next action.
+      Surfaces MUST NOT collapse this into a generic 'see release notes'
+      link.
+
+  - id: waiver_holds_release_until_expiry
+    summary: A failure or near-failure is held open by an active waiver until the waiver_expires_on timestamp.
+    admissible_tile_states: [waived]
+    naming_rule: >
+      The mitigation summary names the waiver authority, the expiry
+      timestamp, and the held release condition. Raw waiver
+      justification text MUST NOT appear.
+
+  - id: partial_profile_result_pending_full_capture
+    summary: The tile is rendered against a partial corpus / profile set (single profile, profile subset, or corpus-row subset) pending a full capture.
+    admissible_tile_states: [warning, evidence_stale]
+    naming_rule: >
+      The mitigation summary names the profile / corpus rows inside the
+      partial result and names the rows outside.
+
+  - id: provisional_no_action_until_seeded
+    summary: The fitness-function row is row_status provisional; no action is required until a data source is wired and the row moves to seeded.
+    admissible_tile_states: [passing]
+    naming_rule: >
+      The mitigation summary names the completion owner from the
+      catalog row.
+
+  - id: early_signal_drift_owner_inspecting
+    summary: The measurement is trending toward the threshold on fresh evidence; the owner is inspecting.
+    admissible_tile_states: [warning]
+    naming_rule: >
+      The mitigation summary names the trend (which percentile / ratio /
+      counter is drifting) and the owner inspecting. Surfaces MUST NOT
+      compress this into a generic 'check soon' label.
+
+# -----------------------------------------------------------------------------
+# Corpus / profile identity rows.
+#
+# Closed five-class vocabulary. Pins the evidence to a named reference
+# surface so a tile cannot project a result captured on the reference
+# hardware as if it were captured on an air-gapped lab, on a design-
+# partner workspace, or on a managed SaaS ring.
+# -----------------------------------------------------------------------------
+corpus_profile_identity_classes:
+  - id: reference_hardware
+    description: >
+      Reference hardware row from artifacts/perf/reference_hardware_manifest.yaml
+      and artifacts/perf/reference_laptop_matrix.yaml. profile_pin_ref MUST
+      resolve into one of those manifests.
+    requires_non_null: [profile_pin_ref]
+    requires_non_empty: [corpus_refs]
+
+  - id: design_partner_workspace
+    description: >
+      Design-partner workspace fixture or recorded session. profile_pin_ref
+      resolves into a design-partner workspace id; the underlying corpus
+      MUST be cited via corpus_refs.
+    requires_non_null: [profile_pin_ref]
+    requires_non_empty: [corpus_refs]
+
+  - id: air_gapped_lab
+    description: >
+      Air-gapped lab capture. profile_pin_ref resolves into the lab
+      identity row; the captured evidence MUST cite the air-gapped
+      profile so the result is not silently widened to the connected
+      profile.
+    requires_non_null: [profile_pin_ref]
+    requires_non_empty: [corpus_refs]
+
+  - id: managed_saas_ring
+    description: >
+      Managed SaaS ring capture. profile_pin_ref resolves into the ring
+      identity row; the captured evidence MUST cite the ring so the
+      result is not widened across rings.
+    requires_non_null: [profile_pin_ref]
+    requires_non_empty: [corpus_refs]
+
+  - id: general_corpus_no_profile_pin
+    description: >
+      The fitness function is host-independent and the corpus manifest
+      does not require a profile pin (e.g. command-graph parity).
+      profile_pin_ref is null; corpus_refs MAY be empty.
+    requires_null: [profile_pin_ref]
+    optional_corpus_refs: true
+
+# -----------------------------------------------------------------------------
+# Partial-profile result classes.
+#
+# Closed four-class vocabulary. A tile whose evidence covers only a
+# subset of the declared corpus / profile set MUST render a partial-
+# profile class other than not_partial_full_corpus_run; in that case the
+# tile_state MUST be one of warning, blocked, waived, waiver_expired, or
+# evidence_stale, and the mitigation_note_class MUST be
+# partial_profile_result_pending_full_capture (or, when an active waiver
+# covers the gap, waiver_holds_release_until_expiry).
+# -----------------------------------------------------------------------------
+partial_profile_result_classes:
+  - id: not_partial_full_corpus_run
+    description: The evidence covers the full declared corpus / profile set for the row.
+    admissible_tile_states: [passing, warning, blocked, waived, waiver_expired, evidence_stale]
+
+  - id: single_profile_only
+    description: Only one profile (one OS, one ring, one design-partner workspace, one lab) was captured.
+    admissible_tile_states: [warning, blocked, waived, waiver_expired, evidence_stale]
+    requires_mitigation_classes:
+      - partial_profile_result_pending_full_capture
+      - waiver_holds_release_until_expiry
+      - narrower_scope_until_refresh
+
+  - id: subset_of_profiles_covered
+    description: A strict subset of the declared profile set was captured.
+    admissible_tile_states: [warning, blocked, waived, waiver_expired, evidence_stale]
+    requires_mitigation_classes:
+      - partial_profile_result_pending_full_capture
+      - waiver_holds_release_until_expiry
+      - narrower_scope_until_refresh
+
+  - id: subset_of_corpus_rows_covered
+    description: The profile set is full but only a strict subset of corpus rows was captured.
+    admissible_tile_states: [warning, blocked, waived, waiver_expired, evidence_stale]
+    requires_mitigation_classes:
+      - partial_profile_result_pending_full_capture
+      - waiver_holds_release_until_expiry
+      - narrower_scope_until_refresh
+
+# -----------------------------------------------------------------------------
+# Waiver-authority rows.
+#
+# Mirrors artifacts/bench/fitness_function_catalog.yaml#waiver_authorities
+# plus a not_applicable_no_active_waiver token for tiles whose state is
+# not waived or waiver_expired.
+# -----------------------------------------------------------------------------
+waiver_authority_classes:
+  - id: performance_council
+    forum_ref: ownership_matrix.decision_forums.performance_council
+    admissible_tile_states: [waived, waiver_expired]
+  - id: architecture_council
+    forum_ref: ownership_matrix.decision_forums.architecture_council
+    admissible_tile_states: [waived, waiver_expired]
+  - id: release_council
+    forum_ref: ownership_matrix.decision_forums.release_council
+    admissible_tile_states: [waived, waiver_expired]
+  - id: shiproom_executive_scope_review
+    forum_ref: ownership_matrix.decision_forums.shiproom_executive_scope_review
+    admissible_tile_states: [waived, waiver_expired]
+  - id: not_applicable_no_active_waiver
+    forum_ref: null
+    admissible_tile_states: [passing, warning, blocked, evidence_stale]
+
+# -----------------------------------------------------------------------------
+# Visual / export parity floor.
+#
+# Every surface that renders the tile MUST render the same set of fields.
+# Surfaces MAY add detail (e.g. drift charts, history graphs) but MUST
+# NOT drop a field from this floor.
+# -----------------------------------------------------------------------------
+visual_export_parity_floor:
+  required_fields_on_every_surface:
+    - tile_state
+    - headline_label
+    - threshold_snapshot.threshold_mode_class
+    - threshold_snapshot.threshold_label
+    - threshold_snapshot.measured_label
+    - evidence_freshness.evidence_freshness_class
+    - evidence_freshness.captured_at
+    - evidence_freshness.expires_at
+    - owner.primary_dri
+    - owner.owning_lane
+    - corpus_profile_identity.corpus_profile_identity_class
+    - corpus_profile_identity.partial_profile_result_class
+    - mitigation_note.mitigation_note_class
+    - mitigation_note.mitigation_summary
+  per_state_required_extras:
+    waived:
+      - waiver.waiver_authority_class
+      - waiver.active_waiver_ref
+      - waiver.waiver_expires_on
+      - waiver.waiver_summary
+    waiver_expired:
+      - waiver.waiver_authority_class
+      - waiver.previous_waiver_ref
+      - waiver.waiver_expires_on
+      - waiver.waiver_summary
+    evidence_stale:
+      - evidence_freshness.rerun_trigger_ref
+      - evidence_freshness.freshness_summary
+  forbidden_collapses_on_release_or_claim_surfaces:
+    - rendering_a_waived_tile_as_passing_to_unblock_publication
+    - rendering_a_waiver_expired_tile_as_passing_after_renewal_lapses
+    - rendering_an_evidence_stale_tile_with_a_fresh_pass_chip
+    - dropping_corpus_profile_identity_when_widening_a_claim_across_profiles
+    - omitting_the_named_rerun_trigger_on_a_stale_by_trigger_tile
+
+# -----------------------------------------------------------------------------
+# Mitigation-note authoring rules.
+#
+# Mitigation notes explain what is narrower, slower, less portable, or
+# temporarily blocked, and what users or operators should do meanwhile.
+# Surfaces consume the typed mitigation_note_class and the three bounded
+# reviewable sentences (what_users_should_do, what_operators_should_do,
+# mitigation_summary) verbatim. Free-text fear copy and free-text 'see
+# release notes' redirects are non-conforming.
+# -----------------------------------------------------------------------------
+mitigation_authoring_rules:
+  what_users_should_do:
+    must_name_one_of:
+      - the_safe_in_scope_action
+      - the_safe_inspect_only_path
+      - the_named_workaround
+      - the_no_action_required_state
+    must_not:
+      - use_generic_fear_copy
+      - redirect_users_to_release_notes_without_naming_an_action
+  what_operators_should_do:
+    must_name_one_of:
+      - the_named_owner_handle
+      - the_named_lane
+      - the_named_decision_forum
+      - the_named_rerun_trigger
+    must_not:
+      - leave_the_owner_implicit
+      - omit_the_decision_forum_when_a_waiver_is_in_effect
+  mitigation_summary:
+    must_name_one_of:
+      - what_is_narrower
+      - what_is_slower
+      - what_is_less_portable
+      - what_is_temporarily_blocked
+      - the_meanwhile_posture_for_users
+    must_not:
+      - claim_a_passing_state_when_evidence_is_stale_or_a_waiver_is_in_effect
+
+# -----------------------------------------------------------------------------
+# Cross-references.
+#
+# Where the dashboard tile sits in the broader governance graph.
+# -----------------------------------------------------------------------------
+cross_references:
+  upstream:
+    - artifacts/bench/fitness_function_catalog.yaml
+    - artifacts/governance/evidence_freshness_slos.yaml
+    - artifacts/governance/evidence_rerun_triggers.yaml
+    - artifacts/governance/ownership_matrix.yaml
+    - artifacts/evidence/evidence_metadata_fields.yaml
+  downstream:
+    - artifacts/governance/milestone_scorecard_template.yaml
+    - artifacts/governance/claim_manifest_seed.yaml
+    - artifacts/governance/governance_packet_template.yaml
+    - docs/release/shiproom_runbook.md
