@@ -1,0 +1,1120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/nightly_report_row.schema.json",
+  "title": "Aureline nightly-governance report row, recurring-evidence compare snapshot, and corpus / profile-pinned drift contract",
+  "description": "Boundary schema for one nightly_report_row_record frozen in docs/governance/nightly_report_and_waiver_queue_contract.md. The record is the reusable projection that the governance dashboard, the milestone scorecard, the weekly governance review, the release-evidence shiproom packet, the support bundle, the public claim manifest, and the governance packet quote when a recurring evidence run lands. Every row names a typed report type, a typed run-state token, the corpus / profile envelope the run was captured against, the typed compare action and compare result against the prior baseline (or the catalog threshold when no baseline exists), the evidence freshness posture, the linked rule or claim refs, the linked waiver-queue items (when a waiver gates the row), the typed mitigation note, and the typed recurring-waiver and repeated-protected-path cluster indicators. A waived or waiver-expired failure can never collapse into a clean pass; stale evidence can never retain fresh-pass semantics; chronic drift cannot render as an isolated incident. Raw measurement bytes, raw evidence bodies, raw waiver justifications, and raw user identifiers MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new report type, run-state class, compare-action class, compare-result class, mitigation class, cluster class, or regression class is additive-minor and bumps nightly_report_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/nightly_report_row_record",
+  "$defs": {
+    "nightly_report_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the nightly-report-row payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, and screenshots. Raw URLs, raw absolute paths, raw policy bodies, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration (e.g. P14D)."
+    },
+    "nullable_iso_duration": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/iso_duration" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw measurement bytes, raw evidence bodies, raw policy bodies, raw waiver justifications, and raw user identifiers MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "report_type_class": {
+      "type": "string",
+      "enum": [
+        "recurring_benchmark_report",
+        "recurring_compatibility_report",
+        "recurring_supportability_drill_report",
+        "recurring_security_packet_report",
+        "recurring_migration_packet_report",
+        "recurring_claim_attestation_report"
+      ],
+      "description": "Closed six-class report-type vocabulary. Mirrors the proof-class taxonomy frozen in artifacts/governance/evidence_freshness_slos.yaml. A row whose report type cannot be typed denies with report_type_class_unresolved rather than defaulting."
+    },
+    "run_state_class": {
+      "type": "string",
+      "enum": [
+        "pass_full_corpus_full_profile",
+        "pass_partial_profile_named_gap",
+        "partial_run_subset_only",
+        "blocked_by_failure",
+        "blocked_by_drift",
+        "waived_failure",
+        "waiver_expired_failure",
+        "evidence_stale",
+        "not_run_due_to_blocker"
+      ],
+      "description": "Closed nine-class run-state vocabulary. pass_full_corpus_full_profile = recurring run met every threshold and covered the declared corpus / profile set. pass_partial_profile_named_gap = recurring run met every threshold but covered only a subset of the declared profile set. partial_run_subset_only = recurring run completed only a subset of the declared corpus rows or profile slices. blocked_by_failure = fresh threshold breach with no active waiver. blocked_by_drift = drift past the warning band against the prior baseline; threshold not yet breached. waived_failure = failure or near-failure held open by an active waiver; row MUST cite a non-null waiver_queue_item_refs entry. waiver_expired_failure = failure on a row whose waiver expired without renewal; row MUST cite the previous waiver and MUST NOT render as passing on any consuming surface. evidence_stale = recurring run did not capture fresh evidence within the freshness window or a named rerun trigger fired. not_run_due_to_blocker = recurring run did not execute because an upstream blocker prevented capture."
+    },
+    "compare_action_class": {
+      "type": "string",
+      "enum": [
+        "compare_against_prior_baseline",
+        "compare_against_release_floor",
+        "compare_against_corpus_revision_floor",
+        "compare_against_threshold_only_no_baseline",
+        "compare_skipped_baseline_drift",
+        "compare_blocked_by_drift_in_corpus_or_profile"
+      ],
+      "description": "Closed six-class compare-action vocabulary. Names how the recurring run was graded so drift cannot be claimed across an incompatible corpus / profile envelope."
+    },
+    "compare_result_class": {
+      "type": "string",
+      "enum": [
+        "no_drift_inside_warning_band",
+        "drift_within_warning_band",
+        "drift_within_failure_band_no_waiver",
+        "drift_breaches_release_floor",
+        "new_baseline_required_seed_pending",
+        "compare_skipped"
+      ],
+      "description": "Closed six-class compare-result vocabulary. Names what the comparison observed so 'drift inside warning band' cannot widen into 'breaches release floor' on a downstream surface."
+    },
+    "comparison_envelope_class": {
+      "type": "string",
+      "enum": [
+        "reference_hardware",
+        "design_partner_workspace",
+        "air_gapped_lab",
+        "managed_saas_ring",
+        "general_corpus_no_profile_pin"
+      ],
+      "description": "Closed five-class comparison-envelope vocabulary. Mirrors corpus_profile_identity_class so the compare action cannot drift silently across reference surfaces; the compare envelope MUST equal the row's corpus_profile_identity_class."
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "near_expiry",
+        "stale_by_time",
+        "stale_by_trigger",
+        "missing",
+        "not_applicable_provisional"
+      ],
+      "description": "Closed evidence-freshness vocabulary. Mirrors fitness_tile.schema.json so the nightly row, the fitness tile, and the underlying packet header agree on freshness semantics."
+    },
+    "mitigation_note_class": {
+      "type": "string",
+      "enum": [
+        "no_mitigation_required_passing",
+        "narrower_scope_until_refresh",
+        "slower_path_active_until_refresh",
+        "less_portable_temporarily",
+        "temporarily_blocked_pending_owner_action",
+        "waiver_holds_release_until_expiry",
+        "partial_profile_result_pending_full_capture",
+        "provisional_no_action_until_seeded",
+        "early_signal_drift_owner_inspecting"
+      ],
+      "description": "Closed nine-class mitigation-note vocabulary. Mirrors fitness_tile.schema.json so dashboards, scorecards, and packets render the same mitigation copy verbatim."
+    },
+    "corpus_profile_identity_class": {
+      "type": "string",
+      "enum": [
+        "reference_hardware",
+        "design_partner_workspace",
+        "air_gapped_lab",
+        "managed_saas_ring",
+        "general_corpus_no_profile_pin"
+      ],
+      "description": "Closed corpus / profile identity vocabulary. Mirrors fitness_tile.schema.json so the recurring run, the live fitness tile, and the release / claim surfaces agree on where the evidence was captured."
+    },
+    "partial_profile_result_class": {
+      "type": "string",
+      "enum": [
+        "not_partial_full_corpus_run",
+        "single_profile_only",
+        "subset_of_profiles_covered",
+        "subset_of_corpus_rows_covered"
+      ],
+      "description": "Closed partial-profile vocabulary. Mirrors fitness_tile.schema.json. A row whose partial-profile class is not not_partial_full_corpus_run cannot project as pass_full_corpus_full_profile."
+    },
+    "linked_rule_or_claim_kind_class": {
+      "type": "string",
+      "enum": [
+        "fitness_function_catalog_row",
+        "protected_metrics_row",
+        "claim_manifest_row",
+        "compatibility_surface_row",
+        "certified_archetype_row",
+        "decision_or_signoff_row"
+      ],
+      "description": "Closed six-class typed kind vocabulary for linked_rule_or_claim_refs. Surfaces resolve refs against the catalog the kind names; mixing kinds inside one row is admissible but each entry MUST cite its kind."
+    },
+    "recurring_waiver_cluster_class": {
+      "type": "string",
+      "enum": [
+        "not_recurring_first_observation",
+        "recurring_within_quarter",
+        "recurring_across_quarters",
+        "recurring_across_protected_paths",
+        "not_applicable_no_waiver_history"
+      ],
+      "description": "Closed five-class recurring-waiver cluster vocabulary. Surfaces the chronic-drift signal that the weekly governance review uses to escalate from isolated waiver renewals to portfolio correction work."
+    },
+    "repeated_protected_path_regression_class": {
+      "type": "string",
+      "enum": [
+        "no_regression_first_observation",
+        "repeated_protected_path_within_milestone",
+        "repeated_protected_path_across_milestones",
+        "repeated_protected_path_across_release_lines",
+        "not_applicable_no_protected_path_pin"
+      ],
+      "description": "Closed five-class repeated-protected-path-regression vocabulary. Distinct from recurring-waiver clustering: a regression can recur without a waiver, and a waiver can recur without a regression."
+    },
+
+    "report_run_chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "completed_at", "run_id"],
+      "properties": {
+        "started_at": { "$ref": "#/$defs/utc_datetime" },
+        "completed_at": { "$ref": "#/$defs/utc_datetime" },
+        "run_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Run id from the upstream evidence packet header. Pairs the row with the underlying capture for support bundles and audit replay."
+        }
+      }
+    },
+
+    "compare_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compare_action_class",
+        "compare_result_class",
+        "comparison_envelope_class",
+        "prior_baseline_packet_ref",
+        "compare_summary"
+      ],
+      "properties": {
+        "compare_action_class": { "$ref": "#/$defs/compare_action_class" },
+        "compare_result_class": { "$ref": "#/$defs/compare_result_class" },
+        "comparison_envelope_class": { "$ref": "#/$defs/comparison_envelope_class" },
+        "prior_baseline_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the prior recurring run's evidence packet on the same corpus / profile envelope. Required when compare_action_class = compare_against_prior_baseline. Null otherwise."
+        },
+        "compare_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the comparison outcome and the envelope. Raw measurement bytes do not appear; the summary names the comparison band, the envelope, and (when run_state_class is partial_run_subset_only or pass_partial_profile_named_gap) the captured subset."
+        }
+      }
+    },
+
+    "evidence_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_freshness_class",
+        "evidence_packet_ref",
+        "captured_at",
+        "stale_after",
+        "expires_at",
+        "rerun_trigger_ref",
+        "freshness_summary"
+      ],
+      "properties": {
+        "evidence_freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "evidence_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the underlying evidence packet (benchmark report, compatibility report, support drill, migration packet, security packet, claim attestation). Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "captured_at value copied from the evidence packet header. Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "stale_after": {
+          "$ref": "#/$defs/nullable_iso_duration",
+          "description": "stale_after value copied from the evidence packet header (ISO 8601 duration). Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Computed captured_at + stale_after. Null only for evidence_freshness_class in { missing, not_applicable_provisional }. For stale_by_time the timestamp MUST be in the past relative to the row evaluation time."
+        },
+        "rerun_trigger_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required when evidence_freshness_class = stale_by_trigger; resolves into artifacts/governance/evidence_rerun_triggers.yaml. Null otherwise."
+        },
+        "freshness_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of why the evidence is in this freshness class. Names the time window or the named trigger; raw policy bodies and raw measurement bytes do not appear."
+        }
+      }
+    },
+
+    "corpus_profile_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_profile_identity_class",
+        "corpus_refs",
+        "profile_pin_ref",
+        "partial_profile_result_class",
+        "identity_summary"
+      ],
+      "properties": {
+        "corpus_profile_identity_class": { "$ref": "#/$defs/corpus_profile_identity_class" },
+        "corpus_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Corpus ids the recurring run was captured against. Empty only for corpus_profile_identity_class = general_corpus_no_profile_pin and only when the report type is host-independent."
+        },
+        "profile_pin_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref pinning the named reference surface. Required when corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, managed_saas_ring."
+        },
+        "partial_profile_result_class": { "$ref": "#/$defs/partial_profile_result_class" },
+        "identity_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the corpus and profile identity behind the recurring run. Names the reference surface so the result cannot float free of where it was captured."
+        }
+      }
+    },
+
+    "linked_rule_or_claim_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linked_rule_or_claim_kind_class", "linked_rule_or_claim_id"],
+      "properties": {
+        "linked_rule_or_claim_kind_class": { "$ref": "#/$defs/linked_rule_or_claim_kind_class" },
+        "linked_rule_or_claim_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "mitigation_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mitigation_note_class",
+        "what_users_should_do",
+        "what_operators_should_do",
+        "mitigation_summary"
+      ],
+      "properties": {
+        "mitigation_note_class": { "$ref": "#/$defs/mitigation_note_class" },
+        "what_users_should_do": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable instruction for the user / consumer. Resolves against the mitigation_note_class; free-text fear copy is non-conforming."
+        },
+        "what_operators_should_do": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable instruction for the lane DRI / operator. Resolves against the mitigation_note_class."
+        },
+        "mitigation_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary describing what is narrower, slower, less portable, or temporarily blocked, and the meanwhile posture. Surfaces MUST NOT collapse this into a generic 'see release notes' link."
+        }
+      }
+    },
+
+    "cluster_indicators": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recurring_waiver_cluster_class",
+        "repeated_protected_path_regression_class",
+        "cluster_member_refs",
+        "protected_path_ref",
+        "cluster_summary"
+      ],
+      "properties": {
+        "recurring_waiver_cluster_class": { "$ref": "#/$defs/recurring_waiver_cluster_class" },
+        "repeated_protected_path_regression_class": { "$ref": "#/$defs/repeated_protected_path_regression_class" },
+        "cluster_member_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into other nightly_report_row_ids that share the cluster. Required to be non-empty when recurring_waiver_cluster_class != not_applicable_no_waiver_history and != not_recurring_first_observation, or when repeated_protected_path_regression_class != not_applicable_no_protected_path_pin and != no_regression_first_observation."
+        },
+        "protected_path_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref pinning the protected path the row is graded against (catalog row id, claim row id, compatibility-surface id). Required when repeated_protected_path_regression_class is not not_applicable_no_protected_path_pin."
+        },
+        "cluster_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the cluster posture. Names the cluster scope (within milestone, across milestones, across release lines) and the count of cluster members; raw waiver justifications do not appear."
+        }
+      }
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_scorecard",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the row MUST render the same run_state_class, compare_snapshot, corpus_profile_identity, evidence_freshness, mitigation_note, and cluster_indicators. Setting render_on_release_packet, render_on_support_export, render_on_governance_packet, or render_on_claim_manifest to true signals that the row is part of public / release / support truth and MUST satisfy the per-state export rules in the schema's allOf block."
+    },
+
+    "nightly_report_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nightly_report_row_schema_version",
+        "record_kind",
+        "nightly_report_row_id",
+        "report_type_class",
+        "report_run_chronology",
+        "evaluated_at",
+        "run_state_class",
+        "headline_label",
+        "corpus_profile_identity",
+        "compare_snapshot",
+        "evidence_freshness",
+        "linked_rule_or_claim_refs",
+        "linked_evidence_refs",
+        "waiver_queue_item_refs",
+        "mitigation_note",
+        "cluster_indicators",
+        "export_fields",
+        "contract_doc_ref",
+        "waiver_expiry_item_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "nightly_report_row_schema_version": { "$ref": "#/$defs/nightly_report_row_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "nightly_report_row_record"
+        },
+        "nightly_report_row_id": {
+          "type": "string",
+          "pattern": "^nightly_report_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by the dashboard, the milestone scorecard, the weekly governance review, the release-evidence shiproom packet, the support bundle, the public claim manifest, and the governance packet."
+        },
+        "report_type_class": { "$ref": "#/$defs/report_type_class" },
+        "report_run_chronology": { "$ref": "#/$defs/report_run_chronology" },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the row was projected. Distinct from report_run_chronology.completed_at; the same evidence packet can be reprojected when cluster indicators or freshness windows change."
+        },
+        "run_state_class": { "$ref": "#/$defs/run_state_class" },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the row. Resolves against run_state_class plus the linked rule / claim refs; free-text 'all good' / 'all bad' copy is non-conforming."
+        },
+        "corpus_profile_identity": { "$ref": "#/$defs/corpus_profile_identity" },
+        "compare_snapshot": { "$ref": "#/$defs/compare_snapshot" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "linked_rule_or_claim_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/linked_rule_or_claim_ref" },
+          "description": "Typed refs into the protected fitness-function catalog, the protected-metrics register, the claim manifest, the compatibility-surface inventory, the certified-archetype list, or the decision / signoff matrix. A row that names no upstream rule or claim is non-conforming."
+        },
+        "linked_evidence_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into the underlying recurring evidence packets the row was assembled from. At least one entry is required so the row can never float free of an upstream packet."
+        },
+        "waiver_queue_item_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into waiver_expiry_item_records attached to this row. Required to be non-empty when run_state_class is waived_failure or waiver_expired_failure."
+        },
+        "mitigation_note": { "$ref": "#/$defs/mitigation_note" },
+        "cluster_indicators": { "$ref": "#/$defs/cluster_indicators" },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/nightly_report_and_waiver_queue_contract.md"
+        },
+        "waiver_expiry_item_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/waiver_expiry_item.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "run_state_class = pass_full_corpus_full_profile requires partial_profile_result_class = not_partial_full_corpus_run, mitigation_note_class = no_mitigation_required_passing, evidence_freshness_class in { fresh, near_expiry }, and an empty waiver_queue_item_refs array. A clean recurring pass cannot ride a waiver or a partial-profile gap.",
+          "if": {
+            "properties": { "run_state_class": { "const": "pass_full_corpus_full_profile" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "partial_profile_result_class": { "const": "not_partial_full_corpus_run" }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": { "const": "no_mitigation_required_passing" }
+                }
+              },
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "enum": ["fresh", "near_expiry"] }
+                }
+              },
+              "waiver_queue_item_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = pass_partial_profile_named_gap forbids partial_profile_result_class = not_partial_full_corpus_run and forces mitigation_note_class to partial_profile_result_pending_full_capture or waiver_holds_release_until_expiry.",
+          "if": {
+            "properties": { "run_state_class": { "const": "pass_partial_profile_named_gap" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "partial_profile_result_class": {
+                    "enum": [
+                      "single_profile_only",
+                      "subset_of_profiles_covered",
+                      "subset_of_corpus_rows_covered"
+                    ]
+                  }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "partial_profile_result_pending_full_capture",
+                      "waiver_holds_release_until_expiry"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = partial_run_subset_only forces partial_profile_result_class out of not_partial_full_corpus_run and mitigation_note_class to partial_profile_result_pending_full_capture or waiver_holds_release_until_expiry.",
+          "if": {
+            "properties": { "run_state_class": { "const": "partial_run_subset_only" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "partial_profile_result_class": {
+                    "enum": [
+                      "single_profile_only",
+                      "subset_of_profiles_covered",
+                      "subset_of_corpus_rows_covered"
+                    ]
+                  }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "partial_profile_result_pending_full_capture",
+                      "waiver_holds_release_until_expiry"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = blocked_by_drift requires compare_result_class in { drift_within_warning_band, drift_within_failure_band_no_waiver } and mitigation_note_class in { early_signal_drift_owner_inspecting, narrower_scope_until_refresh, partial_profile_result_pending_full_capture }.",
+          "if": {
+            "properties": { "run_state_class": { "const": "blocked_by_drift" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_result_class": {
+                    "enum": [
+                      "drift_within_warning_band",
+                      "drift_within_failure_band_no_waiver"
+                    ]
+                  }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "early_signal_drift_owner_inspecting",
+                      "narrower_scope_until_refresh",
+                      "partial_profile_result_pending_full_capture"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = blocked_by_failure requires compare_result_class = drift_breaches_release_floor, an empty waiver_queue_item_refs array, and mitigation_note_class in { temporarily_blocked_pending_owner_action, narrower_scope_until_refresh, slower_path_active_until_refresh, less_portable_temporarily }.",
+          "if": {
+            "properties": { "run_state_class": { "const": "blocked_by_failure" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_result_class": { "const": "drift_breaches_release_floor" }
+                }
+              },
+              "waiver_queue_item_refs": { "maxItems": 0 },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "temporarily_blocked_pending_owner_action",
+                      "narrower_scope_until_refresh",
+                      "slower_path_active_until_refresh",
+                      "less_portable_temporarily"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = waived_failure requires compare_result_class = drift_breaches_release_floor, a non-empty waiver_queue_item_refs array, and mitigation_note_class = waiver_holds_release_until_expiry.",
+          "if": {
+            "properties": { "run_state_class": { "const": "waived_failure" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_result_class": { "const": "drift_breaches_release_floor" }
+                }
+              },
+              "waiver_queue_item_refs": { "minItems": 1 },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": { "const": "waiver_holds_release_until_expiry" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = waiver_expired_failure requires compare_result_class = drift_breaches_release_floor, a non-empty waiver_queue_item_refs array, and mitigation_note_class = temporarily_blocked_pending_owner_action.",
+          "if": {
+            "properties": { "run_state_class": { "const": "waiver_expired_failure" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_result_class": { "const": "drift_breaches_release_floor" }
+                }
+              },
+              "waiver_queue_item_refs": { "minItems": 1 },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": { "const": "temporarily_blocked_pending_owner_action" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = evidence_stale requires evidence_freshness_class in { stale_by_time, stale_by_trigger, missing } and mitigation_note_class in { narrower_scope_until_refresh, slower_path_active_until_refresh, less_portable_temporarily, partial_profile_result_pending_full_capture }.",
+          "if": {
+            "properties": { "run_state_class": { "const": "evidence_stale" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": {
+                    "enum": ["stale_by_time", "stale_by_trigger", "missing"]
+                  }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": {
+                    "enum": [
+                      "narrower_scope_until_refresh",
+                      "slower_path_active_until_refresh",
+                      "less_portable_temporarily",
+                      "partial_profile_result_pending_full_capture"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_state_class = not_run_due_to_blocker requires mitigation_note_class = temporarily_blocked_pending_owner_action and compare_result_class = compare_skipped.",
+          "if": {
+            "properties": { "run_state_class": { "const": "not_run_due_to_blocker" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_result_class": { "const": "compare_skipped" }
+                }
+              },
+              "mitigation_note": {
+                "properties": {
+                  "mitigation_note_class": { "const": "temporarily_blocked_pending_owner_action" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "compare_action_class = compare_against_prior_baseline requires a non-null prior_baseline_packet_ref so the comparison can be re-traced to the underlying packet.",
+          "if": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_action_class": { "const": "compare_against_prior_baseline" }
+                },
+                "required": ["compare_action_class"]
+              }
+            },
+            "required": ["compare_snapshot"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "prior_baseline_packet_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "compare_action_class in { compare_skipped_baseline_drift, compare_blocked_by_drift_in_corpus_or_profile, compare_against_threshold_only_no_baseline } forces compare_result_class to compare_skipped or new_baseline_required_seed_pending and forces prior_baseline_packet_ref to null.",
+          "if": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_action_class": {
+                    "enum": [
+                      "compare_skipped_baseline_drift",
+                      "compare_blocked_by_drift_in_corpus_or_profile",
+                      "compare_against_threshold_only_no_baseline"
+                    ]
+                  }
+                },
+                "required": ["compare_action_class"]
+              }
+            },
+            "required": ["compare_snapshot"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "compare_result_class": {
+                    "enum": [
+                      "compare_skipped",
+                      "new_baseline_required_seed_pending"
+                    ]
+                  },
+                  "prior_baseline_packet_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_freshness_class = stale_by_trigger requires a non-null rerun_trigger_ref so the stale-by-trigger reason can be resolved against artifacts/governance/evidence_rerun_triggers.yaml.",
+          "if": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "const": "stale_by_trigger" }
+                },
+                "required": ["evidence_freshness_class"]
+              }
+            },
+            "required": ["evidence_freshness"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": { "rerun_trigger_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_freshness_class in { missing, not_applicable_provisional } MUST carry null evidence_packet_ref, captured_at, stale_after, and expires_at fields; the absence of evidence cannot be silently filled in.",
+          "if": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": {
+                    "enum": ["missing", "not_applicable_provisional"]
+                  }
+                },
+                "required": ["evidence_freshness_class"]
+              }
+            },
+            "required": ["evidence_freshness"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_packet_ref": { "type": "null" },
+                  "captured_at": { "type": "null" },
+                  "stale_after": { "type": "null" },
+                  "expires_at": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, or managed_saas_ring, the corpus_profile_identity envelope MUST cite a non-null profile_pin_ref and a non-empty corpus_refs array so the row cannot float free of where it was captured.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": {
+                    "enum": [
+                      "reference_hardware",
+                      "design_partner_workspace",
+                      "air_gapped_lab",
+                      "managed_saas_ring"
+                    ]
+                  }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "profile_pin_ref": { "not": { "type": "null" } },
+                  "corpus_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class MUST equal corpus_profile_identity_class; a recurring run cannot be compared against a prior baseline captured on a different reference surface.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": { "const": "reference_hardware" }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "comparison_envelope_class": { "const": "reference_hardware" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for design_partner_workspace.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": { "const": "design_partner_workspace" }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "comparison_envelope_class": { "const": "design_partner_workspace" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for air_gapped_lab.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": { "const": "air_gapped_lab" }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "comparison_envelope_class": { "const": "air_gapped_lab" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for managed_saas_ring.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": { "const": "managed_saas_ring" }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "comparison_envelope_class": { "const": "managed_saas_ring" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for general_corpus_no_profile_pin.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": { "const": "general_corpus_no_profile_pin" }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "compare_snapshot": {
+                "properties": {
+                  "comparison_envelope_class": { "const": "general_corpus_no_profile_pin" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "recurring_waiver_cluster_class in { recurring_within_quarter, recurring_across_quarters, recurring_across_protected_paths } requires a non-empty cluster_member_refs array so the cluster can be inspected as a pattern.",
+          "if": {
+            "properties": {
+              "cluster_indicators": {
+                "properties": {
+                  "recurring_waiver_cluster_class": {
+                    "enum": [
+                      "recurring_within_quarter",
+                      "recurring_across_quarters",
+                      "recurring_across_protected_paths"
+                    ]
+                  }
+                },
+                "required": ["recurring_waiver_cluster_class"]
+              }
+            },
+            "required": ["cluster_indicators"]
+          },
+          "then": {
+            "properties": {
+              "cluster_indicators": {
+                "properties": {
+                  "cluster_member_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "repeated_protected_path_regression_class in { repeated_protected_path_within_milestone, repeated_protected_path_across_milestones, repeated_protected_path_across_release_lines } requires a non-empty cluster_member_refs array and a non-null protected_path_ref.",
+          "if": {
+            "properties": {
+              "cluster_indicators": {
+                "properties": {
+                  "repeated_protected_path_regression_class": {
+                    "enum": [
+                      "repeated_protected_path_within_milestone",
+                      "repeated_protected_path_across_milestones",
+                      "repeated_protected_path_across_release_lines"
+                    ]
+                  }
+                },
+                "required": ["repeated_protected_path_regression_class"]
+              }
+            },
+            "required": ["cluster_indicators"]
+          },
+          "then": {
+            "properties": {
+              "cluster_indicators": {
+                "properties": {
+                  "cluster_member_refs": { "minItems": 1 },
+                  "protected_path_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "recurring_waiver_cluster_class = not_applicable_no_waiver_history forbids run_state_class in { waived_failure, waiver_expired_failure }; a row that cites an active or expired waiver cannot also claim no waiver history.",
+          "if": {
+            "properties": {
+              "cluster_indicators": {
+                "properties": {
+                  "recurring_waiver_cluster_class": { "const": "not_applicable_no_waiver_history" }
+                },
+                "required": ["recurring_waiver_cluster_class"]
+              }
+            },
+            "required": ["cluster_indicators"]
+          },
+          "then": {
+            "properties": {
+              "run_state_class": {
+                "not": { "enum": ["waived_failure", "waiver_expired_failure"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "When export_fields.render_on_release_packet or render_on_claim_manifest is true, run_state_class MUST NOT be waiver_expired_failure unless the row is also rendered as such on every other consuming surface; a waiver-expired row cannot ride into release / claim publication while being filed away from the dashboard.",
+          "if": {
+            "properties": {
+              "export_fields": {
+                "anyOf": [
+                  { "properties": { "render_on_release_packet": { "const": true } } },
+                  { "properties": { "render_on_claim_manifest": { "const": true } } }
+                ]
+              },
+              "run_state_class": { "const": "waiver_expired_failure" }
+            },
+            "required": ["export_fields", "run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "export_fields": {
+                "properties": {
+                  "render_on_dashboard": { "const": true },
+                  "render_on_governance_packet": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,536 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/waiver_expiry_item.schema.json",
+  "title": "Aureline waiver-expiry queue item, mitigation-status grammar, and recurring-waiver clustering contract",
+  "description": "Boundary schema for one waiver_expiry_item_record frozen in docs/governance/nightly_report_and_waiver_queue_contract.md. The record is the reusable projection that the governance dashboard, the weekly governance review, the milestone scorecard, the release-evidence shiproom packet, the support bundle, and the governance packet quote when a waiver lifecycle event has to be visible before the consuming review depends on it. Every queue item names the underlying waiver record, the waiver owner DRI / lane / decision forum, the typed waiver authority, the typed waiver kind, the expiry timestamp and proximity class, the affected release / milestone / LTS-train ids, the affected protected paths, the typed mitigation status, the linked evidence, the linked nightly-row ids that triggered or are gated by the item, the typed recurring-waiver cluster class, the typed repeated-protected-path-regression class, the typed open-detail action, and the typed escalation path. A waiver expiring next week cannot share a 'needs action' chip with a waiver that already lapsed; a chronic cluster cannot render as an isolated incident; ownership-unresolved items cannot be filtered out under an 'owner inspecting' affordance. Raw waiver justification text, raw user identifiers, and raw policy bodies MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new waiver-kind class, expiry-proximity class, mitigation-status class, open-detail action class, escalation-path class, recurring-waiver cluster class, or repeated-protected-path-regression class is additive-minor and bumps waiver_expiry_item_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/waiver_expiry_item_record",
+  "$defs": {
+    "waiver_expiry_item_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the waiver-expiry-item payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, and screenshots. Raw URLs, raw absolute paths, raw policy bodies, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw measurement bytes, raw evidence bodies, raw policy bodies, raw waiver justifications, and raw user identifiers MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "waiver_authority_class": {
+      "type": "string",
+      "enum": [
+        "performance_council",
+        "architecture_council",
+        "release_council",
+        "shiproom_executive_scope_review",
+        "not_applicable_no_active_waiver"
+      ],
+      "description": "Closed five-class waiver-authority vocabulary. Mirrors fitness_tile.schema.json so the queue item, the live tile, and the council audit stream agree on who issued the waiver."
+    },
+    "waiver_kind_class": {
+      "type": "string",
+      "enum": [
+        "freeze_exception",
+        "policy_narrowing",
+        "retention_exception",
+        "release_floor_breach_waiver",
+        "support_drill_pending_waiver",
+        "compatibility_window_waiver",
+        "claim_attestation_pending_waiver",
+        "single_maintainer_backup",
+        "other_named_in_summary"
+      ],
+      "description": "Closed nine-class waiver-kind vocabulary. Mirrors the waiver_kind enum on schemas/governance/waiver_expiry.schema.json for governance-flow waivers and adds release_floor_breach_waiver, support_drill_pending_waiver, compatibility_window_waiver, and claim_attestation_pending_waiver for the recurring-evidence flow. other_named_in_summary is admissible only when the summary names the kind."
+    },
+    "expiry_proximity_class": {
+      "type": "string",
+      "enum": [
+        "expired_past_due",
+        "due_today_or_within_24h",
+        "nearing_expiry_within_seven_days",
+        "nearing_expiry_within_thirty_days",
+        "not_yet_due_review_window_open",
+        "no_expiry_pinned"
+      ],
+      "description": "Closed six-class expiry-proximity vocabulary. expired_past_due = expires_at in the past with no renewal recorded. due_today_or_within_24h = expires_at within 24 hours of the evaluation. nearing_expiry_within_seven_days = expires_at between 24 hours and seven days from now. nearing_expiry_within_thirty_days = expires_at between seven and thirty days from now. not_yet_due_review_window_open = expires_at more than thirty days from now. no_expiry_pinned = standing waiver with no expiry timestamp; admissible only for single_maintainer_backup or other_named_in_summary."
+    },
+    "mitigation_status_class": {
+      "type": "string",
+      "enum": [
+        "mitigation_in_flight_owner_named",
+        "mitigation_blocked_pending_decision",
+        "mitigation_not_started_pending_owner",
+        "mitigation_complete_renewal_or_retire_pending",
+        "mitigation_not_required_audit_only"
+      ],
+      "description": "Closed five-class mitigation-status vocabulary. Surfaces MUST NOT collapse 'blocked pending decision' and 'not started pending owner' into a single 'needs review' chip; the two have distinct escalation paths."
+    },
+    "open_detail_action_class": {
+      "type": "string",
+      "enum": [
+        "open_waiver_record_inspector",
+        "open_nightly_report_row_inspector",
+        "open_protected_path_inspector",
+        "open_release_or_milestone_inspector",
+        "open_cluster_inspector"
+      ],
+      "description": "Closed five-class open-detail action vocabulary. Every action is inspect-only; mutating actions live on the upstream waiver workflow surface and require council authority and signoff."
+    },
+    "escalation_path_class": {
+      "type": "string",
+      "enum": [
+        "escalate_to_dri",
+        "escalate_to_backup_owner",
+        "escalate_to_decision_forum",
+        "escalate_to_release_council",
+        "escalate_to_shiproom",
+        "escalate_to_support",
+        "no_escalation_required"
+      ],
+      "description": "Closed seven-class escalation-path vocabulary. Mirrors waiver_expiry.schema.json with one governance-flow extension (escalate_to_release_council) and one shiproom escalation (escalate_to_shiproom)."
+    },
+    "recurring_waiver_cluster_class": {
+      "type": "string",
+      "enum": [
+        "not_recurring_first_observation",
+        "recurring_within_quarter",
+        "recurring_across_quarters",
+        "recurring_across_protected_paths",
+        "not_applicable_no_waiver_history"
+      ],
+      "description": "Closed five-class recurring-waiver cluster vocabulary. Mirrors nightly_report_row.schema.json so the row and the queue item agree on the cluster class."
+    },
+    "repeated_protected_path_regression_class": {
+      "type": "string",
+      "enum": [
+        "no_regression_first_observation",
+        "repeated_protected_path_within_milestone",
+        "repeated_protected_path_across_milestones",
+        "repeated_protected_path_across_release_lines",
+        "not_applicable_no_protected_path_pin"
+      ],
+      "description": "Closed five-class repeated-protected-path-regression vocabulary. Mirrors nightly_report_row.schema.json."
+    },
+
+    "waiver_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_dri", "owning_lane", "decision_forum", "backup_owner"],
+      "properties": {
+        "primary_dri": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Primary DRI handle. Resolves into artifacts/governance/ownership_matrix.yaml. No silent blanks."
+        },
+        "owning_lane": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Owning scorecard lane. MUST resolve to a value in ownership_matrix.scorecard_lane_index."
+        },
+        "decision_forum": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Decision forum that minted the waiver (performance council, architecture council, release council, shiproom executive scope review)."
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ],
+          "description": "Backup owner handle. Null is admissible only when the waiver kind is single_maintainer_backup."
+        }
+      }
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_weekly_governance_review",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_weekly_governance_review": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the queue item MUST render the same waiver_authority_class, waiver_kind_class, expiry_proximity_class, mitigation_status_class, recurring_waiver_cluster_class, repeated_protected_path_regression_class, and summary."
+    },
+
+    "waiver_expiry_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiver_expiry_item_schema_version",
+        "record_kind",
+        "waiver_expiry_item_id",
+        "waiver_ref",
+        "waiver_owner",
+        "waiver_authority_class",
+        "waiver_kind_class",
+        "evaluated_at",
+        "expires_at",
+        "expiry_proximity_class",
+        "affected_release_or_milestone_refs",
+        "affected_protected_path_refs",
+        "mitigation_status_class",
+        "linked_evidence_refs",
+        "linked_nightly_report_row_refs",
+        "recurring_waiver_cluster_class",
+        "repeated_protected_path_regression_class",
+        "cluster_member_refs",
+        "open_detail_action_class",
+        "escalation_path_class",
+        "summary",
+        "export_fields",
+        "contract_doc_ref",
+        "nightly_report_row_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "waiver_expiry_item_schema_version": { "$ref": "#/$defs/waiver_expiry_item_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "waiver_expiry_item_record"
+        },
+        "waiver_expiry_item_id": {
+          "type": "string",
+          "pattern": "^waiver_expiry_item:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by every consuming surface."
+        },
+        "waiver_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying waiver in artifacts/governance/ownership_matrix.yaml#waivers or to a waiver_expiry_record on schemas/governance/waiver_expiry.schema.json."
+        },
+        "waiver_owner": { "$ref": "#/$defs/waiver_owner" },
+        "waiver_authority_class": { "$ref": "#/$defs/waiver_authority_class" },
+        "waiver_kind_class": { "$ref": "#/$defs/waiver_kind_class" },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the queue item was projected. expiry_proximity_class is computed against this timestamp; consuming surfaces re-render the queue with a fresh evaluated_at on each refresh."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Expiry timestamp copied from the underlying waiver record. Required when expiry_proximity_class != no_expiry_pinned. Null only when expiry_proximity_class = no_expiry_pinned."
+        },
+        "expiry_proximity_class": { "$ref": "#/$defs/expiry_proximity_class" },
+        "affected_release_or_milestone_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into release-line ids, milestone ids, or LTS-train ids the waiver gates. At least one entry is required so a queue item cannot float free of a release / milestone surface."
+        },
+        "affected_protected_path_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into the protected fitness-function catalog, the protected-metrics register, the compatibility-surface inventory, the certified-archetype list, or the policy / signoff matrix. At least one entry is required so a queue item cannot float free of a protected path."
+        },
+        "mitigation_status_class": { "$ref": "#/$defs/mitigation_status_class" },
+        "linked_evidence_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the evidence packets the queue item depends on (benchmark report, compatibility report, support drill, claim attestation). Empty only for waiver kinds whose evidence is not yet seeded (e.g. single_maintainer_backup audit-only)."
+        },
+        "linked_nightly_report_row_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into nightly_report_row_ids that triggered or are gated by this queue item. Required to be non-empty when waiver_kind_class is release_floor_breach_waiver, support_drill_pending_waiver, compatibility_window_waiver, or claim_attestation_pending_waiver."
+        },
+        "recurring_waiver_cluster_class": { "$ref": "#/$defs/recurring_waiver_cluster_class" },
+        "repeated_protected_path_regression_class": { "$ref": "#/$defs/repeated_protected_path_regression_class" },
+        "cluster_member_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into other waiver_expiry_item_ids that share the cluster. Required to be non-empty when recurring_waiver_cluster_class is one of recurring_within_quarter, recurring_across_quarters, recurring_across_protected_paths or when repeated_protected_path_regression_class is one of repeated_protected_path_within_milestone, repeated_protected_path_across_milestones, repeated_protected_path_across_release_lines."
+        },
+        "open_detail_action_class": { "$ref": "#/$defs/open_detail_action_class" },
+        "escalation_path_class": { "$ref": "#/$defs/escalation_path_class" },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the queue item. Names the authority, the expiry, and the held release condition. Raw waiver justification text MUST NOT appear."
+        },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/nightly_report_and_waiver_queue_contract.md"
+        },
+        "nightly_report_row_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/nightly_report_row.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "expiry_proximity_class = expired_past_due requires a non-null expires_at and forbids mitigation_status_class = mitigation_not_required_audit_only; an audit-only standing waiver cannot be filed under expired_past_due.",
+          "if": {
+            "properties": { "expiry_proximity_class": { "const": "expired_past_due" } },
+            "required": ["expiry_proximity_class"]
+          },
+          "then": {
+            "properties": {
+              "expires_at": { "not": { "type": "null" } },
+              "mitigation_status_class": { "not": { "const": "mitigation_not_required_audit_only" } }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class in { due_today_or_within_24h, nearing_expiry_within_seven_days, nearing_expiry_within_thirty_days, not_yet_due_review_window_open } requires a non-null expires_at.",
+          "if": {
+            "properties": {
+              "expiry_proximity_class": {
+                "enum": [
+                  "due_today_or_within_24h",
+                  "nearing_expiry_within_seven_days",
+                  "nearing_expiry_within_thirty_days",
+                  "not_yet_due_review_window_open"
+                ]
+              }
+            },
+            "required": ["expiry_proximity_class"]
+          },
+          "then": {
+            "properties": {
+              "expires_at": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class = no_expiry_pinned requires expires_at to be null and waiver_kind_class to be single_maintainer_backup or other_named_in_summary.",
+          "if": {
+            "properties": { "expiry_proximity_class": { "const": "no_expiry_pinned" } },
+            "required": ["expiry_proximity_class"]
+          },
+          "then": {
+            "properties": {
+              "expires_at": { "type": "null" },
+              "waiver_kind_class": {
+                "enum": ["single_maintainer_backup", "other_named_in_summary"]
+              }
+            }
+          }
+        },
+        {
+          "description": "mitigation_status_class = mitigation_blocked_pending_decision requires escalation_path_class in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom }.",
+          "if": {
+            "properties": {
+              "mitigation_status_class": { "const": "mitigation_blocked_pending_decision" }
+            },
+            "required": ["mitigation_status_class"]
+          },
+          "then": {
+            "properties": {
+              "escalation_path_class": {
+                "enum": [
+                  "escalate_to_decision_forum",
+                  "escalate_to_release_council",
+                  "escalate_to_shiproom"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "mitigation_status_class = mitigation_not_started_pending_owner requires escalation_path_class in { escalate_to_dri, escalate_to_backup_owner, escalate_to_decision_forum }; an ownership-unresolved item cannot be filed under no_escalation_required.",
+          "if": {
+            "properties": {
+              "mitigation_status_class": { "const": "mitigation_not_started_pending_owner" }
+            },
+            "required": ["mitigation_status_class"]
+          },
+          "then": {
+            "properties": {
+              "escalation_path_class": {
+                "enum": [
+                  "escalate_to_dri",
+                  "escalate_to_backup_owner",
+                  "escalate_to_decision_forum"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "recurring_waiver_cluster_class in { recurring_within_quarter, recurring_across_quarters, recurring_across_protected_paths } requires a non-empty cluster_member_refs array so the cluster can be inspected as a pattern.",
+          "if": {
+            "properties": {
+              "recurring_waiver_cluster_class": {
+                "enum": [
+                  "recurring_within_quarter",
+                  "recurring_across_quarters",
+                  "recurring_across_protected_paths"
+                ]
+              }
+            },
+            "required": ["recurring_waiver_cluster_class"]
+          },
+          "then": {
+            "properties": {
+              "cluster_member_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "repeated_protected_path_regression_class in { repeated_protected_path_within_milestone, repeated_protected_path_across_milestones, repeated_protected_path_across_release_lines } requires a non-empty cluster_member_refs array.",
+          "if": {
+            "properties": {
+              "repeated_protected_path_regression_class": {
+                "enum": [
+                  "repeated_protected_path_within_milestone",
+                  "repeated_protected_path_across_milestones",
+                  "repeated_protected_path_across_release_lines"
+                ]
+              }
+            },
+            "required": ["repeated_protected_path_regression_class"]
+          },
+          "then": {
+            "properties": {
+              "cluster_member_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "repeated_protected_path_regression_class = repeated_protected_path_across_release_lines requires escalation_path_class in { escalate_to_release_council, escalate_to_shiproom }; chronic regression across release lines cannot be filed against the lane DRI alone.",
+          "if": {
+            "properties": {
+              "repeated_protected_path_regression_class": {
+                "const": "repeated_protected_path_across_release_lines"
+              }
+            },
+            "required": ["repeated_protected_path_regression_class"]
+          },
+          "then": {
+            "properties": {
+              "escalation_path_class": {
+                "enum": ["escalate_to_release_council", "escalate_to_shiproom"]
+              }
+            }
+          }
+        },
+        {
+          "description": "waiver_authority_class = not_applicable_no_active_waiver is forbidden on a queue item; a queue item exists because a waiver was minted, so the authority MUST be one of the four council classes.",
+          "properties": {
+            "waiver_authority_class": {
+              "not": { "const": "not_applicable_no_active_waiver" }
+            }
+          }
+        },
+        {
+          "description": "waiver_kind_class in { release_floor_breach_waiver, support_drill_pending_waiver, compatibility_window_waiver, claim_attestation_pending_waiver } requires a non-empty linked_nightly_report_row_refs array.",
+          "if": {
+            "properties": {
+              "waiver_kind_class": {
+                "enum": [
+                  "release_floor_breach_waiver",
+                  "support_drill_pending_waiver",
+                  "compatibility_window_waiver",
+                  "claim_attestation_pending_waiver"
+                ]
+              }
+            },
+            "required": ["waiver_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_nightly_report_row_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "open_detail_action_class = open_cluster_inspector requires recurring_waiver_cluster_class or repeated_protected_path_regression_class to flag a pattern (i.e. neither is the first-observation default and the cluster_member_refs array is non-empty).",
+          "if": {
+            "properties": {
+              "open_detail_action_class": { "const": "open_cluster_inspector" }
+            },
+            "required": ["open_detail_action_class"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "recurring_waiver_cluster_class": {
+                    "enum": [
+                      "recurring_within_quarter",
+                      "recurring_across_quarters",
+                      "recurring_across_protected_paths"
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "repeated_protected_path_regression_class": {
+                    "enum": [
+                      "repeated_protected_path_within_milestone",
+                      "repeated_protected_path_across_milestones",
+                      "repeated_protected_path_across_release_lines"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
