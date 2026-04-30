@@ -1,0 +1,666 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/theme_support_row.schema.json",
+  "title": "Aureline theme/contrast support-row claim and audit-event records",
+  "description": "Boundary schema for the theme_support_row_claim_record and theme_support_audit_event_record frozen in docs/design/theme_support_and_inheritance_contract.md. Every first-party shell surface (and every embedded/extension surface that opts into host parity) declares one record per (surface_class, theme_package_revision, claimed_mode) tuple resolving the four per-theme-class support columns, density-aware behavior, reduced-motion behavior, forced-colors behavior, protected-cue preservation, evidence refs, and the canonical token-export linkage. Theme classes, density classes, accessibility postures, surface classes, semantic-status, trust-visual-state, and redaction-class vocabularies are re-exported by reference from schemas/design/token_export_manifest.schema.json and schemas/governance/capability_lifecycle.schema.json without modification. Raw token values, raw asset bytes, raw rendered screenshots, raw URLs, raw absolute paths, raw signing keys, and raw credential material never cross this boundary; this schema carries opaque ids, typed vocabulary, small counts, and short privacy-safe labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/theme_support_row_claim_record" },
+    { "$ref": "#/$defs/theme_support_audit_event_record" }
+  ],
+  "$defs": {
+    "theme_support_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for theme/contrast support-row claim and audit-event records. Vocabulary additions are additive-minor and require a version bump."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets. Raw URLs, raw absolute paths, raw signing keys, raw asset bytes never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "theme_class": {
+      "type": "string",
+      "enum": [
+        "dark_reference",
+        "light_parity",
+        "high_contrast_dark",
+        "high_contrast_light"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "contrast_mode": {
+      "type": "string",
+      "enum": [
+        "contrast_standard",
+        "contrast_high",
+        "contrast_forced_colors"
+      ],
+      "description": "Effective contrast posture this claim resolves to."
+    },
+
+    "density_class": {
+      "type": "string",
+      "enum": ["compact", "standard", "comfortable"],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "accessibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "motion_standard",
+        "motion_reduced",
+        "motion_low_motion",
+        "motion_power_saver",
+        "motion_critical_hot_path"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "trust_visual_state_class": {
+      "type": "string",
+      "enum": [
+        "trusted_full",
+        "restricted_workspace",
+        "remote_target_active",
+        "collaboration_active",
+        "ai_draft_pending",
+        "ai_applied",
+        "index_warming",
+        "debugging_active",
+        "quiet_hours_active",
+        "policy_locked"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "semantic_status_class": {
+      "type": "string",
+      "enum": ["success", "warning", "danger", "info", "insight"],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "shell_chrome",
+        "editor_canvas",
+        "terminal_canvas",
+        "review_and_diff_canvas",
+        "palette_and_search_canvas",
+        "install_update_attach_canvas",
+        "ai_apply_canvas",
+        "collaboration_canvas",
+        "provider_bearing_canvas",
+        "docs_help_service_health_canvas",
+        "support_export_canvas",
+        "onboarding_surface",
+        "notification_surface",
+        "inspector_surface",
+        "extension_hosted_surface",
+        "embedded_webview_surface",
+        "service_dashboard_surface",
+        "docs_help_embedded_surface",
+        "native_extension_panel",
+        "terminal_decoration_surface",
+        "marketplace_account_surface"
+      ],
+      "description": "Closed surface-class vocabulary covering first-party shell surfaces re-exported from the design-token component-state schema plus the embedded / extension surface families addressable by this contract. Surfaces MUST NOT mint parallel surface classes; new families are additive-minor and bump theme_support_schema_version."
+    },
+
+    "support_state_class": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "partial",
+        "unsupported",
+        "not_claimed",
+        "denied"
+      ],
+      "description": "Closed support-state vocabulary. supported = parity quality on this revision (evidence required); partial = at least one disclosed gap; unsupported = the surface explicitly does not render the mode and falls back under a recorded substitution rule; not_claimed = the surface has not been reviewed for this mode (treated as a coverage gap); denied = a claim refused (signature failure, schema lag, color-alone violation)."
+    },
+
+    "forced_colors_behavior_class": {
+      "type": "string",
+      "enum": [
+        "defers_to_system",
+        "applies_high_contrast_token_overrides",
+        "escalates_to_forced_colors_safe_subset",
+        "not_applicable_no_color_dependence",
+        "denied_color_alone_violation"
+      ],
+      "description": "Closed forced-colors behavior vocabulary. denied_color_alone_violation MUST be paired with support_state = denied and a denial event citing color_alone_conveyed_required_meaning."
+    },
+
+    "motion_family_class": {
+      "type": "string",
+      "enum": [
+        "hover_press_transition",
+        "popover_control_feedback",
+        "panel_sidebar_change",
+        "dialog_entry",
+        "cursor_blink",
+        "terminal_idle_animation",
+        "ai_working_indicator",
+        "progress_indicator_loop",
+        "layout_shift_during_typing",
+        "dense_pane_state_change"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json (UI/UX Spec §10.4) without modification."
+    },
+
+    "protected_cue_class": {
+      "type": "string",
+      "enum": ["trust", "policy_lock", "severity", "source_integrity"]
+    },
+
+    "non_color_cue": {
+      "type": "string",
+      "enum": [
+        "shape",
+        "border",
+        "icon",
+        "text",
+        "label_chip",
+        "position",
+        "pattern",
+        "accessible_name"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Re-exported policy-context packet (ADR-0008 / ADR-0009 / ADR-0001)."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "theme_support_row_claim_emitted",
+        "theme_support_row_claim_refused",
+        "theme_support_row_claim_downgraded",
+        "theme_support_row_claim_evidence_rotated"
+      ]
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "color_alone_conveyed_required_meaning",
+        "density_changed_information_architecture",
+        "density_changed_focus_visibility",
+        "reduced_motion_stripped_state_conveyance",
+        "reduced_motion_hid_focus_visibility",
+        "forced_colors_unsafe_substitution",
+        "protected_cue_color_only",
+        "evidence_ref_missing",
+        "design_token_schema_version_lagging",
+        "token_export_manifest_unresolved",
+        "theme_package_manifest_unresolved",
+        "shadow_registry_detected"
+      ]
+    },
+
+    "claimed_mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "theme_class",
+        "contrast_mode",
+        "density_class",
+        "accessibility_posture_class"
+      ],
+      "properties": {
+        "theme_class": { "$ref": "#/$defs/theme_class" },
+        "contrast_mode": { "$ref": "#/$defs/contrast_mode" },
+        "density_class": { "$ref": "#/$defs/density_class" },
+        "accessibility_posture_class": { "$ref": "#/$defs/accessibility_posture_class" }
+      },
+      "description": "The exact (theme_class, contrast_mode, density_class, accessibility_posture_class) tuple this claim is bound to. Each tuple emits one row; multi-mode surfaces emit multiple rows."
+    },
+
+    "density_aware_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supported_density_classes",
+        "affects_information_architecture",
+        "affects_focus_visibility",
+        "affects_state_conveyance"
+      ],
+      "properties": {
+        "supported_density_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/density_class" },
+          "uniqueItems": true
+        },
+        "affects_information_architecture": {
+          "type": "boolean",
+          "const": false,
+          "description": "Frozen at false: density MUST NOT change information architecture. A surface that does is non-conforming and MUST emit support_state = denied."
+        },
+        "affects_focus_visibility": {
+          "type": "boolean",
+          "const": false,
+          "description": "Frozen at false: density MUST NOT change focus visibility."
+        },
+        "affects_state_conveyance": {
+          "type": "boolean",
+          "const": false,
+          "description": "Frozen at false: density MUST NOT change state conveyance (shape, border, icon, text)."
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "reduced_motion_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suppressed_motion_families",
+        "preserves_focus_visibility",
+        "preserves_state_conveyance"
+      ],
+      "properties": {
+        "suppressed_motion_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/motion_family_class" },
+          "uniqueItems": true,
+          "description": "Motion families this claim suppresses or strongly reduces under the bound accessibility posture."
+        },
+        "preserves_focus_visibility": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_state_conveyance": {
+          "type": "boolean",
+          "const": true
+        },
+        "engagement_cue": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "How the bound accessibility posture becomes visible to the user when engaged on this surface (e.g. status-item pill, settings-surface label)."
+        },
+        "allowed_duration_tokens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "motion.instant",
+              "motion.fast",
+              "motion.ui",
+              "motion.panel",
+              "motion.dialog"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "Subset of frozen motion duration tokens permitted under the bound posture."
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "protected_cue_preservation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protected_cue_class",
+        "non_color_cues",
+        "color_alone_prohibited",
+        "preserved_in_high_contrast",
+        "preserved_in_forced_colors"
+      ],
+      "properties": {
+        "protected_cue_class": { "$ref": "#/$defs/protected_cue_class" },
+        "trust_visual_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trust_visual_state_class" }
+          ]
+        },
+        "semantic_status_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semantic_status_class" }
+          ]
+        },
+        "non_color_cues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_color_cue" },
+          "uniqueItems": true
+        },
+        "color_alone_prohibited": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserved_in_high_contrast": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserved_in_forced_colors": {
+          "type": "boolean",
+          "const": true
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "theme_support_row_claim_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "theme_support_schema_version",
+        "claim_id",
+        "surface_class",
+        "theme_package_manifest_ref",
+        "theme_package_revision_ref",
+        "token_export_manifest_ref",
+        "import_export_portability_ref",
+        "claimed_mode",
+        "support_state",
+        "dark_support_state",
+        "light_support_state",
+        "high_contrast_dark_support_state",
+        "high_contrast_light_support_state",
+        "density_aware_behavior",
+        "reduced_motion_behavior",
+        "forced_colors_behavior",
+        "protected_cue_preservation",
+        "token_overrides_namespace",
+        "evidence_refs",
+        "gap_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "theme_support_row_claim_record" },
+        "theme_support_schema_version": { "$ref": "#/$defs/theme_support_schema_version" },
+        "claim_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "theme_package_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "theme_package_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_export_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "import_export_portability_ref": { "$ref": "#/$defs/opaque_id" },
+        "claimed_mode": { "$ref": "#/$defs/claimed_mode" },
+        "support_state": { "$ref": "#/$defs/support_state_class" },
+        "dark_support_state": { "$ref": "#/$defs/support_state_class" },
+        "light_support_state": { "$ref": "#/$defs/support_state_class" },
+        "high_contrast_dark_support_state": { "$ref": "#/$defs/support_state_class" },
+        "high_contrast_light_support_state": { "$ref": "#/$defs/support_state_class" },
+        "density_aware_behavior": { "$ref": "#/$defs/density_aware_behavior" },
+        "reduced_motion_behavior": { "$ref": "#/$defs/reduced_motion_behavior" },
+        "forced_colors_behavior": { "$ref": "#/$defs/forced_colors_behavior_class" },
+        "protected_cue_preservation": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/protected_cue_preservation_row" }
+        },
+        "token_overrides_namespace": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "Namespace under which this surface's token overrides ship (e.g. 'al.color', 'al.color.diff'). The style guide is the source of truth for concrete values; this row reserves the namespace."
+        },
+        "linked_appearance_session_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Appearance-session records under which this row was last validated. May be empty in seed claims."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to screenshot diffs, keyboard journeys, assistive-tech checks, token-drift checks, or other evidence packets backing the claim. Required (minItems 1) when support_state = supported."
+        },
+        "gap_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to gap rows. Required (minItems 1) when support_state ∈ {partial, unsupported, denied}."
+        },
+        "compatibility_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_note_text" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Protected-cue preservation MUST cover trust.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "trust" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected-cue preservation MUST cover policy_lock.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "policy_lock" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected-cue preservation MUST cover severity.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "severity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Protected-cue preservation MUST cover source_integrity.",
+          "properties": {
+            "protected_cue_preservation": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "protected_cue_class": { "const": "source_integrity" } },
+                "required": ["protected_cue_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "support_state = supported requires at least one evidence_refs entry.",
+          "if": {
+            "properties": { "support_state": { "const": "supported" } },
+            "required": ["support_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "support_state ∈ {partial, unsupported, denied} requires at least one gap_refs entry.",
+          "if": {
+            "properties": {
+              "support_state": {
+                "enum": ["partial", "unsupported", "denied"]
+              }
+            },
+            "required": ["support_state"]
+          },
+          "then": {
+            "properties": {
+              "gap_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "forced_colors_behavior = denied_color_alone_violation requires support_state = denied.",
+          "if": {
+            "properties": {
+              "forced_colors_behavior": { "const": "denied_color_alone_violation" }
+            },
+            "required": ["forced_colors_behavior"]
+          },
+          "then": {
+            "properties": {
+              "support_state": { "const": "denied" }
+            }
+          }
+        }
+      ],
+      "description": "One audited support-row claim. See docs/design/theme_support_and_inheritance_contract.md §2."
+    },
+
+    "theme_support_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "theme_support_schema_version",
+        "event_id",
+        "audit_event_id",
+        "subject_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "theme_support_audit_event_record" },
+        "theme_support_schema_version": { "$ref": "#/$defs/theme_support_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the subject of the event (a claim id, evidence ref, gap ref, or token-export manifest id). Raw token bytes, raw screenshots, and raw rendered imagery never appear here."
+        },
+        "prior_support_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/support_state_class" }
+          ]
+        },
+        "resulting_support_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/support_state_class" }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Refused events MUST cite a denial_reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "theme_support_row_claim_refused" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "One event per claim emission, refusal, downgrade, or evidence rotation on the theme-support audit stream."
+    }
+  }
+}
