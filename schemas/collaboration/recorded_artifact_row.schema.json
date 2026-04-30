@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collaboration/recorded_artifact_row.schema.json",
+  "title": "Aureline collaboration recorded-artifact row, recording state, retention owner, location, export availability, and irreversible-share boundary",
+  "description": "Boundary schema for the collaboration_recorded_artifact_row_record frozen in docs/collaboration/recording_retention_delete_contract.md. One row of this kind is what a participant sees on the session inspector, the join dialog, the post-session readout, and the export/delete posture surface for one visible artifact a collaboration session is admitting (or refusing) to retain. Every collaboration surface that asks 'is this being recorded, where does it live, who owns retention, can I export it, and what happens to it when I leave or hit delete' resolves through one of these rows. The row enumerates a closed five-class artifact_row_kind vocabulary (presence_or_temporary_control_grant_row, comment_or_review_thread_row, recording_or_transcript_or_replay_artifact_row, deletion_event_or_audit_row, imported_or_support_evidence_packet_row), a closed eight-class recording_state_class vocabulary that distinguishes default-ephemeral non-capture from explicit-enable pending-capture, capturing-now, captured-no-export, captured-export-available, paused-temporary, stopped-finalized, and never-admitted-at-this-mode, a closed seven-class retention_owner_class vocabulary, a closed eight-class location_class vocabulary distinguishing local-workspace-only from hosted-managed-surface-only and the mixed cases, a closed seven-class export_availability_class vocabulary, a closed five-class default_ephemeral_versus_explicit_enable_class vocabulary, a closed four-class legal_hold_note_class vocabulary, and a closed five-class irreversible_share_warning_class vocabulary. The row binds to one collaboration_session_policy_manifest_record, one collaboration_session_retention_row_record, and one delete_path_status_record so a reviewer can resolve recording state, retention owner, location, export, delete, hold, and irreversible-share posture in a single read without re-reading the policy manifest. Default-ephemeral collaboration MUST resolve recording_state_class to default_ephemeral_no_capture or never_admitted_at_this_mode and default_ephemeral_versus_explicit_enable_class to default_ephemeral_not_admitted or default_ephemeral_admitted_metadata_only; any row that admits a recording, transcript, or replay artifact above metadata-only without resolving default_ephemeral_versus_explicit_enable_class to explicit_enable_user_required or explicit_enable_policy_forced_admin_signed denies with recording_must_be_explicit_enable_or_policy_forced. Imported support-evidence packets are not subject to the default-ephemeral rule and resolve through imported_origin_not_subject_to_default. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw endpoint hostnames, raw absolute paths, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, and raw provider payloads never cross this schema boundary; rows carry opaque refs, structured fields, reviewable sentence labels, and coarse buckets only. The eventual collaboration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning collaboration / session-inspector / join-dialog / post-session readout / support / admin surface reads. Adding a new artifact_row_kind, recording_state_class, retention_owner_class, location_class, export_availability_class, default_ephemeral_versus_explicit_enable_class, legal_hold_note_class, irreversible_share_warning_class, recorded_artifact_audit_event_id, or recorded_artifact_denial_reason value is additive-minor and bumps recorded_artifact_row_schema_version; repurposing or removing a value is breaking and requires a new decision row in artifacts/governance/decision_register.yaml.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/collaboration_recorded_artifact_row_record" },
+    { "$ref": "#/$defs/collaboration_recorded_artifact_audit_event_record" }
+  ],
+  "$defs": {
+    "recorded_artifact_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this collaboration recorded-artifact-row vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collaboration_recorded_artifact_row_record",
+        "collaboration_recorded_artifact_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-collaboration consoles. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Cross-surface joins embed the timestamp_envelope_record (schemas/governance/timestamp_envelope.schema.json) instead of comparing this field across runtimes."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on session-inspector chips, join dialogs, retention readouts, post-session summaries, and admin-collaboration surfaces. Never contains raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "artifact_row_kind": {
+      "type": "string",
+      "enum": [
+        "presence_or_temporary_control_grant_row",
+        "comment_or_review_thread_row",
+        "recording_or_transcript_or_replay_artifact_row",
+        "deletion_event_or_audit_row",
+        "imported_or_support_evidence_packet_row"
+      ],
+      "description": "Frozen artifact-row-kind vocabulary. Names which of the five visible-row classes the row represents. presence_or_temporary_control_grant_row covers session-presence rows and the typed temporary control grants for terminal / debugger / runbook lanes (the grant itself, not the lane payload). comment_or_review_thread_row covers anchored comments and review threads. recording_or_transcript_or_replay_artifact_row covers full-session recording, text-only transcript, structured-captions transcript, and the replay-artifact metadata sealed at archive seal. deletion_event_or_audit_row covers the deletion-event audit row itself plus collaboration audit events admitted as visible rows. imported_or_support_evidence_packet_row covers imported support evidence packets and externally-sourced compliance imports that the session admits as visible rows but does not itself originate."
+    },
+
+    "recording_state_class": {
+      "type": "string",
+      "enum": [
+        "default_ephemeral_no_capture",
+        "explicit_enable_pending_capture",
+        "capturing_now",
+        "captured_no_export",
+        "captured_export_available",
+        "paused_temporary",
+        "stopped_finalized",
+        "never_admitted_at_this_mode"
+      ],
+      "description": "Frozen recording-state vocabulary. default_ephemeral_no_capture = no capture is enabled and none will start without an explicit enable or policy-forced cue. explicit_enable_pending_capture = an explicit-enable consent has been admitted but capture has not started. capturing_now = capture is active right now. captured_no_export = capture finished and the artifact is retained on a managed surface but has not yet been exported. captured_export_available = capture finished and the participant or admin can export. paused_temporary = capture is paused but not stopped. stopped_finalized = capture is finalized and no further recording will be added on this row. never_admitted_at_this_mode = the row class is not admitted by the session's retention_mode_class (e.g. recording rows under live_only_no_retention)."
+    },
+
+    "retention_owner_class": {
+      "type": "string",
+      "enum": [
+        "host_org",
+        "owner_actor",
+        "participant_actor",
+        "support_operator",
+        "admin_signed_managed_surface",
+        "third_party_imported_origin",
+        "no_retention_owner_live_only"
+      ],
+      "description": "Frozen retention-owner vocabulary. Names who is accountable for the artifact's retention posture. host_org, owner_actor, participant_actor, and support_operator are first-party owners. admin_signed_managed_surface is reserved for support / regulated retention where the row is held under admin-signed posture. third_party_imported_origin is reserved for imported support-evidence packets whose retention is governed at the import origin and is outside Aureline's delete path. no_retention_owner_live_only is the only admissible value when retention_mode_class is live_only_no_retention and recording_state_class is default_ephemeral_no_capture or never_admitted_at_this_mode."
+    },
+
+    "location_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_only",
+        "local_export_copy_only",
+        "hosted_managed_surface_only",
+        "hosted_managed_surface_plus_local_workspace",
+        "hosted_managed_surface_plus_local_export_copy",
+        "sealed_session_archive_only",
+        "third_party_import_origin",
+        "no_location_live_only"
+      ],
+      "description": "Frozen location vocabulary. Names where the artifact bytes (or, for metadata-only rows, the metadata) actually reside. The mixed values (hosted_managed_surface_plus_local_workspace, hosted_managed_surface_plus_local_export_copy) are required when both a managed copy AND a local copy survive so a later managed delete cannot be silently rendered as 'gone everywhere'. third_party_import_origin is reserved for imported_or_support_evidence_packet_row rows whose only authoritative copy lives at the import origin. no_location_live_only is the only admissible value when recording_state_class is default_ephemeral_no_capture or never_admitted_at_this_mode."
+    },
+
+    "export_availability_class": {
+      "type": "string",
+      "enum": [
+        "no_export_available",
+        "metadata_only_export",
+        "local_workspace_export_only",
+        "session_archive_export",
+        "support_bundle_export_admin_signed",
+        "user_self_service_export",
+        "third_party_re_export_outside_aureline_scope"
+      ],
+      "description": "Frozen export-availability vocabulary. Composes with the export_posture_class on the bound retention row; this class names what a participant can actually do from the inspector chip (download, request a managed bundle, copy to a local file). third_party_re_export_outside_aureline_scope is the explicit refusal state for imported_or_support_evidence_packet_row rows where re-export through Aureline is not admitted; the user MUST be sent back to the import origin."
+    },
+
+    "default_ephemeral_versus_explicit_enable_class": {
+      "type": "string",
+      "enum": [
+        "default_ephemeral_not_admitted",
+        "default_ephemeral_admitted_metadata_only",
+        "explicit_enable_user_required",
+        "explicit_enable_policy_forced_admin_signed",
+        "imported_origin_not_subject_to_default"
+      ],
+      "description": "Frozen default-ephemeral-versus-explicit-enable vocabulary. Captures the rule that collaboration sessions are ephemeral by default unless policy or user action enables persistence. default_ephemeral_not_admitted = the artifact class is not admitted at the session's retention mode at all. default_ephemeral_admitted_metadata_only = the row is admitted only as metadata (e.g. anchored-comment metadata under metadata_audited_no_payload_retention). explicit_enable_user_required = a participant must opt in explicitly before the row can carry full payload. explicit_enable_policy_forced_admin_signed = an admin-signed policy forces persistence and the user is shown the cue but cannot opt out. imported_origin_not_subject_to_default = the row is an imported support-evidence packet whose retention was decided at the import origin; the default-ephemeral rule does not apply."
+    },
+
+    "legal_hold_note_class": {
+      "type": "string",
+      "enum": [
+        "no_hold",
+        "hold_active_user_delete_blocked",
+        "hold_active_user_delete_recorded_not_completed",
+        "hold_recently_cleared"
+      ],
+      "description": "Frozen legal-hold-note vocabulary. Names what the user sees on the row regarding hold posture. hold_active_user_delete_blocked = a hold blocks the delete request from being accepted. hold_active_user_delete_recorded_not_completed = the request was recorded but is not completed; the hold continues to apply. hold_recently_cleared = the hold cleared and the request is now eligible to complete; the row remains visible until the underlying delete posture is updated."
+    },
+
+    "irreversible_share_warning_class": {
+      "type": "string",
+      "enum": [
+        "no_irreversible_share",
+        "public_link_share_irreversible",
+        "external_recipient_share_irreversible",
+        "third_party_export_irreversible",
+        "captured_export_already_distributed"
+      ],
+      "description": "Frozen irreversible-share-warning vocabulary. Names what the row warns the user about when an action would put the artifact outside Aureline's delete path. public_link_share_irreversible = a public-link admission widens the audience past managed delete. external_recipient_share_irreversible = a named external recipient is admitted (cross-org guest, support escalation channel). third_party_export_irreversible = a re-export to a third-party retention origin (compliance archive, import origin re-publish) is admitted. captured_export_already_distributed = an export copy was already distributed before this row was minted; a later managed delete is honest only if a deletion_completed_but_exported_local_copy_surviving disclosure is also rendered."
+    },
+
+    "recorded_artifact_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "collaboration_recorded_artifact_row_minted",
+        "collaboration_recorded_artifact_row_amended",
+        "collaboration_recorded_artifact_row_recording_started",
+        "collaboration_recorded_artifact_row_recording_stopped",
+        "collaboration_recorded_artifact_row_export_made_available",
+        "collaboration_recorded_artifact_row_irreversible_share_warned",
+        "collaboration_recorded_artifact_row_imported_packet_admitted",
+        "collaboration_recorded_artifact_row_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the collaboration_recorded_artifact_row audit stream. Events MUST NOT carry raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "recorded_artifact_denial_reason": {
+      "type": "string",
+      "enum": [
+        "artifact_row_kind_unresolved",
+        "recording_state_class_unresolved",
+        "retention_owner_class_unresolved",
+        "location_class_unresolved",
+        "export_availability_class_unresolved",
+        "default_ephemeral_versus_explicit_enable_class_unresolved",
+        "legal_hold_note_class_unresolved",
+        "irreversible_share_warning_class_unresolved",
+        "recording_must_be_explicit_enable_or_policy_forced",
+        "default_ephemeral_implies_no_payload_capture",
+        "imported_packet_must_cite_third_party_import_origin",
+        "delete_path_status_ref_missing",
+        "policy_manifest_ref_missing",
+        "retention_row_ref_missing",
+        "irreversible_share_warning_must_be_disclosed",
+        "exported_local_copy_must_be_disclosed_in_location_class",
+        "live_only_row_must_resolve_to_no_retention_owner_and_no_location",
+        "recorded_artifact_row_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; a row that admits recording above metadata without explicit-enable or policy-forced consent, a row that hides an irreversible-share path, a row whose location class hides a surviving local export copy, or a row that omits the delete-path-status binding all deny explicitly rather than admit silent drift."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "managed_cloud",
+            "air_gapped"
+          ],
+          "description": "Re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "policy_degraded",
+            "session_only_temporary_grant",
+            "extension_quarantine_restricted",
+            "recovery_ladder_restricted",
+            "untrusted_unknown"
+          ],
+          "description": "Re-exported from ADR-0018 vocabulary. A session inherits the joining workspace's trust posture; widening trust through a row is forbidden."
+        }
+      },
+      "description": "Optional policy-context envelope so downstream review surfaces can resolve which policy bundle / epoch admitted the row and which workspace-trust posture the inspecting actor held when the row was minted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "logs_remote",
+        "support_bundle",
+        "evidence_packet_signature",
+        "session_only_fallback",
+        "clipboard_projection"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "collaboration_recorded_artifact_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recorded_artifact_row_schema_version",
+        "record_kind",
+        "recorded_artifact_row_id",
+        "policy_manifest_ref",
+        "retention_row_ref",
+        "delete_path_status_ref",
+        "artifact_row_kind",
+        "recording_state_class",
+        "retention_owner_class",
+        "location_class",
+        "export_availability_class",
+        "default_ephemeral_versus_explicit_enable_class",
+        "legal_hold_note_class",
+        "irreversible_share_warning_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_recorded_artifact_row_record" },
+        "recorded_artifact_row_schema_version": { "$ref": "#/$defs/recorded_artifact_row_schema_version" },
+        "recorded_artifact_row_id": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_policy_manifest_record in schemas/collaboration/session_policy_manifest.schema.json. A row MUST bind to exactly one policy manifest; a row without a policy_manifest_ref denies with policy_manifest_ref_missing."
+        },
+        "retention_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_retention_row_record. A row MUST bind to exactly one retention row so the policy posture is resolvable; a row without a retention_row_ref denies with retention_row_ref_missing."
+        },
+        "delete_path_status_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound delete_path_status_record in schemas/collaboration/delete_path_status.schema.json. Every row MUST cite a delete-path-status row so a participant can resolve delete posture from the same chip without re-reading the policy manifest; a row without a delete_path_status_ref denies with delete_path_status_ref_missing."
+        },
+        "session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_record (re-exported from session_state.schema.json). Optional; resolved through policy_manifest_ref when omitted."
+        },
+        "shared_object_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_shared_object_record (re-exported from shared_object.schema.json). Optional; not minted on rows whose shared_object_class_policy_class on the bound retention row is follow_or_presenter_state_metadata or deletion_event_record."
+        },
+        "imported_evidence_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the imported support-evidence packet at its import origin. REQUIRED when artifact_row_kind is imported_or_support_evidence_packet_row; MUST NOT be set on any other row kind."
+        },
+        "artifact_row_kind": { "$ref": "#/$defs/artifact_row_kind" },
+        "recording_state_class": { "$ref": "#/$defs/recording_state_class" },
+        "retention_owner_class": { "$ref": "#/$defs/retention_owner_class" },
+        "location_class": { "$ref": "#/$defs/location_class" },
+        "export_availability_class": { "$ref": "#/$defs/export_availability_class" },
+        "default_ephemeral_versus_explicit_enable_class": { "$ref": "#/$defs/default_ephemeral_versus_explicit_enable_class" },
+        "legal_hold_note_class": { "$ref": "#/$defs/legal_hold_note_class" },
+        "irreversible_share_warning_class": { "$ref": "#/$defs/irreversible_share_warning_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "amended_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "supersedes_recorded_artifact_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prior collaboration_recorded_artifact_row_record this row supersedes (set on the new row when a state transition mints a fresh row)."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Recording, transcript, and replay-artifact rows admitting payload above metadata MUST resolve default_ephemeral_versus_explicit_enable_class to explicit_enable_user_required or explicit_enable_policy_forced_admin_signed; otherwise denies with recording_must_be_explicit_enable_or_policy_forced.",
+          "if": {
+            "properties": {
+              "artifact_row_kind": { "const": "recording_or_transcript_or_replay_artifact_row" },
+              "recording_state_class": {
+                "enum": [
+                  "explicit_enable_pending_capture",
+                  "capturing_now",
+                  "captured_no_export",
+                  "captured_export_available",
+                  "paused_temporary",
+                  "stopped_finalized"
+                ]
+              }
+            },
+            "required": ["artifact_row_kind", "recording_state_class"]
+          },
+          "then": {
+            "properties": {
+              "default_ephemeral_versus_explicit_enable_class": {
+                "enum": [
+                  "explicit_enable_user_required",
+                  "explicit_enable_policy_forced_admin_signed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Default-ephemeral non-capture state implies no_location_live_only and no_retention_owner_live_only.",
+          "if": {
+            "properties": {
+              "recording_state_class": {
+                "enum": [
+                  "default_ephemeral_no_capture",
+                  "never_admitted_at_this_mode"
+                ]
+              }
+            },
+            "required": ["recording_state_class"]
+          },
+          "then": {
+            "properties": {
+              "location_class": { "const": "no_location_live_only" },
+              "retention_owner_class": { "const": "no_retention_owner_live_only" },
+              "export_availability_class": { "const": "no_export_available" }
+            }
+          }
+        },
+        {
+          "description": "Imported support-evidence packets MUST cite an imported_evidence_packet_ref, MUST resolve retention_owner_class to third_party_imported_origin, location_class to third_party_import_origin, default_ephemeral_versus_explicit_enable_class to imported_origin_not_subject_to_default, and export_availability_class to third_party_re_export_outside_aureline_scope or no_export_available.",
+          "if": {
+            "properties": {
+              "artifact_row_kind": { "const": "imported_or_support_evidence_packet_row" }
+            },
+            "required": ["artifact_row_kind"]
+          },
+          "then": {
+            "required": ["imported_evidence_packet_ref"],
+            "properties": {
+              "retention_owner_class": { "const": "third_party_imported_origin" },
+              "location_class": { "const": "third_party_import_origin" },
+              "default_ephemeral_versus_explicit_enable_class": { "const": "imported_origin_not_subject_to_default" },
+              "export_availability_class": {
+                "enum": [
+                  "no_export_available",
+                  "third_party_re_export_outside_aureline_scope"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-imported rows MUST NOT carry an imported_evidence_packet_ref.",
+          "if": {
+            "not": {
+              "properties": {
+                "artifact_row_kind": { "const": "imported_or_support_evidence_packet_row" }
+              },
+              "required": ["artifact_row_kind"]
+            }
+          },
+          "then": {
+            "not": { "required": ["imported_evidence_packet_ref"] }
+          }
+        },
+        {
+          "description": "Non-imported rows MUST NOT resolve retention_owner_class to third_party_imported_origin or location_class to third_party_import_origin.",
+          "if": {
+            "not": {
+              "properties": {
+                "artifact_row_kind": { "const": "imported_or_support_evidence_packet_row" }
+              },
+              "required": ["artifact_row_kind"]
+            }
+          },
+          "then": {
+            "properties": {
+              "retention_owner_class": {
+                "not": { "const": "third_party_imported_origin" }
+              },
+              "location_class": {
+                "not": { "const": "third_party_import_origin" }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One-row description of a visible recorded-artifact row a participant sees on the session inspector, the join dialog, the post-session readout, or the export/delete posture surface. Every row binds to one policy manifest, one retention row, and one delete-path-status row; the row enumerates recording state, retention owner, location, export availability, default-ephemeral-versus-explicit-enable posture, legal-hold note, and irreversible-share warning so a participant can answer 'is this being recorded, where does it live, who owns retention, can I export it, what happens to it when I leave or hit delete' from one chip."
+    },
+
+    "collaboration_recorded_artifact_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recorded_artifact_row_schema_version",
+        "record_kind",
+        "audit_event_id_value",
+        "recorded_artifact_row_ref",
+        "audit_event_id",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_recorded_artifact_audit_event_record" },
+        "recorded_artifact_row_schema_version": { "$ref": "#/$defs/recorded_artifact_row_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "recorded_artifact_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/recorded_artifact_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/recorded_artifact_denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial events MUST cite exactly one denial_reason from the closed vocabulary.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "collaboration_recorded_artifact_row_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row on the collaboration_recorded_artifact_row audit stream. Denials carry exactly one denial_reason from the closed vocabulary so reviewers can resolve why a row was refused without guessing."
+    }
+  }
+}

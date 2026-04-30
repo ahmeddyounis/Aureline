@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collaboration/delete_path_status.schema.json",
+  "title": "Aureline collaboration delete-path status, follow-up wording, and pre-/post-session inspection boundary",
+  "description": "Boundary schema for the collaboration_delete_path_status_record frozen in docs/collaboration/recording_retention_delete_contract.md. One row of this kind is what a participant, host, support operator, or admin sees on the session inspector, the post-session readout, the support-bundle preview, and the offboarding flow when answering the question 'what happens to a collaboration-derived artifact if it is asked to go away — was the request recorded, did the managed surface refuse it for retention or hold reasons, did it complete, and does an exported local copy still survive?'. The row enumerates a closed seven-class delete_path_status_class vocabulary (deletion_not_yet_requested_inspectable_only, deletion_requested_not_yet_completed, deletion_blocked_policy_retained, deletion_blocked_legal_hold, deletion_completed_receipt_logged, deletion_completed_but_exported_local_copy_surviving, deletion_not_applicable_live_only_row), a stable user-facing label vocabulary that mirrors the class verbatim so consuming surfaces never substitute synonyms ('Removed', 'Gone', 'Cleared'), a closed six-class follow_up_wording_class vocabulary that distinguishes 'no follow-up needed' from 'user can request delete', 'admin action required', 'legal-hold review required', 'user must delete the local copy separately', and 'third-party origin outside Aureline scope', a closed four-class legal_hold_note_class vocabulary mirrored from recorded_artifact_row.schema.json, a closed five-class hold_kind_class vocabulary, a closed three-class inspection_window_class vocabulary distinguishing pre-session-only inspection from post-session-only inspection from both-pre-and-post inspection, and a closed three-class exported_local_copy_disclosure_class vocabulary distinguishing 'no local copy exported', 'local copy exported and disclosed', and 'local copy exported but disclosure pending consent acknowledgement'. The row binds to one collaboration_session_policy_manifest_record, one collaboration_session_retention_row_record, one collaboration_recorded_artifact_row_record, and optionally to a delete_request_state_record (schemas/governance/delete_request_state.schema.json) so the collaboration delete posture is reconstructible against the broader privacy / offboarding delete vocabulary without re-stating it. Every row resolves before-session-end and after-session-end inspectability so the contract's 'inspectable before and after the session ends' acceptance is mechanised at the schema layer. A row that claims deletion_completed_receipt_logged while a local export copy survives without resolving exported_local_copy_disclosure_class to local_copy_exported_and_disclosed denies with exported_local_copy_must_be_disclosed. A row that claims deletion_blocked_legal_hold without resolving legal_hold_note_class to one of the active-hold classes denies with legal_hold_note_class_must_match_block_state. A row that claims deletion_blocked_policy_retained or deletion_blocked_legal_hold without populating follow_up_wording_class to follow_up_admin_action_required or follow_up_legal_hold_review_required denies with follow_up_wording_must_match_block_state. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw endpoint hostnames, raw absolute paths, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, raw legal-hold justification text, and raw policy-bundle bytes never cross this schema boundary; rows carry opaque refs, structured fields, reviewable sentence labels, and coarse buckets only. The eventual collaboration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning collaboration / session-inspector / post-session readout / support-bundle / offboarding / admin-collaboration surface reads. Adding a new delete_path_status_class, follow_up_wording_class, hold_kind_class, inspection_window_class, exported_local_copy_disclosure_class, delete_path_audit_event_id, or delete_path_denial_reason value is additive-minor and bumps delete_path_status_schema_version; repurposing or removing a value is breaking and requires a new decision row in artifacts/governance/decision_register.yaml.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/collaboration_delete_path_status_record" },
+    { "$ref": "#/$defs/collaboration_delete_path_audit_event_record" }
+  ],
+  "$defs": {
+    "delete_path_status_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this collaboration delete-path-status vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collaboration_delete_path_status_record",
+        "collaboration_delete_path_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-collaboration consoles. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Cross-surface joins embed the timestamp_envelope_record (schemas/governance/timestamp_envelope.schema.json) instead of comparing this field across runtimes."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on session-inspector chips, post-session readouts, support-bundle previews, offboarding flows, and admin-collaboration surfaces. Never contains raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "delete_path_status_class": {
+      "type": "string",
+      "enum": [
+        "deletion_not_yet_requested_inspectable_only",
+        "deletion_requested_not_yet_completed",
+        "deletion_blocked_policy_retained",
+        "deletion_blocked_legal_hold",
+        "deletion_completed_receipt_logged",
+        "deletion_completed_but_exported_local_copy_surviving",
+        "deletion_not_applicable_live_only_row"
+      ],
+      "description": "Frozen delete-path-status vocabulary. deletion_not_yet_requested_inspectable_only = the artifact is retained and a participant can inspect its delete posture before requesting; this is the steady state for a captured-export-available row that nobody has asked to delete yet. deletion_requested_not_yet_completed = a delete request was accepted on the managed surface but completion is pending. deletion_blocked_policy_retained = retention policy refuses the delete; the request is recorded but not completed. deletion_blocked_legal_hold = a hold refuses the delete; the request is recorded but not completed. deletion_completed_receipt_logged = the managed surface completed the delete and a destruction receipt row was logged. deletion_completed_but_exported_local_copy_surviving = the managed surface completed the delete but a local export copy survives; the row MUST disclose that copy. deletion_not_applicable_live_only_row = the bound retention row is live-only and there is nothing retained to delete."
+    },
+
+    "delete_path_status_label": {
+      "type": "string",
+      "enum": [
+        "Inspectable, no delete requested",
+        "Delete requested, not yet completed",
+        "Delete blocked: policy retention",
+        "Delete blocked: legal hold",
+        "Delete completed, receipt logged",
+        "Delete completed, exported local copy still survives",
+        "Live-only row, nothing retained to delete"
+      ],
+      "description": "Required user-facing label for the delete-path-status class. The label MUST agree with delete_path_status_class; surfaces that render a chip read this string verbatim and MUST NOT substitute synonyms ('Removed', 'Gone', 'Done', 'Cleared')."
+    },
+
+    "follow_up_wording_class": {
+      "type": "string",
+      "enum": [
+        "no_follow_up_needed",
+        "follow_up_user_can_request_delete",
+        "follow_up_admin_action_required",
+        "follow_up_legal_hold_review_required",
+        "follow_up_user_must_delete_local_copy_separately",
+        "follow_up_third_party_origin_outside_aureline_scope"
+      ],
+      "description": "Frozen follow-up wording vocabulary. Names what the surface MUST tell the user to do next so the chip is not a dead-end. follow_up_user_can_request_delete is the only admissible value when delete_path_status_class is deletion_not_yet_requested_inspectable_only. follow_up_admin_action_required pairs with deletion_blocked_policy_retained; follow_up_legal_hold_review_required pairs with deletion_blocked_legal_hold. follow_up_user_must_delete_local_copy_separately is required when delete_path_status_class is deletion_completed_but_exported_local_copy_surviving. follow_up_third_party_origin_outside_aureline_scope is reserved for delete-path rows bound to imported support-evidence packets whose origin is outside Aureline's delete path."
+    },
+
+    "legal_hold_note_class": {
+      "type": "string",
+      "enum": [
+        "no_hold",
+        "hold_active_user_delete_blocked",
+        "hold_active_user_delete_recorded_not_completed",
+        "hold_recently_cleared"
+      ],
+      "description": "Frozen legal-hold-note vocabulary. Mirrors recorded_artifact_row.schema.json so the same wording reaches the session inspector and the delete-path chip. hold_active_user_delete_blocked = a hold blocks the delete request from being accepted at all. hold_active_user_delete_recorded_not_completed = the request was accepted but is not completed; the hold continues to apply. hold_recently_cleared = the hold cleared and the request is now eligible to complete."
+    },
+
+    "hold_kind_class": {
+      "type": "string",
+      "enum": [
+        "no_hold",
+        "policy_hold_org_retention_floor",
+        "legal_hold_external_jurisdiction",
+        "support_investigation_hold",
+        "regulated_review_hold"
+      ],
+      "description": "Frozen hold-kind vocabulary. Names which hold class is in force when a delete is blocked. policy_hold_org_retention_floor = an org-level retention floor refuses the delete. legal_hold_external_jurisdiction = a hold issued under an external jurisdiction's compliance regime. support_investigation_hold = a temporary hold issued by a support operator to preserve evidence during an active case. regulated_review_hold = a hold issued under a regulated-review session's admin-signed retention posture."
+    },
+
+    "inspection_window_class": {
+      "type": "string",
+      "enum": [
+        "inspectable_before_session_end_only",
+        "inspectable_after_session_end_only",
+        "inspectable_before_and_after_session_end"
+      ],
+      "description": "Frozen inspection-window vocabulary. Names when this delete-path row is inspectable. inspectable_before_and_after_session_end is the required value for any row that backs a captured artifact whose delete posture must remain reviewable past session end (recordings, transcripts, replay artifacts, comments retained on the managed surface, support-evidence packets). inspectable_before_session_end_only is reserved for rows that describe a delete-path posture that only applies during the active turn (e.g. live-only follow / presenter state rows). inspectable_after_session_end_only is reserved for rows minted at archive seal."
+    },
+
+    "exported_local_copy_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "no_local_copy_exported",
+        "local_copy_exported_and_disclosed",
+        "local_copy_exported_disclosure_pending_consent_acknowledgement"
+      ],
+      "description": "Frozen exported-local-copy disclosure vocabulary. local_copy_exported_and_disclosed is required whenever delete_path_status_class is deletion_completed_but_exported_local_copy_surviving. local_copy_exported_disclosure_pending_consent_acknowledgement is admissible when the export was made but the participant has not yet acknowledged the disclosure cue; the row remains in deletion_requested_not_yet_completed or deletion_completed_but_exported_local_copy_surviving until the cue is acknowledged."
+    },
+
+    "delete_path_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "collaboration_delete_path_status_minted",
+        "collaboration_delete_path_status_amended",
+        "collaboration_delete_path_status_request_recorded",
+        "collaboration_delete_path_status_block_recorded",
+        "collaboration_delete_path_status_completion_recorded",
+        "collaboration_delete_path_status_exported_local_copy_disclosed",
+        "collaboration_delete_path_status_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the collaboration_delete_path_status audit stream. Events MUST NOT carry raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "delete_path_denial_reason": {
+      "type": "string",
+      "enum": [
+        "delete_path_status_class_unresolved",
+        "delete_path_status_label_must_match_class",
+        "follow_up_wording_class_unresolved",
+        "follow_up_wording_must_match_block_state",
+        "legal_hold_note_class_must_match_block_state",
+        "hold_kind_class_must_match_block_state",
+        "exported_local_copy_must_be_disclosed",
+        "policy_manifest_ref_missing",
+        "retention_row_ref_missing",
+        "recorded_artifact_row_ref_missing",
+        "before_and_after_session_end_inspection_required",
+        "live_only_row_must_resolve_to_no_hold_and_no_export_disclosure",
+        "delete_path_status_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; a row whose label disagrees with its class, a row that omits the follow-up wording for a blocked state, a row that claims completed deletion while a local copy survives, or a row that fails to support both pre- and post-session-end inspection on a captured artifact all deny explicitly rather than admit silent drift."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "managed_cloud",
+            "air_gapped"
+          ],
+          "description": "Re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "policy_degraded",
+            "session_only_temporary_grant",
+            "extension_quarantine_restricted",
+            "recovery_ladder_restricted",
+            "untrusted_unknown"
+          ],
+          "description": "Re-exported from ADR-0018 vocabulary. A session inherits the joining workspace's trust posture; widening trust through a row is forbidden."
+        }
+      },
+      "description": "Optional policy-context envelope so downstream review surfaces can resolve which policy bundle / epoch admitted the row and which workspace-trust posture the inspecting actor held when the row was minted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "logs_remote",
+        "support_bundle",
+        "evidence_packet_signature",
+        "session_only_fallback",
+        "clipboard_projection"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "collaboration_delete_path_status_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delete_path_status_schema_version",
+        "record_kind",
+        "delete_path_status_id",
+        "policy_manifest_ref",
+        "retention_row_ref",
+        "recorded_artifact_row_ref",
+        "delete_path_status_class",
+        "delete_path_status_label",
+        "follow_up_wording_class",
+        "legal_hold_note_class",
+        "hold_kind_class",
+        "inspection_window_class",
+        "exported_local_copy_disclosure_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_delete_path_status_record" },
+        "delete_path_status_schema_version": { "$ref": "#/$defs/delete_path_status_schema_version" },
+        "delete_path_status_id": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_policy_manifest_record. A row MUST bind to exactly one policy manifest; a row without a policy_manifest_ref denies with policy_manifest_ref_missing."
+        },
+        "retention_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_retention_row_record so the policy posture is resolvable; a row without a retention_row_ref denies with retention_row_ref_missing."
+        },
+        "recorded_artifact_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_recorded_artifact_row_record so the visible row is resolvable; a row without a recorded_artifact_row_ref denies with recorded_artifact_row_ref_missing."
+        },
+        "delete_request_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the broader delete_request_state_record (schemas/governance/delete_request_state.schema.json) when the collaboration delete posture is part of a privacy / offboarding delete request. Optional; not required for in-session inspection."
+        },
+        "destruction_receipt_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the destruction_receipt_record minted on completion. REQUIRED when delete_path_status_class is deletion_completed_receipt_logged or deletion_completed_but_exported_local_copy_surviving."
+        },
+        "hold_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the legal-hold or policy-retention row in force. REQUIRED when delete_path_status_class is deletion_blocked_policy_retained or deletion_blocked_legal_hold."
+        },
+        "delete_path_status_class": { "$ref": "#/$defs/delete_path_status_class" },
+        "delete_path_status_label": { "$ref": "#/$defs/delete_path_status_label" },
+        "follow_up_wording_class": { "$ref": "#/$defs/follow_up_wording_class" },
+        "follow_up_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable one-sentence rendering of follow_up_wording_class for the session inspector / post-session readout / support-bundle preview / offboarding chip."
+        },
+        "legal_hold_note_class": { "$ref": "#/$defs/legal_hold_note_class" },
+        "hold_kind_class": { "$ref": "#/$defs/hold_kind_class" },
+        "inspection_window_class": { "$ref": "#/$defs/inspection_window_class" },
+        "exported_local_copy_disclosure_class": { "$ref": "#/$defs/exported_local_copy_disclosure_class" },
+        "before_session_end_inspectable": {
+          "type": "boolean",
+          "description": "True when the row is inspectable before the bound session ends. MUST agree with inspection_window_class: inspectable_before_session_end_only or inspectable_before_and_after_session_end imply true; inspectable_after_session_end_only implies false."
+        },
+        "after_session_end_inspectable": {
+          "type": "boolean",
+          "description": "True when the row is inspectable after the bound session ends. MUST agree with inspection_window_class: inspectable_after_session_end_only or inspectable_before_and_after_session_end imply true; inspectable_before_session_end_only implies false."
+        },
+        "requested_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Timestamp the delete request was accepted on the managed surface. REQUIRED whenever delete_path_status_class is not deletion_not_yet_requested_inspectable_only or deletion_not_applicable_live_only_row."
+        },
+        "blocked_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Timestamp the delete request was first blocked. REQUIRED when delete_path_status_class is deletion_blocked_policy_retained or deletion_blocked_legal_hold."
+        },
+        "completed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Timestamp the delete request completed. REQUIRED when delete_path_status_class is deletion_completed_receipt_logged or deletion_completed_but_exported_local_copy_surviving."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "amended_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "supersedes_delete_path_status_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prior collaboration_delete_path_status_record this row supersedes (set on the new row when a state transition mints a fresh row)."
+        }
+      },
+      "allOf": [
+        {
+          "description": "delete_path_status_label MUST agree with delete_path_status_class.",
+          "oneOf": [
+            { "properties": { "delete_path_status_class": { "const": "deletion_not_yet_requested_inspectable_only" }, "delete_path_status_label": { "const": "Inspectable, no delete requested" } } },
+            { "properties": { "delete_path_status_class": { "const": "deletion_requested_not_yet_completed" }, "delete_path_status_label": { "const": "Delete requested, not yet completed" } } },
+            { "properties": { "delete_path_status_class": { "const": "deletion_blocked_policy_retained" }, "delete_path_status_label": { "const": "Delete blocked: policy retention" } } },
+            { "properties": { "delete_path_status_class": { "const": "deletion_blocked_legal_hold" }, "delete_path_status_label": { "const": "Delete blocked: legal hold" } } },
+            { "properties": { "delete_path_status_class": { "const": "deletion_completed_receipt_logged" }, "delete_path_status_label": { "const": "Delete completed, receipt logged" } } },
+            { "properties": { "delete_path_status_class": { "const": "deletion_completed_but_exported_local_copy_surviving" }, "delete_path_status_label": { "const": "Delete completed, exported local copy still survives" } } },
+            { "properties": { "delete_path_status_class": { "const": "deletion_not_applicable_live_only_row" }, "delete_path_status_label": { "const": "Live-only row, nothing retained to delete" } } }
+          ]
+        },
+        {
+          "description": "Block states require follow_up_wording_class to match.",
+          "if": {
+            "properties": { "delete_path_status_class": { "const": "deletion_blocked_policy_retained" } },
+            "required": ["delete_path_status_class"]
+          },
+          "then": {
+            "required": ["hold_ref", "blocked_at"],
+            "properties": {
+              "follow_up_wording_class": { "const": "follow_up_admin_action_required" },
+              "hold_kind_class": {
+                "enum": [
+                  "policy_hold_org_retention_floor",
+                  "regulated_review_hold"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Legal-hold block requires the matching follow-up wording, hold_kind_class, and a non-no_hold legal_hold_note_class.",
+          "if": {
+            "properties": { "delete_path_status_class": { "const": "deletion_blocked_legal_hold" } },
+            "required": ["delete_path_status_class"]
+          },
+          "then": {
+            "required": ["hold_ref", "blocked_at"],
+            "properties": {
+              "follow_up_wording_class": { "const": "follow_up_legal_hold_review_required" },
+              "hold_kind_class": {
+                "enum": [
+                  "legal_hold_external_jurisdiction",
+                  "support_investigation_hold",
+                  "regulated_review_hold"
+                ]
+              },
+              "legal_hold_note_class": {
+                "enum": [
+                  "hold_active_user_delete_blocked",
+                  "hold_active_user_delete_recorded_not_completed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Completed-with-exported-local-copy state requires follow_up_user_must_delete_local_copy_separately, exported_local_copy_disclosure_class = local_copy_exported_and_disclosed, and a destruction_receipt_ref plus completed_at.",
+          "if": {
+            "properties": { "delete_path_status_class": { "const": "deletion_completed_but_exported_local_copy_surviving" } },
+            "required": ["delete_path_status_class"]
+          },
+          "then": {
+            "required": ["destruction_receipt_ref", "completed_at"],
+            "properties": {
+              "follow_up_wording_class": { "const": "follow_up_user_must_delete_local_copy_separately" },
+              "exported_local_copy_disclosure_class": { "const": "local_copy_exported_and_disclosed" }
+            }
+          }
+        },
+        {
+          "description": "Plain completed state requires follow_up_no_follow_up_needed (or follow_up_third_party_origin_outside_aureline_scope when bound to an imported packet) and a destruction_receipt_ref plus completed_at; exported_local_copy_disclosure_class MUST be no_local_copy_exported.",
+          "if": {
+            "properties": { "delete_path_status_class": { "const": "deletion_completed_receipt_logged" } },
+            "required": ["delete_path_status_class"]
+          },
+          "then": {
+            "required": ["destruction_receipt_ref", "completed_at"],
+            "properties": {
+              "follow_up_wording_class": {
+                "enum": [
+                  "no_follow_up_needed",
+                  "follow_up_third_party_origin_outside_aureline_scope"
+                ]
+              },
+              "exported_local_copy_disclosure_class": { "const": "no_local_copy_exported" }
+            }
+          }
+        },
+        {
+          "description": "Inspectable-only (not yet requested) state requires follow_up_user_can_request_delete and forbids requested_at / blocked_at / completed_at.",
+          "if": {
+            "properties": { "delete_path_status_class": { "const": "deletion_not_yet_requested_inspectable_only" } },
+            "required": ["delete_path_status_class"]
+          },
+          "then": {
+            "properties": {
+              "follow_up_wording_class": {
+                "enum": [
+                  "follow_up_user_can_request_delete",
+                  "follow_up_third_party_origin_outside_aureline_scope"
+                ]
+              },
+              "exported_local_copy_disclosure_class": { "const": "no_local_copy_exported" },
+              "legal_hold_note_class": { "enum": ["no_hold", "hold_recently_cleared"] },
+              "hold_kind_class": { "const": "no_hold" }
+            },
+            "not": {
+              "anyOf": [
+                { "required": ["blocked_at"] },
+                { "required": ["completed_at"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Requested-not-yet-completed state requires follow_up_admin_action_required (no_follow_up_needed when the managed surface is simply working through a queue) and a requested_at; completion fields MUST NOT be present.",
+          "if": {
+            "properties": { "delete_path_status_class": { "const": "deletion_requested_not_yet_completed" } },
+            "required": ["delete_path_status_class"]
+          },
+          "then": {
+            "required": ["requested_at"],
+            "properties": {
+              "follow_up_wording_class": {
+                "enum": [
+                  "no_follow_up_needed",
+                  "follow_up_admin_action_required",
+                  "follow_up_user_must_delete_local_copy_separately"
+                ]
+              }
+            },
+            "not": { "required": ["completed_at"] }
+          }
+        },
+        {
+          "description": "Live-only rows MUST resolve hold_kind_class to no_hold, legal_hold_note_class to no_hold, exported_local_copy_disclosure_class to no_local_copy_exported, and forbid requested_at / blocked_at / completed_at / hold_ref / destruction_receipt_ref.",
+          "if": {
+            "properties": { "delete_path_status_class": { "const": "deletion_not_applicable_live_only_row" } },
+            "required": ["delete_path_status_class"]
+          },
+          "then": {
+            "properties": {
+              "hold_kind_class": { "const": "no_hold" },
+              "legal_hold_note_class": { "const": "no_hold" },
+              "exported_local_copy_disclosure_class": { "const": "no_local_copy_exported" },
+              "follow_up_wording_class": { "const": "no_follow_up_needed" }
+            },
+            "not": {
+              "anyOf": [
+                { "required": ["requested_at"] },
+                { "required": ["blocked_at"] },
+                { "required": ["completed_at"] },
+                { "required": ["hold_ref"] },
+                { "required": ["destruction_receipt_ref"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "before_session_end_inspectable / after_session_end_inspectable booleans MUST agree with inspection_window_class.",
+          "oneOf": [
+            { "properties": { "inspection_window_class": { "const": "inspectable_before_session_end_only" }, "before_session_end_inspectable": { "const": true }, "after_session_end_inspectable": { "const": false } } },
+            { "properties": { "inspection_window_class": { "const": "inspectable_after_session_end_only" }, "before_session_end_inspectable": { "const": false }, "after_session_end_inspectable": { "const": true } } },
+            { "properties": { "inspection_window_class": { "const": "inspectable_before_and_after_session_end" }, "before_session_end_inspectable": { "const": true }, "after_session_end_inspectable": { "const": true } } }
+          ]
+        }
+      ],
+      "description": "One-row description of the delete-path posture of a single visible recorded-artifact row. Every row MUST cite a policy_manifest_ref, a retention_row_ref, and a recorded_artifact_row_ref so the broader posture (mode, owner, location, export) is reconstructible without re-reading the policy manifest. Surfaces that render a delete chip resolve every other delete state (completed, blocked, requested, inspectable-only, live-only) through this row rather than inventing per-feature equivalents."
+    },
+
+    "collaboration_delete_path_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delete_path_status_schema_version",
+        "record_kind",
+        "audit_event_id_value",
+        "delete_path_status_ref",
+        "audit_event_id",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_delete_path_audit_event_record" },
+        "delete_path_status_schema_version": { "$ref": "#/$defs/delete_path_status_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "delete_path_status_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "retention_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "recorded_artifact_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/delete_path_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/delete_path_denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial events MUST cite exactly one denial_reason from the closed vocabulary.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "collaboration_delete_path_status_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row on the collaboration_delete_path_status audit stream. Denials carry exactly one denial_reason from the closed vocabulary so reviewers can resolve why a delete-path row was refused without guessing."
+    }
+  }
+}
