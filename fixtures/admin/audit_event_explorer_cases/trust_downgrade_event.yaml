@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=../../../schemas/admin/audit_event_record.schema.json
+__fixture__:
+  name: trust_downgrade_event
+  scenario: >
+    Workspace trust is downgraded from trusted to restricted after an
+    operator detects a missing signer-continuity statement. The
+    explorer surfaces the trust_change row alongside the next safe
+    action.
+  exercised_contract_sections:
+    - trust_change_family
+    - workspace_trust_downgrade
+    - next_safe_action
+
+record_kind: audit_event_record
+audit_event_explorer_schema_version: 1
+event_id_ref: audit-event:trust-change:workspace-downgrade:0001
+event_class: trust_state_change
+event_family: trust_change
+
+actor:
+  actor_class: authenticated_local_admin
+  actor_id: actor-local-admin:0001
+  actor_label: Local workspace admin
+  actor_note: A local workspace admin downgraded trust after observing an unverified signer rotation.
+
+target_scope:
+  scope_kind: workspace
+  tenant_or_org_ref: tenant-or-org:self-hosted:0001
+  deployment_profile_scope:
+    - self_hosted
+  scope_id: workspace-current
+  scope_label: Current workspace
+  affected_surface_family: auth_or_session
+  inheritance_summary: Workspace trust state governs whether managed capabilities and signed-bundle freshness apply to the current workspace.
+
+outcome:
+  decision_class: force_disable
+  outcome_class: paused
+  outcome_summary: Workspace trust was lowered to restricted; managed capabilities depending on trusted state were paused until continuity is restored.
+
+chronology:
+  event_at_utc: "2026-04-26T09:42:13Z"
+  monotonic_sequence: 4102
+  original_timezone_label: America/New_York
+  render_timezone_hint_class: viewer_local
+  skew_class: monotonic_clean
+
+source_system:
+  source_class: signer_continuity_event
+  source_packet_ref: signer-continuity:rotation-pending:0042
+  source_schema_ref: schemas/identity/admin_audit_packet.schema.json
+  mirror_or_offline_posture: authoritative_live
+  last_observed_at: "2026-04-26T09:41:55Z"
+  source_note: The signer-continuity event referenced a pending rotation without a continuity statement.
+
+policy_context:
+  identity_mode: self_hosted_org
+  deployment_profile_class: self_hosted
+  trust_state: restricted
+  policy_epoch: policy_epoch.self_hosted.20260424.0007
+  execution_context_id: exec-trust-downgrade-current
+
+policy_epoch_ref: policy_epoch.self_hosted.20260424.0007
+entitlement_epoch_ref: entitlement_epoch.self_hosted.20260424.0007
+
+redaction_summary:
+  redaction_class: metadata_safe_default
+  included_data_classes:
+    - trust.metadata
+    - audit.refs
+    - signer.continuity_label
+  omitted_data_classes:
+    - signer.signature_bytes
+    - tenant.directory_payload
+    - secret.material
+  redaction_note: The row carries trust transition labels and signer continuity refs; raw signing material is omitted.
+
+related_objects:
+  - related_class: policy_decision_history_row
+    target_record_ref: admin-policy-history-trust-downgrade-0001
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Decision history row
+    available_offline: true
+    unavailable_reason: null
+  - related_class: locked_state_explanation
+    target_record_ref: lock-explanation-managed-capabilities-paused-0001
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Why managed capabilities are paused
+    available_offline: true
+    unavailable_reason: null
+  - related_class: docs_anchor
+    target_record_ref: docs-anchor:trust-downgrade-recovery
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Trust downgrade recovery
+    available_offline: true
+    unavailable_reason: null
+
+actions:
+  - action_class: open_decision_history_row
+    label: Open decision history
+    enabled: true
+    route_ref: route-policy-history-trust-downgrade
+    command_id: admin.policy.history.open
+    reason: The matching decision-history row is locally available.
+  - action_class: open_docs
+    label: Read recovery steps
+    enabled: true
+    route_ref: route-docs-trust-downgrade-recovery
+    command_id: docs.open
+    reason: The recovery steps anchor is locally available.
+
+reviewable_summary: A local admin downgraded the workspace from trusted to restricted after a pending signer rotation lacked a continuity statement; managed capabilities depending on trusted state are paused until continuity is restored.

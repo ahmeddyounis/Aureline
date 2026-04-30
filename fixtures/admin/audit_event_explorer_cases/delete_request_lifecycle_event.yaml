@@ -1,0 +1,124 @@
+# yaml-language-server: $schema=../../../schemas/admin/audit_event_record.schema.json
+__fixture__:
+  name: delete_request_lifecycle_event
+  scenario: >
+    A user requests deletion of a support bundle archive while an
+    active support-investigation hold blocks completion. The explorer
+    surfaces the record_delete_requested row distinct from any
+    record_delete_completed row that may appear later.
+  exercised_contract_sections:
+    - delete_or_export_lifecycle_family
+    - delete_request_distinct_from_completion
+    - retention_or_hold_linkage
+
+record_kind: audit_event_record
+audit_event_explorer_schema_version: 1
+event_id_ref: audit-event:delete-request:support-bundle-archive:0001
+event_class: record_delete_requested
+event_family: delete_or_export_lifecycle_event
+
+actor:
+  actor_class: authenticated_end_user
+  actor_id: actor-end-user:0001
+  actor_label: End user (current workspace)
+  actor_note: The user requested deletion from the support and export surface.
+
+target_scope:
+  scope_kind: workspace
+  tenant_or_org_ref: tenant-or-org:self-hosted:0001
+  deployment_profile_scope:
+    - self_hosted
+  scope_id: workspace-current
+  scope_label: Current workspace
+  affected_surface_family: retention_or_deletion
+  inheritance_summary: Support bundle lifecycle is governed by the workspace support-retention policy; an active hold sits between request and completion.
+
+outcome:
+  decision_class: request_recorded
+  outcome_class: requested_pending_completion
+  outcome_summary: The delete request was recorded and is pending the active support-investigation hold release before completion can occur.
+
+chronology:
+  event_at_utc: "2026-04-25T20:20:55Z"
+  monotonic_sequence: 4205
+  original_timezone_label: UTC
+  render_timezone_hint_class: viewer_local
+  skew_class: monotonic_clean
+
+source_system:
+  source_class: record_state_lifecycle_event
+  source_packet_ref: record-state:delete-request:support-bundle-archive:0001
+  source_schema_ref: schemas/governance/record_state.schema.json
+  mirror_or_offline_posture: authoritative_live
+  last_observed_at: "2026-04-25T20:20:55Z"
+  source_note: The record-state lifecycle event for the delete request is locally available.
+
+policy_context:
+  identity_mode: self_hosted_org
+  deployment_profile_class: self_hosted
+  trust_state: trusted
+  policy_epoch: policy_epoch.self_hosted.20260424.0007
+  execution_context_id: exec-support-export-current
+
+policy_epoch_ref: policy_epoch.self_hosted.20260424.0007
+entitlement_epoch_ref: entitlement_epoch.self_hosted.20260424.0007
+
+redaction_summary:
+  redaction_class: operator_only_restricted
+  included_data_classes:
+    - record_state.axes
+    - support.bundle_manifest
+    - audit.refs
+  omitted_data_classes:
+    - support.bundle_body
+    - raw.logs
+    - secret.material
+  redaction_note: The row carries record-state axes and support manifest refs; bundle body content and raw logs are omitted.
+
+related_objects:
+  - related_class: record_state_lifecycle_event
+    target_record_ref: record-state:delete-request:support-bundle-archive:0001
+    target_schema_ref: schemas/governance/record_state.schema.json
+    label: Delete-request lifecycle event
+    available_offline: true
+    unavailable_reason: null
+  - related_class: retention_deletion_matrix_row
+    target_record_ref: retention-matrix-support-bundle-archive-0042
+    target_schema_ref: schemas/governance/record_state.schema.json
+    label: Retention and deletion row
+    available_offline: true
+    unavailable_reason: null
+  - related_class: locked_state_explanation
+    target_record_ref: lock-explanation-support-bundle-delete-hold-0001
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Why deletion is blocked
+    available_offline: true
+    unavailable_reason: null
+  - related_class: policy_decision_history_row
+    target_record_ref: admin-policy-history-support-bundle-delete-blocked-0001
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Decision history row
+    available_offline: true
+    unavailable_reason: null
+
+actions:
+  - action_class: open_record_state_event
+    label: Open lifecycle event
+    enabled: true
+    route_ref: route-record-state-delete-request-support-bundle-archive
+    command_id: state.record.open
+    reason: The record-state lifecycle event is locally available.
+  - action_class: open_retention_deletion_matrix
+    label: Open retention details
+    enabled: true
+    route_ref: route-retention-matrix-support-bundle-archive
+    command_id: retention.matrix.open
+    reason: The retention and deletion row is locally available.
+  - action_class: copy_human_summary
+    label: Copy human summary
+    enabled: true
+    route_ref: route-copy-summary-delete-request-support-bundle-archive
+    command_id: admin.audit.copy_summary
+    reason: The reviewable summary is within metadata-safe redaction.
+
+reviewable_summary: A user requested deletion of the support bundle archive; the request is recorded but completion is pending the active support-investigation hold, with the retention row, lifecycle event, and lock explanation linked.

@@ -1,0 +1,118 @@
+# yaml-language-server: $schema=../../../schemas/admin/audit_event_record.schema.json
+__fixture__:
+  name: failed_privileged_action_event
+  scenario: >
+    A privileged provisioning action is denied because the active
+    policy bundle is mirrored_stale_past_grace and new managed
+    privilege MUST NOT appear from a stale source. The explorer
+    surfaces the row in the failed_privileged_action family.
+  exercised_contract_sections:
+    - failed_privileged_action_family
+    - stale_past_grace_source_posture
+    - first_class_failure_visibility
+
+record_kind: audit_event_record
+audit_event_explorer_schema_version: 1
+event_id_ref: audit-event:failed-privileged-action:provisioning-denied:0001
+event_class: failed_privileged_action
+event_family: failed_privileged_action
+
+actor:
+  actor_class: authenticated_org_admin
+  actor_id: actor-org-admin:0042
+  actor_label: Organization admin
+  actor_note: An organization admin attempted to provision a new managed seat while the policy mirror is past grace.
+
+target_scope:
+  scope_kind: seat
+  tenant_or_org_ref: tenant-or-org:enterprise:0001
+  deployment_profile_scope:
+    - enterprise_online
+  scope_id: seat:pending-provisioning:0007
+  scope_label: Pending seat provisioning
+  affected_surface_family: auth_or_session
+  inheritance_summary: The seat would inherit organization policy on activation; provisioning is blocked while the bundle is past grace.
+
+outcome:
+  decision_class: deny
+  outcome_class: denied
+  outcome_summary: Provisioning was denied because the active policy bundle is past its mirror grace window.
+
+chronology:
+  event_at_utc: "2026-04-27T11:20:14Z"
+  monotonic_sequence: 4310
+  original_timezone_label: UTC
+  render_timezone_hint_class: viewer_local
+  skew_class: monotonic_clean
+
+source_system:
+  source_class: policy_decision_history_row
+  source_packet_ref: admin-policy-history-provisioning-denied-stale-bundle-0001
+  source_schema_ref: schemas/admin/effective_policy_card.schema.json
+  mirror_or_offline_posture: mirrored_stale_past_grace
+  last_observed_at: "2026-04-26T22:05:00Z"
+  source_note: The active policy bundle observed by the local resolver is past the configured mirror grace window.
+
+policy_context:
+  identity_mode: managed_workspace
+  deployment_profile_class: enterprise_online
+  trust_state: trusted
+  policy_epoch: policy_epoch.managed.20260420.0001
+  execution_context_id: exec-provisioning-current
+
+policy_epoch_ref: policy_epoch.managed.20260420.0001
+entitlement_epoch_ref: entitlement_epoch.managed.20260420.0001
+
+redaction_summary:
+  redaction_class: metadata_safe_default
+  included_data_classes:
+    - policy.metadata
+    - audit.refs
+    - mirror.posture
+  omitted_data_classes:
+    - mirror.hostnames
+    - tenant.directory_payload
+    - secret.material
+  redaction_note: The row carries policy refs, audit refs, and mirror posture class; raw mirror hostnames and directory payloads are omitted.
+
+related_objects:
+  - related_class: policy_decision_history_row
+    target_record_ref: admin-policy-history-provisioning-denied-stale-bundle-0001
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Decision history row
+    available_offline: true
+    unavailable_reason: null
+  - related_class: locked_state_explanation
+    target_record_ref: lock-explanation-provisioning-paused-stale-bundle-0001
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Why provisioning is paused
+    available_offline: true
+    unavailable_reason: null
+  - related_class: effective_policy_card
+    target_record_ref: effective-policy-card:provisioning-controls:0001
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Effective provisioning policy card
+    available_offline: true
+    unavailable_reason: null
+  - related_class: docs_anchor
+    target_record_ref: docs-anchor:mirror-stale-past-grace-recovery
+    target_schema_ref: schemas/admin/effective_policy_card.schema.json
+    label: Mirror stale recovery
+    available_offline: true
+    unavailable_reason: null
+
+actions:
+  - action_class: open_decision_history_row
+    label: Open decision history
+    enabled: true
+    route_ref: route-policy-history-provisioning-denied-stale-bundle
+    command_id: admin.policy.history.open
+    reason: The matching decision-history row is locally available.
+  - action_class: open_docs
+    label: Read recovery steps
+    enabled: true
+    route_ref: route-docs-mirror-stale-past-grace-recovery
+    command_id: docs.open
+    reason: Mirror stale recovery anchor is locally available.
+
+reviewable_summary: An organization admin's provisioning attempt was denied because the active policy bundle is past mirror grace; the matching decision-history row, lock explanation, and recovery anchor are locally available.
