@@ -1,0 +1,1174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/artifact_verification_row.schema.json",
+  "title": "Aureline artifact verification row record",
+  "description": "Boundary schema for the artifact_verification_row_record frozen in docs/release/artifact_verification_contract.md. The record is the reusable per-artifact projection that release publication, update center, install review, About / product-identity surfaces, support exports, mirror or offline review, and public-proof packets quote when they need to state EXACTLY what was verified for one artifact, under which trust root, and what compromise or advisory history applies. The record carries one artifact identity, one source-or-origin class, one mirror-or-offline class, one signature state, one attestation state, one SBOM availability state, one checksum state, one trust-root pointer state, one advisory-or-compromise class, the verification time and verifier-class, the linked verification-log and packet refs, the per-surface projection set, and the per-export redaction posture. Raw signature bytes, raw attestation bodies, raw SBOM bodies, raw advisory payloads, raw release prose, raw URLs, raw private mirror endpoints, raw key material, and raw artifact bytes never cross this boundary; the record carries opaque refs, typed states, and bounded reviewable summaries only. The vocabularies are aligned with /schemas/governance/provenance_badge.schema.json (subject_class, source_class, signature_state, attestation_state, sbom_state, checksum_state, license_state, advisory_state, artifact_compromise_state, surface_class, redaction_class), /schemas/about/about_card.schema.json (signing_class), /schemas/release/release_candidate_card.schema.json (release_channel_class), /schemas/release/support_window_badge.schema.json (support_class), and /schemas/release/trust_root_rotation_state.schema.json (trust_root_state_class) so a verification row composes onto the existing provenance-badge, about-card, release-candidate-card, and trust-root rotation state records instead of minting a second verification language. Adding a new verification_summary_class, source_or_origin_class, signature_state, attestation_state, sbom_availability_state, checksum_state, trust_root_pointer_class, mirror_or_offline_class, advisory_or_compromise_class, verifier_class, surface_class, projection_mode, redaction_class, or denial_reason_class is additive-minor and bumps artifact_verification_row_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two refusal states into one bare label is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/artifact_verification_row_record",
+  "$defs": {
+    "artifact_verification_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the artifact-verification-row payload shape. Current value is 1."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_non_empty_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, install review sheets, and offline review. Raw URLs, raw hostnames, raw absolute paths, raw signature bytes, raw key material, and raw artifact bytes never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing artifact names but never raw URLs, raw hostnames, raw absolute paths, raw signature bytes, raw key material, or raw artifact bytes."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw signature bytes, raw attestation bodies, raw SBOM bodies, raw advisory payloads, raw release prose, raw URLs, raw private mirror endpoints, raw key material, and raw artifact bytes MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "artifact_subject_class": {
+      "type": "string",
+      "enum": [
+        "release_payload",
+        "update_metadata",
+        "extension_package",
+        "policy_bundle",
+        "model_or_tool_pack",
+        "docs_pack",
+        "support_or_proof_packet",
+        "symbol_or_debug_sidecar"
+      ],
+      "description": "Closed artifact-subject vocabulary. Aligned with /schemas/governance/provenance_badge.schema.json#subject_class plus the symbol_or_debug_sidecar family from /docs/release/supply_chain_trust_framework_matrix.md. The verification row binds to exactly one subject class so install, update, About, and support surfaces can route to the correct evidence path."
+    },
+    "source_or_origin_class": {
+      "type": "string",
+      "enum": [
+        "official_release",
+        "mirrored",
+        "side_loaded",
+        "third_party_import",
+        "policy_pinned",
+        "local_build",
+        "offline_bundle_imported",
+        "unknown_provenance"
+      ],
+      "description": "Closed source-or-origin vocabulary. official_release covers artifacts produced by the Aureline release pipeline. mirrored covers artifacts retrieved through an enterprise or community mirror that preserves origin signatures. side_loaded covers artifacts imported from a local file picker or workspace archive without retrieval through the release pipeline or a mirror. third_party_import covers artifacts that originate outside the Aureline supply chain (for example, a partner-published extension). policy_pinned covers artifacts whose installable target was pinned by a policy bundle. local_build covers developer builds. offline_bundle_imported covers artifacts admitted through an offline-bundle import receipt. unknown_provenance is the explicit refusal state when the origin cannot be resolved; collapsing it into one of the seven other classes is non-conforming."
+    },
+    "acquired_via_class": {
+      "type": "string",
+      "enum": [
+        "release_pipeline",
+        "public_registry",
+        "private_registry",
+        "enterprise_mirror",
+        "offline_bundle_media",
+        "air_gapped_media",
+        "local_file_picker",
+        "workspace_archive",
+        "policy_bundle",
+        "unknown"
+      ],
+      "description": "Closed acquisition-channel vocabulary. Aligned with /schemas/governance/provenance_badge.schema.json#source.acquired_via."
+    },
+    "verifier_class": {
+      "type": "string",
+      "enum": [
+        "release_pipeline_verifier",
+        "update_client_verifier",
+        "install_review_verifier",
+        "extension_install_verifier",
+        "policy_bundle_verifier",
+        "model_pack_verifier",
+        "support_export_verifier",
+        "mirror_continuity_verifier",
+        "offline_bundle_import_verifier",
+        "publisher_asserted_no_local_verification",
+        "not_applicable"
+      ],
+      "description": "Closed verifier vocabulary. publisher_asserted_no_local_verification names the case where the row carries a publisher claim but no local verification has occurred; collapsing this case into one of the local-verifier classes is non-conforming."
+    },
+    "verification_summary_class": {
+      "type": "string",
+      "enum": [
+        "verified_locally",
+        "verified_with_history",
+        "publisher_asserted",
+        "mirrored_origin_verified_through_continuity",
+        "mirrored_with_continuity_warning",
+        "missing_evidence",
+        "policy_pinned_verified",
+        "rotating_trust_root_pending_review",
+        "advisory_affected_review_required",
+        "revoked_or_yanked",
+        "unknown_provenance"
+      ],
+      "description": "Closed verification-summary vocabulary that the seven distinguishable acceptance states (verified, publisher-asserted, mirrored, missing, policy-pinned, rotating-trust-root, advisory-affected) project onto. verified_locally and verified_with_history are the two positive verified projections; publisher_asserted is the explicit publisher-claim-only projection; mirrored_origin_verified_through_continuity and mirrored_with_continuity_warning are the two mirrored projections; missing_evidence is the explicit missing-evidence projection; policy_pinned_verified is the policy-pinned projection; rotating_trust_root_pending_review is the rotating-trust-root projection; advisory_affected_review_required is the advisory-affected projection; revoked_or_yanked and unknown_provenance are the two distinct refusal projections. Collapsing any two of these into one chip is non-conforming."
+    },
+    "signature_state_class": {
+      "type": "string",
+      "enum": [
+        "signed_locally_verified",
+        "signed_publisher_asserted",
+        "signed_present_unverified",
+        "signature_missing",
+        "signature_revoked",
+        "signature_mismatch",
+        "not_applicable"
+      ],
+      "description": "Closed signature-state vocabulary. signed_locally_verified means the verifier validated the signature against the current trust root. signed_publisher_asserted means the artifact carries a signature claim from the publisher but no local verification has occurred. signed_present_unverified means a signature is attached but local verification has not yet been performed. signature_missing, signature_revoked, and signature_mismatch are the three distinct refusal states; collapsing them into one bare label is non-conforming. Aligned with /schemas/governance/provenance_badge.schema.json#signature_state."
+    },
+    "attestation_state_class": {
+      "type": "string",
+      "enum": [
+        "attestation_locally_verified",
+        "attestation_publisher_asserted",
+        "attestation_present_unverified",
+        "attestation_missing",
+        "attestation_stale",
+        "attestation_policy_blocked",
+        "not_applicable"
+      ],
+      "description": "Closed attestation-state vocabulary. Aligned with /schemas/governance/provenance_badge.schema.json#attestation_state plus a publisher-asserted projection so a side-loaded or mirrored artifact can disclose that the attestation is asserted upstream rather than verified locally."
+    },
+    "sbom_availability_class": {
+      "type": "string",
+      "enum": [
+        "sbom_attached_verified",
+        "sbom_attached_publisher_asserted",
+        "sbom_attached_unverified",
+        "sbom_referenced_only",
+        "sbom_missing",
+        "sbom_stale",
+        "sbom_policy_blocked",
+        "not_applicable"
+      ],
+      "description": "Closed SBOM-availability vocabulary. sbom_referenced_only names the case where the verification row references an SBOM living on a paired record (typical for symbol or debug sidecars that reference the SBOM of the paired payload). Aligned with /schemas/governance/provenance_badge.schema.json#sbom_state."
+    },
+    "checksum_state_class": {
+      "type": "string",
+      "enum": [
+        "checksum_locally_verified",
+        "checksum_publisher_asserted",
+        "checksum_present_unverified",
+        "checksum_missing",
+        "checksum_mismatch",
+        "not_applicable"
+      ],
+      "description": "Closed checksum-state vocabulary. Aligned with /schemas/governance/provenance_badge.schema.json#checksum_state plus a publisher-asserted projection."
+    },
+    "trust_root_pointer_class": {
+      "type": "string",
+      "enum": [
+        "trust_root_current",
+        "trust_root_rotating_dual_signed",
+        "trust_root_rotating_cross_signed",
+        "trust_root_rotated_with_continuity",
+        "trust_root_rotation_pending_review",
+        "trust_root_post_rotation_legacy_grace",
+        "trust_root_revoked",
+        "trust_root_unknown",
+        "not_applicable"
+      ],
+      "description": "Closed trust-root pointer vocabulary the verification row binds to. The detail of the rotation transition (current root, supersedes/revokes linkage, rollout epoch, overlap posture, continuity statement) lives on the linked /schemas/release/trust_root_rotation_state.schema.json record; the row carries the pointer class plus the trust_root_rotation_state_ref so a release / update / install / About surface can pivot in O(1) into the rotation record without restating the rotation."
+    },
+    "mirror_or_offline_class": {
+      "type": "string",
+      "enum": [
+        "live_origin_no_mirror",
+        "mirrored_with_origin_continuity",
+        "mirrored_origin_continuity_broken",
+        "offline_bundle_within_validity",
+        "offline_bundle_expired",
+        "side_loaded_publisher_asserted_only",
+        "air_gapped_local_evidence_only",
+        "not_applicable"
+      ],
+      "description": "Closed mirror-or-offline vocabulary. Distinguishes the four mirrored postures plus the two offline postures plus the side-loaded posture so a verification row never collapses 'verified through enterprise mirror' with 'verified locally against the live origin' and never collapses 'offline bundle import receipt valid' with 'offline bundle import receipt expired'."
+    },
+    "advisory_or_compromise_class": {
+      "type": "string",
+      "enum": [
+        "none_known",
+        "active_advisory_affecting_family",
+        "fixed_with_history",
+        "revoked_or_yanked",
+        "compromise_suspected",
+        "compromise_confirmed",
+        "compromise_remediated",
+        "advisory_unknown"
+      ],
+      "description": "Closed advisory-or-compromise vocabulary. Aligned with the union of /schemas/governance/provenance_badge.schema.json#advisory_state and #artifact_compromise_state. fixed_with_history names the case where an advisory was published, the artifact was patched, and the history is preserved. compromise_remediated names the case where a confirmed compromise has shipped a remediation. advisory_unknown is the explicit refusal state when advisory linkage cannot be resolved."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "release_publication",
+        "update_center",
+        "install_review_sheet",
+        "post_install_disclosure",
+        "about_provenance_panel",
+        "marketplace_discovery",
+        "package_explorer",
+        "support_bundle",
+        "public_proof_packet",
+        "mirror_offline_review",
+        "headless_dry_run_output"
+      ],
+      "description": "Closed surface vocabulary. Aligned with /schemas/governance/provenance_badge.schema.json#surface_class plus the headless_dry_run_output secondary surface."
+    },
+    "projection_mode_class": {
+      "type": "string",
+      "enum": [
+        "compact_row_only",
+        "compact_row_plus_proof_chain",
+        "full_review_sheet",
+        "support_export_redacted",
+        "public_proof_redacted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "public_proof_safe",
+        "support_redacted",
+        "internal_only"
+      ],
+      "description": "Closed redaction vocabulary aligned with /schemas/governance/provenance_badge.schema.json#export_projection.redaction_class."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "verification_summary_class_unresolved",
+        "source_class_unresolved",
+        "signature_state_unresolved",
+        "trust_root_pointer_class_unresolved",
+        "mirror_or_offline_class_unresolved",
+        "advisory_or_compromise_class_unresolved",
+        "verified_locally_claimed_without_local_verifier",
+        "publisher_asserted_claimed_with_local_verifier",
+        "policy_pinned_claimed_without_policy_pin_ref",
+        "rotating_trust_root_claimed_without_rotation_state_ref",
+        "advisory_affected_claimed_without_advisory_ref",
+        "missing_evidence_claimed_with_signed_locally_verified_signature",
+        "side_loaded_claimed_with_release_pipeline_verifier",
+        "mirrored_with_continuity_warning_claimed_without_continuity_warning_ref",
+        "offline_bundle_within_validity_claimed_without_import_receipt_ref",
+        "revoked_or_yanked_claimed_without_revocation_ref",
+        "support_export_redaction_violation",
+        "public_proof_redaction_violation",
+        "schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary used by review tooling to refuse a verification row that violates the schema's allOf invariants. Emitting a denial reason outside this list is non-conforming."
+    },
+    "artifact_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_class",
+        "display_name",
+        "exact_build_identity_ref",
+        "version_or_digest_ref",
+        "artifact_family_ref",
+        "channel_row_ref",
+        "owner_role_ref"
+      ],
+      "properties": {
+        "subject_class": { "$ref": "#/$defs/artifact_subject_class" },
+        "display_name": { "$ref": "#/$defs/reviewable_label" },
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /schemas/build/exact_build_identity.schema.json; null only for third_party_import or unknown_provenance rows where no exact-build identity is available."
+        },
+        "version_or_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_family_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into /artifacts/release/artifact_family_map.yaml so the verification row can be grouped with sibling artifacts of the same family on release, install, and About surfaces."
+        },
+        "channel_row_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /artifacts/release/channel_matrix.yaml; null only for local_build, side_loaded, third_party_import, or unknown_provenance rows."
+        },
+        "owner_role_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into the supportability ownership / role matrix; null only when the source class is unknown_provenance."
+        }
+      }
+    },
+    "source_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_or_origin_class",
+        "source_label",
+        "acquired_via_class",
+        "origin_ref",
+        "mirror_ref",
+        "import_receipt_ref",
+        "side_load_review_ref",
+        "policy_pin_ref",
+        "source_disclosure"
+      ],
+      "properties": {
+        "source_or_origin_class": { "$ref": "#/$defs/source_or_origin_class" },
+        "source_label": { "$ref": "#/$defs/reviewable_label" },
+        "acquired_via_class": { "$ref": "#/$defs/acquired_via_class" },
+        "origin_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable origin ref. Required for official_release, mirrored, third_party_import, policy_pinned, and offline_bundle_imported rows; null for local_build, side_loaded, and unknown_provenance rows where no upstream origin is named."
+        },
+        "mirror_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable mirror ref into the mirror continuity record. Required for mirrored rows; null for the seven other source classes."
+        },
+        "import_receipt_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable import-receipt ref. Required for offline_bundle_imported rows; null otherwise."
+        },
+        "side_load_review_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable side-load review ref. Required for side_loaded rows; null otherwise."
+        },
+        "policy_pin_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable policy-pin ref. Required for policy_pinned rows; null otherwise."
+        },
+        "source_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "verification_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_summary_class",
+        "signature_state_class",
+        "attestation_state_class",
+        "sbom_availability_class",
+        "checksum_state_class",
+        "trust_root_pointer_class",
+        "trust_root_rotation_state_ref",
+        "mirror_or_offline_class",
+        "advisory_or_compromise_class",
+        "verifier_class",
+        "verified_at",
+        "verification_log_ref",
+        "verification_evidence_refs",
+        "verification_disclosure"
+      ],
+      "properties": {
+        "verification_summary_class": { "$ref": "#/$defs/verification_summary_class" },
+        "signature_state_class": { "$ref": "#/$defs/signature_state_class" },
+        "attestation_state_class": { "$ref": "#/$defs/attestation_state_class" },
+        "sbom_availability_class": { "$ref": "#/$defs/sbom_availability_class" },
+        "checksum_state_class": { "$ref": "#/$defs/checksum_state_class" },
+        "trust_root_pointer_class": { "$ref": "#/$defs/trust_root_pointer_class" },
+        "trust_root_rotation_state_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into a /schemas/release/trust_root_rotation_state.schema.json trust_root_rotation_state_record. Required when trust_root_pointer_class is one of the rotation classes (trust_root_rotating_dual_signed, trust_root_rotating_cross_signed, trust_root_rotated_with_continuity, trust_root_rotation_pending_review, trust_root_post_rotation_legacy_grace, trust_root_revoked); null only for trust_root_current, trust_root_unknown, and not_applicable."
+        },
+        "mirror_or_offline_class": { "$ref": "#/$defs/mirror_or_offline_class" },
+        "advisory_or_compromise_class": { "$ref": "#/$defs/advisory_or_compromise_class" },
+        "verifier_class": { "$ref": "#/$defs/verifier_class" },
+        "verified_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp of the most recent local verification. Null when verifier_class is publisher_asserted_no_local_verification or not_applicable; non-null otherwise."
+        },
+        "verification_log_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into the verification log entry that records the local verification step. Required when verifier_class is one of the local-verifier classes; null when verifier_class is publisher_asserted_no_local_verification or not_applicable."
+        },
+        "verification_evidence_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into release-evidence packets, signed-attestation records, SBOM artifacts, mirror-continuity records, offline-bundle import receipts, side-load review records, and trust-root rotation records that compose the proof chain a reviewer can follow from this row alone."
+        },
+        "verification_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "advisory_history_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_or_compromise_class",
+        "advisory_refs",
+        "compromise_event_refs",
+        "fixed_with_history_event_refs",
+        "remediation_packet_refs",
+        "advisory_disclosure"
+      ],
+      "properties": {
+        "advisory_or_compromise_class": { "$ref": "#/$defs/advisory_or_compromise_class" },
+        "advisory_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into advisory records affecting the artifact family. Required to be non-empty when advisory_or_compromise_class is active_advisory_affecting_family, fixed_with_history, revoked_or_yanked, or compromise_suspected/compromise_confirmed/compromise_remediated; empty for none_known and advisory_unknown."
+        },
+        "compromise_event_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into compromise event records. Required to be non-empty when advisory_or_compromise_class is compromise_suspected, compromise_confirmed, or compromise_remediated."
+        },
+        "fixed_with_history_event_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into the patch / fix records preserved as history. Required to be non-empty when advisory_or_compromise_class is fixed_with_history or compromise_remediated."
+        },
+        "remediation_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into the remediation packets (replacement release, channel freeze, kill switch, or successor manifest). Required to be non-empty when advisory_or_compromise_class is revoked_or_yanked or compromise_remediated."
+        },
+        "advisory_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "projection_mode_class",
+        "required_fields",
+        "projection_note"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "projection_mode_class": { "$ref": "#/$defs/projection_mode_class" },
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "verification_summary_class",
+              "source_or_origin_class",
+              "signature_state_class",
+              "attestation_state_class",
+              "sbom_availability_class",
+              "checksum_state_class",
+              "trust_root_pointer_class",
+              "mirror_or_offline_class",
+              "advisory_or_compromise_class",
+              "verified_at",
+              "verification_log_ref",
+              "verification_evidence_refs",
+              "trust_root_rotation_state_ref",
+              "advisory_refs"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "The fields the consuming surface MUST render. The verification_summary_class, source_or_origin_class, and verified_at fields are the row-level floor every surface MUST render; tooling MAY add more, but MUST NOT drop one."
+        },
+        "projection_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "linkage_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_evidence_packet_refs",
+        "provenance_badge_refs",
+        "about_card_refs",
+        "release_candidate_card_refs",
+        "support_bundle_refs",
+        "advisory_or_compromise_refs",
+        "trust_root_rotation_state_refs",
+        "mirror_or_offline_receipt_refs",
+        "transparency_log_refs",
+        "policy_bundle_refs"
+      ],
+      "properties": {
+        "release_evidence_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "provenance_badge_refs": { "$ref": "#/$defs/ref_array" },
+        "about_card_refs": { "$ref": "#/$defs/ref_array" },
+        "release_candidate_card_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_or_compromise_refs": { "$ref": "#/$defs/ref_array" },
+        "trust_root_rotation_state_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_or_offline_receipt_refs": { "$ref": "#/$defs/ref_array" },
+        "transparency_log_refs": { "$ref": "#/$defs/ref_array" },
+        "policy_bundle_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "export_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "exportable_to_screenshot",
+        "exportable_to_support_bundle",
+        "exportable_to_public_proof_packet",
+        "exportable_to_offline_review",
+        "raw_private_material_excluded",
+        "omission_reasons"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "exportable_to_screenshot": { "type": "boolean" },
+        "exportable_to_support_bundle": { "type": "boolean" },
+        "exportable_to_public_proof_packet": { "type": "boolean" },
+        "exportable_to_offline_review": { "type": "boolean" },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "description": "MUST be true. Raw signature bytes, raw attestation bodies, raw SBOM bodies, raw advisory payloads, raw release prose, raw URLs, raw private mirror endpoints, raw key material, and raw artifact bytes never cross this boundary."
+        },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "artifact_verification_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_verification_row_schema_version",
+        "record_kind",
+        "verification_row_id",
+        "emitted_at",
+        "artifact_identity",
+        "source_envelope",
+        "verification_envelope",
+        "advisory_history_envelope",
+        "surface_projections",
+        "linkage_envelope",
+        "export_envelope",
+        "contract_doc_ref",
+        "channel_matrix_ref",
+        "artifact_family_map_ref",
+        "trust_framework_rows_ref",
+        "notes"
+      ],
+      "properties": {
+        "artifact_verification_row_schema_version": { "$ref": "#/$defs/artifact_verification_row_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "artifact_verification_row_record"
+        },
+        "verification_row_id": {
+          "type": "string",
+          "pattern": "^artifact_verification_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable verification-row id. Quoted by release publication, update center, install review, About panels, support exports, mirror or offline review, and public-proof packets."
+        },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "artifact_identity": { "$ref": "#/$defs/artifact_identity" },
+        "source_envelope": { "$ref": "#/$defs/source_envelope" },
+        "verification_envelope": { "$ref": "#/$defs/verification_envelope" },
+        "advisory_history_envelope": { "$ref": "#/$defs/advisory_history_envelope" },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_projection" },
+          "description": "Set of surface projections this verification row MUST render onto. The four required floor surfaces (release_publication, update_center, install_review_sheet, about_provenance_panel) are mandatory; tooling MAY add more, but MUST NOT drop one."
+        },
+        "linkage_envelope": { "$ref": "#/$defs/linkage_envelope" },
+        "export_envelope": { "$ref": "#/$defs/export_envelope" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/artifact_verification_contract.md"
+        },
+        "channel_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/release/channel_matrix.yaml"
+        },
+        "artifact_family_map_ref": {
+          "type": "string",
+          "const": "artifacts/release/artifact_family_map.yaml"
+        },
+        "trust_framework_rows_ref": {
+          "type": "string",
+          "const": "artifacts/release/trust_framework_rows.yaml"
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "The verified_locally and verified_with_history summary classes require a local verifier (one of release_pipeline_verifier, update_client_verifier, install_review_verifier, extension_install_verifier, policy_bundle_verifier, model_pack_verifier, support_export_verifier, mirror_continuity_verifier, offline_bundle_import_verifier) plus a non-null verified_at timestamp plus a non-null verification_log_ref. publisher_asserted_no_local_verification is forbidden on these summary classes.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": {
+                    "enum": ["verified_locally", "verified_with_history"]
+                  }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verifier_class": {
+                    "enum": [
+                      "release_pipeline_verifier",
+                      "update_client_verifier",
+                      "install_review_verifier",
+                      "extension_install_verifier",
+                      "policy_bundle_verifier",
+                      "model_pack_verifier",
+                      "support_export_verifier",
+                      "mirror_continuity_verifier",
+                      "offline_bundle_import_verifier"
+                    ]
+                  },
+                  "verified_at": { "not": { "type": "null" } },
+                  "verification_log_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The publisher_asserted summary class requires the publisher_asserted_no_local_verification verifier class plus a null verified_at plus a null verification_log_ref. The signature, attestation, SBOM, and checksum states MUST resolve to their publisher_asserted projections (signed_publisher_asserted, attestation_publisher_asserted, sbom_attached_publisher_asserted, checksum_publisher_asserted) or to the *_present_unverified / *_referenced_only projections; locally-verified projections are forbidden because no local verification has occurred.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "publisher_asserted" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verifier_class": { "const": "publisher_asserted_no_local_verification" },
+                  "verified_at": { "type": "null" },
+                  "verification_log_ref": { "type": "null" },
+                  "signature_state_class": {
+                    "enum": [
+                      "signed_publisher_asserted",
+                      "signed_present_unverified",
+                      "signature_missing",
+                      "not_applicable"
+                    ]
+                  },
+                  "attestation_state_class": {
+                    "enum": [
+                      "attestation_publisher_asserted",
+                      "attestation_present_unverified",
+                      "attestation_missing",
+                      "not_applicable"
+                    ]
+                  },
+                  "sbom_availability_class": {
+                    "enum": [
+                      "sbom_attached_publisher_asserted",
+                      "sbom_attached_unverified",
+                      "sbom_referenced_only",
+                      "sbom_missing",
+                      "not_applicable"
+                    ]
+                  },
+                  "checksum_state_class": {
+                    "enum": [
+                      "checksum_publisher_asserted",
+                      "checksum_present_unverified",
+                      "checksum_missing",
+                      "not_applicable"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The mirrored_origin_verified_through_continuity summary class requires the mirror_continuity_verifier plus a non-null mirror_ref plus the mirrored_with_origin_continuity mirror-or-offline class plus the mirrored source-or-origin class.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "mirrored_origin_verified_through_continuity" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verifier_class": { "const": "mirror_continuity_verifier" },
+                  "mirror_or_offline_class": { "const": "mirrored_with_origin_continuity" }
+                }
+              },
+              "source_envelope": {
+                "properties": {
+                  "source_or_origin_class": { "const": "mirrored" },
+                  "mirror_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The mirrored_with_continuity_warning summary class requires the mirrored_origin_continuity_broken mirror-or-offline class plus the mirrored source-or-origin class plus a non-null mirror_ref. The advisory_or_compromise class MUST be one of active_advisory_affecting_family, advisory_unknown, or none_known so the warning posture is bounded.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "mirrored_with_continuity_warning" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "mirror_or_offline_class": { "const": "mirrored_origin_continuity_broken" }
+                }
+              },
+              "source_envelope": {
+                "properties": {
+                  "source_or_origin_class": { "const": "mirrored" },
+                  "mirror_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The missing_evidence summary class forbids signed_locally_verified signature, attestation_locally_verified attestation, sbom_attached_verified SBOM, and checksum_locally_verified checksum projections; collapsing a verified-locally projection into a missing_evidence row is non-conforming.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "missing_evidence" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "signature_state_class": {
+                    "not": { "const": "signed_locally_verified" }
+                  },
+                  "attestation_state_class": {
+                    "not": { "const": "attestation_locally_verified" }
+                  },
+                  "sbom_availability_class": {
+                    "not": { "const": "sbom_attached_verified" }
+                  },
+                  "checksum_state_class": {
+                    "not": { "const": "checksum_locally_verified" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The policy_pinned_verified summary class requires the policy_pinned source-or-origin class plus a non-null policy_pin_ref.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "policy_pinned_verified" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "source_or_origin_class": { "const": "policy_pinned" },
+                  "policy_pin_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The rotating_trust_root_pending_review summary class requires a rotation-class trust_root_pointer_class (trust_root_rotating_dual_signed, trust_root_rotating_cross_signed, trust_root_rotated_with_continuity, trust_root_rotation_pending_review, or trust_root_post_rotation_legacy_grace) plus a non-null trust_root_rotation_state_ref.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "rotating_trust_root_pending_review" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "trust_root_pointer_class": {
+                    "enum": [
+                      "trust_root_rotating_dual_signed",
+                      "trust_root_rotating_cross_signed",
+                      "trust_root_rotated_with_continuity",
+                      "trust_root_rotation_pending_review",
+                      "trust_root_post_rotation_legacy_grace"
+                    ]
+                  },
+                  "trust_root_rotation_state_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The advisory_affected_review_required summary class requires the advisory_or_compromise class to resolve to active_advisory_affecting_family, compromise_suspected, or compromise_confirmed (the three classes that gate review) plus at least one advisory_ref. fixed_with_history and compromise_remediated are explicitly NOT review-required and MUST project as verified_with_history instead.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "advisory_affected_review_required" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "advisory_or_compromise_class": {
+                    "enum": [
+                      "active_advisory_affecting_family",
+                      "compromise_suspected",
+                      "compromise_confirmed"
+                    ]
+                  }
+                }
+              },
+              "advisory_history_envelope": {
+                "properties": {
+                  "advisory_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The revoked_or_yanked summary class requires the advisory_or_compromise class to be revoked_or_yanked plus at least one remediation_packet_ref. Collapsing a revoked artifact into a missing_evidence or unknown_provenance row is non-conforming.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "revoked_or_yanked" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "advisory_or_compromise_class": { "const": "revoked_or_yanked" }
+                }
+              },
+              "advisory_history_envelope": {
+                "properties": {
+                  "remediation_packet_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The unknown_provenance summary class requires the unknown_provenance source-or-origin class. The verifier_class MUST be publisher_asserted_no_local_verification or not_applicable. trust_root_pointer_class MUST be trust_root_unknown or not_applicable.",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "verification_summary_class": { "const": "unknown_provenance" }
+                },
+                "required": ["verification_summary_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "source_or_origin_class": { "const": "unknown_provenance" }
+                }
+              },
+              "verification_envelope": {
+                "properties": {
+                  "verifier_class": {
+                    "enum": ["publisher_asserted_no_local_verification", "not_applicable"]
+                  },
+                  "trust_root_pointer_class": {
+                    "enum": ["trust_root_unknown", "not_applicable"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The mirrored source-or-origin class requires a non-null mirror_ref. Collapsing a mirrored row into one without a mirror ref is non-conforming because the verification chain depends on naming the mirror.",
+          "if": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "source_or_origin_class": { "const": "mirrored" }
+                },
+                "required": ["source_or_origin_class"]
+              }
+            },
+            "required": ["source_envelope"]
+          },
+          "then": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "mirror_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The side_loaded source-or-origin class requires a non-null side_load_review_ref. The acquired_via_class MUST be local_file_picker, workspace_archive, air_gapped_media, or offline_bundle_media. release_pipeline as the acquired_via_class is forbidden because a side-loaded artifact did not flow through the release pipeline.",
+          "if": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "source_or_origin_class": { "const": "side_loaded" }
+                },
+                "required": ["source_or_origin_class"]
+              }
+            },
+            "required": ["source_envelope"]
+          },
+          "then": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "side_load_review_ref": { "not": { "type": "null" } },
+                  "acquired_via_class": {
+                    "enum": [
+                      "local_file_picker",
+                      "workspace_archive",
+                      "air_gapped_media",
+                      "offline_bundle_media"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The offline_bundle_imported source-or-origin class requires a non-null import_receipt_ref plus the mirror_or_offline_class to be offline_bundle_within_validity, offline_bundle_expired, or air_gapped_local_evidence_only.",
+          "if": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "source_or_origin_class": { "const": "offline_bundle_imported" }
+                },
+                "required": ["source_or_origin_class"]
+              }
+            },
+            "required": ["source_envelope"]
+          },
+          "then": {
+            "properties": {
+              "source_envelope": {
+                "properties": {
+                  "import_receipt_ref": { "not": { "type": "null" } }
+                }
+              },
+              "verification_envelope": {
+                "properties": {
+                  "mirror_or_offline_class": {
+                    "enum": [
+                      "offline_bundle_within_validity",
+                      "offline_bundle_expired",
+                      "air_gapped_local_evidence_only"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The trust_root_pointer_class MUST resolve to a non-null trust_root_rotation_state_ref when it is one of the rotation classes (rotating_dual_signed, rotating_cross_signed, rotated_with_continuity, rotation_pending_review, post_rotation_legacy_grace, revoked).",
+          "if": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "trust_root_pointer_class": {
+                    "enum": [
+                      "trust_root_rotating_dual_signed",
+                      "trust_root_rotating_cross_signed",
+                      "trust_root_rotated_with_continuity",
+                      "trust_root_rotation_pending_review",
+                      "trust_root_post_rotation_legacy_grace",
+                      "trust_root_revoked"
+                    ]
+                  }
+                },
+                "required": ["trust_root_pointer_class"]
+              }
+            },
+            "required": ["verification_envelope"]
+          },
+          "then": {
+            "properties": {
+              "verification_envelope": {
+                "properties": {
+                  "trust_root_rotation_state_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The required surface projection floor is release_publication, update_center, install_review_sheet, and about_provenance_panel. Tooling MAY add support_bundle, public_proof_packet, mirror_offline_review, and headless_dry_run_output as secondary surfaces.",
+          "properties": {
+            "surface_projections": {
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "release_publication" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "update_center" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "install_review_sheet" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "about_provenance_panel" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Every surface projection MUST list verification_summary_class, source_or_origin_class, and verified_at as required fields so the row's positive / refusal posture and verification time always render.",
+          "properties": {
+            "surface_projections": {
+              "items": {
+                "properties": {
+                  "required_fields": {
+                    "allOf": [
+                      { "contains": { "const": "verification_summary_class" } },
+                      { "contains": { "const": "source_or_origin_class" } },
+                      { "contains": { "const": "verified_at" } }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The export envelope MUST set raw_private_material_excluded to true. Raw signature bytes, raw attestation bodies, raw SBOM bodies, raw advisory payloads, raw release prose, raw URLs, raw private mirror endpoints, raw key material, and raw artifact bytes never cross this boundary.",
+          "properties": {
+            "export_envelope": {
+              "properties": {
+                "raw_private_material_excluded": { "const": true }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

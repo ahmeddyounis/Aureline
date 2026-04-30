@@ -1,0 +1,813 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/trust_root_rotation_state.schema.json",
+  "title": "Aureline trust-root continuity and rotation state record",
+  "description": "Boundary schema for the trust_root_rotation_state_record frozen in docs/release/artifact_verification_contract.md. The record carries one trust-root family identity, one current-root descriptor (root id, root kind, validity window, fingerprint ref), the supersedes / revokes linkage to predecessor roots, the rollout epoch class, the overlap posture (dual-signed, cross-signed, single-signed pre or post rotation, no overlap emergency), the continuity statement (signed continuity, cross-signed transition, exception record, or emergency posture), the stale-or-rotating state class, and the per-surface projection set release / update / install / About / support / mirror surfaces quote when a verification row binds to a rotation state. Raw key material, raw signature bytes, raw transparency-log payloads, raw rotation policy bodies, raw URLs, raw private trust-root endpoints, and raw signing infrastructure identifiers never cross this boundary; records carry opaque refs, typed states, and bounded reviewable summaries only. The vocabularies are aligned with /docs/release/supply_chain_trust_framework_matrix.md (artifact family group, trust-root rotation policy), /artifacts/release/trust_framework_rows.yaml, /schemas/governance/provenance_badge.schema.json (trust_root_state), and /schemas/release/artifact_verification_row.schema.json (trust_root_pointer_class) so a rotation state composes onto the existing trust-framework matrix and the verification row instead of minting a second rotation language. Adding a new trust_root_family_class, root_kind_class, rollout_epoch_class, overlap_posture_class, continuity_statement_class, stale_or_rotating_state_class, surface_class, projection_mode_class, redaction_class, or denial_reason_class is additive-minor and bumps trust_root_rotation_state_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two refusal states into one bare label is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/trust_root_rotation_state_record",
+  "$defs": {
+    "trust_root_rotation_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the trust-root rotation state payload shape. Current value is 1."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, install review sheets, and offline review. Raw URLs, raw key material, raw signing infrastructure identifiers, and raw transparency-log payloads never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw key material, raw signatures, raw transparency-log payloads, raw rotation policy bodies, raw URLs, and raw private trust-root endpoints MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "trust_root_family_class": {
+      "type": "string",
+      "enum": [
+        "release_signing_root",
+        "update_metadata_root",
+        "extension_publisher_root",
+        "policy_signer_root",
+        "model_pack_root",
+        "support_packet_root",
+        "docs_pack_root",
+        "symbol_or_debug_sidecar_root",
+        "mirror_continuity_root"
+      ],
+      "description": "Closed trust-root-family vocabulary mirroring the artifact-family groups in /docs/release/supply_chain_trust_framework_matrix.md plus the mirror_continuity_root that anchors mirror-snapshot continuity. Adding a new family is additive-minor and bumps schema version."
+    },
+    "root_kind_class": {
+      "type": "string",
+      "enum": [
+        "tuf_style_targets_root",
+        "tuf_style_delegated_root",
+        "sigstore_style_identity_root",
+        "platform_native_signing_root",
+        "key_pinned_release_root",
+        "policy_signer_certificate_root",
+        "mirror_continuity_signing_root"
+      ],
+      "description": "Closed root-kind vocabulary aligned with the trust patterns named in /docs/release/supply_chain_trust_framework_matrix.md (TUF-style metadata, Sigstore-style identity, platform-native signing, SLSA-style provenance, OCI Distribution-compatible mirror transport)."
+    },
+    "rollout_epoch_class": {
+      "type": "string",
+      "enum": [
+        "rollout_planned",
+        "rollout_active_overlap_period",
+        "rollout_overlap_ended",
+        "rollout_completed_legacy_grace",
+        "rollout_revoked",
+        "rollout_emergency"
+      ],
+      "description": "Closed rollout-epoch vocabulary. rollout_planned is the published-but-not-yet-active state. rollout_active_overlap_period is the overlap window during which the predecessor and current root both validate. rollout_overlap_ended is the post-overlap state where only the current root validates. rollout_completed_legacy_grace is the named grace window during which legacy artifacts signed under the predecessor root are still admitted (read-only) for inspection but not for new installs. rollout_revoked is the explicit refusal state when a root rotation has been revoked. rollout_emergency is the emergency-rotation state when the predecessor root has been compromised and the rotation shipped without a planned overlap."
+    },
+    "overlap_posture_class": {
+      "type": "string",
+      "enum": [
+        "dual_signed_overlap",
+        "cross_signed_overlap",
+        "single_signed_pre_rotation",
+        "single_signed_post_rotation",
+        "no_overlap_emergency",
+        "no_overlap_planned_legacy_grace_only",
+        "not_applicable"
+      ],
+      "description": "Closed overlap-posture vocabulary. dual_signed_overlap names the case where the artifact carries signatures under both the predecessor and the current root during the overlap window. cross_signed_overlap names the case where the current root is cross-signed by the predecessor root. single_signed_pre_rotation and single_signed_post_rotation name the two single-signed boundary states. no_overlap_emergency and no_overlap_planned_legacy_grace_only are the two no-overlap states; collapsing them into one chip is non-conforming because the support-review path differs."
+    },
+    "continuity_statement_class": {
+      "type": "string",
+      "enum": [
+        "signed_continuity_statement",
+        "cross_signed_transition",
+        "exception_record",
+        "no_continuity_emergency",
+        "not_applicable_initial_root"
+      ],
+      "description": "Closed continuity-statement vocabulary. signed_continuity_statement names the standard case where the predecessor root signs a statement that delegates trust to the current root. cross_signed_transition names the case where the current root is cross-signed by the predecessor root. exception_record names the case where a /schemas/release/provenance_stack_exception.schema.json record stands in for a continuity statement that could not be issued. no_continuity_emergency names the explicit emergency case where the predecessor root was compromised and no continuity statement is admissible. not_applicable_initial_root names the case where the rotation record describes the first issuance of a trust root family (no predecessor)."
+    },
+    "stale_or_rotating_state_class": {
+      "type": "string",
+      "enum": [
+        "trust_root_current",
+        "trust_root_rotating_dual_signed",
+        "trust_root_rotating_cross_signed",
+        "trust_root_rotated_with_continuity",
+        "trust_root_rotation_pending_review",
+        "trust_root_post_rotation_legacy_grace",
+        "trust_root_revoked",
+        "trust_root_stale",
+        "trust_root_unknown"
+      ],
+      "description": "Closed stale-or-rotating-state vocabulary that the verification row's trust_root_pointer_class projects against verbatim. trust_root_stale names the case where the rotation record exists but the rotation has not been reviewed by its review forum within the named freshness floor; collapsing it with trust_root_unknown is non-conforming because the support-review path differs."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "release_publication",
+        "update_center",
+        "install_review_sheet",
+        "post_install_disclosure",
+        "about_provenance_panel",
+        "marketplace_discovery",
+        "package_explorer",
+        "support_bundle",
+        "public_proof_packet",
+        "mirror_offline_review"
+      ]
+    },
+    "projection_mode_class": {
+      "type": "string",
+      "enum": [
+        "compact_chip_only",
+        "compact_chip_plus_continuity_summary",
+        "full_rotation_review_sheet",
+        "support_export_redacted",
+        "public_proof_redacted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "public_proof_safe",
+        "support_redacted",
+        "internal_only"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "trust_root_family_class_unresolved",
+        "root_kind_class_unresolved",
+        "rollout_epoch_class_unresolved",
+        "overlap_posture_class_unresolved",
+        "continuity_statement_class_unresolved",
+        "stale_or_rotating_state_class_unresolved",
+        "rotation_record_missing_predecessor_when_required",
+        "emergency_rotation_claimed_with_planned_overlap",
+        "exception_record_claimed_without_provenance_stack_exception_ref",
+        "post_rotation_legacy_grace_claimed_without_grace_until",
+        "revoked_root_claimed_without_revocation_ref",
+        "schema_version_lagging"
+      ]
+    },
+    "current_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root_id",
+        "root_label",
+        "root_kind_class",
+        "valid_from",
+        "valid_until",
+        "fingerprint_ref",
+        "issuer_ref",
+        "trust_framework_row_ref"
+      ],
+      "properties": {
+        "root_id": {
+          "type": "string",
+          "pattern": "^trust_root:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable trust-root id. Quoted by verification rows, release-evidence packets, About panels, support exports, mirror-continuity records, and provenance-badge records."
+        },
+        "root_label": { "$ref": "#/$defs/reviewable_label" },
+        "root_kind_class": { "$ref": "#/$defs/root_kind_class" },
+        "valid_from": { "$ref": "#/$defs/utc_datetime" },
+        "valid_until": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp at which this root expires. Null is admissible only when the rollout_epoch_class is rollout_emergency or rollout_revoked (no scheduled expiry; the root is held under emergency posture or revoked)."
+        },
+        "fingerprint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into the fingerprint catalog so reviewers can pivot to the canonical fingerprint without restating the fingerprint bytes here."
+        },
+        "issuer_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into the issuer record (release council, security council, or external CA). Raw issuer URLs and raw issuer DNs are forbidden."
+        },
+        "trust_framework_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into /artifacts/release/trust_framework_rows.yaml so the trust pattern this root follows is reviewable."
+        }
+      }
+    },
+    "rotation_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supersedes_root_refs",
+        "revokes_root_refs",
+        "successor_root_ref",
+        "linked_provenance_stack_exception_ref",
+        "rotation_decision_row_ref",
+        "rotation_review_forum_ref"
+      ],
+      "properties": {
+        "supersedes_root_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into predecessor trust-root rotation state records that this root supersedes. Empty only when the continuity_statement_class is not_applicable_initial_root."
+        },
+        "revokes_root_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into predecessor trust-root rotation state records that this root explicitly revokes. Required to be non-empty when the rollout_epoch_class is rollout_revoked or rollout_emergency."
+        },
+        "successor_root_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into a successor trust-root rotation state record. Required when the rollout_epoch_class is rollout_completed_legacy_grace, rollout_overlap_ended, or rollout_revoked; null otherwise."
+        },
+        "linked_provenance_stack_exception_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /schemas/release/provenance_stack_exception.schema.json. Required when continuity_statement_class is exception_record; null otherwise."
+        },
+        "rotation_decision_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into /artifacts/governance/decision_index.yaml so the rotation is reviewable as an architecture / security decision row."
+        },
+        "rotation_review_forum_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into the review-forum row that governs this rotation (release council, security council, shiproom, etc.)."
+        }
+      }
+    },
+    "continuity_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "continuity_statement_class",
+        "continuity_statement_ref",
+        "continuity_disclosure",
+        "overlap_posture_class",
+        "overlap_starts_at",
+        "overlap_ends_at",
+        "legacy_grace_until"
+      ],
+      "properties": {
+        "continuity_statement_class": { "$ref": "#/$defs/continuity_statement_class" },
+        "continuity_statement_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into the signed continuity statement, cross-signed transition record, or exception record. Required when continuity_statement_class is signed_continuity_statement, cross_signed_transition, or exception_record; null when continuity_statement_class is no_continuity_emergency or not_applicable_initial_root."
+        },
+        "continuity_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "overlap_posture_class": { "$ref": "#/$defs/overlap_posture_class" },
+        "overlap_starts_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp at which the overlap window starts. Required when overlap_posture_class is dual_signed_overlap or cross_signed_overlap; null otherwise."
+        },
+        "overlap_ends_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp at which the overlap window ends. Required when overlap_posture_class is dual_signed_overlap or cross_signed_overlap; null otherwise."
+        },
+        "legacy_grace_until": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp at which legacy-grace inspection ends. Required when rollout_epoch_class is rollout_completed_legacy_grace or stale_or_rotating_state_class is trust_root_post_rotation_legacy_grace; null otherwise."
+        }
+      }
+    },
+    "rollout_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollout_epoch_class",
+        "stale_or_rotating_state_class",
+        "rollout_started_at",
+        "rollout_overlap_ended_at",
+        "rollout_completed_at",
+        "next_review_due_at"
+      ],
+      "properties": {
+        "rollout_epoch_class": { "$ref": "#/$defs/rollout_epoch_class" },
+        "stale_or_rotating_state_class": { "$ref": "#/$defs/stale_or_rotating_state_class" },
+        "rollout_started_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "rollout_overlap_ended_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "rollout_completed_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "next_review_due_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp at which the rotation MUST be re-reviewed. Null only when stale_or_rotating_state_class is trust_root_unknown or rollout_epoch_class is rollout_revoked."
+        }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "projection_mode_class",
+        "required_fields",
+        "projection_note"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "projection_mode_class": { "$ref": "#/$defs/projection_mode_class" },
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "current_root.root_id",
+              "current_root.root_kind_class",
+              "current_root.valid_from",
+              "current_root.valid_until",
+              "rotation_linkage.supersedes_root_refs",
+              "rotation_linkage.revokes_root_refs",
+              "continuity_envelope.continuity_statement_class",
+              "continuity_envelope.continuity_statement_ref",
+              "continuity_envelope.overlap_posture_class",
+              "continuity_envelope.overlap_starts_at",
+              "continuity_envelope.overlap_ends_at",
+              "continuity_envelope.legacy_grace_until",
+              "rollout_envelope.rollout_epoch_class",
+              "rollout_envelope.stale_or_rotating_state_class",
+              "rollout_envelope.next_review_due_at"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "projection_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "linkage_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_row_refs",
+        "release_evidence_packet_refs",
+        "provenance_badge_refs",
+        "support_bundle_refs",
+        "mirror_continuity_refs",
+        "advisory_or_compromise_refs",
+        "transparency_log_refs"
+      ],
+      "properties": {
+        "verification_row_refs": { "$ref": "#/$defs/ref_array" },
+        "release_evidence_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "provenance_badge_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_continuity_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_or_compromise_refs": { "$ref": "#/$defs/ref_array" },
+        "transparency_log_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "export_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "exportable_to_screenshot",
+        "exportable_to_support_bundle",
+        "exportable_to_public_proof_packet",
+        "exportable_to_offline_review",
+        "raw_private_material_excluded",
+        "omission_reasons"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "exportable_to_screenshot": { "type": "boolean" },
+        "exportable_to_support_bundle": { "type": "boolean" },
+        "exportable_to_public_proof_packet": { "type": "boolean" },
+        "exportable_to_offline_review": { "type": "boolean" },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "description": "MUST be true. Raw key material, raw signatures, raw transparency-log payloads, raw rotation policy bodies, raw URLs, raw private trust-root endpoints, and raw signing infrastructure identifiers never cross this boundary."
+        },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "trust_root_rotation_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_root_rotation_state_schema_version",
+        "record_kind",
+        "rotation_state_id",
+        "emitted_at",
+        "trust_root_family_class",
+        "current_root",
+        "rotation_linkage",
+        "continuity_envelope",
+        "rollout_envelope",
+        "surface_projections",
+        "linkage_envelope",
+        "export_envelope",
+        "contract_doc_ref",
+        "trust_framework_rows_ref",
+        "decision_index_ref",
+        "notes"
+      ],
+      "properties": {
+        "trust_root_rotation_state_schema_version": { "$ref": "#/$defs/trust_root_rotation_state_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "trust_root_rotation_state_record"
+        },
+        "rotation_state_id": {
+          "type": "string",
+          "pattern": "^trust_root_rotation_state:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "trust_root_family_class": { "$ref": "#/$defs/trust_root_family_class" },
+        "current_root": { "$ref": "#/$defs/current_root" },
+        "rotation_linkage": { "$ref": "#/$defs/rotation_linkage" },
+        "continuity_envelope": { "$ref": "#/$defs/continuity_envelope" },
+        "rollout_envelope": { "$ref": "#/$defs/rollout_envelope" },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_projection" },
+          "description": "Set of surface projections this rotation state MUST render onto. The four required floor surfaces (release_publication, update_center, install_review_sheet, about_provenance_panel) are mandatory; tooling MAY add more, but MUST NOT drop one."
+        },
+        "linkage_envelope": { "$ref": "#/$defs/linkage_envelope" },
+        "export_envelope": { "$ref": "#/$defs/export_envelope" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/artifact_verification_contract.md"
+        },
+        "trust_framework_rows_ref": {
+          "type": "string",
+          "const": "artifacts/release/trust_framework_rows.yaml"
+        },
+        "decision_index_ref": {
+          "type": "string",
+          "const": "artifacts/governance/decision_index.yaml"
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "rollout_planned rotations MUST resolve to single_signed_pre_rotation overlap posture, the trust_root_rotation_pending_review stale-or-rotating state, a non-null rollout_started_at, a null rollout_overlap_ended_at, and a null rollout_completed_at. The continuity statement MUST be signed_continuity_statement or cross_signed_transition; emergency or exception postures are forbidden because the rotation has not yet started.",
+          "if": {
+            "properties": {
+              "rollout_envelope": {
+                "properties": {
+                  "rollout_epoch_class": { "const": "rollout_planned" }
+                },
+                "required": ["rollout_epoch_class"]
+              }
+            },
+            "required": ["rollout_envelope"]
+          },
+          "then": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "overlap_posture_class": { "const": "single_signed_pre_rotation" },
+                  "continuity_statement_class": {
+                    "enum": ["signed_continuity_statement", "cross_signed_transition"]
+                  }
+                }
+              },
+              "rollout_envelope": {
+                "properties": {
+                  "stale_or_rotating_state_class": { "const": "trust_root_rotation_pending_review" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rollout_active_overlap_period rotations MUST resolve to dual_signed_overlap or cross_signed_overlap overlap posture, a non-null overlap_starts_at, a non-null overlap_ends_at, and a stale_or_rotating_state_class of trust_root_rotating_dual_signed or trust_root_rotating_cross_signed.",
+          "if": {
+            "properties": {
+              "rollout_envelope": {
+                "properties": {
+                  "rollout_epoch_class": { "const": "rollout_active_overlap_period" }
+                },
+                "required": ["rollout_epoch_class"]
+              }
+            },
+            "required": ["rollout_envelope"]
+          },
+          "then": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "overlap_posture_class": {
+                    "enum": ["dual_signed_overlap", "cross_signed_overlap"]
+                  },
+                  "overlap_starts_at": { "not": { "type": "null" } },
+                  "overlap_ends_at": { "not": { "type": "null" } }
+                }
+              },
+              "rollout_envelope": {
+                "properties": {
+                  "stale_or_rotating_state_class": {
+                    "enum": ["trust_root_rotating_dual_signed", "trust_root_rotating_cross_signed"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rollout_overlap_ended rotations MUST resolve to single_signed_post_rotation overlap posture, the trust_root_rotated_with_continuity stale-or-rotating state, and a non-null rollout_overlap_ended_at.",
+          "if": {
+            "properties": {
+              "rollout_envelope": {
+                "properties": {
+                  "rollout_epoch_class": { "const": "rollout_overlap_ended" }
+                },
+                "required": ["rollout_epoch_class"]
+              }
+            },
+            "required": ["rollout_envelope"]
+          },
+          "then": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "overlap_posture_class": { "const": "single_signed_post_rotation" }
+                }
+              },
+              "rollout_envelope": {
+                "properties": {
+                  "stale_or_rotating_state_class": { "const": "trust_root_rotated_with_continuity" },
+                  "rollout_overlap_ended_at": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rollout_completed_legacy_grace rotations MUST resolve to no_overlap_planned_legacy_grace_only overlap posture, the trust_root_post_rotation_legacy_grace stale-or-rotating state, a non-null legacy_grace_until, and a non-null rollout_completed_at.",
+          "if": {
+            "properties": {
+              "rollout_envelope": {
+                "properties": {
+                  "rollout_epoch_class": { "const": "rollout_completed_legacy_grace" }
+                },
+                "required": ["rollout_epoch_class"]
+              }
+            },
+            "required": ["rollout_envelope"]
+          },
+          "then": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "overlap_posture_class": { "const": "no_overlap_planned_legacy_grace_only" },
+                  "legacy_grace_until": { "not": { "type": "null" } }
+                }
+              },
+              "rollout_envelope": {
+                "properties": {
+                  "stale_or_rotating_state_class": { "const": "trust_root_post_rotation_legacy_grace" },
+                  "rollout_completed_at": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rollout_revoked rotations MUST resolve to the trust_root_revoked stale-or-rotating state, a non-empty revokes_root_refs array, and a non-null successor_root_ref.",
+          "if": {
+            "properties": {
+              "rollout_envelope": {
+                "properties": {
+                  "rollout_epoch_class": { "const": "rollout_revoked" }
+                },
+                "required": ["rollout_epoch_class"]
+              }
+            },
+            "required": ["rollout_envelope"]
+          },
+          "then": {
+            "properties": {
+              "rollout_envelope": {
+                "properties": {
+                  "stale_or_rotating_state_class": { "const": "trust_root_revoked" }
+                }
+              },
+              "rotation_linkage": {
+                "properties": {
+                  "revokes_root_refs": { "minItems": 1 },
+                  "successor_root_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rollout_emergency rotations MUST resolve to no_overlap_emergency overlap posture, no_continuity_emergency continuity statement (with a null continuity_statement_ref), and a non-empty revokes_root_refs array. Emergency rotations cannot present a planned overlap because the predecessor root was compromised.",
+          "if": {
+            "properties": {
+              "rollout_envelope": {
+                "properties": {
+                  "rollout_epoch_class": { "const": "rollout_emergency" }
+                },
+                "required": ["rollout_epoch_class"]
+              }
+            },
+            "required": ["rollout_envelope"]
+          },
+          "then": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "overlap_posture_class": { "const": "no_overlap_emergency" },
+                  "continuity_statement_class": { "const": "no_continuity_emergency" },
+                  "continuity_statement_ref": { "type": "null" }
+                }
+              },
+              "rotation_linkage": {
+                "properties": {
+                  "revokes_root_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Continuity statement class signed_continuity_statement, cross_signed_transition, and exception_record MUST resolve to a non-null continuity_statement_ref. exception_record additionally requires a non-null linked_provenance_stack_exception_ref.",
+          "if": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "continuity_statement_class": {
+                    "enum": ["signed_continuity_statement", "cross_signed_transition"]
+                  }
+                },
+                "required": ["continuity_statement_class"]
+              }
+            },
+            "required": ["continuity_envelope"]
+          },
+          "then": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "continuity_statement_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "exception_record continuity statement requires a non-null continuity_statement_ref AND a non-null linked_provenance_stack_exception_ref.",
+          "if": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "continuity_statement_class": { "const": "exception_record" }
+                },
+                "required": ["continuity_statement_class"]
+              }
+            },
+            "required": ["continuity_envelope"]
+          },
+          "then": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "continuity_statement_ref": { "not": { "type": "null" } }
+                }
+              },
+              "rotation_linkage": {
+                "properties": {
+                  "linked_provenance_stack_exception_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "not_applicable_initial_root continuity statement MUST resolve to an empty supersedes_root_refs array. The initial issuance has no predecessor.",
+          "if": {
+            "properties": {
+              "continuity_envelope": {
+                "properties": {
+                  "continuity_statement_class": { "const": "not_applicable_initial_root" }
+                },
+                "required": ["continuity_statement_class"]
+              }
+            },
+            "required": ["continuity_envelope"]
+          },
+          "then": {
+            "properties": {
+              "rotation_linkage": {
+                "properties": {
+                  "supersedes_root_refs": { "maxItems": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Required surface projection floor: release_publication, update_center, install_review_sheet, about_provenance_panel. Tooling MAY add support_bundle, public_proof_packet, mirror_offline_review, marketplace_discovery, and post_install_disclosure as secondary surfaces.",
+          "properties": {
+            "surface_projections": {
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "release_publication" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "update_center" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "install_review_sheet" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "about_provenance_panel" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "description": "The export envelope MUST set raw_private_material_excluded to true. Raw key material, raw signatures, raw transparency-log payloads, raw rotation policy bodies, raw URLs, raw private trust-root endpoints, and raw signing infrastructure identifiers never cross this boundary.",
+          "properties": {
+            "export_envelope": {
+              "properties": {
+                "raw_private_material_excluded": { "const": true }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
