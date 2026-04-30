@@ -1,0 +1,299 @@
+# yaml-language-server: $schema=../../../schemas/ai/review_resolution_memory.schema.json
+__fixture__:
+  name: provider_outage
+  scenario: >
+    The reviewer attempts to publish a finding through a hosted
+    destination but the upstream evaluator is out (the third-party
+    provider returns a 503 on the rerun call). The scope-freshness
+    watcher fires evaluator_outage_resolution_rerun_required, which
+    forces the resolution row into rerun_recommended with
+    publish_eligibility_class = publish_blocked_outdated_lifecycle.
+    The local store row preserves the analyzed scope, diff
+    fingerprints, provider/model identity, and policy context for
+    a later reattempt; the export packet records
+    export_records_publish_blocked_kept_local so support tooling
+    can see the outage without claiming publish succeeded.
+  exercised_contract_sections:
+    - section_1_resolution_memory_state_machine
+    - section_2_material_diff_change_rules
+    - section_3_local_only_finding_store
+    - section_4_export_packet
+  exercised_classes:
+    resolution_state_classes:
+      - open
+      - rerun_recommended
+    resolution_actor_classes:
+      - scope_freshness_watcher
+    resolution_source_classes:
+      - scope_freshness_watcher
+    reopen_eligibility_classes:
+      - not_applicable_state_admits_open_action_directly
+    publish_eligibility_classes:
+      - publish_blocked_outdated_lifecycle
+    diff_fingerprint_kinds:
+      - head_revision_id_ref
+      - base_revision_id_ref
+      - provider_pull_or_merge_request_head_ref
+      - review_pack_evaluation_input_signature_ref
+    transition_trigger_classes:
+      - scope_freshness_evaluator_outage
+    material_change_verdict_classes:
+      - evaluator_outage_resolution_rerun_required
+    storage_authority_classes:
+      - user_owned_recovery_state
+    delete_posture_classes:
+      - delete_clears_local_only
+    export_posture_classes:
+      - exportable_as_user_visible
+    retention_posture_classes:
+      - workspace_scoped
+    delete_request_lifecycle_classes:
+      - no_delete_request_pending
+    export_publish_state_classes:
+      - export_records_publish_blocked_kept_local
+    export_disclosure_classes:
+      - discloses_provider_model_identity_and_publish_state
+    audit_event_ids:
+      - review_resolution_minted
+      - review_resolution_rerun_recommended
+      - review_resolution_material_diff_change_recorded
+      - local_review_findings_store_record_minted
+      - local_review_findings_export_packet_assembled
+---
+# Resolution: rerun_recommended (after evaluator outage).
+record_kind: review_resolution_record
+review_resolution_memory_schema_version: 1
+review_resolution_id: ai:review-resolution:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+review_workspace_id_ref: vcs:review-workspace:provider-outage:01
+analyzed_scope_id_ref: ai:review-scope:provider-outage:01
+local_review_findings_store_record_id_ref: ai:local-review-store:provider-outage:01
+publish_to_review_sheet_id_ref: null
+resolution_state_class: rerun_recommended
+resolution_actor_class: scope_freshness_watcher
+resolution_source_class: scope_freshness_watcher
+reopen_eligibility_class: not_applicable_state_admits_open_action_directly
+publish_eligibility_class: publish_blocked_outdated_lifecycle
+diff_fingerprints:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: revision:feature/provider-outage:HEAD
+  - diff_fingerprint_kind: base_revision_id_ref
+    diff_fingerprint_ref: revision:main:base-of-feature
+  - diff_fingerprint_kind: provider_pull_or_merge_request_head_ref
+    diff_fingerprint_ref: provider:pull-request:provider-outage:HEAD
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:provider-outage:01
+predecessor_resolution_id_ref: null
+successor_resolution_id_ref: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+client_scopes: [desktop_product]
+redaction_class: metadata_safe_default
+freshness_class: degraded_cached
+summary_label: "Resolution rerun_recommended: evaluator outage on hosted run"
+rationale_label: >-
+  The third-party evaluator returned a service-unavailable response
+  on the rerun call; the scope-freshness watcher fired the outage
+  verdict and forced this resolution into rerun_recommended.
+  Publish is blocked under the outdated-lifecycle floor until a
+  successor run completes.
+minted_at: "2026-04-30T16:00:00Z"
+updated_at: "2026-04-30T16:00:30Z"
+archived_at: null
+hosted_review_inbox_record_id_ref: null
+---
+# Material-diff-change record: evaluator outage forces rerun_recommended.
+record_kind: review_resolution_material_diff_change_record
+review_resolution_memory_schema_version: 1
+review_resolution_material_diff_change_id: ai:review-resolution-material-change:provider-outage:01
+review_resolution_id_ref: ai:review-resolution:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+analyzed_scope_id_ref: ai:review-scope:provider-outage:01
+successor_analyzed_scope_id_ref: null
+material_change_verdict_class: evaluator_outage_resolution_rerun_required
+diff_fingerprints_before:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: revision:feature/provider-outage:HEAD
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:provider-outage:01
+diff_fingerprints_after:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: revision:feature/provider-outage:HEAD
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:provider-outage:01
+forced_to_state_class: rerun_recommended
+publish_eligibility_after: publish_blocked_outdated_lifecycle
+actor_class: scope_freshness_watcher
+actor_ref: actor:scope-freshness-watcher:provider-outage:01
+observed_at: "2026-04-30T16:00:30Z"
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Material change: evaluator_outage_resolution_rerun_required"
+---
+# Local store row: preserves bindings; publish blocked.
+record_kind: local_review_findings_store_record
+local_review_findings_store_schema_version: 1
+local_review_findings_store_record_id: ai:local-review-store:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+review_resolution_id_ref: ai:review-resolution:provider-outage:01
+analyzed_scope_id_ref: ai:review-scope:provider-outage:01
+review_workspace_id_ref: vcs:review-workspace:provider-outage:01
+publish_to_review_sheet_id_ref: null
+diff_fingerprints:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: revision:feature/provider-outage:HEAD
+  - diff_fingerprint_kind: base_revision_id_ref
+    diff_fingerprint_ref: revision:main:base-of-feature
+  - diff_fingerprint_kind: provider_pull_or_merge_request_head_ref
+    diff_fingerprint_ref: provider:pull-request:provider-outage:HEAD
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:provider-outage:01
+provider_model_identity:
+  provider_entry_ref: ai:provider-entry:provider-outage:third-party
+  model_entry_ref: ai:model-entry:provider-outage:third-party
+  external_tool_entry_refs:
+    - ai:external-tool-entry:third-party-evaluator:01
+  execution_locus_class: third_party_provider_routed
+publish_eligibility_class: publish_blocked_outdated_lifecycle
+storage_authority_class: user_owned_recovery_state
+delete_posture_class: delete_clears_local_only
+export_posture_class: exportable_as_user_visible
+retention_posture_class: workspace_scoped
+delete_request_lifecycle_class: no_delete_request_pending
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+client_scopes: [desktop_product]
+redaction_class: metadata_safe_default
+freshness_class: degraded_cached
+summary_label: "Local store row: rerun_recommended after evaluator outage"
+minted_at: "2026-04-30T16:00:00Z"
+updated_at: "2026-04-30T16:00:30Z"
+archived_at: null
+hosted_review_inbox_record_id_ref: null
+---
+# Export packet: records publish was blocked, kept local.
+record_kind: local_review_findings_export_packet_record
+local_review_findings_store_schema_version: 1
+local_review_findings_export_packet_id: ai:local-review-export:provider-outage:01
+local_review_findings_store_record_id_ref: ai:local-review-store:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+review_resolution_id_ref: ai:review-resolution:provider-outage:01
+analyzed_scope_id_ref: ai:review-scope:provider-outage:01
+publish_to_review_sheet_id_ref: null
+diff_fingerprints:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: revision:feature/provider-outage:HEAD
+  - diff_fingerprint_kind: base_revision_id_ref
+    diff_fingerprint_ref: revision:main:base-of-feature
+  - diff_fingerprint_kind: provider_pull_or_merge_request_head_ref
+    diff_fingerprint_ref: provider:pull-request:provider-outage:HEAD
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:provider-outage:01
+provider_model_identity:
+  provider_entry_ref: ai:provider-entry:provider-outage:third-party
+  model_entry_ref: ai:model-entry:provider-outage:third-party
+  external_tool_entry_refs:
+    - ai:external-tool-entry:third-party-evaluator:01
+  execution_locus_class: third_party_provider_routed
+publish_eligibility_class: publish_blocked_outdated_lifecycle
+export_publish_state_class: export_records_publish_blocked_kept_local
+export_disclosure_class: discloses_provider_model_identity_and_publish_state
+export_posture_class: exportable_as_user_visible
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+client_scopes: [desktop_product]
+redaction_class: metadata_safe_default
+freshness_class: degraded_cached
+summary_label: "Export packet: rerun_recommended after evaluator outage; publish blocked, kept local"
+assembled_at: "2026-04-30T16:01:00Z"
+actor_ref: actor:reviewer:provider-outage:01
+command_id_ref: command:ai.review.export:provider-outage:01
+---
+# Audit: rerun recommended after material-change verdict.
+record_kind: review_resolution_audit_event_record
+review_resolution_memory_schema_version: 1
+review_resolution_audit_event_id_value: review_resolution_rerun_recommended
+audit_event_record_id: audit:resolution-rerun-recommended:provider-outage:01
+review_resolution_id_ref: ai:review-resolution:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+occurred_at: "2026-04-30T16:00:30Z"
+actor_ref: actor:scope-freshness-watcher:provider-outage:01
+publish_to_review_sheet_id_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Resolution rerun_recommended: evaluator outage forced rerun"
+---
+# Audit: material diff change recorded.
+record_kind: review_resolution_audit_event_record
+review_resolution_memory_schema_version: 1
+review_resolution_audit_event_id_value: review_resolution_material_diff_change_recorded
+audit_event_record_id: audit:resolution-material-change:provider-outage:01
+review_resolution_id_ref: ai:review-resolution:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+occurred_at: "2026-04-30T16:00:30Z"
+actor_ref: actor:scope-freshness-watcher:provider-outage:01
+publish_to_review_sheet_id_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Material change recorded: evaluator_outage_resolution_rerun_required"
+---
+# Audit: local store row minted.
+record_kind: local_review_findings_store_audit_event_record
+local_review_findings_store_schema_version: 1
+local_review_findings_store_audit_event_id_value: local_review_findings_store_record_minted
+audit_event_record_id: audit:local-store-minted:provider-outage:01
+local_review_findings_store_record_id_ref: ai:local-review-store:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+occurred_at: "2026-04-30T16:00:00Z"
+actor_ref: actor:reviewer:provider-outage:01
+local_review_findings_export_packet_id_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Local store row minted: provider-outage continuity"
+---
+# Audit: export packet assembled.
+record_kind: local_review_findings_store_audit_event_record
+local_review_findings_store_schema_version: 1
+local_review_findings_store_audit_event_id_value: local_review_findings_export_packet_assembled
+audit_event_record_id: audit:local-export-assembled:provider-outage:01
+local_review_findings_store_record_id_ref: ai:local-review-store:provider-outage:01
+review_finding_id_ref: ai:review-finding:provider-outage:01
+occurred_at: "2026-04-30T16:01:00Z"
+actor_ref: actor:reviewer:provider-outage:01
+local_review_findings_export_packet_id_ref: ai:local-review-export:provider-outage:01
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:provider-outage:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Export packet assembled: publish_blocked_kept_local under outage"

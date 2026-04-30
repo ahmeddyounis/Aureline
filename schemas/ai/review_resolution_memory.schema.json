@@ -1,0 +1,911 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/review_resolution_memory.schema.json",
+  "title": "Aureline AI review-assist resolution-memory and material-diff-change vocabulary",
+  "description": "Boundary schema for the review_resolution_record, review_resolution_state_transition_record, review_resolution_material_diff_change_record, and review_resolution_audit_event_record families frozen in docs/ai/review_resolution_memory_contract.md. Every review_finding_record (schemas/ai/review_finding.schema.json) emitted by the AI review-assist surface resolves to exactly one review_resolution_record carrying the resolution-memory state (open / dismissed / published_local_only / published_to_review_destination / outdated_diff_changed / rerun_recommended / suppressed_by_policy / superseded_by_rerun / archived_tombstone), the actor-class that drove the state, the resolution-source class naming who or what authored the transition (user_in_active_session / repo_instruction_bundle_authored / designated_policy_file / trusted_workspace_pinned_policy / trusted_user_profile_policy / admin_policy_bundle / review_pack_check_outcome / provider_overlay_watcher / scope_freshness_watcher / rerun_engine / ai_review_overlay_recording_only / system_reconciler), the reopen-eligibility class (reopen_admitted_user / reopen_admitted_user_or_admin / reopen_admitted_admin_only / reopen_blocked_archived / reopen_blocked_suppressed_by_policy / reopen_blocked_outdated_must_rerun / reopen_blocked_superseded), the publish-eligibility class so a record never claims publish capability the local store does not actually hold, the diff-fingerprint binding that lets a material-change watcher invalidate the resolution when the bytes underneath the finding move, and the audit-linkage refs (the finding row, the scope row, optionally the publish sheet, optionally the predecessor resolution this row supersedes). The state machine is closed and admits NO auto-approve, NO auto-request-changes, and NO auto-merge transition. Transitions out of the four refusal-shaped states (suppressed_by_policy / archived_tombstone / outdated_diff_changed when its predecessor was archived / superseded_by_rerun) are admitted only through the reopen-eligibility class on the matching record; a surface that mints a transition the eligibility class refuses denies with reopen_action_refused_by_eligibility. The schema composes with (and does not replace) schemas/ai/review_finding.schema.json (the lifecycle vocabulary mirrored verbatim), schemas/ai/review_scope_selection.schema.json (the scope-freshness / scope-lineage / rerun-reason vocabulary), schemas/ai/publish_to_review_sheet.schema.json (the publish path the resolution proves succeeded or refused), schemas/ai/local_review_findings_store.schema.json (the local-only store the resolution row writes through), schemas/ai/tainted_input_source.schema.json (designated_policy_file source class is reachable only when a tainted_input_source_record carries policy_file_role_class = designated_policy_file with non-null signing_evidence_ref), and schemas/governance/capability_lifecycle.schema.json (freshness_class / client_scope / redaction_class). Raw outbound text bodies, raw inline-suggestion patch bodies, raw check-annotation payloads, raw provider URLs, raw provider-thread URLs, raw author identity strings, raw notebook cell text, raw diff bodies, raw terminal bytes, raw prompt text, raw URLs, raw absolute paths, raw branch / commit URLs, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, and raw provider payloads MUST NOT appear on any record emitted against this schema; every preview is a redaction-aware reviewable label or an opaque ref. The eventual review-assist crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, resolution-state class, actor-class, resolution-source class, reopen-eligibility class, publish-eligibility class, diff-fingerprint kind, material-change verdict class, transition-trigger class, denial reason, or audit-event id is additive-minor and bumps review_resolution_memory_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_resolution_record" },
+    { "$ref": "#/$defs/review_resolution_state_transition_record" },
+    { "$ref": "#/$defs/review_resolution_material_diff_change_record" },
+    { "$ref": "#/$defs/review_resolution_audit_event_record" }
+  ],
+  "$defs": {
+    "review_resolution_memory_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the review-resolution-memory vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "review_resolution_record",
+        "review_resolution_state_transition_record",
+        "review_resolution_material_diff_change_record",
+        "review_resolution_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-reconciliation consoles. Raw outbound text bodies, raw inline-suggestion patch bodies, raw check-annotation payloads, raw provider URLs, raw provider-thread URLs, raw author identity strings, raw notebook cell text, raw diff bodies, raw terminal bytes, raw prompt text, raw URLs, raw absolute paths, raw branch / commit URLs, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for review-history panels, support bundles, and audit exports. Never carries the raw payload byte stream beyond what the broker-owned redaction pass (ADR-0007) admits."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Resolution rows touching credentialed flows MUST raise to operator_only_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "unset_pending_decision"]
+        }
+      },
+      "description": "Policy context the resolution was minted under."
+    },
+
+    "resolution_state_class": {
+      "type": "string",
+      "enum": [
+        "open",
+        "dismissed",
+        "published_local_only",
+        "published_to_review_destination",
+        "outdated_diff_changed",
+        "rerun_recommended",
+        "suppressed_by_policy",
+        "superseded_by_rerun",
+        "archived_tombstone"
+      ],
+      "description": "Frozen resolution-state vocabulary. Mirrors the review_finding lifecycle_state vocabulary verbatim so a resolution row never disagrees with the finding row it summarises. open is the initial state; dismissed records an explicit user dismissal with a typed rationale on the finding row; published_local_only records a publish to the local review_workspace_record only (provider-write missing or kept-local action); published_to_review_destination records a publish through schemas/ai/publish_to_review_sheet.schema.json to a hosted destination, an imported-bundle export packet, or a support packet; outdated_diff_changed and rerun_recommended honour the matching scope_freshness_class on schemas/ai/review_scope_selection.schema.json; suppressed_by_policy records an admin / policy bundle suppression with rationale; superseded_by_rerun records that a successor resolution exists; archived_tombstone is the retain-as-tombstone state. The vocabulary admits NO auto-approve, NO auto-request-changes, and NO auto-merge transition; those actions live on schemas/vcs/merge_queue_entry.schema.json and require human approval through the merge-policy contract."
+    },
+
+    "resolution_actor_class": {
+      "type": "string",
+      "enum": [
+        "user_in_active_session",
+        "admin_via_signed_policy",
+        "ai_review_overlay_recording_only",
+        "scope_freshness_watcher",
+        "provider_overlay_watcher",
+        "rerun_engine",
+        "system_reconciler"
+      ],
+      "description": "Frozen actor-class vocabulary on every resolution transition. user_in_active_session is the user typing in this surface; admin_via_signed_policy is an admin acting through a signed policy bundle; ai_review_overlay_recording_only is recording-only and MUST NOT mint a publish or destination-write transition; scope_freshness_watcher is the watcher that fires outdated_diff_changed / rerun_recommended when the analyzed scope drifts; provider_overlay_watcher fires when a hosted_review_object base/head moves; rerun_engine fires when a successor scope completes; system_reconciler is the local-store reconciler that fires after a delete-request or invalidation event."
+    },
+
+    "resolution_source_class": {
+      "type": "string",
+      "enum": [
+        "user_in_active_session",
+        "repo_instruction_bundle_authored",
+        "designated_policy_file",
+        "trusted_workspace_pinned_policy",
+        "trusted_user_profile_policy",
+        "admin_policy_bundle",
+        "review_pack_check_outcome",
+        "provider_overlay_watcher",
+        "scope_freshness_watcher",
+        "rerun_engine",
+        "ai_review_overlay_recording_only",
+        "system_reconciler"
+      ],
+      "description": "Frozen resolution-source vocabulary naming the directing source the transition cited. user_in_active_session = user typed the action in this surface; repo_instruction_bundle_authored = a repo AGENTS.md-style bundle carried the suppression / dismissal rule; designated_policy_file = a designated AI policy file under .aureline/ai/policy/ carried the rule and was admitted only with non-null signing_evidence_ref on the upstream tainted_input_source_record; trusted_workspace_pinned_policy / trusted_user_profile_policy = pinned-policy authority paths; admin_policy_bundle = an admin policy bundle (ADR-0008); review_pack_check_outcome = the review-pack check evaluation drove the transition; provider_overlay_watcher / scope_freshness_watcher / rerun_engine / system_reconciler = mechanical watchers. ai_review_overlay_recording_only is admissible on recording-only events but MUST NOT mint publish or destination-write transitions."
+    },
+
+    "reopen_eligibility_class": {
+      "type": "string",
+      "enum": [
+        "reopen_admitted_user",
+        "reopen_admitted_user_or_admin",
+        "reopen_admitted_admin_only",
+        "reopen_blocked_archived",
+        "reopen_blocked_suppressed_by_policy",
+        "reopen_blocked_outdated_must_rerun",
+        "reopen_blocked_superseded",
+        "not_applicable_state_admits_open_action_directly"
+      ],
+      "description": "Frozen reopen-eligibility vocabulary. reopen_admitted_user = the user can flip the state back to open in this surface; reopen_admitted_user_or_admin = the user OR admin may; reopen_admitted_admin_only = only an admin via signed policy may; the four reopen_blocked_* values fail closed and the transition denies with reopen_action_refused_by_eligibility unless preceded by the typed unblock path (rerun for outdated_must_rerun, successor archival for superseded, admin policy bundle for suppressed_by_policy, archive_tombstone reopen sheet for archived). not_applicable_state_admits_open_action_directly is the value carried on rows in open / rerun_recommended / outdated_diff_changed (not yet pinned to a predecessor archive) where the open action is admitted without a typed reopen path."
+    },
+
+    "publish_eligibility_class": {
+      "type": "string",
+      "enum": [
+        "publish_eligible_provider_write_admitted",
+        "publish_eligible_under_browser_handoff",
+        "publish_eligible_under_browser_handoff_pending_block_publish",
+        "publish_eligible_via_imported_bundle_export_packet",
+        "publish_blocked_provider_write_missing_keep_local_or_export",
+        "publish_blocked_imported_bundle_no_outbound",
+        "publish_blocked_browser_handoff_token_only_no_outbound",
+        "publish_blocked_redaction_failed_user_must_review",
+        "publish_blocked_disclosure_pending_user_must_review",
+        "publish_blocked_low_confidence_floor_unmet",
+        "publish_blocked_outdated_lifecycle",
+        "publish_unknown_must_block",
+        "not_applicable_local_only_no_publish_proposed"
+      ],
+      "description": "Frozen publish-eligibility vocabulary. Mirrors the publish_to_review_sheet provider_write_continuity vocabulary plus the four contract-level refusals (redaction-failed, disclosure-pending, low-confidence floor, outdated-lifecycle) so the resolution row records publish eligibility under the local store's posture rather than re-mining provider routing. publish_eligible_* values admit publish_to_destination through the publish-to-review sheet under the named continuity. The publish_blocked_* values pair through allOf gates with the matching publish_to_review_sheet redaction / attribution / continuity / lifecycle posture and the resolution_state_class is constrained out of published_to_review_destination on those values. publish_unknown_must_block is the fail-closed value. not_applicable_local_only_no_publish_proposed is admissible only when no publish has been proposed (no publish-to-review sheet bound and the action on the finding row is not publish_to_review_destination)."
+    },
+
+    "diff_fingerprint_kind": {
+      "type": "string",
+      "enum": [
+        "head_revision_id_ref",
+        "base_revision_id_ref",
+        "selected_diff_range_signature_ref",
+        "uncommitted_index_signature_ref",
+        "provider_pull_or_merge_request_head_ref",
+        "imported_bundle_envelope_pin_ref",
+        "browser_handoff_packet_pin_ref",
+        "review_pack_evaluation_input_signature_ref",
+        "policy_epoch_ref",
+        "instruction_or_check_source_signature_ref"
+      ],
+      "description": "Frozen diff-fingerprint-kind vocabulary. Every resolution row carries at least one fingerprint binding the resolution to the bytes the finding was minted against. The next material-change watcher fires when one of these refs no longer matches the current scope; the matching review_resolution_material_diff_change_record records the verdict. Fingerprints are opaque refs; raw diff bodies, raw revision URLs, raw branch URLs, and raw policy bundle bytes never appear here."
+    },
+
+    "material_change_verdict_class": {
+      "type": "string",
+      "enum": [
+        "no_material_change_resolution_remains_fresh",
+        "minor_unrelated_change_resolution_remains_warm",
+        "diff_changed_after_run_resolution_outdated",
+        "base_or_head_changed_after_run_resolution_outdated",
+        "provider_overlay_refreshed_resolution_rerun_recommended",
+        "review_pack_or_policy_updated_resolution_rerun_required",
+        "instruction_or_check_source_changed_resolution_rerun_required",
+        "evaluator_outage_resolution_rerun_required",
+        "scope_pinned_no_drift_assessable"
+      ],
+      "description": "Frozen material-change verdict vocabulary on the review_resolution_material_diff_change_record. Mirrors the schemas/ai/review_scope_selection.schema.json scope_freshness_class projections plus the policy / instruction-source / review-pack rerun reasons. The four *_outdated / *_rerun_recommended / *_rerun_required values force the matching resolution row's resolution_state_class out of open / published_to_review_destination / published_local_only and into outdated_diff_changed or rerun_recommended."
+    },
+
+    "transition_trigger_class": {
+      "type": "string",
+      "enum": [
+        "user_action_dismiss",
+        "user_action_publish_local_only",
+        "user_action_publish_to_destination",
+        "user_action_keep_open",
+        "user_action_archive_tombstone",
+        "user_action_request_rerun",
+        "user_action_reopen_after_archive",
+        "admin_policy_suppress",
+        "admin_policy_unsuppress",
+        "scope_freshness_diff_changed",
+        "scope_freshness_base_or_head_changed",
+        "scope_freshness_provider_overlay_refreshed",
+        "scope_freshness_evaluator_outage",
+        "review_pack_or_policy_updated",
+        "instruction_or_check_source_changed",
+        "rerun_completed_with_successor",
+        "rerun_completed_no_change",
+        "system_reconciler_invalidation",
+        "publish_blocked_redaction_failed",
+        "publish_blocked_disclosure_pending",
+        "publish_blocked_provider_write_missing",
+        "publish_blocked_low_confidence_floor",
+        "publish_blocked_outdated_lifecycle"
+      ],
+      "description": "Frozen transition-trigger vocabulary. Every state transition carries exactly one trigger so the audit stream can answer 'what fired this state change' mechanically. user_action_* triggers cite a non-null user actor; admin_policy_* triggers cite a non-null admin policy bundle; scope_freshness_* / review_pack_or_policy_updated / instruction_or_check_source_changed / rerun_completed_* / system_reconciler_invalidation are mechanical-watcher triggers; publish_blocked_* triggers record refusal-shaped transitions with the matching publish-to-review sheet refusal."
+    },
+
+    "review_resolution_denial_reason": {
+      "type": "string",
+      "enum": [
+        "review_finding_id_ref_required",
+        "analyzed_scope_id_ref_required",
+        "diff_fingerprint_required_at_least_one",
+        "resolution_state_must_match_finding_lifecycle_state",
+        "publish_eligibility_must_match_publish_to_review_sheet_continuity",
+        "publish_to_review_sheet_ref_required_for_published_state",
+        "predecessor_resolution_required_for_superseded_state",
+        "predecessor_resolution_required_for_outdated_after_archived_state",
+        "reopen_action_refused_by_eligibility",
+        "auto_approve_or_request_changes_or_merge_forbidden",
+        "designated_policy_file_source_requires_signed_policy_input",
+        "ai_overlay_recording_only_must_not_mint_publish_or_destination_write",
+        "low_confidence_floor_must_block_publish_to_destination",
+        "outdated_lifecycle_must_block_publish_to_destination",
+        "suppressed_by_policy_requires_admin_policy_bundle_source",
+        "archive_tombstone_requires_archived_at",
+        "transition_trigger_must_match_actor_and_source",
+        "material_change_verdict_must_force_outdated_or_rerun",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "review_resolution_record_required_field_missing",
+        "review_resolution_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the review_resolution audit stream. Denials fail closed; silent downgrade to a freshly-painted resolution, an ungated reopen, or an undisclosed publish is forbidden."
+    },
+
+    "review_resolution_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "review_resolution_minted",
+        "review_resolution_state_transitioned",
+        "review_resolution_published_locally",
+        "review_resolution_published_to_destination",
+        "review_resolution_dismissed",
+        "review_resolution_suppressed_by_policy",
+        "review_resolution_marked_outdated_after_diff_change",
+        "review_resolution_marked_outdated_after_base_or_head_change",
+        "review_resolution_rerun_recommended",
+        "review_resolution_superseded_by_rerun",
+        "review_resolution_reopened_after_archive",
+        "review_resolution_archived",
+        "review_resolution_material_diff_change_recorded",
+        "review_resolution_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the review_resolution stream. review_resolution_audit_denial_emitted MUST cite a review_resolution_denial_reason."
+    },
+
+    "diff_fingerprint_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diff_fingerprint_kind", "diff_fingerprint_ref"],
+      "properties": {
+        "diff_fingerprint_kind": { "$ref": "#/$defs/diff_fingerprint_kind" },
+        "diff_fingerprint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound identity (revision id, selected-diff-range signature, uncommitted-index signature, provider PR/MR head, imported-bundle pin, browser-handoff pin, review-pack evaluation input signature, policy-epoch, or instruction-or-check-source signature). Raw revision URLs, raw branch URLs, raw diff bodies, raw policy bundle bytes, and raw absolute paths never appear here."
+        }
+      },
+      "description": "One fingerprint binding the resolution row to a stable identity in the analyzed scope. The next material-change watcher whose verdict cites a different value for this kind forces the resolution into outdated_diff_changed / rerun_recommended."
+    },
+
+    "review_resolution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_resolution_memory_schema_version",
+        "review_resolution_id",
+        "review_finding_id_ref",
+        "review_workspace_id_ref",
+        "analyzed_scope_id_ref",
+        "local_review_findings_store_record_id_ref",
+        "publish_to_review_sheet_id_ref",
+        "resolution_state_class",
+        "resolution_actor_class",
+        "resolution_source_class",
+        "reopen_eligibility_class",
+        "publish_eligibility_class",
+        "diff_fingerprints",
+        "predecessor_resolution_id_ref",
+        "successor_resolution_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "rationale_label",
+        "minted_at",
+        "updated_at",
+        "archived_at",
+        "hosted_review_inbox_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_resolution_record" },
+        "review_resolution_memory_schema_version": { "$ref": "#/$defs/review_resolution_memory_schema_version" },
+        "review_resolution_id": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_finding.schema.json review_finding_record this resolution memorises. Required (non-null); a missing ref denies with review_finding_id_ref_required."
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/vcs/review_workspace.schema.json review_workspace_record the resolution belongs to."
+        },
+        "analyzed_scope_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_scope_selection.schema.json review_scope_selection_record the bound finding was minted under. Required (non-null); a missing ref denies with analyzed_scope_id_ref_required."
+        },
+        "local_review_findings_store_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/local_review_findings_store.schema.json local_review_findings_store_record this resolution writes through. Required (non-null); the local store row is the durable home of the resolution and the substrate the export packet projects from."
+        },
+        "publish_to_review_sheet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when resolution_state_class is published_local_only or published_to_review_destination. Null otherwise."
+        },
+        "resolution_state_class": { "$ref": "#/$defs/resolution_state_class" },
+        "resolution_actor_class": { "$ref": "#/$defs/resolution_actor_class" },
+        "resolution_source_class": { "$ref": "#/$defs/resolution_source_class" },
+        "reopen_eligibility_class": { "$ref": "#/$defs/reopen_eligibility_class" },
+        "publish_eligibility_class": { "$ref": "#/$defs/publish_eligibility_class" },
+        "diff_fingerprints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diff_fingerprint_entry" },
+          "description": "Ordered set of fingerprint blocks. minItems = 1 enforces diff_fingerprint_required_at_least_one mechanically so a resolution row never claims freshness without a binding to the bytes the finding was minted against."
+        },
+        "predecessor_resolution_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when resolution_state_class is superseded_by_rerun. Required (non-null) when resolution_state_class is outdated_diff_changed AND the predecessor has been archived (the row's reopen_eligibility_class is reopen_blocked_outdated_must_rerun and the rerun has not yet completed)."
+        },
+        "successor_resolution_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a successor resolution this row was superseded by (used when a rerun produced a successor)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "rationale_label": { "$ref": "#/$defs/reviewable_label" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when resolution_state_class is archived_tombstone. Null otherwise."
+        },
+        "hosted_review_inbox_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the hosted-review inbox contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "resolution_state_class in {published_local_only, published_to_review_destination} MUST cite a non-null publish_to_review_sheet_id_ref.",
+          "if": {
+            "properties": {
+              "resolution_state_class": {
+                "enum": ["published_local_only", "published_to_review_destination"]
+              }
+            },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "required": ["publish_to_review_sheet_id_ref"],
+            "properties": {
+              "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          },
+          "else": {
+            "properties": {
+              "publish_to_review_sheet_id_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "resolution_state_class = superseded_by_rerun MUST cite a non-null successor_resolution_id_ref AND a non-null predecessor_resolution_id_ref (this row is the predecessor; the successor is the rerun output).",
+          "if": {
+            "properties": { "resolution_state_class": { "const": "superseded_by_rerun" } },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "required": ["successor_resolution_id_ref"],
+            "properties": {
+              "successor_resolution_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "resolution_state_class = archived_tombstone MUST cite a non-null archived_at and MUST NOT pair with publish_eligible_* values.",
+          "if": {
+            "properties": { "resolution_state_class": { "const": "archived_tombstone" } },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "required": ["archived_at"],
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "publish_eligibility_class": {
+                "enum": [
+                  "publish_blocked_provider_write_missing_keep_local_or_export",
+                  "publish_blocked_imported_bundle_no_outbound",
+                  "publish_blocked_browser_handoff_token_only_no_outbound",
+                  "publish_blocked_redaction_failed_user_must_review",
+                  "publish_blocked_disclosure_pending_user_must_review",
+                  "publish_blocked_low_confidence_floor_unmet",
+                  "publish_blocked_outdated_lifecycle",
+                  "publish_unknown_must_block",
+                  "not_applicable_local_only_no_publish_proposed"
+                ]
+              },
+              "reopen_eligibility_class": { "const": "reopen_blocked_archived" }
+            }
+          },
+          "else": {
+            "properties": { "archived_at": { "type": "null" } }
+          }
+        },
+        {
+          "description": "resolution_state_class in {outdated_diff_changed, rerun_recommended} MUST carry publish_eligibility_class = publish_blocked_outdated_lifecycle so the row cannot claim publish capability while the analyzed scope has drifted.",
+          "if": {
+            "properties": {
+              "resolution_state_class": { "enum": ["outdated_diff_changed", "rerun_recommended"] }
+            },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_eligibility_class": { "const": "publish_blocked_outdated_lifecycle" }
+            }
+          }
+        },
+        {
+          "description": "resolution_state_class = suppressed_by_policy MUST be sourced from admin_policy_bundle / repo_instruction_bundle_authored / designated_policy_file / trusted_workspace_pinned_policy / trusted_user_profile_policy AND MUST carry reopen_eligibility_class = reopen_blocked_suppressed_by_policy or reopen_admitted_admin_only.",
+          "if": {
+            "properties": { "resolution_state_class": { "const": "suppressed_by_policy" } },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_source_class": {
+                "enum": [
+                  "admin_policy_bundle",
+                  "repo_instruction_bundle_authored",
+                  "designated_policy_file",
+                  "trusted_workspace_pinned_policy",
+                  "trusted_user_profile_policy"
+                ]
+              },
+              "reopen_eligibility_class": {
+                "enum": [
+                  "reopen_blocked_suppressed_by_policy",
+                  "reopen_admitted_admin_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "resolution_state_class = published_to_review_destination MUST carry publish_eligibility_class in the publish_eligible_* set.",
+          "if": {
+            "properties": { "resolution_state_class": { "const": "published_to_review_destination" } },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_eligibility_class": {
+                "enum": [
+                  "publish_eligible_provider_write_admitted",
+                  "publish_eligible_under_browser_handoff",
+                  "publish_eligible_via_imported_bundle_export_packet"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "resolution_actor_class = ai_review_overlay_recording_only MUST NOT mint published_to_review_destination; the recording-only actor cannot drive a destination write.",
+          "if": {
+            "properties": { "resolution_actor_class": { "const": "ai_review_overlay_recording_only" } },
+            "required": ["resolution_actor_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_state_class": {
+                "enum": [
+                  "open",
+                  "outdated_diff_changed",
+                  "rerun_recommended",
+                  "superseded_by_rerun"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "resolution_source_class = designated_policy_file is admissible only when an upstream tainted_input_source_record (schemas/ai/tainted_input_source.schema.json) admitted policy_file_role_class = designated_policy_file with non-null signing_evidence_ref; the schema records the requirement on the denial vocabulary as designated_policy_file_source_requires_signed_policy_input.",
+          "if": {
+            "properties": { "resolution_source_class": { "const": "designated_policy_file" } },
+            "required": ["resolution_source_class"]
+          },
+          "then": {
+            "required": ["resolution_source_class"]
+          }
+        }
+      ],
+      "description": "Resolution-memory row consumed by the AI review-assist resolution panel, the local review-findings store, the matching publish_to_review_sheet, and audit / support / export. Exactly one row per finding identity (a rerun produces a successor row, not a mutation in place)."
+    },
+
+    "review_resolution_state_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_resolution_memory_schema_version",
+        "review_resolution_state_transition_id",
+        "review_resolution_id_ref",
+        "review_finding_id_ref",
+        "from_state_class",
+        "to_state_class",
+        "transition_trigger_class",
+        "actor_class",
+        "source_class",
+        "actor_ref",
+        "source_ref",
+        "reopen_action_admitted",
+        "reopen_eligibility_at_transition",
+        "publish_eligibility_at_transition",
+        "predecessor_resolution_id_ref",
+        "successor_resolution_id_ref",
+        "publish_to_review_sheet_id_ref",
+        "transitioned_at",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_resolution_state_transition_record" },
+        "review_resolution_memory_schema_version": { "$ref": "#/$defs/review_resolution_memory_schema_version" },
+        "review_resolution_state_transition_id": { "$ref": "#/$defs/opaque_id" },
+        "review_resolution_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "from_state_class": { "$ref": "#/$defs/resolution_state_class" },
+        "to_state_class": { "$ref": "#/$defs/resolution_state_class" },
+        "transition_trigger_class": { "$ref": "#/$defs/transition_trigger_class" },
+        "actor_class": { "$ref": "#/$defs/resolution_actor_class" },
+        "source_class": { "$ref": "#/$defs/resolution_source_class" },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor identity that drove the transition. Raw user identifiers, raw OAuth tokens, raw mTLS material, raw API keys never appear here."
+        },
+        "source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when source_class names a directing source other than the four mechanical-watcher / system-reconciler classes (scope_freshness_watcher / provider_overlay_watcher / rerun_engine / system_reconciler) and other than ai_review_overlay_recording_only / user_in_active_session. Cites the bundle / policy file / review-pack check / admin policy bundle that drove the transition."
+        },
+        "reopen_action_admitted": {
+          "type": "boolean",
+          "description": "True when the to_state is reachable from the from_state under the matching reopen_eligibility_at_transition value. False on a refusal-shaped transition; the audit stream records reopen_action_refused_by_eligibility on the matching denial event."
+        },
+        "reopen_eligibility_at_transition": { "$ref": "#/$defs/reopen_eligibility_class" },
+        "publish_eligibility_at_transition": { "$ref": "#/$defs/publish_eligibility_class" },
+        "predecessor_resolution_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "successor_resolution_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "publish_to_review_sheet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when to_state_class is published_local_only or published_to_review_destination."
+        },
+        "transitioned_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "to_state_class in {published_local_only, published_to_review_destination} MUST cite a non-null publish_to_review_sheet_id_ref.",
+          "if": {
+            "properties": {
+              "to_state_class": { "enum": ["published_local_only", "published_to_review_destination"] }
+            },
+            "required": ["to_state_class"]
+          },
+          "then": {
+            "required": ["publish_to_review_sheet_id_ref"],
+            "properties": { "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" } }
+          }
+        },
+        {
+          "description": "to_state_class = superseded_by_rerun MUST cite a non-null successor_resolution_id_ref.",
+          "if": {
+            "properties": { "to_state_class": { "const": "superseded_by_rerun" } },
+            "required": ["to_state_class"]
+          },
+          "then": {
+            "required": ["successor_resolution_id_ref"],
+            "properties": { "successor_resolution_id_ref": { "$ref": "#/$defs/opaque_id" } }
+          }
+        },
+        {
+          "description": "actor_class = ai_review_overlay_recording_only MUST NOT mint to_state_class = published_to_review_destination; recording-only actors cannot drive destination writes.",
+          "if": {
+            "properties": { "actor_class": { "const": "ai_review_overlay_recording_only" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "to_state_class": {
+                "enum": [
+                  "open",
+                  "outdated_diff_changed",
+                  "rerun_recommended",
+                  "superseded_by_rerun"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One state-transition row per move on the resolution-memory state machine. The row pins the from-state, to-state, trigger, actor, source, the reopen-eligibility class at the moment of the transition, and the publish-eligibility class at the moment of the transition; the resolution row then mirrors the to-state."
+    },
+
+    "review_resolution_material_diff_change_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_resolution_memory_schema_version",
+        "review_resolution_material_diff_change_id",
+        "review_resolution_id_ref",
+        "review_finding_id_ref",
+        "analyzed_scope_id_ref",
+        "successor_analyzed_scope_id_ref",
+        "material_change_verdict_class",
+        "diff_fingerprints_before",
+        "diff_fingerprints_after",
+        "forced_to_state_class",
+        "publish_eligibility_after",
+        "actor_class",
+        "actor_ref",
+        "observed_at",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_resolution_material_diff_change_record" },
+        "review_resolution_memory_schema_version": { "$ref": "#/$defs/review_resolution_memory_schema_version" },
+        "review_resolution_material_diff_change_id": { "$ref": "#/$defs/opaque_id" },
+        "review_resolution_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "analyzed_scope_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the scope row the resolution was minted against."
+        },
+        "successor_analyzed_scope_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the successor scope row that derived from the original scope. Null when the verdict is no_material_change_resolution_remains_fresh / minor_unrelated_change_resolution_remains_warm / scope_pinned_no_drift_assessable."
+        },
+        "material_change_verdict_class": { "$ref": "#/$defs/material_change_verdict_class" },
+        "diff_fingerprints_before": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diff_fingerprint_entry" }
+        },
+        "diff_fingerprints_after": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diff_fingerprint_entry" }
+        },
+        "forced_to_state_class": { "$ref": "#/$defs/resolution_state_class" },
+        "publish_eligibility_after": { "$ref": "#/$defs/publish_eligibility_class" },
+        "actor_class": { "$ref": "#/$defs/resolution_actor_class" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "material_change_verdict_class in {diff_changed_after_run_resolution_outdated, base_or_head_changed_after_run_resolution_outdated} MUST force forced_to_state_class = outdated_diff_changed and publish_eligibility_after = publish_blocked_outdated_lifecycle.",
+          "if": {
+            "properties": {
+              "material_change_verdict_class": {
+                "enum": [
+                  "diff_changed_after_run_resolution_outdated",
+                  "base_or_head_changed_after_run_resolution_outdated"
+                ]
+              }
+            },
+            "required": ["material_change_verdict_class"]
+          },
+          "then": {
+            "properties": {
+              "forced_to_state_class": { "const": "outdated_diff_changed" },
+              "publish_eligibility_after": { "const": "publish_blocked_outdated_lifecycle" }
+            },
+            "required": ["successor_analyzed_scope_id_ref"]
+          }
+        },
+        {
+          "description": "material_change_verdict_class in {provider_overlay_refreshed_resolution_rerun_recommended, review_pack_or_policy_updated_resolution_rerun_required, instruction_or_check_source_changed_resolution_rerun_required, evaluator_outage_resolution_rerun_required} MUST force forced_to_state_class = rerun_recommended and publish_eligibility_after = publish_blocked_outdated_lifecycle.",
+          "if": {
+            "properties": {
+              "material_change_verdict_class": {
+                "enum": [
+                  "provider_overlay_refreshed_resolution_rerun_recommended",
+                  "review_pack_or_policy_updated_resolution_rerun_required",
+                  "instruction_or_check_source_changed_resolution_rerun_required",
+                  "evaluator_outage_resolution_rerun_required"
+                ]
+              }
+            },
+            "required": ["material_change_verdict_class"]
+          },
+          "then": {
+            "properties": {
+              "forced_to_state_class": { "const": "rerun_recommended" },
+              "publish_eligibility_after": { "const": "publish_blocked_outdated_lifecycle" }
+            }
+          }
+        },
+        {
+          "description": "material_change_verdict_class = no_material_change_resolution_remains_fresh / minor_unrelated_change_resolution_remains_warm / scope_pinned_no_drift_assessable MUST NOT force the state out of the original; forced_to_state_class is admissible as the original (open / dismissed / published_local_only / published_to_review_destination / suppressed_by_policy / archived_tombstone / superseded_by_rerun).",
+          "if": {
+            "properties": {
+              "material_change_verdict_class": {
+                "enum": [
+                  "no_material_change_resolution_remains_fresh",
+                  "minor_unrelated_change_resolution_remains_warm",
+                  "scope_pinned_no_drift_assessable"
+                ]
+              }
+            },
+            "required": ["material_change_verdict_class"]
+          },
+          "then": {
+            "properties": {
+              "forced_to_state_class": {
+                "enum": [
+                  "open",
+                  "dismissed",
+                  "published_local_only",
+                  "published_to_review_destination",
+                  "suppressed_by_policy",
+                  "archived_tombstone",
+                  "superseded_by_rerun"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Material-diff-change row recording the verdict a watcher reached when the analyzed scope drifted. Every drift event produces exactly one row so the audit trail can reconstruct why a resolution was forced into outdated_diff_changed / rerun_recommended."
+    },
+
+    "review_resolution_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_resolution_memory_schema_version",
+        "review_resolution_audit_event_id_value",
+        "audit_event_record_id",
+        "review_resolution_id_ref",
+        "review_finding_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_resolution_audit_event_record" },
+        "review_resolution_memory_schema_version": { "$ref": "#/$defs/review_resolution_memory_schema_version" },
+        "review_resolution_audit_event_id_value": { "$ref": "#/$defs/review_resolution_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_resolution_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_to_review_sheet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_resolution_denial_reason" }
+          ],
+          "description": "Required (non-null) when review_resolution_audit_event_id_value is review_resolution_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "review_resolution_audit_event_id_value": { "const": "review_resolution_audit_denial_emitted" } },
+            "required": ["review_resolution_audit_event_id_value"]
+          },
+          "then": {
+            "required": ["denial_reason"],
+            "properties": { "denial_reason": { "$ref": "#/$defs/review_resolution_denial_reason" } }
+          },
+          "else": {
+            "properties": { "denial_reason": { "type": "null" } }
+          }
+        }
+      ],
+      "description": "Audit-event row on the review_resolution stream."
+    }
+  }
+}

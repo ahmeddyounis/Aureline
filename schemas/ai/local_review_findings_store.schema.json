@@ -1,0 +1,718 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/local_review_findings_store.schema.json",
+  "title": "Aureline AI review-assist local-only finding-store and export-packet vocabulary",
+  "description": "Boundary schema for the local_review_findings_store_record, local_review_findings_export_packet_record, and local_review_findings_store_audit_event_record families frozen in docs/ai/review_resolution_memory_contract.md. Every AI review-assist finding kept on this client — whether the user dismissed it locally, kept it local because no provider write capability was held, exported it as a portable packet, or anchored it on the local review_workspace_record while waiting for a publish path to admit — resolves to exactly one local_review_findings_store_record carrying the bound finding ref, the analyzed scope ref, the resolution-memory ref, the diff-fingerprint binding (so a material-change watcher can invalidate the local copy when the bytes underneath the finding move), the provider/model identity refs (so the local copy remains accountable to the provider entry, model entry, and external-tool entry the run was bound to), the policy/trust context refs (so the local copy remains accountable to the policy epoch and workspace-trust state at the moment of mint), the publish-eligibility class on this client (so the local copy never claims publish capability the client does not actually hold), the storage-authority class (always user_owned_recovery_state for local review findings; admin policy MAY narrow to admin_or_control_artifact for org-policy-suppressed cases), the delete-posture class (delete_clears_local_only / delete_clears_local_and_managed / delete_blocks_on_hold / delete_request_supported_with_destruction_receipt), the export-posture class (exportable_as_user_visible / exportable_metadata_only / exportable_as_evidence_packet / not_exportable_local_authority_only / not_exportable_secret_adjacent), and the retention-posture class (workspace_scoped / user_pin_only / case_close_or_archive / never_gc_authoritative). The export-packet record projects the local store row into a portable packet that preserves analyzed scope, diff fingerprint, provider/model identity, policy/trust context, and publish eligibility WITHOUT pretending publication succeeded; an export packet whose source store row carries publish_blocked_provider_write_missing_keep_local_or_export MUST carry export_publish_state_class = export_records_publish_was_not_performed and MUST NOT carry the export_records_publish_was_performed value, and the schema enforces that pairing through an allOf gate. The schema composes with (and does not replace) schemas/ai/review_finding.schema.json (the bound finding row), schemas/ai/review_scope_selection.schema.json (the analyzed scope row), schemas/ai/review_resolution_memory.schema.json (the bound resolution row), schemas/ai/publish_to_review_sheet.schema.json (the publish path the local row's eligibility cites), schemas/ai/provider_registry.schema.json (the bound provider entry), schemas/ai/model_registry.schema.json (the bound model entry), schemas/ai/external_tool_registry.schema.json (the bound external-tool entries), schemas/ai/memory_object.schema.json (the storage-authority / delete-posture / export-posture / retention-posture vocabulary mirrored verbatim), schemas/governance/capability_lifecycle.schema.json (freshness_class / client_scope / redaction_class), and schemas/governance/delete_request_state.schema.json (the delete-request lifecycle the local store admits). Raw outbound text bodies, raw inline-suggestion patch bodies, raw check-annotation payloads, raw provider URLs, raw provider-thread URLs, raw author identity strings, raw notebook cell text, raw diff bodies, raw terminal bytes, raw prompt text, raw URLs, raw absolute paths, raw branch / commit URLs, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw embeddings, and raw provider payloads MUST NOT appear on any record emitted against this schema; every preview is a redaction-aware reviewable label or an opaque ref. The eventual review-assist crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, storage-authority class, delete-posture class, export-posture class, retention-posture class, publish-eligibility class, export-publish-state class, export-disclosure class, denial reason, or audit-event id is additive-minor and bumps local_review_findings_store_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/local_review_findings_store_record" },
+    { "$ref": "#/$defs/local_review_findings_export_packet_record" },
+    { "$ref": "#/$defs/local_review_findings_store_audit_event_record" }
+  ],
+  "$defs": {
+    "local_review_findings_store_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the local-review-findings-store vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "local_review_findings_store_record",
+        "local_review_findings_export_packet_record",
+        "local_review_findings_store_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-reconciliation consoles. Raw outbound text bodies, raw inline-suggestion patch bodies, raw check-annotation payloads, raw provider URLs, raw provider-thread URLs, raw author identity strings, raw notebook cell text, raw diff bodies, raw terminal bytes, raw prompt text, raw URLs, raw absolute paths, raw branch / commit URLs, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw embeddings, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for store inspectors, export readouts, support bundles, and audit exports. Never carries the raw payload byte stream beyond what the broker-owned redaction pass (ADR-0007) admits."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Local-store rows touching credentialed flows MUST raise to operator_only_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "unset_pending_decision"]
+        }
+      },
+      "description": "Policy context the local-store row was minted under. The bound finding's policy_context MUST match these refs at the moment of mint."
+    },
+
+    "storage_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_owned_recovery_state",
+        "admin_or_control_artifact"
+      ],
+      "description": "Storage-authority vocabulary for the local review-findings store. Mirrored from schemas/ai/memory_object.schema.json storage_authority_class but narrowed to the two authority classes the local store may carry. user_owned_recovery_state is the default for local review findings (delete is local-only by default). admin_or_control_artifact is admissible only when the row is org-policy-suppressed (suppressed_by_policy in the bound resolution row) so admin policy can hold the row through an admin policy bundle."
+    },
+
+    "delete_posture_class": {
+      "type": "string",
+      "enum": [
+        "delete_clears_local_only",
+        "delete_clears_local_and_managed",
+        "delete_blocks_on_hold",
+        "delete_request_supported_with_destruction_receipt",
+        "delete_denied_class_immutable",
+        "delete_denied_evidence_packet_overrides"
+      ],
+      "description": "Frozen delete-posture vocabulary, mirrored verbatim from schemas/ai/memory_object.schema.json delete_posture_class. delete_clears_local_only is the default for local review findings; delete_blocks_on_hold fires when the row is bound to a legal / support / retention-minimum hold; delete_request_supported_with_destruction_receipt fires when the row is on a managed copy that requires a destruction receipt; delete_denied_class_immutable fires for org-policy-suppressed rows whose admin policy bundle refuses generic delete; delete_denied_evidence_packet_overrides fires when the row is bound to a retained evidence packet and the packet's delete posture wins."
+    },
+
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "exportable_as_user_visible",
+        "exportable_metadata_only",
+        "exportable_as_evidence_packet",
+        "not_exportable_local_authority_only",
+        "not_exportable_secret_adjacent"
+      ],
+      "description": "Frozen export-posture vocabulary. Mirrored from schemas/ai/memory_object.schema.json export_posture_class but narrowed (the not_exportable_regeneratable_only value does not apply to review findings; review findings are not regeneratable in the same sense as derived caches)."
+    },
+
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scoped",
+        "user_pin_only",
+        "case_close_or_archive",
+        "never_gc_authoritative"
+      ],
+      "description": "Frozen retention-posture vocabulary for local review findings. Mirrored from schemas/ai/memory_object.schema.json retention_posture_class but narrowed to the four classes the local review-findings store may carry."
+    },
+
+    "publish_eligibility_class": {
+      "type": "string",
+      "enum": [
+        "publish_eligible_provider_write_admitted",
+        "publish_eligible_under_browser_handoff",
+        "publish_eligible_under_browser_handoff_pending_block_publish",
+        "publish_eligible_via_imported_bundle_export_packet",
+        "publish_blocked_provider_write_missing_keep_local_or_export",
+        "publish_blocked_imported_bundle_no_outbound",
+        "publish_blocked_browser_handoff_token_only_no_outbound",
+        "publish_blocked_redaction_failed_user_must_review",
+        "publish_blocked_disclosure_pending_user_must_review",
+        "publish_blocked_low_confidence_floor_unmet",
+        "publish_blocked_outdated_lifecycle",
+        "publish_unknown_must_block",
+        "not_applicable_local_only_no_publish_proposed"
+      ],
+      "description": "Frozen publish-eligibility vocabulary, mirrored verbatim from schemas/ai/review_resolution_memory.schema.json publish_eligibility_class so the local store row never disagrees with the bound resolution row about whether publish is admitted."
+    },
+
+    "export_publish_state_class": {
+      "type": "string",
+      "enum": [
+        "export_records_publish_was_performed",
+        "export_records_publish_was_not_performed",
+        "export_records_publish_blocked_kept_local",
+        "export_records_publish_blocked_redaction_user_must_review",
+        "export_records_publish_blocked_disclosure_pending",
+        "export_records_publish_blocked_outdated_lifecycle",
+        "export_records_publish_blocked_low_confidence_floor",
+        "export_records_local_only_no_publish_proposed"
+      ],
+      "description": "Frozen export-publish-state vocabulary on the export packet. The packet records what actually happened on this client; it never paints publish as having succeeded when it did not. export_records_publish_was_performed is admissible only when the bound publish-to-review sheet recorded publish_to_destination AND the resolution-memory row carries published_to_review_destination. The remaining values name the typed local-only / blocked outcomes the export packet preserves."
+    },
+
+    "export_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "discloses_provider_model_identity_and_publish_state",
+        "discloses_metadata_only_redaction_required",
+        "discloses_evidence_packet_only",
+        "redaction_required_user_must_review_before_export",
+        "export_blocked_secret_adjacent_user_must_review"
+      ],
+      "description": "Frozen export-disclosure vocabulary on the export packet. Names what the packet discloses about the bound finding / scope / provider / publish-state and what the user must review before the packet leaves this client. redaction_required_user_must_review_before_export and export_blocked_secret_adjacent_user_must_review are refusal-shaped values; the packet MUST NOT cross the boundary while either is set."
+    },
+
+    "delete_request_lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "no_delete_request_pending",
+        "delete_requested_local_only",
+        "delete_requested_local_and_managed",
+        "delete_blocked_on_hold_pending_release",
+        "delete_completed_destruction_receipt_emitted",
+        "delete_denied_class_immutable_admin_review_required",
+        "delete_denied_evidence_packet_overrides_packet_governs"
+      ],
+      "description": "Frozen delete-request-lifecycle vocabulary on the local store row. Mirrors schemas/governance/delete_request_state.schema.json transitions but narrowed to the lifecycle a review-finding store row can carry."
+    },
+
+    "local_review_findings_store_denial_reason": {
+      "type": "string",
+      "enum": [
+        "review_finding_id_ref_required",
+        "review_resolution_id_ref_required",
+        "analyzed_scope_id_ref_required",
+        "diff_fingerprint_required_at_least_one",
+        "provider_entry_or_model_entry_ref_required",
+        "publish_eligibility_must_match_resolution_row",
+        "storage_authority_class_must_be_admin_for_suppressed_by_policy",
+        "delete_posture_class_must_be_blocked_under_active_hold",
+        "export_publish_state_must_record_publish_was_not_performed_when_publish_blocked",
+        "export_disclosure_class_must_block_export_when_redaction_required",
+        "raw_payload_body_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "local_review_findings_store_record_required_field_missing",
+        "local_review_findings_store_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the local-review-findings-store audit stream. Denials fail closed; silent downgrade to a freshly-painted local row, an undisclosed export packet, or a publish_records_publish_was_performed claim under publish_blocked_* eligibility is forbidden."
+    },
+
+    "local_review_findings_store_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "local_review_findings_store_record_minted",
+        "local_review_findings_store_record_updated",
+        "local_review_findings_store_record_publish_eligibility_changed",
+        "local_review_findings_store_record_diff_fingerprint_invalidated",
+        "local_review_findings_store_record_delete_requested",
+        "local_review_findings_store_record_delete_completed",
+        "local_review_findings_store_record_delete_blocked_on_hold",
+        "local_review_findings_store_record_delete_denied_class_immutable",
+        "local_review_findings_export_packet_assembled",
+        "local_review_findings_export_packet_blocked_redaction_required",
+        "local_review_findings_export_packet_blocked_secret_adjacent",
+        "local_review_findings_store_record_archived",
+        "local_review_findings_store_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the local-review-findings-store stream. local_review_findings_store_audit_denial_emitted MUST cite a local_review_findings_store_denial_reason."
+    },
+
+    "diff_fingerprint_kind": {
+      "type": "string",
+      "enum": [
+        "head_revision_id_ref",
+        "base_revision_id_ref",
+        "selected_diff_range_signature_ref",
+        "uncommitted_index_signature_ref",
+        "provider_pull_or_merge_request_head_ref",
+        "imported_bundle_envelope_pin_ref",
+        "browser_handoff_packet_pin_ref",
+        "review_pack_evaluation_input_signature_ref",
+        "policy_epoch_ref",
+        "instruction_or_check_source_signature_ref"
+      ],
+      "description": "Frozen diff-fingerprint-kind vocabulary, mirrored verbatim from schemas/ai/review_resolution_memory.schema.json diff_fingerprint_kind."
+    },
+
+    "diff_fingerprint_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diff_fingerprint_kind", "diff_fingerprint_ref"],
+      "properties": {
+        "diff_fingerprint_kind": { "$ref": "#/$defs/diff_fingerprint_kind" },
+        "diff_fingerprint_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "provider_model_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_entry_ref",
+        "model_entry_ref",
+        "external_tool_entry_refs",
+        "execution_locus_class"
+      ],
+      "properties": {
+        "provider_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/provider_registry.schema.json provider_entry_record the run was bound to."
+        },
+        "model_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/model_registry.schema.json model_entry_record the run was bound to."
+        },
+        "external_tool_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the schemas/ai/external_tool_registry.schema.json external_tool_entry_record entries the run cited. Empty when the run cited no external tools."
+        },
+        "execution_locus_class": {
+          "type": "string",
+          "enum": [
+            "local_only",
+            "managed_first_party_service",
+            "third_party_provider_routed",
+            "browser_handoff_routed",
+            "imported_bundle_replayed_no_external_call",
+            "unknown_must_block"
+          ],
+          "description": "Mirrors the schemas/ai/provider_registry.schema.json execution-locus vocabulary so the local-store row records where the run executed without re-mining the provider routing."
+        }
+      },
+      "description": "Provider / model identity binding the local-store row records so the row remains accountable to the provider entry, model entry, and external-tool entries the run was bound to."
+    },
+
+    "local_review_findings_store_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_review_findings_store_schema_version",
+        "local_review_findings_store_record_id",
+        "review_finding_id_ref",
+        "review_resolution_id_ref",
+        "analyzed_scope_id_ref",
+        "review_workspace_id_ref",
+        "publish_to_review_sheet_id_ref",
+        "diff_fingerprints",
+        "provider_model_identity",
+        "publish_eligibility_class",
+        "storage_authority_class",
+        "delete_posture_class",
+        "export_posture_class",
+        "retention_posture_class",
+        "delete_request_lifecycle_class",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "minted_at",
+        "updated_at",
+        "archived_at",
+        "hosted_review_inbox_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "local_review_findings_store_record" },
+        "local_review_findings_store_schema_version": { "$ref": "#/$defs/local_review_findings_store_schema_version" },
+        "local_review_findings_store_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_finding.schema.json review_finding_record this local row binds. Required (non-null); a missing ref denies with review_finding_id_ref_required."
+        },
+        "review_resolution_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_resolution_memory.schema.json review_resolution_record the local row records resolution memory through. Required (non-null)."
+        },
+        "analyzed_scope_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_scope_selection.schema.json review_scope_selection_record the bound finding was minted under. Required (non-null)."
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/vcs/review_workspace.schema.json review_workspace_record the local row belongs to."
+        },
+        "publish_to_review_sheet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when publish_eligibility_class is one of the publish_eligible_* values OR when publish_eligibility_class is one of the publish_blocked_* values that require a publish-sheet refusal record. Null when publish_eligibility_class is not_applicable_local_only_no_publish_proposed."
+        },
+        "diff_fingerprints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diff_fingerprint_entry" },
+          "description": "Ordered set of fingerprint blocks. minItems = 1 enforces diff_fingerprint_required_at_least_one mechanically so the local row never claims freshness without a binding to the bytes the finding was minted against."
+        },
+        "provider_model_identity": { "$ref": "#/$defs/provider_model_identity" },
+        "publish_eligibility_class": { "$ref": "#/$defs/publish_eligibility_class" },
+        "storage_authority_class": { "$ref": "#/$defs/storage_authority_class" },
+        "delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "delete_request_lifecycle_class": { "$ref": "#/$defs/delete_request_lifecycle_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "hosted_review_inbox_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the hosted-review inbox contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "publish_eligibility_class = not_applicable_local_only_no_publish_proposed MUST carry publish_to_review_sheet_id_ref = null.",
+          "if": {
+            "properties": { "publish_eligibility_class": { "const": "not_applicable_local_only_no_publish_proposed" } },
+            "required": ["publish_eligibility_class"]
+          },
+          "then": {
+            "properties": { "publish_to_review_sheet_id_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "publish_eligibility_class in the publish_eligible_* set MUST cite a non-null publish_to_review_sheet_id_ref.",
+          "if": {
+            "properties": {
+              "publish_eligibility_class": {
+                "enum": [
+                  "publish_eligible_provider_write_admitted",
+                  "publish_eligible_under_browser_handoff",
+                  "publish_eligible_under_browser_handoff_pending_block_publish",
+                  "publish_eligible_via_imported_bundle_export_packet"
+                ]
+              }
+            },
+            "required": ["publish_eligibility_class"]
+          },
+          "then": {
+            "required": ["publish_to_review_sheet_id_ref"],
+            "properties": { "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" } }
+          }
+        },
+        {
+          "description": "delete_posture_class = delete_blocks_on_hold MUST pair with delete_request_lifecycle_class = delete_blocked_on_hold_pending_release.",
+          "if": {
+            "properties": { "delete_posture_class": { "const": "delete_blocks_on_hold" } },
+            "required": ["delete_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "delete_request_lifecycle_class": {
+                "enum": [
+                  "no_delete_request_pending",
+                  "delete_blocked_on_hold_pending_release"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "storage_authority_class = admin_or_control_artifact MUST pair with delete_posture_class in {delete_denied_class_immutable, delete_blocks_on_hold, delete_request_supported_with_destruction_receipt}.",
+          "if": {
+            "properties": { "storage_authority_class": { "const": "admin_or_control_artifact" } },
+            "required": ["storage_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "delete_posture_class": {
+                "enum": [
+                  "delete_denied_class_immutable",
+                  "delete_blocks_on_hold",
+                  "delete_request_supported_with_destruction_receipt"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "archived_at is required (non-null) when retention_posture_class = case_close_or_archive AND the row has been archived.",
+          "if": {
+            "properties": {
+              "delete_request_lifecycle_class": { "const": "delete_completed_destruction_receipt_emitted" }
+            },
+            "required": ["delete_request_lifecycle_class"]
+          },
+          "then": {
+            "required": ["archived_at"],
+            "properties": { "archived_at": { "$ref": "#/$defs/monotonic_timestamp" } }
+          }
+        }
+      ],
+      "description": "Local-only finding store row consumed by the AI review-assist resolution panel, the export-packet assembler, the delete-request reconciler, and audit / support / export. Exactly one row per finding identity on this client; rerun produces a successor row, never a mutation in place."
+    },
+
+    "local_review_findings_export_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_review_findings_store_schema_version",
+        "local_review_findings_export_packet_id",
+        "local_review_findings_store_record_id_ref",
+        "review_finding_id_ref",
+        "review_resolution_id_ref",
+        "analyzed_scope_id_ref",
+        "publish_to_review_sheet_id_ref",
+        "diff_fingerprints",
+        "provider_model_identity",
+        "publish_eligibility_class",
+        "export_publish_state_class",
+        "export_disclosure_class",
+        "export_posture_class",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "assembled_at",
+        "actor_ref",
+        "command_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "local_review_findings_export_packet_record" },
+        "local_review_findings_store_schema_version": { "$ref": "#/$defs/local_review_findings_store_schema_version" },
+        "local_review_findings_export_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "local_review_findings_store_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_resolution_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "analyzed_scope_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_to_review_sheet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "diff_fingerprints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diff_fingerprint_entry" }
+        },
+        "provider_model_identity": { "$ref": "#/$defs/provider_model_identity" },
+        "publish_eligibility_class": { "$ref": "#/$defs/publish_eligibility_class" },
+        "export_publish_state_class": { "$ref": "#/$defs/export_publish_state_class" },
+        "export_disclosure_class": { "$ref": "#/$defs/export_disclosure_class" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "assembled_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "publish_eligibility_class in the publish_blocked_* set MUST NOT carry export_publish_state_class = export_records_publish_was_performed.",
+          "if": {
+            "properties": {
+              "publish_eligibility_class": {
+                "enum": [
+                  "publish_blocked_provider_write_missing_keep_local_or_export",
+                  "publish_blocked_imported_bundle_no_outbound",
+                  "publish_blocked_browser_handoff_token_only_no_outbound",
+                  "publish_blocked_redaction_failed_user_must_review",
+                  "publish_blocked_disclosure_pending_user_must_review",
+                  "publish_blocked_low_confidence_floor_unmet",
+                  "publish_blocked_outdated_lifecycle",
+                  "publish_unknown_must_block"
+                ]
+              }
+            },
+            "required": ["publish_eligibility_class"]
+          },
+          "then": {
+            "properties": {
+              "export_publish_state_class": {
+                "enum": [
+                  "export_records_publish_was_not_performed",
+                  "export_records_publish_blocked_kept_local",
+                  "export_records_publish_blocked_redaction_user_must_review",
+                  "export_records_publish_blocked_disclosure_pending",
+                  "export_records_publish_blocked_outdated_lifecycle",
+                  "export_records_publish_blocked_low_confidence_floor"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "publish_eligibility_class = not_applicable_local_only_no_publish_proposed MUST carry export_publish_state_class = export_records_local_only_no_publish_proposed.",
+          "if": {
+            "properties": { "publish_eligibility_class": { "const": "not_applicable_local_only_no_publish_proposed" } },
+            "required": ["publish_eligibility_class"]
+          },
+          "then": {
+            "properties": {
+              "export_publish_state_class": { "const": "export_records_local_only_no_publish_proposed" }
+            }
+          }
+        },
+        {
+          "description": "publish_eligibility_class in the publish_eligible_* set AND export_publish_state_class = export_records_publish_was_performed MUST cite a non-null publish_to_review_sheet_id_ref.",
+          "if": {
+            "properties": { "export_publish_state_class": { "const": "export_records_publish_was_performed" } },
+            "required": ["export_publish_state_class"]
+          },
+          "then": {
+            "required": ["publish_to_review_sheet_id_ref"],
+            "properties": {
+              "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" },
+              "publish_eligibility_class": {
+                "enum": [
+                  "publish_eligible_provider_write_admitted",
+                  "publish_eligible_under_browser_handoff",
+                  "publish_eligible_via_imported_bundle_export_packet"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "export_disclosure_class in {redaction_required_user_must_review_before_export, export_blocked_secret_adjacent_user_must_review} MUST refuse export; the packet MUST NOT cross the boundary while either is set. The packet may still be assembled for user review, but the audit stream records local_review_findings_export_packet_blocked_redaction_required or local_review_findings_export_packet_blocked_secret_adjacent rather than local_review_findings_export_packet_assembled.",
+          "if": {
+            "properties": {
+              "export_disclosure_class": {
+                "enum": [
+                  "redaction_required_user_must_review_before_export",
+                  "export_blocked_secret_adjacent_user_must_review"
+                ]
+              }
+            },
+            "required": ["export_disclosure_class"]
+          },
+          "then": {
+            "properties": {
+              "export_posture_class": {
+                "enum": [
+                  "exportable_metadata_only",
+                  "not_exportable_secret_adjacent",
+                  "not_exportable_local_authority_only"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Export-packet row projecting a local_review_findings_store_record into a portable packet that preserves analyzed scope, diff fingerprint, provider/model identity, policy/trust context, and publish eligibility WITHOUT pretending publication succeeded. Exactly one packet per (store row, assembly time)."
+    },
+
+    "local_review_findings_store_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_review_findings_store_schema_version",
+        "local_review_findings_store_audit_event_id_value",
+        "audit_event_record_id",
+        "local_review_findings_store_record_id_ref",
+        "review_finding_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "local_review_findings_store_audit_event_record" },
+        "local_review_findings_store_schema_version": { "$ref": "#/$defs/local_review_findings_store_schema_version" },
+        "local_review_findings_store_audit_event_id_value": { "$ref": "#/$defs/local_review_findings_store_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "local_review_findings_store_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "local_review_findings_export_packet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/local_review_findings_store_denial_reason" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "local_review_findings_store_audit_event_id_value": { "const": "local_review_findings_store_audit_denial_emitted" } },
+            "required": ["local_review_findings_store_audit_event_id_value"]
+          },
+          "then": {
+            "required": ["denial_reason"],
+            "properties": { "denial_reason": { "$ref": "#/$defs/local_review_findings_store_denial_reason" } }
+          },
+          "else": {
+            "properties": { "denial_reason": { "type": "null" } }
+          }
+        }
+      ],
+      "description": "Audit-event row on the local-review-findings-store stream."
+    }
+  }
+}

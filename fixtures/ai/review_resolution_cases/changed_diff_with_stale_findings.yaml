@@ -1,0 +1,358 @@
+# yaml-language-server: $schema=../../../schemas/ai/review_resolution_memory.schema.json
+__fixture__:
+  name: changed_diff_with_stale_findings
+  scenario: >
+    Two prior findings exist on a hosted_review_object scope. The
+    author force-pushes a new head; the scope-freshness watcher
+    fires base_or_head_changed_after_run_resolution_outdated on the
+    first finding (forcing it into outdated_diff_changed) and
+    provider_overlay_refreshed_resolution_rerun_recommended on the
+    second (forcing it into rerun_recommended). Neither resolution
+    paints itself as visually fresh; both carry
+    publish_eligibility_class = publish_blocked_outdated_lifecycle.
+    The local store rows record the diff_fingerprint_invalidated
+    event so a later session can reconstruct why the resolutions
+    became stale.
+  exercised_contract_sections:
+    - section_1_resolution_memory_state_machine
+    - section_2_material_diff_change_rules
+    - section_3_local_only_finding_store
+  exercised_classes:
+    resolution_state_classes:
+      - open
+      - outdated_diff_changed
+      - rerun_recommended
+    resolution_actor_classes:
+      - provider_overlay_watcher
+      - scope_freshness_watcher
+    resolution_source_classes:
+      - provider_overlay_watcher
+      - scope_freshness_watcher
+    reopen_eligibility_classes:
+      - not_applicable_state_admits_open_action_directly
+    publish_eligibility_classes:
+      - publish_blocked_outdated_lifecycle
+    diff_fingerprint_kinds:
+      - head_revision_id_ref
+      - base_revision_id_ref
+      - provider_pull_or_merge_request_head_ref
+      - review_pack_evaluation_input_signature_ref
+    transition_trigger_classes:
+      - scope_freshness_base_or_head_changed
+      - scope_freshness_provider_overlay_refreshed
+    material_change_verdict_classes:
+      - base_or_head_changed_after_run_resolution_outdated
+      - provider_overlay_refreshed_resolution_rerun_recommended
+    storage_authority_classes:
+      - user_owned_recovery_state
+    delete_posture_classes:
+      - delete_clears_local_only
+    export_posture_classes:
+      - exportable_as_user_visible
+    retention_posture_classes:
+      - workspace_scoped
+    delete_request_lifecycle_classes:
+      - no_delete_request_pending
+    audit_event_ids:
+      - review_resolution_minted
+      - review_resolution_marked_outdated_after_base_or_head_change
+      - review_resolution_rerun_recommended
+      - review_resolution_material_diff_change_recorded
+      - local_review_findings_store_record_diff_fingerprint_invalidated
+---
+# Resolution A: outdated_diff_changed after base/head moved.
+record_kind: review_resolution_record
+review_resolution_memory_schema_version: 1
+review_resolution_id: ai:review-resolution:changed-diff-stale:A:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:A:01
+review_workspace_id_ref: vcs:review-workspace:changed-diff-stale:01
+analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:predecessor:01
+local_review_findings_store_record_id_ref: ai:local-review-store:changed-diff-stale:A:01
+publish_to_review_sheet_id_ref: null
+resolution_state_class: outdated_diff_changed
+resolution_actor_class: provider_overlay_watcher
+resolution_source_class: provider_overlay_watcher
+reopen_eligibility_class: not_applicable_state_admits_open_action_directly
+publish_eligibility_class: publish_blocked_outdated_lifecycle
+diff_fingerprints:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+  - diff_fingerprint_kind: provider_pull_or_merge_request_head_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+predecessor_resolution_id_ref: null
+successor_resolution_id_ref: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+client_scopes: [desktop_product]
+redaction_class: metadata_safe_default
+freshness_class: warm_cached
+summary_label: "Resolution A: outdated_diff_changed after force-push moved head"
+rationale_label: >-
+  The hosted PR head moved after the initial run; the analyzed
+  slice no longer matches the current head. Publish is blocked
+  under the outdated-lifecycle floor; the user must rerun before
+  the matching finding can be published.
+minted_at: "2026-04-30T17:00:00Z"
+updated_at: "2026-04-30T17:30:00Z"
+archived_at: null
+hosted_review_inbox_record_id_ref: null
+---
+# Resolution B: rerun_recommended after provider overlay refreshed.
+record_kind: review_resolution_record
+review_resolution_memory_schema_version: 1
+review_resolution_id: ai:review-resolution:changed-diff-stale:B:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:B:01
+review_workspace_id_ref: vcs:review-workspace:changed-diff-stale:01
+analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:predecessor:01
+local_review_findings_store_record_id_ref: ai:local-review-store:changed-diff-stale:B:01
+publish_to_review_sheet_id_ref: null
+resolution_state_class: rerun_recommended
+resolution_actor_class: scope_freshness_watcher
+resolution_source_class: scope_freshness_watcher
+reopen_eligibility_class: not_applicable_state_admits_open_action_directly
+publish_eligibility_class: publish_blocked_outdated_lifecycle
+diff_fingerprints:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:changed-diff-stale:initial:01
+predecessor_resolution_id_ref: null
+successor_resolution_id_ref: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+client_scopes: [desktop_product]
+redaction_class: metadata_safe_default
+freshness_class: warm_cached
+summary_label: "Resolution B: rerun_recommended after provider overlay refreshed"
+rationale_label: >-
+  The provider overlay refreshed after the initial run; the
+  scope-freshness watcher recommends a rerun before publish. Publish
+  is blocked under the outdated-lifecycle floor.
+minted_at: "2026-04-30T17:00:00Z"
+updated_at: "2026-04-30T17:30:00Z"
+archived_at: null
+hosted_review_inbox_record_id_ref: null
+---
+# Material-diff-change record A: base/head moved -> outdated_diff_changed.
+record_kind: review_resolution_material_diff_change_record
+review_resolution_memory_schema_version: 1
+review_resolution_material_diff_change_id: ai:review-resolution-material-change:changed-diff-stale:A:01
+review_resolution_id_ref: ai:review-resolution:changed-diff-stale:A:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:A:01
+analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:predecessor:01
+successor_analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:successor:01
+material_change_verdict_class: base_or_head_changed_after_run_resolution_outdated
+diff_fingerprints_before:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+  - diff_fingerprint_kind: provider_pull_or_merge_request_head_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+diff_fingerprints_after:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:new-head-after-force-push:01
+  - diff_fingerprint_kind: provider_pull_or_merge_request_head_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:new-head-after-force-push:01
+forced_to_state_class: outdated_diff_changed
+publish_eligibility_after: publish_blocked_outdated_lifecycle
+actor_class: provider_overlay_watcher
+actor_ref: actor:provider-overlay-watcher:changed-diff-stale:01
+observed_at: "2026-04-30T17:30:00Z"
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Material change A: base/head moved after force-push -> outdated_diff_changed"
+---
+# Material-diff-change record B: provider overlay refreshed -> rerun_recommended.
+record_kind: review_resolution_material_diff_change_record
+review_resolution_memory_schema_version: 1
+review_resolution_material_diff_change_id: ai:review-resolution-material-change:changed-diff-stale:B:01
+review_resolution_id_ref: ai:review-resolution:changed-diff-stale:B:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:B:01
+analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:predecessor:01
+successor_analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:successor:01
+material_change_verdict_class: provider_overlay_refreshed_resolution_rerun_recommended
+diff_fingerprints_before:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:changed-diff-stale:initial:01
+diff_fingerprints_after:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:new-head-after-force-push:01
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:changed-diff-stale:after-overlay-refresh:01
+forced_to_state_class: rerun_recommended
+publish_eligibility_after: publish_blocked_outdated_lifecycle
+actor_class: scope_freshness_watcher
+actor_ref: actor:scope-freshness-watcher:changed-diff-stale:01
+observed_at: "2026-04-30T17:30:30Z"
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Material change B: provider overlay refreshed -> rerun_recommended"
+---
+# Local store row A: diff fingerprints invalidated.
+record_kind: local_review_findings_store_record
+local_review_findings_store_schema_version: 1
+local_review_findings_store_record_id: ai:local-review-store:changed-diff-stale:A:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:A:01
+review_resolution_id_ref: ai:review-resolution:changed-diff-stale:A:01
+analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:predecessor:01
+review_workspace_id_ref: vcs:review-workspace:changed-diff-stale:01
+publish_to_review_sheet_id_ref: null
+diff_fingerprints:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+  - diff_fingerprint_kind: provider_pull_or_merge_request_head_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+provider_model_identity:
+  provider_entry_ref: ai:provider-entry:changed-diff-stale:default
+  model_entry_ref: ai:model-entry:changed-diff-stale:default
+  external_tool_entry_refs: []
+  execution_locus_class: managed_first_party_service
+publish_eligibility_class: publish_blocked_outdated_lifecycle
+storage_authority_class: user_owned_recovery_state
+delete_posture_class: delete_clears_local_only
+export_posture_class: exportable_as_user_visible
+retention_posture_class: workspace_scoped
+delete_request_lifecycle_class: no_delete_request_pending
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+client_scopes: [desktop_product]
+redaction_class: metadata_safe_default
+freshness_class: warm_cached
+summary_label: "Local store row A: outdated_diff_changed (head moved)"
+minted_at: "2026-04-30T17:00:00Z"
+updated_at: "2026-04-30T17:30:00Z"
+archived_at: null
+hosted_review_inbox_record_id_ref: null
+---
+# Local store row B: rerun recommended after overlay refresh.
+record_kind: local_review_findings_store_record
+local_review_findings_store_schema_version: 1
+local_review_findings_store_record_id: ai:local-review-store:changed-diff-stale:B:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:B:01
+review_resolution_id_ref: ai:review-resolution:changed-diff-stale:B:01
+analyzed_scope_id_ref: ai:review-scope:changed-diff-stale:predecessor:01
+review_workspace_id_ref: vcs:review-workspace:changed-diff-stale:01
+publish_to_review_sheet_id_ref: null
+diff_fingerprints:
+  - diff_fingerprint_kind: head_revision_id_ref
+    diff_fingerprint_ref: provider:pull-request:changed-diff-stale:initial-head:01
+  - diff_fingerprint_kind: review_pack_evaluation_input_signature_ref
+    diff_fingerprint_ref: review-pack-eval-signature:changed-diff-stale:initial:01
+provider_model_identity:
+  provider_entry_ref: ai:provider-entry:changed-diff-stale:default
+  model_entry_ref: ai:model-entry:changed-diff-stale:default
+  external_tool_entry_refs: []
+  execution_locus_class: managed_first_party_service
+publish_eligibility_class: publish_blocked_outdated_lifecycle
+storage_authority_class: user_owned_recovery_state
+delete_posture_class: delete_clears_local_only
+export_posture_class: exportable_as_user_visible
+retention_posture_class: workspace_scoped
+delete_request_lifecycle_class: no_delete_request_pending
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+client_scopes: [desktop_product]
+redaction_class: metadata_safe_default
+freshness_class: warm_cached
+summary_label: "Local store row B: rerun_recommended (overlay refreshed)"
+minted_at: "2026-04-30T17:00:00Z"
+updated_at: "2026-04-30T17:30:30Z"
+archived_at: null
+hosted_review_inbox_record_id_ref: null
+---
+# Audit: resolution A marked outdated after base/head change.
+record_kind: review_resolution_audit_event_record
+review_resolution_memory_schema_version: 1
+review_resolution_audit_event_id_value: review_resolution_marked_outdated_after_base_or_head_change
+audit_event_record_id: audit:resolution-outdated:changed-diff-stale:A:01
+review_resolution_id_ref: ai:review-resolution:changed-diff-stale:A:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:A:01
+occurred_at: "2026-04-30T17:30:00Z"
+actor_ref: actor:provider-overlay-watcher:changed-diff-stale:01
+publish_to_review_sheet_id_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Resolution A marked outdated after base/head change"
+---
+# Audit: resolution B rerun recommended.
+record_kind: review_resolution_audit_event_record
+review_resolution_memory_schema_version: 1
+review_resolution_audit_event_id_value: review_resolution_rerun_recommended
+audit_event_record_id: audit:resolution-rerun-recommended:changed-diff-stale:B:01
+review_resolution_id_ref: ai:review-resolution:changed-diff-stale:B:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:B:01
+occurred_at: "2026-04-30T17:30:30Z"
+actor_ref: actor:scope-freshness-watcher:changed-diff-stale:01
+publish_to_review_sheet_id_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Resolution B rerun_recommended after provider overlay refresh"
+---
+# Audit: local store row A diff fingerprint invalidated.
+record_kind: local_review_findings_store_audit_event_record
+local_review_findings_store_schema_version: 1
+local_review_findings_store_audit_event_id_value: local_review_findings_store_record_diff_fingerprint_invalidated
+audit_event_record_id: audit:local-store-fingerprint-invalidated:changed-diff-stale:A:01
+local_review_findings_store_record_id_ref: ai:local-review-store:changed-diff-stale:A:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:A:01
+occurred_at: "2026-04-30T17:30:00Z"
+actor_ref: actor:provider-overlay-watcher:changed-diff-stale:01
+local_review_findings_export_packet_id_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Local store row A diff fingerprint invalidated (head moved)"
+---
+# Audit: local store row B diff fingerprint invalidated.
+record_kind: local_review_findings_store_audit_event_record
+local_review_findings_store_schema_version: 1
+local_review_findings_store_audit_event_id_value: local_review_findings_store_record_diff_fingerprint_invalidated
+audit_event_record_id: audit:local-store-fingerprint-invalidated:changed-diff-stale:B:01
+local_review_findings_store_record_id_ref: ai:local-review-store:changed-diff-stale:B:01
+review_finding_id_ref: ai:review-finding:changed-diff-stale:B:01
+occurred_at: "2026-04-30T17:30:30Z"
+actor_ref: actor:scope-freshness-watcher:changed-diff-stale:01
+local_review_findings_export_packet_id_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: policy-epoch:0042
+  trust_state: trusted
+  execution_context_id: execution-context:changed-diff-stale:01
+  workspace_trust_state_class: trusted
+redaction_class: metadata_safe_default
+summary_label: "Local store row B diff fingerprint invalidated (overlay refresh)"
