@@ -1,0 +1,411 @@
+# Template-health-state matrix.
+#
+# Machine-readable companion to
+#   docs/scaffolding/template_health_and_preflight_contract.md
+#
+# This file freezes the closed template_health_state_class
+# vocabulary every scaffold template card, generation preflight
+# sheet, gallery health row, and post-create handoff resolves
+# against. Surfaces never invent intermediate health states;
+# every chip on the card and every blocking sheet on the
+# preflight resolves to one row below.
+#
+# Conformance:
+#   - Every template_health_state_row names exactly one
+#     template_health_state_class.
+#   - Adding a row is additive-minor and bumps the schema
+#     version on schemas/scaffolding/template_card.schema.json
+#     and schemas/scaffolding/generation_preflight.schema.json.
+#   - Repurposing a class id is breaking and opens a new
+#     decision row in artifacts/governance/decision_index.yaml.
+#   - Every row preserves at least one bypass_path_id on every
+#     surface that renders the row. A surface that hides the
+#     open-without-starter route under any state is non-
+#     conforming and denies with
+#     create_without_starter_route_must_remain_at_equal_weight.
+#   - Every row composes with — never replaces — the upstream
+#     vocabulary frozen in
+#     docs/ux/template_and_prebuild_contract.md (§3.10
+#     template_health_signal_class, §3.11
+#     template_health_check_class) and
+#     docs/scaffolding/template_and_scaffold_contract.md (§3.10
+#     template_known_issue_class).
+#
+# Source anchors:
+#   - .t2/docs/Aureline_PRD.md (template-health, preflight,
+#     bypass-path requirements)
+#   - .t2/docs/Aureline_UI_UX_Spec_Document.md#17.7 (template-
+#     health row vocabulary)
+#   - .t2/docs/Aureline_UI_UX_Spec_Document.md#21.10 (preflight
+#     sheet vocabulary)
+#
+# If this file and
+# docs/scaffolding/template_health_and_preflight_contract.md
+# disagree, the contract doc wins and this file updates in the
+# same change.
+
+template_health_state_matrix_schema_version: 1
+
+sources:
+  contract_doc_ref: docs/scaffolding/template_health_and_preflight_contract.md
+  template_card_schema_ref: schemas/scaffolding/template_card.schema.json
+  generation_preflight_schema_ref: schemas/scaffolding/generation_preflight.schema.json
+  template_manifest_schema_ref: schemas/scaffolding/template_manifest.schema.json
+  ux_template_and_prebuild_contract_ref: docs/ux/template_and_prebuild_contract.md
+  scaffolding_template_and_scaffold_contract_ref: docs/scaffolding/template_and_scaffold_contract.md
+  fixture_corpus_dir: fixtures/scaffolding/template_preflight_cases/
+
+template_health_state_class_vocabulary:
+  - id: fresh
+    summary: >
+      Health checks recently passed against the canonical source.
+      Card is admissible for generation; preflight may apply.
+  - id: validation_pending
+    summary: >
+      Health checks have not been attempted on this surface yet
+      (e.g. cold start, never warmed). Card is admissible but the
+      preflight surfaces a not-yet-validated chip; bypass remains
+      at equal weight.
+  - id: validation_stale
+    summary: >
+      Cached health-check result whose freshness window expired.
+      Card is admissible but renders the cache-age chip (minutes /
+      hours / days / older) and the preflight surfaces the stale
+      banner. Bypass remains at equal weight.
+  - id: validation_failed
+    summary: >
+      A health check returned an invalid response or the probe
+      itself failed. Card is visible-disabled with a typed repair
+      hook; preflight is blocked with
+      preflight_blocked_validation_failed. Bypass remains at equal
+      weight.
+  - id: known_issue_active_workaround_documented
+    summary: >
+      An active known issue is documented on the manifest with a
+      typed workaround_summary_ref. Card renders the chip plus the
+      workaround in-place; preflight may apply only when the
+      workaround is acknowledged. Bypass remains at equal weight.
+  - id: known_issue_active_blocking_user_review_required
+    summary: >
+      An active blocking known issue with no documented workaround
+      that is safe to apply silently. Card is visible-disabled;
+      preflight is blocked with
+      preflight_blocked_known_issue_blocking. Bypass remains at
+      equal weight.
+  - id: deprecated
+    summary: >
+      Template lifecycle is legacy_deprecated. Card renders the
+      deprecation notice on the card chrome; the preflight may
+      apply only after the user explicitly admits the deprecation.
+      Bypass remains at equal weight.
+  - id: unsupported
+    summary: >
+      Template lifecycle is unsupported. Card is visible-disabled
+      with a typed unsupported notice; preflight is blocked with
+      preflight_blocked_unsupported. Bypass remains at equal weight.
+  - id: preview_or_experimental
+    summary: >
+      Template lifecycle is experimental. Card renders the
+      experimental chip; preflight admits apply only with explicit
+      experimental admission. Bypass remains at equal weight.
+  - id: ai_tool_proposed_pending_review
+    summary: >
+      Template was proposed by an AI tool and is pending user
+      admission. Card disposition is
+      ai_tool_proposed_pending_admission and renders the AI-
+      proposed badge; preflight is blocked with
+      preflight_pending_ai_admission and an admission ticket ref.
+      Bypass remains at equal weight.
+  - id: health_state_unknown_requires_review
+    summary: >
+      Health state could not be classified. Card is hidden or
+      visible-disabled; preflight is blocked. The escape hatch is
+      to open without starter. Bypass remains at equal weight.
+
+template_health_state_rows:
+  - template_health_state_class: fresh
+    surface_disposition:
+      card_disposition_class: card_admissible_for_generation
+      preflight_disposition_class: preflight_admissible_apply_admitted
+    blocks_generation: false
+    blocks_bypass: false
+    repair_hook_set:
+      - no_repair_required
+    upstream_signal_class_set:
+      - live
+      - cached
+    upstream_check_class_set:
+      - toolchain_compatibility
+      - os_runtime_compatibility
+      - template_freshness
+      - signature_state
+      - network_reachability
+      - dependency_manifest
+      - extension_availability
+      - policy_restriction
+    paired_known_issue_class_set:
+      - no_known_issue
+      - known_issue_resolved_in_revision
+    fixture_refs:
+      - fixtures/scaffolding/template_preflight_cases/template_card_first_party_fresh.yaml
+      - fixtures/scaffolding/template_preflight_cases/preflight_first_party_local_apply_admitted.yaml
+
+  - template_health_state_class: validation_pending
+    surface_disposition:
+      card_disposition_class: card_admissible_for_generation
+      preflight_disposition_class: preflight_dry_run_only_admitted
+    blocks_generation: false
+    blocks_bypass: false
+    repair_hook_set:
+      - run_template_health_check_now
+      - retry_after_policy_refresh
+    upstream_signal_class_set:
+      - not_checked
+    upstream_check_class_set:
+      - toolchain_compatibility
+      - template_freshness
+      - signature_state
+      - network_reachability
+    paired_known_issue_class_set:
+      - no_known_issue
+    fixture_refs: []
+
+  - template_health_state_class: validation_stale
+    surface_disposition:
+      card_disposition_class: card_admissible_for_generation
+      preflight_disposition_class: preflight_dry_run_only_admitted
+    blocks_generation: false
+    blocks_bypass: false
+    repair_hook_set:
+      - refresh_mirror_then_retry
+      - switch_to_live_origin_then_retry
+      - retry_after_policy_refresh
+    upstream_signal_class_set:
+      - cached
+      - stale_or_invalid
+    upstream_check_class_set:
+      - template_freshness
+      - signature_state
+      - dependency_manifest
+    paired_known_issue_class_set:
+      - no_known_issue
+      - known_issue_active_workaround_documented
+    fixture_refs:
+      - fixtures/scaffolding/template_preflight_cases/template_card_validation_stale_bypass_intact.yaml
+
+  - template_health_state_class: validation_failed
+    surface_disposition:
+      card_disposition_class: card_visible_disabled_validation_failed
+      preflight_disposition_class: preflight_blocked_validation_failed
+    blocks_generation: true
+    blocks_bypass: false
+    repair_hook_set:
+      - refresh_mirror_then_retry
+      - switch_to_live_origin_then_retry
+      - retry_after_policy_refresh
+      - report_to_template_owner
+    upstream_signal_class_set:
+      - stale_or_invalid
+    upstream_check_class_set:
+      - toolchain_compatibility
+      - template_freshness
+      - signature_state
+      - network_reachability
+      - dependency_manifest
+    paired_known_issue_class_set:
+      - no_known_issue
+      - known_issue_active_workaround_documented
+      - known_issue_active_blocking_user_review_required
+    paired_denial_reason_class_set:
+      - signature_review_required_user_review_required
+      - manifest_content_address_unverifiable_user_review_required
+    fixture_refs: []
+
+  - template_health_state_class: known_issue_active_workaround_documented
+    surface_disposition:
+      card_disposition_class: card_admissible_for_generation
+      preflight_disposition_class: preflight_admissible_apply_admitted
+    blocks_generation: false
+    blocks_bypass: false
+    repair_hook_set:
+      - acknowledge_known_issue_workaround
+    upstream_signal_class_set:
+      - live
+      - cached
+      - policy_evaluated
+    upstream_check_class_set:
+      - dependency_manifest
+      - extension_availability
+      - toolchain_compatibility
+    paired_known_issue_class_set:
+      - known_issue_active_workaround_documented
+      - known_issue_mitigated_by_workaround_in_template
+    fixture_refs:
+      - fixtures/scaffolding/template_preflight_cases/preflight_known_issue_workaround_acknowledged.yaml
+
+  - template_health_state_class: known_issue_active_blocking_user_review_required
+    surface_disposition:
+      card_disposition_class: card_visible_disabled_known_issue_blocking
+      preflight_disposition_class: preflight_blocked_known_issue_blocking
+    blocks_generation: true
+    blocks_bypass: false
+    repair_hook_set:
+      - acknowledge_known_issue_workaround
+      - report_to_template_owner
+    upstream_signal_class_set:
+      - live
+      - cached
+      - policy_evaluated
+    upstream_check_class_set:
+      - dependency_manifest
+      - extension_availability
+      - toolchain_compatibility
+      - policy_restriction
+    paired_known_issue_class_set:
+      - known_issue_active_blocking_user_review_required
+    fixture_refs:
+      - fixtures/scaffolding/template_preflight_cases/template_card_known_issue_blocking.yaml
+
+  - template_health_state_class: deprecated
+    surface_disposition:
+      card_disposition_class: card_admissible_for_generation
+      preflight_disposition_class: preflight_admissible_apply_admitted
+    blocks_generation: false
+    blocks_bypass: false
+    repair_hook_set:
+      - acknowledge_deprecation
+      - migrate_to_successor_template
+    upstream_signal_class_set:
+      - live
+      - cached
+      - policy_evaluated
+    upstream_check_class_set:
+      - template_freshness
+      - signature_state
+    paired_known_issue_class_set:
+      - no_known_issue
+      - known_issue_active_workaround_documented
+      - known_issue_resolved_in_revision
+    paired_support_class_set:
+      - legacy_deprecated
+    fixture_refs: []
+
+  - template_health_state_class: unsupported
+    surface_disposition:
+      card_disposition_class: card_visible_disabled_unsupported
+      preflight_disposition_class: preflight_blocked_unsupported
+    blocks_generation: true
+    blocks_bypass: false
+    repair_hook_set:
+      - migrate_to_successor_template
+      - report_to_template_owner
+    upstream_signal_class_set:
+      - live
+      - cached
+      - policy_evaluated
+    upstream_check_class_set:
+      - template_freshness
+      - signature_state
+      - policy_restriction
+    paired_known_issue_class_set:
+      - known_issue_active_workaround_documented
+      - known_issue_active_blocking_user_review_required
+      - known_issue_class_unknown_requires_review
+    paired_support_class_set:
+      - unsupported
+    fixture_refs:
+      - fixtures/scaffolding/template_preflight_cases/preflight_unsupported_template_blocked_bypass_intact.yaml
+
+  - template_health_state_class: preview_or_experimental
+    surface_disposition:
+      card_disposition_class: card_admissible_for_generation
+      preflight_disposition_class: preflight_dry_run_only_admitted
+    blocks_generation: false
+    blocks_bypass: false
+    repair_hook_set:
+      - acknowledge_experimental_admission
+    upstream_signal_class_set:
+      - live
+      - cached
+    upstream_check_class_set:
+      - template_freshness
+      - signature_state
+    paired_known_issue_class_set:
+      - no_known_issue
+      - known_issue_active_workaround_documented
+    paired_support_class_set:
+      - experimental
+    fixture_refs: []
+
+  - template_health_state_class: ai_tool_proposed_pending_review
+    surface_disposition:
+      card_disposition_class: ai_tool_proposed_pending_admission
+      preflight_disposition_class: preflight_pending_ai_admission
+    blocks_generation: true
+    blocks_bypass: false
+    repair_hook_set:
+      - admit_ai_proposed_template
+      - decline_ai_proposed_template
+    upstream_signal_class_set:
+      - not_checked
+      - policy_evaluated
+    upstream_check_class_set:
+      - signature_state
+      - policy_restriction
+    paired_known_issue_class_set:
+      - no_known_issue
+      - known_issue_class_unknown_requires_review
+    paired_denial_reason_class_set:
+      - ai_tool_proposed_template_must_not_apply_pending_review
+      - ai_tool_proposed_run_must_not_apply_pending_admission
+    fixture_refs:
+      - fixtures/scaffolding/template_preflight_cases/preflight_ai_proposed_pending_admission.yaml
+
+  - template_health_state_class: health_state_unknown_requires_review
+    surface_disposition:
+      card_disposition_class: card_hidden_review_required
+      preflight_disposition_class: preflight_disposition_class_unknown_requires_review
+    blocks_generation: true
+    blocks_bypass: false
+    repair_hook_set:
+      - report_to_template_owner
+      - run_template_health_check_now
+    upstream_signal_class_set:
+      - not_checked
+      - stale_or_invalid
+    upstream_check_class_set:
+      - toolchain_compatibility
+      - template_freshness
+      - signature_state
+      - dependency_manifest
+      - policy_restriction
+    paired_known_issue_class_set:
+      - known_issue_class_unknown_requires_review
+    fixture_refs: []
+
+required_bypass_paths_per_state:
+  description: >
+    Every template_health_state_class row preserves at least one
+    bypass_path_id at equal weight. A surface that hides every
+    bypass route under any state is non-conforming and denies
+    with create_without_starter_route_must_remain_at_equal_weight.
+    The default required set covers folder, workspace, and clone
+    fallbacks plus the create-empty-workspace and continue-
+    without-starter routes used in post-create handoffs.
+  default_required_bypass_path_ids:
+    - bypass.open_folder_without_starter
+    - bypass.open_workspace_without_starter
+    - bypass.clone_repository_without_starter
+    - bypass.create_empty_workspace
+    - bypass.continue_without_starter
+
+acceptance_mapping:
+  - acceptance_bullet: >
+      Users can inspect source/support class, trust, side effects,
+      and template health before generation.
+  - acceptance_bullet: >
+      Preflights enumerate write/dependency/execution impact
+      instead of collapsing them into a generic Create action.
+  - acceptance_bullet: >
+      Template-health warnings never remove the plain
+      open-without-starter alternative.
